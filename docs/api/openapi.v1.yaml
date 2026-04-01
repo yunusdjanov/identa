@@ -1,0 +1,1830 @@
+openapi: 3.1.0
+info:
+  title: DentalFlow API
+  version: 1.0.0
+  description: |
+    OpenAPI contract for Phase 2 backend integration.
+    This contract is authoritative for frontend/backend alignment.
+servers:
+  - url: http://localhost:8000
+    description: Local backend
+tags:
+  - name: Health
+  - name: Auth
+  - name: Patients
+  - name: Appointments
+  - name: Invoices
+  - name: Payments
+  - name: Settings
+  - name: Admin
+paths:
+  /api/v1/health:
+    get:
+      tags: [Health]
+      summary: API healthcheck
+      operationId: getHealth
+      responses:
+        "200":
+          description: Service healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+                  service:
+                    type: string
+                    example: backend
+                  timestamp:
+                    type: string
+                    format: date-time
+  /api/v1/auth/register:
+    post:
+      tags: [Auth]
+      summary: Register dentist account
+      operationId: registerDentist
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterRequest"
+      responses:
+        "201":
+          description: Registered
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserResponse"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+  /api/v1/auth/login:
+    post:
+      tags: [Auth]
+      summary: Login and create session
+      operationId: login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: Logged in
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserResponse"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+  /api/v1/auth/logout:
+    post:
+      tags: [Auth]
+      summary: Logout and revoke session
+      operationId: logout
+      security:
+        - cookieAuth: []
+      responses:
+        "204":
+          description: Logged out
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+  /api/v1/auth/forgot-password:
+    post:
+      tags: [Auth]
+      summary: Send password reset link
+      operationId: forgotPassword
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ForgotPasswordRequest"
+      responses:
+        "200":
+          description: Reset link sent
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+  /api/v1/auth/reset-password:
+    post:
+      tags: [Auth]
+      summary: Reset password using token
+      operationId: resetPassword
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ResetPasswordRequest"
+      responses:
+        "200":
+          description: Password reset successful
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+  /api/v1/auth/me:
+    get:
+      tags: [Auth]
+      summary: Current authenticated user
+      operationId: getMe
+      security:
+        - cookieAuth: []
+      responses:
+        "200":
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserResponse"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+  /api/v1/patients:
+    get:
+      tags: [Patients]
+      summary: List dentist-owned patients
+      operationId: listPatients
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PerPage"
+        - $ref: "#/components/parameters/Sort"
+        - $ref: "#/components/parameters/SearchFilter"
+        - $ref: "#/components/parameters/PatientCategoryFilter"
+        - $ref: "#/components/parameters/PatientInactiveBeforeFilter"
+      responses:
+        "200":
+          description: Paginated patients
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PatientCollectionResponse"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+    post:
+      tags: [Patients]
+      summary: Create patient
+      operationId: createPatient
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PatientUpsertRequest"
+      responses:
+        "201":
+          description: Patient created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PatientResponse"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+  /api/v1/patients/{id}:
+    get:
+      tags: [Patients]
+      summary: Get patient detail
+      operationId: getPatient
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+      responses:
+        "200":
+          description: Patient detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PatientResponse"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+    put:
+      tags: [Patients]
+      summary: Update patient
+      operationId: updatePatient
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PatientUpsertRequest"
+      responses:
+        "200":
+          description: Patient updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PatientResponse"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+    delete:
+      tags: [Patients]
+      summary: Delete patient
+      operationId: deletePatient
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+      responses:
+        "204":
+          description: Patient deleted
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+  /api/v1/patients/{id}/odontogram:
+    get:
+      tags: [Patients]
+      summary: List odontogram entries for patient
+      operationId: listPatientOdontogram
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PerPage"
+        - $ref: "#/components/parameters/Sort"
+        - $ref: "#/components/parameters/ToothNumberFilter"
+      responses:
+        "200":
+          description: Paginated odontogram entries
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OdontogramEntryCollectionResponse"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+    post:
+      tags: [Patients]
+      summary: Create odontogram entry for patient
+      operationId: createPatientOdontogramEntry
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OdontogramEntryCreateRequest"
+      responses:
+        "201":
+          description: Odontogram entry created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OdontogramEntryResponse"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+  /api/v1/patients/{id}/odontogram/summary:
+    get:
+      tags: [Patients]
+      summary: Get odontogram summary for patient detail preview
+      operationId: getPatientOdontogramSummary
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+        - $ref: "#/components/parameters/OdontogramSummaryLimitFilter"
+      responses:
+        "200":
+          description: Odontogram summary payload
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OdontogramSummaryResponse"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+  /api/v1/patients/{id}/treatments:
+    get:
+      tags: [Patients]
+      summary: List treatments for patient
+      operationId: listPatientTreatments
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PerPage"
+        - $ref: "#/components/parameters/Sort"
+      responses:
+        "200":
+          description: Paginated treatments
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TreatmentCollectionResponse"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+    post:
+      tags: [Patients]
+      summary: Create treatment for patient
+      operationId: createPatientTreatment
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TreatmentCreateRequest"
+      responses:
+        "201":
+          description: Treatment created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TreatmentResponse"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+  /api/v1/appointments:
+    get:
+      tags: [Appointments]
+      summary: List appointments
+      operationId: listAppointments
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PerPage"
+        - $ref: "#/components/parameters/Sort"
+        - $ref: "#/components/parameters/PatientIdFilter"
+        - $ref: "#/components/parameters/DateFromFilter"
+        - $ref: "#/components/parameters/DateToFilter"
+        - $ref: "#/components/parameters/StatusFilter"
+      responses:
+        "200":
+          description: Paginated appointments
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AppointmentCollectionResponse"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+    post:
+      tags: [Appointments]
+      summary: Create appointment
+      operationId: createAppointment
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AppointmentUpsertRequest"
+      responses:
+        "201":
+          description: Appointment created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AppointmentResponse"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+  /api/v1/appointments/{id}:
+    get:
+      tags: [Appointments]
+      summary: Get appointment detail
+      operationId: getAppointment
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+      responses:
+        "200":
+          description: Appointment detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AppointmentResponse"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+    put:
+      tags: [Appointments]
+      summary: Update appointment
+      operationId: updateAppointment
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AppointmentUpsertRequest"
+      responses:
+        "200":
+          description: Appointment updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AppointmentResponse"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+    delete:
+      tags: [Appointments]
+      summary: Delete appointment
+      operationId: deleteAppointment
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+      responses:
+        "204":
+          description: Appointment deleted
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+  /api/v1/invoices:
+    get:
+      tags: [Invoices]
+      summary: List invoices
+      operationId: listInvoices
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PerPage"
+        - $ref: "#/components/parameters/Sort"
+        - $ref: "#/components/parameters/PatientIdFilter"
+        - $ref: "#/components/parameters/StatusFilter"
+        - $ref: "#/components/parameters/InvoiceStatusesFilter"
+        - $ref: "#/components/parameters/SearchFilter"
+      responses:
+        "200":
+          description: Paginated invoices
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InvoiceCollectionResponse"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+    post:
+      tags: [Invoices]
+      summary: Create invoice
+      operationId: createInvoice
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InvoiceUpsertRequest"
+      responses:
+        "201":
+          description: Invoice created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InvoiceResponse"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+  /api/v1/invoices/{id}:
+    get:
+      tags: [Invoices]
+      summary: Get invoice detail
+      operationId: getInvoice
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+      responses:
+        "200":
+          description: Invoice detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InvoiceResponse"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+    put:
+      tags: [Invoices]
+      summary: Update invoice
+      operationId: updateInvoice
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InvoiceUpsertRequest"
+      responses:
+        "200":
+          description: Invoice updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InvoiceResponse"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+    delete:
+      tags: [Invoices]
+      summary: Delete invoice
+      operationId: deleteInvoice
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+      responses:
+        "204":
+          description: Invoice deleted
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+  /api/v1/payments:
+    get:
+      tags: [Payments]
+      summary: List payments
+      operationId: listPayments
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PerPage"
+        - $ref: "#/components/parameters/Sort"
+        - $ref: "#/components/parameters/PatientIdFilter"
+        - $ref: "#/components/parameters/DateFromFilter"
+        - $ref: "#/components/parameters/DateToFilter"
+        - $ref: "#/components/parameters/InvoiceIdFilter"
+      responses:
+        "200":
+          description: Paginated payments
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentCollectionResponse"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+    post:
+      tags: [Payments]
+      summary: Record invoice payment
+      operationId: createPayment
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PaymentCreateRequest"
+      responses:
+        "201":
+          description: Payment recorded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentResponse"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+  /api/v1/settings/profile:
+    get:
+      tags: [Settings]
+      summary: Get dentist profile
+      operationId: getProfile
+      security:
+        - cookieAuth: []
+      responses:
+        "200":
+          description: Profile detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProfileResponse"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+    put:
+      tags: [Settings]
+      summary: Update dentist profile
+      operationId: updateProfile
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProfileUpdateRequest"
+      responses:
+        "200":
+          description: Profile updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProfileResponse"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+  /api/v1/admin/dentists:
+    get:
+      tags: [Admin]
+      summary: List dentist accounts (admin only)
+      operationId: adminListDentists
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PerPage"
+        - $ref: "#/components/parameters/SearchFilter"
+        - $ref: "#/components/parameters/AccountStatusFilter"
+      responses:
+        "200":
+          description: Dentist accounts
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminDentistCollectionResponse"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+    post:
+      tags: [Admin]
+      summary: Create dentist account (admin only)
+      operationId: adminCreateDentist
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminDentistCreateRequest"
+      responses:
+        "201":
+          description: Dentist created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminDentistResponse"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+  /api/v1/admin/dentists/{id}/status:
+    patch:
+      tags: [Admin]
+      summary: Update dentist account status (admin only)
+      operationId: adminUpdateDentistStatus
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminDentistStatusUpdateRequest"
+      responses:
+        "200":
+          description: Dentist status updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminDentistResponse"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+  /api/v1/admin/dentists/{id}/reset-password:
+    post:
+      tags: [Admin]
+      summary: Reset dentist password (admin only)
+      operationId: adminResetDentistPassword
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminDentistResetPasswordRequest"
+      responses:
+        "200":
+          description: Dentist password reset
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminPasswordResetResponse"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+  /api/v1/admin/dentists/{id}:
+    delete:
+      tags: [Admin]
+      summary: Delete dentist account (admin only)
+      operationId: adminDeleteDentist
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+      responses:
+        "204":
+          description: Dentist account marked as deleted
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+components:
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: laravel_session
+  parameters:
+    ResourceId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    Page:
+      name: page
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    PerPage:
+      name: per_page
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 15
+    Sort:
+      name: sort
+      in: query
+      description: Comma separated fields, prefix with '-' for desc (e.g. -created_at)
+      schema:
+        type: string
+        example: -created_at
+    SearchFilter:
+      name: filter[search]
+      in: query
+      schema:
+        type: string
+    PatientIdFilter:
+      name: filter[patient_id]
+      in: query
+      schema:
+        type: string
+        format: uuid
+    PatientCategoryFilter:
+      name: filter[category_id]
+      in: query
+      schema:
+        type: string
+        format: uuid
+    PatientInactiveBeforeFilter:
+      name: filter[inactive_before]
+      in: query
+      schema:
+        type: string
+        format: date
+    DateFromFilter:
+      name: filter[date_from]
+      in: query
+      schema:
+        type: string
+        format: date
+    DateToFilter:
+      name: filter[date_to]
+      in: query
+      schema:
+        type: string
+        format: date
+    StatusFilter:
+      name: filter[status]
+      in: query
+      schema:
+        type: string
+    InvoiceStatusesFilter:
+      name: filter[statuses]
+      in: query
+      description: Comma-separated invoice statuses for multi-select filtering.
+      schema:
+        type: string
+        example: unpaid,partially_paid
+    AccountStatusFilter:
+      name: filter[status]
+      in: query
+      schema:
+        type: string
+        enum: [active, blocked, deleted]
+    InvoiceIdFilter:
+      name: filter[invoice_id]
+      in: query
+      schema:
+        type: string
+        format: uuid
+    ToothNumberFilter:
+      name: filter[tooth_number]
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 32
+    OdontogramSummaryLimitFilter:
+      name: limit
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 10
+        default: 5
+  responses:
+    ValidationError:
+      description: Validation failed
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    UnauthorizedError:
+      description: Authentication required
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    ForbiddenError:
+      description: Access denied
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    NotFoundError:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+  schemas:
+    EnvelopeMeta:
+      type: object
+      properties:
+        request_id:
+          type: string
+          example: req_01JY2SPWJ5CFVQ68C7W6A41Q6N
+        timestamp:
+          type: string
+          format: date-time
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+              example: validation_failed
+            message:
+              type: string
+              example: Validation failed.
+            details:
+              type: object
+              additionalProperties:
+                type: array
+                items:
+                  type: string
+        meta:
+          $ref: "#/components/schemas/EnvelopeMeta"
+      required: [error]
+    PaginationMeta:
+      type: object
+      properties:
+        page:
+          type: integer
+        per_page:
+          type: integer
+        total:
+          type: integer
+        total_pages:
+          type: integer
+    InvoiceCollectionSummary:
+      type: object
+      properties:
+        total_count:
+          type: integer
+        outstanding_count:
+          type: integer
+        outstanding_total:
+          type: number
+        total_amount:
+          type: number
+    PaymentCollectionSummary:
+      type: object
+      properties:
+        total_count:
+          type: integer
+        total_amount:
+          type: number
+    AdminDentistCollectionSummary:
+      type: object
+      properties:
+        total_count:
+          type: integer
+        active_count:
+          type: integer
+        new_registrations_7d:
+          type: integer
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        role:
+          type: string
+          enum: [admin, dentist]
+        account_status:
+          type: string
+          enum: [active, blocked, deleted]
+    AdminDentistAccount:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        practice_name:
+          type: string
+          nullable: true
+        registration_date:
+          type: string
+          format: date
+        status:
+          type: string
+          enum: [active, blocked, deleted]
+        last_login:
+          type: string
+          format: date-time
+          nullable: true
+        patient_count:
+          type: integer
+        appointment_count:
+          type: integer
+    Patient:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        patient_id:
+          type: string
+          pattern: "^PT-[0-9]{4}[A-Z]{2}$"
+          example: PT-4851VS
+        full_name:
+          type: string
+        phone:
+          type: string
+        address:
+          type: string
+          nullable: true
+        date_of_birth:
+          type: string
+          format: date
+          nullable: true
+        gender:
+          type: string
+          enum: [male, female]
+          nullable: true
+        medical_history:
+          type: string
+          nullable: true
+        allergies:
+          type: string
+          nullable: true
+        current_medications:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          nullable: true
+        last_visit_at:
+          type: string
+          format: date
+          nullable: true
+    OdontogramEntry:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        patient_id:
+          type: string
+          format: uuid
+        tooth_number:
+          type: integer
+          minimum: 1
+          maximum: 32
+        condition_type:
+          type: string
+          enum: [healthy, cavity, filling, crown, root_canal, extraction, implant]
+        surface:
+          type: string
+          nullable: true
+        material:
+          type: string
+          nullable: true
+        severity:
+          type: string
+          nullable: true
+        condition_date:
+          type: string
+          format: date
+        notes:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          nullable: true
+    OdontogramSummaryCondition:
+      type: object
+      properties:
+        tooth_number:
+          type: integer
+          minimum: 1
+          maximum: 32
+        condition_type:
+          type: string
+          enum: [healthy, cavity, filling, crown, root_canal, extraction, implant]
+        history_count:
+          type: integer
+        condition_date:
+          type: string
+          format: date
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          nullable: true
+    OdontogramSummary:
+      type: object
+      properties:
+        total_entries:
+          type: integer
+        affected_teeth_count:
+          type: integer
+        latest_conditions:
+          type: array
+          items:
+            $ref: "#/components/schemas/OdontogramSummaryCondition"
+    Treatment:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        patient_id:
+          type: string
+          format: uuid
+        tooth_number:
+          type: integer
+          minimum: 1
+          maximum: 32
+          nullable: true
+        treatment_type:
+          type: string
+        description:
+          type: string
+          nullable: true
+        treatment_date:
+          type: string
+          format: date
+        cost:
+          type: number
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          nullable: true
+    Appointment:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        patient_id:
+          type: string
+          format: uuid
+        patient_name:
+          type: string
+          nullable: true
+        appointment_date:
+          type: string
+          format: date
+        start_time:
+          type: string
+          example: "10:00"
+        end_time:
+          type: string
+          example: "10:30"
+        status:
+          type: string
+          enum: [scheduled, completed, cancelled, no_show]
+        notes:
+          type: string
+          nullable: true
+    Invoice:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        patient_id:
+          type: string
+          format: uuid
+        patient_name:
+          type: string
+          nullable: true
+        patient_phone:
+          type: string
+          nullable: true
+        invoice_number:
+          type: string
+        invoice_date:
+          type: string
+          format: date
+        due_date:
+          type: string
+          format: date
+          nullable: true
+        total_amount:
+          type: number
+        paid_amount:
+          type: number
+        balance:
+          type: number
+        status:
+          type: string
+          enum: [unpaid, partially_paid, paid]
+        notes:
+          type: string
+          nullable: true
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/InvoiceItem"
+    InvoiceItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        description:
+          type: string
+        quantity:
+          type: integer
+        unit_price:
+          type: number
+        total_price:
+          type: number
+    Payment:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        invoice_id:
+          type: string
+          format: uuid
+        patient_id:
+          type: string
+          format: uuid
+        amount:
+          type: number
+        payment_method:
+          type: string
+          enum: [cash, card, bank_transfer]
+        payment_date:
+          type: string
+          format: date
+        notes:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+    Profile:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        practice_name:
+          type: string
+          nullable: true
+        phone:
+          type: string
+          nullable: true
+        license_number:
+          type: string
+          nullable: true
+        address:
+          type: string
+          nullable: true
+        working_hours:
+          type: object
+          properties:
+            start:
+              type: string
+              nullable: true
+              example: "09:00"
+            end:
+              type: string
+              nullable: true
+              example: "18:00"
+        default_appointment_duration:
+          type: integer
+    RegisterRequest:
+      type: object
+      required: [name, email, password, password_confirmation]
+      properties:
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 8
+        password_confirmation:
+          type: string
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+    ForgotPasswordRequest:
+      type: object
+      required: [email]
+      properties:
+        email:
+          type: string
+          format: email
+    ResetPasswordRequest:
+      type: object
+      required: [token, email, password, password_confirmation]
+      properties:
+        token:
+          type: string
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 8
+        password_confirmation:
+          type: string
+    PatientUpsertRequest:
+      type: object
+      required: [full_name, phone]
+      properties:
+        full_name:
+          type: string
+        phone:
+          type: string
+        address:
+          type: string
+        date_of_birth:
+          type: string
+          format: date
+        gender:
+          type: string
+          enum: [male, female]
+        medical_history:
+          type: string
+        allergies:
+          type: string
+        current_medications:
+          type: string
+    OdontogramEntryCreateRequest:
+      type: object
+      required: [tooth_number, condition_type, condition_date]
+      properties:
+        tooth_number:
+          type: integer
+          minimum: 1
+          maximum: 32
+        condition_type:
+          type: string
+          enum: [healthy, cavity, filling, crown, root_canal, extraction, implant]
+        surface:
+          type: string
+        material:
+          type: string
+        severity:
+          type: string
+        condition_date:
+          type: string
+          format: date
+        notes:
+          type: string
+    TreatmentCreateRequest:
+      type: object
+      required: [treatment_type, treatment_date]
+      properties:
+        tooth_number:
+          type: integer
+          minimum: 1
+          maximum: 32
+        treatment_type:
+          type: string
+        description:
+          type: string
+        treatment_date:
+          type: string
+          format: date
+        cost:
+          type: number
+          minimum: 0
+        notes:
+          type: string
+    AppointmentUpsertRequest:
+      type: object
+      required: [patient_id, appointment_date, start_time, end_time]
+      properties:
+        patient_id:
+          type: string
+          format: uuid
+        appointment_date:
+          type: string
+          format: date
+        start_time:
+          type: string
+          example: "10:00"
+        end_time:
+          type: string
+          example: "10:30"
+        status:
+          type: string
+          enum: [scheduled, completed, cancelled, no_show]
+        notes:
+          type: string
+    InvoiceUpsertRequest:
+      type: object
+      required: [patient_id, invoice_date, items]
+      properties:
+        patient_id:
+          type: string
+          format: uuid
+        invoice_date:
+          type: string
+          format: date
+        due_date:
+          type: string
+          format: date
+        notes:
+          type: string
+        items:
+          type: array
+          minItems: 1
+          items:
+            $ref: "#/components/schemas/InvoiceItemUpsertRequest"
+    InvoiceItemUpsertRequest:
+      type: object
+      required: [description, quantity, unit_price]
+      properties:
+        description:
+          type: string
+        quantity:
+          type: integer
+          minimum: 1
+        unit_price:
+          type: number
+          minimum: 0.01
+    PaymentCreateRequest:
+      type: object
+      required: [invoice_id, amount, payment_method, payment_date]
+      properties:
+        invoice_id:
+          type: string
+          format: uuid
+        amount:
+          type: number
+        payment_method:
+          type: string
+          enum: [cash, card, bank_transfer]
+        payment_date:
+          type: string
+          format: date
+        notes:
+          type: string
+    ProfileUpdateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        phone:
+          type: string
+        practice_name:
+          type: string
+        license_number:
+          type: string
+        address:
+          type: string
+        working_hours_start:
+          type: string
+          example: "09:00"
+        working_hours_end:
+          type: string
+          example: "18:00"
+        default_appointment_duration:
+          type: integer
+          enum: [15, 30, 45, 60]
+    AdminDentistCreateRequest:
+      type: object
+      required: [name, email, password, password_confirmation]
+      properties:
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 8
+        password_confirmation:
+          type: string
+        phone:
+          type: string
+        practice_name:
+          type: string
+        license_number:
+          type: string
+        address:
+          type: string
+    AdminDentistStatusUpdateRequest:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [active, blocked]
+    AdminDentistResetPasswordRequest:
+      type: object
+      required: [new_password, new_password_confirmation]
+      properties:
+        new_password:
+          type: string
+          minLength: 8
+        new_password_confirmation:
+          type: string
+          minLength: 8
+    UserResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/User"
+        meta:
+          $ref: "#/components/schemas/EnvelopeMeta"
+      required: [data]
+    UserCollectionResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/User"
+        meta:
+          allOf:
+            - $ref: "#/components/schemas/EnvelopeMeta"
+            - type: object
+              properties:
+                pagination:
+                  $ref: "#/components/schemas/PaginationMeta"
+      required: [data]
+    AdminDentistResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/AdminDentistAccount"
+      required: [data]
+    AdminDentistCollectionResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/AdminDentistAccount"
+        meta:
+          type: object
+          properties:
+            pagination:
+              $ref: "#/components/schemas/PaginationMeta"
+            summary:
+              $ref: "#/components/schemas/AdminDentistCollectionSummary"
+      required: [data]
+    AdminPasswordResetResponse:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            dentist_id:
+              type: string
+              format: uuid
+            password_reset:
+              type: boolean
+              example: true
+      required: [data]
+    PatientResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/Patient"
+      required: [data]
+    PatientCollectionResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Patient"
+        meta:
+          type: object
+          properties:
+            pagination:
+              $ref: "#/components/schemas/PaginationMeta"
+      required: [data]
+    OdontogramEntryResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/OdontogramEntry"
+      required: [data]
+    OdontogramEntryCollectionResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/OdontogramEntry"
+        meta:
+          type: object
+          properties:
+            pagination:
+              $ref: "#/components/schemas/PaginationMeta"
+      required: [data]
+    OdontogramSummaryResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/OdontogramSummary"
+      required: [data]
+    TreatmentResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/Treatment"
+      required: [data]
+    TreatmentCollectionResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Treatment"
+        meta:
+          type: object
+          properties:
+            pagination:
+              $ref: "#/components/schemas/PaginationMeta"
+      required: [data]
+    AppointmentCollectionResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Appointment"
+        meta:
+          type: object
+          properties:
+            pagination:
+              $ref: "#/components/schemas/PaginationMeta"
+      required: [data]
+    AppointmentResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/Appointment"
+      required: [data]
+    InvoiceCollectionResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Invoice"
+        meta:
+          type: object
+          properties:
+            pagination:
+              $ref: "#/components/schemas/PaginationMeta"
+            summary:
+              $ref: "#/components/schemas/InvoiceCollectionSummary"
+      required: [data]
+    InvoiceResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/Invoice"
+      required: [data]
+    PaymentResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/Payment"
+      required: [data]
+    PaymentCollectionResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Payment"
+        meta:
+          type: object
+          properties:
+            pagination:
+              $ref: "#/components/schemas/PaginationMeta"
+            summary:
+              $ref: "#/components/schemas/PaymentCollectionSummary"
+      required: [data]
+    ProfileResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/Profile"
+      required: [data]
+    MessageResponse:
+      type: object
+      properties:
+        message:
+          type: string
+      required: [message]

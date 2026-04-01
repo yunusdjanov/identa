@@ -1,0 +1,96 @@
+﻿<?php
+
+return [
+    'auth' => [
+        'authentication_required' => 'Avtorizatsiya talab qilinadi.',
+        'forbidden' => 'Bu amalni bajarish uchun sizda ruxsat yoq.',
+        'account_inactive' => 'Hisobingiz faol emas.',
+        'invalid_credentials' => 'Login yoki parol notogri.',
+    ],
+    'appointments' => [
+        'conflict' => 'Qabul vaqti mavjud qabul bilan toqnashmoqda.',
+        'past_slot' => 'Qabulni otgan vaqtga yaratish yoki kochirish mumkin emas.',
+        'finalized_cannot_be_edited' => 'Yakunlangan, bekor qilingan va kelmagan qabullarni tahrirlab bolmaydi.',
+    ],
+    'invoices' => [
+        'total_lower_than_paid' => 'Hisobning umumiy summasi allaqachon tolangan summadan kam bolishi mumkin emas.',
+        'cannot_delete_with_payments' => 'Tolov kiritilgan hisobni ochirib bolmaydi.',
+        'invalid_odontogram_items' => 'Odontogrammaga boglangan bir yoki bir nechta hisob bandlari ushbu bemor uchun yaroqsiz.',
+        'monthly_limit_reached' => 'Oy boyicha hisob raqamlari limiti tugadi.',
+    ],
+    'invoices_pdf' => [
+        'title' => 'Odenta HISOB-FAKTURA',
+        'invoice_number' => 'Hisob #:number',
+        'provider' => 'Shifokor',
+        'patient' => 'Bemor',
+        'patient_line' => 'ID: :id:phone_part',
+        'summary' => 'Hisob xulosasi',
+        'invoice_date' => 'Hisob sanasi: :date',
+        'status' => 'Holat: :status',
+        'items' => 'Bandlar',
+        'description' => 'Tavsif',
+        'qty' => 'Soni',
+        'unit' => 'Narx',
+        'total' => 'Jami',
+        'paid' => 'Tolangan',
+        'balance' => 'Qoldiq',
+        'payment_history' => 'Tolov tarixi',
+        'date' => 'Sana',
+        'method' => 'Usul',
+        'amount' => 'Summa',
+        'no_payments' => 'Ushbu hisob uchun hali tolovlar yoq.',
+        'more_items' => '+ tizimda yana :count ta band bor',
+        'more_payments' => '+ tizimda yana :count ta tolov bor',
+        'generated_by' => 'Odenta tomonidan yaratildi',
+        'fallback_provider' => 'Stomatologiya amaliyoti',
+        'fallback_patient' => 'Nomalum bemor',
+        'fallback_na' => 'N/A',
+        'status_values' => [
+            'paid' => 'Tolangan',
+            'unpaid' => 'Tolanmagan',
+            'partially_paid' => 'Qisman tolangan',
+        ],
+        'payment_methods' => [
+            'cash' => 'Naqd',
+            'card' => 'Karta',
+            'bank_transfer' => 'Bank otkazmasi',
+        ],
+    ],
+    'payments' => [
+        'amount_exceeds_balance' => 'Tolov summasi qarzdorlik qoldigidan oshib ketmasligi kerak.',
+    ],
+    'patients' => [
+        'archived_restore_before_edit' => 'Tahrirlashdan oldin arxivdagi bemorni tiklang.',
+        'archive_before_permanent_delete' => 'Butunlay ochirishdan oldin bemorni avval arxivga yuboring.',
+        'cannot_permanently_delete_with_records' => 'Klinik yoki billing yozuvlari mavjud bemorni butunlay ochirib bolmaydi.',
+        'photo_store_failed' => 'Bemor rasmini saqlab bolmadi.',
+    ],
+    'odontogram' => [
+        'archived_restore_before_add' => 'Odontogramma yozuvini qoshishdan oldin arxivdagi bemorni tiklang.',
+        'archived_restore_before_edit' => 'Odontogramma yozuvini tahrirlashdan oldin arxivdagi bemorni tiklang.',
+        'archived_restore_before_delete' => 'Odontogramma yozuvini ochirishdan oldin arxivdagi bemorni tiklang.',
+        'cannot_delete_linked_to_billing' => 'Bu tarix yozuvini ochirib bolmaydi, u billing yozuvlariga boglangan.',
+        'archived_restore_before_upload_images' => 'Odontogramma rasmini yuklashdan oldin arxivdagi bemorni tiklang.',
+        'archived_restore_before_delete_images' => 'Odontogramma rasmini ochirishdan oldin arxivdagi bemorni tiklang.',
+        'image_required' => 'Rasm fayli majburiy.',
+        'image_store_failed' => 'Yuklangan rasmni saqlab bolmadi.',
+    ],
+    'treatments' => [
+        'archived_restore_before_add' => 'Davolash yozuvini qoshishdan oldin arxivdagi bemorni tiklang.',
+        'archived_restore_before_edit' => 'Davolash tarixini tahrirlashdan oldin arxivdagi bemorni tiklang.',
+        'archived_restore_before_delete' => 'Davolash tarixini ochirishdan oldin arxivdagi bemorni tiklang.',
+        'archived_restore_before_upload_images' => 'Davolash rasmlarini yuklashdan oldin arxivdagi bemorni tiklang.',
+        'archived_restore_before_delete_images' => 'Davolash rasmlarini ochirishdan oldin arxivdagi bemorni tiklang.',
+        'image_required' => 'Rasm fayli majburiy.',
+        'image_store_failed' => 'Yuklangan davolash rasmini saqlab bolmadi.',
+    ],
+    'settings' => [
+        'working_hours_end_after_start' => 'Ish tugash vaqti ish boshlash vaqtidan keyin bolishi kerak.',
+    ],
+    'admin' => [
+        'cannot_update_deleted_account_status' => 'Ochirilgan hisob holatini yangilab bolmaydi.',
+    ],
+];
+
+
+
