@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -15,6 +15,7 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
+import { DataTableShell, getDataTableClassName } from '@/components/ui/data-table-shell';
 import { getApiErrorMessage } from '@/lib/api/client';
 import { getPatient, listAllTreatments } from '@/lib/api/dentist';
 import type { ApiPatient, ApiTreatment } from '@/lib/api/types';
@@ -67,18 +68,16 @@ function PaymentsLoadingSkeleton() {
                 <Skeleton className="h-9 w-72" />
                 <Skeleton className="h-4 w-80" />
             </div>
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
-                {Array.from({ length: 4 }).map((_, index) => (
-                    <Card key={index}>
-                        <CardHeader className="pb-2">
-                            <Skeleton className="h-4 w-24" />
-                        </CardHeader>
-                        <CardContent className="space-y-2">
-                            <Skeleton className="h-8 w-32" />
-                            <Skeleton className="h-3 w-28" />
-                        </CardContent>
-                    </Card>
-                ))}
+            <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white">
+                <div className="grid grid-cols-1 divide-y divide-gray-100 md:grid-cols-2 md:divide-x md:divide-y xl:grid-cols-4 xl:divide-y-0">
+                    {Array.from({ length: 4 }).map((_, index) => (
+                        <div key={index} className="space-y-2 p-4 md:p-5">
+                            <Skeleton className="h-4 w-28" />
+                            <Skeleton className="h-8 w-36" />
+                            <Skeleton className="h-3 w-24" />
+                        </div>
+                    ))}
+                </div>
             </div>
             <Card>
                 <CardContent className="space-y-3 pt-6">
@@ -390,45 +389,62 @@ export default function PaymentsPage() {
                 <p className="text-gray-600">{t('payments.subtitle')}</p>
             </div>
 
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
-                <Card>
-                    <CardHeader className="pb-2">
-                        <CardTitle className="text-sm font-medium text-gray-600">{t('payments.summary.totalDebt')}</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <p className="text-2xl font-semibold text-red-700">{formatCurrency(overallSummary.totalDebt)}</p>
+            <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white">
+                <div className="grid grid-cols-1 divide-y divide-gray-100 md:grid-cols-2 md:divide-x md:divide-y xl:grid-cols-4 xl:divide-y-0">
+                    <div className="p-4 md:p-5">
+                        <div className="flex items-center gap-2 text-sm font-medium text-gray-600">
+                            <AlertCircle className="h-4 w-4 text-red-500" />
+                            {t('payments.summary.totalDebt')}
+                        </div>
+                        <p className="mt-2 text-2xl font-semibold leading-none tabular-nums text-red-700">
+                            {formatCurrency(overallSummary.totalDebt)}
+                        </p>
                         <p className="mt-1 text-xs text-gray-500">{t('payments.summary.totalDebtHint')}</p>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardHeader className="pb-2">
-                        <CardTitle className="text-sm font-medium text-gray-600">{t('payments.summary.totalPaid')}</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <p className="text-2xl font-semibold text-green-700">{formatCurrency(overallSummary.totalPaid)}</p>
+                    </div>
+
+                    <div className="p-4 md:p-5">
+                        <div className="flex items-center gap-2 text-sm font-medium text-gray-600">
+                            <Wallet className="h-4 w-4 text-green-600" />
+                            {t('payments.summary.totalPaid')}
+                        </div>
+                        <p className="mt-2 text-2xl font-semibold leading-none tabular-nums text-green-700">
+                            {formatCurrency(overallSummary.totalPaid)}
+                        </p>
                         <p className="mt-1 text-xs text-gray-500">{t('payments.summary.totalPaidHint')}</p>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardHeader className="pb-2">
-                        <CardTitle className="text-sm font-medium text-gray-600">{t('payments.summary.netBalance')}</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <p className={`text-2xl font-semibold ${overallSummary.totalBalance > 0 ? 'text-red-700' : 'text-green-700'}`}>
+                    </div>
+
+                    <div className="p-4 md:p-5">
+                        <div className="flex items-center gap-2 text-sm font-medium text-gray-600">
+                            <History className="h-4 w-4 text-slate-500" />
+                            {t('payments.summary.netBalance')}
+                        </div>
+                        <p
+                            className={`mt-2 text-2xl font-semibold leading-none tabular-nums ${
+                                overallSummary.totalBalance > 0
+                                    ? 'text-red-700'
+                                    : overallSummary.totalBalance < 0
+                                        ? 'text-green-700'
+                                        : 'text-gray-900'
+                            }`}
+                        >
                             {formatCurrency(overallSummary.totalBalance)}
                         </p>
                         <p className="mt-1 text-xs text-gray-500">{t('payments.summary.netBalanceHint')}</p>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardHeader className="pb-2">
-                        <CardTitle className="text-sm font-medium text-gray-600">{t('payments.summary.totalPatients')}</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <p className="text-2xl font-semibold text-gray-900">{overallSummary.totalPatients}</p>
-                        <p className="mt-1 text-xs text-gray-500">{t('payments.summary.entryCount', { count: overallSummary.totalEntries })}</p>
-                    </CardContent>
-                </Card>
+                    </div>
+
+                    <div className="p-4 md:p-5">
+                        <div className="flex items-center gap-2 text-sm font-medium text-gray-600">
+                            <Users className="h-4 w-4 text-slate-500" />
+                            {t('payments.summary.totalPatients')}
+                        </div>
+                        <p className="mt-2 text-2xl font-semibold leading-none tabular-nums text-gray-900">
+                            {overallSummary.totalPatients}
+                        </p>
+                        <p className="mt-1 text-xs text-gray-500">
+                            {t('payments.summary.entryCount', { count: overallSummary.totalEntries })}
+                        </p>
+                    </div>
+                </div>
             </div>
 
             <Card>
@@ -497,8 +513,8 @@ export default function PaymentsPage() {
                                 </div>
                             ) : (
                                 <>
-                                    <div className="overflow-x-auto rounded-xl border border-gray-200">
-                                        <Table>
+                                    <DataTableShell>
+                                        <Table className={getDataTableClassName('standard')}>
                                             <TableHeader>
                                                 <TableRow>
                                                     <TableHead>{t('payments.table.number')}</TableHead>
@@ -540,13 +556,32 @@ export default function PaymentsPage() {
                                                 ))}
                                             </TableBody>
                                         </Table>
-                                    </div>
+                                    </DataTableShell>
 
-                                    <div className="flex items-center justify-between gap-3">
+                                    <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                                         <p className="text-sm text-gray-500">{t('payments.pagination.pageOf', { page: effectivePatientPage, total: patientTotalPages })}</p>
-                                        <div className="flex items-center gap-2">
-                                            <Button variant="outline" size="sm" disabled={effectivePatientPage === 1} onClick={() => setPatientPage((current) => Math.max(1, current - 1))}>{t('payments.pagination.previous')}</Button>
-                                            <Button variant="outline" size="sm" disabled={effectivePatientPage >= patientTotalPages} onClick={() => setPatientPage((current) => Math.min(patientTotalPages, current + 1))}>{t('payments.pagination.next')}</Button>
+                                        <div className="flex flex-wrap items-center gap-2 md:justify-end">
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                className="min-w-[96px]"
+                                                disabled={effectivePatientPage === 1}
+                                                onClick={() => setPatientPage((current) => Math.max(1, current - 1))}
+                                            >
+                                                {t('payments.pagination.previous')}
+                                            </Button>
+                                            <span className="inline-flex min-w-[132px] justify-center rounded-md border border-gray-200 bg-white px-3 py-1 text-sm text-gray-600">
+                                                {t('payments.pagination.pageOf', { page: effectivePatientPage, total: patientTotalPages })}
+                                            </span>
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                className="min-w-[80px]"
+                                                disabled={effectivePatientPage >= patientTotalPages}
+                                                onClick={() => setPatientPage((current) => Math.min(patientTotalPages, current + 1))}
+                                            >
+                                                {t('payments.pagination.next')}
+                                            </Button>
                                         </div>
                                     </div>
                                 </>
@@ -569,8 +604,8 @@ export default function PaymentsPage() {
                                 </div>
                             ) : (
                                 <>
-                                    <div className="overflow-x-auto rounded-xl border border-gray-200">
-                                        <Table>
+                                    <DataTableShell>
+                                        <Table className={getDataTableClassName('standard')}>
                                             <TableHeader>
                                                 <TableRow>
                                                     <TableHead>{t('payments.table.date')}</TableHead>
@@ -610,10 +645,22 @@ export default function PaymentsPage() {
                                                                 </div>
                                                             )}
                                                         </TableCell>
-                                                        <TableCell>
-                                                            <div className="space-y-1">
-                                                                <p className="font-medium text-gray-900">{row.workDone}</p>
-                                                                {row.comment ? <p className="text-xs text-gray-500">{row.comment}</p> : null}
+                                                        <TableCell className="max-w-[360px]">
+                                                            <div className="min-w-0 space-y-1">
+                                                                <p
+                                                                    className="max-w-[220px] truncate font-medium text-gray-900 sm:max-w-[250px] lg:max-w-[280px]"
+                                                                    title={row.workDone}
+                                                                >
+                                                                    {row.workDone}
+                                                                </p>
+                                                                {row.comment ? (
+                                                                    <p
+                                                                        className="max-w-[220px] truncate text-xs text-gray-500 sm:max-w-[250px] lg:max-w-[280px]"
+                                                                        title={row.comment}
+                                                                    >
+                                                                        {row.comment}
+                                                                    </p>
+                                                                ) : null}
                                                             </div>
                                                         </TableCell>
                                                         <TableCell className="text-red-700">{formatCurrency(row.debt)}</TableCell>
@@ -623,13 +670,32 @@ export default function PaymentsPage() {
                                                 ))}
                                             </TableBody>
                                         </Table>
-                                    </div>
+                                    </DataTableShell>
 
-                                    <div className="flex items-center justify-between gap-3">
+                                    <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                                         <p className="text-sm text-gray-500">{t('payments.pagination.pageOf', { page: effectiveHistoryPage, total: historyTotalPages })}</p>
-                                        <div className="flex items-center gap-2">
-                                            <Button variant="outline" size="sm" disabled={effectiveHistoryPage === 1} onClick={() => setHistoryPage((current) => Math.max(1, current - 1))}>{t('payments.pagination.previous')}</Button>
-                                            <Button variant="outline" size="sm" disabled={effectiveHistoryPage >= historyTotalPages} onClick={() => setHistoryPage((current) => Math.min(historyTotalPages, current + 1))}>{t('payments.pagination.next')}</Button>
+                                        <div className="flex flex-wrap items-center gap-2 md:justify-end">
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                className="min-w-[96px]"
+                                                disabled={effectiveHistoryPage === 1}
+                                                onClick={() => setHistoryPage((current) => Math.max(1, current - 1))}
+                                            >
+                                                {t('payments.pagination.previous')}
+                                            </Button>
+                                            <span className="inline-flex min-w-[132px] justify-center rounded-md border border-gray-200 bg-white px-3 py-1 text-sm text-gray-600">
+                                                {t('payments.pagination.pageOf', { page: effectiveHistoryPage, total: historyTotalPages })}
+                                            </span>
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                className="min-w-[80px]"
+                                                disabled={effectiveHistoryPage >= historyTotalPages}
+                                                onClick={() => setHistoryPage((current) => Math.min(historyTotalPages, current + 1))}
+                                            >
+                                                {t('payments.pagination.next')}
+                                            </Button>
                                         </div>
                                     </div>
                                 </>

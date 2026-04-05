@@ -23,6 +23,7 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
+import { DataTableShell, getDataTableClassName } from '@/components/ui/data-table-shell';
 import { listPatientCategories, listPatients, restorePatient } from '@/lib/api/dentist';
 import { getApiErrorMessage } from '@/lib/api/client';
 import type { ApiPatient } from '@/lib/api/types';
@@ -48,7 +49,6 @@ interface PatientRow {
     dateOfBirth?: string;
     createdAt?: string;
     lastVisitDate?: string;
-    isArchived: boolean;
     categories: Array<{ id: string; name: string; color: string }>;
 }
 
@@ -62,7 +62,6 @@ function mapPatientRow(patient: ApiPatient): PatientRow {
         dateOfBirth: patient.date_of_birth ?? undefined,
         createdAt: patient.created_at ?? undefined,
         lastVisitDate: patient.last_visit_at ?? undefined,
-        isArchived: Boolean(patient.is_archived),
         categories: (patient.categories ?? []).map((category) => ({
             id: category.id,
             name: category.name,
@@ -107,7 +106,7 @@ function PatientsLoadingSkeleton() {
                 </CardHeader>
                 <CardContent className="space-y-3">
                     {Array.from({ length: 6 }).map((_, index) => (
-                        <div key={index} className="grid grid-cols-[0.5fr_1fr_2.4fr_1.2fr_1.2fr_1.2fr_1fr_1fr] gap-4 items-center">
+                        <div key={index} className="grid grid-cols-[0.5fr_1fr_2.4fr_1.2fr_1.2fr_1.2fr_1fr] gap-4 items-center">
                             <Skeleton className="h-4 w-4" />
                             <Skeleton className="h-4 w-20" />
                             <div className="space-y-2">
@@ -117,7 +116,6 @@ function PatientsLoadingSkeleton() {
                             <Skeleton className="h-6 w-20" />
                             <Skeleton className="h-4 w-24" />
                             <Skeleton className="h-4 w-24" />
-                            <Skeleton className="h-6 w-16" />
                             <Skeleton className="h-8 w-24 justify-self-end" />
                         </div>
                     ))}
@@ -381,8 +379,9 @@ export default function PatientsPage() {
                             )}
                         </div>
                     ) : (
-                        <div className="overflow-x-auto">
-                            <Table className="w-full">
+                        <>
+                        <DataTableShell>
+                            <Table className={getDataTableClassName('standard')}>
                                 <TableHeader>
                                     <TableRow>
                                         <TableHead className="w-12">#</TableHead>
@@ -391,15 +390,11 @@ export default function PatientsPage() {
                                         <TableHead>{t('patients.table.category')}</TableHead>
                                         <TableHead>{t('patients.table.registered')}</TableHead>
                                         <TableHead>{t('patients.table.lastVisit')}</TableHead>
-                                        <TableHead>{t('patients.table.status')}</TableHead>
                                         <TableHead className="text-right">{t('patients.table.actions')}</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
                                     {patientRows.map((patient, index) => {
-                                        const isInactive =
-                                            !patient.lastVisitDate ||
-                                            patient.lastVisitDate < inactiveThresholdDateKey1y;
                                         const filteredCategory =
                                             selectedCategoryId !== 'all'
                                                 ? patient.categories.find((category) => category.id === selectedCategoryId)
@@ -486,21 +481,6 @@ export default function PatientsPage() {
                                                     <span className="text-gray-400">{t('patients.never')}</span>
                                                 )}
                                             </TableCell>
-                                            <TableCell>
-                                                {patient.isArchived ? (
-                                                    <Badge variant="secondary" className="bg-slate-200 text-slate-800">
-                                                        {t('patients.archived')}
-                                                    </Badge>
-                                                ) : isInactive ? (
-                                                    <Badge variant="secondary" className="bg-amber-100 text-amber-800">
-                                                        {t('patients.status.needsFollowUp')}
-                                                    </Badge>
-                                                ) : (
-                                                    <Badge variant="secondary" className="bg-green-100 text-green-800">
-                                                        {t('patients.status.active')}
-                                                    </Badge>
-                                                )}
-                                            </TableCell>
                                             <TableCell className="text-right">
                                                 <div className="flex justify-end gap-2">
                                                     {showArchivedOnly ? (
@@ -563,33 +543,36 @@ export default function PatientsPage() {
                                     })}
                                 </TableBody>
                             </Table>
-                            <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        </DataTableShell>
+                        <div className="mt-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                                 <p className="text-sm text-gray-500">
                                     {t('patients.showing', { shown: patientRows.length, total: totalPatients })}
                                 </p>
-                                <div className="flex items-center gap-2">
+                                <div className="flex flex-wrap items-center gap-2 md:justify-end">
                                     <Button
                                         variant="outline"
                                         size="sm"
+                                        className="min-w-[96px]"
                                         onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
                                         disabled={!hasPreviousPage || patientsQuery.isFetching}
                                     >
                                         {t('patients.previous')}
                                     </Button>
-                                    <span className="text-sm text-gray-600">
+                                    <span className="inline-flex min-w-[132px] justify-center rounded-md border border-gray-200 bg-white px-3 py-1 text-sm text-gray-600">
                                         {t('patients.pageOf', { page: pageNumber, total: totalPages })}
                                     </span>
                                     <Button
                                         variant="outline"
                                         size="sm"
+                                        className="min-w-[80px]"
                                         onClick={() => setCurrentPage((page) => page + 1)}
                                         disabled={!hasNextPage || patientsQuery.isFetching}
                                     >
                                         {t('patients.next')}
                                     </Button>
                                 </div>
-                            </div>
                         </div>
+                        </>
                     )}
                 </CardContent>
             </Card>

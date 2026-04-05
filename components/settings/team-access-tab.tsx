@@ -17,6 +17,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
     Select,
     SelectContent,
@@ -104,6 +105,40 @@ function createEmptyAssistantForm(): AssistantFormState {
         passwordConfirmation: '',
         permissions: [...DEFAULT_ASSISTANT_PERMISSIONS],
     };
+}
+
+function TeamAccessLoadingSkeleton() {
+    return (
+        <div className="space-y-3">
+            {Array.from({ length: 4 }).map((_, index) => (
+                <div
+                    key={`assistant-skeleton-${index}`}
+                    className="rounded-lg border border-gray-200 p-4 space-y-3"
+                >
+                    <div className="flex items-start justify-between gap-3">
+                        <div className="space-y-2">
+                            <Skeleton className="h-5 w-40" />
+                            <Skeleton className="h-4 w-56" />
+                            <Skeleton className="h-3 w-44" />
+                        </div>
+                        <Skeleton className="h-6 w-20 rounded-full" />
+                    </div>
+                    <Skeleton className="h-3 w-28" />
+                    <div className="flex flex-wrap gap-2">
+                        <Skeleton className="h-8 w-16" />
+                        <Skeleton className="h-8 w-20" />
+                        <Skeleton className="h-8 w-28" />
+                        <Skeleton className="h-8 w-16" />
+                    </div>
+                </div>
+            ))}
+            <div className="flex items-center justify-end gap-2 pt-2">
+                <Skeleton className="h-8 w-20" />
+                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-8 w-16" />
+            </div>
+        </div>
+    );
 }
 
 interface TeamAccessTabProps {
@@ -426,11 +461,23 @@ export function TeamAccessTab({ canManageTeam, t }: TeamAccessTabProps) {
     if (!canManageTeam) {
         return (
             <Card>
-                <CardHeader>
-                    <CardTitle>{t('settings.team.title')}</CardTitle>
+                <CardHeader className="space-y-3">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <CardTitle>{t('settings.team.title')}</CardTitle>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => toast.error(t('errors.forbidden'))}
+                        >
+                            {t('settings.team.addAssistant')}
+                        </Button>
+                    </div>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="space-y-3">
                     <p className="text-sm text-gray-600">{t('settings.team.noAccess')}</p>
+                    <div className="pointer-events-none opacity-70">
+                        <TeamAccessLoadingSkeleton />
+                    </div>
                 </CardContent>
             </Card>
         );
@@ -476,7 +523,7 @@ export function TeamAccessTab({ canManageTeam, t }: TeamAccessTabProps) {
                 </CardHeader>
                 <CardContent>
                     {assistantsQuery.isLoading ? (
-                        <p className="text-sm text-gray-500">{t('common.loading')}</p>
+                        <TeamAccessLoadingSkeleton />
                     ) : assistantsQuery.isError ? (
                         <p className="text-sm text-red-600">
                             {getApiErrorMessage(assistantsQuery.error, t('settings.team.loadFailed'))}
@@ -623,7 +670,7 @@ export function TeamAccessTab({ canManageTeam, t }: TeamAccessTabProps) {
                             <p className="text-sm text-red-600">{formGeneralError}</p>
                         ) : null}
                         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                            <div className="space-y-2">
+                            <div className="space-y-2 md:col-span-2">
                                 <Label htmlFor="assistant-name">
                                     {t('settings.team.name')} <span className="text-red-500">*</span>
                                 </Label>

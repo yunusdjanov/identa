@@ -7,7 +7,6 @@ use App\Http\Requests\StoreAppointmentRequest;
 use App\Http\Requests\UpdateAppointmentRequest;
 use App\Models\Appointment;
 use App\Models\User;
-use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -19,7 +18,6 @@ class AppointmentController extends Controller
     private const DEFAULT_PER_PAGE = 15;
     private const MAX_PER_PAGE = 500;
     private const CONFLICT_MESSAGE_KEY = 'api.appointments.conflict';
-    private const PAST_SLOT_MESSAGE_KEY = 'api.appointments.past_slot';
     /**
      * @var list<string>
      */
@@ -102,11 +100,6 @@ class AppointmentController extends Controller
         $status = $validated['status'] ?? Appointment::STATUS_SCHEDULED;
 
         $appointment = DB::transaction(function () use ($validated, $dentistId, $status): Appointment {
-            $this->assertNotInPast(
-                appointmentDate: $validated['appointment_date'],
-                startTime: $validated['start_time'],
-            );
-
             $this->assertNoConflict(
                 dentistId: $dentistId,
                 appointmentDate: $validated['appointment_date'],
@@ -151,11 +144,6 @@ class AppointmentController extends Controller
         $status = $validated['status'] ?? Appointment::STATUS_SCHEDULED;
 
         $appointment = DB::transaction(function () use ($request, $appointment, $validated, $status): Appointment {
-            $this->assertNotInPast(
-                appointmentDate: $validated['appointment_date'],
-                startTime: $validated['start_time'],
-            );
-
             $this->assertNoConflict(
                 dentistId: $this->resolveDentistId($request),
                 appointmentDate: $validated['appointment_date'],
@@ -214,21 +202,6 @@ class AppointmentController extends Controller
         if ($query->exists()) {
             throw ValidationException::withMessages([
                 'start_time' => [__(self::CONFLICT_MESSAGE_KEY)],
-            ]);
-        }
-    }
-
-    private function assertNotInPast(string $appointmentDate, string $startTime): void
-    {
-        $timezone = config('app.timezone');
-        $appointmentStart = Carbon::createFromFormat('Y-m-d H:i', "{$appointmentDate} {$startTime}", $timezone);
-        if ($appointmentStart === false) {
-            return;
-        }
-
-        if ($appointmentStart->lt(Carbon::now($timezone))) {
-            throw ValidationException::withMessages([
-                'start_time' => [__(self::PAST_SLOT_MESSAGE_KEY)],
             ]);
         }
     }

@@ -8,6 +8,7 @@ import type { ApiAuditLogEntry } from '@/lib/api/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
     Select,
     SelectContent,
@@ -204,6 +205,29 @@ function formatRequiredPermissionLabel(
         .join(', ');
 }
 
+function AuditLogsLoadingSkeleton() {
+    return (
+        <div className="space-y-3">
+            {Array.from({ length: 6 }).map((_, index) => (
+                <div key={`audit-log-skeleton-${index}`} className="rounded-lg border border-gray-200 p-4 space-y-2">
+                    <div className="flex items-center justify-between gap-3">
+                        <Skeleton className="h-4 w-44" />
+                        <Skeleton className="h-3 w-28" />
+                    </div>
+                    <Skeleton className="h-3 w-60" />
+                    <Skeleton className="h-3 w-72" />
+                    <Skeleton className="h-3 w-64" />
+                </div>
+            ))}
+            <div className="flex items-center justify-end gap-2 pt-2">
+                <Skeleton className="h-8 w-20" />
+                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-8 w-16" />
+            </div>
+        </div>
+    );
+}
+
 export function AuditLogsTab({ canViewAuditLogs, t }: AuditLogsTabProps) {
     const [search, setSearch] = useState('');
     const [eventType, setEventType] = useState('all');
@@ -239,11 +263,14 @@ export function AuditLogsTab({ canViewAuditLogs, t }: AuditLogsTabProps) {
     if (!canViewAuditLogs) {
         return (
             <Card>
-                <CardHeader>
+                <CardHeader className="space-y-2">
                     <CardTitle>{t('settings.logs.title')}</CardTitle>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="space-y-3">
                     <p className="text-sm text-gray-600">{t('settings.logs.noAccess')}</p>
+                    <div className="pointer-events-none opacity-70">
+                        <AuditLogsLoadingSkeleton />
+                    </div>
                 </CardContent>
             </Card>
         );
@@ -302,7 +329,7 @@ export function AuditLogsTab({ canViewAuditLogs, t }: AuditLogsTabProps) {
             </CardHeader>
             <CardContent>
                 {logsQuery.isLoading ? (
-                    <p className="text-sm text-gray-500">{t('common.loading')}</p>
+                    <AuditLogsLoadingSkeleton />
                 ) : logsQuery.isError ? (
                     <p className="text-sm text-red-600">
                         {getApiErrorMessage(logsQuery.error, t('settings.logs.loadFailed'))}

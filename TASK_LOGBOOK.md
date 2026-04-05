@@ -546,3 +546,39 @@ Execute demo-polish board P0 lane from `docs/qa/EXECUTION_BOARD.md` (localizatio
 - 2026-03-17: Patient detail page only - merged accounting summary into work history section and replaced card-style history entries with denser ledger rows. Left global payments flow unchanged.
 
 - 2026-03-17: Moved full work history off patient profile into dedicated page (/patients/[id]/history), kept compact summary on profile, and added direct history shortcut button on patients list rows.
+
+- 2026-04-01: Implemented full patient-history Clinical Snapshot above the work-history table:
+  - Added new component `components/patients/clinical-snapshot-card.tsx` with professional compact UI and show/hide toggle.
+  - Integrated snapshot into `components/patients/treatment-history-card.tsx` directly above debt/paid/net summary and table.
+  - Snapshot now uses live data from:
+    - treatment history (`entries`, `linked teeth`, `last entry date`)
+    - odontogram summary API (`affected teeth`, `latest conditions`)
+  - Added quick link to full odontogram from snapshot.
+  - Added complete localization keys in `lib/i18n/dictionaries.ts` for `ru` / `uz` / `en` under `patientHistory.snapshot.*`.
+  - Validation:
+    - `npm run lint` passed
+    - `npm test` passed (12 files, 54 tests)
+    - `npm run build` passed
+- 2026-04-01: Snapshot hardening follow-up (professional stability pass):
+  - Updated `components/patients/clinical-snapshot-card.tsx` to show skeletons during initial history fetch instead of temporary `0` metrics.
+  - Added safe fallback (`-`) for snapshot metrics when history request fails and no rows exist yet.
+  - Stabilized `latest_conditions` badge keys to avoid duplicate React keys on edge payloads.
+  - Wired loading/error state from `components/patients/treatment-history-card.tsx` into snapshot props.
+  - Validation:
+    - `npm run lint` passed
+    - `npm test` passed (12 files, 54 tests)
+    - `npm run build` passed
+
+- 2026-04-05: Enabled past-slot appointment operations end-to-end.
+  - Backend: removed create/update past-time validation guard in `backend/app/Http/Controllers/Api/AppointmentController.php`.
+  - Frontend:
+    - removed past-time submit block in `components/appointments/add-appointment-dialog.tsx`
+    - removed day-view/drag-drop past-slot restrictions in `app/appointments/page.tsx`
+  - Tests updated:
+    - `backend/tests/Feature/AppointmentApiTest.php` now asserts create/move to past slots are allowed.
+    - `components/appointments/add-appointment-dialog.test.tsx` now asserts past-slot submission succeeds.
+  - Validation:
+    - `npm.cmd test -- components/appointments/add-appointment-dialog.test.tsx` passed (9/9).
+    - `npm.cmd test -- app/appointments/page.test.tsx` passed (11/11).
+    - `npm.cmd run lint -- app/appointments/page.tsx components/appointments/add-appointment-dialog.tsx components/appointments/add-appointment-dialog.test.tsx` passed.
+    - `php artisan test --filter=AppointmentApiTest` passed (13/13).

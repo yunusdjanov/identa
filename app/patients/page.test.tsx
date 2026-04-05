@@ -153,7 +153,7 @@ describe('PatientsPage', () => {
         expect(pushMock).toHaveBeenCalledWith('/appointments?action=new&patientId=patient-inactive-never');
     });
 
-    it('shows follow-up badges and routes to details from action button', async () => {
+    it('shows patients and routes to details from action button', async () => {
         const recentVisit = new Date();
         recentVisit.setDate(recentVisit.getDate() - 7);
         const oldVisit = new Date();
@@ -197,9 +197,6 @@ describe('PatientsPage', () => {
             expect(screen.getByText('Followup Needed')).toBeInTheDocument();
             expect(screen.getByText('Healthy Active')).toBeInTheDocument();
         });
-
-        expect(screen.getAllByText(/(Needs Follow-up|Требуется контроль)/i).length).toBeGreaterThan(0);
-        expect(screen.getAllByText(/^(Active|Активен)$/i).length).toBeGreaterThan(0);
 
         const viewDetailsButtons = screen.getAllByRole('button', { name: /(Open|Открыть|Ko‘rish|Ko'rish)/i });
         await user.click(viewDetailsButtons[0]);

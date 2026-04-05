@@ -5,15 +5,13 @@ import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
     getPatient,
-    listAllPatientOdontogram,
+    listAllPatientTreatments,
 } from '@/lib/api/dentist';
 import { getApiErrorMessage } from '@/lib/api/client';
-import type { ApiOdontogramEntry } from '@/lib/api/types';
-import { getToothConditionColor } from '@/lib/utils';
+import type { ApiTreatment } from '@/lib/api/types';
 import { ArrowLeft } from 'lucide-react';
 import { ToothDetailDialog } from '@/components/odontogram/tooth-detail-dialog';
 import { useI18n } from '@/components/providers/i18n-provider';
@@ -28,20 +26,6 @@ function OdontogramLoadingSkeleton() {
                     <Skeleton className="h-4 w-56" />
                 </div>
             </div>
-
-            <Card>
-                <CardHeader>
-                    <Skeleton className="h-6 w-52" />
-                </CardHeader>
-                <CardContent className="space-y-3">
-                    <div className="flex flex-wrap gap-2">
-                        {Array.from({ length: 7 }).map((_, index) => (
-                            <Skeleton key={index} className="h-6 w-20 rounded-full" />
-                        ))}
-                    </div>
-                    <Skeleton className="h-4 w-80" />
-                </CardContent>
-            </Card>
 
             <Card>
                 <CardHeader>
@@ -79,46 +63,63 @@ export default function OdontogramPage({
         queryFn: () => getPatient(id),
         retry: false,
     });
-    const odontogramQuery = useQuery({
-        queryKey: ['patients', 'odontogram', id],
-        queryFn: () => listAllPatientOdontogram(id),
+    const treatmentsQuery = useQuery({
+        queryKey: ['patients', 'detail', id, 'treatments', 'odontogram'],
+        queryFn: () => listAllPatientTreatments(id, { sort: '-treatment_date,-created_at' }),
     });
 
-    const entriesByTooth = useMemo(() => {
-        const map = new Map<number, ApiOdontogramEntry[]>();
-        for (const entry of odontogramQuery.data ?? []) {
-            const current = map.get(entry.tooth_number) ?? [];
-            current.push(entry);
-            map.set(entry.tooth_number, current);
+    const treatmentsByTooth = useMemo(() => {
+        const map = new Map<number, ApiTreatment[]>();
+
+        for (const treatment of treatmentsQuery.data ?? []) {
+            const linkedTeeth = new Set<number>();
+
+            for (const tooth of treatment.teeth ?? []) {
+                if (Number.isFinite(tooth) && tooth >= 1 && tooth <= 32) {
+                    linkedTeeth.add(tooth);
+                }
+            }
+
+            if (
+                typeof treatment.tooth_number === 'number'
+                && Number.isFinite(treatment.tooth_number)
+                && treatment.tooth_number >= 1
+                && treatment.tooth_number <= 32
+            ) {
+                linkedTeeth.add(treatment.tooth_number);
+            }
+
+            for (const toothNumber of linkedTeeth) {
+                const current = map.get(toothNumber) ?? [];
+                current.push(treatment);
+                map.set(toothNumber, current);
+            }
         }
-        return map;
-    }, [odontogramQuery.data]);
 
-    const latestConditionByTooth = useMemo(() => {
-        const map = new Map<number, string>();
-
-        for (const [toothNumber, entries] of entriesByTooth.entries()) {
-            const latest = [...entries].sort((a, b) => {
-                const left = `${a.condition_date}-${a.created_at ?? ''}`;
-                const right = `${b.condition_date}-${b.created_at ?? ''}`;
-                return right.localeCompare(left);
-            })[0];
-            map.set(toothNumber, latest?.condition_type ?? 'healthy');
+        for (const [toothNumber, treatments] of map.entries()) {
+            const sorted = [...treatments].sort((a, b) => {
+                const dateCompare = (b.treatment_date ?? '').localeCompare(a.treatment_date ?? '');
+                if (dateCompare !== 0) {
+                    return dateCompare;
+                }
+                return (b.created_at ?? '').localeCompare(a.created_at ?? '');
+            });
+            map.set(toothNumber, sorted);
         }
 
         return map;
-    }, [entriesByTooth]);
+    }, [treatmentsQuery.data]);
 
-    if (patientQuery.isLoading || odontogramQuery.isLoading) {
+    if (patientQuery.isLoading || treatmentsQuery.isLoading) {
         return <OdontogramLoadingSkeleton />;
     }
 
-    if (patientQuery.isError || odontogramQuery.isError || !patientQuery.data) {
+    if (patientQuery.isError || treatmentsQuery.isError || !patientQuery.data) {
         return (
             <div className="space-y-4">
                 <p className="text-sm text-red-600">
                     {getApiErrorMessage(
-                        patientQuery.error || odontogramQuery.error,
+                        patientQuery.error || treatmentsQuery.error,
                         t('odontogram.loadFailed')
                     )}
                 </p>
@@ -126,7 +127,7 @@ export default function OdontogramPage({
                     variant="outline"
                     onClick={() => {
                         patientQuery.refetch();
-                        odontogramQuery.refetch();
+                        treatmentsQuery.refetch();
                     }}
                 >
                     {t('common.retry')}
@@ -136,11 +137,10 @@ export default function OdontogramPage({
     }
 
     const renderTooth = (toothNumber: number) => {
-        const toothEntries = entriesByTooth.get(toothNumber) ?? [];
-        const historyCount = toothEntries.length;
+        const toothTreatments = treatmentsByTooth.get(toothNumber) ?? [];
+        const historyCount = toothTreatments.length;
         const hasHistory = historyCount > 0;
-        const condition = latestConditionByTooth.get(toothNumber) ?? 'healthy';
-        const colorClass = getToothConditionColor(condition);
+        const isSelected = selectedTooth === toothNumber;
 
         return (
             <button
@@ -148,8 +148,13 @@ export default function OdontogramPage({
                 onClick={() => setSelectedTooth(toothNumber)}
                 className={`
           relative w-8 h-12 sm:w-10 sm:h-14 md:w-12 md:h-16 rounded-lg border-2 transition-all
-          hover:scale-110 hover:shadow-lg cursor-pointer
-          ${colorClass}
+          hover:scale-105 hover:shadow-md cursor-pointer
+          ${
+    hasHistory
+        ? 'border-blue-300 bg-blue-50 text-blue-900 hover:border-blue-400 hover:bg-blue-100'
+        : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400 hover:bg-gray-50'
+}
+          ${isSelected ? 'ring-2 ring-blue-500 ring-offset-1 border-blue-500' : ''}
         `}
                 title={t('odontogram.toothTitle', { toothNumber })}
             >
@@ -178,26 +183,6 @@ export default function OdontogramPage({
                     </div>
                 </div>
             </div>
-
-            <Card>
-                <CardHeader>
-                    <CardTitle className="text-lg">{t('odontogram.legendTitle')}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <div className="flex flex-wrap gap-3">
-                        <Badge className="bg-gray-100 border-gray-300 text-gray-800">{t('odontogram.condition.healthy')}</Badge>
-                        <Badge className="bg-red-100 border-red-500 text-red-800">{t('odontogram.condition.cavity')}</Badge>
-                        <Badge className="bg-blue-100 border-blue-500 text-blue-800">{t('odontogram.condition.filling')}</Badge>
-                        <Badge className="bg-yellow-100 border-yellow-600 text-yellow-800">{t('odontogram.condition.crown')}</Badge>
-                        <Badge className="bg-purple-100 border-purple-500 text-purple-800">{t('odontogram.condition.rootCanal')}</Badge>
-                        <Badge className="bg-gray-300 border-gray-600 text-gray-800">{t('odontogram.condition.extraction')}</Badge>
-                        <Badge className="bg-green-100 border-green-500 text-green-800">{t('odontogram.condition.implant')}</Badge>
-                    </div>
-                    <p className="mt-3 text-xs text-gray-500">
-                        {t('odontogram.legendHint')}
-                    </p>
-                </CardContent>
-            </Card>
 
             <Card>
                 <CardHeader>
@@ -245,7 +230,7 @@ export default function OdontogramPage({
                     </div>
 
                     <p className="text-xs text-gray-500 text-center mt-6">
-                        {t('odontogram.chartHint')}
+                        {t('patientHistory.subtitle')}
                     </p>
                 </CardContent>
             </Card>
@@ -254,12 +239,8 @@ export default function OdontogramPage({
                 <ToothDetailDialog
                     open={selectedTooth !== null}
                     onOpenChange={(open) => !open && setSelectedTooth(null)}
-                    patientId={id}
                     toothNumber={selectedTooth}
-                    entries={entriesByTooth.get(selectedTooth) ?? []}
-                    onCreated={() => {
-                        odontogramQuery.refetch();
-                    }}
+                    treatments={treatmentsByTooth.get(selectedTooth) ?? []}
                 />
             ) : null}
         </div>

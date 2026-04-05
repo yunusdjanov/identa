@@ -150,8 +150,11 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
               ? 'role.dentist'
               : null;
     const canOpenSettings = currentUser ? currentUser.role === 'dentist' : true;
-    const canManageTeam = currentUser?.role === 'dentist';
-    const canViewAuditLogs = currentUser ? currentUser.role === 'dentist' : false;
+    const assistantPermissions = new Set(currentUser?.assistant_permissions ?? []);
+    const canManageTeam = Boolean(currentUser && (currentUser.role === 'dentist' || assistantPermissions.has('team.manage')));
+    const canViewAuditLogs = Boolean(
+        currentUser && (currentUser.role === 'dentist' || assistantPermissions.has('audit_logs.view'))
+    );
     const canOpenStaff = Boolean(currentUser && (canManageTeam || canViewAuditLogs));
     const showHeaderSkeleton = !isMounted || isUserLoading;
 

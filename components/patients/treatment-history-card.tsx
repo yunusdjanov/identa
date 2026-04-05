@@ -21,6 +21,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { PatientPhotoPreviewDialog } from '@/components/patients/patient-photo-preview-dialog';
+import { ClinicalSnapshotCard } from '@/components/patients/clinical-snapshot-card';
 import { formatCurrency, formatDate, toLocalDateKey } from '@/lib/utils';
 import { toast } from 'sonner';
 import { CalendarDays, Image as ImageIcon, Pencil, Plus, Trash2 } from 'lucide-react';
@@ -302,6 +303,12 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                     </Button>
                 </CardHeader>
                 <CardContent className="space-y-6">
+                    <ClinicalSnapshotCard
+                        treatments={treatments}
+                        isTreatmentsLoading={treatmentsQuery.isLoading}
+                        isTreatmentsError={treatmentsQuery.isError}
+                    />
+
                     <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
                         <div className="rounded-xl border border-red-100 bg-red-50/60 p-3">
                             <p className="text-xs font-medium uppercase tracking-wide text-red-600">{t('patientHistory.totalDebt')}</p>
@@ -421,7 +428,12 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                         </div>
                                         <div className="min-w-0">
                                             <p className="text-xs font-medium uppercase tracking-wide text-gray-400 lg:hidden">{t('patientHistory.table.workDone')}</p>
-                                            <p className="text-sm font-semibold text-gray-900">{treatment.treatment_type}</p>
+                                            <p
+                                                className="max-w-[220px] truncate text-sm font-semibold text-gray-900 sm:max-w-[260px] lg:max-w-[300px] xl:max-w-[340px]"
+                                                title={treatment.treatment_type}
+                                            >
+                                                {treatment.treatment_type}
+                                            </p>
                                         </div>
                                         <div>
                                             <p className="text-xs font-medium uppercase tracking-wide text-gray-400 lg:hidden">{t('patientHistory.table.debt')}</p>

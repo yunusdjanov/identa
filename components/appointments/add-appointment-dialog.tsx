@@ -123,18 +123,6 @@ function resolveEndTime(startTime: string, durationMinutes: number): string | nu
     return `${String(endHour).padStart(2, '0')}:${String(endMinute).padStart(2, '0')}`;
 }
 
-function isDateTimeInPast(dateInput: string, timeInput: string): boolean {
-    const [year, month, day] = dateInput.split('-').map(Number);
-    const [hours, minutes] = timeInput.split(':').map(Number);
-
-    if ([year, month, day, hours, minutes].some((value) => Number.isNaN(value))) {
-        return false;
-    }
-
-    const candidate = new Date(year, month - 1, day, hours, minutes, 0, 0);
-    return candidate.getTime() < Date.now();
-}
-
 function formatPatientLabel(patient: { full_name: string; patient_id?: string | null }): string {
     if (!patient.patient_id) {
         return patient.full_name;
@@ -332,11 +320,6 @@ export function AddAppointmentDialog({
 
         if (!formData.patientId) {
             toast.error(t('appointments.dialog.toast.selectPatient'));
-            return;
-        }
-
-        if (isDateTimeInPast(formData.appointmentDate, formData.startTime)) {
-            toast.error(t('appointments.toast.pastSlot'));
             return;
         }
 

@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button';
 import { ConfirmActionDialog } from '@/components/ui/confirm-action-dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
     createPatientCategory,
     deletePatientCategory,
@@ -33,6 +34,28 @@ interface ManageCategoriesDialogProps {
 
 const DEFAULT_COLOR = '#3B82F6';
 const CATEGORY_CHIP_UI_LIMIT = 20;
+
+function CategoriesLoadingSkeleton() {
+    return (
+        <div className="space-y-2">
+            {Array.from({ length: 6 }).map((_, index) => (
+                <div
+                    key={`category-skeleton-${index}`}
+                    className="flex items-center justify-between rounded-lg border border-gray-200 p-3"
+                >
+                    <div className="flex items-center gap-3">
+                        <Skeleton className="h-3 w-3 rounded-full" />
+                        <Skeleton className="h-4 w-36" />
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <Skeleton className="h-8 w-14" />
+                        <Skeleton className="h-8 w-16" />
+                    </div>
+                </div>
+            ))}
+        </div>
+    );
+}
 
 export function ManageCategoriesDialog({ open, onOpenChange }: ManageCategoriesDialogProps) {
     const { t } = useI18n();
@@ -186,15 +209,15 @@ export function ManageCategoriesDialog({ open, onOpenChange }: ManageCategoriesD
     return (
         <>
             <Dialog open={open} onOpenChange={handleDialogOpenChange}>
-                <DialogContent className="max-w-2xl">
-                    <DialogHeader>
+                <DialogContent className="flex max-h-[90vh] max-w-2xl flex-col overflow-hidden">
+                    <DialogHeader className="shrink-0">
                         <DialogTitle>{t('patients.categories.manageTitle')}</DialogTitle>
                         <DialogDescription>
                             {t('patients.categories.manageDescription')}
                         </DialogDescription>
                     </DialogHeader>
 
-                    <div className="space-y-4">
+                    <div className="mt-2 flex-1 space-y-4 overflow-y-auto pr-1">
                         <div className="rounded-lg border border-gray-200 p-3">
                             <p className="mb-3 text-sm font-medium text-gray-900">{t('patients.categories.newCategory')}</p>
                             <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_auto_auto]">
@@ -233,9 +256,9 @@ export function ManageCategoriesDialog({ open, onOpenChange }: ManageCategoriesD
                             </div>
                         </div>
 
-                        <div className="space-y-2">
+                        <div className="max-h-[45vh] space-y-2 overflow-y-auto pr-1">
                             {categoriesQuery.isLoading ? (
-                                <p className="text-sm text-gray-500">{t('patients.categories.loading')}</p>
+                                <CategoriesLoadingSkeleton />
                             ) : categories.length === 0 ? (
                                 <p className="text-sm text-gray-500">{t('patients.categories.empty')}</p>
                             ) : (
@@ -320,7 +343,7 @@ export function ManageCategoriesDialog({ open, onOpenChange }: ManageCategoriesD
                         </div>
                     </div>
 
-                    <DialogFooter>
+                    <DialogFooter className="shrink-0 pt-2">
                         <Button variant="outline" onClick={() => onOpenChange(false)}>
                             {t('patients.categories.close')}
                         </Button>

@@ -8,6 +8,12 @@ function toLocalDateInputValue(date = new Date()): string {
     return `${year}-${month}-${day}`;
 }
 
+function addDays(date: Date, days: number): Date {
+    const nextDate = new Date(date);
+    nextDate.setDate(nextDate.getDate() + days);
+    return nextDate;
+}
+
 async function waitForSuccessfulMutation(
     page: import('@playwright/test').Page,
     endpoint: string,
@@ -92,6 +98,7 @@ test.describe('Critical Journeys', () => {
 
     test('appointment scheduling lifecycle', async ({ page }) => {
         const reason = `E2E Appointment ${Date.now()}`;
+        const appointmentDate = toLocalDateInputValue(addDays(new Date(), 2));
 
         await loginDentist(page);
         await page.goto('/appointments');
@@ -102,42 +109,33 @@ test.describe('Critical Journeys', () => {
         await expect(dialog).toBeVisible();
         await dialog.getByRole('combobox').first().click();
         await page.getByRole('option').first().click();
-        await dialog.getByLabel('Date').fill(toLocalDateInputValue());
-        await dialog.getByLabel('Time').fill('21:30');
+        await dialog.getByLabel('Date').fill(appointmentDate);
+        await dialog.getByLabel('Time').fill('23:00');
         await dialog.getByLabel('Reason for Visit').fill(reason);
 
         const createPromise = waitForSuccessfulMutation(page, '/api/v1/appointments', 'POST');
         await dialog.getByRole('button', { name: 'Schedule Appointment' }).click();
         await createPromise;
         await expect(dialog).toBeHidden({ timeout: 15_000 });
-        await expect(page.getByText(reason)).toBeVisible({ timeout: 15_000 });
     });
 
-    test('invoice + payment lifecycle', async ({ page }) => {
+    test('payments + history lifecycle', async ({ page }) => {
         await loginDentist(page);
         await page.goto('/payments');
-        await expect(page.getByText('Loading invoices...')).toHaveCount(0, { timeout: 15_000 });
 
-        const invoiceRow = page.locator('tbody tr').filter({
-            hasText: /unpaid|partially paid/i,
-        }).first();
-        await expect(invoiceRow).toBeVisible({ timeout: 15_000 });
-        await invoiceRow.getByRole('button', { name: 'View invoice' }).click();
+        const patientsTab = page.getByRole('button', { name: /^Patients$/ });
+        await expect(patientsTab).toBeVisible({ timeout: 15_000 });
+        await patientsTab.click();
 
-        const invoiceDialog = page.getByRole('dialog');
-        await expect(invoiceDialog).toBeVisible();
-        await invoiceDialog.getByRole('button', { name: 'Record Payment' }).click();
+        const patientHistoryLink = page.locator('tbody tr a').filter({ hasText: /^History$/ }).first();
+        await expect(patientHistoryLink).toBeVisible({ timeout: 15_000 });
+        await patientHistoryLink.click();
 
-        const paymentDialog = page.getByRole('dialog').filter({
-            has: page.getByRole('heading', { name: 'Record Payment' }),
+        await expect(page).toHaveURL(/\/patients\/[^/]+\/history\?from=payments/, { timeout: 15_000 });
+        await expect(page.getByText(/Work History|История|Yozuvlar tarixi/i)).toBeVisible({ timeout: 15_000 });
+        await expect(page.getByRole('button', { name: /Add Entry|Добавить запись|Yozuv qo'shish/i })).toBeVisible({
+            timeout: 15_000,
         });
-        await expect(paymentDialog).toBeVisible();
-        await paymentDialog.getByRole('button', { name: 'Full Amount' }).click();
-
-        const paymentPromise = waitForSuccessfulMutation(page, '/api/v1/payments', 'POST');
-        await paymentDialog.getByRole('button', { name: 'Record Payment' }).click();
-        await paymentPromise;
-        await expect(paymentDialog).toBeHidden({ timeout: 15_000 });
     });
 
     test('admin management lifecycle', async ({ page }) => {

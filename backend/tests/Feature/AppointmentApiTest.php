@@ -111,24 +111,27 @@ class AppointmentApiTest extends TestCase
             ->assertJsonPath('errors.start_time.0', __('api.appointments.conflict'));
     }
 
-    public function test_dentist_cannot_create_appointment_in_past_slot(): void
+    public function test_dentist_can_create_appointment_in_past_slot(): void
     {
         $dentist = User::factory()->create();
         $patient = Patient::factory()->create([
             'dentist_id' => $dentist->id,
         ]);
 
+        $pastDate = now()->subDay()->toDateString();
+
         $this->actingAs($dentist, 'web')
             ->postJson('/api/v1/appointments', [
                 'patient_id' => $patient->id,
-                'appointment_date' => now()->subDay()->toDateString(),
+                'appointment_date' => $pastDate,
                 'start_time' => '10:00',
                 'end_time' => '10:30',
                 'status' => Appointment::STATUS_SCHEDULED,
             ])
-            ->assertUnprocessable()
-            ->assertJsonValidationErrors(['start_time'])
-            ->assertJsonPath('errors.start_time.0', __('api.appointments.past_slot'));
+            ->assertCreated()
+            ->assertJsonPath('data.appointment_date', $pastDate)
+            ->assertJsonPath('data.start_time', '10:00')
+            ->assertJsonPath('data.end_time', '10:30');
     }
 
     public function test_dentist_can_create_appointment_overlapping_no_show_slot(): void
@@ -159,7 +162,7 @@ class AppointmentApiTest extends TestCase
             ->assertCreated();
     }
 
-    public function test_dentist_cannot_move_appointment_to_past_slot(): void
+    public function test_dentist_can_move_appointment_to_past_slot(): void
     {
         $dentist = User::factory()->create();
         $patient = Patient::factory()->create([
@@ -175,17 +178,20 @@ class AppointmentApiTest extends TestCase
             'status' => Appointment::STATUS_SCHEDULED,
         ]);
 
+        $pastDate = now()->subDay()->toDateString();
+
         $this->actingAs($dentist, 'web')
             ->putJson("/api/v1/appointments/{$appointment->id}", [
                 'patient_id' => $patient->id,
-                'appointment_date' => now()->subDay()->toDateString(),
+                'appointment_date' => $pastDate,
                 'start_time' => '11:00',
                 'end_time' => '11:30',
                 'status' => Appointment::STATUS_SCHEDULED,
             ])
-            ->assertUnprocessable()
-            ->assertJsonValidationErrors(['start_time'])
-            ->assertJsonPath('errors.start_time.0', __('api.appointments.past_slot'));
+            ->assertOk()
+            ->assertJsonPath('data.appointment_date', $pastDate)
+            ->assertJsonPath('data.start_time', '11:00')
+            ->assertJsonPath('data.end_time', '11:30');
     }
 
     public function test_dentist_cannot_move_appointment_into_overlapping_slot(): void

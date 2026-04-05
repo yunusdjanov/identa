@@ -4,8 +4,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useSearchParams } from 'next/navigation';
 import { Users, History } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { getCurrentUser } from '@/lib/api/dentist';
@@ -55,18 +55,17 @@ export default function StaffPage() {
         staleTime: 5 * 60_000,
     });
 
-    const isDentist = currentUserQuery.data?.role === 'dentist';
-    const canManageTeam = Boolean(currentUserQuery.data && isDentist);
-    const canViewAuditLogs = Boolean(currentUserQuery.data && isDentist);
-    const canViewTeam = canManageTeam || canViewAuditLogs;
+    const currentUser = currentUserQuery.data;
+    const isDentist = currentUser?.role === 'dentist';
+    const assistantPermissions = new Set(currentUser?.assistant_permissions ?? []);
+    const canManageTeam = Boolean(currentUser && (isDentist || assistantPermissions.has('team.manage')));
+    const canViewAuditLogs = Boolean(
+        currentUser && (isDentist || assistantPermissions.has('audit_logs.view'))
+    );
 
     const resolvedTab = useMemo<TeamTab>(() => {
-        if (!canManageTeam && canViewAuditLogs) {
-            return 'logs';
-        }
-
         return requestedTab === 'logs' ? 'logs' : 'access';
-    }, [canManageTeam, canViewAuditLogs, requestedTab]);
+    }, [requestedTab]);
 
     const [activeTab, setActiveTab] = useState<TeamTab>('access');
 
@@ -91,19 +90,6 @@ export default function StaffPage() {
         );
     }
 
-    if (!canViewTeam) {
-        return (
-            <Card>
-                <CardHeader>
-                    <CardTitle>{t('staff.title')}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <p className="text-sm text-gray-600">{t('staff.noAccess')}</p>
-                </CardContent>
-            </Card>
-        );
-    }
-
     return (
         <div className="space-y-8">
             <div>
@@ -114,18 +100,14 @@ export default function StaffPage() {
             <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as TeamTab)} className="space-y-6">
                 <div className="overflow-x-auto overflow-y-hidden no-scrollbar -mx-4 px-4 sm:mx-0 sm:px-0">
                     <TabsList className="inline-flex w-full sm:w-auto min-w-max">
-                        {canManageTeam ? (
-                            <TabsTrigger value="access" className="flex-shrink-0">
-                                <Users className="w-4 h-4 sm:mr-2" />
-                                <span className="hidden sm:inline">{t('menu.staffAccess')}</span>
-                            </TabsTrigger>
-                        ) : null}
-                        {canViewAuditLogs ? (
-                            <TabsTrigger value="logs" className="flex-shrink-0">
-                                <History className="w-4 h-4 sm:mr-2" />
-                                <span className="hidden sm:inline">{t('menu.actionLogs')}</span>
-                            </TabsTrigger>
-                        ) : null}
+                        <TabsTrigger value="access" className="flex-shrink-0">
+                            <Users className="w-4 h-4 sm:mr-2" />
+                            <span className="hidden sm:inline">{t('menu.staffAccess')}</span>
+                        </TabsTrigger>
+                        <TabsTrigger value="logs" className="flex-shrink-0">
+                            <History className="w-4 h-4 sm:mr-2" />
+                            <span className="hidden sm:inline">{t('menu.actionLogs')}</span>
+                        </TabsTrigger>
                     </TabsList>
                 </div>
 

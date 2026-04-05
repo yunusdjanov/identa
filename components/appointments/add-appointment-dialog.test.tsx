@@ -303,7 +303,7 @@ describe('AddAppointmentDialog', () => {
         });
     });
 
-    it('blocks submission for past date/time slots', async () => {
+    it('allows submission for past date/time slots', async () => {
         const user = userEvent.setup();
         const queryClient = new QueryClient({
             defaultOptions: {
@@ -312,6 +312,16 @@ describe('AddAppointmentDialog', () => {
             },
         });
 
+        vi.mocked(createAppointment).mockResolvedValue({
+            id: 'created-past-appointment',
+            patient_id: 'patient-fallback',
+            patient_name: 'Fallback Patient',
+            appointment_date: '2099-01-01',
+            start_time: '09:00',
+            end_time: '09:30',
+            status: 'scheduled',
+            notes: null,
+        });
         vi.mocked(getPatient).mockResolvedValueOnce({
             id: 'patient-fallback',
             patient_id: 'PT-FALLBACK',
@@ -348,10 +358,14 @@ describe('AddAppointmentDialog', () => {
         await user.click(submitButtons[submitButtons.length - 1]);
 
         await waitFor(() => {
-            expect(vi.mocked(createAppointment)).not.toHaveBeenCalled();
-            expect(vi.mocked(toast.error)).toHaveBeenCalledWith(
-                'Cannot use a past time slot.'
-            );
+            expect(vi.mocked(createAppointment)).toHaveBeenCalledWith({
+                patient_id: 'patient-fallback',
+                appointment_date: pastDate,
+                start_time: '09:00',
+                end_time: '09:30',
+                status: 'scheduled',
+                reason: undefined,
+            });
         });
     });
 
@@ -486,7 +500,7 @@ describe('AddAppointmentDialog', () => {
                 start_time: '09:00',
                 end_time: '09:30',
                 status: 'scheduled',
-                notes: undefined,
+                reason: undefined,
             });
         });
     });

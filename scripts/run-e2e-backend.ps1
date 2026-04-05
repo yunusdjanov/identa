@@ -24,7 +24,8 @@ Stop-ProcessOnPort -TargetPort $Port
 $env:FRONTEND_URL = $FrontendUrl
 $frontendUri = [System.Uri]$FrontendUrl
 $frontendHostPort = "$($frontendUri.Host):$($frontendUri.Port)"
-$env:SANCTUM_STATEFUL_DOMAINS = "$frontendHostPort,$($frontendUri.Host),localhost:3100,localhost,127.0.0.1:3100,127.0.0.1"
+$env:FRONTEND_URLS = "$FrontendUrl,http://localhost:$($frontendUri.Port),http://127.0.0.1:$($frontendUri.Port)"
+$env:SANCTUM_STATEFUL_DOMAINS = "$frontendHostPort,$($frontendUri.Host),localhost:$($frontendUri.Port),localhost,127.0.0.1:$($frontendUri.Port),127.0.0.1"
 $env:SESSION_DRIVER = "file"
 $env:SESSION_DOMAIN = $frontendUri.Host
 $env:SESSION_SECURE_COOKIE = "false"

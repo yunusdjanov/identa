@@ -107,13 +107,6 @@ function getWeekStart(date: Date): Date {
     return weekStart;
 }
 
-function isSlotInPast(date: Date, timeInput: string): boolean {
-    const [hours, minutes] = timeInput.split(':').map(Number);
-    const slotDate = new Date(date);
-    slotDate.setHours(hours, minutes, 0, 0);
-    return slotDate.getTime() < Date.now();
-}
-
 function getAppointmentCardClass(status: AppointmentRow['status']): string {
     switch (status) {
         case 'scheduled':
@@ -923,12 +916,6 @@ export default function AppointmentsPage() {
             return;
         }
 
-        if (isSlotInPast(targetDate, targetStartTime)) {
-            toast.error(t('appointments.toast.pastSlot'));
-            setDraggedAppointmentId(null);
-            return;
-        }
-
         const targetStartMinutes = toMinutesFromTime(targetStartTime);
         const targetEndMinutes = toMinutesFromTime(targetEndTime);
         const coveredSlots = appointmentsCoveringByDateAndTime.get(targetDateKey);
@@ -1107,8 +1094,6 @@ export default function AppointmentsPage() {
                                 const hasBlockingSlotAppointments = slotCoveringAppointments.some(
                                     (appointment) => !isNonBlockingAppointmentStatus(appointment.status)
                                 );
-                                const isPastSlot = isSlotInPast(currentDate, time);
-
                                 return (
                                     <div
                                         key={time}
@@ -1123,7 +1108,7 @@ export default function AppointmentsPage() {
                                             data-testid={`timeslot-dropzone-${time}`}
                                             className="flex-1 space-y-2"
                                             onDragOver={(event) => {
-                                                if (!draggedAppointmentId || isPastSlot) {
+                                                if (!draggedAppointmentId) {
                                                     return;
                                                 }
                                                 event.preventDefault();
@@ -1227,7 +1212,7 @@ export default function AppointmentsPage() {
                                                             </div>
                                                         </div>
                                                     ))}
-                                                    {!isPastSlot && !hasBlockingSlotAppointments ? (
+                                                    {!hasBlockingSlotAppointments ? (
                                                         <button
                                                             type="button"
                                                             onClick={() => openAddDialog({ date: currentDate, startTime: time })}
@@ -1237,9 +1222,7 @@ export default function AppointmentsPage() {
                                                         </button>
                                                     ) : null}
                                                 </>
-                                            ) : isPastSlot ? (
-                                                    <p className="text-xs text-gray-400">{t('appointments.pastSlot')}</p>
-                                                ) : (
+                                            ) : (
                                                     <button
                                                         type="button"
                                                         onClick={() => openAddDialog({ date: currentDate, startTime: time })}

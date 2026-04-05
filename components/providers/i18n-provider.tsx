@@ -19,6 +19,7 @@ import { DICTIONARIES } from '@/lib/i18n/dictionaries';
 import { setValidationLocale } from '@/lib/input-validation';
 
 type TranslationValue = string | number;
+const FALLBACK_DICTIONARY = DICTIONARIES.en;
 
 interface I18nContextValue {
     locale: AppLocale;
@@ -46,8 +47,7 @@ const FALLBACK_CONTEXT: I18nContextValue = {
     locale: DEFAULT_LOCALE,
     setLocale: () => undefined,
     t: (key, variables) => {
-        const fallback = DICTIONARIES[DEFAULT_LOCALE];
-        const template = fallback[key] ?? key;
+        const template = FALLBACK_DICTIONARY[key] ?? key;
         return interpolate(template, variables);
     },
 };
@@ -74,7 +74,7 @@ export function I18nProvider({
     const t = useCallback(
         (key: string, variables?: Record<string, TranslationValue>) => {
             const active = DICTIONARIES[locale];
-            const fallback = DICTIONARIES[DEFAULT_LOCALE];
+            const fallback = FALLBACK_DICTIONARY;
             const template = active[key] ?? fallback[key] ?? key;
             return interpolate(template, variables);
         },

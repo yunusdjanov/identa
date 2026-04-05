@@ -325,3 +325,34 @@ All core features implemented with mock data:
 - User testing and feedback
 - Backend integration
 - Production deployment
+
+---
+
+## 2026-04-01
+
+- [x] Patient history: clinical snapshot implementation
+  - [x] Added a dedicated clinical snapshot section above the history table
+  - [x] Added show/hide toggle for the snapshot block
+  - [x] Wired snapshot to real treatment data (entries, linked teeth, latest entry date)
+  - [x] Wired snapshot to real odontogram summary data (affected teeth + latest conditions)
+  - [x] Added direct shortcut to full odontogram from snapshot
+  - [x] Added `ru`/`uz`/`en` localization keys for snapshot UI
+  - [x] Re-validated quality gates (`npm run lint`, `npm test`, `npm run build`)
+- [x] Patient history: snapshot hardening follow-up
+  - [x] Prevented misleading `0` values while history data is still loading (skeleton placeholders shown instead)
+  - [x] Added safe fallback display when history fetch fails and no rows are available
+  - [x] Stabilized latest-condition badge keys to avoid duplicate-key UI edge cases
+  - [x] Re-validated quality gates (`npm run lint`, `npm test`, `npm run build`)
+
+## 2026-04-05
+
+- [x] Appointment scheduling rule change: allow past time slots
+  - [x] Removed backend past-slot rejection from appointment create/update API path
+  - [x] Removed frontend past-slot blocking in add-appointment dialog and day-view drag/drop
+  - [x] Restored add-slot actions for past slots in day view
+  - [x] Updated appointment tests for new behavior
+  - [x] Re-validated with focused checks:
+    - [x] `npm.cmd test -- components/appointments/add-appointment-dialog.test.tsx`
+    - [x] `npm.cmd test -- app/appointments/page.test.tsx`
+    - [x] `npm.cmd run lint -- app/appointments/page.tsx components/appointments/add-appointment-dialog.tsx components/appointments/add-appointment-dialog.test.tsx`
+    - [x] `php artisan test --filter=AppointmentApiTest` (run from `backend`)

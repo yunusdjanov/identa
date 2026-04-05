@@ -15,6 +15,7 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
+import { DataTableShell, getDataTableClassName } from '@/components/ui/data-table-shell';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -441,8 +442,8 @@ export default function AdminDashboardPage() {
                             </div>
                         </CardHeader>
                         <CardContent>
-                            <div className="overflow-x-auto">
-                                <Table className="w-full">
+                            <DataTableShell>
+                                <Table className={getDataTableClassName('standard')}>
                                     <TableHeader>
                                         <TableRow>
                                             <TableHead>{t('admin.table.name')}</TableHead>
@@ -577,7 +578,7 @@ export default function AdminDashboardPage() {
                                         )}
                                     </TableBody>
                                 </Table>
-                            </div>
+                            </DataTableShell>
                             {pagination ? (
                                 <div className="mt-4 flex flex-col gap-3 text-sm text-gray-600 sm:flex-row sm:items-center sm:justify-between">
                                     <p>
