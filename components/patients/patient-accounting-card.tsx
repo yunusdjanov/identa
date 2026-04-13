@@ -115,7 +115,7 @@ export function PatientAccountingCard({
                             <span>{t('patientHistory.table.workDone')}</span>
                             <span>{t('patientHistory.table.debt')}</span>
                             <span>{t('patientHistory.table.paid')}</span>
-                            <span>{t('patientHistory.table.balance')}</span>
+                            <span>{t('patientHistory.table.remaining')}</span>
                         </div>
                         <div className="divide-y divide-gray-100">
                             {previewRows.map((treatment) => (

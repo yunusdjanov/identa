@@ -1,4 +1,4 @@
-# Odenta Frontend Documentation
+# Identa Frontend Documentation
 
 > **Version:** 1.0.0 (MVP)  
 > **Last Updated:** February 14, 2026  
@@ -25,7 +25,7 @@
 
 ## Overview
 
-**Odenta** is a comprehensive dental practice management system designed for dentists in Uzbekistan. The frontend is a modern, responsive web application built with Next.js 14, providing a complete suite of tools for patient management, appointment scheduling, treatment tracking, and financial management.
+**Identa** is a comprehensive dental practice management system designed for dentists in Uzbekistan. The frontend is a modern, responsive web application built with Next.js 14, providing a complete suite of tools for patient management, appointment scheduling, treatment tracking, and financial management.
 
 ### Key Highlights
 
@@ -274,7 +274,7 @@ interface Invoice {
 
 #### Admin Authentication
 - **Admin Login** (`/admin/login`): Email/password
-- **Demo Credentials:** `admin@odenta.uz` / `admin123`
+- **Demo Credentials:** `admin@identa.uz` / `admin123`
 
 ---
 
@@ -360,7 +360,7 @@ NEXT_PUBLIC_API_URL=http://localhost:8000/api
 NEXT_PUBLIC_GOOGLE_CLIENT_ID=your_client_id_here
 
 # App Configuration
-NEXT_PUBLIC_APP_NAME=Odenta
+NEXT_PUBLIC_APP_NAME=Identa
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 ```
 
@@ -550,8 +550,8 @@ CMD ["npm", "start"]
 ### Environment Variables for Production
 
 ```env
-NEXT_PUBLIC_API_URL=https://api.odenta.uz
-NEXT_PUBLIC_APP_URL=https://odenta.uz
+NEXT_PUBLIC_API_URL=https://api.identa.uz
+NEXT_PUBLIC_APP_URL=https://identa.uz
 ```
 
 ---

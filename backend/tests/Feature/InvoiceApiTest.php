@@ -438,7 +438,7 @@ class InvoiceApiTest extends TestCase
 
         $html = $this->renderInvoicePdfHtml($invoice, 'ru');
 
-        $this->assertStringContainsString('СЧЕТ Odenta', $html);
+        $this->assertStringContainsString('СЧЕТ Identa', $html);
         $this->assertStringContainsString('История оплат', $html);
         $this->assertStringContainsString('Статус: Частично оплачен', $html);
         $this->assertStringContainsString('Наличные', $html);
@@ -488,7 +488,7 @@ class InvoiceApiTest extends TestCase
 
         $html = $this->renderInvoicePdfHtml($invoice, 'uz');
 
-        $this->assertStringContainsString('Odenta HISOB-FAKTURA', $html);
+        $this->assertStringContainsString('Identa HISOB-FAKTURA', $html);
         $this->assertStringContainsString('Tolov tarixi', $html);
         $this->assertStringContainsString('Holat: Qisman tolangan', $html);
         $this->assertStringContainsString('Naqd', $html);

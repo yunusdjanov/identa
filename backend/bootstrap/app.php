@@ -4,6 +4,7 @@ use App\Http\Middleware\AttachRequestContext;
 use App\Http\Middleware\AppendSecurityHeaders;
 use App\Http\Middleware\EnsurePermission;
 use App\Http\Middleware\EnsureRole;
+use App\Http\Middleware\ForceApiJsonAccept;
 use App\Http\Middleware\SetRequestLocale;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Foundation\Application;
@@ -49,6 +50,7 @@ return Application::configure(basePath: dirname(__DIR__))
         );
 
         $middleware->append(SetRequestLocale::class);
+        $middleware->append(ForceApiJsonAccept::class);
         $middleware->append(AttachRequestContext::class);
         $middleware->append(AppendSecurityHeaders::class);
         $middleware->statefulApi();

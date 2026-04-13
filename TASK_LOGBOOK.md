@@ -356,7 +356,7 @@ Mandatory before milestone completion:
 - 2026-03-01: Hotfix for archived-patient lookup errors (`No query results for model [App\Models\Patient]`) after archive action. Updated `PatientOdontogramController` and `PatientTreatmentController` to resolve patients with `withTrashed()` for read endpoints and explicitly block new odontogram/treatment writes while archived with clear validation errors. Added regression coverage in `backend/tests/Feature/OdontogramTreatmentApiTest.php` and validated with `php artisan test --filter=OdontogramTreatmentApiTest` (5/5) + `npm run build` passing.
 - 2026-03-08: Completed calendar-rules message parity and drag/drop test hardening. Unified appointment conflict/past-slot wording across backend validation and frontend drag/create/edit paths (`backend/app/Http/Controllers/Api/AppointmentController.php`, `components/appointments/add-appointment-dialog.tsx`, `app/appointments/page.tsx`, `lib/appointments/messages.ts`), added canonical-message assertions in backend appointment feature tests (`backend/tests/Feature/AppointmentApiTest.php`), and introduced focused frontend drag/drop interaction coverage (`app/appointments/page.test.tsx`) plus message-normalization regression tests (`lib/appointments/messages.test.ts`). Validation: `npm test -- --run app/appointments/page.test.tsx components/appointments/add-appointment-dialog.test.tsx lib/appointments/messages.test.ts`, `php artisan test --filter=AppointmentApiTest`, `npm run lint` (warning-only pre-existing dashboard test), and `npm run build` all passed.
 - 2026-03-08: Refined appointment-slot behavior per UX feedback: made `no_show` appointments non-blocking for create/update/drag-drop conflict checks (backend + frontend parity), enabled `+ Add appointment` CTA on day-view slots that contain only cancelled/no-show entries, and added deterministic same-slot ordering so cancelled items render before scheduled ones when start times match. Added/updated regression coverage in `app/appointments/page.test.tsx`, `components/appointments/add-appointment-dialog.test.tsx`, and `backend/tests/Feature/AppointmentApiTest.php`. Validation: targeted frontend tests (13/13), backend appointment tests (12/12), `npm run lint` (existing warning only), and `npm run build` passed.
-- 2026-03-09: Retro-backfilled missed localization milestone: completed static UI internationalization with 3 locales (`ru`, `uz`, `en`) and default locale set to Russian, including dictionary-driven rendering, locale persistence (`odenta_locale` cookie), and locale-aware HTML lang updates through provider/config (`components/providers/i18n-provider.tsx`, `lib/i18n/config.ts`, `lib/i18n/dictionaries.ts`, `app/layout.tsx`).
+- 2026-03-09: Retro-backfilled missed localization milestone: completed static UI internationalization with 3 locales (`ru`, `uz`, `en`) and default locale set to Russian, including dictionary-driven rendering, locale persistence (`identa_locale` cookie), and locale-aware HTML lang updates through provider/config (`components/providers/i18n-provider.tsx`, `lib/i18n/config.ts`, `lib/i18n/dictionaries.ts`, `app/layout.tsx`).
 - 2026-03-09: Retro-backfilled API locale propagation and backend localization handling: frontend API client now sends `X-Locale` from active UI locale (`lib/api/client.ts`), backend request locale middleware resolves locale from header/cookie/Accept-Language and localizes framework/API messages (`backend/app/Http/Middleware/SetRequestLocale.php`, `backend/lang/*` translations, `backend/tests/Feature/LocaleMiddlewareTest.php`).
 - 2026-03-09: Retro-backfilled localization quality verification: frontend lint/tests/build and backend locale/feature suites were re-run during rollout to validate static-text translation coverage and localized error-message flow.
 
@@ -441,21 +441,21 @@ Execute demo-polish board P0 lane from `docs/qa/EXECUTION_BOARD.md` (localizatio
 - 2026-03-10: Fixed floating up/down chevron artifact seen on multiple pages by removing Radix select scroll buttons from shared select content rendering in `components/ui/select.tsx` (`SelectScrollUpButton` / `SelectScrollDownButton` no longer injected). Validation: `npm run lint` and `npm run build` passed.
 - 2026-03-11: Started demo-polish execution lane and refreshed the formal execution board (`docs/qa/EXECUTION_BOARD.md`) with explicit P0/P1/P2 items and measurable acceptance criteria for current demo-readiness work.
 - 2026-03-11: Fixed frontend quality-gate regression in `app/dashboard/page.test.tsx` by updating dentist API mocks to include `getCurrentUser` (required by current dashboard query path) and re-validating full frontend gates. Validation: `npm run lint`, `cmd /c npm test -- --run` (44/44), `npm run build` all passed.
-- 2026-03-12: Restored login reliability after branding/env changes. Root causes: corrupted `APP_KEY` in `backend/.env` (concatenated values) and SQLite `cache` table corruption exposed by `SESSION_DRIVER=database` + `CACHE_STORE=database`. Fixes applied: set valid single `APP_KEY` in `backend/.env` and `backend/.env.docker`, removed repeated `php artisan key:generate --force` from `docker-compose.yml` startup command, switched local `backend/.env` runtime drivers to `SESSION_DRIVER=file`, `CACHE_STORE=file`, `QUEUE_CONNECTION=sync`, aligned demo auth emails to `@odenta.test` (`app/login/page.tsx`, `app/admin/login/page.tsx`, `backend/database/seeders/DatabaseSeeder.php`, SQLite user rows), and cleared Laravel caches. Verification: `/sanctum/csrf-cookie` returns `204`, API login for `dentist@odenta.test` succeeds, frontend/backend health endpoints return `200`.
+- 2026-03-12: Restored login reliability after branding/env changes. Root causes: corrupted `APP_KEY` in `backend/.env` (concatenated values) and SQLite `cache` table corruption exposed by `SESSION_DRIVER=database` + `CACHE_STORE=database`. Fixes applied: set valid single `APP_KEY` in `backend/.env` and `backend/.env.docker`, removed repeated `php artisan key:generate --force` from `docker-compose.yml` startup command, switched local `backend/.env` runtime drivers to `SESSION_DRIVER=file`, `CACHE_STORE=file`, `QUEUE_CONNECTION=sync`, aligned demo auth emails to `@identa.test` (`app/login/page.tsx`, `app/admin/login/page.tsx`, `backend/database/seeders/DatabaseSeeder.php`, SQLite user rows), and cleared Laravel caches. Verification: `/sanctum/csrf-cookie` returns `204`, API login for `dentist@identa.test` succeeds, frontend/backend health endpoints return `200`.
 - 2026-03-12: Resolved local runtime slowness caused by loopback port conflict on `localhost:8000` (Docker/WSL listeners contending with PHP dev server). Hardening changes:
   - Moved local backend defaults to `localhost:8001` in `scripts/run-backend.ps1` (default `Port=8001`, `BindHost=localhost`).
   - Updated frontend local defaults to match (`.env.local`, `.env.example`, fallback in `lib/api/client.ts`).
-  - Updated local app naming in env templates to `Odenta` (`.env.local`, `.env.example`).
+  - Updated local app naming in env templates to `Identa` (`.env.local`, `.env.example`).
   Verification:
   - `curl http://localhost:8001/sanctum/csrf-cookie` repeatedly returns `204` in ~20-50ms.
   - Frontend `/login` responds `200` quickly after restart.
 - 2026-03-12: Executed P0 stability smoke checkpoint and fixed critical test/regression blockers:
   - Ran full critical E2E suite (`cmd /c npm run test:e2e`) and confirmed all 4 journeys green after fixes.
   - Updated E2E auth helpers to current runtime assumptions:
-    - switched seeded emails to `admin@odenta.test` / `dentist@odenta.test`
+    - switched seeded emails to `admin@identa.test` / `dentist@identa.test`
     - pinned E2E locale cookie to `en` to avoid locale-dependent selector flakiness
     - kept sign-in credentials aligned with seeded `password123`
-  - Updated admin lifecycle E2E generated dentist email domain from `@dentalflow.test` to `@odenta.test`.
+  - Updated admin lifecycle E2E generated dentist email domain from `@dentalflow.test` to `@identa.test`.
   - Repaired Russian invoice-PDF localization fixture/test expectations in `backend/tests/Feature/InvoiceApiTest.php` (readable Cyrillic assertions and seed strings).
   - Rewrote `backend/lang/ru/api.php` with clean Russian copy in UTF-8 source.
   Validation:
@@ -582,3 +582,14 @@ Execute demo-polish board P0 lane from `docs/qa/EXECUTION_BOARD.md` (localizatio
     - `npm.cmd test -- app/appointments/page.test.tsx` passed (11/11).
     - `npm.cmd run lint -- app/appointments/page.tsx components/appointments/add-appointment-dialog.tsx components/appointments/add-appointment-dialog.test.tsx` passed.
     - `php artisan test --filter=AppointmentApiTest` passed (13/13).
+
+- 2026-04-13: Treatment-history image delivery hardening.
+  - Kept the 5 MB upload limit unchanged.
+  - Added backend-generated thumbnail/preview variants for treatment-history images while preserving the original file as the source of truth.
+  - Added additive `thumbnail_url` and `preview_url` fields to treatment image API responses; existing `url` remains unchanged.
+  - Updated patient history and tooth detail galleries to use thumbnails in chips/rails and preview images in the main viewer.
+  - Validation:
+    - `npm test -- treatment-history-card.test.tsx patient-photo-preview-dialog.test.tsx tooth-detail-dialog.test.tsx` passed (7/7).
+    - `npm run lint` passed.
+    - `npm run build` passed.
+  - Note: backend PHP test execution is blocked locally because `php.exe` is not available in PATH on this machine.

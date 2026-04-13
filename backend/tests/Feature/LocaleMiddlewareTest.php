@@ -47,7 +47,7 @@ class LocaleMiddlewareTest extends TestCase
         $dentist = User::factory()->create();
 
         $this->actingAs($dentist, 'web')
-            ->withHeaders(['Cookie' => 'odenta_locale=uz'])
+            ->withHeaders(['Cookie' => 'identa_locale=uz'])
             ->getJson('/api/v1/admin/dentists')
             ->assertForbidden()
             ->assertHeader('Content-Language', 'uz')

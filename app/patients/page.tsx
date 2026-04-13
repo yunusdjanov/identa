@@ -27,8 +27,8 @@ import { DataTableShell, getDataTableClassName } from '@/components/ui/data-tabl
 import { listPatientCategories, listPatients, restorePatient } from '@/lib/api/dentist';
 import { getApiErrorMessage } from '@/lib/api/client';
 import type { ApiPatient } from '@/lib/api/types';
-import { extractPrimaryPhone, formatDate, toLocalDateKey, truncateForUi } from '@/lib/utils';
-import { Plus, Search, Phone, Clock3, CalendarPlus, ArrowRight, Tags, FileText } from 'lucide-react';
+import { cn, extractPrimaryPhone, formatDate, toLocalDateKey, truncateForUi } from '@/lib/utils';
+import { Plus, Search, Phone, CalendarPlus, ArrowRight, Tags, FileText, FilterX } from 'lucide-react';
 import { AddPatientDialog } from '@/components/patients/add-patient-dialog';
 import { ManageCategoriesDialog } from '@/components/patients/manage-categories-dialog';
 import { useI18n } from '@/components/providers/i18n-provider';
@@ -140,10 +140,16 @@ export default function PatientsPage() {
         () => ''
     );
     const [searchQuery, setSearchQuery] = useState('');
-    const [inactiveFilter, setInactiveFilter] = useState<'none' | '1y'>('none');
+    const [inactiveFilter, setInactiveFilter] = useState<'none' | '6m' | '1y'>('none');
     const [showArchivedOnly, setShowArchivedOnly] = useState(false);
     const [selectedCategoryId, setSelectedCategoryId] = useState('all');
     const [currentPage, setCurrentPage] = useState(1);
+    const [inactiveThresholdDateKey6m] = useState(() => {
+        const threshold = new Date();
+        threshold.setHours(0, 0, 0, 0);
+        threshold.setMonth(threshold.getMonth() - 6);
+        return toLocalDateKey(threshold);
+    });
     const [inactiveThresholdDateKey1y] = useState(() => {
         const threshold = new Date();
         threshold.setHours(0, 0, 0, 0);
@@ -188,7 +194,9 @@ export default function PatientsPage() {
                     inactive_before:
                         inactiveFilter === 'none' || showArchivedOnly
                             ? undefined
-                            : inactiveThresholdDateKey1y,
+                            : inactiveFilter === '6m'
+                                ? inactiveThresholdDateKey6m
+                                : inactiveThresholdDateKey1y,
                     archived_only: showArchivedOnly ? true : undefined,
                 },
             }),
@@ -234,6 +242,13 @@ export default function PatientsPage() {
     });
     const openPatientDetails = (patientId: string) => {
         router.push(`/patients/${patientId}`);
+    };
+    const resetFilters = () => {
+        setSearchQuery('');
+        setSelectedCategoryId('all');
+        setInactiveFilter('none');
+        setShowArchivedOnly(false);
+        setCurrentPage(1);
     };
 
     if (patientsQuery.isLoading) {
@@ -281,8 +296,8 @@ export default function PatientsPage() {
             </div>
 
             <Card>
-                <CardContent className="pt-6">
-                    <div className="flex flex-col md:flex-row gap-4">
+                <CardContent className="py-4">
+                    <div className="flex flex-col gap-2 lg:flex-row lg:items-center">
                         <div className="relative flex-1">
                             <Search aria-hidden="true" className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                             <Input
@@ -293,51 +308,82 @@ export default function PatientsPage() {
                                     setSearchQuery(event.target.value);
                                     setCurrentPage(1);
                                 }}
-                                className="pl-10"
+                                className="h-11 pl-10"
                             />
                         </div>
-                        <Button
-                            variant={inactiveFilter === '1y' ? 'default' : 'outline'}
-                            aria-pressed={inactiveFilter === '1y'}
-                            disabled={showArchivedOnly}
-                            onClick={() => {
-                                setInactiveFilter((value) => (value === '1y' ? 'none' : '1y'));
-                                setCurrentPage(1);
-                            }}
-                        >
-                            <Clock3 className="w-4 h-4 mr-2" />
-                            {t('patients.noVisit1y')}
-                        </Button>
-                        <Button
-                            variant={showArchivedOnly ? 'default' : 'outline'}
-                            aria-pressed={showArchivedOnly}
-                            onClick={() => {
-                                setShowArchivedOnly((value) => !value);
-                                setInactiveFilter('none');
-                                setCurrentPage(1);
-                            }}
-                        >
-                            {t('patients.archived')}
-                        </Button>
-                        <Select
-                            value={selectedCategoryId}
-                            onValueChange={(value) => {
-                                setSelectedCategoryId(value);
-                                setCurrentPage(1);
-                            }}
-                        >
-                            <SelectTrigger className="w-full md:w-56" aria-label={t('patients.filterByCategoryAria')}>
-                                <SelectValue placeholder={t('patients.allCategories')} />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="all">{t('patients.allCategories')}</SelectItem>
-                                {(categoriesQuery.data ?? []).map((category) => (
-                                    <SelectItem key={category.id} value={category.id}>
-                                        {category.name}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                        <div className="flex flex-wrap items-center gap-2 lg:justify-end">
+                            <Select
+                                value={selectedCategoryId}
+                                onValueChange={(value) => {
+                                    setSelectedCategoryId(value);
+                                    setCurrentPage(1);
+                                }}
+                            >
+                                <SelectTrigger
+                                    className="h-11 w-full min-w-[168px] md:w-[168px] text-left"
+                                    aria-label={t('patients.filterByCategoryAria')}
+                                >
+                                    <SelectValue placeholder={t('patients.allCategories')} />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">{t('patients.allCategories')}</SelectItem>
+                                    {(categoriesQuery.data ?? []).map((category) => (
+                                        <SelectItem key={category.id} value={category.id}>
+                                            {category.name}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            <Select
+                                value={inactiveFilter}
+                                disabled={showArchivedOnly}
+                                onValueChange={(value: 'none' | '6m' | '1y') => {
+                                    setInactiveFilter(value);
+                                    setCurrentPage(1);
+                                }}
+                            >
+                                <SelectTrigger
+                                    className="h-11 w-full min-w-[168px] md:w-[168px] text-left"
+                                    aria-label={t('patients.filterByVisitActivityAria')}
+                                >
+                                    <SelectValue placeholder={t('patients.visitFilterLabel')} />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="none">{t('patients.visitFilterAll')}</SelectItem>
+                                    <SelectItem value="6m">{t('patients.noVisit6m')}</SelectItem>
+                                    <SelectItem value="1y">{t('patients.noVisit1y')}</SelectItem>
+                                </SelectContent>
+                            </Select>
+                            <div className="relative flex h-11 shrink-0 items-center">
+                                <Button
+                                    variant="outline"
+                                    className={cn(
+                                        'h-11 min-w-[120px] px-4',
+                                        showArchivedOnly
+                                            ? 'border-slate-900 bg-slate-900 text-white hover:border-slate-900 hover:bg-slate-800 hover:text-white'
+                                            : 'border-slate-200 bg-white text-slate-900 hover:bg-slate-50'
+                                    )}
+                                    aria-pressed={showArchivedOnly}
+                                    onClick={() => {
+                                        setShowArchivedOnly((value) => !value);
+                                        setInactiveFilter('none');
+                                        setCurrentPage(1);
+                                    }}
+                                >
+                                    {t('patients.archived')}
+                                </Button>
+                                {hasActiveFilters ? (
+                                    <Button
+                                        variant="ghost"
+                                        className="absolute right-0 top-full mt-1 h-6 whitespace-nowrap px-2 text-xs text-gray-500 hover:bg-gray-50 hover:text-gray-900"
+                                        onClick={resetFilters}
+                                    >
+                                        <FilterX className="h-3.5 w-3.5" />
+                                        {t('common.clear')}
+                                    </Button>
+                                ) : null}
+                            </div>
+                        </div>
                     </div>
                 </CardContent>
             </Card>
@@ -346,6 +392,7 @@ export default function PatientsPage() {
                 <CardHeader>
                     <CardTitle>
                         {t('patients.totalCount', { count: totalPatients })}
+                        {inactiveFilter === '6m' && ` (${t('patients.noVisit6m')})`}
                         {inactiveFilter === '1y' && ` (${t('patients.noVisit1y')})`}
                         {showArchivedOnly && ` (${t('patients.archived')})`}
                     </CardTitle>
@@ -354,8 +401,10 @@ export default function PatientsPage() {
                     {patientRows.length === 0 ? (
                         <div className="text-center py-12">
                             <p className="text-gray-500">
-                                {inactiveFilter === '1y'
-                                    ? t('patients.empty.noVisit1y')
+                                {inactiveFilter === '6m'
+                                    ? t('patients.empty.noVisit6m')
+                                    : inactiveFilter === '1y'
+                                        ? t('patients.empty.noVisit1y')
                                     : showArchivedOnly
                                         ? t('patients.empty.archived')
                                     : hasActiveFilters
@@ -366,13 +415,7 @@ export default function PatientsPage() {
                                 <Button
                                     variant="outline"
                                     className="mt-4"
-                                    onClick={() => {
-                                        setSearchQuery('');
-                                        setSelectedCategoryId('all');
-                                        setInactiveFilter('none');
-                                        setShowArchivedOnly(false);
-                                        setCurrentPage(1);
-                                    }}
+                                    onClick={resetFilters}
                                 >
                                     {t('patients.resetFilters')}
                                 </Button>

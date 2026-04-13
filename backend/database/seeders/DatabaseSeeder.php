@@ -21,10 +21,10 @@ class DatabaseSeeder extends Seeder
 {
     use WithoutModelEvents;
 
-    private const ADMIN_EMAIL = 'admin@odenta.test';
-    private const DENTIST_EMAIL = 'dentist@odenta.test';
-    private const ASSISTANT_ONE_EMAIL = 'assistant1@odenta.test';
-    private const ASSISTANT_TWO_EMAIL = 'assistant2@odenta.test';
+    private const ADMIN_EMAIL = 'admin@identa.test';
+    private const DENTIST_EMAIL = 'dentist@identa.test';
+    private const ASSISTANT_ONE_EMAIL = 'assistant1@identa.test';
+    private const ASSISTANT_TWO_EMAIL = 'assistant2@identa.test';
     private const DEMO_PASSWORD = 'password123';
 
     /**
@@ -86,7 +86,7 @@ class DatabaseSeeder extends Seeder
                 'assistant_permissions' => null,
                 'must_change_password' => false,
                 'phone' => '+998 90 123 45 67',
-                'practice_name' => 'Odenta Demo Studio',
+                'practice_name' => 'Identa Demo Studio',
                 'license_number' => 'LIC-2026-DEMO',
                 'address' => '1 Demo Street, Tashkent',
                 'working_hours_start' => '09:00',

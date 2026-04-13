@@ -111,11 +111,11 @@ Route::prefix('v1')->group(function (): void {
             ->middleware('permission:'.User::PERMISSION_TREATMENTS_MANAGE);
         Route::delete('patients/{id}/treatments/{treatmentId}', [PatientTreatmentController::class, 'destroy'])
             ->middleware('permission:'.User::PERMISSION_TREATMENTS_MANAGE);
-        Route::post('patients/{id}/treatments/{treatmentId}/images/{slot}', [PatientTreatmentController::class, 'uploadImage'])
+        Route::post('patients/{id}/treatments/{treatmentId}/images', [PatientTreatmentController::class, 'uploadImage'])
             ->middleware('permission:'.User::PERMISSION_TREATMENTS_MANAGE);
-        Route::get('patients/{id}/treatments/{treatmentId}/images/{slot}', [PatientTreatmentController::class, 'downloadImage'])
+        Route::get('patients/{id}/treatments/{treatmentId}/images/{imageId}', [PatientTreatmentController::class, 'downloadImage'])
             ->middleware('permission:'.User::PERMISSION_TREATMENTS_VIEW);
-        Route::delete('patients/{id}/treatments/{treatmentId}/images/{slot}', [PatientTreatmentController::class, 'deleteImage'])
+        Route::delete('patients/{id}/treatments/{treatmentId}/images/{imageId}', [PatientTreatmentController::class, 'deleteImage'])
             ->middleware('permission:'.User::PERMISSION_TREATMENTS_MANAGE);
 
         Route::get('appointments', [AppointmentController::class, 'index'])

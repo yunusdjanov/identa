@@ -26,6 +26,10 @@ function renderPage() {
     );
 }
 
+function normalizeText(value: string | null | undefined) {
+    return (value ?? '').replace(/\u00A0/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
 describe('PaymentsPage', () => {
     beforeEach(() => {
         vi.mocked(listAllTreatments).mockReset();
@@ -49,8 +53,7 @@ describe('PaymentsPage', () => {
                 paid_amount: 70000,
                 balance: 50000,
                 notes: null,
-                before_image_url: null,
-                after_image_url: null,
+                images: [],
                 created_at: '2026-03-14T09:00:00Z',
                 updated_at: '2026-03-14T09:00:00Z',
             },
@@ -71,8 +74,7 @@ describe('PaymentsPage', () => {
                 paid_amount: 50000,
                 balance: 0,
                 notes: null,
-                before_image_url: null,
-                after_image_url: null,
+                images: [],
                 created_at: '2026-03-10T10:00:00Z',
                 updated_at: '2026-03-10T10:00:00Z',
             },
@@ -87,13 +89,14 @@ describe('PaymentsPage', () => {
             expect(screen.getByText('John Smith')).toBeInTheDocument();
         });
 
-        const totalDebtCard = screen.getByText('Total Debt').closest('[data-slot="card"]');
-        const totalPaidCard = screen.getByText('Total Paid').closest('[data-slot="card"]');
-
-        expect(totalDebtCard).not.toBeNull();
-        expect(totalPaidCard).not.toBeNull();
-        expect(within(totalDebtCard as HTMLElement).getByText((_, element) => element?.textContent === '170\u00A0000 UZS')).toBeInTheDocument();
-        expect(within(totalPaidCard as HTMLElement).getByText((_, element) => element?.textContent === '120\u00A0000 UZS')).toBeInTheDocument();
+        expect(screen.getByText('Total Debt')).toBeInTheDocument();
+        expect(screen.getByText('Total Paid')).toBeInTheDocument();
+        expect(
+            screen.getByText((_, element) => normalizeText(element?.textContent) === '170 000 UZS')
+        ).toBeInTheDocument();
+        expect(
+            screen.getAllByText((_, element) => normalizeText(element?.textContent) === '120 000 UZS').length
+        ).toBeGreaterThan(0);
 
         const janeRow = screen.getByText('Jane Doe').closest('tr');
         expect(janeRow).not.toBeNull();

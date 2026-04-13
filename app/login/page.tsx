@@ -27,7 +27,7 @@ export default function LoginPage() {
     const { login } = useAuthStore();
     const { t } = useI18n();
 
-    const [email, setEmail] = useState('dentist@odenta.test');
+    const [email, setEmail] = useState('dentist@identa.test');
     const [password, setPassword] = useState('password123');
     const [isSubmitted, setIsSubmitted] = useState(false);
     const emailError = getEmailValidationMessage(email, { required: true });
@@ -75,7 +75,7 @@ export default function LoginPage() {
                 <div className="text-center mb-8">
                     <Link href="/">
                         <h1 className="text-4xl font-bold text-blue-600 mb-2 cursor-pointer hover:text-blue-700">
-                            Odenta
+                            Identa
                         </h1>
                     </Link>
                     <p className="text-gray-600">{t('login.subtitle')}</p>

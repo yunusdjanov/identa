@@ -185,7 +185,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                                 <div className="flex items-center">
                                     <Link href="/dashboard">
                                         <h1 className="text-2xl font-bold text-blue-600 cursor-pointer hover:text-blue-700">
-                                            Odenta
+                                            Identa
                                         </h1>
                                     </Link>
                                 </div>

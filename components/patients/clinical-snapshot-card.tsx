@@ -15,7 +15,7 @@ interface ClinicalSnapshotCardProps {
     isTreatmentsError?: boolean;
 }
 
-const SNAPSHOT_ODONTOGRAM_OPEN_KEY = 'odenta:patient-history-snapshot-odontogram-open';
+const SNAPSHOT_ODONTOGRAM_OPEN_KEY = 'identa:patient-history-snapshot-odontogram-open';
 const UPPER_RIGHT_TEETH = [8, 7, 6, 5, 4, 3, 2, 1] as const;
 const UPPER_LEFT_TEETH = [9, 10, 11, 12, 13, 14, 15, 16] as const;
 const LOWER_RIGHT_TEETH = [32, 31, 30, 29, 28, 27, 26, 25] as const;

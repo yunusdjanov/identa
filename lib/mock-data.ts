@@ -245,7 +245,7 @@ export const mockDashboardStats: DashboardStats = {
 export const mockDentistProfile: DentistProfile = {
     id: 'dentist-1',
     name: 'Aziz Karimov',
-    email: 'aziz.karimov@odenta.uz',
+    email: 'aziz.karimov@identa.uz',
     phone: '+998 90 123 4567',
     practiceName: 'Karimov Dental Clinic',
     licenseNumber: 'UZ-DENT-2024-1234',
@@ -297,7 +297,7 @@ export const mockDentistAccounts: import('./types').DentistAccount[] = [
     {
         id: 'dentist-1',
         name: 'Aziz Karimov',
-        email: 'aziz.karimov@odenta.uz',
+        email: 'aziz.karimov@identa.uz',
         practiceName: 'Karimov Dental Clinic',
         registrationDate: '2026-01-15',
         status: 'active',
@@ -308,7 +308,7 @@ export const mockDentistAccounts: import('./types').DentistAccount[] = [
     {
         id: 'dentist-2',
         name: 'Dilnoza Rahimova',
-        email: 'dilnoza.r@odenta.uz',
+        email: 'dilnoza.r@identa.uz',
         practiceName: 'Smile Dental',
         registrationDate: '2026-02-01',
         status: 'active',
@@ -319,7 +319,7 @@ export const mockDentistAccounts: import('./types').DentistAccount[] = [
     {
         id: 'dentist-3',
         name: 'Jamshid Tursunov',
-        email: 'jamshid.t@odenta.uz',
+        email: 'jamshid.t@identa.uz',
         practiceName: 'Tursunov Dental Care',
         registrationDate: '2026-02-10',
         status: 'active',
@@ -330,7 +330,7 @@ export const mockDentistAccounts: import('./types').DentistAccount[] = [
     {
         id: 'dentist-4',
         name: 'Malika Yusupova',
-        email: 'malika.y@odenta.uz',
+        email: 'malika.y@identa.uz',
         practiceName: 'Yusupova Dental Studio',
         registrationDate: '2025-12-20',
         status: 'blocked',
@@ -341,7 +341,7 @@ export const mockDentistAccounts: import('./types').DentistAccount[] = [
     {
         id: 'dentist-5',
         name: 'Rustam Alimov',
-        email: 'rustam.a@odenta.uz',
+        email: 'rustam.a@identa.uz',
         practiceName: 'Alimov Dental',
         registrationDate: '2026-02-12',
         status: 'active',

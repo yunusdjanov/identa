@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 
 return [
     'auth' => [
@@ -19,7 +19,7 @@ return [
         'monthly_limit_reached' => 'Oy boyicha hisob raqamlari limiti tugadi.',
     ],
     'invoices_pdf' => [
-        'title' => 'Odenta HISOB-FAKTURA',
+        'title' => 'Identa HISOB-FAKTURA',
         'invoice_number' => 'Hisob #:number',
         'provider' => 'Shifokor',
         'patient' => 'Bemor',
@@ -41,7 +41,7 @@ return [
         'no_payments' => 'Ushbu hisob uchun hali tolovlar yoq.',
         'more_items' => '+ tizimda yana :count ta band bor',
         'more_payments' => '+ tizimda yana :count ta tolov bor',
-        'generated_by' => 'Odenta tomonidan yaratildi',
+        'generated_by' => 'Identa tomonidan yaratildi',
         'fallback_provider' => 'Stomatologiya amaliyoti',
         'fallback_patient' => 'Nomalum bemor',
         'fallback_na' => 'N/A',
@@ -81,6 +81,7 @@ return [
         'archived_restore_before_delete' => 'Davolash tarixini ochirishdan oldin arxivdagi bemorni tiklang.',
         'archived_restore_before_upload_images' => 'Davolash rasmlarini yuklashdan oldin arxivdagi bemorni tiklang.',
         'archived_restore_before_delete_images' => 'Davolash rasmlarini ochirishdan oldin arxivdagi bemorni tiklang.',
+        'max_images_reached' => 'Har bir yozuvga kopi bilan :max ta rasm yuklash mumkin.',
         'image_required' => 'Rasm fayli majburiy.',
         'image_store_failed' => 'Yuklangan davolash rasmini saqlab bolmadi.',
     ],

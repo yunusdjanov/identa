@@ -7,6 +7,7 @@ use App\Models\InvoiceItem;
 use App\Models\OdontogramEntry;
 use App\Models\Patient;
 use App\Models\Treatment;
+use App\Models\TreatmentImage;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -137,41 +138,91 @@ class OdontogramTreatmentApiTest extends TestCase
             ->assertJsonPath('data.treatment_type', 'Bridge')
             ->assertJsonPath('data.balance', 250);
 
-        $beforeUpload = $this->actingAs($dentist, 'web')
-            ->post("/api/v1/patients/{$patient->id}/treatments/{$treatment->id}/images/before", [
-                'image' => UploadedFile::fake()->image('before.jpg', 800, 600),
+        $firstUpload = $this->actingAs($dentist, 'web')
+            ->post("/api/v1/patients/{$patient->id}/treatments/{$treatment->id}/images", [
+                'image' => UploadedFile::fake()->image('first.jpg', 800, 600),
             ], ['Accept' => 'application/json'])
-            ->assertOk();
+            ->assertOk()
+            ->assertJsonCount(1, 'data.images');
 
-        $beforeImageUrl = $beforeUpload->json('data.before_image_url');
-        $this->assertIsString($beforeImageUrl);
-        $this->assertNotSame('', $beforeImageUrl);
+        $firstImageId = $firstUpload->json('data.images.0.id');
+        $this->assertIsString($firstImageId);
+        $thumbnailUrl = $firstUpload->json('data.images.0.thumbnail_url');
+        $previewUrl = $firstUpload->json('data.images.0.preview_url');
+        $this->assertIsString($thumbnailUrl);
+        $this->assertIsString($previewUrl);
+        $this->assertStringContainsString('variant=thumbnail', $thumbnailUrl);
+        $this->assertStringContainsString('variant=preview', $previewUrl);
+        $firstImage = TreatmentImage::query()->findOrFail($firstImageId);
+        $firstPath = (string) $firstImage->path;
+        $firstThumbnailPath = sprintf(
+            '%s/variants/%s-thumbnail.%s',
+            dirname($firstPath),
+            pathinfo($firstPath, PATHINFO_FILENAME),
+            pathinfo($firstPath, PATHINFO_EXTENSION)
+        );
+        Storage::disk('local')->assertExists($firstPath);
+        Storage::disk('local')->assertExists($firstThumbnailPath);
 
-        $afterUpload = $this->actingAs($dentist, 'web')
-            ->post("/api/v1/patients/{$patient->id}/treatments/{$treatment->id}/images/after", [
-                'image' => UploadedFile::fake()->image('after.jpg', 800, 600),
+        $secondUpload = $this->actingAs($dentist, 'web')
+            ->post("/api/v1/patients/{$patient->id}/treatments/{$treatment->id}/images", [
+                'image' => UploadedFile::fake()->image('second.jpg', 800, 600),
             ], ['Accept' => 'application/json'])
-            ->assertOk();
+            ->assertOk()
+            ->assertJsonCount(2, 'data.images');
 
-        $afterImageUrl = $afterUpload->json('data.after_image_url');
-        $this->assertIsString($afterImageUrl);
-        $this->assertNotSame('', $afterImageUrl);
+        $secondImageId = $secondUpload->json('data.images.1.id');
+        $this->assertIsString($secondImageId);
 
         $downloadResponse = $this->actingAs($dentist, 'web')
-            ->get("/api/v1/patients/{$patient->id}/treatments/{$treatment->id}/images/before");
+            ->get("/api/v1/patients/{$patient->id}/treatments/{$treatment->id}/images/{$firstImageId}");
         $downloadResponse->assertOk();
         $this->assertStringContainsString('image/', (string) $downloadResponse->headers->get('Content-Type'));
 
+        $thumbnailResponse = $this->actingAs($dentist, 'web')
+            ->get("/api/v1/patients/{$patient->id}/treatments/{$treatment->id}/images/{$firstImageId}?variant=thumbnail");
+        $thumbnailResponse->assertOk();
+        $this->assertStringContainsString('image/', (string) $thumbnailResponse->headers->get('Content-Type'));
+
         $this->actingAs($dentist, 'web')
-            ->deleteJson("/api/v1/patients/{$patient->id}/treatments/{$treatment->id}/images/after")
+            ->deleteJson("/api/v1/patients/{$patient->id}/treatments/{$treatment->id}/images/{$secondImageId}")
             ->assertOk()
-            ->assertJsonPath('data.after_image_url', null);
+            ->assertJsonCount(1, 'data.images');
 
         $this->actingAs($dentist, 'web')
             ->deleteJson("/api/v1/patients/{$patient->id}/treatments/{$treatment->id}")
             ->assertNoContent();
 
         $this->assertDatabaseMissing('treatments', ['id' => $treatment->id]);
+        Storage::disk('local')->assertMissing($firstPath);
+        Storage::disk('local')->assertMissing($firstThumbnailPath);
+    }
+
+    public function test_treatment_images_are_limited_to_ten_files_per_entry(): void
+    {
+        Storage::fake('local');
+
+        $dentist = User::factory()->create();
+        $patient = Patient::factory()->create(['dentist_id' => $dentist->id]);
+        $treatment = Treatment::factory()->create([
+            'dentist_id' => $dentist->id,
+            'patient_id' => $patient->id,
+        ]);
+
+        for ($index = 1; $index <= 10; $index++) {
+            $this->actingAs($dentist, 'web')
+                ->post("/api/v1/patients/{$patient->id}/treatments/{$treatment->id}/images", [
+                    'image' => UploadedFile::fake()->image("image-{$index}.jpg", 800, 600),
+                ], ['Accept' => 'application/json'])
+                ->assertOk();
+        }
+
+        $this->actingAs($dentist, 'web')
+            ->post("/api/v1/patients/{$patient->id}/treatments/{$treatment->id}/images", [
+                'image' => UploadedFile::fake()->image('overflow.jpg', 800, 600),
+            ], ['Accept' => 'application/json'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['image']);
     }
 
     public function test_dentist_can_update_delete_and_manage_images_for_owned_odontogram_entry(): void

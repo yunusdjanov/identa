@@ -1,7 +1,7 @@
 import { chromium } from '@playwright/test';
 
 const baseUrl = process.env.RUNTIME_SCAN_BASE_URL ?? 'http://127.0.0.1:3000';
-const email = process.env.RUNTIME_SCAN_EMAIL ?? 'dentist@odenta.test';
+const email = process.env.RUNTIME_SCAN_EMAIL ?? 'dentist@identa.test';
 const password = process.env.RUNTIME_SCAN_PASSWORD ?? 'password123';
 const locale = process.env.RUNTIME_SCAN_LOCALE ?? '';
 
@@ -59,7 +59,7 @@ async function run() {
     if (locale) {
       await context.addCookies([
         {
-          name: 'odenta_locale',
+          name: 'identa_locale',
           value: locale,
           url: getBaseOrigin(baseUrl),
         },

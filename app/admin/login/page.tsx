@@ -20,7 +20,7 @@ export default function AdminLoginPage() {
     const router = useRouter();
     const queryClient = useQueryClient();
     const [credentials, setCredentials] = useState({
-        email: 'admin@odenta.test',
+        email: 'admin@identa.test',
         password: 'password123',
     });
     const [isSubmitted, setIsSubmitted] = useState(false);

@@ -518,7 +518,6 @@ export async function deletePatientTreatment(patientId: string, treatmentId: str
 export async function uploadPatientTreatmentImage(
     patientId: string,
     treatmentId: string,
-    slot: 'before' | 'after',
     image: File
 ): Promise<ApiTreatment> {
     const formData = new FormData();
@@ -526,7 +525,7 @@ export async function uploadPatientTreatmentImage(
 
     const { data } = await withCsrfRetry(() =>
         apiClient.post<ApiEnvelope<ApiTreatment>>(
-            `/patients/${patientId}/treatments/${treatmentId}/images/${slot}`,
+            `/patients/${patientId}/treatments/${treatmentId}/images`,
             formData,
             {
                 headers: {
@@ -542,11 +541,11 @@ export async function uploadPatientTreatmentImage(
 export async function deletePatientTreatmentImage(
     patientId: string,
     treatmentId: string,
-    slot: 'before' | 'after'
+    imageId: string
 ): Promise<ApiTreatment> {
     const { data } = await withCsrfRetry(() =>
         apiClient.delete<ApiEnvelope<ApiTreatment>>(
-            `/patients/${patientId}/treatments/${treatmentId}/images/${slot}`
+            `/patients/${patientId}/treatments/${treatmentId}/images/${imageId}`
         )
     );
 
@@ -556,10 +555,10 @@ export async function deletePatientTreatmentImage(
 export async function downloadPatientTreatmentImage(
     patientId: string,
     treatmentId: string,
-    slot: 'before' | 'after'
+    imageId: string
 ): Promise<Blob> {
     const response = await apiClient.get(
-        `/patients/${patientId}/treatments/${treatmentId}/images/${slot}`,
+        `/patients/${patientId}/treatments/${treatmentId}/images/${imageId}`,
         {
             responseType: 'blob',
         }

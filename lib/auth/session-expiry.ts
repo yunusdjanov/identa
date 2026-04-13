@@ -1,5 +1,5 @@
-export const AUTH_SESSION_EXPIRED_EVENT = 'odenta:auth-session-expired';
-const AUTH_REDIRECT_REASON_KEY = 'odenta.auth.redirect-reason';
+export const AUTH_SESSION_EXPIRED_EVENT = 'identa:auth-session-expired';
+const AUTH_REDIRECT_REASON_KEY = 'identa.auth.redirect-reason';
 const AUTH_REDIRECT_REASON_SESSION_EXPIRED = 'session-expired';
 
 let hasNotifiedSessionExpiry = false;

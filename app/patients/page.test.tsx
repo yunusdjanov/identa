@@ -138,7 +138,8 @@ describe('PatientsPage', () => {
             expect(screen.getByText('Old Visit Patient')).toBeInTheDocument();
         });
 
-        await user.click(screen.getByRole('button', { name: /(No Visit 1Y|Без визита 1Г)/i }));
+        await user.click(screen.getByRole('combobox', { name: /(Filter patients by visit gap|Фильтр пациентов по периоду без визита)/i }));
+        await user.click(screen.getByRole('option', { name: /(No Visit 1Y|Без визита 1Г)/i }));
 
         await waitFor(() => {
             expect(screen.getByText('No Visit Patient')).toBeInTheDocument();

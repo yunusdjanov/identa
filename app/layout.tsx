@@ -10,7 +10,7 @@ import { LOCALE_COOKIE_NAME, resolveLocale } from "@/lib/i18n/config";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Odenta - Practice Management",
+  title: "Identa - Practice Management",
   description: "Solo dentist practice management system",
 };
 

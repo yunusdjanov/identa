@@ -4,9 +4,37 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+function Resolve-PhpCandidate {
+    param([string]$CandidatePath)
+
+    if ([string]::IsNullOrWhiteSpace($CandidatePath)) {
+        return $null
+    }
+
+    try {
+        if (-not (Test-Path -LiteralPath $CandidatePath -PathType Leaf -ErrorAction Stop)) {
+            return $null
+        }
+    }
+    catch {
+        return $null
+    }
+
+    return $CandidatePath
+}
+
 function Get-HerdPhpPath {
     $herdBin = Join-Path $env:USERPROFILE ".config\herd\bin"
-    if (-not (Test-Path $herdBin)) {
+    $herdBinExists = $false
+    try {
+        $herdBinExists = Test-Path -LiteralPath $herdBin -PathType Container -ErrorAction Stop
+    }
+    catch {
+        # Some machines deny access to this path; fallback discovery will continue.
+        $herdBinExists = $false
+    }
+
+    if (-not $herdBinExists) {
         return $null
     }
 
@@ -14,7 +42,7 @@ function Get-HerdPhpPath {
         Sort-Object Name -Descending |
         ForEach-Object {
             $phpExe = Join-Path $_.FullName "php.exe"
-            if (Test-Path $phpExe) {
+            if (Test-Path -LiteralPath $phpExe -PathType Leaf -ErrorAction SilentlyContinue) {
                 return $phpExe
             }
         } |
@@ -27,18 +55,18 @@ $resolvedPhp = $null
 
 $phpCommand = Get-Command php -ErrorAction SilentlyContinue
 if ($phpCommand) {
-    $resolvedPhp = $phpCommand.Source
+    $resolvedPhp = Resolve-PhpCandidate -CandidatePath $phpCommand.Source
 }
 
 if (-not $resolvedPhp) {
-    $resolvedPhp = Get-HerdPhpPath
+    $resolvedPhp = Resolve-PhpCandidate -CandidatePath (Get-HerdPhpPath)
 }
 
 if (-not $resolvedPhp) {
     $runningPhp = Get-Process -Name php -ErrorAction SilentlyContinue |
         Select-Object -First 1 -ExpandProperty Path
     if ($runningPhp) {
-        $resolvedPhp = $runningPhp
+        $resolvedPhp = Resolve-PhpCandidate -CandidatePath $runningPhp
     }
 }
 

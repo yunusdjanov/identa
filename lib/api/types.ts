@@ -121,10 +121,19 @@ export interface ApiTreatment {
     paid_amount: number;
     balance: number;
     notes: string | null;
-    before_image_url: string | null;
-    after_image_url: string | null;
+    images: ApiTreatmentImage[];
     created_at: string | null;
     updated_at: string | null;
+}
+
+export interface ApiTreatmentImage {
+    id: string;
+    mime_type: string;
+    file_size: number;
+    created_at: string | null;
+    url: string;
+    thumbnail_url?: string | null;
+    preview_url?: string | null;
 }
 
 export interface ApiInvoiceItem {

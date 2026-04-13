@@ -1,4 +1,4 @@
-# Odenta Frontend - Project Summary
+# Identa Frontend - Project Summary
 
 > **Date:** February 14, 2026  
 > **Status:** ✅ Complete & Documented  
@@ -8,7 +8,7 @@
 
 ## 📊 Project Overview
 
-**Odenta** is a comprehensive dental practice management system with a fully functional frontend built with Next.js 14, TypeScript, and Tailwind CSS. All 8 planned feature modules are complete and working with mock data.
+**Identa** is a comprehensive dental practice management system with a fully functional frontend built with Next.js 14, TypeScript, and Tailwind CSS. All 8 planned feature modules are complete and working with mock data.
 
 ---
 
@@ -241,7 +241,7 @@ npm run dev
 
 **Demo Credentials:**
 - **Dentist:** Click "Continue with Google" (mock)
-- **Admin:** admin@odenta.uz / admin123
+- **Admin:** admin@identa.uz / admin123
 
 ---
 
@@ -262,7 +262,7 @@ C:\Users\user\.gemini\antigravity\scratch\dentalflow-frontend-backup\
 
 ## 🎉 Summary
 
-The **Odenta frontend is 100% complete** with:
+The **Identa frontend is 100% complete** with:
 - ✅ 8 feature modules
 - ✅ Professional documentation
 - ✅ Complete backup

@@ -5,6 +5,10 @@ import type { ApiTreatment } from '@/lib/api/types';
 import { ToothDetailDialog } from '@/components/odontogram/tooth-detail-dialog';
 import { I18nProvider } from '@/components/providers/i18n-provider';
 
+function normalizeText(value: string | null | undefined) {
+    return (value ?? '').replace(/\u00A0/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
 function buildTreatment(overrides: Partial<ApiTreatment>): ApiTreatment {
     return {
         id: 'treatment-1',
@@ -24,8 +28,7 @@ function buildTreatment(overrides: Partial<ApiTreatment>): ApiTreatment {
         paid_amount: 40000,
         balance: 80000,
         notes: null,
-        before_image_url: null,
-        after_image_url: null,
+        images: [],
         created_at: '2026-03-29T10:00:00Z',
         updated_at: '2026-03-29T10:00:00Z',
         ...overrides,
@@ -52,14 +55,15 @@ describe('ToothDetailDialog (history-first mode)', () => {
 
     it('renders treatment-based summary and rows', () => {
         renderDialog([
-            buildTreatment({ id: 't-1', debt_amount: 120000, paid_amount: 40000, balance: 80000 }),
+            buildTreatment({ id: 't-1', debt_amount: 1200000, paid_amount: 600000, balance: 600000 }),
             buildTreatment({ id: 't-2', debt_amount: 30000, paid_amount: 10000, balance: 20000, treatment_type: 'Filling' }),
         ]);
 
         expect(screen.getByText('Tooth #14')).toBeInTheDocument();
-        expect(screen.getByText('150,000 UZS')).toBeInTheDocument();
-        expect(screen.getByText('50,000 UZS')).toBeInTheDocument();
-        expect(screen.getByText('100,000 UZS')).toBeInTheDocument();
+        expect(screen.getByText((_, element) => normalizeText(element?.textContent) === '1 230 000 UZS')).toBeInTheDocument();
+        expect(screen.getByText((_, element) => normalizeText(element?.textContent) === '610 000 UZS')).toBeInTheDocument();
+        expect(screen.getByText((_, element) => normalizeText(element?.textContent) === '620 000 UZS')).toBeInTheDocument();
+        expect(screen.getByText((_, element) => normalizeText(element?.textContent) === '1 200 000 UZS')).toBeInTheDocument();
         expect(screen.getByText('Root canal treatment')).toBeInTheDocument();
         expect(screen.getByText('Filling')).toBeInTheDocument();
     });
@@ -72,21 +76,35 @@ describe('ToothDetailDialog (history-first mode)', () => {
         expect(screen.queryByRole('link', { name: 'Add Entry' })).not.toBeInTheDocument();
     });
 
-    it('opens before/after image preview from treatment row', async () => {
+    it('opens image preview from treatment row', async () => {
         const user = userEvent.setup();
 
         renderDialog([
             buildTreatment({
                 id: 't-3',
-                before_image_url: 'https://example.com/before.jpg',
-                after_image_url: 'https://example.com/after.jpg',
+                images: [
+                    {
+                        id: 'img-1',
+                        mime_type: 'image/jpeg',
+                        file_size: 1234,
+                        created_at: '2026-03-29T10:00:00Z',
+                        url: 'https://example.com/before.jpg',
+                    },
+                    {
+                        id: 'img-2',
+                        mime_type: 'image/jpeg',
+                        file_size: 2234,
+                        created_at: '2026-03-29T10:05:00Z',
+                        url: 'https://example.com/after.jpg',
+                    },
+                ],
             }),
         ]);
 
-        await user.click(screen.getByRole('button', { name: 'Before' }));
-        expect(screen.getByRole('img', { name: /Before Image/i })).toBeInTheDocument();
+        await user.click(screen.getByRole('button', { name: 'Images (2)' }));
+        expect(screen.getByRole('heading', { name: /Image 1 -/i })).toBeInTheDocument();
 
-        await user.click(screen.getByRole('button', { name: 'After' }));
-        expect(screen.getByRole('img', { name: /After Image/i })).toBeInTheDocument();
+        await user.click(screen.getByRole('button', { name: /next image/i }));
+        expect(screen.getByRole('heading', { name: /Image 2 -/i })).toBeInTheDocument();
     });
 });

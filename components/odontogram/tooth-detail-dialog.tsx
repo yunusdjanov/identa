@@ -3,17 +3,24 @@
 import { useMemo, useState } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { Image as ImageIcon } from 'lucide-react';
-import type { ApiTreatment } from '@/lib/api/types';
+import type { ApiTreatment, ApiTreatmentImage } from '@/lib/api/types';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { useI18n } from '@/components/providers/i18n-provider';
-import { PatientPhotoPreviewDialog } from '@/components/patients/patient-photo-preview-dialog';
+import { PatientPhotoPreviewDialog, type PreviewGalleryImage } from '@/components/patients/patient-photo-preview-dialog';
 
 interface ToothDetailDialogProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     toothNumber: number;
     treatments: ApiTreatment[];
+}
+
+function getTreatmentImageThumbnailUrl(image: ApiTreatmentImage) {
+    return image.thumbnail_url ?? image.preview_url ?? image.url;
+}
+
+function getTreatmentImagePreviewUrl(image: ApiTreatmentImage) {
+    return image.preview_url ?? image.url;
 }
 
 export function ToothDetailDialog({
@@ -23,7 +30,10 @@ export function ToothDetailDialog({
     treatments,
 }: ToothDetailDialogProps) {
     const { t } = useI18n();
-    const [previewImage, setPreviewImage] = useState<{ src: string; alt: string; title: string } | null>(null);
+    const [previewGallery, setPreviewGallery] = useState<{
+        images: PreviewGalleryImage[];
+        startIndex: number;
+    } | null>(null);
     const getLinkedTeeth = (treatment: ApiTreatment): number[] => {
         const linkedTeeth = new Set<number>();
 
@@ -56,10 +66,30 @@ export function ToothDetailDialog({
         };
     }, [treatments]);
 
+    const openTreatmentImageGallery = (
+        images: ApiTreatmentImage[],
+        treatmentDate: string,
+        startIndex = 0
+    ) => {
+        if (!images || images.length === 0) {
+            return;
+        }
+
+        setPreviewGallery({
+            images: images.map((image, index) => ({
+                src: getTreatmentImagePreviewUrl(image),
+                thumbnailSrc: getTreatmentImageThumbnailUrl(image),
+                alt: `${t('patientHistory.image')} ${index + 1} ${formatDate(treatmentDate)}`,
+                title: `${t('patientHistory.image')} ${index + 1} - ${formatDate(treatmentDate)}`,
+            })),
+            startIndex,
+        });
+    };
+
     return (
         <>
             <Dialog open={open} onOpenChange={onOpenChange}>
-                <DialogContent className="h-auto max-h-[90vh] w-[min(96vw,980px)] max-w-[980px] overflow-x-hidden overflow-y-auto sm:max-w-[980px]">
+                <DialogContent className="h-auto max-h-[90vh] w-[min(96vw,1040px)] max-w-[1040px] overflow-x-hidden overflow-y-auto sm:max-w-[1040px]">
                     <DialogHeader>
                         <DialogTitle>{t('odontogram.toothTitle', { toothNumber })}</DialogTitle>
                         <DialogDescription>{t('patientHistory.subtitle')}</DialogDescription>
@@ -69,16 +99,16 @@ export function ToothDetailDialog({
                         <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
                             <div className="rounded-xl border border-red-100 bg-red-50/60 p-3">
                                 <p className="text-xs font-medium uppercase tracking-wide text-red-600">{t('patientHistory.table.debt')}</p>
-                                <p className="mt-1 text-lg font-semibold text-red-700">{formatCurrency(summary.totalDebt)}</p>
+                                <p className="mt-1 whitespace-nowrap text-lg font-semibold tabular-nums text-red-700">{formatCurrency(summary.totalDebt)}</p>
                             </div>
                             <div className="rounded-xl border border-green-100 bg-green-50/60 p-3">
                                 <p className="text-xs font-medium uppercase tracking-wide text-green-600">{t('patientHistory.table.paid')}</p>
-                                <p className="mt-1 text-lg font-semibold text-green-700">{formatCurrency(summary.totalPaid)}</p>
+                                <p className="mt-1 whitespace-nowrap text-lg font-semibold tabular-nums text-green-700">{formatCurrency(summary.totalPaid)}</p>
                             </div>
                             <div className="rounded-xl border border-gray-200 bg-gray-50/80 p-3">
-                                <p className="text-xs font-medium uppercase tracking-wide text-gray-600">{t('patientHistory.table.balance')}</p>
+                                <p className="text-xs font-medium uppercase tracking-wide text-gray-600">{t('patientHistory.table.remaining')}</p>
                                 <p
-                                    className={`mt-1 text-lg font-semibold ${
+                                    className={`mt-1 whitespace-nowrap text-lg font-semibold tabular-nums ${
                                         summary.netBalance > 0
                                             ? 'text-red-700'
                                             : summary.netBalance < 0
@@ -102,29 +132,29 @@ export function ToothDetailDialog({
 
                                     return (
                                     <div key={treatment.id} className="overflow-hidden rounded-xl border border-gray-200 bg-white px-3 py-3">
-                                        <div className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start sm:gap-3">
+                                        <div className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(330px,360px)] sm:items-start sm:gap-4">
                                             <div className="min-w-0 flex-1">
                                                 <p className="text-sm font-medium text-gray-700">{formatDate(treatment.treatment_date)}</p>
                                                 <p
-                                                    className="block max-w-[320px] truncate text-base font-semibold text-gray-900 sm:max-w-[380px] lg:max-w-[430px]"
+                                                    className="block max-w-[320px] truncate text-sm font-semibold text-gray-900 sm:max-w-[380px] lg:max-w-[460px]"
                                                     title={treatment.treatment_type}
                                                 >
                                                     {treatment.treatment_type}
                                                 </p>
                                             </div>
-                                            <div className="grid grid-cols-3 gap-2 text-right text-xs sm:min-w-[300px] sm:flex-none">
+                                            <div className="grid grid-cols-3 gap-3 text-right text-xs sm:flex-none">
                                                 <div>
-                                                    <p className="uppercase tracking-wide text-gray-500">{t('patientHistory.table.debt')}</p>
-                                                    <p className="font-semibold text-red-700">{formatCurrency(Number(treatment.debt_amount ?? 0))}</p>
+                                                    <p className="text-xs font-medium uppercase tracking-wide text-gray-400">{t('patientHistory.table.debt')}</p>
+                                                    <p className="whitespace-nowrap text-sm font-semibold tabular-nums text-red-700">{formatCurrency(Number(treatment.debt_amount ?? 0))}</p>
                                                 </div>
                                                 <div>
-                                                    <p className="uppercase tracking-wide text-gray-500">{t('patientHistory.table.paid')}</p>
-                                                    <p className="font-semibold text-green-700">{formatCurrency(Number(treatment.paid_amount ?? 0))}</p>
+                                                    <p className="text-xs font-medium uppercase tracking-wide text-gray-400">{t('patientHistory.table.paid')}</p>
+                                                    <p className="whitespace-nowrap text-sm font-semibold tabular-nums text-green-700">{formatCurrency(Number(treatment.paid_amount ?? 0))}</p>
                                                 </div>
                                                 <div>
-                                                    <p className="uppercase tracking-wide text-gray-500">{t('patientHistory.table.balance')}</p>
+                                                    <p className="text-xs font-medium uppercase tracking-wide text-gray-400">{t('patientHistory.table.remaining')}</p>
                                                     <p
-                                                        className={`font-semibold ${
+                                                        className={`whitespace-nowrap text-sm font-semibold tabular-nums ${
                                                             Number(treatment.balance ?? 0) > 0
                                                                 ? 'text-red-700'
                                                                 : Number(treatment.balance ?? 0) < 0
@@ -137,7 +167,7 @@ export function ToothDetailDialog({
                                                 </div>
                                             </div>
                                         </div>
-                                        <div className="mt-2 flex flex-wrap items-center gap-2">
+                                        <div className="mt-2 flex flex-wrap items-center gap-1.5">
                                             {linkedTeeth.slice(0, 1).map((tooth) => (
                                                 <Badge key={`${treatment.id}-${tooth}`} variant="outline" className="border-gray-300 bg-gray-50 text-gray-700">
                                                     #{tooth}
@@ -148,38 +178,39 @@ export function ToothDetailDialog({
                                                     +{linkedTeeth.length - 1}
                                                 </Badge>
                                             ) : null}
-                                            {treatment.before_image_url ? (
-                                                <button
-                                                    type="button"
-                                                    className="inline-flex h-8 items-center justify-center gap-1.5 rounded-full border border-gray-200 bg-white px-3 text-xs font-medium text-gray-700 shadow-sm transition-colors hover:border-gray-300 hover:bg-gray-50"
-                                                    onClick={() =>
-                                                        setPreviewImage({
-                                                            src: treatment.before_image_url!,
-                                                            alt: `${t('patientHistory.beforeImage')} ${formatDate(treatment.treatment_date)}`,
-                                                            title: `${t('patientHistory.beforeImage')} - ${formatDate(treatment.treatment_date)}`,
-                                                        })
-                                                    }
-                                                >
-                                                    <ImageIcon className="h-3.5 w-3.5" />
-                                                    {t('patientHistory.before')}
-                                                </button>
-                                            ) : null}
-                                            {treatment.after_image_url ? (
-                                                <button
-                                                    type="button"
-                                                    className="inline-flex h-8 items-center justify-center gap-1.5 rounded-full border border-gray-200 bg-white px-3 text-xs font-medium text-gray-700 shadow-sm transition-colors hover:border-gray-300 hover:bg-gray-50"
-                                                    onClick={() =>
-                                                        setPreviewImage({
-                                                            src: treatment.after_image_url!,
-                                                            alt: `${t('patientHistory.afterImage')} ${formatDate(treatment.treatment_date)}`,
-                                                            title: `${t('patientHistory.afterImage')} - ${formatDate(treatment.treatment_date)}`,
-                                                        })
-                                                    }
-                                                >
-                                                    <ImageIcon className="h-3.5 w-3.5" />
-                                                    {t('patientHistory.after')}
-                                                </button>
-                                            ) : null}
+                                            {(() => {
+                                                const treatmentImages = treatment.images ?? [];
+                                                if (treatmentImages.length === 0) {
+                                                    return (
+                                                        <span className="inline-flex h-8 min-w-[74px] items-center justify-center rounded-md border border-dashed border-gray-300 px-2 text-xs font-medium text-gray-400">
+                                                            -
+                                                        </span>
+                                                    );
+                                                }
+
+                                                return (
+                                                    <button
+                                                        type="button"
+                                                        className="group inline-flex h-8 min-w-[74px] items-center gap-2 rounded-md border border-gray-300 bg-white px-2 text-xs font-semibold text-gray-700 shadow-sm transition-all hover:border-blue-400 hover:bg-blue-50 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1 active:translate-y-px active:shadow-sm"
+                                                        onClick={() => openTreatmentImageGallery(treatmentImages, treatment.treatment_date, 0)}
+                                                        title={`${t('patientHistory.images')}: ${treatmentImages.length}`}
+                                                        aria-label={`${t('patientHistory.images')} (${treatmentImages.length})`}
+                                                    >
+                                                        <span className="inline-flex h-5 w-5 items-center justify-center overflow-hidden rounded-[6px] border border-gray-200 bg-gray-100">
+                                                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                            <img
+                                                                src={getTreatmentImageThumbnailUrl(treatmentImages[0])}
+                                                                alt={`${t('patientHistory.image')} 1`}
+                                                                className="h-full w-full object-cover"
+                                                                loading="lazy"
+                                                            />
+                                                        </span>
+                                                        <span className="inline-flex h-5 min-w-6 items-center justify-center rounded-[6px] bg-blue-100 px-1.5 text-[11px] font-semibold text-blue-700">
+                                                            +{treatmentImages.length}
+                                                        </span>
+                                                    </button>
+                                                );
+                                            })()}
                                         </div>
                                     </div>
                                 )})}
@@ -191,15 +222,18 @@ export function ToothDetailDialog({
             </Dialog>
 
             <PatientPhotoPreviewDialog
-                open={previewImage !== null}
+                key={previewGallery ? `${previewGallery.startIndex}:${previewGallery.images.map((image) => image.src).join('|')}` : 'closed-tooth-gallery'}
+                open={previewGallery !== null}
                 onOpenChange={(isOpen) => {
                     if (!isOpen) {
-                        setPreviewImage(null);
+                        setPreviewGallery(null);
                     }
                 }}
-                src={previewImage?.src}
-                alt={previewImage?.alt ?? ''}
-                title={previewImage?.title ?? t('odontogram.imagePreview')}
+                images={previewGallery?.images ?? []}
+                startIndex={previewGallery?.startIndex ?? 0}
+                src={previewGallery?.images[0]?.src ?? null}
+                alt={previewGallery?.images[0]?.alt ?? ''}
+                title={previewGallery?.images[0]?.title ?? t('odontogram.imagePreview')}
             />
         </>
     );

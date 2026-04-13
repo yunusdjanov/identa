@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { type ChangeEvent, useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
     createPatientTreatment,
@@ -10,7 +10,7 @@ import {
     updatePatientTreatment,
     uploadPatientTreatmentImage,
 } from '@/lib/api/dentist';
-import type { ApiTreatment } from '@/lib/api/types';
+import type { ApiTreatment, ApiTreatmentImage } from '@/lib/api/types';
 import { getApiErrorMessage } from '@/lib/api/client';
 import { useI18n } from '@/components/providers/i18n-provider';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -20,11 +20,11 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
-import { PatientPhotoPreviewDialog } from '@/components/patients/patient-photo-preview-dialog';
+import { PatientPhotoPreviewDialog, type PreviewGalleryImage } from '@/components/patients/patient-photo-preview-dialog';
 import { ClinicalSnapshotCard } from '@/components/patients/clinical-snapshot-card';
 import { formatCurrency, formatDate, toLocalDateKey } from '@/lib/utils';
 import { toast } from 'sonner';
-import { CalendarDays, Image as ImageIcon, Pencil, Plus, Trash2 } from 'lucide-react';
+import { CalendarDays, Pencil, Plus, RotateCcw, Trash2, X } from 'lucide-react';
 
 const UPPER_RIGHT_TEETH = [8, 7, 6, 5, 4, 3, 2, 1];
 const UPPER_LEFT_TEETH = [9, 10, 11, 12, 13, 14, 15, 16];
@@ -45,12 +45,11 @@ interface TreatmentFormState {
     debtAmount: string;
     paidAmount: string;
     teeth: number[];
-    beforeImageFile: File | null;
-    afterImageFile: File | null;
-    removeBeforeImage: boolean;
-    removeAfterImage: boolean;
+    imageFiles: File[];
+    removeImageIds: string[];
 }
 
+const MAX_HISTORY_IMAGES_PER_ENTRY = 10;
 const MAX_HISTORY_IMAGE_SIZE_BYTES = 5 * 1024 * 1024;
 const ALLOWED_HISTORY_IMAGE_TYPES = new Set([
     'image/jpeg',
@@ -66,17 +65,15 @@ const createEmptyFormState = (): TreatmentFormState => ({
     debtAmount: '',
     paidAmount: '',
     teeth: [],
-    beforeImageFile: null,
-    afterImageFile: null,
-    removeBeforeImage: false,
-    removeAfterImage: false,
+    imageFiles: [],
+    removeImageIds: [],
 });
 
 function formatTeeth(teeth: number[]) {
     return teeth.length > 0 ? teeth.join(', ') : '-';
 }
 
-function validateHistoryImageFile(file: File | null, t: (key: string, params?: Record<string, string | number>) => string) {
+function validateHistoryImageFile(file: File, t: (key: string, params?: Record<string, string | number>) => string) {
     if (!file) {
         return '';
     }
@@ -94,6 +91,18 @@ function validateHistoryImageFile(file: File | null, t: (key: string, params?: R
     }
 
     return '';
+}
+
+function getVisibleTreatmentImages(treatment: ApiTreatment, removeImageIds: string[]) {
+    return (treatment.images ?? []).filter((image) => !removeImageIds.includes(image.id));
+}
+
+function getTreatmentImageThumbnailUrl(image: ApiTreatmentImage) {
+    return image.thumbnail_url ?? image.preview_url ?? image.url;
+}
+
+function getTreatmentImagePreviewUrl(image: ApiTreatmentImage) {
+    return image.preview_url ?? image.url;
 }
 
 function ToothCell({
@@ -116,13 +125,79 @@ function ToothCell({
     );
 }
 
+function HistoryImageTile({
+    src,
+    alt,
+    markedForRemoval = false,
+    onPreview,
+    onToggleRemove,
+    removeLabel,
+    restoreLabel,
+    isNew = false,
+}: {
+    src: string;
+    alt: string;
+    markedForRemoval?: boolean;
+    onPreview: () => void;
+    onToggleRemove: () => void;
+    removeLabel: string;
+    restoreLabel: string;
+    isNew?: boolean;
+}) {
+    return (
+        <div
+            className={`group relative h-16 w-16 overflow-hidden rounded-lg border bg-white shadow-sm transition-all ${
+                markedForRemoval
+                    ? 'border-red-200 opacity-70 ring-1 ring-red-100'
+                    : isNew
+                        ? 'border-blue-200 hover:border-blue-300 hover:shadow-md'
+                        : 'border-gray-200 hover:border-blue-300 hover:shadow-md'
+            }`}
+        >
+            <button
+                type="button"
+                className="block h-full w-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1"
+                onClick={onPreview}
+                aria-label={alt}
+            >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                    src={src}
+                    alt={alt}
+                    className={`h-full w-full object-cover transition-transform group-hover:scale-[1.03] ${
+                        markedForRemoval ? 'grayscale' : ''
+                    }`}
+                    loading="lazy"
+                />
+            </button>
+            <button
+                type="button"
+                className={`absolute right-1 top-1 inline-flex h-5 w-5 items-center justify-center rounded-full border text-[10px] shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
+                    markedForRemoval
+                        ? 'border-blue-200 bg-white text-blue-700 hover:bg-blue-50'
+                        : 'border-white/80 bg-red-600 text-white hover:bg-red-700'
+                }`}
+                onClick={onToggleRemove}
+                aria-label={markedForRemoval ? restoreLabel : removeLabel}
+                title={markedForRemoval ? restoreLabel : removeLabel}
+            >
+                {markedForRemoval ? <RotateCcw className="h-3 w-3" /> : <X className="h-3 w-3" />}
+            </button>
+        </div>
+    );
+}
+
 export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistoryCardProps) {
     const { t } = useI18n();
     const queryClient = useQueryClient();
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [editingTreatment, setEditingTreatment] = useState<ApiTreatment | null>(null);
     const [treatmentToDelete, setTreatmentToDelete] = useState<ApiTreatment | null>(null);
-    const [previewImage, setPreviewImage] = useState<{ src: string; alt: string; title: string } | null>(null);
+    const [previewGallery, setPreviewGallery] = useState<{
+        images: PreviewGalleryImage[];
+        startIndex: number;
+        fallbackTitle: string;
+    } | null>(null);
     const [formState, setFormState] = useState<TreatmentFormState>(createEmptyFormState);
     const [submitAttempted, setSubmitAttempted] = useState(false);
 
@@ -181,17 +256,16 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                     createdTreatmentId = treatment.id;
                 }
 
-                if (editingTreatment?.before_image_url && formState.removeBeforeImage) {
-                    await deletePatientTreatmentImage(patientId, treatment.id, 'before');
+                if (formState.removeImageIds.length > 0) {
+                    await Promise.all(
+                        formState.removeImageIds.map((imageId) =>
+                            deletePatientTreatmentImage(patientId, treatment.id, imageId)
+                        )
+                    );
                 }
-                if (editingTreatment?.after_image_url && formState.removeAfterImage) {
-                    await deletePatientTreatmentImage(patientId, treatment.id, 'after');
-                }
-                if (formState.beforeImageFile) {
-                    await uploadPatientTreatmentImage(patientId, treatment.id, 'before', formState.beforeImageFile);
-                }
-                if (formState.afterImageFile) {
-                    await uploadPatientTreatmentImage(patientId, treatment.id, 'after', formState.afterImageFile);
+
+                for (const imageFile of formState.imageFiles) {
+                    await uploadPatientTreatmentImage(patientId, treatment.id, imageFile);
                 }
             }
             catch (error) {
@@ -240,12 +314,41 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
         submitAttempted && [formState.debtAmount, formState.paidAmount].some((value) => Number(value || 0) < 0)
             ? t('patientHistory.validation.amount')
             : '';
-    const beforeImageError = submitAttempted ? validateHistoryImageFile(formState.beforeImageFile, t) : '';
-    const afterImageError = submitAttempted ? validateHistoryImageFile(formState.afterImageFile, t) : '';
+    const imageValidationError =
+        submitAttempted
+            ? formState.imageFiles
+                .map((file) => validateHistoryImageFile(file, t))
+                .find(Boolean) ?? ''
+            : '';
+    const visibleExistingImagesCount = editingTreatment
+        ? getVisibleTreatmentImages(editingTreatment, formState.removeImageIds).length
+        : 0;
+    const maxImagesError =
+        submitAttempted && visibleExistingImagesCount + formState.imageFiles.length > MAX_HISTORY_IMAGES_PER_ENTRY
+            ? t('patientHistory.validation.maxImages', { max: MAX_HISTORY_IMAGES_PER_ENTRY })
+            : '';
+
+    const selectedImagePreviews = useMemo(
+        () =>
+            formState.imageFiles.map((file, index) => ({
+                id: `${file.name}-${file.lastModified}-${index}`,
+                file,
+                url: URL.createObjectURL(file),
+            })),
+        [formState.imageFiles]
+    );
+
+    useEffect(() => {
+        return () => {
+            selectedImagePreviews.forEach((preview) => {
+                URL.revokeObjectURL(preview.url);
+            });
+        };
+    }, [selectedImagePreviews]);
 
     const handleSubmit = () => {
         setSubmitAttempted(true);
-        if (treatmentTypeError || dateError || amountError || beforeImageError || afterImageError) {
+        if (treatmentTypeError || dateError || amountError || imageValidationError || maxImagesError) {
             toast.error(t('patientHistory.validation.fixErrors'));
             return;
         }
@@ -278,13 +381,79 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
             debtAmount: treatment.debt_amount ? String(Number(treatment.debt_amount)) : '',
             paidAmount: treatment.paid_amount ? String(Number(treatment.paid_amount)) : '',
             teeth: treatment.teeth ?? [],
-            beforeImageFile: null,
-            afterImageFile: null,
-            removeBeforeImage: false,
-            removeAfterImage: false,
+            imageFiles: [],
+            removeImageIds: [],
         });
         setSubmitAttempted(false);
         setIsDialogOpen(true);
+    };
+
+    const handleImageFilesSelected = (event: ChangeEvent<HTMLInputElement>) => {
+        const selectedFiles = Array.from(event.target.files ?? []);
+        event.target.value = '';
+        if (selectedFiles.length === 0) {
+            return;
+        }
+
+        const existingCount = editingTreatment
+            ? getVisibleTreatmentImages(editingTreatment, formState.removeImageIds).length
+            : 0;
+        const availableSlots = Math.max(
+            MAX_HISTORY_IMAGES_PER_ENTRY - existingCount - formState.imageFiles.length,
+            0
+        );
+        const filesToAdd = selectedFiles.slice(0, availableSlots);
+
+        if (filesToAdd.length === 0) {
+            toast.error(t('patientHistory.validation.maxImages', { max: MAX_HISTORY_IMAGES_PER_ENTRY }));
+            return;
+        }
+
+        if (filesToAdd.length < selectedFiles.length) {
+            toast.error(t('patientHistory.validation.maxImages', { max: MAX_HISTORY_IMAGES_PER_ENTRY }));
+        }
+
+        setFormState((current) => ({
+            ...current,
+            imageFiles: [...current.imageFiles, ...filesToAdd],
+        }));
+    };
+
+    const removeSelectedImage = (index: number) => {
+        setFormState((current) => ({
+            ...current,
+            imageFiles: current.imageFiles.filter((_, imageIndex) => imageIndex !== index),
+        }));
+    };
+
+    const toggleExistingImageRemoval = (imageId: string) => {
+        setFormState((current) => ({
+            ...current,
+            removeImageIds: current.removeImageIds.includes(imageId)
+                ? current.removeImageIds.filter((value) => value !== imageId)
+                : [...current.removeImageIds, imageId],
+        }));
+    };
+
+    const openTreatmentImageGallery = (
+        images: ApiTreatmentImage[],
+        treatmentDate: string,
+        startIndex = 0
+    ) => {
+        if (!images || images.length === 0) {
+            return;
+        }
+
+        setPreviewGallery({
+            images: images.map((image, index) => ({
+                src: getTreatmentImagePreviewUrl(image),
+                thumbnailSrc: getTreatmentImageThumbnailUrl(image),
+                alt: `${patientName} ${t('patientHistory.image')} ${index + 1}`,
+                title: `${t('patientHistory.image')} ${index + 1} - ${formatDate(treatmentDate)}`,
+            })),
+            startIndex,
+            fallbackTitle: patientName,
+        });
     };
 
     const isLoading = treatmentsQuery.isLoading;
@@ -328,19 +497,19 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
 
                     {isLoading ? (
                         <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white">
-                            <div className="hidden grid-cols-[120px_110px_minmax(220px,1.6fr)_110px_110px_120px_140px_88px] gap-3 border-b border-gray-200 bg-gray-50 px-4 py-3 text-xs font-medium uppercase tracking-wide text-gray-500 lg:grid">
+                            <div className="hidden grid-cols-[120px_110px_minmax(220px,1.6fr)_110px_110px_120px_180px_88px] gap-3 border-b border-gray-200 bg-gray-50 px-4 py-3 text-xs font-medium uppercase tracking-wide text-gray-500 lg:grid">
                                 <span>{t('patientHistory.table.date')}</span>
                                 <span>{t('patientHistory.teethLabel')}</span>
                                 <span>{t('patientHistory.table.workDone')}</span>
                                 <span>{t('patientHistory.table.debt')}</span>
                                 <span>{t('patientHistory.table.paid')}</span>
-                                <span>{t('patientHistory.table.balance')}</span>
-                                <span>{t('patientHistory.beforeImage')} / {t('patientHistory.afterImage')}</span>
+                                <span>{t('patientHistory.table.remaining')}</span>
+                                <span>{t('patientHistory.images')}</span>
                                 <span className="text-right" />
                             </div>
                             <div className="divide-y divide-gray-100">
                                 {Array.from({ length: 3 }).map((_, index) => (
-                                    <div key={index} className="space-y-3 px-4 py-4 lg:grid lg:grid-cols-[120px_110px_minmax(220px,1.6fr)_110px_110px_120px_140px_88px] lg:items-start lg:gap-3 lg:space-y-0">
+                                    <div key={index} className="space-y-3 px-4 py-4 lg:grid lg:grid-cols-[120px_110px_minmax(220px,1.6fr)_110px_110px_120px_180px_88px] lg:items-start lg:gap-3 lg:space-y-0">
                                         <Skeleton className="h-4 w-24" />
                                         <Skeleton className="h-6 w-24 rounded-full" />
                                         <div className="space-y-2">
@@ -378,19 +547,19 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                         </div>
                     ) : (
                         <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white">
-                            <div className="hidden grid-cols-[120px_110px_minmax(220px,1.6fr)_110px_110px_120px_140px_88px] gap-3 border-b border-gray-200 bg-gray-50 px-4 py-3 text-xs font-medium uppercase tracking-wide text-gray-500 lg:grid">
+                            <div className="hidden grid-cols-[120px_110px_minmax(220px,1.6fr)_110px_110px_120px_180px_88px] gap-3 border-b border-gray-200 bg-gray-50 px-4 py-3 text-xs font-medium uppercase tracking-wide text-gray-500 lg:grid">
                                 <span>{t('patientHistory.table.date')}</span>
                                 <span>{t('patientHistory.teethLabel')}</span>
                                 <span>{t('patientHistory.table.workDone')}</span>
                                 <span>{t('patientHistory.table.debt')}</span>
                                 <span>{t('patientHistory.table.paid')}</span>
-                                <span>{t('patientHistory.table.balance')}</span>
-                                <span>{t('patientHistory.beforeImage')} / {t('patientHistory.afterImage')}</span>
+                                <span>{t('patientHistory.table.remaining')}</span>
+                                <span>{t('patientHistory.images')}</span>
                                 <span className="text-right" />
                             </div>
                             <div className="divide-y divide-gray-100">
                                 {treatments.map((treatment) => (
-                                    <div key={treatment.id} className="space-y-3 px-4 py-4 transition-colors hover:bg-gray-50/50 lg:grid lg:grid-cols-[120px_110px_minmax(220px,1.6fr)_110px_110px_120px_140px_88px] lg:items-start lg:gap-3 lg:space-y-0">
+                                    <div key={treatment.id} className="space-y-3 px-4 py-4 transition-colors hover:bg-gray-50/50 lg:grid lg:grid-cols-[120px_110px_minmax(220px,1.6fr)_110px_110px_120px_180px_88px] lg:items-start lg:gap-3 lg:space-y-0">
                                         <div>
                                             <p className="text-xs font-medium uppercase tracking-wide text-gray-400 lg:hidden">{t('patientHistory.table.date')}</p>
                                             <p className="text-sm text-gray-700">{formatDate(treatment.treatment_date)}</p>
@@ -444,54 +613,48 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                             <p className="text-sm font-semibold text-green-700">{formatCurrency(Number(treatment.paid_amount))}</p>
                                         </div>
                                         <div>
-                                            <p className="text-xs font-medium uppercase tracking-wide text-gray-400 lg:hidden">{t('patientHistory.table.balance')}</p>
+                                            <p className="text-xs font-medium uppercase tracking-wide text-gray-400 lg:hidden">{t('patientHistory.table.remaining')}</p>
                                             <p className={`text-sm font-semibold ${Number(treatment.balance) > 0 ? 'text-red-700' : 'text-green-700'}`}>
                                                 {formatCurrency(Number(treatment.balance))}
                                             </p>
                                         </div>
-                                        <div>
-                                            <p className="text-xs font-medium uppercase tracking-wide text-gray-400 lg:hidden">{t('patientHistory.beforeImage')} / {t('patientHistory.afterImage')}</p>
-                                            <div className="flex flex-wrap gap-2">
-                                                {treatment.before_image_url ? (
+                                        <div className="lg:flex lg:items-center">
+                                            <p className="text-xs font-medium uppercase tracking-wide text-gray-400 lg:hidden">{t('patientHistory.images')}</p>
+                                            {(() => {
+                                                const treatmentImages = treatment.images ?? [];
+                                                if (treatmentImages.length === 0) {
+                                                    return (
+                                                        <span className="inline-flex h-8 min-w-[74px] items-center justify-center rounded-md border border-dashed border-gray-300 px-2 text-xs font-medium text-gray-400">
+                                                            -
+                                                        </span>
+                                                    );
+                                                }
+
+                                                return (
                                                     <button
                                                         type="button"
-                                                        className="inline-flex h-8 w-24 items-center justify-center gap-1.5 rounded-full border border-gray-200 bg-white px-3 text-xs font-medium text-gray-700 shadow-sm transition-colors hover:border-gray-300 hover:bg-gray-50"
-                                                        onClick={() =>
-                                                            setPreviewImage({
-                                                                src: treatment.before_image_url!,
-                                                                alt: `${patientName} ${t('patientHistory.beforeImage')}`,
-                                                                title: `${t('patientHistory.beforeImage')} - ${formatDate(treatment.treatment_date)}`,
-                                                            })
-                                                        }
+                                                        className="group inline-flex h-8 min-w-[74px] items-center gap-2 rounded-md border border-gray-300 bg-white px-2 text-xs font-semibold text-gray-700 shadow-sm transition-all hover:border-blue-400 hover:bg-blue-50 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1 active:translate-y-px active:shadow-sm"
+                                                        onClick={() => openTreatmentImageGallery(treatmentImages, treatment.treatment_date, 0)}
+                                                        title={`${t('patientHistory.images')}: ${treatmentImages.length}`}
+                                                        aria-label={`${t('patientHistory.images')} (${treatmentImages.length})`}
                                                     >
-                                                        <ImageIcon className="h-3.5 w-3.5" />
-                                                        {t('patientHistory.before')}
+                                                        <span className="inline-flex h-5 w-5 items-center justify-center overflow-hidden rounded-[6px] border border-gray-200 bg-gray-100">
+                                                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                            <img
+                                                                src={getTreatmentImageThumbnailUrl(treatmentImages[0])}
+                                                                alt={`${patientName} ${t('patientHistory.image')} 1`}
+                                                                className="h-full w-full object-cover"
+                                                                loading="lazy"
+                                                            />
+                                                        </span>
+                                                        <span className="inline-flex h-5 min-w-6 items-center justify-center rounded-[6px] bg-blue-100 px-1.5 text-[11px] font-semibold text-blue-700">
+                                                            +{treatmentImages.length}
+                                                        </span>
                                                     </button>
-                                                ) : null}
-                                                {treatment.after_image_url ? (
-                                                    <button
-                                                        type="button"
-                                                        className="inline-flex h-8 w-24 items-center justify-center gap-1.5 rounded-full border border-gray-200 bg-white px-3 text-xs font-medium text-gray-700 shadow-sm transition-colors hover:border-gray-300 hover:bg-gray-50"
-                                                        onClick={() =>
-                                                            setPreviewImage({
-                                                                src: treatment.after_image_url!,
-                                                                alt: `${patientName} ${t('patientHistory.afterImage')}`,
-                                                                title: `${t('patientHistory.afterImage')} - ${formatDate(treatment.treatment_date)}`,
-                                                            })
-                                                        }
-                                                    >
-                                                        <ImageIcon className="h-3.5 w-3.5" />
-                                                        {t('patientHistory.after')}
-                                                    </button>
-                                                ) : null}
-                                                {!treatment.before_image_url && !treatment.after_image_url ? (
-                                                    <span className="inline-flex h-8 w-24 items-center justify-center rounded-full border border-dashed border-gray-200 px-3 text-xs font-medium text-gray-400">
-                                                        -
-                                                    </span>
-                                                ) : null}
-                                            </div>
+                                                );
+                                            })()}
                                         </div>
-                                        <div className="flex items-start justify-end gap-2">
+                                        <div className="flex items-center justify-end gap-2">
                                             <Button
                                                 type="button"
                                                 variant="outline"
@@ -521,7 +684,7 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
             </Card>
 
             <Dialog open={isDialogOpen} onOpenChange={handleDialogOpenChange}>
-                <DialogContent className="w-[min(96vw,1040px)] max-w-[1040px] overflow-x-hidden">
+                <DialogContent className="max-h-[92vh] w-[min(96vw,1040px)] max-w-[1040px] overflow-x-hidden overflow-y-auto">
                     <DialogHeader>
                         <DialogTitle>{editingTreatment ? t('patientHistory.editEntry') : t('patientHistory.addEntry')}</DialogTitle>
                         <DialogDescription>{editingTreatment ? t('patientHistory.editDescription', { patientName }) : t('patientHistory.addDescription', { patientName })}</DialogDescription>
@@ -617,29 +780,86 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                             </div>
                         </div>
                         {amountError ? <p className="text-xs text-red-600">{amountError}</p> : null}
-                        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                            <div className="rounded-lg border border-gray-200 p-3">
-                                <div className="space-y-2">
-                                    <Label htmlFor="beforeImage">{t('patientHistory.beforeImage')}</Label>
-                                    <Input id="beforeImage" type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" onChange={(event) => setFormState((current) => ({ ...current, beforeImageFile: event.target.files?.[0] ?? null, removeBeforeImage: false }))} />
-                                    {(formState.beforeImageFile?.name || (editingTreatment?.before_image_url && !formState.removeBeforeImage)) ? (
-                                        <p className="truncate text-xs text-gray-500">{formState.beforeImageFile?.name ?? t('patientHistory.currentImage')}</p>
-                                    ) : null}
-                                    {beforeImageError ? <p className="text-xs text-red-600">{beforeImageError}</p> : null}
-                                    {editingTreatment?.before_image_url && !formState.removeBeforeImage ? <Button type="button" variant="outline" size="sm" onClick={() => setFormState((current) => ({ ...current, beforeImageFile: null, removeBeforeImage: true }))}>{t('patientHistory.removeImage')}</Button> : null}
+                        <div className="rounded-xl border border-gray-200 bg-gray-50/40 p-3">
+                            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                <div className="min-w-0">
+                                    <Label htmlFor="historyImages">{t('patientHistory.images')}</Label>
+                                    <p className="mt-1 text-xs text-gray-500">
+                                        {visibleExistingImagesCount + selectedImagePreviews.length} / {MAX_HISTORY_IMAGES_PER_ENTRY} - {t('patientHistory.imagesHint', { max: MAX_HISTORY_IMAGES_PER_ENTRY })}
+                                    </p>
                                 </div>
+                                <Input
+                                    id="historyImages"
+                                    type="file"
+                                    multiple
+                                    accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
+                                    onChange={handleImageFilesSelected}
+                                    className="sr-only"
+                                />
+                                <Label
+                                    htmlFor="historyImages"
+                                    className="inline-flex h-9 cursor-pointer items-center justify-center gap-2 rounded-lg border border-gray-200 bg-white px-3 text-sm font-medium text-gray-900 shadow-sm transition-colors hover:bg-gray-50"
+                                >
+                                    <Plus className="h-4 w-4" />
+                                    {t('odontogram.image.upload')}
+                                </Label>
                             </div>
-                            <div className="rounded-lg border border-gray-200 p-3">
-                                <div className="space-y-2">
-                                    <Label htmlFor="afterImage">{t('patientHistory.afterImage')}</Label>
-                                    <Input id="afterImage" type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" onChange={(event) => setFormState((current) => ({ ...current, afterImageFile: event.target.files?.[0] ?? null, removeAfterImage: false }))} />
-                                    {(formState.afterImageFile?.name || (editingTreatment?.after_image_url && !formState.removeAfterImage)) ? (
-                                        <p className="truncate text-xs text-gray-500">{formState.afterImageFile?.name ?? t('patientHistory.currentImage')}</p>
-                                    ) : null}
-                                    {afterImageError ? <p className="text-xs text-red-600">{afterImageError}</p> : null}
-                                    {editingTreatment?.after_image_url && !formState.removeAfterImage ? <Button type="button" variant="outline" size="sm" onClick={() => setFormState((current) => ({ ...current, afterImageFile: null, removeAfterImage: true }))}>{t('patientHistory.removeImage')}</Button> : null}
-                                </div>
+
+                            <div className="mt-3 flex flex-wrap gap-2">
+                                {editingTreatment ? (
+                                    (() => {
+                                        const existingImages = editingTreatment.images ?? [];
+
+                                        return existingImages.map((image, index) => {
+                                            const isMarkedForRemoval = formState.removeImageIds.includes(image.id);
+                                            const imageLabel = `${t('patientHistory.image')} ${index + 1}`;
+
+                                            return (
+                                                <HistoryImageTile
+                                                    key={image.id}
+                                                    src={getTreatmentImageThumbnailUrl(image)}
+                                                    alt={imageLabel}
+                                                    markedForRemoval={isMarkedForRemoval}
+                                                    onPreview={() => openTreatmentImageGallery(existingImages, formState.treatmentDate, index)}
+                                                    onToggleRemove={() => toggleExistingImageRemoval(image.id)}
+                                                    removeLabel={t('patientHistory.removeImage')}
+                                                    restoreLabel={t('patients.restore')}
+                                                />
+                                            );
+                                        });
+                                    })()
+                                ) : null}
+                                {selectedImagePreviews.map((preview, index) => (
+                                    <HistoryImageTile
+                                        key={preview.id}
+                                        src={preview.url}
+                                        alt={`${t('patientHistory.image')} ${index + 1}`}
+                                        onPreview={() => {
+                                            setPreviewGallery({
+                                                images: selectedImagePreviews.map((item, imageIndex) => ({
+                                                    src: item.url,
+                                                    alt: `${t('patientHistory.image')} ${imageIndex + 1}`,
+                                                    title: `${t('patientHistory.image')} ${imageIndex + 1}`,
+                                                })),
+                                                startIndex: index,
+                                                fallbackTitle: patientName,
+                                            });
+                                        }}
+                                        onToggleRemove={() => removeSelectedImage(index)}
+                                        removeLabel={t('patientHistory.removeImage')}
+                                        restoreLabel={t('patients.restore')}
+                                        isNew
+                                    />
+                                ))}
+                                {(editingTreatment?.images ?? []).length + selectedImagePreviews.length === 0 ? (
+                                    <span className="inline-flex h-8 items-center rounded-full border border-dashed border-gray-200 bg-white px-3 text-xs text-gray-400">
+                                        {t('patientHistory.imagesEmpty')}
+                                    </span>
+                                ) : null}
                             </div>
+
+                            {imageValidationError ? <p className="mt-2 text-xs text-red-600">{imageValidationError}</p> : null}
+                            {maxImagesError ? <p className="mt-2 text-xs text-red-600">{maxImagesError}</p> : null}
                         </div>
                     </div>
                     <DialogFooter>
@@ -661,11 +881,14 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
             />
 
             <PatientPhotoPreviewDialog
-                open={previewImage !== null}
-                onOpenChange={(open) => !open && setPreviewImage(null)}
-                src={previewImage?.src}
-                alt={previewImage?.alt ?? ''}
-                title={previewImage?.title ?? patientName}
+                key={previewGallery ? `${previewGallery.startIndex}:${previewGallery.images.map((image) => image.src).join('|')}` : 'closed-history-gallery'}
+                open={previewGallery !== null}
+                onOpenChange={(open) => !open && setPreviewGallery(null)}
+                images={previewGallery?.images ?? []}
+                startIndex={previewGallery?.startIndex ?? 0}
+                src={previewGallery?.images[0]?.src ?? null}
+                alt={previewGallery?.images[0]?.alt ?? ''}
+                title={previewGallery?.images[0]?.title ?? previewGallery?.fallbackTitle ?? patientName}
             />
         </>
     );

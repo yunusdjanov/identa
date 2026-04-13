@@ -10,7 +10,7 @@ use Symfony\Component\HttpFoundation\Response;
 class SetRequestLocale
 {
     private const LOCALE_HEADER = 'X-Locale';
-    private const LOCALE_COOKIE = 'odenta_locale';
+    private const LOCALE_COOKIE = 'identa_locale';
 
     /**
      * Handle an incoming request.

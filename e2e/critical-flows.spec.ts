@@ -140,7 +140,7 @@ test.describe('Critical Journeys', () => {
 
     test('admin management lifecycle', async ({ page }) => {
         const dentistName = `E2E Dentist ${Date.now()}`;
-        const dentistEmail = `e2e-${Date.now()}@odenta.test`;
+        const dentistEmail = `e2e-${Date.now()}@identa.test`;
 
         await loginAdmin(page);
         await page.getByRole('button', { name: 'Create' }).click();

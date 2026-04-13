@@ -108,20 +108,20 @@ async function submitLoginAndAssert(page: Page, expectedPathPattern: RegExp): Pr
 
 export async function loginDentist(page: Page): Promise<void> {
     await page.context().addCookies([
-        { name: 'odenta_locale', value: 'en', url: 'http://localhost:3100' },
+        { name: 'identa_locale', value: 'en', url: 'http://localhost:3100' },
     ]);
     await page.goto('/login');
-    await page.getByLabel('Email').fill('dentist@odenta.test');
+    await page.getByLabel('Email').fill('dentist@identa.test');
     await page.getByLabel('Password').fill('password123');
     await submitLoginAndAssert(page, /\/dashboard(?:\/)?(?:\?.*)?$/);
 }
 
 export async function loginAdmin(page: Page): Promise<void> {
     await page.context().addCookies([
-        { name: 'odenta_locale', value: 'en', url: 'http://localhost:3100' },
+        { name: 'identa_locale', value: 'en', url: 'http://localhost:3100' },
     ]);
     await page.goto('/admin/login');
-    await page.getByLabel('Email').fill('admin@odenta.test');
+    await page.getByLabel('Email').fill('admin@identa.test');
     await page.getByLabel('Password').fill('password123');
     await submitLoginAndAssert(page, /\/admin(?:\/)?(?:\?.*)?$/);
 }

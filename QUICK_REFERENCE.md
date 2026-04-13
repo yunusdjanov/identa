@@ -1,4 +1,4 @@
-# Odenta Frontend - Quick Reference Guide
+# Identa Frontend - Quick Reference Guide
 
 ## Quick Start
 
@@ -41,7 +41,7 @@ npm run dev
 4. Invoice status updated
 
 ### Add Dentist (Admin)
-1. Login to `/admin/login` (admin@odenta.uz / admin123)
+1. Login to `/admin/login` (admin@identa.uz / admin123)
 2. Click "Create" button
 3. Fill dentist details → Submit
 
@@ -146,7 +146,7 @@ npm start
 Create `.env.local`:
 ```env
 NEXT_PUBLIC_API_URL=http://localhost:8000/api
-NEXT_PUBLIC_APP_NAME=Odenta
+NEXT_PUBLIC_APP_NAME=Identa
 ```
 
 ## Backup Location

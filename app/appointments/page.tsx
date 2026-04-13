@@ -43,10 +43,11 @@ import { useI18n } from '@/components/providers/i18n-provider';
 
 const noopSubscribe = () => () => undefined;
 const APPOINTMENT_NAME_UI_LIMIT = 25;
+const APPOINTMENT_COMPACT_NAME_UI_LIMIT = 14;
 const APPOINTMENT_REASON_UI_LIMIT = 40;
 const APPOINTMENT_MODAL_NAME_UI_LIMIT = 40;
 const APPOINTMENT_MODAL_REASON_UI_LIMIT = 56;
-const WEEK_VIEW_VISIBLE_APPOINTMENTS = 3;
+const WEEK_VIEW_VISIBLE_APPOINTMENTS = 6;
 const APPOINTMENT_STATUS_VALUES = ['scheduled', 'completed', 'cancelled', 'no_show'] as const;
 type AppointmentStatus = (typeof APPOINTMENT_STATUS_VALUES)[number];
 
@@ -119,6 +120,36 @@ function getAppointmentCardClass(status: AppointmentRow['status']): string {
             return 'border-red-500 bg-red-50';
         default:
             return 'border-blue-500 bg-blue-50';
+    }
+}
+
+function getAppointmentBorderClass(status: AppointmentRow['status']): string {
+    switch (status) {
+        case 'scheduled':
+            return 'border-blue-500';
+        case 'completed':
+            return 'border-green-500';
+        case 'cancelled':
+            return 'border-gray-400';
+        case 'no_show':
+            return 'border-red-500';
+        default:
+            return 'border-blue-500';
+    }
+}
+
+function getCompactAppointmentTimeClass(status: AppointmentRow['status']): string {
+    switch (status) {
+        case 'scheduled':
+            return 'bg-blue-100 text-blue-700';
+        case 'completed':
+            return 'bg-green-100 text-green-700';
+        case 'cancelled':
+            return 'bg-slate-200 text-slate-700';
+        case 'no_show':
+            return 'bg-red-100 text-red-700';
+        default:
+            return 'bg-blue-100 text-blue-700';
     }
 }
 
@@ -616,7 +647,7 @@ export default function AppointmentsPage() {
                     date,
                     dateKey,
                     weekdayLabel: formatLocalizedDate(date, locale, { weekday: 'short' }),
-                    compactDateLabel: formatLocalizedDate(date, locale, { month: 'short', day: 'numeric' }),
+                    compactDateLabel: `${String(date.getDate()).padStart(2, '0')}.${String(date.getMonth() + 1).padStart(2, '0')}`,
                     dayNumber: date.getDate(),
                     fullDateLabel: formatLocalizedDate(date, locale, {
                         month: 'long',
@@ -673,32 +704,47 @@ export default function AppointmentsPage() {
                 data-testid={includeTestIds ? `week-day-card-${descriptor.dateKey}` : undefined}
             >
                 <div className={`w-full border-b text-left ${
-                    compact ? 'px-3 py-2.5' : 'px-3 py-3'
+                    compact ? 'px-3 py-2' : 'px-3 py-3'
                 } ${
                     isTodayLane
                         ? 'border-blue-500 bg-blue-600 text-white'
                         : 'border-slate-100 bg-slate-50'
                 }`}>
-                    <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                            <p className={`font-medium uppercase tracking-[0.14em] ${
-                                compact ? 'text-[11px]' : 'text-[11px]'
-                            } ${isTodayLane ? 'text-blue-100' : 'text-slate-500'}`}>
-                                {descriptor.weekdayLabel}
-                            </p>
-                            <p className={`mt-1 font-semibold leading-none ${
-                                compact ? 'text-lg' : 'text-lg'
-                            } ${isTodayLane ? 'text-white' : 'text-slate-900'}`}>
-                                {descriptor.compactDateLabel}
-                            </p>
-                            {isTodayLane && !compact ? (
-                                <p className="mt-1 inline-flex rounded-full bg-white/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-white">
-                                    {t('appointments.today')}
+                    <div className={compact ? 'relative flex min-h-[1.5rem] items-center justify-center' : 'flex items-start justify-between gap-3'}>
+                        {compact ? (
+                            <>
+                                <span className={`absolute left-0 top-1/2 -translate-y-1/2 text-[11px] font-medium uppercase tracking-[0.12em] ${
+                                    isTodayLane ? 'text-blue-100' : 'text-slate-500'
+                                }`}>
+                                    {descriptor.weekdayLabel}
+                                </span>
+                                <p className={`inline-flex items-center justify-center font-semibold leading-none ${
+                                    isTodayLane ? 'text-white' : 'text-slate-900'
+                                }`}>
+                                    <span className="inline-flex items-center leading-none">{descriptor.compactDateLabel}</span>
                                 </p>
-                            ) : null}
-                        </div>
+                            </>
+                        ) : (
+                            <div className="min-w-0">
+                                <p className={`flex items-baseline gap-1.5 font-semibold leading-none text-lg ${
+                                    isTodayLane ? 'text-white' : 'text-slate-900'
+                                }`}>
+                                    <span className={`text-[12px] font-medium uppercase tracking-[0.12em] ${
+                                        isTodayLane ? 'text-blue-100' : 'text-slate-500'
+                                    }`}>
+                                        {descriptor.weekdayLabel}
+                                    </span>
+                                    <span className="inline-flex items-center leading-none">{descriptor.compactDateLabel}</span>
+                                </p>
+                                {isTodayLane ? (
+                                    <p className="mt-1 inline-flex rounded-full bg-white/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-white">
+                                        {t('appointments.today')}
+                                    </p>
+                                ) : null}
+                            </div>
+                        )}
                         <span
-                            className={`inline-flex items-center justify-center rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                            className={`${compact ? 'absolute right-0 top-1/2 -translate-y-1/2' : ''} inline-flex items-center justify-center rounded-full px-2 py-0.5 text-[10px] font-medium ${
                                 isTodayLane
                                     ? 'bg-white/15 text-white'
                                     : 'bg-white text-slate-600 ring-1 ring-slate-200'
@@ -709,49 +755,50 @@ export default function AppointmentsPage() {
                         </span>
                     </div>
                 </div>
-                <div className={`flex flex-1 min-h-0 flex-col ${compact ? 'p-1.5' : 'gap-2 p-2'}`}>
+                <div className={`flex flex-1 min-h-0 flex-col ${compact ? 'p-1' : 'gap-2 p-2'}`}>
                     {dayAppointments.length === 0 ? (
                         <div className={`flex flex-1 items-center justify-center rounded-lg border border-dashed border-slate-200 bg-slate-50 px-3 text-center text-sm text-slate-500 ${
-                            compact ? 'h-[10.6rem] py-4' : 'min-h-[12rem] py-6'
+                            compact ? 'h-[10.75rem] py-4' : 'min-h-[12rem] py-6'
                         }`}>
                             {t('appointments.noAppointments')}
                         </div>
                     ) : (
                         <>
-                            <div className={compact ? 'h-[10.6rem] rounded-lg border border-slate-100 bg-slate-50 p-1' : 'space-y-1.5'}>
-                                <div className={compact ? 'space-y-1.5' : ''}>
+                            <div className={compact ? 'h-[11.75rem] rounded-lg border border-slate-100 bg-slate-50 p-1' : 'space-y-1.5'}>
+                                <div className={compact ? 'space-y-0.5' : ''}>
                                 {visibleAppointments.map((appointment) => (
                                     <div
                                         key={appointment.id}
-                                        className={`border-l-4 ${getAppointmentCardClass(appointment.status)} ${
+                                        className={`border-l-4 ${
                                             compact
-                                                ? 'flex h-12 flex-col justify-center rounded-md px-1.5 py-1'
-                                                : 'rounded-lg px-2.5 py-2'
+                                                ? `${getAppointmentBorderClass(appointment.status)} flex h-7 items-center rounded-md bg-white px-1.5`
+                                                : 'rounded-lg px-2.5 py-1.5'
+                                        } ${
+                                            compact ? '' : getAppointmentCardClass(appointment.status)
                                         }`}
                                     >
-                                        <div className="flex items-start justify-between gap-2">
+                                        <div className="flex w-full min-w-0 items-start justify-between gap-2">
                                             <div className="min-w-0 flex-1">
-                                                <p className={`${compact ? 'text-[11px]' : 'text-xs'} font-medium text-slate-900`}>
-                                                    {appointment.startTime}
-                                                </p>
-                                                <p
-                                                    className={`truncate font-semibold text-slate-900 ${compact ? 'text-xs' : 'text-[13px]'}`}
-                                                    title={appointment.patientName}
+                                                <div
+                                                    className={`flex w-full min-w-0 items-center gap-1.5 font-semibold text-slate-900 leading-tight ${compact ? 'text-xs' : 'text-[13px]'}`}
+                                                    title={`${appointment.startTime} ${appointment.patientName}`}
                                                 >
-                                                    {truncateForUi(
-                                                        appointment.patientName,
-                                                        compact ? APPOINTMENT_NAME_UI_LIMIT : APPOINTMENT_NAME_UI_LIMIT
-                                                    )}
-                                                </p>
-                                                <p
-                                                    className={`truncate text-slate-600 ${compact ? 'text-[10px]' : 'text-[11px]'}`}
-                                                    title={appointment.reason || t('appointments.general')}
-                                                >
-                                                    {truncateForUi(
-                                                        appointment.reason || t('appointments.general'),
-                                                        compact ? APPOINTMENT_REASON_UI_LIMIT : APPOINTMENT_REASON_UI_LIMIT
-                                                    )}
-                                                </p>
+                                                    <span
+                                                        className={`inline-flex shrink-0 items-center rounded-md px-1.5 py-0.5 font-medium ${
+                                                            compact
+                                                                ? `text-[9px] ${getCompactAppointmentTimeClass(appointment.status)}`
+                                                                : 'text-xs text-slate-700'
+                                                        }`}
+                                                    >
+                                                        {appointment.startTime}
+                                                    </span>
+                                                    <span className="block min-w-0 flex-1 truncate">
+                                                        {truncateForUi(
+                                                            appointment.patientName,
+                                                            compact ? APPOINTMENT_COMPACT_NAME_UI_LIMIT : APPOINTMENT_NAME_UI_LIMIT
+                                                        )}
+                                                    </span>
+                                                </div>
                                             </div>
                                             {compact ? null : (
                                                 <Badge className={`${getStatusBadgeColor(appointment.status)} shrink-0`}>
@@ -763,7 +810,7 @@ export default function AppointmentsPage() {
                                 ))}
                                 </div>
                             </div>
-                            <div className={`mt-auto flex gap-1.5 ${compact ? 'pt-1.5' : 'pt-2'}`}>
+                            <div className={`mt-auto flex gap-1.5 ${compact ? 'pt-1' : 'pt-2'}`}>
                                 <button
                                     type="button"
                                     className={`inline-flex flex-1 items-center justify-center rounded-md border border-blue-200 bg-blue-50 font-medium text-blue-700 transition-colors hover:bg-blue-100 ${

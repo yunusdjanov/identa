@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 
 return [
     'auth' => [
@@ -19,7 +19,7 @@ return [
         'monthly_limit_reached' => 'Достигнут месячный лимит номеров счетов.',
     ],
     'invoices_pdf' => [
-        'title' => 'СЧЕТ Odenta',
+        'title' => 'СЧЕТ Identa',
         'invoice_number' => 'Счет #:number',
         'provider' => 'Клиника',
         'patient' => 'Пациент',
@@ -41,7 +41,7 @@ return [
         'no_payments' => 'По этому счету пока нет оплат.',
         'more_items' => '+ еще :count поз. в системе',
         'more_payments' => '+ еще :count оплат(ы) в системе',
-        'generated_by' => 'Сформировано в Odenta',
+        'generated_by' => 'Сформировано в Identa',
         'fallback_provider' => 'Стоматологическая практика',
         'fallback_patient' => 'Неизвестный пациент',
         'fallback_na' => 'Н/Д',
@@ -81,6 +81,7 @@ return [
         'archived_restore_before_delete' => 'Перед удалением истории лечения восстановите архивного пациента.',
         'archived_restore_before_upload_images' => 'Перед загрузкой изображений лечения восстановите архивного пациента.',
         'archived_restore_before_delete_images' => 'Перед удалением изображений лечения восстановите архивного пациента.',
+        'max_images_reached' => 'К одной записи можно загрузить не более :max изображений.',
         'image_required' => 'Файл изображения обязателен.',
         'image_store_failed' => 'Не удалось сохранить загруженное изображение лечения.',
     ],

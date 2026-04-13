@@ -8,12 +8,14 @@ use App\Http\Requests\UpdateTreatmentRequest;
 use App\Http\Requests\UploadTreatmentImageRequest;
 use App\Models\Patient;
 use App\Models\Treatment;
+use App\Models\TreatmentImage;
 use App\Models\User;
 use App\Support\AuditLogger;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -22,7 +24,19 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 class PatientTreatmentController extends Controller
 {
     private const IMAGE_DISK = 'local';
-    private const IMAGE_SLOTS = ['before', 'after'];
+    private const MAX_IMAGES_PER_TREATMENT = 10;
+    private const IMAGE_VARIANT_THUMBNAIL = 'thumbnail';
+    private const IMAGE_VARIANT_PREVIEW = 'preview';
+    private const THUMBNAIL_MAX_EDGE = 240;
+    private const PREVIEW_MAX_EDGE = 1600;
+
+    /**
+     * @var array<string, int>
+     */
+    private const IMAGE_VARIANT_MAX_EDGES = [
+        self::IMAGE_VARIANT_THUMBNAIL => self::THUMBNAIL_MAX_EDGE,
+        self::IMAGE_VARIANT_PREVIEW => self::PREVIEW_MAX_EDGE,
+    ];
 
     public function __construct(
         private readonly AuditLogger $auditLogger,
@@ -49,7 +63,8 @@ class PatientTreatmentController extends Controller
 
         $query = Treatment::query()
             ->where('dentist_id', $this->resolveDentistId($request))
-            ->where('patient_id', $patient->id);
+            ->where('patient_id', $patient->id)
+            ->with('images');
 
         $this->applySort($query, $request->query('sort', '-treatment_date,-created_at'));
 
@@ -79,7 +94,10 @@ class PatientTreatmentController extends Controller
 
         $query = Treatment::query()
             ->where('dentist_id', $dentistId)
-            ->with('patient:id,full_name,phone,secondary_phone,patient_id');
+            ->with([
+                'patient:id,full_name,phone,secondary_phone,patient_id',
+                'images',
+            ]);
 
         $patientId = $request->input('filter.patient_id');
         if (is_string($patientId) && $patientId !== '') {
@@ -221,8 +239,7 @@ class PatientTreatmentController extends Controller
         }
 
         $treatment = $this->findOwnedTreatment($request, (string) $patient->id, $treatmentId);
-        $this->deleteTreatmentImageFile($treatment, 'before');
-        $this->deleteTreatmentImageFile($treatment, 'after');
+        $this->deleteAllTreatmentImages($treatment);
         $treatment->delete();
 
         $this->auditLogger->logFromRequest(
@@ -238,9 +255,8 @@ class PatientTreatmentController extends Controller
         return response()->json([], 204);
     }
 
-    public function uploadImage(UploadTreatmentImageRequest $request, string $id, string $treatmentId, string $slot): JsonResponse
+    public function uploadImage(UploadTreatmentImageRequest $request, string $id, string $treatmentId): JsonResponse
     {
-        $slot = $this->normalizeImageSlot($slot);
         $patient = $this->findOwnedPatient($request, $id);
         if ($patient->trashed()) {
             throw ValidationException::withMessages([
@@ -256,10 +272,21 @@ class PatientTreatmentController extends Controller
             ]);
         }
 
-        $path = $this->storeTreatmentImage($request, $patient, $treatment, $slot, $uploadedFile);
-        $this->deleteTreatmentImageFile($treatment, $slot);
-        $this->applyTreatmentImage($treatment, $slot, self::IMAGE_DISK, $path);
-        $treatment->save();
+        $existingImagesCount = $treatment->images()->count();
+        if ($existingImagesCount >= self::MAX_IMAGES_PER_TREATMENT) {
+            throw ValidationException::withMessages([
+                'image' => [__('api.treatments.max_images_reached', ['max' => self::MAX_IMAGES_PER_TREATMENT])],
+            ]);
+        }
+
+        $path = $this->storeTreatmentImage($request, $patient, $treatment, $uploadedFile);
+        $image = $treatment->images()->create([
+            'dentist_id' => $this->resolveDentistId($request),
+            'disk' => self::IMAGE_DISK,
+            'path' => $path,
+            'mime_type' => $uploadedFile->getClientMimeType() ?: 'application/octet-stream',
+            'file_size' => max((int) $uploadedFile->getSize(), 0),
+        ]);
 
         $this->auditLogger->logFromRequest(
             request: $request,
@@ -268,40 +295,43 @@ class PatientTreatmentController extends Controller
             entityId: (string) $treatment->id,
             metadata: [
                 'patient_id' => (string) $patient->id,
-                'slot' => $slot,
+                'image_id' => (string) $image->id,
             ],
         );
 
         return response()->json([
-            'data' => $this->transformTreatment($treatment->fresh()),
+            'data' => $this->transformTreatment($treatment->fresh()->load('images')),
         ]);
     }
 
-    public function downloadImage(Request $request, string $id, string $treatmentId, string $slot): StreamedResponse
+    public function downloadImage(Request $request, string $id, string $treatmentId, string $imageId): StreamedResponse
     {
-        $slot = $this->normalizeImageSlot($slot);
         $patient = $this->findOwnedPatient($request, $id);
         $treatment = $this->findOwnedTreatment($request, (string) $patient->id, $treatmentId);
+        $image = $this->findOwnedTreatmentImage($treatment, $imageId);
 
-        $disk = (string) $treatment->getAttribute("{$slot}_image_disk");
-        $path = (string) $treatment->getAttribute("{$slot}_image_path");
-        if ($disk === '' || $path === '' || ! Storage::disk($disk)->exists($path)) {
+        $disk = trim((string) $image->disk);
+        $path = trim((string) $image->path);
+        $variant = $request->query('variant');
+        $variant = is_string($variant) && $variant !== '' ? $variant : null;
+        $resolvedPath = $this->resolveTreatmentImagePath($disk, $path, $variant);
+
+        if ($disk === '' || $resolvedPath === '' || ! Storage::disk($disk)->exists($resolvedPath)) {
             abort(404);
         }
 
         return Storage::disk($disk)->response(
-            $path,
-            basename($path),
+            $resolvedPath,
+            basename($resolvedPath),
             [
-                'Content-Type' => Storage::disk($disk)->mimeType($path) ?: 'application/octet-stream',
+                'Content-Type' => Storage::disk($disk)->mimeType($resolvedPath) ?: 'application/octet-stream',
                 'Cache-Control' => 'private, max-age=300',
             ]
         );
     }
 
-    public function deleteImage(Request $request, string $id, string $treatmentId, string $slot): JsonResponse
+    public function deleteImage(Request $request, string $id, string $treatmentId, string $imageId): JsonResponse
     {
-        $slot = $this->normalizeImageSlot($slot);
         $patient = $this->findOwnedPatient($request, $id);
         if ($patient->trashed()) {
             throw ValidationException::withMessages([
@@ -310,9 +340,9 @@ class PatientTreatmentController extends Controller
         }
 
         $treatment = $this->findOwnedTreatment($request, (string) $patient->id, $treatmentId);
-        $this->deleteTreatmentImageFile($treatment, $slot);
-        $this->applyTreatmentImage($treatment, $slot, null, null);
-        $treatment->save();
+        $image = $this->findOwnedTreatmentImage($treatment, $imageId);
+        $this->deleteTreatmentImageFile($image);
+        $image->delete();
 
         $this->auditLogger->logFromRequest(
             request: $request,
@@ -321,12 +351,12 @@ class PatientTreatmentController extends Controller
             entityId: (string) $treatment->id,
             metadata: [
                 'patient_id' => (string) $patient->id,
-                'slot' => $slot,
+                'image_id' => (string) $image->id,
             ],
         );
 
         return response()->json([
-            'data' => $this->transformTreatment($treatment->fresh()),
+            'data' => $this->transformTreatment($treatment->fresh()->load('images')),
         ]);
     }
 
@@ -395,6 +425,8 @@ class PatientTreatmentController extends Controller
      */
     private function transformTreatment(Treatment $treatment): array
     {
+        $treatment->loadMissing('images');
+
         $teeth = array_values(array_map(
             static fn (mixed $tooth): int => (int) $tooth,
             array_filter($treatment->teeth ?? [], static fn (mixed $tooth): bool => $tooth !== null && $tooth !== '')
@@ -416,8 +448,10 @@ class PatientTreatmentController extends Controller
             'paid_amount' => $paidAmount,
             'balance' => round($debtAmount - $paidAmount, 2),
             'notes' => $treatment->notes,
-            'before_image_url' => $this->buildTreatmentImageUrl($treatment, 'before'),
-            'after_image_url' => $this->buildTreatmentImageUrl($treatment, 'after'),
+            'images' => $treatment->images
+                ->map(fn (TreatmentImage $image): array => $this->transformTreatmentImage($treatment, $image))
+                ->values()
+                ->all(),
             'created_at' => $treatment->created_at?->toIso8601String(),
             'updated_at' => $treatment->updated_at?->toIso8601String(),
             'patient_name' => $treatment->relationLoaded('patient') ? $treatment->patient?->full_name : null,
@@ -497,16 +531,16 @@ class PatientTreatmentController extends Controller
             ->firstOrFail();
     }
 
-    private function normalizeImageSlot(string $slot): string
+    private function findOwnedTreatmentImage(Treatment $treatment, string $imageId): TreatmentImage
     {
-        if (! in_array($slot, self::IMAGE_SLOTS, true)) {
-            abort(404);
-        }
-
-        return $slot;
+        return TreatmentImage::query()
+            ->where('id', $imageId)
+            ->where('treatment_id', $treatment->id)
+            ->where('dentist_id', $treatment->dentist_id)
+            ->firstOrFail();
     }
 
-    private function storeTreatmentImage(Request $request, Patient $patient, Treatment $treatment, string $slot, UploadedFile $uploadedFile): string
+    private function storeTreatmentImage(Request $request, Patient $patient, Treatment $treatment, UploadedFile $uploadedFile): string
     {
         $extension = strtolower($uploadedFile->getClientOriginalExtension() ?: $uploadedFile->extension() ?: 'jpg');
         $directory = sprintf(
@@ -515,7 +549,7 @@ class PatientTreatmentController extends Controller
             (string) $patient->id,
             (string) $treatment->id
         );
-        $filename = sprintf('%s-%s.%s', $slot, Str::uuid()->toString(), $extension);
+        $filename = sprintf('%s.%s', Str::uuid()->toString(), $extension);
         $path = $uploadedFile->storeAs($directory, $filename, [
             'disk' => self::IMAGE_DISK,
         ]);
@@ -526,36 +560,163 @@ class PatientTreatmentController extends Controller
             ]);
         }
 
+        $this->generateTreatmentImageVariants(self::IMAGE_DISK, $path);
+
         return $path;
     }
 
-    private function applyTreatmentImage(Treatment $treatment, string $slot, ?string $disk, ?string $path): void
+    private function deleteTreatmentImageFile(TreatmentImage $image): void
     {
-        $treatment->setAttribute("{$slot}_image_disk", $disk);
-        $treatment->setAttribute("{$slot}_image_path", $path);
-    }
-
-    private function deleteTreatmentImageFile(Treatment $treatment, string $slot): void
-    {
-        $disk = (string) $treatment->getAttribute("{$slot}_image_disk");
-        $path = (string) $treatment->getAttribute("{$slot}_image_path");
-        if ($disk !== '' && $path !== '' && Storage::disk($disk)->exists($path)) {
-            Storage::disk($disk)->delete($path);
+        $disk = trim((string) $image->disk);
+        $path = trim((string) $image->path);
+        if ($disk !== '' && $path !== '') {
+            Storage::disk($disk)->delete([
+                $path,
+                $this->buildTreatmentImageVariantPath($path, self::IMAGE_VARIANT_THUMBNAIL),
+                $this->buildTreatmentImageVariantPath($path, self::IMAGE_VARIANT_PREVIEW),
+            ]);
         }
     }
 
-    private function buildTreatmentImageUrl(Treatment $treatment, string $slot): ?string
+    private function deleteAllTreatmentImages(Treatment $treatment): void
     {
-        $path = trim((string) $treatment->getAttribute("{$slot}_image_path"));
-        if ($path === '') {
-            return null;
+        $images = $treatment->images()->get();
+        foreach ($images as $image) {
+            $this->deleteTreatmentImageFile($image);
+            $image->delete();
         }
+    }
 
-        return url(sprintf(
+    /**
+     * @return array<string, int|string|null>
+     */
+    private function transformTreatmentImage(Treatment $treatment, TreatmentImage $image): array
+    {
+        return [
+            'id' => (string) $image->id,
+            'mime_type' => $image->mime_type,
+            'file_size' => (int) $image->file_size,
+            'created_at' => $image->created_at?->toIso8601String(),
+            'url' => $this->buildTreatmentImageUrl($treatment, $image),
+            'thumbnail_url' => $this->buildTreatmentImageUrl($treatment, $image, self::IMAGE_VARIANT_THUMBNAIL),
+            'preview_url' => $this->buildTreatmentImageUrl($treatment, $image, self::IMAGE_VARIANT_PREVIEW),
+        ];
+    }
+
+    private function buildTreatmentImageUrl(Treatment $treatment, TreatmentImage $image, ?string $variant = null): string
+    {
+        $url = url(sprintf(
             '/api/v1/patients/%s/treatments/%s/images/%s',
             (string) $treatment->patient_id,
             (string) $treatment->id,
-            $slot
+            (string) $image->id
         ));
+
+        if ($variant === null) {
+            return $url;
+        }
+
+        return $url.'?variant='.$variant;
+    }
+
+    private function resolveTreatmentImagePath(string $disk, string $path, ?string $variant): string
+    {
+        if ($variant === null) {
+            return $path;
+        }
+
+        if (! array_key_exists($variant, self::IMAGE_VARIANT_MAX_EDGES)) {
+            abort(404);
+        }
+
+        $variantPath = $this->buildTreatmentImageVariantPath($path, $variant);
+
+        return Storage::disk($disk)->exists($variantPath) ? $variantPath : $path;
+    }
+
+    private function buildTreatmentImageVariantPath(string $path, string $variant): string
+    {
+        $directory = pathinfo($path, PATHINFO_DIRNAME);
+        $filename = pathinfo($path, PATHINFO_FILENAME);
+        $extension = pathinfo($path, PATHINFO_EXTENSION) ?: 'jpg';
+
+        return sprintf('%s/variants/%s-%s.%s', $directory, $filename, $variant, $extension);
+    }
+
+    private function generateTreatmentImageVariants(string $disk, string $path): void
+    {
+        if (! function_exists('imagecreatefromstring') || ! function_exists('imagecreatetruecolor')) {
+            return;
+        }
+
+        try {
+            $contents = Storage::disk($disk)->get($path);
+            $source = @imagecreatefromstring($contents);
+            if (! is_object($source) && ! is_resource($source)) {
+                return;
+            }
+
+            foreach (self::IMAGE_VARIANT_MAX_EDGES as $variant => $maxEdge) {
+                $encodedVariant = $this->encodeTreatmentImageVariant($source, $path, $maxEdge);
+                if ($encodedVariant === null) {
+                    continue;
+                }
+
+                Storage::disk($disk)->put(
+                    $this->buildTreatmentImageVariantPath($path, $variant),
+                    $encodedVariant
+                );
+            }
+        } catch (\Throwable $exception) {
+            Log::warning('Treatment image variant generation failed.', [
+                'exception' => $exception::class,
+            ]);
+        } finally {
+            if (isset($source) && (is_object($source) || is_resource($source))) {
+                imagedestroy($source);
+            }
+        }
+    }
+
+    private function encodeTreatmentImageVariant(mixed $source, string $path, int $maxEdge): ?string
+    {
+        $sourceWidth = imagesx($source);
+        $sourceHeight = imagesy($source);
+        if ($sourceWidth <= 0 || $sourceHeight <= 0) {
+            return null;
+        }
+
+        $ratio = min(1, $maxEdge / max($sourceWidth, $sourceHeight));
+        if ($ratio >= 1) {
+            return null;
+        }
+
+        $targetWidth = max(1, (int) round($sourceWidth * $ratio));
+        $targetHeight = max(1, (int) round($sourceHeight * $ratio));
+
+        $target = imagecreatetruecolor($targetWidth, $targetHeight);
+        if (! is_object($target) && ! is_resource($target)) {
+            return null;
+        }
+
+        imagealphablending($target, false);
+        imagesavealpha($target, true);
+        imagecopyresampled($target, $source, 0, 0, 0, 0, $targetWidth, $targetHeight, $sourceWidth, $sourceHeight);
+
+        $extension = strtolower(pathinfo($path, PATHINFO_EXTENSION) ?: 'jpg');
+
+        try {
+            ob_start();
+            $encoded = match ($extension) {
+                'png' => imagepng($target, null, 6),
+                'webp' => function_exists('imagewebp') ? imagewebp($target, null, 90) : false,
+                default => imagejpeg($target, null, 90),
+            };
+            $contents = ob_get_clean();
+
+            return $encoded && is_string($contents) && $contents !== '' ? $contents : null;
+        } finally {
+            imagedestroy($target);
+        }
     }
 }
