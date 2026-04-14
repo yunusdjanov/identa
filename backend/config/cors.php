@@ -2,11 +2,16 @@
 
 $configuredOrigins = (string) env(
     'FRONTEND_URLS',
-    env('FRONTEND_URL', 'http://localhost:3000,http://127.0.0.1:3000,https://identa-dp8w4tfnr-yunusdjanovs-projects.vercel.app')
+    env('FRONTEND_URL', 'http://localhost:3000,http://127.0.0.1:3000')
 );
 
 $allowedOrigins = array_values(array_filter(
-    array_map(static fn (string $origin): string => trim($origin), explode(',', $configuredOrigins)),
+    array_map(static function (string $origin): string {
+        $normalized = trim($origin);
+        $normalized = trim($normalized, " \t\n\r\0\x0B\"'");
+
+        return rtrim($normalized, '/');
+    }, explode(',', $configuredOrigins)),
     static fn (string $origin): bool => $origin !== '',
 ));
 

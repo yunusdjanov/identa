@@ -9,7 +9,6 @@ const normalizedApiUrl = configuredApiUrl.replace(/\/+$/, '');
 const apiRootUrl = normalizedApiUrl.endsWith('/api')
     ? normalizedApiUrl
     : `${normalizedApiUrl}/api`;
-const backendUrl = apiRootUrl.replace(/\/api$/, '');
 
 function isLoopbackHost(hostname: string): boolean {
     return hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1' || hostname === '[::1]';
@@ -39,13 +38,10 @@ function resolveApiRootUrl(): string {
     return alignLoopbackHost(apiRootUrl);
 }
 
-function resolveBackendUrl(): string {
-    return alignLoopbackHost(backendUrl);
-}
-
 export const apiClient = axios.create({
     baseURL: `${apiRootUrl}/v1`,
     withCredentials: true,
+    withXSRFToken: true,
     headers: {
         Accept: 'application/json',
         'X-Requested-With': 'XMLHttpRequest',
@@ -208,10 +204,10 @@ apiClient.interceptors.request.use((config) => {
     const isMutatingMethod = method === 'post' || method === 'put' || method === 'patch' || method === 'delete';
 
     if (isMutatingMethod) {
-        const xsrfToken = getXsrfTokenFromCookie();
-        if (xsrfToken) {
+        const token = csrfToken ?? getXsrfTokenFromCookie();
+        if (token) {
             config.headers = config.headers ?? {};
-            config.headers['X-XSRF-TOKEN'] = xsrfToken;
+            config.headers['X-CSRF-TOKEN'] = token;
         }
     }
 
@@ -231,9 +227,11 @@ apiClient.interceptors.response.use(
 
 let csrfCookiePromise: Promise<void> | null = null;
 let csrfCookieEnsured = false;
+let csrfToken: string | null = null;
 
 export function invalidateCsrfCookie(): void {
     csrfCookieEnsured = false;
+    csrfToken = null;
 }
 
 export async function ensureCsrfCookie(options?: { force?: boolean }): Promise<void> {
@@ -247,17 +245,15 @@ export async function ensureCsrfCookie(options?: { force?: boolean }): Promise<v
 
     if (!csrfCookiePromise) {
         csrfCookiePromise = axios
-            .get(`${resolveBackendUrl()}/sanctum/csrf-cookie`, {
-                params: {
-                    _: Date.now(),
-                },
+            .get<{ token?: string }>(`${resolveApiRootUrl()}/v1/auth/csrf-token`, {
                 withCredentials: true,
                 headers: {
                     Accept: 'application/json',
                     'X-Requested-With': 'XMLHttpRequest',
                 },
             })
-            .then(() => {
+            .then(({ data }) => {
+                csrfToken = typeof data?.token === 'string' && data.token !== '' ? data.token : null;
                 csrfCookieEnsured = true;
             })
             .finally(() => {
@@ -301,7 +297,7 @@ export async function apiMutationRequest<TResponse>(
         body?: unknown;
     }
 ): Promise<TResponse> {
-    const xsrfToken = getXsrfTokenFromCookie();
+    const token = csrfToken ?? getXsrfTokenFromCookie();
     const locale = resolveApiLocale();
     const response = await fetch(`${resolveApiRootUrl()}/v1${path}`, {
         method: options.method,
@@ -311,7 +307,7 @@ export async function apiMutationRequest<TResponse>(
             'X-Requested-With': 'XMLHttpRequest',
             ...(locale ? { 'X-Locale': locale } : {}),
             ...(options.body !== undefined ? { 'Content-Type': 'application/json' } : {}),
-            ...(xsrfToken ? { 'X-XSRF-TOKEN': xsrfToken } : {}),
+            ...(token ? { 'X-CSRF-TOKEN': token } : {}),
         },
         ...(options.body !== undefined ? { body: JSON.stringify(options.body) } : {}),
     });
