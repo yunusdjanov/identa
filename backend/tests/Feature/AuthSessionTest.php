@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Auth;
 use Tests\TestCase;
 
 class AuthSessionTest extends TestCase
@@ -85,6 +86,33 @@ class AuthSessionTest extends TestCase
         ], $this->csrfHeaders())
             ->assertStatus(422)
             ->assertJsonValidationErrors(['email']);
+    }
+
+    public function test_login_with_remember_me_sets_recaller_cookie(): void
+    {
+        User::factory()->create([
+            'email' => 'remember@example.com',
+            'password' => 'password123',
+        ]);
+
+        $response = $this->postJson('/api/v1/auth/login', [
+            'email' => 'remember@example.com',
+            'password' => 'password123',
+            'remember' => true,
+        ], $this->csrfHeaders())->assertOk();
+
+        $recallerName = Auth::guard('web')->getRecallerName();
+        $recallerCookie = collect($response->headers->getCookies())
+            ->first(fn ($cookie) => $cookie->getName() === $recallerName);
+
+        $this->assertNotNull($recallerCookie);
+        $ttlMinutes = $recallerCookie->getExpiresTime() > 0
+            ? (int) floor(($recallerCookie->getExpiresTime() - time()) / 60)
+            : null;
+
+        $this->assertNotNull($ttlMinutes);
+        $this->assertGreaterThanOrEqual((60 * 24 * 7) - 2, $ttlMinutes);
+        $this->assertLessThanOrEqual(60 * 24 * 7, $ttlMinutes);
     }
 
     /**

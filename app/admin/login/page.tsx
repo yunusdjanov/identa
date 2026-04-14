@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { getApiErrorMessage } from '@/lib/api/client';
 import { loginWithPassword, logoutSession } from '@/lib/api/dentist';
 import { toast } from 'sonner';
-import { Shield } from 'lucide-react';
+import { Eye, EyeOff, Shield } from 'lucide-react';
 import { INPUT_LIMITS, getEmailValidationMessage } from '@/lib/input-validation';
 import { useI18n } from '@/components/providers/i18n-provider';
 import { LanguageSwitcher } from '@/components/layout/language-switcher';
@@ -23,6 +23,8 @@ export default function AdminLoginPage() {
         email: '',
         password: '',
     });
+    const [remember, setRemember] = useState(true);
+    const [isPasswordVisible, setIsPasswordVisible] = useState(false);
     const [isSubmitted, setIsSubmitted] = useState(false);
     const emailError = getEmailValidationMessage(credentials.email, { required: true });
     const passwordError = credentials.password ? null : t('admin.login.passwordRequired');
@@ -30,7 +32,11 @@ export default function AdminLoginPage() {
 
     const loginMutation = useMutation({
         mutationFn: async () => {
-            const user = await loginWithPassword(credentials.email.trim(), credentials.password);
+            const user = await loginWithPassword(
+                credentials.email.trim(),
+                credentials.password,
+                remember
+            );
 
             if (user.role !== 'admin') {
                 await logoutSession();
@@ -104,22 +110,47 @@ export default function AdminLoginPage() {
 
                             <div className="space-y-2">
                                 <Label htmlFor="password">{t('login.password')}</Label>
-                                <Input
-                                    id="password"
-                                    type="password"
-                                    value={credentials.password}
-                                    onChange={(event) =>
-                                        setCredentials({ ...credentials, password: event.target.value })
-                                    }
-                                    required
-                                    maxLength={INPUT_LIMITS.password}
-                                    autoComplete="current-password"
-                                    aria-invalid={Boolean(isSubmitted && passwordError)}
-                                />
+                                <div className="relative">
+                                    <Input
+                                        id="password"
+                                        type={isPasswordVisible ? 'text' : 'password'}
+                                        value={credentials.password}
+                                        onChange={(event) =>
+                                            setCredentials({ ...credentials, password: event.target.value })
+                                        }
+                                        required
+                                        maxLength={INPUT_LIMITS.password}
+                                        autoComplete="current-password"
+                                        aria-invalid={Boolean(isSubmitted && passwordError)}
+                                        className="pr-12"
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => setIsPasswordVisible((current) => !current)}
+                                        className="absolute inset-y-0 right-0 flex w-11 items-center justify-center text-gray-500 hover:text-gray-700"
+                                        aria-label={isPasswordVisible ? t('login.hidePassword') : t('login.showPassword')}
+                                    >
+                                        {isPasswordVisible ? (
+                                            <EyeOff className="h-4 w-4" />
+                                        ) : (
+                                            <Eye className="h-4 w-4" />
+                                        )}
+                                    </button>
+                                </div>
                                 {isSubmitted && passwordError ? (
                                     <p className="text-xs text-red-600">{passwordError}</p>
                                 ) : null}
                             </div>
+
+                            <label className="flex items-center gap-3 text-sm text-slate-600">
+                                <input
+                                    type="checkbox"
+                                    checked={remember}
+                                    onChange={(event) => setRemember(event.target.checked)}
+                                    className="h-4 w-4 rounded border-gray-300 text-slate-900 focus:ring-slate-500"
+                                />
+                                <span>{t('login.rememberMe')}</span>
+                            </label>
 
                             <Button
                                 type="submit"

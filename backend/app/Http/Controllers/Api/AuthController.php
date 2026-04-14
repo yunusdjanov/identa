@@ -26,9 +26,13 @@ class AuthController extends Controller
         $credentials = $request->validate([
             'email' => ['required', 'email'],
             'password' => ['required', 'string'],
+            'remember' => ['nullable', 'boolean'],
         ]);
 
-        if (! Auth::guard('web')->attempt($credentials)) {
+        $remember = (bool) ($credentials['remember'] ?? false);
+        unset($credentials['remember']);
+
+        if (! Auth::guard('web')->attempt($credentials, $remember)) {
             $this->auditLogger->logFromRequest(
                 request: $request,
                 eventType: 'auth.login_failed',
@@ -98,6 +102,9 @@ class AuthController extends Controller
             eventType: 'auth.login',
             entityType: 'user',
             entityId: (string) $user->id,
+            metadata: [
+                'remember' => $remember,
+            ],
         );
 
         return response()->json([

@@ -87,11 +87,16 @@ async function collectAllPages<T>(
     return results;
 }
 
-export async function loginWithPassword(email: string, password: string): Promise<ApiUser> {
+export async function loginWithPassword(
+    email: string,
+    password: string,
+    remember = false
+): Promise<ApiUser> {
     const { data } = await withCsrfRetry(() =>
         apiClient.post<ApiEnvelope<ApiUser>>('/auth/login', {
             email,
             password,
+            remember,
         })
     );
     invalidateCsrfCookie();

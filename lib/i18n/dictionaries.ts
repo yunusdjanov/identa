@@ -3017,6 +3017,24 @@ Object.assign(en, {
     'admin.subscription.applyHint': 'If the same plan is already active, the period will be extended. Choosing a different plan replaces the current subscription immediately.',
 });
 
+Object.assign(ru, {
+    'login.rememberMe': '\u0417\u0430\u043f\u043e\u043c\u043d\u0438\u0442\u044c \u043c\u0435\u043d\u044f \u043d\u0430 7 \u0434\u043d\u0435\u0439',
+    'login.showPassword': '\u041f\u043e\u043a\u0430\u0437\u0430\u0442\u044c \u043f\u0430\u0440\u043e\u043b\u044c',
+    'login.hidePassword': '\u0421\u043a\u0440\u044b\u0442\u044c \u043f\u0430\u0440\u043e\u043b\u044c',
+});
+
+Object.assign(uz, {
+    'login.rememberMe': "Meni 7 kun eslab qol",
+    'login.showPassword': "Parolni ko'rsatish",
+    'login.hidePassword': "Parolni yashirish",
+});
+
+Object.assign(en, {
+    'login.rememberMe': 'Remember me for 7 days',
+    'login.showPassword': 'Show password',
+    'login.hidePassword': 'Hide password',
+});
+
 export const DICTIONARIES: Record<AppLocale, TranslationDictionary> = {
     ru,
     uz,
