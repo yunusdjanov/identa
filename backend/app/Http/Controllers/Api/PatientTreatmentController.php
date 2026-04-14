@@ -11,6 +11,7 @@ use App\Models\Treatment;
 use App\Models\TreatmentImage;
 use App\Models\User;
 use App\Support\AuditLogger;
+use App\Support\ImageVariantGenerator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -316,20 +317,23 @@ class PatientTreatmentController extends Controller
         $path = trim((string) $image->path);
         $variant = $request->query('variant');
         $variant = is_string($variant) && $variant !== '' ? $variant : null;
-        $resolvedPath = $this->resolveTreatmentImagePath($disk, $path, $variant);
 
-        if ($disk === '' || $resolvedPath === '' || ! Storage::disk($disk)->exists($resolvedPath)) {
+        if ($disk === '' || $path === '') {
             abort(404);
         }
 
-        return Storage::disk($disk)->response(
-            $resolvedPath,
-            basename($resolvedPath),
-            [
-                'Content-Type' => Storage::disk($disk)->mimeType($resolvedPath) ?: 'application/octet-stream',
-                'Cache-Control' => 'private, max-age=300',
-            ]
-        );
+        if ($variant !== null) {
+            $variantResponse = $this->streamTreatmentImageVariant($disk, $path, $variant);
+            if ($variantResponse !== null) {
+                return $variantResponse;
+            }
+        }
+
+        if (! Storage::disk($disk)->exists($path)) {
+            abort(404);
+        }
+
+        return $this->streamStoredTreatmentImage($disk, $path);
     }
 
     public function deleteImage(Request $request, string $id, string $treatmentId, string $imageId): JsonResponse
@@ -622,7 +626,7 @@ class PatientTreatmentController extends Controller
         return $url.'?variant='.$variant;
     }
 
-    private function resolveTreatmentImagePath(string $disk, string $path, ?string $variant): string
+    private function resolveTreatmentImagePath(string $path, ?string $variant): string
     {
         if ($variant === null) {
             return $path;
@@ -632,9 +636,7 @@ class PatientTreatmentController extends Controller
             abort(404);
         }
 
-        $variantPath = $this->buildTreatmentImageVariantPath($path, $variant);
-
-        return Storage::disk($disk)->exists($variantPath) ? $variantPath : $path;
+        return $this->buildTreatmentImageVariantPath($path, $variant);
     }
 
     private function buildTreatmentImageVariantPath(string $path, string $variant): string
@@ -648,79 +650,93 @@ class PatientTreatmentController extends Controller
 
     private function generateTreatmentImageVariants(string $disk, string $path): void
     {
-        if (! function_exists('imagecreatefromstring') || ! function_exists('imagecreatetruecolor')) {
-            return;
-        }
-
         try {
             $contents = Storage::disk($disk)->get($path);
-            $source = @imagecreatefromstring($contents);
-            if (! is_object($source) && ! is_resource($source)) {
-                return;
-            }
 
             foreach (self::IMAGE_VARIANT_MAX_EDGES as $variant => $maxEdge) {
-                $encodedVariant = $this->encodeTreatmentImageVariant($source, $path, $maxEdge);
-                if ($encodedVariant === null) {
+                $generatedVariant = ImageVariantGenerator::make(
+                    $contents,
+                    $path,
+                    $maxEdge,
+                    self::JPEG_VARIANT_QUALITY,
+                    self::WEBP_VARIANT_QUALITY,
+                );
+
+                if ($generatedVariant === null) {
                     continue;
                 }
 
                 Storage::disk($disk)->put(
                     $this->buildTreatmentImageVariantPath($path, $variant),
-                    $encodedVariant
+                    $generatedVariant['contents']
                 );
             }
         } catch (\Throwable $exception) {
             Log::warning('Treatment image variant generation failed.', [
                 'exception' => $exception::class,
             ]);
-        } finally {
-            if (isset($source) && (is_object($source) || is_resource($source))) {
-                imagedestroy($source);
-            }
         }
     }
 
-    private function encodeTreatmentImageVariant(mixed $source, string $path, int $maxEdge): ?string
+    private function streamTreatmentImageVariant(string $disk, string $path, string $variant): ?StreamedResponse
     {
-        $sourceWidth = imagesx($source);
-        $sourceHeight = imagesy($source);
-        if ($sourceWidth <= 0 || $sourceHeight <= 0) {
-            return null;
+        $variantPath = $this->resolveTreatmentImagePath($path, $variant);
+        if (Storage::disk($disk)->exists($variantPath)) {
+            return $this->streamStoredTreatmentImage($disk, $variantPath);
         }
 
-        $ratio = min(1, $maxEdge / max($sourceWidth, $sourceHeight));
-        if ($ratio >= 1) {
+        if (! Storage::disk($disk)->exists($path)) {
             return null;
         }
-
-        $targetWidth = max(1, (int) round($sourceWidth * $ratio));
-        $targetHeight = max(1, (int) round($sourceHeight * $ratio));
-
-        $target = imagecreatetruecolor($targetWidth, $targetHeight);
-        if (! is_object($target) && ! is_resource($target)) {
-            return null;
-        }
-
-        imagealphablending($target, false);
-        imagesavealpha($target, true);
-        imagecopyresampled($target, $source, 0, 0, 0, 0, $targetWidth, $targetHeight, $sourceWidth, $sourceHeight);
-
-        $extension = strtolower(pathinfo($path, PATHINFO_EXTENSION) ?: 'jpg');
 
         try {
-            ob_start();
-            $encoded = match ($extension) {
-                'png' => imagepng($target, null, 7),
-                'webp' => function_exists('imagewebp') ? imagewebp($target, null, self::WEBP_VARIANT_QUALITY) : false,
-                default => imagejpeg($target, null, self::JPEG_VARIANT_QUALITY),
-            };
-            $contents = ob_get_clean();
+            $generatedVariant = ImageVariantGenerator::make(
+                Storage::disk($disk)->get($path),
+                $path,
+                self::IMAGE_VARIANT_MAX_EDGES[$variant],
+                self::JPEG_VARIANT_QUALITY,
+                self::WEBP_VARIANT_QUALITY,
+            );
 
-            return $encoded && is_string($contents) && $contents !== '' ? $contents : null;
-        } finally {
-            imagedestroy($target);
+            if ($generatedVariant === null) {
+                return null;
+            }
+
+            try {
+                Storage::disk($disk)->put($variantPath, $generatedVariant['contents']);
+            } catch (\Throwable $exception) {
+                Log::warning('Treatment image variant persistence failed.', [
+                    'exception' => $exception::class,
+                    'variant' => $variant,
+                ]);
+            }
+
+            return response()->stream(function () use ($generatedVariant): void {
+                echo $generatedVariant['contents'];
+            }, 200, [
+                'Content-Type' => $generatedVariant['mime_type'],
+                'Cache-Control' => 'private, max-age=300',
+            ]);
+        } catch (\Throwable $exception) {
+            Log::warning('Treatment image variant streaming failed.', [
+                'exception' => $exception::class,
+                'variant' => $variant,
+            ]);
+
+            return null;
         }
+    }
+
+    private function streamStoredTreatmentImage(string $disk, string $path): StreamedResponse
+    {
+        return Storage::disk($disk)->response(
+            $path,
+            basename($path),
+            [
+                'Content-Type' => Storage::disk($disk)->mimeType($path) ?: 'application/octet-stream',
+                'Cache-Control' => 'private, max-age=300',
+            ]
+        );
     }
 
     private function mediaDisk(): string

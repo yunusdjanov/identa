@@ -140,7 +140,7 @@ class OdontogramTreatmentApiTest extends TestCase
 
         $firstUpload = $this->actingAs($dentist, 'web')
             ->post("/api/v1/patients/{$patient->id}/treatments/{$treatment->id}/images", [
-                'image' => UploadedFile::fake()->image('first.jpg', 800, 600),
+                'image' => UploadedFile::fake()->image('first.jpg', 2600, 1800),
             ], ['Accept' => 'application/json'])
             ->assertOk()
             ->assertJsonCount(1, 'data.images');
@@ -161,8 +161,18 @@ class OdontogramTreatmentApiTest extends TestCase
             pathinfo($firstPath, PATHINFO_FILENAME),
             pathinfo($firstPath, PATHINFO_EXTENSION)
         );
+        $firstPreviewPath = sprintf(
+            '%s/variants/%s-preview.%s',
+            dirname($firstPath),
+            pathinfo($firstPath, PATHINFO_FILENAME),
+            pathinfo($firstPath, PATHINFO_EXTENSION)
+        );
         Storage::disk('local')->assertExists($firstPath);
         Storage::disk('local')->assertExists($firstThumbnailPath);
+        Storage::disk('local')->assertExists($firstPreviewPath);
+        Storage::disk('local')->delete([$firstThumbnailPath, $firstPreviewPath]);
+        Storage::disk('local')->assertMissing($firstThumbnailPath);
+        Storage::disk('local')->assertMissing($firstPreviewPath);
 
         $secondUpload = $this->actingAs($dentist, 'web')
             ->post("/api/v1/patients/{$patient->id}/treatments/{$treatment->id}/images", [
@@ -178,11 +188,24 @@ class OdontogramTreatmentApiTest extends TestCase
             ->get("/api/v1/patients/{$patient->id}/treatments/{$treatment->id}/images/{$firstImageId}");
         $downloadResponse->assertOk();
         $this->assertStringContainsString('image/', (string) $downloadResponse->headers->get('Content-Type'));
+        $originalBytes = strlen($downloadResponse->streamedContent());
 
         $thumbnailResponse = $this->actingAs($dentist, 'web')
             ->get("/api/v1/patients/{$patient->id}/treatments/{$treatment->id}/images/{$firstImageId}?variant=thumbnail");
         $thumbnailResponse->assertOk();
         $this->assertStringContainsString('image/', (string) $thumbnailResponse->headers->get('Content-Type'));
+        $thumbnailBytes = strlen($thumbnailResponse->streamedContent());
+
+        $previewResponse = $this->actingAs($dentist, 'web')
+            ->get("/api/v1/patients/{$patient->id}/treatments/{$treatment->id}/images/{$firstImageId}?variant=preview");
+        $previewResponse->assertOk();
+        $this->assertStringContainsString('image/', (string) $previewResponse->headers->get('Content-Type'));
+        $previewBytes = strlen($previewResponse->streamedContent());
+
+        $this->assertLessThan($previewBytes, $originalBytes);
+        $this->assertLessThan($thumbnailBytes, $previewBytes);
+        Storage::disk('local')->assertExists($firstThumbnailPath);
+        Storage::disk('local')->assertExists($firstPreviewPath);
 
         $this->actingAs($dentist, 'web')
             ->deleteJson("/api/v1/patients/{$patient->id}/treatments/{$treatment->id}/images/{$secondImageId}")
@@ -196,6 +219,7 @@ class OdontogramTreatmentApiTest extends TestCase
         $this->assertDatabaseMissing('treatments', ['id' => $treatment->id]);
         Storage::disk('local')->assertMissing($firstPath);
         Storage::disk('local')->assertMissing($firstThumbnailPath);
+        Storage::disk('local')->assertMissing($firstPreviewPath);
     }
 
     public function test_treatment_images_are_limited_to_ten_files_per_entry(): void

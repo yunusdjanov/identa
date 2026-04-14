@@ -373,7 +373,7 @@ class PatientApiTest extends TestCase
 
         $this->actingAs($dentist, 'web')
             ->post("/api/v1/patients/{$patient->id}/photo", [
-                'photo' => UploadedFile::fake()->image('avatar.jpg', 300, 300),
+                'photo' => UploadedFile::fake()->image('avatar.jpg', 2400, 1800),
             ])
             ->assertOk()
             ->assertJsonPath('data.id', (string) $patient->id)
@@ -381,21 +381,50 @@ class PatientApiTest extends TestCase
             ->assertJsonPath('data.photo_thumbnail_url', fn ($value): bool => is_string($value) && str_contains($value, 'variant=thumbnail'))
             ->assertJsonPath('data.photo_preview_url', fn ($value): bool => is_string($value) && str_contains($value, 'variant=preview'));
 
+        $patient->refresh();
+        $this->assertIsString($patient->photo_path);
+        $photoPath = (string) $patient->photo_path;
+        $thumbnailPath = sprintf(
+            '%s/variants/%s-thumbnail.%s',
+            dirname($photoPath),
+            pathinfo($photoPath, PATHINFO_FILENAME),
+            pathinfo($photoPath, PATHINFO_EXTENSION)
+        );
+        $previewPath = sprintf(
+            '%s/variants/%s-preview.%s',
+            dirname($photoPath),
+            pathinfo($photoPath, PATHINFO_FILENAME),
+            pathinfo($photoPath, PATHINFO_EXTENSION)
+        );
+        Storage::disk('local')->assertExists($thumbnailPath);
+        Storage::disk('local')->assertExists($previewPath);
+        Storage::disk('local')->delete([$thumbnailPath, $previewPath]);
+        Storage::disk('local')->assertMissing($thumbnailPath);
+        Storage::disk('local')->assertMissing($previewPath);
+
         $downloadResponse = $this->actingAs($dentist, 'web')
             ->get("/api/v1/patients/{$patient->id}/photo");
         $downloadResponse->assertOk();
         $this->assertStringContainsString('image/', (string) $downloadResponse->headers->get('Content-Type'));
         $this->assertSame('private, max-age=300', (string) $downloadResponse->headers->get('Cache-Control'));
+        $originalBytes = strlen($downloadResponse->streamedContent());
 
         $thumbnailResponse = $this->actingAs($dentist, 'web')
             ->get("/api/v1/patients/{$patient->id}/photo?variant=thumbnail");
         $thumbnailResponse->assertOk();
         $this->assertStringContainsString('image/', (string) $thumbnailResponse->headers->get('Content-Type'));
+        $thumbnailBytes = strlen($thumbnailResponse->streamedContent());
 
         $previewResponse = $this->actingAs($dentist, 'web')
             ->get("/api/v1/patients/{$patient->id}/photo?variant=preview");
         $previewResponse->assertOk();
         $this->assertStringContainsString('image/', (string) $previewResponse->headers->get('Content-Type'));
+        $previewBytes = strlen($previewResponse->streamedContent());
+
+        $this->assertLessThan($previewBytes, $originalBytes);
+        $this->assertLessThan($thumbnailBytes, $previewBytes);
+        Storage::disk('local')->assertExists($thumbnailPath);
+        Storage::disk('local')->assertExists($previewPath);
 
         $this->actingAs($dentist, 'web')
             ->deleteJson("/api/v1/patients/{$patient->id}/photo")

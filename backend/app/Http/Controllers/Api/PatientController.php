@@ -9,6 +9,7 @@ use App\Models\Appointment;
 use App\Models\Patient;
 use App\Models\User;
 use App\Support\AuditLogger;
+use App\Support\ImageVariantGenerator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -270,21 +271,19 @@ class PatientController extends Controller
             : $this->patientPhotoDisk();
         $variant = $request->query('variant');
         $variant = is_string($variant) && $variant !== '' ? $variant : null;
-        $resolvedPath = $this->resolvePatientPhotoPath($disk, $photoPath, $variant);
-        if (! Storage::disk($disk)->exists($resolvedPath)) {
+
+        if ($variant !== null) {
+            $variantResponse = $this->streamPatientPhotoVariant($disk, $photoPath, $variant);
+            if ($variantResponse !== null) {
+                return $variantResponse;
+            }
+        }
+
+        if (! Storage::disk($disk)->exists($photoPath)) {
             abort(404);
         }
 
-        $mimeType = Storage::disk($disk)->mimeType($resolvedPath) ?: 'application/octet-stream';
-
-        return Storage::disk($disk)->response(
-            $resolvedPath,
-            basename($resolvedPath),
-            [
-                'Content-Type' => $mimeType,
-                'Cache-Control' => 'private, max-age=300',
-            ]
-        );
+        return $this->streamStoredPatientPhoto($disk, $photoPath);
     }
 
     public function deletePhoto(Request $request, string $id): JsonResponse
@@ -639,7 +638,7 @@ class PatientController extends Controller
         return (string) config('filesystems.media_disk', 'local');
     }
 
-    private function resolvePatientPhotoPath(string $disk, string $path, ?string $variant): string
+    private function resolvePatientPhotoPath(string $path, ?string $variant): string
     {
         if ($variant === null) {
             return $path;
@@ -649,9 +648,7 @@ class PatientController extends Controller
             abort(404);
         }
 
-        $variantPath = $this->buildPatientPhotoVariantPath($path, $variant);
-
-        return Storage::disk($disk)->exists($variantPath) ? $variantPath : $path;
+        return $this->buildPatientPhotoVariantPath($path, $variant);
     }
 
     private function buildPatientPhotoVariantPath(string $path, string $variant): string
@@ -665,79 +662,95 @@ class PatientController extends Controller
 
     private function generatePatientPhotoVariants(string $disk, string $path): void
     {
-        if (! function_exists('imagecreatefromstring') || ! function_exists('imagecreatetruecolor')) {
-            return;
-        }
-
         try {
             $contents = Storage::disk($disk)->get($path);
-            $source = @imagecreatefromstring($contents);
-            if (! is_object($source) && ! is_resource($source)) {
-                return;
-            }
 
             foreach (self::IMAGE_VARIANT_MAX_EDGES as $variant => $maxEdge) {
-                $encodedVariant = $this->encodePatientPhotoVariant($source, $path, $maxEdge);
-                if ($encodedVariant === null) {
+                $generatedVariant = ImageVariantGenerator::make(
+                    $contents,
+                    $path,
+                    $maxEdge,
+                    self::JPEG_VARIANT_QUALITY,
+                    self::WEBP_VARIANT_QUALITY,
+                );
+
+                if ($generatedVariant === null) {
                     continue;
                 }
 
                 Storage::disk($disk)->put(
                     $this->buildPatientPhotoVariantPath($path, $variant),
-                    $encodedVariant
+                    $generatedVariant['contents']
                 );
             }
         } catch (\Throwable $exception) {
             Log::warning('Patient photo variant generation failed.', [
                 'exception' => $exception::class,
             ]);
-        } finally {
-            if (isset($source) && (is_object($source) || is_resource($source))) {
-                imagedestroy($source);
-            }
         }
     }
 
-    private function encodePatientPhotoVariant(mixed $source, string $path, int $maxEdge): ?string
+    private function streamPatientPhotoVariant(string $disk, string $path, string $variant): ?StreamedResponse
     {
-        $sourceWidth = imagesx($source);
-        $sourceHeight = imagesy($source);
-        if ($sourceWidth <= 0 || $sourceHeight <= 0) {
-            return null;
+        $variantPath = $this->resolvePatientPhotoPath($path, $variant);
+        if (Storage::disk($disk)->exists($variantPath)) {
+            return $this->streamStoredPatientPhoto($disk, $variantPath);
         }
 
-        $ratio = min(1, $maxEdge / max($sourceWidth, $sourceHeight));
-        if ($ratio >= 1) {
+        if (! Storage::disk($disk)->exists($path)) {
             return null;
         }
-
-        $targetWidth = max(1, (int) round($sourceWidth * $ratio));
-        $targetHeight = max(1, (int) round($sourceHeight * $ratio));
-
-        $target = imagecreatetruecolor($targetWidth, $targetHeight);
-        if (! is_object($target) && ! is_resource($target)) {
-            return null;
-        }
-
-        imagealphablending($target, false);
-        imagesavealpha($target, true);
-        imagecopyresampled($target, $source, 0, 0, 0, 0, $targetWidth, $targetHeight, $sourceWidth, $sourceHeight);
-
-        $extension = strtolower(pathinfo($path, PATHINFO_EXTENSION) ?: 'jpg');
 
         try {
-            ob_start();
-            $encoded = match ($extension) {
-                'png' => imagepng($target, null, 7),
-                'webp' => function_exists('imagewebp') ? imagewebp($target, null, self::WEBP_VARIANT_QUALITY) : false,
-                default => imagejpeg($target, null, self::JPEG_VARIANT_QUALITY),
-            };
-            $contents = ob_get_clean();
+            $generatedVariant = ImageVariantGenerator::make(
+                Storage::disk($disk)->get($path),
+                $path,
+                self::IMAGE_VARIANT_MAX_EDGES[$variant],
+                self::JPEG_VARIANT_QUALITY,
+                self::WEBP_VARIANT_QUALITY,
+            );
 
-            return $encoded && is_string($contents) && $contents !== '' ? $contents : null;
-        } finally {
-            imagedestroy($target);
+            if ($generatedVariant === null) {
+                return null;
+            }
+
+            try {
+                Storage::disk($disk)->put($variantPath, $generatedVariant['contents']);
+            } catch (\Throwable $exception) {
+                Log::warning('Patient photo variant persistence failed.', [
+                    'exception' => $exception::class,
+                    'variant' => $variant,
+                ]);
+            }
+
+            return response()->stream(function () use ($generatedVariant): void {
+                echo $generatedVariant['contents'];
+            }, 200, [
+                'Content-Type' => $generatedVariant['mime_type'],
+                'Cache-Control' => 'private, max-age=300',
+            ]);
+        } catch (\Throwable $exception) {
+            Log::warning('Patient photo variant streaming failed.', [
+                'exception' => $exception::class,
+                'variant' => $variant,
+            ]);
+
+            return null;
         }
+    }
+
+    private function streamStoredPatientPhoto(string $disk, string $path): StreamedResponse
+    {
+        $mimeType = Storage::disk($disk)->mimeType($path) ?: 'application/octet-stream';
+
+        return Storage::disk($disk)->response(
+            $path,
+            basename($path),
+            [
+                'Content-Type' => $mimeType,
+                'Cache-Control' => 'private, max-age=300',
+            ]
+        );
     }
 
     private function generatePatientId(int $dentistId): string
