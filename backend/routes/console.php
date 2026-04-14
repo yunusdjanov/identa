@@ -7,6 +7,8 @@ use Illuminate\Support\Facades\DB;
 use App\Models\Invoice;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Storage;
 
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
@@ -222,3 +224,94 @@ Artisan::command('users:ensure-account {email} {password} {--name=} {--role=dent
 
     return 0;
 })->purpose('Create or update a user account with a known password for maintenance or demo access');
+
+Artisan::command(
+    'app:reset-test-data {--force : Required to confirm destructive cleanup} {--email=admin@identa.uz : Super admin email} {--password=password123 : Super admin password} {--name=Platform Super Admin : Super admin display name}',
+    function () {
+        if (! $this->option('force')) {
+            $this->error('This command is destructive. Re-run with --force to continue.');
+
+            return 1;
+        }
+
+        $adminEmail = trim((string) $this->option('email'));
+        $adminPassword = (string) $this->option('password');
+        $adminName = trim((string) $this->option('name'));
+
+        if ($adminEmail === '' || ! filter_var($adminEmail, FILTER_VALIDATE_EMAIL)) {
+            $this->error('A valid admin email is required.');
+
+            return 1;
+        }
+
+        if ($adminPassword === '') {
+            $this->error('A non-empty admin password is required.');
+
+            return 1;
+        }
+
+        $mediaDisk = (string) config('filesystems.media_disk', 'local');
+        foreach (['patients', 'treatments', 'odontogram'] as $directory) {
+            try {
+                Storage::disk($mediaDisk)->deleteDirectory($directory);
+            } catch (\Throwable $exception) {
+                $this->warn(sprintf('Media cleanup skipped for "%s" on disk "%s".', $directory, $mediaDisk));
+            }
+        }
+
+        $tables = [
+            'audit_logs',
+            'invoice_items',
+            'payments',
+            'invoices',
+            'treatment_images',
+            'treatments',
+            'odontogram_entry_images',
+            'odontogram_entries',
+            'appointments',
+            'patient_category_patient',
+            'patient_categories',
+            'patients',
+            'sessions',
+            'cache',
+            'cache_locks',
+            'jobs',
+            'failed_jobs',
+            'job_batches',
+            'password_reset_tokens',
+            'users',
+        ];
+
+        $existingTables = array_values(array_filter($tables, static fn (string $table): bool => Schema::hasTable($table)));
+        if ($existingTables !== []) {
+            $quotedTables = implode(', ', array_map(static fn (string $table): string => '"'.$table.'"', $existingTables));
+            DB::statement("TRUNCATE TABLE {$quotedTables} RESTART IDENTITY CASCADE");
+        }
+
+        $admin = User::query()->create([
+            'name' => $adminName !== '' ? $adminName : 'Platform Super Admin',
+            'email' => $adminEmail,
+            'password' => $adminPassword,
+            'role' => User::ROLE_ADMIN,
+            'account_status' => User::ACCOUNT_STATUS_ACTIVE,
+            'dentist_owner_id' => null,
+            'assistant_permissions' => null,
+            'must_change_password' => false,
+            'phone' => null,
+            'practice_name' => null,
+            'license_number' => null,
+            'address' => null,
+            'working_hours_start' => '09:00',
+            'working_hours_end' => '18:00',
+            'default_appointment_duration' => 30,
+        ]);
+
+        $this->info(sprintf(
+            'Application data reset completed. Super admin ready: %s (%s).',
+            $admin->email,
+            $admin->role
+        ));
+
+        return 0;
+    }
+)->purpose('Clear application data, purge stored media, and leave a single super admin account');
