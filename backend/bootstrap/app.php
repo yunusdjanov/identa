@@ -14,6 +14,16 @@ use Illuminate\Http\Request as IlluminateRequest;
 use Sentry\Laravel\Integration;
 use Symfony\Component\HttpFoundation\Request as SymfonyRequest;
 
+foreach ([
+    __DIR__.'/../storage/framework/cache/data',
+    __DIR__.'/../storage/framework/sessions',
+    __DIR__.'/../storage/framework/views',
+] as $directory) {
+    if (! is_dir($directory)) {
+        mkdir($directory, 0775, true);
+    }
+}
+
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
         web: __DIR__.'/../routes/web.php',
