@@ -129,6 +129,18 @@ class DentistAccountController extends Controller
         $note = isset($validated['note']) ? trim((string) $validated['note']) : null;
 
         match ($action) {
+            'apply_monthly' => $dentist->applyPaidSubscription(
+                User::SUBSCRIPTION_PLAN_MONTHLY,
+                $paymentMethod,
+                $paymentAmount,
+                $note,
+            ),
+            'apply_yearly' => $dentist->applyPaidSubscription(
+                User::SUBSCRIPTION_PLAN_YEARLY,
+                $paymentMethod,
+                $paymentAmount,
+                $note,
+            ),
             'activate_monthly' => $dentist->activatePaidSubscription(
                 User::SUBSCRIPTION_PLAN_MONTHLY,
                 $paymentMethod,

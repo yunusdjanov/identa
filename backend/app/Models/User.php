@@ -340,6 +340,21 @@ class User extends Authenticatable
         ])->save();
     }
 
+    public function applyPaidSubscription(
+        string $plan,
+        ?string $paymentMethod = null,
+        ?float $paymentAmount = null,
+        ?string $note = null,
+    ): void {
+        if ($this->shouldExtendPaidSubscription($plan)) {
+            $this->extendPaidSubscription($plan, $paymentMethod, $paymentAmount, $note);
+
+            return;
+        }
+
+        $this->activatePaidSubscription($plan, $paymentMethod, $paymentAmount, $note);
+    }
+
     public function extendPaidSubscription(
         string $plan,
         ?string $paymentMethod = null,
@@ -362,6 +377,18 @@ class User extends Authenticatable
             'subscription_payment_amount' => $paymentAmount,
             'subscription_note' => $note,
         ])->save();
+    }
+
+    private function shouldExtendPaidSubscription(string $plan): bool
+    {
+        if ($plan !== $this->subscription_plan) {
+            return false;
+        }
+
+        return in_array($this->subscriptionStatus(), [
+            self::SUBSCRIPTION_STATUS_ACTIVE,
+            self::SUBSCRIPTION_STATUS_GRACE,
+        ], true);
     }
 
     public function cancelSubscriptionAtPeriodEnd(?string $note = null): void

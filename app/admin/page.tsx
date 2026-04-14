@@ -66,6 +66,7 @@ import { INPUT_LIMITS, getEmailValidationMessage, getTextValidationMessage } fro
 import { truncateForUi } from '@/lib/utils';
 import { useI18n } from '@/components/providers/i18n-provider';
 import { formatLocalizedDate } from '@/lib/i18n/date';
+import { LanguageSwitcher } from '@/components/layout/language-switcher';
 
 interface CreateDentistForm {
     name: string;
@@ -93,12 +94,9 @@ interface SubscriptionDialogState {
 const ADMIN_DENTISTS_PER_PAGE = 10;
 const ADMIN_NAME_UI_LIMIT = 25;
 const ADMIN_EMAIL_UI_LIMIT = 30;
-const ADMIN_PRACTICE_UI_LIMIT = 25;
 const BILLING_SUBSCRIPTION_ACTIONS = new Set<AdminDentistSubscriptionAction>([
-    'activate_monthly',
-    'activate_yearly',
-    'extend_monthly',
-    'extend_yearly',
+    'apply_monthly',
+    'apply_yearly',
 ]);
 
 function createEmptySubscriptionForm(): ManageSubscriptionForm {
@@ -159,6 +157,7 @@ function AdminDashboardLoadingSkeleton() {
                             <Skeleton className="h-4 w-36" />
                         </div>
                         <div className="flex items-center gap-3">
+                            <Skeleton className="h-10 w-16" />
                             <Skeleton className="h-10 w-28" />
                             <Skeleton className="h-10 w-24" />
                         </div>
@@ -491,6 +490,7 @@ export default function AdminDashboardPage() {
                             <p className="text-sm text-slate-600">{t('admin.brandSubtitle')}</p>
                         </div>
                         <div className="flex items-center gap-3">
+                            <LanguageSwitcher variant="compact" />
                             <Button variant="outline" asChild>
                                 <Link href="/admin/settings">
                                     <Settings className="w-4 h-4 mr-2" />
@@ -583,7 +583,6 @@ export default function AdminDashboardPage() {
                                         <TableRow>
                                             <TableHead>{t('admin.table.name')}</TableHead>
                                             <TableHead>{t('admin.table.email')}</TableHead>
-                                            <TableHead>{t('admin.table.practice')}</TableHead>
                                             <TableHead>{t('admin.table.subscription')}</TableHead>
                                             <TableHead>{t('admin.table.registrationDate')}</TableHead>
                                             <TableHead>{t('admin.table.status')}</TableHead>
@@ -594,7 +593,7 @@ export default function AdminDashboardPage() {
                                     <TableBody>
                                         {accounts.length === 0 ? (
                                             <TableRow>
-                                                <TableCell colSpan={8} className="text-center text-gray-500 py-8">
+                                                <TableCell colSpan={7} className="text-center text-gray-500 py-8">
                                                     {t('admin.empty')}
                                                 </TableCell>
                                             </TableRow>
@@ -609,9 +608,6 @@ export default function AdminDashboardPage() {
                                                     </TableCell>
                                                     <TableCell className="max-w-[18rem] truncate" title={account.email}>
                                                         {truncateForUi(account.email, ADMIN_EMAIL_UI_LIMIT)}
-                                                    </TableCell>
-                                                    <TableCell className="max-w-[14rem] truncate" title={account.practice_name || '-'}>
-                                                        {truncateForUi(account.practice_name || '-', ADMIN_PRACTICE_UI_LIMIT)}
                                                     </TableCell>
                                                     <TableCell className="min-w-[15rem]">
                                                         <div className="space-y-2">
@@ -726,45 +722,23 @@ export default function AdminDashboardPage() {
                                                                             onClick={() =>
                                                                                 openSubscriptionDialog(
                                                                                     account,
-                                                                                    'activate_monthly'
+                                                                                    'apply_monthly'
                                                                                 )
                                                                             }
                                                                             disabled={subscriptionMutation.isPending}
                                                                         >
-                                                                            {t('admin.subscription.action.activate_monthly')}
+                                                                            {t('admin.subscription.action.apply_monthly')}
                                                                         </DropdownMenuItem>
                                                                         <DropdownMenuItem
                                                                             onClick={() =>
                                                                                 openSubscriptionDialog(
                                                                                     account,
-                                                                                    'activate_yearly'
+                                                                                    'apply_yearly'
                                                                                 )
                                                                             }
                                                                             disabled={subscriptionMutation.isPending}
                                                                         >
-                                                                            {t('admin.subscription.action.activate_yearly')}
-                                                                        </DropdownMenuItem>
-                                                                        <DropdownMenuItem
-                                                                            onClick={() =>
-                                                                                openSubscriptionDialog(
-                                                                                    account,
-                                                                                    'extend_monthly'
-                                                                                )
-                                                                            }
-                                                                            disabled={subscriptionMutation.isPending}
-                                                                        >
-                                                                            {t('admin.subscription.action.extend_monthly')}
-                                                                        </DropdownMenuItem>
-                                                                        <DropdownMenuItem
-                                                                            onClick={() =>
-                                                                                openSubscriptionDialog(
-                                                                                    account,
-                                                                                    'extend_yearly'
-                                                                                )
-                                                                            }
-                                                                            disabled={subscriptionMutation.isPending}
-                                                                        >
-                                                                            {t('admin.subscription.action.extend_yearly')}
+                                                                            {t('admin.subscription.action.apply_yearly')}
                                                                         </DropdownMenuItem>
                                                                         <DropdownMenuItem
                                                                             onClick={() =>
@@ -1041,6 +1015,12 @@ export default function AdminDashboardPage() {
                                         })}
                                     </p>
                                 </div>
+                            ) : null}
+
+                            {subscriptionDialog && BILLING_SUBSCRIPTION_ACTIONS.has(subscriptionDialog.action) ? (
+                                <p className="text-sm text-slate-600">
+                                    {t('admin.subscription.applyHint')}
+                                </p>
                             ) : null}
 
                             {subscriptionRequiresPaymentDetails ? (

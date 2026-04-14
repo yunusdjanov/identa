@@ -168,7 +168,7 @@ class AdminDentistManagementTest extends TestCase
 
         $this->actingAs($admin, 'web')
             ->postJson("/api/v1/admin/dentists/{$dentist->id}/subscription", [
-                'action' => 'activate_monthly',
+                'action' => 'apply_monthly',
                 'payment_method' => 'cash',
                 'payment_amount' => 450000,
                 'note' => 'Cash payment received.',
@@ -184,7 +184,7 @@ class AdminDentistManagementTest extends TestCase
 
         $this->actingAs($admin, 'web')
             ->postJson("/api/v1/admin/dentists/{$dentist->id}/subscription", [
-                'action' => 'extend_monthly',
+                'action' => 'apply_monthly',
                 'payment_method' => 'p2p',
                 'payment_amount' => 500000,
             ])

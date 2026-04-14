@@ -2999,6 +2999,24 @@ Object.assign(en, {
     'admin.toast.subscriptionUpdated': 'Subscription updated: {{action}}.',
 });
 
+Object.assign(ru, {
+    'admin.subscription.action.apply_monthly': '\u0414\u043e\u0431\u0430\u0432\u0438\u0442\u044c 1 \u043c\u0435\u0441\u044f\u0446',
+    'admin.subscription.action.apply_yearly': '\u0414\u043e\u0431\u0430\u0432\u0438\u0442\u044c 1 \u0433\u043e\u0434',
+    'admin.subscription.applyHint': '\u0415\u0441\u043b\u0438 \u0430\u043a\u0442\u0438\u0432\u0435\u043d \u0442\u043e\u0442 \u0436\u0435 \u0442\u0430\u0440\u0438\u0444, \u043f\u0435\u0440\u0438\u043e\u0434 \u043f\u0440\u043e\u0434\u043b\u0438\u0442\u0441\u044f. \u0415\u0441\u043b\u0438 \u0432\u044b\u0431\u0440\u0430\u043d \u0434\u0440\u0443\u0433\u043e\u0439 \u0442\u0430\u0440\u0438\u0444, \u043e\u043d \u0437\u0430\u043c\u0435\u043d\u0438\u0442 \u0442\u0435\u043a\u0443\u0449\u0438\u0439 \u0441\u0440\u0430\u0437\u0443.',
+});
+
+Object.assign(uz, {
+    'admin.subscription.action.apply_monthly': "1 oy qo'shish",
+    'admin.subscription.action.apply_yearly': "1 yil qo'shish",
+    'admin.subscription.applyHint': "Agar shu tarif allaqachon faol bo'lsa, muddat uzayadi. Boshqa tarif tanlansa, u joriy obunani darhol almashtiradi.",
+});
+
+Object.assign(en, {
+    'admin.subscription.action.apply_monthly': 'Add 1 month',
+    'admin.subscription.action.apply_yearly': 'Add 1 year',
+    'admin.subscription.applyHint': 'If the same plan is already active, the period will be extended. Choosing a different plan replaces the current subscription immediately.',
+});
+
 export const DICTIONARIES: Record<AppLocale, TranslationDictionary> = {
     ru,
     uz,

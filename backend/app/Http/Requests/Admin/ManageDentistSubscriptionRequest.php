@@ -22,6 +22,8 @@ class ManageDentistSubscriptionRequest extends FormRequest
                 'required',
                 'string',
                 Rule::in([
+                    'apply_monthly',
+                    'apply_yearly',
                     'activate_monthly',
                     'activate_yearly',
                     'extend_monthly',

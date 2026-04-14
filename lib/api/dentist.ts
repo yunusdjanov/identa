@@ -31,10 +31,8 @@ interface QueryOptions {
 }
 
 export type AdminDentistSubscriptionAction =
-    | 'activate_monthly'
-    | 'activate_yearly'
-    | 'extend_monthly'
-    | 'extend_yearly'
+    | 'apply_monthly'
+    | 'apply_yearly'
     | 'cancel_at_period_end'
     | 'cancel_now';
 
