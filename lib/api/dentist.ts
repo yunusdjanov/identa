@@ -80,20 +80,6 @@ async function collectAllPages<T>(
     return results;
 }
 
-export async function registerDentist(payload: {
-    name: string;
-    email: string;
-    password: string;
-    password_confirmation: string;
-}): Promise<ApiUser> {
-    const { data } = await withCsrfRetry(() =>
-        apiClient.post<ApiEnvelope<ApiUser>>('/auth/register', payload)
-    );
-    invalidateCsrfCookie();
-
-    return data.data;
-}
-
 export async function loginWithPassword(email: string, password: string): Promise<ApiUser> {
     const { data } = await withCsrfRetry(() =>
         apiClient.post<ApiEnvelope<ApiUser>>('/auth/login', {

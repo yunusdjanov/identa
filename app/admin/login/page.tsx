@@ -20,8 +20,8 @@ export default function AdminLoginPage() {
     const router = useRouter();
     const queryClient = useQueryClient();
     const [credentials, setCredentials] = useState({
-        email: 'admin@identa.test',
-        password: 'password123',
+        email: '',
+        password: '',
     });
     const [isSubmitted, setIsSubmitted] = useState(false);
     const emailError = getEmailValidationMessage(credentials.email, { required: true });

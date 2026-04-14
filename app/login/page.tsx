@@ -27,8 +27,8 @@ export default function LoginPage() {
     const { login } = useAuthStore();
     const { t } = useI18n();
 
-    const [email, setEmail] = useState('dentist@identa.test');
-    const [password, setPassword] = useState('password123');
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
     const [isSubmitted, setIsSubmitted] = useState(false);
     const emailError = getEmailValidationMessage(email, { required: true });
     const passwordError = password ? null : t('login.passwordRequired');

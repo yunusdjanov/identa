@@ -51,6 +51,15 @@ const ru: TranslationDictionary = {
     'register.toast.success': 'Аккаунт успешно создан.',
     'register.toast.failed': 'Не удалось создать аккаунт.',
     'register.toast.fixErrors': 'Исправьте выделенные поля.',
+    'register.inviteOnlySubtitle': 'Доступ выдает суперадминистратор',
+    'register.inviteOnlyBadge': 'Только по приглашению',
+    'register.inviteOnlyTitle': 'Самостоятельная регистрация отключена',
+    'register.inviteOnlyDescription':
+        'Аккаунты для клиники создает суперадминистратор. Если вам уже выдали доступ, перейдите ко входу.',
+    'register.inviteOnlyHelp':
+        'Если вы подключаете новую клинику, обратитесь к владельцу аккаунта или суперадминистратору.',
+    'register.inviteOnlyLogin': 'Перейти ко входу',
+    'register.inviteOnlyAdmin': 'Вход для суперадмина',
     'register.passwordMin': 'Пароль должен содержать минимум 8 символов.',
     'register.passwordConfirmRequired': 'Подтвердите пароль.',
     'register.passwordMismatch': 'Пароли не совпадают.',
@@ -61,7 +70,7 @@ const ru: TranslationDictionary = {
     'landing.hero.description':
         'Оптимизируйте стоматологическую практику с профессиональным управлением пациентами, интерактивной одонтограммой и эффективным учетом платежей.',
     'landing.hero.cta': 'Войти в систему',
-    'landing.hero.demo': 'Для тестирования доступен локальный демо-аккаунт',
+    'landing.hero.demo': 'Доступ выдает суперадминистратор вашей клиники.',
     'landing.features.title': 'Все, что нужно для вашей практики',
     'landing.features.subtitle': 'Функции, созданные специально для частных стоматологов',
     'landing.feature.patient.title': 'Управление пациентами',
@@ -78,10 +87,10 @@ const ru: TranslationDictionary = {
     'landing.benefit.appointments': 'Не пропускайте записи благодаря умному расписанию',
     'landing.benefit.debts': 'Контролируйте задолженности с первого взгляда',
     'landing.benefit.access': 'Доступ к данным практики из любой точки',
-    'landing.cta.ready': 'Готовы начать?',
+    'landing.cta.ready': 'Нужен доступ для команды?',
     'landing.cta.description':
-        'Присоединяйтесь к стоматологам, которые модернизируют управление своей практикой. Создайте аккаунт с email и паролем.',
-    'landing.cta.button': 'Начать',
+        'Аккаунты в Identa создает суперадминистратор. Если ваша клиника уже подключена, перейдите ко входу.',
+    'landing.cta.button': 'Перейти ко входу',
     'landing.footer': '(c) 2026 Identa. Создано для частных стоматологов в Узбекистане.',
 
     'dashboard.currentMonth': 'Текущий месяц',
@@ -420,6 +429,15 @@ const uz: TranslationDictionary = {
     'register.toast.success': 'Akkaunt muvaffaqiyatli yaratildi.',
     'register.toast.failed': 'Akkaunt yaratishda xatolik.',
     'register.toast.fixErrors': 'Belgilangani maydonlarni to‘g‘rilang.',
+    'register.inviteOnlySubtitle': 'Kirishlar superadmin tomonidan beriladi',
+    'register.inviteOnlyBadge': 'Faqat taklif orqali',
+    'register.inviteOnlyTitle': 'Ochiq registratsiya o‘chirildi',
+    'register.inviteOnlyDescription':
+        'Klinika akkauntlari superadmin tomonidan yaratiladi. Agar sizga kirish berilgan bo‘lsa, login sahifasiga o‘ting.',
+    'register.inviteOnlyHelp':
+        'Yangi klinika uchun kirish kerak bo‘lsa, akkaunt egasi yoki superadmin bilan bog‘laning.',
+    'register.inviteOnlyLogin': 'Kirish sahifasiga o‘tish',
+    'register.inviteOnlyAdmin': 'Superadmin kirishi',
     'register.passwordMin': 'Parol kamida 8 belgidan iborat bo‘lishi kerak.',
     'register.passwordConfirmRequired': 'Parolni tasdiqlang.',
     'register.passwordMismatch': 'Parollar mos emas.',
@@ -430,7 +448,7 @@ const uz: TranslationDictionary = {
     'landing.hero.description':
         'Klinikangizni professional bemor boshqaruvi, interaktiv odontogramma va samarali to‘lov nazorati bilan boshqaring.',
     'landing.hero.cta': 'Davom etish uchun kiring',
-    'landing.hero.demo': 'Sinov uchun lokal demo akkaunt mavjud',
+    'landing.hero.demo': 'Kirishni klinikangiz superadmini beradi.',
     'landing.features.title': 'Amaliyotingiz uchun kerak bo‘lgan hamma narsa',
     'landing.features.subtitle': 'Yakka stomatologlar uchun maxsus ishlab chiqilgan funksiyalar',
     'landing.feature.patient.title': 'Bemor boshqaruvi',
@@ -447,10 +465,10 @@ const uz: TranslationDictionary = {
     'landing.benefit.appointments': 'Aqlli jadval bilan qabul vaqtlarini o‘tkazib yubormang',
     'landing.benefit.debts': 'Qarzlarni bir qarashda nazorat qiling',
     'landing.benefit.access': 'Klinika ma’lumotlariga istalgan joydan kirish',
-    'landing.cta.ready': 'Boshlashga tayyormisiz?',
+    'landing.cta.ready': 'Jamoangiz uchun kirish kerakmi?',
     'landing.cta.description':
-        'Klinika boshqaruvini modernizatsiya qilayotgan stomatologlarga qo‘shiling. Email va parol orqali akkaunt yarating.',
-    'landing.cta.button': 'Boshlash',
+        'Identa akkauntlari superadmin tomonidan yaratiladi. Agar klinikangiz allaqachon ulangan bo‘lsa, kirish sahifasiga o‘ting.',
+    'landing.cta.button': 'Kirishga o‘tish',
     'landing.footer': '(c) 2026 Identa. O‘zbekistondagi yakka stomatologlar uchun yaratilgan.',
 
     'dashboard.currentMonth': 'Joriy oy',
@@ -789,6 +807,15 @@ const en: TranslationDictionary = {
     'register.toast.success': 'Account created successfully.',
     'register.toast.failed': 'Failed to create account.',
     'register.toast.fixErrors': 'Please fix the highlighted fields.',
+    'register.inviteOnlySubtitle': 'Access is managed by your superadmin',
+    'register.inviteOnlyBadge': 'Invite only',
+    'register.inviteOnlyTitle': 'Self-service signup is disabled',
+    'register.inviteOnlyDescription':
+        'Clinic accounts are provisioned by a superadmin. If you have already been invited, continue to sign in.',
+    'register.inviteOnlyHelp':
+        'If you need access for a new clinic, please contact the workspace owner or superadmin.',
+    'register.inviteOnlyLogin': 'Go to sign in',
+    'register.inviteOnlyAdmin': 'Superadmin sign in',
     'register.passwordMin': 'Password must be at least 8 characters.',
     'register.passwordConfirmRequired': 'Please confirm the password.',
     'register.passwordMismatch': 'Passwords do not match.',
@@ -799,7 +826,7 @@ const en: TranslationDictionary = {
     'landing.hero.description':
         'Streamline your dental practice with professional patient management, interactive odontogram, and efficient payment tracking.',
     'landing.hero.cta': 'Sign In to Continue',
-    'landing.hero.demo': 'Local demo account is available for testing',
+    'landing.hero.demo': 'Access is issued by your clinic superadmin.',
     'landing.features.title': 'Everything You Need to Run Your Practice',
     'landing.features.subtitle': 'Powerful features designed specifically for solo dental practitioners',
     'landing.feature.patient.title': 'Patient Management',
@@ -816,10 +843,10 @@ const en: TranslationDictionary = {
     'landing.benefit.appointments': 'Never miss an appointment with smart scheduling',
     'landing.benefit.debts': 'Monitor outstanding payments at a glance',
     'landing.benefit.access': 'Access your practice data from anywhere',
-    'landing.cta.ready': 'Ready to get started?',
+    'landing.cta.ready': 'Need access for your clinic?',
     'landing.cta.description':
-        'Join dentists who are modernizing their practice management. Create your account with email and password.',
-    'landing.cta.button': 'Get Started',
+        'Identa accounts are provisioned by a superadmin. If your clinic is already onboarded, continue to sign in.',
+    'landing.cta.button': 'Go to Sign In',
     'landing.footer': '(c) 2026 Identa. Built for solo dentists in Uzbekistan.',
 
     'dashboard.currentMonth': 'Current month',

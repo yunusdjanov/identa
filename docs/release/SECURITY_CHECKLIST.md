@@ -8,11 +8,11 @@ Scope: DentalFlow frontend + Laravel backend (Phase 2 local-ready baseline)
 | Area | Status | Notes |
 | --- | --- | --- |
 | Session auth with httpOnly cookies | Done | Sanctum session flow in place (`auth:sanctum`) |
-| CSRF protection | Done | `/sanctum/csrf-cookie` + `X-XSRF-TOKEN` flow active |
+| CSRF protection | Done | `/api/v1/auth/csrf-token` + `X-CSRF-TOKEN` flow active |
 | Role enforcement | Done | `EnsureRole` middleware (`admin`, `dentist`) |
 | Tenant isolation | Done | Resource queries are dentist-scoped and tested |
 | Password hashing and reset | Done | Laravel hashing + reset endpoints implemented |
-| Auth endpoint throttling | Done | Login/forgot/reset/register throttles configured |
+| Auth endpoint throttling | Done | Login/forgot/reset throttles configured; self-registration disabled |
 | Request correlation ID | Done | `X-Request-Id` middleware + response propagation |
 | Audit logging for critical actions | Done | Auth/admin/patient/payment events tracked |
 | HTTPS-only cookie policy | Done (implementation) | Runtime production policy check validates `APP_URL=https` + `SESSION_SECURE_COOKIE=true`; remaining work is production env rollout |

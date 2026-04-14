@@ -34,8 +34,6 @@ Route::prefix('v1')->group(function (): void {
             ]);
         })->middleware('throttle:30,1');
 
-        Route::post('/register', [AuthController::class, 'register'])
-            ->middleware('throttle:10,1');
         Route::post('/login', [AuthController::class, 'login'])
             ->middleware('throttle:5,1');
         Route::post('/forgot-password', [AuthController::class, 'forgotPassword'])

@@ -10,7 +10,7 @@ class AuthSessionTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_dentist_can_register_and_receive_authenticated_response(): void
+    public function test_public_registration_route_is_not_available(): void
     {
         $payload = [
             'name' => 'Test Dentist',
@@ -20,28 +20,24 @@ class AuthSessionTest extends TestCase
         ];
 
         $this->postJson('/api/v1/auth/register', $payload, $this->csrfHeaders())
-            ->assertCreated()
-            ->assertJsonPath('data.email', 'dentist@example.com')
-            ->assertJsonPath('data.role', User::ROLE_DENTIST);
-
-        $this->assertDatabaseHas('users', [
-            'email' => 'dentist@example.com',
-            'role' => User::ROLE_DENTIST,
-        ]);
+            ->assertNotFound();
     }
 
-    public function test_registration_validates_minimum_name_length(): void
+    public function test_public_registration_route_does_not_create_a_user(): void
     {
         $payload = [
-            'name' => 'Al',
-            'email' => 'short-name@example.com',
+            'name' => 'Blocked Signup',
+            'email' => 'blocked-signup@example.com',
             'password' => 'password123',
             'password_confirmation' => 'password123',
         ];
 
         $this->postJson('/api/v1/auth/register', $payload, $this->csrfHeaders())
-            ->assertUnprocessable()
-            ->assertJsonValidationErrors(['name']);
+            ->assertNotFound();
+
+        $this->assertDatabaseMissing('users', [
+            'email' => 'blocked-signup@example.com',
+        ]);
     }
 
     public function test_user_can_login_and_fetch_profile_via_session(): void

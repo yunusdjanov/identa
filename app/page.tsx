@@ -146,7 +146,7 @@ export default function LandingPage() {
                 <p className="text-blue-100 text-sm sm:text-base">
                   {t('landing.cta.description')}
                 </p>
-                <Link href="/register">
+                <Link href="/login">
                   <Button
                     size="lg"
                     className="w-full bg-white text-blue-600 hover:bg-blue-50"

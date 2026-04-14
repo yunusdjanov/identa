@@ -40,26 +40,6 @@ paths:
                   timestamp:
                     type: string
                     format: date-time
-  /api/v1/auth/register:
-    post:
-      tags: [Auth]
-      summary: Register dentist account
-      operationId: registerDentist
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/RegisterRequest"
-      responses:
-        "201":
-          description: Registered
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/UserResponse"
-        "422":
-          $ref: "#/components/responses/ValidationError"
   /api/v1/auth/login:
     post:
       tags: [Auth]
@@ -1393,20 +1373,6 @@ components:
               example: "18:00"
         default_appointment_duration:
           type: integer
-    RegisterRequest:
-      type: object
-      required: [name, email, password, password_confirmation]
-      properties:
-        name:
-          type: string
-        email:
-          type: string
-          format: email
-        password:
-          type: string
-          minLength: 8
-        password_confirmation:
-          type: string
     LoginRequest:
       type: object
       required: [email, password]
