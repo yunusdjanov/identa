@@ -3,6 +3,7 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -21,6 +22,21 @@ class User extends Authenticatable
     public const ACCOUNT_STATUS_ACTIVE = 'active';
     public const ACCOUNT_STATUS_BLOCKED = 'blocked';
     public const ACCOUNT_STATUS_DELETED = 'deleted';
+    public const SUBSCRIPTION_PLAN_TRIAL = 'trial';
+    public const SUBSCRIPTION_PLAN_MONTHLY = 'monthly';
+    public const SUBSCRIPTION_PLAN_YEARLY = 'yearly';
+    public const SUBSCRIPTION_STATUS_NONE = 'none';
+    public const SUBSCRIPTION_STATUS_TRIALING = 'trialing';
+    public const SUBSCRIPTION_STATUS_ACTIVE = 'active';
+    public const SUBSCRIPTION_STATUS_GRACE = 'grace';
+    public const SUBSCRIPTION_STATUS_READ_ONLY = 'read_only';
+    public const SUBSCRIPTION_ACCESS_FULL = 'full';
+    public const SUBSCRIPTION_ACCESS_READ_ONLY = 'read_only';
+    public const SUBSCRIPTION_TRIAL_DAYS = 30;
+    public const SUBSCRIPTION_GRACE_DAYS = 3;
+    public const STAFF_LIMIT_TRIAL = 1;
+    public const STAFF_LIMIT_MONTHLY = 3;
+    public const STAFF_LIMIT_YEARLY = 5;
     public const PERMISSION_TEAM_MANAGE = 'team.manage';
     public const PERMISSION_AUDIT_LOGS_VIEW = 'audit_logs.view';
     public const PERMISSION_PATIENTS_VIEW = 'patients.view';
@@ -61,6 +77,15 @@ class User extends Authenticatable
         'assistant_permissions',
         'must_change_password',
         'account_status',
+        'subscription_plan',
+        'subscription_started_at',
+        'subscription_ends_at',
+        'trial_ends_at',
+        'subscription_cancel_at_period_end',
+        'subscription_cancelled_at',
+        'subscription_payment_method',
+        'subscription_payment_amount',
+        'subscription_note',
         'last_login_at',
     ];
 
@@ -88,6 +113,12 @@ class User extends Authenticatable
             'assistant_permissions' => 'array',
             'must_change_password' => 'boolean',
             'default_appointment_duration' => 'integer',
+            'subscription_started_at' => 'datetime',
+            'subscription_ends_at' => 'datetime',
+            'trial_ends_at' => 'datetime',
+            'subscription_cancel_at_period_end' => 'boolean',
+            'subscription_cancelled_at' => 'datetime',
+            'subscription_payment_amount' => 'decimal:2',
             'last_login_at' => 'datetime',
         ];
     }
@@ -123,6 +154,248 @@ class User extends Authenticatable
         }
 
         return null;
+    }
+
+    public function subscriptionOwner(): ?self
+    {
+        if ($this->isDentist()) {
+            return $this;
+        }
+
+        if ($this->isAssistant()) {
+            return $this->ownerDentist;
+        }
+
+        return null;
+    }
+
+    public function hasConfiguredSubscription(): bool
+    {
+        return $this->isDentist() && $this->subscription_plan !== null && $this->subscriptionEndsAt() !== null;
+    }
+
+    public function subscriptionEndsAt(): ?CarbonInterface
+    {
+        if ($this->subscription_plan === self::SUBSCRIPTION_PLAN_TRIAL) {
+            return $this->trial_ends_at ?? $this->subscription_ends_at;
+        }
+
+        return $this->subscription_ends_at;
+    }
+
+    public function subscriptionGraceEndsAt(): ?CarbonInterface
+    {
+        $endsAt = $this->subscriptionEndsAt();
+
+        return $endsAt?->copy()->addDays(self::SUBSCRIPTION_GRACE_DAYS);
+    }
+
+    public function subscriptionStatus(): string
+    {
+        if (! $this->hasConfiguredSubscription()) {
+            return self::SUBSCRIPTION_STATUS_NONE;
+        }
+
+        if ($this->subscription_cancelled_at !== null && ! $this->subscription_cancel_at_period_end) {
+            return self::SUBSCRIPTION_STATUS_READ_ONLY;
+        }
+
+        $endsAt = $this->subscriptionEndsAt();
+        if ($endsAt === null) {
+            return self::SUBSCRIPTION_STATUS_NONE;
+        }
+
+        if ($endsAt->greaterThanOrEqualTo(now())) {
+            return $this->subscription_plan === self::SUBSCRIPTION_PLAN_TRIAL
+                ? self::SUBSCRIPTION_STATUS_TRIALING
+                : self::SUBSCRIPTION_STATUS_ACTIVE;
+        }
+
+        $graceEndsAt = $this->subscriptionGraceEndsAt();
+        if ($graceEndsAt !== null && $graceEndsAt->greaterThanOrEqualTo(now())) {
+            return self::SUBSCRIPTION_STATUS_GRACE;
+        }
+
+        return self::SUBSCRIPTION_STATUS_READ_ONLY;
+    }
+
+    public function subscriptionAccessMode(): string
+    {
+        return $this->subscriptionStatus() === self::SUBSCRIPTION_STATUS_READ_ONLY
+            ? self::SUBSCRIPTION_ACCESS_READ_ONLY
+            : self::SUBSCRIPTION_ACCESS_FULL;
+    }
+
+    public function usesReadOnlyAccess(): bool
+    {
+        return $this->subscriptionAccessMode() === self::SUBSCRIPTION_ACCESS_READ_ONLY;
+    }
+
+    public function subscriptionStaffLimit(): ?int
+    {
+        return match ($this->subscription_plan) {
+            self::SUBSCRIPTION_PLAN_TRIAL => self::STAFF_LIMIT_TRIAL,
+            self::SUBSCRIPTION_PLAN_MONTHLY => self::STAFF_LIMIT_MONTHLY,
+            self::SUBSCRIPTION_PLAN_YEARLY => self::STAFF_LIMIT_YEARLY,
+            default => null,
+        };
+    }
+
+    public function activeAssistantsCount(): int
+    {
+        $preloadedCount = $this->getAttribute('active_assistants_count');
+        if (is_numeric($preloadedCount)) {
+            return (int) $preloadedCount;
+        }
+
+        return $this->assistants()
+            ->where('account_status', self::ACCOUNT_STATUS_ACTIVE)
+            ->count();
+    }
+
+    public function hasAvailableAssistantSlot(): bool
+    {
+        $staffLimit = $this->subscriptionStaffLimit();
+
+        return $staffLimit === null || $this->activeAssistantsCount() < $staffLimit;
+    }
+
+    public function subscriptionDaysRemaining(): ?int
+    {
+        $endsAt = $this->subscriptionEndsAt();
+        if ($endsAt === null) {
+            return null;
+        }
+
+        return now()->startOfDay()->diffInDays($endsAt->copy()->startOfDay(), false);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function subscriptionSummary(): array
+    {
+        $endsAt = $this->subscriptionEndsAt();
+        $graceEndsAt = $this->subscriptionGraceEndsAt();
+        $status = $this->subscriptionStatus();
+
+        return [
+            'is_configured' => $this->hasConfiguredSubscription(),
+            'plan' => $this->subscription_plan,
+            'status' => $status,
+            'access_mode' => $this->subscriptionAccessMode(),
+            'starts_at' => $this->subscription_started_at?->toIso8601String(),
+            'ends_at' => $endsAt?->toIso8601String(),
+            'trial_ends_at' => $this->trial_ends_at?->toIso8601String(),
+            'grace_ends_at' => $graceEndsAt?->toIso8601String(),
+            'cancel_at_period_end' => (bool) $this->subscription_cancel_at_period_end,
+            'cancelled_at' => $this->subscription_cancelled_at?->toIso8601String(),
+            'days_remaining' => $this->subscriptionDaysRemaining(),
+            'staff_limit' => $this->subscriptionStaffLimit(),
+            'active_staff_count' => $this->activeAssistantsCount(),
+            'is_read_only' => $status === self::SUBSCRIPTION_STATUS_READ_ONLY,
+            'payment_method' => $this->subscription_payment_method,
+            'payment_amount' => $this->subscription_payment_amount !== null
+                ? (float) $this->subscription_payment_amount
+                : null,
+            'note' => $this->subscription_note,
+        ];
+    }
+
+    public function startFreeTrial(?string $note = null): void
+    {
+        $startedAt = now();
+
+        $this->forceFill([
+            'subscription_plan' => self::SUBSCRIPTION_PLAN_TRIAL,
+            'subscription_started_at' => $startedAt,
+            'subscription_ends_at' => null,
+            'trial_ends_at' => $startedAt->copy()->addDays(self::SUBSCRIPTION_TRIAL_DAYS),
+            'subscription_cancel_at_period_end' => false,
+            'subscription_cancelled_at' => null,
+            'subscription_payment_method' => null,
+            'subscription_payment_amount' => null,
+            'subscription_note' => $note,
+        ])->save();
+    }
+
+    public function activatePaidSubscription(
+        string $plan,
+        ?string $paymentMethod = null,
+        ?float $paymentAmount = null,
+        ?string $note = null,
+    ): void {
+        $startedAt = now();
+
+        $this->forceFill([
+            'subscription_plan' => $plan,
+            'subscription_started_at' => $startedAt,
+            'subscription_ends_at' => $this->subscriptionEndForPlan($plan, $startedAt),
+            'trial_ends_at' => null,
+            'subscription_cancel_at_period_end' => false,
+            'subscription_cancelled_at' => null,
+            'subscription_payment_method' => $paymentMethod,
+            'subscription_payment_amount' => $paymentAmount,
+            'subscription_note' => $note,
+        ])->save();
+    }
+
+    public function extendPaidSubscription(
+        string $plan,
+        ?string $paymentMethod = null,
+        ?float $paymentAmount = null,
+        ?string $note = null,
+    ): void {
+        $baseDate = $this->subscriptionEndsAt();
+        if ($baseDate === null || $baseDate->lessThan(now())) {
+            $baseDate = now();
+        }
+
+        $this->forceFill([
+            'subscription_plan' => $plan,
+            'subscription_started_at' => $this->subscription_started_at ?? now(),
+            'subscription_ends_at' => $this->subscriptionEndForPlan($plan, $baseDate),
+            'trial_ends_at' => null,
+            'subscription_cancel_at_period_end' => false,
+            'subscription_cancelled_at' => null,
+            'subscription_payment_method' => $paymentMethod,
+            'subscription_payment_amount' => $paymentAmount,
+            'subscription_note' => $note,
+        ])->save();
+    }
+
+    public function cancelSubscriptionAtPeriodEnd(?string $note = null): void
+    {
+        $this->forceFill([
+            'subscription_cancel_at_period_end' => true,
+            'subscription_note' => $note,
+        ])->save();
+    }
+
+    public function cancelSubscriptionImmediately(?string $note = null): void
+    {
+        $cancelledAt = now();
+
+        $this->forceFill([
+            'subscription_cancel_at_period_end' => false,
+            'subscription_cancelled_at' => $cancelledAt,
+            'subscription_ends_at' => $this->subscription_plan === self::SUBSCRIPTION_PLAN_TRIAL
+                ? $this->subscription_ends_at
+                : $cancelledAt,
+            'trial_ends_at' => $this->subscription_plan === self::SUBSCRIPTION_PLAN_TRIAL
+                ? $cancelledAt
+                : $this->trial_ends_at,
+            'subscription_note' => $note,
+        ])->save();
+    }
+
+    private function subscriptionEndForPlan(string $plan, CarbonInterface $startsAt): ?CarbonInterface
+    {
+        return match ($plan) {
+            self::SUBSCRIPTION_PLAN_MONTHLY => $startsAt->copy()->addMonthNoOverflow(),
+            self::SUBSCRIPTION_PLAN_YEARLY => $startsAt->copy()->addYearNoOverflow(),
+            default => null,
+        };
     }
 
     public function hasPermission(string $permission): bool

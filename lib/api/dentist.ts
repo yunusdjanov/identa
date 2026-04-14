@@ -16,6 +16,7 @@ import type {
     ApiPatientCategory,
     ApiPayment,
     ApiProfile,
+    ApiSubscriptionSummary,
     ApiTreatment,
     ApiUser,
 } from '@/lib/api/types';
@@ -28,6 +29,14 @@ interface QueryOptions {
     sort?: string;
     filter?: Record<string, FilterValue | undefined>;
 }
+
+export type AdminDentistSubscriptionAction =
+    | 'activate_monthly'
+    | 'activate_yearly'
+    | 'extend_monthly'
+    | 'extend_yearly'
+    | 'cancel_at_period_end'
+    | 'cancel_now';
 
 const MAX_API_PER_PAGE = 500;
 
@@ -913,6 +922,24 @@ export async function resetAdminDentistPassword(
 export async function deleteAdminDentist(id: string): Promise<void> {
     await ensureCsrfCookie();
     await apiClient.delete(`/admin/dentists/${id}`);
+}
+
+export async function manageAdminDentistSubscription(
+    id: string,
+    payload: {
+        action: AdminDentistSubscriptionAction;
+        payment_method?: ApiSubscriptionSummary['payment_method'];
+        payment_amount?: number;
+        note?: string;
+    }
+): Promise<ApiAdminDentist> {
+    await ensureCsrfCookie();
+    const { data } = await apiClient.post<ApiEnvelope<ApiAdminDentist>>(
+        `/admin/dentists/${id}/subscription`,
+        payload
+    );
+
+    return data.data;
 }
 
 export interface DashboardAppointmentView {

@@ -17,6 +17,26 @@ export interface ApiCollectionEnvelope<T> {
     };
 }
 
+export interface ApiSubscriptionSummary {
+    is_configured: boolean;
+    plan: 'trial' | 'monthly' | 'yearly' | null;
+    status: 'none' | 'trialing' | 'active' | 'grace' | 'read_only';
+    access_mode: 'full' | 'read_only';
+    starts_at: string | null;
+    ends_at: string | null;
+    trial_ends_at: string | null;
+    grace_ends_at: string | null;
+    cancel_at_period_end: boolean;
+    cancelled_at: string | null;
+    days_remaining: number | null;
+    staff_limit: number | null;
+    active_staff_count: number;
+    is_read_only: boolean;
+    payment_method: 'cash' | 'p2p' | 'bank_transfer' | null;
+    payment_amount: number | null;
+    note: string | null;
+}
+
 export interface ApiUser {
     id: string;
     name: string;
@@ -26,6 +46,7 @@ export interface ApiUser {
     dentist_owner_id?: string | null;
     assistant_permissions?: string[];
     must_change_password?: boolean;
+    subscription?: ApiSubscriptionSummary | null;
 }
 
 export interface ApiPatientCategory {
@@ -197,6 +218,7 @@ export interface ApiAdminDentist {
     last_login: string | null;
     patient_count: number;
     appointment_count: number;
+    subscription: ApiSubscriptionSummary;
 }
 
 export interface ApiAdminPasswordResetPayload {

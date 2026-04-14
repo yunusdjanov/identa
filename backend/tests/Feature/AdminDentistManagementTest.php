@@ -24,7 +24,10 @@ class AdminDentistManagementTest extends TestCase
             ])
             ->assertCreated()
             ->assertJsonPath('data.email', 'managed@example.com')
-            ->assertJsonPath('data.status', User::ACCOUNT_STATUS_ACTIVE);
+            ->assertJsonPath('data.status', User::ACCOUNT_STATUS_ACTIVE)
+            ->assertJsonPath('data.subscription.plan', User::SUBSCRIPTION_PLAN_TRIAL)
+            ->assertJsonPath('data.subscription.status', User::SUBSCRIPTION_STATUS_TRIALING)
+            ->assertJsonPath('data.subscription.staff_limit', User::STAFF_LIMIT_TRIAL);
 
         $dentistId = $createResponse->json('data.id');
 
@@ -152,6 +155,116 @@ class AdminDentistManagementTest extends TestCase
             ])
             ->assertUnprocessable()
             ->assertJsonValidationErrors(['name', 'practice_name']);
+    }
+
+    public function test_admin_can_manage_dentist_subscription_lifecycle(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $dentist = User::factory()->create([
+            'role' => User::ROLE_DENTIST,
+            'account_status' => User::ACCOUNT_STATUS_ACTIVE,
+        ]);
+        $dentist->startFreeTrial();
+
+        $this->actingAs($admin, 'web')
+            ->postJson("/api/v1/admin/dentists/{$dentist->id}/subscription", [
+                'action' => 'activate_monthly',
+                'payment_method' => 'cash',
+                'payment_amount' => 450000,
+                'note' => 'Cash payment received.',
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.subscription.plan', User::SUBSCRIPTION_PLAN_MONTHLY)
+            ->assertJsonPath('data.subscription.status', User::SUBSCRIPTION_STATUS_ACTIVE)
+            ->assertJsonPath('data.subscription.payment_method', 'cash')
+            ->assertJsonPath('data.subscription.payment_amount', 450000.0);
+
+        $originalEnd = $dentist->fresh()->subscription_ends_at;
+        $this->assertNotNull($originalEnd);
+
+        $this->actingAs($admin, 'web')
+            ->postJson("/api/v1/admin/dentists/{$dentist->id}/subscription", [
+                'action' => 'extend_monthly',
+                'payment_method' => 'p2p',
+                'payment_amount' => 500000,
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.subscription.payment_method', 'p2p');
+
+        $dentist->refresh();
+        $this->assertNotNull($dentist->subscription_ends_at);
+        $this->assertTrue($dentist->subscription_ends_at->greaterThan($originalEnd));
+
+        $this->actingAs($admin, 'web')
+            ->postJson("/api/v1/admin/dentists/{$dentist->id}/subscription", [
+                'action' => 'cancel_at_period_end',
+                'note' => 'Dentist requested cancellation.',
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.subscription.cancel_at_period_end', true);
+
+        $this->actingAs($admin, 'web')
+            ->postJson("/api/v1/admin/dentists/{$dentist->id}/subscription", [
+                'action' => 'cancel_now',
+                'note' => 'Immediate cancellation requested.',
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.subscription.status', User::SUBSCRIPTION_STATUS_READ_ONLY)
+            ->assertJsonPath('data.subscription.is_read_only', true);
+
+        $this->assertDatabaseHas('audit_logs', [
+            'event_type' => 'admin.dentist.subscription_updated',
+            'entity_id' => (string) $dentist->id,
+        ]);
+    }
+
+    public function test_trial_subscription_limits_active_assistants(): void
+    {
+        $dentist = User::factory()->create([
+            'role' => User::ROLE_DENTIST,
+            'account_status' => User::ACCOUNT_STATUS_ACTIVE,
+        ]);
+        $dentist->startFreeTrial();
+
+        User::factory()->create([
+            'role' => User::ROLE_ASSISTANT,
+            'dentist_owner_id' => $dentist->id,
+            'account_status' => User::ACCOUNT_STATUS_ACTIVE,
+        ]);
+
+        $this->actingAs($dentist, 'web')
+            ->postJson('/api/v1/team/assistants', [
+                'name' => 'Second Assistant',
+                'email' => 'assistant-two@example.com',
+                'password' => 'password123',
+                'password_confirmation' => 'password123',
+                'permissions' => User::defaultAssistantPermissions(),
+            ], $this->csrfHeaders())
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['permissions']);
+    }
+
+    public function test_read_only_subscription_blocks_mutations_but_allows_reads(): void
+    {
+        $dentist = User::factory()->create([
+            'role' => User::ROLE_DENTIST,
+            'account_status' => User::ACCOUNT_STATUS_ACTIVE,
+            'subscription_plan' => User::SUBSCRIPTION_PLAN_MONTHLY,
+            'subscription_started_at' => now()->subMonths(2),
+            'subscription_ends_at' => now()->subDays(User::SUBSCRIPTION_GRACE_DAYS + 2),
+            'trial_ends_at' => null,
+        ]);
+
+        $this->actingAs($dentist, 'web')
+            ->getJson('/api/v1/patients')
+            ->assertOk();
+
+        $this->actingAs($dentist, 'web')
+            ->postJson('/api/v1/patient-categories', [
+                'name' => 'Read only category',
+            ], $this->csrfHeaders())
+            ->assertForbidden()
+            ->assertJsonPath('error.code', 'subscription_read_only');
     }
 
     /**

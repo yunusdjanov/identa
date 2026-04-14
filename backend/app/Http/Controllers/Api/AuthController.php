@@ -265,6 +265,7 @@ class AuthController extends Controller
             'dentist_owner_id' => $user->dentist_owner_id !== null ? (string) $user->dentist_owner_id : null,
             'assistant_permissions' => $user->assistant_permissions ?? [],
             'must_change_password' => (bool) $user->must_change_password,
+            'subscription' => $user->subscriptionOwner()?->subscriptionSummary(),
         ];
     }
 }

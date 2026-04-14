@@ -56,11 +56,12 @@ Route::prefix('v1')->group(function (): void {
             Route::get('/dentists', [DentistAccountController::class, 'index']);
             Route::post('/dentists', [DentistAccountController::class, 'store']);
             Route::patch('/dentists/{id}/status', [DentistAccountController::class, 'updateStatus']);
+            Route::post('/dentists/{id}/subscription', [DentistAccountController::class, 'manageSubscription']);
             Route::post('/dentists/{id}/reset-password', [DentistAccountController::class, 'resetPassword']);
             Route::delete('/dentists/{id}', [DentistAccountController::class, 'destroy']);
         });
 
-    Route::middleware(['auth:sanctum', 'role:dentist,assistant'])->group(function (): void {
+    Route::middleware(['auth:sanctum', 'role:dentist,assistant', 'subscription.access'])->group(function (): void {
         Route::get('patient-categories', [PatientCategoryController::class, 'index'])
             ->middleware('permission:'.User::PERMISSION_PATIENT_CATEGORIES_VIEW);
         Route::post('patient-categories', [PatientCategoryController::class, 'store'])
@@ -167,7 +168,7 @@ Route::prefix('v1')->group(function (): void {
             ->middleware('permission:'.User::PERMISSION_AUDIT_LOGS_VIEW);
     });
 
-    Route::middleware(['auth:sanctum', 'role:dentist'])->group(function (): void {
+    Route::middleware(['auth:sanctum', 'role:dentist', 'subscription.access'])->group(function (): void {
         Route::get('team/assistants', [TeamAssistantController::class, 'index'])
             ->middleware('permission:'.User::PERMISSION_TEAM_MANAGE);
         Route::post('team/assistants', [TeamAssistantController::class, 'store'])

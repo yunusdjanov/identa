@@ -4,6 +4,7 @@ use App\Http\Middleware\AttachRequestContext;
 use App\Http\Middleware\AppendSecurityHeaders;
 use App\Http\Middleware\EnsurePermission;
 use App\Http\Middleware\EnsureRole;
+use App\Http\Middleware\EnsureSubscriptionAccess;
 use App\Http\Middleware\ForceApiJsonAccept;
 use App\Http\Middleware\SetRequestLocale;
 use Illuminate\Auth\AuthenticationException;
@@ -67,6 +68,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'role' => EnsureRole::class,
             'permission' => EnsurePermission::class,
+            'subscription.access' => EnsureSubscriptionAccess::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

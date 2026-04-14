@@ -20,19 +20,31 @@ import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
+    DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
+import {
+    type AdminDentistSubscriptionAction,
     createAdminDentist,
     deleteAdminDentist,
     getCurrentUser,
     listAdminDentists,
+    manageAdminDentistSubscription,
     logoutSession,
     resetAdminDentistPassword,
     updateAdminDentistStatus,
 } from '@/lib/api/dentist';
+import type { ApiAdminDentist, ApiSubscriptionSummary } from '@/lib/api/types';
 import { getApiErrorMessage } from '@/lib/api/client';
 import { toast } from 'sonner';
 import {
@@ -67,10 +79,74 @@ interface ResetPasswordForm {
     confirmPassword: string;
 }
 
+interface ManageSubscriptionForm {
+    paymentMethod: 'cash' | 'p2p' | 'bank_transfer';
+    paymentAmount: string;
+    note: string;
+}
+
+interface SubscriptionDialogState {
+    account: ApiAdminDentist;
+    action: AdminDentistSubscriptionAction;
+}
+
 const ADMIN_DENTISTS_PER_PAGE = 10;
 const ADMIN_NAME_UI_LIMIT = 25;
 const ADMIN_EMAIL_UI_LIMIT = 30;
 const ADMIN_PRACTICE_UI_LIMIT = 25;
+const BILLING_SUBSCRIPTION_ACTIONS = new Set<AdminDentistSubscriptionAction>([
+    'activate_monthly',
+    'activate_yearly',
+    'extend_monthly',
+    'extend_yearly',
+]);
+
+function createEmptySubscriptionForm(): ManageSubscriptionForm {
+    return {
+        paymentMethod: 'cash',
+        paymentAmount: '',
+        note: '',
+    };
+}
+
+function getSubscriptionPlanLabel(
+    subscription: ApiSubscriptionSummary | null | undefined,
+    t: (key: string, variables?: Record<string, string | number>) => string
+): string {
+    if (!subscription?.plan) {
+        return t('admin.subscription.notConfigured');
+    }
+
+    return t(`subscription.plan.${subscription.plan}`);
+}
+
+function getSubscriptionStatusLabel(
+    subscription: ApiSubscriptionSummary | null | undefined,
+    t: (key: string, variables?: Record<string, string | number>) => string
+): string {
+    if (!subscription) {
+        return t('subscription.status.none');
+    }
+
+    return t(`subscription.status.${subscription.status}`);
+}
+
+function getSubscriptionStatusBadgeClass(status: ApiSubscriptionSummary['status']): string {
+    return {
+        none: 'border-slate-300 text-slate-700',
+        trialing: 'bg-blue-100 text-blue-800 hover:bg-blue-100',
+        active: 'bg-green-100 text-green-800 hover:bg-green-100',
+        grace: 'bg-amber-100 text-amber-800 hover:bg-amber-100',
+        read_only: 'bg-red-100 text-red-800 hover:bg-red-100',
+    }[status];
+}
+
+function getSubscriptionActionLabel(
+    action: AdminDentistSubscriptionAction,
+    t: (key: string, variables?: Record<string, string | number>) => string
+): string {
+    return t(`admin.subscription.action.${action}`);
+}
 
 function AdminDashboardLoadingSkeleton() {
     return (
@@ -151,6 +227,7 @@ export default function AdminDashboardPage() {
     const [resetPasswordTarget, setResetPasswordTarget] = useState<{ id: string; name: string } | null>(
         null
     );
+    const [subscriptionDialog, setSubscriptionDialog] = useState<SubscriptionDialogState | null>(null);
     const [newDentist, setNewDentist] = useState<CreateDentistForm>({
         name: '',
         email: '',
@@ -162,6 +239,9 @@ export default function AdminDashboardPage() {
         newPassword: '',
         confirmPassword: '',
     });
+    const [subscriptionForm, setSubscriptionForm] = useState<ManageSubscriptionForm>(
+        createEmptySubscriptionForm()
+    );
     const [resetPasswordSubmitAttempted, setResetPasswordSubmitAttempted] = useState(false);
     const createDentistNameError = getTextValidationMessage(newDentist.name, {
         label: t('admin.form.dentistName'),
@@ -191,6 +271,13 @@ export default function AdminDashboardPage() {
         if (!open) {
             setCreateSubmitAttempted(false);
         }
+    };
+    const openSubscriptionDialog = (
+        account: ApiAdminDentist,
+        action: AdminDentistSubscriptionAction
+    ) => {
+        setSubscriptionDialog({ account, action });
+        setSubscriptionForm(createEmptySubscriptionForm());
     };
 
     const authQuery = useQuery({
@@ -273,6 +360,27 @@ export default function AdminDashboardPage() {
         },
     });
 
+    const subscriptionMutation = useMutation({
+        mutationFn: ({
+            id,
+            payload,
+        }: {
+            id: string;
+            payload: Parameters<typeof manageAdminDentistSubscription>[1];
+        }) => manageAdminDentistSubscription(id, payload),
+        onSuccess: (_account, variables) => {
+            toast.success(t('admin.toast.subscriptionUpdated', {
+                action: getSubscriptionActionLabel(variables.payload.action, t),
+            }));
+            setSubscriptionDialog(null);
+            setSubscriptionForm(createEmptySubscriptionForm());
+            queryClient.invalidateQueries({ queryKey: ['admin', 'dentists'] });
+        },
+        onError: (error) => {
+            toast.error(getApiErrorMessage(error, t('admin.error.subscriptionUpdateFailed')));
+        },
+    });
+
     const resetMutation = useMutation({
         mutationFn: () => {
             if (!resetPasswordTarget) {
@@ -328,6 +436,33 @@ export default function AdminDashboardPage() {
 
         return { totalDentists, activeDentists, newRegistrations };
     }, [accounts, pagination?.total, summary]);
+    const subscriptionRequiresPaymentDetails = subscriptionDialog !== null
+        && BILLING_SUBSCRIPTION_ACTIONS.has(subscriptionDialog.action);
+
+    const submitSubscriptionAction = () => {
+        if (!subscriptionDialog) {
+            return;
+        }
+
+        const trimmedAmount = subscriptionForm.paymentAmount.trim();
+        const parsedAmount = trimmedAmount === '' ? undefined : Number(trimmedAmount);
+        if (trimmedAmount !== '' && (!Number.isFinite(parsedAmount) || parsedAmount <= 0)) {
+            toast.error(t('admin.subscription.amountInvalid'));
+            return;
+        }
+
+        subscriptionMutation.mutate({
+            id: subscriptionDialog.account.id,
+            payload: {
+                action: subscriptionDialog.action,
+                ...(subscriptionRequiresPaymentDetails
+                    ? { payment_method: subscriptionForm.paymentMethod }
+                    : {}),
+                ...(parsedAmount !== undefined ? { payment_amount: parsedAmount } : {}),
+                ...(subscriptionForm.note.trim() !== '' ? { note: subscriptionForm.note.trim() } : {}),
+            },
+        });
+    };
 
     if (authQuery.isLoading || (authQuery.data?.role === 'admin' && accountsQuery.isLoading)) {
         return <AdminDashboardLoadingSkeleton />;
@@ -449,6 +584,7 @@ export default function AdminDashboardPage() {
                                             <TableHead>{t('admin.table.name')}</TableHead>
                                             <TableHead>{t('admin.table.email')}</TableHead>
                                             <TableHead>{t('admin.table.practice')}</TableHead>
+                                            <TableHead>{t('admin.table.subscription')}</TableHead>
                                             <TableHead>{t('admin.table.registrationDate')}</TableHead>
                                             <TableHead>{t('admin.table.status')}</TableHead>
                                             <TableHead>{t('admin.table.lastLogin')}</TableHead>
@@ -458,7 +594,7 @@ export default function AdminDashboardPage() {
                                     <TableBody>
                                         {accounts.length === 0 ? (
                                             <TableRow>
-                                                <TableCell colSpan={7} className="text-center text-gray-500 py-8">
+                                                <TableCell colSpan={8} className="text-center text-gray-500 py-8">
                                                     {t('admin.empty')}
                                                 </TableCell>
                                             </TableRow>
@@ -476,6 +612,51 @@ export default function AdminDashboardPage() {
                                                     </TableCell>
                                                     <TableCell className="max-w-[14rem] truncate" title={account.practice_name || '-'}>
                                                         {truncateForUi(account.practice_name || '-', ADMIN_PRACTICE_UI_LIMIT)}
+                                                    </TableCell>
+                                                    <TableCell className="min-w-[15rem]">
+                                                        <div className="space-y-2">
+                                                            <div className="flex flex-wrap gap-2">
+                                                                <Badge variant="outline">
+                                                                    {getSubscriptionPlanLabel(account.subscription, t)}
+                                                                </Badge>
+                                                                <Badge
+                                                                    variant="secondary"
+                                                                    className={getSubscriptionStatusBadgeClass(account.subscription.status)}
+                                                                >
+                                                                    {getSubscriptionStatusLabel(account.subscription, t)}
+                                                                </Badge>
+                                                            </div>
+                                                            <p className="text-xs text-gray-600">
+                                                                {account.subscription.ends_at
+                                                                    ? t('admin.subscription.endsOn', {
+                                                                        date: formatLocalizedDate(
+                                                                            account.subscription.ends_at,
+                                                                            locale,
+                                                                            {
+                                                                                year: 'numeric',
+                                                                                month: 'short',
+                                                                                day: 'numeric',
+                                                                            }
+                                                                        ),
+                                                                    })
+                                                                    : t('admin.subscription.notConfigured')}
+                                                            </p>
+                                                            <p className="text-xs text-gray-500">
+                                                                {account.subscription.staff_limit === null
+                                                                    ? t('admin.subscription.staffUnlimited', {
+                                                                        count: account.subscription.active_staff_count,
+                                                                    })
+                                                                    : t('admin.subscription.staffUsage', {
+                                                                        count: account.subscription.active_staff_count,
+                                                                        limit: account.subscription.staff_limit,
+                                                                    })}
+                                                            </p>
+                                                            {account.subscription.cancel_at_period_end ? (
+                                                                <p className="text-xs font-medium text-amber-700">
+                                                                    {t('admin.subscription.cancelAtPeriodEnd')}
+                                                                </p>
+                                                            ) : null}
+                                                        </div>
                                                     </TableCell>
                                                     <TableCell>
                                                         {formatLocalizedDate(account.registration_date, locale, {
@@ -540,6 +721,75 @@ export default function AdminDashboardPage() {
                                                                                 </>
                                                                             )}
                                                                         </DropdownMenuItem>
+                                                                        <DropdownMenuSeparator />
+                                                                        <DropdownMenuItem
+                                                                            onClick={() =>
+                                                                                openSubscriptionDialog(
+                                                                                    account,
+                                                                                    'activate_monthly'
+                                                                                )
+                                                                            }
+                                                                            disabled={subscriptionMutation.isPending}
+                                                                        >
+                                                                            {t('admin.subscription.action.activate_monthly')}
+                                                                        </DropdownMenuItem>
+                                                                        <DropdownMenuItem
+                                                                            onClick={() =>
+                                                                                openSubscriptionDialog(
+                                                                                    account,
+                                                                                    'activate_yearly'
+                                                                                )
+                                                                            }
+                                                                            disabled={subscriptionMutation.isPending}
+                                                                        >
+                                                                            {t('admin.subscription.action.activate_yearly')}
+                                                                        </DropdownMenuItem>
+                                                                        <DropdownMenuItem
+                                                                            onClick={() =>
+                                                                                openSubscriptionDialog(
+                                                                                    account,
+                                                                                    'extend_monthly'
+                                                                                )
+                                                                            }
+                                                                            disabled={subscriptionMutation.isPending}
+                                                                        >
+                                                                            {t('admin.subscription.action.extend_monthly')}
+                                                                        </DropdownMenuItem>
+                                                                        <DropdownMenuItem
+                                                                            onClick={() =>
+                                                                                openSubscriptionDialog(
+                                                                                    account,
+                                                                                    'extend_yearly'
+                                                                                )
+                                                                            }
+                                                                            disabled={subscriptionMutation.isPending}
+                                                                        >
+                                                                            {t('admin.subscription.action.extend_yearly')}
+                                                                        </DropdownMenuItem>
+                                                                        <DropdownMenuItem
+                                                                            onClick={() =>
+                                                                                openSubscriptionDialog(
+                                                                                    account,
+                                                                                    'cancel_at_period_end'
+                                                                                )
+                                                                            }
+                                                                            disabled={subscriptionMutation.isPending}
+                                                                        >
+                                                                            {t('admin.subscription.action.cancel_at_period_end')}
+                                                                        </DropdownMenuItem>
+                                                                        <DropdownMenuItem
+                                                                            onClick={() =>
+                                                                                openSubscriptionDialog(
+                                                                                    account,
+                                                                                    'cancel_now'
+                                                                                )
+                                                                            }
+                                                                            disabled={subscriptionMutation.isPending}
+                                                                            className="text-red-600"
+                                                                        >
+                                                                            {t('admin.subscription.action.cancel_now')}
+                                                                        </DropdownMenuItem>
+                                                                        <DropdownMenuSeparator />
                                                                         <DropdownMenuItem
                                                                             onClick={() => {
                                                                                 setResetPasswordTarget({
@@ -753,6 +1003,140 @@ export default function AdminDashboardPage() {
                                 </Button>
                             </div>
                         </form>
+                    </DialogContent>
+                </Dialog>
+
+                <Dialog
+                    open={subscriptionDialog !== null}
+                    onOpenChange={(open) => {
+                        if (open) {
+                            return;
+                        }
+
+                        setSubscriptionDialog(null);
+                        setSubscriptionForm(createEmptySubscriptionForm());
+                    }}
+                >
+                    <DialogContent className="sm:max-w-lg">
+                        <DialogHeader>
+                            <DialogTitle>
+                                {subscriptionDialog
+                                    ? t('admin.subscription.dialogTitle', {
+                                        action: getSubscriptionActionLabel(subscriptionDialog.action, t),
+                                        name: subscriptionDialog.account.name,
+                                    })
+                                    : t('admin.subscription.dialogFallback')}
+                            </DialogTitle>
+                        </DialogHeader>
+                        <div className="space-y-4">
+                            {subscriptionDialog ? (
+                                <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+                                    <p className="font-medium text-slate-900">
+                                        {t('common.doctorPrefix')} {subscriptionDialog.account.name}
+                                    </p>
+                                    <p className="mt-1">
+                                        {t('admin.subscription.currentSummary', {
+                                            plan: getSubscriptionPlanLabel(subscriptionDialog.account.subscription, t),
+                                            status: getSubscriptionStatusLabel(subscriptionDialog.account.subscription, t),
+                                        })}
+                                    </p>
+                                </div>
+                            ) : null}
+
+                            {subscriptionRequiresPaymentDetails ? (
+                                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                                    <div className="space-y-2">
+                                        <Label htmlFor="subscription-payment-method">
+                                            {t('admin.subscription.paymentMethod')}
+                                        </Label>
+                                        <Select
+                                            value={subscriptionForm.paymentMethod}
+                                            onValueChange={(value) =>
+                                                setSubscriptionForm((current) => ({
+                                                    ...current,
+                                                    paymentMethod: value as ManageSubscriptionForm['paymentMethod'],
+                                                }))
+                                            }
+                                        >
+                                            <SelectTrigger id="subscription-payment-method" className="w-full">
+                                                <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="cash">
+                                                    {t('admin.subscription.paymentMethod.cash')}
+                                                </SelectItem>
+                                                <SelectItem value="p2p">
+                                                    {t('admin.subscription.paymentMethod.p2p')}
+                                                </SelectItem>
+                                                <SelectItem value="bank_transfer">
+                                                    {t('admin.subscription.paymentMethod.bank_transfer')}
+                                                </SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="subscription-payment-amount">
+                                            {t('admin.subscription.paymentAmount')}
+                                        </Label>
+                                        <Input
+                                            id="subscription-payment-amount"
+                                            inputMode="decimal"
+                                            placeholder={t('admin.subscription.paymentAmountPlaceholder')}
+                                            value={subscriptionForm.paymentAmount}
+                                            onChange={(event) =>
+                                                setSubscriptionForm((current) => ({
+                                                    ...current,
+                                                    paymentAmount: event.target.value,
+                                                }))
+                                            }
+                                        />
+                                    </div>
+                                </div>
+                            ) : null}
+
+                            <div className="space-y-2">
+                                <Label htmlFor="subscription-note">{t('admin.subscription.note')}</Label>
+                                <Textarea
+                                    id="subscription-note"
+                                    placeholder={t('admin.subscription.notePlaceholder')}
+                                    value={subscriptionForm.note}
+                                    onChange={(event) =>
+                                        setSubscriptionForm((current) => ({
+                                            ...current,
+                                            note: event.target.value,
+                                        }))
+                                    }
+                                    maxLength={500}
+                                />
+                            </div>
+
+                            <div className="flex gap-3 pt-2">
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={() => {
+                                        setSubscriptionDialog(null);
+                                        setSubscriptionForm(createEmptySubscriptionForm());
+                                    }}
+                                    className="flex-1"
+                                    disabled={subscriptionMutation.isPending}
+                                >
+                                    {t('common.cancel')}
+                                </Button>
+                                <Button
+                                    type="button"
+                                    className="flex-1"
+                                    onClick={submitSubscriptionAction}
+                                    disabled={subscriptionMutation.isPending}
+                                >
+                                    {subscriptionMutation.isPending
+                                        ? t('admin.subscription.processing')
+                                        : subscriptionDialog
+                                            ? getSubscriptionActionLabel(subscriptionDialog.action, t)
+                                            : t('admin.subscription.dialogFallback')}
+                                </Button>
+                            </div>
+                        </div>
                     </DialogContent>
                 </Dialog>
 

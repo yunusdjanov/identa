@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\ValidationException;
 
 class TeamAssistantController extends Controller
 {
@@ -86,10 +87,21 @@ class TeamAssistantController extends Controller
     public function store(StoreAssistantRequest $request): JsonResponse
     {
         $dentistId = $this->resolveDentistId($request);
+        $dentist = User::query()->findOrFail($dentistId);
         $validated = $request->validated();
         $permissions = $this->sanitizePermissions(
             $validated['permissions'] ?? User::defaultAssistantPermissions()
         );
+
+        if (! $dentist->hasAvailableAssistantSlot()) {
+            throw ValidationException::withMessages([
+                'permissions' => [
+                    __('api.subscription.assistant_limit_reached', [
+                        'limit' => $dentist->subscriptionStaffLimit() ?? 0,
+                    ]),
+                ],
+            ]);
+        }
 
         $assistant = User::query()->create([
             'name' => trim((string) $validated['name']),

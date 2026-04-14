@@ -39,6 +39,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { toast } from 'sonner';
 import { useI18n } from '@/components/providers/i18n-provider';
+import { SubscriptionBanner } from '@/components/layout/subscription-banner';
 
 const navigation = [
     { key: 'nav.dashboard', href: '/dashboard', icon: LayoutDashboard },
@@ -338,6 +339,12 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                     </div>
                 )}
             </header>
+
+            <SubscriptionBanner
+                locale={locale}
+                subscription={currentUser?.subscription}
+                t={t}
+            />
 
             {/* Main Content */}
             <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">

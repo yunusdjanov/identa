@@ -88,8 +88,11 @@ return [
     'settings' => [
         'working_hours_end_after_start' => 'Working hours end must be after working hours start.',
     ],
+    'subscription' => [
+        'read_only' => 'Your workspace is in read-only mode until the subscription is renewed.',
+        'assistant_limit_reached' => 'The current plan allows up to :limit active staff account(s).',
+    ],
     'admin' => [
         'cannot_update_deleted_account_status' => 'Cannot update status for a deleted account.',
     ],
 ];
-

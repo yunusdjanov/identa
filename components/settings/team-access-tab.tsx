@@ -12,7 +12,7 @@ import {
     updateAssistantStatus,
 } from '@/lib/api/dentist';
 import { getApiErrorMessage } from '@/lib/api/client';
-import type { ApiAssistantAccount } from '@/lib/api/types';
+import type { ApiAssistantAccount, ApiSubscriptionSummary } from '@/lib/api/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -42,6 +42,7 @@ import {
     getTextValidationMessage,
     normalizePhoneForApi,
 } from '@/lib/input-validation';
+import { cn } from '@/lib/utils';
 
 const PERMISSION_OPTIONS = [
     { code: 'patients.view', labelKey: 'settings.team.permissionPatientsView' },
@@ -143,6 +144,7 @@ function TeamAccessLoadingSkeleton() {
 
 interface TeamAccessTabProps {
     canManageTeam: boolean;
+    subscription?: ApiSubscriptionSummary | null;
     t: (key: string, variables?: Record<string, string | number>) => string;
 }
 
@@ -159,7 +161,29 @@ function formatDateTime(value: string | null): string {
     return date.toLocaleString();
 }
 
-export function TeamAccessTab({ canManageTeam, t }: TeamAccessTabProps) {
+function getSubscriptionPlanLabel(
+    subscription: ApiSubscriptionSummary | null | undefined,
+    t: TeamAccessTabProps['t']
+): string {
+    if (!subscription?.plan) {
+        return t('settings.team.subscriptionPlanFallback');
+    }
+
+    return t(`subscription.plan.${subscription.plan}`);
+}
+
+function getSubscriptionStatusLabel(
+    subscription: ApiSubscriptionSummary | null | undefined,
+    t: TeamAccessTabProps['t']
+): string {
+    if (!subscription) {
+        return t('subscription.status.none');
+    }
+
+    return t(`subscription.status.${subscription.status}`);
+}
+
+export function TeamAccessTab({ canManageTeam, subscription, t }: TeamAccessTabProps) {
     const queryClient = useQueryClient();
     const [search, setSearch] = useState('');
     const [status, setStatus] = useState<'all' | 'active' | 'blocked' | 'deleted'>('all');
@@ -193,6 +217,10 @@ export function TeamAccessTab({ canManageTeam, t }: TeamAccessTabProps) {
     const totalPages = assistantsQuery.data?.meta?.pagination?.total_pages ?? 1;
     const canPrev = page > 1;
     const canNext = page < totalPages;
+    const staffLimit = subscription?.staff_limit ?? null;
+    const activeStaffCount = subscription?.active_staff_count ?? 0;
+    const isAtStaffLimit = staffLimit !== null && activeStaffCount >= staffLimit;
+    const isReadOnly = subscription?.is_read_only === true;
 
     const setMutationErrors = (error: unknown, fallbackMessage: string) => {
         const extractedFieldErrors: AssistantFormFieldErrors = {};
@@ -489,10 +517,53 @@ export function TeamAccessTab({ canManageTeam, t }: TeamAccessTabProps) {
                 <CardHeader className="space-y-3">
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                         <CardTitle>{t('settings.team.title')}</CardTitle>
-                        <Button type="button" onClick={openCreateDialog}>
+                        <Button
+                            type="button"
+                            onClick={openCreateDialog}
+                            disabled={isReadOnly || isAtStaffLimit}
+                        >
                             {t('settings.team.addAssistant')}
                         </Button>
                     </div>
+                    {subscription?.is_configured ? (
+                        <div
+                            className={cn(
+                                'rounded-lg border px-4 py-3',
+                                isAtStaffLimit
+                                    ? 'border-amber-200 bg-amber-50'
+                                    : 'border-slate-200 bg-slate-50'
+                            )}
+                        >
+                            <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                                <p className="text-sm font-medium text-slate-900">
+                                    {t('settings.team.planSummary', {
+                                        plan: getSubscriptionPlanLabel(subscription, t),
+                                        status: getSubscriptionStatusLabel(subscription, t),
+                                    })}
+                                </p>
+                                <p className="text-xs text-slate-600">
+                                    {staffLimit === null
+                                        ? t('settings.team.staffUnlimited', {
+                                            count: activeStaffCount,
+                                        })
+                                        : t('settings.team.staffUsage', {
+                                            count: activeStaffCount,
+                                            limit: staffLimit,
+                                        })}
+                                </p>
+                            </div>
+                            {isAtStaffLimit ? (
+                                <p className="mt-2 text-xs font-medium text-amber-700">
+                                    {t('settings.team.staffLimitReached')}
+                                </p>
+                            ) : null}
+                            {isReadOnly ? (
+                                <p className="mt-2 text-xs font-medium text-red-700">
+                                    {t('settings.readOnlyNotice')}
+                                </p>
+                            ) : null}
+                        </div>
+                    ) : null}
                     <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
                         <Input
                             value={search}
@@ -570,6 +641,7 @@ export function TeamAccessTab({ canManageTeam, t }: TeamAccessTabProps) {
                                                 variant="outline"
                                                 size="sm"
                                                 onClick={() => openEditDialog(assistant)}
+                                                disabled={isReadOnly}
                                             >
                                                 {t('common.edit')}
                                             </Button>
@@ -584,7 +656,7 @@ export function TeamAccessTab({ canManageTeam, t }: TeamAccessTabProps) {
                                                             nextStatus,
                                                         })
                                                     }
-                                                    disabled={statusMutation.isPending}
+                                                    disabled={statusMutation.isPending || isReadOnly}
                                                 >
                                                     {nextStatus === 'blocked'
                                                         ? t('settings.team.block')
@@ -596,7 +668,7 @@ export function TeamAccessTab({ canManageTeam, t }: TeamAccessTabProps) {
                                                 variant="outline"
                                                 size="sm"
                                                 onClick={() => setResetTarget(assistant)}
-                                                disabled={assistant.account_status === 'deleted'}
+                                                disabled={assistant.account_status === 'deleted' || isReadOnly}
                                             >
                                                 {t('settings.team.resetPassword')}
                                             </Button>
@@ -605,7 +677,7 @@ export function TeamAccessTab({ canManageTeam, t }: TeamAccessTabProps) {
                                                 variant="destructive"
                                                 size="sm"
                                                 onClick={() => setDeleteTarget(assistant)}
-                                                disabled={assistant.account_status === 'deleted'}
+                                                disabled={assistant.account_status === 'deleted' || isReadOnly}
                                             >
                                                 {t('common.delete')}
                                             </Button>
@@ -825,7 +897,10 @@ export function TeamAccessTab({ canManageTeam, t }: TeamAccessTabProps) {
                             >
                                 {t('common.cancel')}
                             </Button>
-                            <Button type="submit" disabled={isDialogSubmitting}>
+                            <Button
+                                type="submit"
+                                disabled={isDialogSubmitting || isReadOnly || (isCreateMode && isAtStaffLimit)}
+                            >
                                 {isDialogSubmitting
                                     ? t('common.saving')
                                     : isCreateMode
@@ -874,7 +949,12 @@ export function TeamAccessTab({ canManageTeam, t }: TeamAccessTabProps) {
                             </Button>
                             <Button
                                 type="button"
-                                disabled={resetHasErrors || resetPasswordMutation.isPending || !resetTarget}
+                                disabled={
+                                    resetHasErrors
+                                    || resetPasswordMutation.isPending
+                                    || !resetTarget
+                                    || isReadOnly
+                                }
                                 onClick={() => {
                                     if (!resetTarget || resetHasErrors) {
                                         return;

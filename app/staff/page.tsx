@@ -112,7 +112,11 @@ export default function StaffPage() {
                 </div>
 
                 <TabsContent value="access">
-                    <TeamAccessTab canManageTeam={canManageTeam} t={t} />
+                    <TeamAccessTab
+                        canManageTeam={canManageTeam}
+                        subscription={currentUser?.subscription}
+                        t={t}
+                    />
                 </TabsContent>
 
                 <TabsContent value="logs">

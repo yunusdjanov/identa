@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\ManageDentistSubscriptionRequest;
 use App\Http\Requests\Admin\ResetDentistPasswordRequest;
 use App\Http\Requests\Admin\StoreDentistRequest;
 use App\Http\Requests\Admin\UpdateDentistStatusRequest;
@@ -32,7 +33,12 @@ class DentistAccountController extends Controller
 
         $query = User::query()
             ->where('role', User::ROLE_DENTIST)
-            ->withCount(['patients', 'appointments'])
+            ->withCount([
+                'patients',
+                'appointments',
+                'assistants as active_assistants_count' => fn (Builder $builder) => $builder
+                    ->where('account_status', User::ACCOUNT_STATUS_ACTIVE),
+            ])
             ->orderByDesc('created_at');
 
         if (is_string($search) && $search !== '') {
@@ -93,6 +99,7 @@ class DentistAccountController extends Controller
             'role' => User::ROLE_DENTIST,
             'account_status' => User::ACCOUNT_STATUS_ACTIVE,
         ]);
+        $dentist->startFreeTrial();
 
         $this->auditLogger->logFromRequest(
             request: $request,
@@ -101,12 +108,79 @@ class DentistAccountController extends Controller
             entityId: (string) $dentist->id,
             metadata: [
                 'email' => $dentist->email,
+                'subscription_plan' => $dentist->subscription_plan,
             ],
         );
 
         return response()->json([
             'data' => $this->transformDentist($dentist->fresh()->loadCount(['patients', 'appointments'])),
         ], 201);
+    }
+
+    public function manageSubscription(ManageDentistSubscriptionRequest $request, string $id): JsonResponse
+    {
+        $dentist = $this->findDentist($id, false);
+        $validated = $request->validated();
+        $action = (string) $validated['action'];
+        $paymentMethod = $validated['payment_method'] ?? null;
+        $paymentAmount = array_key_exists('payment_amount', $validated)
+            ? (float) $validated['payment_amount']
+            : null;
+        $note = isset($validated['note']) ? trim((string) $validated['note']) : null;
+
+        match ($action) {
+            'activate_monthly' => $dentist->activatePaidSubscription(
+                User::SUBSCRIPTION_PLAN_MONTHLY,
+                $paymentMethod,
+                $paymentAmount,
+                $note,
+            ),
+            'activate_yearly' => $dentist->activatePaidSubscription(
+                User::SUBSCRIPTION_PLAN_YEARLY,
+                $paymentMethod,
+                $paymentAmount,
+                $note,
+            ),
+            'extend_monthly' => $dentist->extendPaidSubscription(
+                User::SUBSCRIPTION_PLAN_MONTHLY,
+                $paymentMethod,
+                $paymentAmount,
+                $note,
+            ),
+            'extend_yearly' => $dentist->extendPaidSubscription(
+                User::SUBSCRIPTION_PLAN_YEARLY,
+                $paymentMethod,
+                $paymentAmount,
+                $note,
+            ),
+            'cancel_at_period_end' => $dentist->cancelSubscriptionAtPeriodEnd($note),
+            'cancel_now' => $dentist->cancelSubscriptionImmediately($note),
+        };
+
+        $dentist = $dentist->fresh()->loadCount([
+            'patients',
+            'appointments',
+            'assistants as active_assistants_count' => fn (Builder $builder) => $builder
+                ->where('account_status', User::ACCOUNT_STATUS_ACTIVE),
+        ]);
+
+        $this->auditLogger->logFromRequest(
+            request: $request,
+            eventType: 'admin.dentist.subscription_updated',
+            entityType: 'user',
+            entityId: (string) $dentist->id,
+            metadata: [
+                'action' => $action,
+                'plan' => $dentist->subscription_plan,
+                'status' => $dentist->subscriptionStatus(),
+                'payment_method' => $paymentMethod,
+                'payment_amount' => $paymentAmount,
+            ],
+        );
+
+        return response()->json([
+            'data' => $this->transformDentist($dentist),
+        ]);
     }
 
     public function updateStatus(UpdateDentistStatusRequest $request, string $id): JsonResponse
@@ -224,6 +298,7 @@ class DentistAccountController extends Controller
             'last_login' => $dentist->last_login_at?->toIso8601String(),
             'patient_count' => $dentist->patients_count ?? 0,
             'appointment_count' => $dentist->appointments_count ?? 0,
+            'subscription' => $dentist->subscriptionSummary(),
         ];
     }
 }
