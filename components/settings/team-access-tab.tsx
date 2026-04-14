@@ -39,6 +39,7 @@ import {
     INPUT_LIMITS,
     formatPhoneInputValue,
     getEmailValidationMessage,
+    getPasswordValidationMessage,
     getPhoneValidationMessage,
     getTextValidationMessage,
     normalizePhoneForApi,
@@ -388,12 +389,7 @@ export function TeamAccessTab({ canManageTeam, subscription, t }: TeamAccessTabP
     const emailError = getEmailValidationMessage(formState.email, { required: true });
     const phoneError = getPhoneValidationMessage(formState.phone, { required: false });
     const passwordError = isCreateMode
-        ? getTextValidationMessage(formState.password, {
-            label: t('settings.team.password'),
-            required: true,
-            min: 8,
-            max: INPUT_LIMITS.password,
-        })
+        ? getPasswordValidationMessage(formState.password, { required: true })
         : null;
     const passwordConfirmationError = isCreateMode
         ? !formState.passwordConfirmation
@@ -407,7 +403,14 @@ export function TeamAccessTab({ canManageTeam, subscription, t }: TeamAccessTabP
         [emailError, nameError, passwordConfirmationError, passwordError, phoneError]
     );
 
-    const resetHasErrors = resetPasswordValue.length < 8 || resetPasswordValue !== resetPasswordConfirmation;
+    const resetPasswordError = getPasswordValidationMessage(resetPasswordValue, { required: true });
+    const resetPasswordConfirmationError = !resetPasswordConfirmation
+        ? t('register.passwordConfirmRequired')
+        : resetPasswordValue !== resetPasswordConfirmation
+            ? t('register.passwordMismatch')
+            : null;
+    const shouldShowResetPasswordErrors = resetPasswordValue.length > 0 || resetPasswordConfirmation.length > 0;
+    const resetHasErrors = Boolean(resetPasswordError || resetPasswordConfirmationError);
 
     const resolvedNameError = (formSubmitAttempted ? nameError : null) ?? formFieldErrors.name ?? null;
     const resolvedEmailError = (formSubmitAttempted ? emailError : null) ?? formFieldErrors.email ?? null;
@@ -929,7 +932,18 @@ export function TeamAccessTab({ canManageTeam, subscription, t }: TeamAccessTabP
                 </DialogContent>
             </Dialog>
 
-            <Dialog open={resetTarget !== null} onOpenChange={(open) => !open && setResetTarget(null)}>
+            <Dialog
+                open={resetTarget !== null}
+                onOpenChange={(open) => {
+                    if (open) {
+                        return;
+                    }
+
+                    setResetTarget(null);
+                    setResetPasswordValue('');
+                    setResetPasswordConfirmation('');
+                }}
+            >
                 <DialogContent className="max-w-md">
                     <DialogHeader>
                         <DialogTitle>{t('settings.team.resetPassword')}</DialogTitle>
@@ -948,9 +962,13 @@ export function TeamAccessTab({ canManageTeam, subscription, t }: TeamAccessTabP
                                     minLength={8}
                                     maxLength={INPUT_LIMITS.password}
                                     autoComplete="new-password"
+                                    aria-invalid={Boolean(shouldShowResetPasswordErrors && resetPasswordError)}
                                     showLabel={t('login.showPassword')}
                                     hideLabel={t('login.hidePassword')}
                                 />
+                                {shouldShowResetPasswordErrors && resetPasswordError ? (
+                                    <p className="text-xs text-red-600">{resetPasswordError}</p>
+                                ) : null}
                             </div>
                             <div className="space-y-2">
                                 <Label htmlFor="assistant-reset-password-confirm">
@@ -964,9 +982,13 @@ export function TeamAccessTab({ canManageTeam, subscription, t }: TeamAccessTabP
                                     minLength={8}
                                     maxLength={INPUT_LIMITS.password}
                                     autoComplete="new-password"
+                                    aria-invalid={Boolean(shouldShowResetPasswordErrors && resetPasswordConfirmationError)}
                                     showLabel={t('login.showPassword')}
                                     hideLabel={t('login.hidePassword')}
                                 />
+                                {shouldShowResetPasswordErrors && resetPasswordConfirmationError ? (
+                                    <p className="text-xs text-red-600">{resetPasswordConfirmationError}</p>
+                                ) : null}
                             </div>
                         </div>
                         <div className="flex justify-end gap-2">

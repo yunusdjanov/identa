@@ -19,6 +19,19 @@ const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const UZBEKISTAN_COUNTRY_CODE = '998';
 const UZBEKISTAN_LOCAL_DIGITS = INPUT_LIMITS.phoneDigitsUz - UZBEKISTAN_COUNTRY_CODE.length;
 const UZBEKISTAN_PHONE_GROUPS = [2, 3, 2, 2] as const;
+const COMMON_PASSWORDS = new Set([
+    '12345678',
+    '123456789',
+    '11111111',
+    'admin123',
+    'letmein123',
+    'password',
+    'password1',
+    'password123',
+    'qwerty123',
+    'qwertyui',
+    'welcome1',
+]);
 let validationLocale: AppLocale = 'en';
 
 function interpolate(template: string, variables?: Record<string, string | number>): string {
@@ -122,6 +135,34 @@ export function getEmailValidationMessage(value: string, options?: { required?: 
 
     if (!EMAIL_PATTERN.test(trimmed)) {
         return vt('validation.email.invalid');
+    }
+
+    return null;
+}
+
+export function getPasswordValidationMessage(value: string, options?: { required?: boolean }): string | null {
+    const required = options?.required ?? false;
+    const trimmed = value.trim();
+
+    if (!trimmed) {
+        return required ? vt('validation.password.required') : null;
+    }
+
+    if (trimmed.length < 8) {
+        return vt('validation.password.minLength', { min: 8 });
+    }
+
+    if (trimmed.length > INPUT_LIMITS.password) {
+        return vt('validation.password.maxLength', { max: INPUT_LIMITS.password });
+    }
+
+    const normalized = trimmed.toLowerCase();
+    if (COMMON_PASSWORDS.has(normalized)) {
+        return vt('validation.password.tooCommon');
+    }
+
+    if (!/[a-z]/i.test(trimmed) || !/\d/.test(trimmed)) {
+        return vt('validation.password.letterNumber');
     }
 
     return null;

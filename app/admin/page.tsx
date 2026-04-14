@@ -63,7 +63,12 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { INPUT_LIMITS, getEmailValidationMessage, getTextValidationMessage } from '@/lib/input-validation';
+import {
+    INPUT_LIMITS,
+    getEmailValidationMessage,
+    getPasswordValidationMessage,
+    getTextValidationMessage,
+} from '@/lib/input-validation';
 import { truncateForUi } from '@/lib/utils';
 import { useI18n } from '@/components/providers/i18n-provider';
 import { formatLocalizedDate } from '@/lib/i18n/date';
@@ -255,17 +260,21 @@ export default function AdminDashboardPage() {
         min: 3,
         max: INPUT_LIMITS.practiceName,
     });
-    const createDentistPasswordError = newDentist.password.length >= 8
-        ? null
-        : t('register.passwordMin');
+    const createDentistPasswordError = getPasswordValidationMessage(newDentist.password, { required: true });
     const createDentistHasErrors = Boolean(
         createDentistNameError
         || createDentistEmailError
         || createDentistPracticeNameError
         || createDentistPasswordError
     );
+    const resetPasswordError = getPasswordValidationMessage(resetPasswordForm.newPassword, { required: true });
     const resetPasswordMismatch = resetPasswordForm.confirmPassword.length > 0
         && resetPasswordForm.newPassword !== resetPasswordForm.confirmPassword;
+    const resetPasswordConfirmationError = !resetPasswordForm.confirmPassword
+        ? t('register.passwordConfirmRequired')
+        : resetPasswordMismatch
+            ? t('register.passwordMismatch')
+            : null;
     const handleCreateModalOpenChange = (open: boolean) => {
         setShowCreateModal(open);
         if (!open) {
@@ -1161,8 +1170,13 @@ export default function AdminDashboardPage() {
                                 event.preventDefault();
                                 setResetPasswordSubmitAttempted(true);
 
-                                if (resetPasswordForm.newPassword !== resetPasswordForm.confirmPassword) {
-                                    toast.error(t('register.passwordMismatch'));
+                                if (resetPasswordError) {
+                                    toast.error(resetPasswordError);
+                                    return;
+                                }
+
+                                if (resetPasswordConfirmationError) {
+                                    toast.error(resetPasswordConfirmationError);
                                     return;
                                 }
 
@@ -1190,7 +1204,11 @@ export default function AdminDashboardPage() {
                                     autoComplete="new-password"
                                     showLabel={t('login.showPassword')}
                                     hideLabel={t('login.hidePassword')}
+                                    aria-invalid={Boolean(resetPasswordSubmitAttempted && resetPasswordError)}
                                 />
+                                {resetPasswordSubmitAttempted && resetPasswordError ? (
+                                    <p className="text-xs text-red-600">{resetPasswordError}</p>
+                                ) : null}
                             </div>
 
                             <div className="space-y-2">
@@ -1211,12 +1229,12 @@ export default function AdminDashboardPage() {
                                     minLength={8}
                                     maxLength={INPUT_LIMITS.password}
                                     autoComplete="new-password"
-                                    aria-invalid={Boolean(resetPasswordSubmitAttempted && resetPasswordMismatch)}
+                                    aria-invalid={Boolean(resetPasswordSubmitAttempted && resetPasswordConfirmationError)}
                                     showLabel={t('login.showPassword')}
                                     hideLabel={t('login.hidePassword')}
                                 />
-                                {resetPasswordSubmitAttempted && resetPasswordMismatch ? (
-                                    <p className="text-xs text-red-600">{t('register.passwordMismatch')}</p>
+                                {resetPasswordSubmitAttempted && resetPasswordConfirmationError ? (
+                                    <p className="text-xs text-red-600">{resetPasswordConfirmationError}</p>
                                 ) : null}
                             </div>
 
