@@ -48,7 +48,7 @@ const APPOINTMENT_REASON_UI_LIMIT = 40;
 const APPOINTMENT_MODAL_NAME_UI_LIMIT = 40;
 const APPOINTMENT_MODAL_REASON_UI_LIMIT = 56;
 const WEEK_VIEW_VISIBLE_APPOINTMENTS = 6;
-const WEEK_VIEW_COMPACT_VISIBLE_APPOINTMENTS = 10;
+const WEEK_VIEW_COMPACT_VISIBLE_APPOINTMENTS = 9;
 const APPOINTMENT_STATUS_VALUES = ['scheduled', 'completed', 'cancelled', 'no_show'] as const;
 type AppointmentStatus = (typeof APPOINTMENT_STATUS_VALUES)[number];
 
@@ -703,7 +703,7 @@ export default function AppointmentsPage() {
             <div
                 key={descriptor.dayIndex}
                 className={`flex flex-col overflow-hidden rounded-xl border bg-white shadow-sm ${
-                    compact ? 'h-[24.75rem] self-start' : 'h-auto min-h-[20rem] self-start'
+                    compact ? 'h-[23rem] self-start' : 'h-auto min-h-[20rem] self-start'
                 } ${isTodayLane ? 'border-blue-500 ring-1 ring-blue-100' : 'border-slate-200'}`}
                 data-testid={includeTestIds ? `week-day-card-${descriptor.dateKey}` : undefined}
             >
@@ -768,7 +768,7 @@ export default function AppointmentsPage() {
                         </div>
                     ) : (
                         <>
-                            <div className={compact ? 'h-[19.25rem] rounded-lg border border-slate-100 bg-slate-50 p-1' : 'space-y-1.5'}>
+                            <div className={compact ? 'h-[17.5rem] rounded-lg border border-slate-100 bg-slate-50 p-1' : 'space-y-1.5'}>
                                 <div className={compact ? 'space-y-0.5' : ''}>
                                 {visibleAppointments.map((appointment) => (
                                     <div
