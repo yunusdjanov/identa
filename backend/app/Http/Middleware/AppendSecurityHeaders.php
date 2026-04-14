@@ -42,6 +42,8 @@ class AppendSecurityHeaders
             }
         }
 
+        $this->normalizeSessionCookies($response);
+
         if ($this->shouldApplyHsts($request)) {
             $response->headers->set('Strict-Transport-Security', $this->buildHstsValue());
         }
@@ -80,5 +82,64 @@ class AppendSecurityHeaders
         }
 
         return implode('; ', $directives);
+    }
+
+    private function normalizeSessionCookies(Response $response): void
+    {
+        $sameSite = $this->resolveCookieSameSite();
+        $secure = $this->resolveCookieSecure();
+        $partitioned = $sameSite === 'none'
+            ? (bool) env('SESSION_PARTITIONED_COOKIE', (bool) config('session.partitioned', false))
+            : false;
+        $sessionCookieName = (string) config('session.cookie', 'laravel-session');
+
+        foreach ($response->headers->getCookies() as $cookie) {
+            if (! in_array($cookie->getName(), ['XSRF-TOKEN', $sessionCookieName], true)) {
+                continue;
+            }
+
+            $updatedCookie = $cookie;
+
+            if ($secure !== null) {
+                $updatedCookie = $updatedCookie->withSecure($secure);
+            }
+
+            if ($sameSite !== null) {
+                $updatedCookie = $updatedCookie->withSameSite($sameSite);
+                $updatedCookie = $updatedCookie->withPartitioned($partitioned);
+            }
+
+            $response->headers->setCookie($updatedCookie);
+        }
+    }
+
+    private function resolveCookieSameSite(): ?string
+    {
+        $sameSite = env('SESSION_SAME_SITE', config('session.same_site'));
+
+        if (! is_string($sameSite) || trim($sameSite) === '') {
+            return null;
+        }
+
+        return strtolower(trim($sameSite));
+    }
+
+    private function resolveCookieSecure(): ?bool
+    {
+        $configured = env('SESSION_SECURE_COOKIE', config('session.secure'));
+
+        if (is_bool($configured)) {
+            return $configured;
+        }
+
+        if (is_string($configured) && trim($configured) !== '') {
+            $parsed = filter_var($configured, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+
+            if ($parsed !== null) {
+                return $parsed;
+            }
+        }
+
+        return null;
     }
 }
