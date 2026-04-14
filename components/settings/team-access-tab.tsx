@@ -16,6 +16,7 @@ import type { ApiAssistantAccount, ApiSubscriptionSummary } from '@/lib/api/type
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { PasswordInput } from '@/components/ui/password-input';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -827,9 +828,8 @@ export function TeamAccessTab({ canManageTeam, subscription, t }: TeamAccessTabP
                                         <Label htmlFor="assistant-password">
                                             {t('settings.team.password')} <span className="text-red-500">*</span>
                                         </Label>
-                                        <Input
+                                        <PasswordInput
                                             id="assistant-password"
-                                            type="password"
                                             required
                                             value={formState.password}
                                             onChange={(event) =>
@@ -843,6 +843,8 @@ export function TeamAccessTab({ canManageTeam, subscription, t }: TeamAccessTabP
                                             maxLength={INPUT_LIMITS.password}
                                             autoComplete="new-password"
                                             aria-invalid={Boolean(formSubmitAttempted && passwordError)}
+                                            showLabel={t('login.showPassword')}
+                                            hideLabel={t('login.hidePassword')}
                                         />
                                         {resolvedPasswordError ? (
                                             <p className="text-xs text-red-600">{resolvedPasswordError}</p>
@@ -852,9 +854,8 @@ export function TeamAccessTab({ canManageTeam, subscription, t }: TeamAccessTabP
                                         <Label htmlFor="assistant-password-confirmation">
                                             {t('settings.team.passwordConfirm')} <span className="text-red-500">*</span>
                                         </Label>
-                                        <Input
+                                        <PasswordInput
                                             id="assistant-password-confirmation"
-                                            type="password"
                                             required
                                             value={formState.passwordConfirmation}
                                             onChange={(event) =>
@@ -868,6 +869,8 @@ export function TeamAccessTab({ canManageTeam, subscription, t }: TeamAccessTabP
                                             maxLength={INPUT_LIMITS.password}
                                             autoComplete="new-password"
                                             aria-invalid={Boolean(formSubmitAttempted && passwordConfirmationError)}
+                                            showLabel={t('login.showPassword')}
+                                            hideLabel={t('login.hidePassword')}
                                         />
                                         {resolvedPasswordConfirmationError ? (
                                             <p className="text-xs text-red-600">{resolvedPasswordConfirmationError}</p>
@@ -934,23 +937,35 @@ export function TeamAccessTab({ canManageTeam, subscription, t }: TeamAccessTabP
                     <div className="space-y-4">
                         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                             <div className="space-y-2">
-                                <Label htmlFor="assistant-reset-password">{t('settings.team.password')}</Label>
-                                <Input
+                                <Label htmlFor="assistant-reset-password">
+                                    {t('settings.team.password')} <span className="text-red-500">*</span>
+                                </Label>
+                                <PasswordInput
                                     id="assistant-reset-password"
-                                    type="password"
                                     value={resetPasswordValue}
                                     onChange={(event) => setResetPasswordValue(event.target.value)}
+                                    required
+                                    minLength={8}
+                                    maxLength={INPUT_LIMITS.password}
+                                    autoComplete="new-password"
+                                    showLabel={t('login.showPassword')}
+                                    hideLabel={t('login.hidePassword')}
                                 />
                             </div>
                             <div className="space-y-2">
                                 <Label htmlFor="assistant-reset-password-confirm">
-                                    {t('settings.team.passwordConfirm')}
+                                    {t('settings.team.passwordConfirm')} <span className="text-red-500">*</span>
                                 </Label>
-                                <Input
+                                <PasswordInput
                                     id="assistant-reset-password-confirm"
-                                    type="password"
                                     value={resetPasswordConfirmation}
                                     onChange={(event) => setResetPasswordConfirmation(event.target.value)}
+                                    required
+                                    minLength={8}
+                                    maxLength={INPUT_LIMITS.password}
+                                    autoComplete="new-password"
+                                    showLabel={t('login.showPassword')}
+                                    hideLabel={t('login.hidePassword')}
                                 />
                             </div>
                         </div>

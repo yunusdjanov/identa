@@ -7,6 +7,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { PasswordInput } from '@/components/ui/password-input';
 import { Label } from '@/components/ui/label';
 import { loginWithPassword } from '@/lib/api/dentist';
 import { getApiErrorMessage } from '@/lib/api/client';
@@ -20,7 +21,6 @@ import { toast } from 'sonner';
 import { INPUT_LIMITS, getEmailValidationMessage } from '@/lib/input-validation';
 import { useI18n } from '@/components/providers/i18n-provider';
 import { LanguageSwitcher } from '@/components/layout/language-switcher';
-import { Eye, EyeOff } from 'lucide-react';
 
 export default function LoginPage() {
     const router = useRouter();
@@ -31,7 +31,6 @@ export default function LoginPage() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [remember, setRemember] = useState(true);
-    const [isPasswordVisible, setIsPasswordVisible] = useState(false);
     const [isSubmitted, setIsSubmitted] = useState(false);
     const emailError = getEmailValidationMessage(email, { required: true });
     const passwordError = password ? null : t('login.passwordRequired');
@@ -91,7 +90,9 @@ export default function LoginPage() {
                     <CardContent>
                         <form onSubmit={handleSubmit} className="space-y-5">
                             <div className="space-y-2">
-                                <Label htmlFor="email">{t('login.email')}</Label>
+                                <Label htmlFor="email">
+                                    {t('login.email')} <span className="text-red-500">*</span>
+                                </Label>
                                 <Input
                                     id="email"
                                     type="email"
@@ -109,32 +110,20 @@ export default function LoginPage() {
                             </div>
 
                             <div className="space-y-2">
-                                <Label htmlFor="password">{t('login.password')}</Label>
-                                <div className="relative">
-                                    <Input
-                                        id="password"
-                                        type={isPasswordVisible ? 'text' : 'password'}
-                                        value={password}
-                                        onChange={(event) => setPassword(event.target.value)}
-                                        required
-                                        maxLength={INPUT_LIMITS.password}
-                                        autoComplete="current-password"
-                                        aria-invalid={Boolean(isSubmitted && passwordError)}
-                                        className="pr-12"
-                                    />
-                                    <button
-                                        type="button"
-                                        onClick={() => setIsPasswordVisible((current) => !current)}
-                                        className="absolute inset-y-0 right-0 flex w-11 items-center justify-center text-gray-500 hover:text-gray-700"
-                                        aria-label={isPasswordVisible ? t('login.hidePassword') : t('login.showPassword')}
-                                    >
-                                        {isPasswordVisible ? (
-                                            <EyeOff className="h-4 w-4" />
-                                        ) : (
-                                            <Eye className="h-4 w-4" />
-                                        )}
-                                    </button>
-                                </div>
+                                <Label htmlFor="password">
+                                    {t('login.password')} <span className="text-red-500">*</span>
+                                </Label>
+                                <PasswordInput
+                                    id="password"
+                                    value={password}
+                                    onChange={(event) => setPassword(event.target.value)}
+                                    required
+                                    maxLength={INPUT_LIMITS.password}
+                                    autoComplete="current-password"
+                                    aria-invalid={Boolean(isSubmitted && passwordError)}
+                                    showLabel={t('login.showPassword')}
+                                    hideLabel={t('login.hidePassword')}
+                                />
                                 {isSubmitted && passwordError ? (
                                     <p className="text-xs text-red-600">{passwordError}</p>
                                 ) : null}

@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { PasswordInput } from '@/components/ui/password-input';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -935,9 +936,8 @@ export default function AdminDashboardPage() {
                                 <Label htmlFor="password">
                                     {t('admin.form.initialPassword')} <span className="text-red-500">*</span>
                                 </Label>
-                                <Input
+                                <PasswordInput
                                     id="password"
-                                    type="password"
                                     placeholder={t('admin.form.passwordPlaceholder')}
                                     value={newDentist.password}
                                     onChange={(event) =>
@@ -948,6 +948,8 @@ export default function AdminDashboardPage() {
                                     maxLength={INPUT_LIMITS.password}
                                     autoComplete="new-password"
                                     aria-invalid={Boolean(createSubmitAttempted && createDentistPasswordError)}
+                                    showLabel={t('login.showPassword')}
+                                    hideLabel={t('login.hidePassword')}
                                 />
                                 {createSubmitAttempted && createDentistPasswordError ? (
                                     <p className="text-xs text-red-600">{createDentistPasswordError}</p>
@@ -1172,9 +1174,8 @@ export default function AdminDashboardPage() {
                                 <Label htmlFor="resetPasswordNew">
                                     {t('admin.form.newPassword')} <span className="text-red-500">*</span>
                                 </Label>
-                                <Input
+                                <PasswordInput
                                     id="resetPasswordNew"
-                                    type="password"
                                     placeholder={t('admin.form.passwordPlaceholder')}
                                     value={resetPasswordForm.newPassword}
                                     onChange={(event) =>
@@ -1187,6 +1188,8 @@ export default function AdminDashboardPage() {
                                     minLength={8}
                                     maxLength={INPUT_LIMITS.password}
                                     autoComplete="new-password"
+                                    showLabel={t('login.showPassword')}
+                                    hideLabel={t('login.hidePassword')}
                                 />
                             </div>
 
@@ -1194,9 +1197,8 @@ export default function AdminDashboardPage() {
                                 <Label htmlFor="resetPasswordConfirm">
                                     {t('admin.form.confirmNewPassword')} <span className="text-red-500">*</span>
                                 </Label>
-                                <Input
+                                <PasswordInput
                                     id="resetPasswordConfirm"
-                                    type="password"
                                     placeholder={t('admin.form.confirmPasswordPlaceholder')}
                                     value={resetPasswordForm.confirmPassword}
                                     onChange={(event) =>
@@ -1210,6 +1212,8 @@ export default function AdminDashboardPage() {
                                     maxLength={INPUT_LIMITS.password}
                                     autoComplete="new-password"
                                     aria-invalid={Boolean(resetPasswordSubmitAttempted && resetPasswordMismatch)}
+                                    showLabel={t('login.showPassword')}
+                                    hideLabel={t('login.hidePassword')}
                                 />
                                 {resetPasswordSubmitAttempted && resetPasswordMismatch ? (
                                     <p className="text-xs text-red-600">{t('register.passwordMismatch')}</p>

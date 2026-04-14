@@ -312,13 +312,16 @@ export default function SettingsPage() {
                             <form onSubmit={handleProfileUpdate} className="space-y-4">
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div className="space-y-2">
-                                        <Label htmlFor="name">{t('settings.fullName')}</Label>
+                                        <Label htmlFor="name">
+                                            {t('settings.fullName')} <span className="text-red-500">*</span>
+                                        </Label>
                                         <div className="flex items-center gap-2">
                                             <span className="text-sm font-medium text-gray-700 bg-gray-100 px-3 py-2 rounded-md border border-gray-300">
                                                 {t('common.doctorPrefix')}
                                             </span>
                                             <Input
                                                 id="name"
+                                                required
                                                 value={profile.name.replace(/^Dr\.\s*/i, '')}
                                                 onChange={(event) =>
                                                     setProfileDraft({ ...profile, name: event.target.value })
@@ -334,10 +337,13 @@ export default function SettingsPage() {
                                     </div>
 
                                     <div className="space-y-2">
-                                        <Label htmlFor="email">{t('login.email')}</Label>
+                                        <Label htmlFor="email">
+                                            {t('login.email')} <span className="text-red-500">*</span>
+                                        </Label>
                                         <Input
                                             id="email"
                                             type="email"
+                                            required
                                             value={profile.email}
                                             onChange={(event) =>
                                                 setProfileDraft({ ...profile, email: event.target.value })

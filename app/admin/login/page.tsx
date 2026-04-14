@@ -6,11 +6,12 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { PasswordInput } from '@/components/ui/password-input';
 import { Label } from '@/components/ui/label';
 import { getApiErrorMessage } from '@/lib/api/client';
 import { loginWithPassword, logoutSession } from '@/lib/api/dentist';
 import { toast } from 'sonner';
-import { Eye, EyeOff, Shield } from 'lucide-react';
+import { Shield } from 'lucide-react';
 import { INPUT_LIMITS, getEmailValidationMessage } from '@/lib/input-validation';
 import { useI18n } from '@/components/providers/i18n-provider';
 import { LanguageSwitcher } from '@/components/layout/language-switcher';
@@ -24,7 +25,6 @@ export default function AdminLoginPage() {
         password: '',
     });
     const [remember, setRemember] = useState(true);
-    const [isPasswordVisible, setIsPasswordVisible] = useState(false);
     const [isSubmitted, setIsSubmitted] = useState(false);
     const emailError = getEmailValidationMessage(credentials.email, { required: true });
     const passwordError = credentials.password ? null : t('admin.login.passwordRequired');
@@ -89,7 +89,9 @@ export default function AdminLoginPage() {
                     <CardContent>
                         <form onSubmit={handleLogin} className="space-y-4">
                             <div className="space-y-2">
-                                <Label htmlFor="email">{t('login.email')}</Label>
+                                <Label htmlFor="email">
+                                    {t('login.email')} <span className="text-red-500">*</span>
+                                </Label>
                                 <Input
                                     id="email"
                                     type="email"
@@ -109,34 +111,22 @@ export default function AdminLoginPage() {
                             </div>
 
                             <div className="space-y-2">
-                                <Label htmlFor="password">{t('login.password')}</Label>
-                                <div className="relative">
-                                    <Input
-                                        id="password"
-                                        type={isPasswordVisible ? 'text' : 'password'}
-                                        value={credentials.password}
-                                        onChange={(event) =>
-                                            setCredentials({ ...credentials, password: event.target.value })
-                                        }
-                                        required
-                                        maxLength={INPUT_LIMITS.password}
-                                        autoComplete="current-password"
-                                        aria-invalid={Boolean(isSubmitted && passwordError)}
-                                        className="pr-12"
-                                    />
-                                    <button
-                                        type="button"
-                                        onClick={() => setIsPasswordVisible((current) => !current)}
-                                        className="absolute inset-y-0 right-0 flex w-11 items-center justify-center text-gray-500 hover:text-gray-700"
-                                        aria-label={isPasswordVisible ? t('login.hidePassword') : t('login.showPassword')}
-                                    >
-                                        {isPasswordVisible ? (
-                                            <EyeOff className="h-4 w-4" />
-                                        ) : (
-                                            <Eye className="h-4 w-4" />
-                                        )}
-                                    </button>
-                                </div>
+                                <Label htmlFor="password">
+                                    {t('login.password')} <span className="text-red-500">*</span>
+                                </Label>
+                                <PasswordInput
+                                    id="password"
+                                    value={credentials.password}
+                                    onChange={(event) =>
+                                        setCredentials({ ...credentials, password: event.target.value })
+                                    }
+                                    required
+                                    maxLength={INPUT_LIMITS.password}
+                                    autoComplete="current-password"
+                                    aria-invalid={Boolean(isSubmitted && passwordError)}
+                                    showLabel={t('login.showPassword')}
+                                    hideLabel={t('login.hidePassword')}
+                                />
                                 {isSubmitted && passwordError ? (
                                     <p className="text-xs text-red-600">{passwordError}</p>
                                 ) : null}

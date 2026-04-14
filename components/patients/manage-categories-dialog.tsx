@@ -222,9 +222,12 @@ export function ManageCategoriesDialog({ open, onOpenChange }: ManageCategoriesD
                             <p className="mb-3 text-sm font-medium text-gray-900">{t('patients.categories.newCategory')}</p>
                             <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_auto_auto]">
                                 <div className="space-y-2">
-                                    <Label htmlFor="newCategoryName">{t('patients.categories.categoryName')}</Label>
+                                    <Label htmlFor="newCategoryName">
+                                        {t('patients.categories.categoryName')} <span className="text-red-500">*</span>
+                                    </Label>
                                     <Input
                                         id="newCategoryName"
+                                        required
                                         value={newName}
                                         onChange={(event) => setNewName(event.target.value)}
                                         placeholder={t('patients.categories.categoryNamePlaceholder')}
@@ -270,9 +273,12 @@ export function ManageCategoriesDialog({ open, onOpenChange }: ManageCategoriesD
                                         {editingId === category.id ? (
                                             <div className="flex flex-1 items-end gap-2">
                                                 <div className="flex-1 space-y-1">
-                                                    <Label htmlFor={`edit-category-${category.id}`}>{t('patients.categories.categoryName')}</Label>
+                                                    <Label htmlFor={`edit-category-${category.id}`}>
+                                                        {t('patients.categories.categoryName')} <span className="text-red-500">*</span>
+                                                    </Label>
                                                     <Input
                                                         id={`edit-category-${category.id}`}
+                                                        required
                                                         value={editingName}
                                                         onChange={(event) => setEditingName(event.target.value)}
                                                         maxLength={INPUT_LIMITS.categoryName}
