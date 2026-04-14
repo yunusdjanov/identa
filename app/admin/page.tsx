@@ -445,8 +445,8 @@ export default function AdminDashboardPage() {
         }
 
         const trimmedAmount = subscriptionForm.paymentAmount.trim();
-        const parsedAmount = trimmedAmount === '' ? undefined : Number(trimmedAmount);
-        if (trimmedAmount !== '' && (!Number.isFinite(parsedAmount) || parsedAmount <= 0)) {
+        const parsedAmount = trimmedAmount === '' ? null : Number(trimmedAmount);
+        if (parsedAmount !== null && (!Number.isFinite(parsedAmount) || parsedAmount <= 0)) {
             toast.error(t('admin.subscription.amountInvalid'));
             return;
         }
@@ -458,7 +458,7 @@ export default function AdminDashboardPage() {
                 ...(subscriptionRequiresPaymentDetails
                     ? { payment_method: subscriptionForm.paymentMethod }
                     : {}),
-                ...(parsedAmount !== undefined ? { payment_amount: parsedAmount } : {}),
+                ...(parsedAmount !== null ? { payment_amount: parsedAmount } : {}),
                 ...(subscriptionForm.note.trim() !== '' ? { note: subscriptionForm.note.trim() } : {}),
             },
         });
