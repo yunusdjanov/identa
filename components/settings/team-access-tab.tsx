@@ -153,6 +153,19 @@ function formatDateTime(value: string | null): string {
     return date.toLocaleString();
 }
 
+function formatDateLabel(value: string | null): string | null {
+    if (!value) {
+        return null;
+    }
+
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+        return value;
+    }
+
+    return date.toLocaleDateString();
+}
+
 function getSubscriptionPlanLabel(
     subscription: ApiSubscriptionSummary | null | undefined,
     t: TeamAccessTabProps['t']
@@ -213,6 +226,7 @@ export function TeamAccessTab({ canManageTeam, subscription, t }: TeamAccessTabP
     const activeStaffCount = subscription?.active_staff_count ?? 0;
     const isAtStaffLimit = staffLimit !== null && activeStaffCount >= staffLimit;
     const isReadOnly = subscription?.is_read_only === true;
+    const subscriptionEndsOn = formatDateLabel(subscription?.ends_at ?? null);
 
     const setMutationErrors = (error: unknown, fallbackMessage: string) => {
         const extractedFieldErrors: AssistantFormFieldErrors = {};
@@ -527,12 +541,21 @@ export function TeamAccessTab({ canManageTeam, subscription, t }: TeamAccessTabP
                             )}
                         >
                             <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-                                <p className="text-sm font-medium text-slate-900">
-                                    {t('settings.team.planSummary', {
-                                        plan: getSubscriptionPlanLabel(subscription, t),
-                                        status: getSubscriptionStatusLabel(subscription, t),
-                                    })}
-                                </p>
+                                <div className="space-y-1">
+                                    <p className="text-sm font-medium text-slate-900">
+                                        {t('settings.team.planSummary', {
+                                            plan: getSubscriptionPlanLabel(subscription, t),
+                                            status: getSubscriptionStatusLabel(subscription, t),
+                                        })}
+                                    </p>
+                                    {subscriptionEndsOn ? (
+                                        <p className="text-xs text-slate-600">
+                                            {t('admin.subscription.endsOn', {
+                                                date: subscriptionEndsOn,
+                                            })}
+                                        </p>
+                                    ) : null}
+                                </div>
                                 <p className="text-xs text-slate-600">
                                     {staffLimit === null
                                         ? t('settings.team.staffUnlimited', {
