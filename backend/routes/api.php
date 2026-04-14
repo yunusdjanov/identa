@@ -25,7 +25,7 @@ Route::prefix('v1')->group(function (): void {
         ]);
     });
 
-    Route::prefix('auth')->middleware('web')->group(function (): void {
+    Route::prefix('auth')->group(function (): void {
         Route::get('/csrf-token', function (Request $request) {
             $request->session()->regenerateToken();
 
