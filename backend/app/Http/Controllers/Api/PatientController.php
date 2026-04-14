@@ -20,8 +20,6 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class PatientController extends Controller
 {
-    private const PATIENT_PHOTO_DISK = 'local';
-
     public function __construct(
         private readonly AuditLogger $auditLogger,
     ) {
@@ -201,14 +199,15 @@ class PatientController extends Controller
         }
 
         $validated = $request->validate([
-            'photo' => ['required', 'file', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
+            'photo' => ['required', 'file', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
         ]);
 
         /** @var UploadedFile $uploadedPhoto */
         $uploadedPhoto = $validated['photo'];
+        $disk = $this->patientPhotoDisk();
         $storedPath = $uploadedPhoto->store(
             sprintf('patients/%s/%s', $patient->dentist_id, $patient->id),
-            self::PATIENT_PHOTO_DISK
+            $disk
         );
 
         if (! is_string($storedPath) || $storedPath === '') {
@@ -219,7 +218,7 @@ class PatientController extends Controller
 
         $this->deletePatientPhotoFile($patient);
         $patient->forceFill([
-            'photo_disk' => self::PATIENT_PHOTO_DISK,
+            'photo_disk' => $disk,
             'photo_path' => $storedPath,
         ])->save();
 
@@ -247,7 +246,7 @@ class PatientController extends Controller
 
         $disk = is_string($patient->photo_disk) && $patient->photo_disk !== ''
             ? $patient->photo_disk
-            : self::PATIENT_PHOTO_DISK;
+            : $this->patientPhotoDisk();
         if (! Storage::disk($disk)->exists($photoPath)) {
             abort(404);
         }
@@ -591,10 +590,15 @@ class PatientController extends Controller
 
         $disk = is_string($patient->photo_disk) && $patient->photo_disk !== ''
             ? $patient->photo_disk
-            : self::PATIENT_PHOTO_DISK;
+            : $this->patientPhotoDisk();
         if (Storage::disk($disk)->exists($patient->photo_path)) {
             Storage::disk($disk)->delete($patient->photo_path);
         }
+    }
+
+    private function patientPhotoDisk(): string
+    {
+        return (string) config('filesystems.media_disk', 'local');
     }
 
     private function generatePatientId(int $dentistId): string

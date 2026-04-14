@@ -22,6 +22,7 @@ import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { PatientPhotoPreviewDialog, type PreviewGalleryImage } from '@/components/patients/patient-photo-preview-dialog';
 import { ClinicalSnapshotCard } from '@/components/patients/clinical-snapshot-card';
+import { getProtectedMediaCrossOrigin } from '@/lib/protected-media';
 import { formatCurrency, formatDate, toLocalDateKey } from '@/lib/utils';
 import { toast } from 'sonner';
 import { CalendarDays, Pencil, Plus, RotateCcw, Trash2, X } from 'lucide-react';
@@ -50,7 +51,7 @@ interface TreatmentFormState {
 }
 
 const MAX_HISTORY_IMAGES_PER_ENTRY = 10;
-const MAX_HISTORY_IMAGE_SIZE_BYTES = 5 * 1024 * 1024;
+const MAX_HISTORY_IMAGE_SIZE_BYTES = 2 * 1024 * 1024;
 const ALLOWED_HISTORY_IMAGE_TYPES = new Set([
     'image/jpeg',
     'image/jpg',
@@ -164,6 +165,7 @@ function HistoryImageTile({
                 <img
                     src={src}
                     alt={alt}
+                    crossOrigin={getProtectedMediaCrossOrigin(src)}
                     className={`h-full w-full object-cover transition-transform group-hover:scale-[1.03] ${
                         markedForRemoval ? 'grayscale' : ''
                     }`}
@@ -643,6 +645,7 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                                             <img
                                                                 src={getTreatmentImageThumbnailUrl(treatmentImages[0])}
                                                                 alt={`${patientName} ${t('patientHistory.image')} 1`}
+                                                                crossOrigin={getProtectedMediaCrossOrigin(getTreatmentImageThumbnailUrl(treatmentImages[0]))}
                                                                 className="h-full w-full object-cover"
                                                                 loading="lazy"
                                                             />

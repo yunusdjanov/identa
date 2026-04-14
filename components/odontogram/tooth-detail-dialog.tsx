@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import type { ApiTreatment, ApiTreatmentImage } from '@/lib/api/types';
+import { getProtectedMediaCrossOrigin } from '@/lib/protected-media';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { useI18n } from '@/components/providers/i18n-provider';
 import { PatientPhotoPreviewDialog, type PreviewGalleryImage } from '@/components/patients/patient-photo-preview-dialog';
@@ -201,6 +202,7 @@ export function ToothDetailDialog({
                                                             <img
                                                                 src={getTreatmentImageThumbnailUrl(treatmentImages[0])}
                                                                 alt={`${t('patientHistory.image')} 1`}
+                                                                crossOrigin={getProtectedMediaCrossOrigin(getTreatmentImageThumbnailUrl(treatmentImages[0]))}
                                                                 className="h-full w-full object-cover"
                                                                 loading="lazy"
                                                             />

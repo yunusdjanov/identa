@@ -33,6 +33,7 @@ import { AddPatientDialog } from '@/components/patients/add-patient-dialog';
 import { ManageCategoriesDialog } from '@/components/patients/manage-categories-dialog';
 import { useI18n } from '@/components/providers/i18n-provider';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { getProtectedMediaCrossOrigin } from '@/lib/protected-media';
 import { toast } from 'sonner';
 
 const noopSubscribe = () => () => undefined;
@@ -467,7 +468,11 @@ export default function PatientsPage() {
                                             <TableCell>
                                                 {patient.photoUrl ? (
                                                     <Avatar className="h-9 w-9">
-                                                        <AvatarImage src={patient.photoUrl} alt={patient.fullName} />
+                                                        <AvatarImage
+                                                            src={patient.photoUrl}
+                                                            alt={patient.fullName}
+                                                            crossOrigin={getProtectedMediaCrossOrigin(patient.photoUrl)}
+                                                        />
                                                         <AvatarFallback className="bg-slate-100 text-slate-700 text-xs font-semibold">
                                                             {getPatientInitials(patient.fullName)}
                                                         </AvatarFallback>

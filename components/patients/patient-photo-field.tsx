@@ -6,6 +6,7 @@ import { UploadCloud, ImageOff, User } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import { getProtectedMediaCrossOrigin } from '@/lib/protected-media';
 import { cn } from '@/lib/utils';
 
 function getPatientInitials(fullName: string): string | null {
@@ -99,7 +100,13 @@ export function PatientPhotoField({
             {hideLabel ? null : <Label htmlFor={id} className="text-sm text-gray-700">{label}</Label>}
             <div className="flex min-w-0 items-start gap-3">
                 <Avatar key={previewUrl ?? 'photo-placeholder'} className="h-16 w-16 shrink-0 border border-slate-200 bg-blue-50">
-                    {previewUrl ? <AvatarImage src={previewUrl} alt={patientName} /> : null}
+                    {previewUrl ? (
+                        <AvatarImage
+                            src={previewUrl}
+                            alt={patientName}
+                            crossOrigin={getProtectedMediaCrossOrigin(previewUrl)}
+                        />
+                    ) : null}
                     <AvatarFallback className="bg-blue-50 text-blue-700 text-xl font-semibold">
                         {initials ? initials : <User className="h-6 w-6 text-blue-400" />}
                     </AvatarFallback>

@@ -2054,7 +2054,7 @@ Object.assign(ru, {
     'patientHistory.validation.date': 'Дата обязательна.',
     'patientHistory.validation.amount': 'Суммы не могут быть отрицательными.',
     'patientHistory.validation.imageType': 'Разрешены только JPG, PNG или WEBP.',
-    'patientHistory.validation.imageSize': 'Размер изображения не должен превышать 5 МБ.',
+    'patientHistory.validation.imageSize': 'Размер изображения не должен превышать 2 МБ.',
     'patientHistory.validation.fixErrors': 'Исправьте ошибки в форме.',
 });
 
@@ -2112,7 +2112,7 @@ Object.assign(uz, {
     'patientHistory.validation.date': 'Sana majburiy.',
     'patientHistory.validation.amount': "Summalar manfiy bo'lmasligi kerak.",
     'patientHistory.validation.imageType': 'Faqat JPG, PNG yoki WEBP fayllari ruxsat etiladi.',
-    'patientHistory.validation.imageSize': 'Rasm hajmi 5 MB dan oshmasligi kerak.',
+    'patientHistory.validation.imageSize': 'Rasm hajmi 2 MB dan oshmasligi kerak.',
     'patientHistory.validation.fixErrors': "Formadagi xatolarni to'g'rilang.",
 });
 
@@ -2170,7 +2170,7 @@ Object.assign(en, {
     'patientHistory.validation.date': 'Date is required.',
     'patientHistory.validation.amount': 'Amounts cannot be negative.',
     'patientHistory.validation.imageType': 'Only JPG, PNG, or WEBP images are allowed.',
-    'patientHistory.validation.imageSize': 'Image must be 5 MB or smaller.',
+    'patientHistory.validation.imageSize': 'Image must be 2 MB or smaller.',
     'patientHistory.validation.fixErrors': 'Please fix the highlighted fields.',
 });
 
@@ -2193,7 +2193,7 @@ Object.assign(ru, {
     'patients.noVisit1y': 'Без визита 1Г',
     'patients.empty.noVisit1y': 'Пациенты без визита за 1 год не найдены.',
     'patients.form.photo': 'Фото пациента',
-    'patients.form.photoHint': 'PNG/JPG/WEBP, до 5 МБ',
+    'patients.form.photoHint': 'PNG/JPG/WEBP, до 2 МБ',
     'patients.form.photoReplace': 'Заменить',
     'patients.form.photoChange': 'Изменить',
     'patients.form.photoRemove': 'Удалить фото',
@@ -2202,7 +2202,7 @@ Object.assign(ru, {
     'patients.form.photoCurrent': 'Текущее фото',
     'patients.form.photoNoneSelected': 'Фото не выбрано',
     'patients.toast.photoInvalidType': 'Разрешены только JPG, PNG или WEBP.',
-    'patients.toast.photoTooLarge': 'Размер фото не должен превышать 5 МБ.',
+    'patients.toast.photoTooLarge': 'Размер фото не должен превышать 2 МБ.',
     'patients.toast.photoUploadFailed': 'Не удалось загрузить фото.',
     'patients.toast.photoDeleteFailed': 'Не удалось удалить фото.',
     'payments.tabs.patients': 'Пациенты',
@@ -2260,7 +2260,7 @@ Object.assign(uz, {
     'patients.noVisit1y': '1 yil vizitsiz',
     'patients.empty.noVisit1y': '1 yil davomida vizitsiz bemor topilmadi.',
     'patients.form.photo': 'Bemor rasmi',
-    'patients.form.photoHint': 'PNG/JPG/WEBP, 5 MB gacha',
+    'patients.form.photoHint': 'PNG/JPG/WEBP, 2 MB gacha',
     'patients.form.photoReplace': 'Almashtirish',
     'patients.form.photoChange': "O'zgartirish",
     'patients.form.photoRemove': 'Rasmni ochirish',
@@ -2269,7 +2269,7 @@ Object.assign(uz, {
     'patients.form.photoCurrent': 'Joriy rasm',
     'patients.form.photoNoneSelected': 'Rasm tanlanmagan',
     'patients.toast.photoInvalidType': 'Faqat JPG, PNG yoki WEBP ruxsat etiladi.',
-    'patients.toast.photoTooLarge': 'Rasm hajmi 5 MB dan oshmasligi kerak.',
+    'patients.toast.photoTooLarge': 'Rasm hajmi 2 MB dan oshmasligi kerak.',
     'patients.toast.photoUploadFailed': 'Rasmni yuklab bolmadi.',
     'patients.toast.photoDeleteFailed': 'Rasmni ochirib bolmadi.',
     'payments.tabs.patients': 'Bemorlar',
@@ -2327,7 +2327,7 @@ Object.assign(en, {
     'patients.noVisit1y': 'No Visit 1Y',
     'patients.empty.noVisit1y': 'No patients without a visit in the last year.',
     'patients.form.photo': 'Patient Photo',
-    'patients.form.photoHint': 'PNG/JPG/WEBP, up to 5 MB',
+    'patients.form.photoHint': 'PNG/JPG/WEBP, up to 2 MB',
     'patients.form.photoReplace': 'Replace',
     'patients.form.photoChange': 'Change',
     'patients.form.photoRemove': 'Remove photo',
@@ -2336,7 +2336,7 @@ Object.assign(en, {
     'patients.form.photoCurrent': 'Current photo',
     'patients.form.photoNoneSelected': 'No photo selected',
     'patients.toast.photoInvalidType': 'Only JPG, PNG, or WEBP images are allowed.',
-    'patients.toast.photoTooLarge': 'Image must be 5 MB or smaller.',
+    'patients.toast.photoTooLarge': 'Image must be 2 MB or smaller.',
     'patients.toast.photoUploadFailed': 'Failed to upload photo.',
     'patients.toast.photoDeleteFailed': 'Failed to delete photo.',
     'payments.tabs.patients': 'Patients',
@@ -2834,7 +2834,7 @@ Object.assign(en, {
 Object.assign(ru, {
     'patientHistory.images': 'Изображения',
     'patientHistory.image': 'Фото',
-    'patientHistory.imagesHint': 'Можно загрузить до {{max}} изображений (JPG/PNG/WEBP, до 5 МБ каждое).',
+    'patientHistory.imagesHint': 'Можно загрузить до {{max}} изображений (JPG/PNG/WEBP, до 2 МБ каждое).',
     'patientHistory.currentImages': 'Текущие изображения',
     'patientHistory.newImages': 'Новые изображения',
     'patientHistory.imagesEmpty': 'Нет изображений',
@@ -2844,7 +2844,7 @@ Object.assign(ru, {
 Object.assign(uz, {
     'patientHistory.images': 'Rasmlar',
     'patientHistory.image': 'Rasm',
-    'patientHistory.imagesHint': '{{max}} tagacha rasm yuklash mumkin (JPG/PNG/WEBP, har biri 5 MB gacha).',
+    'patientHistory.imagesHint': '{{max}} tagacha rasm yuklash mumkin (JPG/PNG/WEBP, har biri 2 MB gacha).',
     'patientHistory.currentImages': 'Joriy rasmlar',
     'patientHistory.newImages': 'Yangi rasmlar',
     'patientHistory.imagesEmpty': "Rasm yo'q",
@@ -2854,7 +2854,7 @@ Object.assign(uz, {
 Object.assign(en, {
     'patientHistory.images': 'Images',
     'patientHistory.image': 'Image',
-    'patientHistory.imagesHint': 'Upload up to {{max}} images (JPG/PNG/WEBP, up to 5 MB each).',
+    'patientHistory.imagesHint': 'Upload up to {{max}} images (JPG/PNG/WEBP, up to 2 MB each).',
     'patientHistory.currentImages': 'Current images',
     'patientHistory.newImages': 'New images',
     'patientHistory.imagesEmpty': 'No images',

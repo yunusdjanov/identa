@@ -23,7 +23,6 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class PatientTreatmentController extends Controller
 {
-    private const IMAGE_DISK = 'local';
     private const MAX_IMAGES_PER_TREATMENT = 10;
     private const IMAGE_VARIANT_THUMBNAIL = 'thumbnail';
     private const IMAGE_VARIANT_PREVIEW = 'preview';
@@ -280,9 +279,10 @@ class PatientTreatmentController extends Controller
         }
 
         $path = $this->storeTreatmentImage($request, $patient, $treatment, $uploadedFile);
+        $disk = $this->mediaDisk();
         $image = $treatment->images()->create([
             'dentist_id' => $this->resolveDentistId($request),
-            'disk' => self::IMAGE_DISK,
+            'disk' => $disk,
             'path' => $path,
             'mime_type' => $uploadedFile->getClientMimeType() ?: 'application/octet-stream',
             'file_size' => max((int) $uploadedFile->getSize(), 0),
@@ -550,8 +550,9 @@ class PatientTreatmentController extends Controller
             (string) $treatment->id
         );
         $filename = sprintf('%s.%s', Str::uuid()->toString(), $extension);
+        $disk = $this->mediaDisk();
         $path = $uploadedFile->storeAs($directory, $filename, [
-            'disk' => self::IMAGE_DISK,
+            'disk' => $disk,
         ]);
 
         if (! is_string($path) || $path === '') {
@@ -560,7 +561,7 @@ class PatientTreatmentController extends Controller
             ]);
         }
 
-        $this->generateTreatmentImageVariants(self::IMAGE_DISK, $path);
+        $this->generateTreatmentImageVariants($disk, $path);
 
         return $path;
     }
@@ -718,5 +719,10 @@ class PatientTreatmentController extends Controller
         } finally {
             imagedestroy($target);
         }
+    }
+
+    private function mediaDisk(): string
+    {
+        return (string) config('filesystems.media_disk', 'local');
     }
 }

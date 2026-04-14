@@ -38,6 +38,7 @@ import {
 import { EditPatientDialog } from '@/components/patients/edit-patient-dialog';
 import { toast } from 'sonner';
 import { useI18n } from '@/components/providers/i18n-provider';
+import { getProtectedMediaCrossOrigin } from '@/lib/protected-media';
 
 const PATIENT_HEADER_NAME_UI_LIMIT = 25;
 const PATIENT_CATEGORY_CHIP_UI_LIMIT = 20;
@@ -296,7 +297,13 @@ export default function PatientDetailPage({
                         <ArrowLeft className="h-4 w-4" />
                     </Button>
                     <Avatar className="h-14 w-14 border border-slate-200">
-                        {patient.photo_url ? <AvatarImage src={patient.photo_url} alt={patient.full_name} /> : null}
+                        {patient.photo_url ? (
+                            <AvatarImage
+                                src={patient.photo_url}
+                                alt={patient.full_name}
+                                crossOrigin={getProtectedMediaCrossOrigin(patient.photo_url)}
+                            />
+                        ) : null}
                         <AvatarFallback className="bg-slate-100 text-sm font-semibold text-slate-700">
                             {getPatientInitials(patient.full_name)}
                         </AvatarFallback>

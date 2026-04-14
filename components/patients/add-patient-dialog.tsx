@@ -51,7 +51,7 @@ const initialFormData = {
     currentMedications: '',
 };
 const NO_CATEGORY_VALUE = '__none__';
-const MAX_PATIENT_PHOTO_SIZE_MB = 5;
+const MAX_PATIENT_PHOTO_SIZE_MB = 2;
 const MAX_PATIENT_PHOTO_SIZE_BYTES = MAX_PATIENT_PHOTO_SIZE_MB * 1024 * 1024;
 
 export function AddPatientDialog({ open, onOpenChange }: AddPatientDialogProps) {

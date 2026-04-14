@@ -8,6 +8,7 @@ import {
     DialogDescription,
     DialogTitle,
 } from '@/components/ui/dialog';
+import { getProtectedMediaCrossOrigin } from '@/lib/protected-media';
 import { ChevronLeft, ChevronRight, X } from 'lucide-react';
 
 export interface PreviewGalleryImage {
@@ -134,6 +135,7 @@ export function PatientPhotoPreviewDialog({
                             <img
                                 src={activeImage.src}
                                 alt={activeImage.alt}
+                                crossOrigin={getProtectedMediaCrossOrigin(activeImage.src)}
                                 className="h-auto max-h-full w-auto max-w-full rounded-lg object-contain"
                             />
                         </div>
@@ -163,6 +165,7 @@ export function PatientPhotoPreviewDialog({
                                                 <img
                                                     src={image.thumbnailSrc ?? image.src}
                                                     alt={image.alt}
+                                                    crossOrigin={getProtectedMediaCrossOrigin(image.thumbnailSrc ?? image.src)}
                                                     className="h-full w-full object-cover"
                                                     loading="lazy"
                                                 />

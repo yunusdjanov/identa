@@ -30,7 +30,6 @@ class PatientOdontogramController extends Controller
     private const MAX_PER_PAGE = 100;
     private const DEFAULT_SUMMARY_LIMIT = 5;
     private const MAX_SUMMARY_LIMIT = 10;
-    private const IMAGE_DISK = 'local';
 
     /**
      * @var list<string>
@@ -203,8 +202,9 @@ class PatientOdontogramController extends Controller
             (string) $entry->id
         );
         $filename = sprintf('%s-%s.%s', $validated['stage'], Str::uuid()->toString(), $extension);
+        $disk = $this->mediaDisk();
         $path = $uploadedFile->storeAs($directory, $filename, [
-            'disk' => self::IMAGE_DISK,
+            'disk' => $disk,
         ]);
 
         if (! is_string($path) || $path === '') {
@@ -220,7 +220,7 @@ class PatientOdontogramController extends Controller
         if ($existingImage) {
             $this->deleteImageFile($existingImage);
             $existingImage->update([
-                'disk' => self::IMAGE_DISK,
+                'disk' => $disk,
                 'path' => $path,
                 'mime_type' => $uploadedFile->getClientMimeType() ?: 'application/octet-stream',
                 'file_size' => (int) ($uploadedFile->getSize() ?: 0),
@@ -230,7 +230,7 @@ class PatientOdontogramController extends Controller
             $entry->images()->create([
                 'dentist_id' => $this->resolveDentistId($request),
                 'stage' => $validated['stage'],
-                'disk' => self::IMAGE_DISK,
+                'disk' => $disk,
                 'path' => $path,
                 'mime_type' => $uploadedFile->getClientMimeType() ?: 'application/octet-stream',
                 'file_size' => (int) ($uploadedFile->getSize() ?: 0),
@@ -483,5 +483,10 @@ class PatientOdontogramController extends Controller
                 ->values()
                 ->all(),
         ];
+    }
+
+    private function mediaDisk(): string
+    {
+        return (string) config('filesystems.media_disk', 'local');
     }
 }
