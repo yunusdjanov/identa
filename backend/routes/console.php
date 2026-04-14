@@ -2,6 +2,7 @@
 
 use App\Support\ProductionSecretsValidator;
 use App\Support\ProductionRuntimePolicyValidator;
+use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use App\Models\Invoice;
 use Illuminate\Foundation\Inspiring;
@@ -168,3 +169,56 @@ Artisan::command('invoices:normalize-numbers {--commit : Persist changes (defaul
 
     return 0;
 })->purpose('Normalize historical invoice numbers to INV-YYMM-#### format');
+
+Artisan::command('users:ensure-account {email} {password} {--name=} {--role=dentist} {--activate : Mark the user as active}', function () {
+    $email = trim((string) $this->argument('email'));
+    $password = (string) $this->argument('password');
+    $role = trim((string) $this->option('role'));
+    $providedName = trim((string) $this->option('name'));
+
+    if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        $this->error('A valid email address is required.');
+
+        return 1;
+    }
+
+    if ($password === '') {
+        $this->error('A non-empty password is required.');
+
+        return 1;
+    }
+
+    if (! in_array($role, [User::ROLE_ADMIN, User::ROLE_DENTIST, User::ROLE_ASSISTANT], true)) {
+        $this->error('The --role option must be one of: admin, dentist, assistant.');
+
+        return 1;
+    }
+
+    $user = User::query()->firstOrNew(['email' => $email]);
+    $isNew = ! $user->exists;
+
+    if ($isNew) {
+        $user->name = $providedName !== '' ? $providedName : 'Demo User';
+        $user->role = $role;
+        $user->account_status = User::ACCOUNT_STATUS_ACTIVE;
+        $user->must_change_password = false;
+    } elseif ($providedName !== '') {
+        $user->name = $providedName;
+    }
+
+    if ($this->option('activate')) {
+        $user->account_status = User::ACCOUNT_STATUS_ACTIVE;
+    }
+
+    $user->password = $password;
+    $user->save();
+
+    $this->info(sprintf(
+        '%s account for %s (%s).',
+        $isNew ? 'Created' : 'Updated',
+        $user->email,
+        $user->role
+    ));
+
+    return 0;
+})->purpose('Create or update a user account with a known password for maintenance or demo access');
