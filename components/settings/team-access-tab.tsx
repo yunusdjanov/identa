@@ -166,26 +166,28 @@ function formatDateLabel(value: string | null): string | null {
     return date.toLocaleDateString();
 }
 
-function getSubscriptionPlanLabel(
+function getSubscriptionAccessSummary(
     subscription: ApiSubscriptionSummary | null | undefined,
+    endsOn: string | null,
     t: TeamAccessTabProps['t']
 ): string {
-    if (!subscription?.plan) {
+    if (!subscription?.is_configured || !endsOn) {
         return t('settings.team.subscriptionPlanFallback');
     }
 
-    return t(`subscription.plan.${subscription.plan}`);
-}
-
-function getSubscriptionStatusLabel(
-    subscription: ApiSubscriptionSummary | null | undefined,
-    t: TeamAccessTabProps['t']
-): string {
-    if (!subscription) {
-        return t('subscription.status.none');
+    if (subscription.status === 'trialing') {
+        return t('settings.team.trialAccessUntil', { date: endsOn });
     }
 
-    return t(`subscription.status.${subscription.status}`);
+    if (subscription.status === 'grace') {
+        return t('settings.team.graceAccessUntil', { date: endsOn });
+    }
+
+    if (subscription.status === 'read_only') {
+        return t('settings.team.readOnlyAccess');
+    }
+
+    return t('settings.team.accessUntil', { date: endsOn });
 }
 
 export function TeamAccessTab({ canManageTeam, subscription, t }: TeamAccessTabProps) {
@@ -543,14 +545,11 @@ export function TeamAccessTab({ canManageTeam, subscription, t }: TeamAccessTabP
                             <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                                 <div className="space-y-1">
                                     <p className="text-sm font-medium text-slate-900">
-                                        {t('settings.team.planSummary', {
-                                            plan: getSubscriptionPlanLabel(subscription, t),
-                                            status: getSubscriptionStatusLabel(subscription, t),
-                                        })}
+                                        {getSubscriptionAccessSummary(subscription, subscriptionEndsOn, t)}
                                     </p>
-                                    {subscriptionEndsOn ? (
+                                    {subscriptionEndsOn && subscription?.status !== 'read_only' ? (
                                         <p className="text-xs text-slate-600">
-                                            {t('admin.subscription.endsOn', {
+                                            {t('settings.team.accessDateLine', {
                                                 date: subscriptionEndsOn,
                                             })}
                                         </p>

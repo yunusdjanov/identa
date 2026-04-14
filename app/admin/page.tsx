@@ -115,7 +115,7 @@ function getSubscriptionPlanLabel(
         return t('admin.subscription.notConfigured');
     }
 
-    return t(`subscription.plan.${subscription.plan}`);
+    return t(`admin.subscription.plan.${subscription.plan}`);
 }
 
 function getSubscriptionStatusLabel(
@@ -611,20 +611,15 @@ export default function AdminDashboardPage() {
                                                     </TableCell>
                                                     <TableCell className="min-w-[15rem]">
                                                         <div className="space-y-2">
-                                                            <div className="flex flex-wrap gap-2">
-                                                                <Badge variant="outline">
-                                                                    {getSubscriptionPlanLabel(account.subscription, t)}
-                                                                </Badge>
-                                                                <Badge
-                                                                    variant="secondary"
-                                                                    className={getSubscriptionStatusBadgeClass(account.subscription.status)}
-                                                                >
-                                                                    {getSubscriptionStatusLabel(account.subscription, t)}
-                                                                </Badge>
-                                                            </div>
+                                                            <p className="text-sm font-medium text-gray-900">
+                                                                {t('admin.subscription.planSummary', {
+                                                                    plan: getSubscriptionPlanLabel(account.subscription, t),
+                                                                    status: getSubscriptionStatusLabel(account.subscription, t),
+                                                                })}
+                                                            </p>
                                                             <p className="text-xs text-gray-600">
                                                                 {account.subscription.ends_at
-                                                                    ? t('admin.subscription.endsOn', {
+                                                                    ? t('admin.subscription.paidUntil', {
                                                                         date: formatLocalizedDate(
                                                                             account.subscription.ends_at,
                                                                             locale,
@@ -1009,11 +1004,26 @@ export default function AdminDashboardPage() {
                                         {t('common.doctorPrefix')} {subscriptionDialog.account.name}
                                     </p>
                                     <p className="mt-1">
-                                        {t('admin.subscription.currentSummary', {
+                                        {t('admin.subscription.planSummary', {
                                             plan: getSubscriptionPlanLabel(subscriptionDialog.account.subscription, t),
                                             status: getSubscriptionStatusLabel(subscriptionDialog.account.subscription, t),
                                         })}
                                     </p>
+                                    {subscriptionDialog.account.subscription.ends_at ? (
+                                        <p className="mt-1 text-xs text-slate-600">
+                                            {t('admin.subscription.paidUntil', {
+                                                date: formatLocalizedDate(
+                                                    subscriptionDialog.account.subscription.ends_at,
+                                                    locale,
+                                                    {
+                                                        year: 'numeric',
+                                                        month: 'short',
+                                                        day: 'numeric',
+                                                    }
+                                                ),
+                                            })}
+                                        </p>
+                                    ) : null}
                                 </div>
                             ) : null}
 
