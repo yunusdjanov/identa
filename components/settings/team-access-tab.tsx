@@ -49,10 +49,6 @@ const PERMISSION_OPTIONS = [
     { code: 'patients.manage', labelKey: 'settings.team.permissionPatientsManage' },
     { code: 'appointments.view', labelKey: 'settings.team.permissionAppointmentsView' },
     { code: 'appointments.manage', labelKey: 'settings.team.permissionAppointmentsManage' },
-    { code: 'invoices.view', labelKey: 'settings.team.permissionInvoicesView' },
-    { code: 'invoices.manage', labelKey: 'settings.team.permissionInvoicesManage' },
-    { code: 'payments.view', labelKey: 'settings.team.permissionPaymentsView' },
-    { code: 'payments.manage', labelKey: 'settings.team.permissionPaymentsManage' },
     { code: 'odontogram.view', labelKey: 'settings.team.permissionOdontogramView' },
     { code: 'odontogram.manage', labelKey: 'settings.team.permissionOdontogramManage' },
     { code: 'treatments.view', labelKey: 'settings.team.permissionTreatmentsView' },
@@ -67,10 +63,6 @@ const DEFAULT_ASSISTANT_PERMISSIONS = [
     'patients.manage',
     'appointments.view',
     'appointments.manage',
-    'invoices.view',
-    'invoices.manage',
-    'payments.view',
-    'payments.manage',
     'odontogram.view',
     'odontogram.manage',
     'treatments.view',
@@ -834,7 +826,7 @@ export function TeamAccessTab({ canManageTeam, subscription, t }: TeamAccessTabP
                                             <p className="text-xs text-red-600">{resolvedPasswordError}</p>
                                         ) : null}
                                     </div>
-                                    <div className="space-y-2 md:col-span-2">
+                                    <div className="space-y-2">
                                         <Label htmlFor="assistant-password-confirmation">
                                             {t('settings.team.passwordConfirm')} <span className="text-red-500">*</span>
                                         </Label>
@@ -918,25 +910,27 @@ export function TeamAccessTab({ canManageTeam, subscription, t }: TeamAccessTabP
                         <DialogTitle>{t('settings.team.resetPassword')}</DialogTitle>
                     </DialogHeader>
                     <div className="space-y-4">
-                        <div className="space-y-2">
-                            <Label htmlFor="assistant-reset-password">{t('settings.team.password')}</Label>
-                            <Input
-                                id="assistant-reset-password"
-                                type="password"
-                                value={resetPasswordValue}
-                                onChange={(event) => setResetPasswordValue(event.target.value)}
-                            />
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="assistant-reset-password-confirm">
-                                {t('settings.team.passwordConfirm')}
-                            </Label>
-                            <Input
-                                id="assistant-reset-password-confirm"
-                                type="password"
-                                value={resetPasswordConfirmation}
-                                onChange={(event) => setResetPasswordConfirmation(event.target.value)}
-                            />
+                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                            <div className="space-y-2">
+                                <Label htmlFor="assistant-reset-password">{t('settings.team.password')}</Label>
+                                <Input
+                                    id="assistant-reset-password"
+                                    type="password"
+                                    value={resetPasswordValue}
+                                    onChange={(event) => setResetPasswordValue(event.target.value)}
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="assistant-reset-password-confirm">
+                                    {t('settings.team.passwordConfirm')}
+                                </Label>
+                                <Input
+                                    id="assistant-reset-password-confirm"
+                                    type="password"
+                                    value={resetPasswordConfirmation}
+                                    onChange={(event) => setResetPasswordConfirmation(event.target.value)}
+                                />
+                            </div>
                         </div>
                         <div className="flex justify-end gap-2">
                             <Button

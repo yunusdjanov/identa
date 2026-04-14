@@ -961,6 +961,10 @@ export interface DashboardSnapshot {
     todayAppointments: DashboardAppointmentView[];
 }
 
+interface DashboardSnapshotOptions {
+    includeFinancials?: boolean;
+}
+
 function getDurationMinutes(startTime: string, endTime: string): number {
     const [startHour, startMinute] = startTime.split(':').map(Number);
     const [endHour, endMinute] = endTime.split(':').map(Number);
@@ -968,22 +972,39 @@ function getDurationMinutes(startTime: string, endTime: string): number {
     return Math.max(0, endHour * 60 + endMinute - (startHour * 60 + startMinute));
 }
 
-export async function getDashboardSnapshot(): Promise<DashboardSnapshot> {
+export async function getDashboardSnapshot(
+    options: DashboardSnapshotOptions = {}
+): Promise<DashboardSnapshot> {
+    const includeFinancials = options.includeFinancials ?? true;
     const today = format(new Date(), 'yyyy-MM-dd');
-    const monthStart = format(startOfMonth(new Date()), 'yyyy-MM-dd');
-    const monthEnd = format(endOfMonth(new Date()), 'yyyy-MM-dd');
+    const appointmentsResponse = await listAppointments({
+        page: 1,
+        perPage: 100,
+        sort: 'start_time',
+        filter: {
+            date_from: today,
+            date_to: today,
+        },
+    });
+    const appointments = appointmentsResponse.data;
 
-    const [appointmentsResponse, invoicesResponse, paymentsResponse] =
-        await Promise.all([
-            listAppointments({
-                page: 1,
-                perPage: 100,
-                sort: 'start_time',
-                filter: {
-                    date_from: today,
-                    date_to: today,
-                },
-            }),
+    const todayAppointments = appointments.map((appointment) => ({
+        id: appointment.id,
+        patientName: appointment.patient_name ?? 'Unknown patient',
+        appointmentDate: appointment.appointment_date,
+        startTime: appointment.start_time,
+        durationMinutes: getDurationMinutes(appointment.start_time, appointment.end_time),
+        status: appointment.status,
+        reason: appointment.notes ?? undefined,
+    }));
+
+    let revenueThisMonth = 0;
+    let outstandingDebtTotal = 0;
+
+    if (includeFinancials) {
+        const monthStart = format(startOfMonth(new Date()), 'yyyy-MM-dd');
+        const monthEnd = format(endOfMonth(new Date()), 'yyyy-MM-dd');
+        const [invoicesResponse, paymentsResponse] = await Promise.all([
             listInvoices({
                 page: 1,
                 perPage: 1,
@@ -997,30 +1018,20 @@ export async function getDashboardSnapshot(): Promise<DashboardSnapshot> {
                 },
             }),
         ]);
-    const appointments = appointmentsResponse.data;
-    const invoices = invoicesResponse.data;
-    const payments = paymentsResponse.data;
+        const invoices = invoicesResponse.data;
+        const payments = paymentsResponse.data;
+        const invoiceSummary = invoicesResponse.meta?.summary;
+        const paymentSummary = paymentsResponse.meta?.summary;
 
-    const todayAppointments = appointments.map((appointment) => ({
-        id: appointment.id,
-        patientName: appointment.patient_name ?? 'Unknown patient',
-        appointmentDate: appointment.appointment_date,
-        startTime: appointment.start_time,
-        durationMinutes: getDurationMinutes(appointment.start_time, appointment.end_time),
-        status: appointment.status,
-        reason: appointment.notes ?? undefined,
-    }));
-
-    const invoiceSummary = invoicesResponse.meta?.summary;
-    const paymentSummary = paymentsResponse.meta?.summary;
-    const revenueThisMonth = Number(
-        paymentSummary?.total_amount
-        ?? payments.reduce((sum, payment) => sum + Number(payment.amount), 0)
-    );
-    const outstandingDebtTotal = Number(
-        invoiceSummary?.outstanding_total
-        ?? invoices.reduce((sum, invoice) => sum + Number(invoice.balance), 0)
-    );
+        revenueThisMonth = Number(
+            paymentSummary?.total_amount
+            ?? payments.reduce((sum, payment) => sum + Number(payment.amount), 0)
+        );
+        outstandingDebtTotal = Number(
+            invoiceSummary?.outstanding_total
+            ?? invoices.reduce((sum, invoice) => sum + Number(invoice.balance), 0)
+        );
+    }
 
     return {
         revenueThisMonth,

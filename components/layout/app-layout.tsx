@@ -43,9 +43,24 @@ import { SubscriptionBanner } from '@/components/layout/subscription-banner';
 
 const navigation = [
     { key: 'nav.dashboard', href: '/dashboard', icon: LayoutDashboard },
-    { key: 'nav.patients', href: '/patients', icon: Users },
-    { key: 'nav.appointments', href: '/appointments', icon: Calendar },
-    { key: 'nav.payments', href: '/payments', icon: CreditCard },
+    {
+        key: 'nav.patients',
+        href: '/patients',
+        icon: Users,
+        assistantPermissions: ['patients.view', 'patients.manage'],
+    },
+    {
+        key: 'nav.appointments',
+        href: '/appointments',
+        icon: Calendar,
+        assistantPermissions: ['appointments.view', 'appointments.manage'],
+    },
+    {
+        key: 'nav.payments',
+        href: '/payments',
+        icon: CreditCard,
+        assistantPermissions: ['treatments.view', 'treatments.manage'],
+    },
 ];
 
 function useIsHydrated() {
@@ -157,6 +172,18 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         currentUser && (currentUser.role === 'dentist' || assistantPermissions.has('audit_logs.view'))
     );
     const canOpenStaff = Boolean(currentUser && (canManageTeam || canViewAuditLogs));
+    const visibleNavigation = navigation.filter((item) => {
+        if (!currentUser || currentUser.role === 'dentist') {
+            return true;
+        }
+
+        if (currentUser.role !== 'assistant') {
+            return false;
+        }
+
+        return !item.assistantPermissions
+            || item.assistantPermissions.some((permission) => assistantPermissions.has(permission));
+    });
     const showHeaderSkeleton = !isMounted || isUserLoading;
 
     return (
@@ -193,7 +220,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
                                 {/* Navigation */}
                                 <nav className="hidden md:flex space-x-1">
-                                    {navigation.map((item) => {
+                                    {visibleNavigation.map((item) => {
                                         const isActive = isActiveRoute(item.href);
                                         const Icon = item.icon;
                                         return (
@@ -318,7 +345,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                 ) : (
                     <div className="md:hidden border-t border-gray-200">
                         <nav className="flex justify-around py-2">
-                            {navigation.map((item) => {
+                            {visibleNavigation.map((item) => {
                                 const isActive = isActiveRoute(item.href);
                                 const Icon = item.icon;
                                 return (

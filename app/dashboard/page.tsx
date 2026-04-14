@@ -116,13 +116,42 @@ export default function DashboardPage() {
         retry: false,
         staleTime: 5 * 60_000,
     });
+    const currentUser = currentUserQuery.data;
+    const assistantPermissions = new Set(currentUser?.assistant_permissions ?? []);
+    const canViewFinance = currentUser?.role === 'dentist';
+    const canCreatePatients = Boolean(
+        currentUser
+        && (currentUser.role === 'dentist' || assistantPermissions.has('patients.manage'))
+    );
+    const canManageAppointments = Boolean(
+        currentUser
+        && (currentUser.role === 'dentist' || assistantPermissions.has('appointments.manage'))
+    );
 
     const dashboardQuery = useQuery({
-        queryKey: ['dashboard', 'snapshot'],
-        queryFn: getDashboardSnapshot,
+        queryKey: ['dashboard', 'snapshot', canViewFinance ? 'finance' : 'standard'],
+        queryFn: () => getDashboardSnapshot({ includeFinancials: canViewFinance }),
+        enabled: Boolean(currentUser),
     });
 
-    if (dashboardQuery.isLoading || (currentUserQuery.isLoading && !currentUserQuery.data)) {
+    if (currentUserQuery.isLoading) {
+        return <DashboardLoadingSkeleton />;
+    }
+
+    if (currentUserQuery.isError || !currentUser) {
+        return (
+            <div className="space-y-4">
+                <p className="text-sm text-red-600">
+                    {getApiErrorMessage(currentUserQuery.error, t('dashboard.error'))}
+                </p>
+                <Button variant="outline" onClick={() => currentUserQuery.refetch()}>
+                    {t('common.retry')}
+                </Button>
+            </div>
+        );
+    }
+
+    if (dashboardQuery.isLoading) {
         return <DashboardLoadingSkeleton />;
     }
 
@@ -143,7 +172,6 @@ export default function DashboardPage() {
     const nowTimeKey = isClient
         ? `${String(new Date().getHours()).padStart(2, '0')}:${String(new Date().getMinutes()).padStart(2, '0')}`
         : '00:00';
-    const canViewFinance = currentUserQuery.data?.role === 'dentist';
     const allTodayAppointments = [...stats.todayAppointments]
         .sort((a, b) => a.startTime.localeCompare(b.startTime));
     const scheduledTodayAppointments = allTodayAppointments
@@ -169,20 +197,26 @@ export default function DashboardPage() {
                 <div>
                     <h1 className="text-[2rem] font-bold leading-tight text-gray-900 md:text-3xl">{t('dashboard.title')}</h1>
                 </div>
-                <div className="flex flex-wrap gap-2">
-                    <Link href="/patients?action=new">
-                        <Button size="sm">
-                            <Plus className="w-4 h-4 mr-2" />
-                            {t('dashboard.addPatient')}
-                        </Button>
-                    </Link>
-                    <Link href="/appointments?action=new">
-                        <Button variant="outline" size="sm">
-                            <Calendar className="w-4 h-4 mr-2" />
-                            {t('dashboard.newAppointment')}
-                        </Button>
-                    </Link>
-                </div>
+                {(canCreatePatients || canManageAppointments) ? (
+                    <div className="flex flex-wrap gap-2">
+                        {canCreatePatients ? (
+                            <Link href="/patients?action=new">
+                                <Button size="sm">
+                                    <Plus className="w-4 h-4 mr-2" />
+                                    {t('dashboard.addPatient')}
+                                </Button>
+                            </Link>
+                        ) : null}
+                        {canManageAppointments ? (
+                            <Link href="/appointments?action=new">
+                                <Button variant="outline" size="sm">
+                                    <Calendar className="w-4 h-4 mr-2" />
+                                    {t('dashboard.newAppointment')}
+                                </Button>
+                            </Link>
+                        ) : null}
+                    </div>
+                ) : null}
             </div>
 
             <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
