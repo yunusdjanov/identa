@@ -274,7 +274,7 @@ interface Invoice {
 
 #### Admin Authentication
 - **Admin Login** (`/admin/login`): Email/password
-- **Demo Credentials:** `admin@identa.uz` / `admin123`
+- **Demo Credentials:** `admin@identa.uz` / `password123`
 
 ---
 

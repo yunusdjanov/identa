@@ -14,12 +14,29 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class PatientController extends Controller
 {
+    private const IMAGE_VARIANT_THUMBNAIL = 'thumbnail';
+    private const IMAGE_VARIANT_PREVIEW = 'preview';
+    private const THUMBNAIL_MAX_EDGE = 160;
+    private const PREVIEW_MAX_EDGE = 960;
+    private const JPEG_VARIANT_QUALITY = 82;
+    private const WEBP_VARIANT_QUALITY = 80;
+
+    /**
+     * @var array<string, int>
+     */
+    private const IMAGE_VARIANT_MAX_EDGES = [
+        self::IMAGE_VARIANT_THUMBNAIL => self::THUMBNAIL_MAX_EDGE,
+        self::IMAGE_VARIANT_PREVIEW => self::PREVIEW_MAX_EDGE,
+    ];
+
     public function __construct(
         private readonly AuditLogger $auditLogger,
     ) {
@@ -205,8 +222,11 @@ class PatientController extends Controller
         /** @var UploadedFile $uploadedPhoto */
         $uploadedPhoto = $validated['photo'];
         $disk = $this->patientPhotoDisk();
-        $storedPath = $uploadedPhoto->store(
-            sprintf('patients/%s/%s', $patient->dentist_id, $patient->id),
+        $directory = sprintf('patients/%s/%s', $patient->dentist_id, $patient->id);
+        $extension = strtolower($uploadedPhoto->getClientOriginalExtension() ?: $uploadedPhoto->extension() ?: 'jpg');
+        $storedPath = $uploadedPhoto->storeAs(
+            $directory,
+            sprintf('%s.%s', Str::uuid()->toString(), $extension),
             $disk
         );
 
@@ -216,6 +236,7 @@ class PatientController extends Controller
             ]);
         }
 
+        $this->generatePatientPhotoVariants($disk, $storedPath);
         $this->deletePatientPhotoFile($patient);
         $patient->forceFill([
             'photo_disk' => $disk,
@@ -247,17 +268,21 @@ class PatientController extends Controller
         $disk = is_string($patient->photo_disk) && $patient->photo_disk !== ''
             ? $patient->photo_disk
             : $this->patientPhotoDisk();
-        if (! Storage::disk($disk)->exists($photoPath)) {
+        $variant = $request->query('variant');
+        $variant = is_string($variant) && $variant !== '' ? $variant : null;
+        $resolvedPath = $this->resolvePatientPhotoPath($disk, $photoPath, $variant);
+        if (! Storage::disk($disk)->exists($resolvedPath)) {
             abort(404);
         }
 
-        $mimeType = Storage::disk($disk)->mimeType($photoPath) ?: 'application/octet-stream';
+        $mimeType = Storage::disk($disk)->mimeType($resolvedPath) ?: 'application/octet-stream';
 
         return Storage::disk($disk)->response(
-            $photoPath,
-            basename($photoPath),
+            $resolvedPath,
+            basename($resolvedPath),
             [
                 'Content-Type' => $mimeType,
+                'Cache-Control' => 'private, max-age=300',
             ]
         );
     }
@@ -449,6 +474,8 @@ class PatientController extends Controller
             'allergies' => $patient->allergies,
             'current_medications' => $patient->current_medications,
             'photo_url' => $this->resolvePatientPhotoUrl($patient, $request),
+            'photo_thumbnail_url' => $this->resolvePatientPhotoUrl($patient, $request, self::IMAGE_VARIANT_THUMBNAIL),
+            'photo_preview_url' => $this->resolvePatientPhotoUrl($patient, $request, self::IMAGE_VARIANT_PREVIEW),
             'created_at' => $patient->created_at?->toIso8601String(),
             'is_archived' => $patient->trashed(),
             'archived_at' => $patient->deleted_at?->toIso8601String(),
@@ -466,7 +493,11 @@ class PatientController extends Controller
         ];
     }
 
-    private function resolvePatientPhotoUrl(Patient $patient, ?Request $request = null): ?string
+    private function resolvePatientPhotoUrl(
+        Patient $patient,
+        ?Request $request = null,
+        ?string $variant = null
+    ): ?string
     {
         if (! is_string($patient->photo_path) || $patient->photo_path === '') {
             return null;
@@ -476,8 +507,13 @@ class PatientController extends Controller
             ? $request->getSchemeAndHttpHost()
             : rtrim((string) config('app.url'), '/');
         $version = (string) ($patient->updated_at?->getTimestamp() ?? 0);
+        $url = sprintf('%s/api/v1/patients/%s/photo?v=%s', $baseUrl, $patient->id, $version);
 
-        return sprintf('%s/api/v1/patients/%s/photo?v=%s', $baseUrl, $patient->id, $version);
+        if ($variant === null) {
+            return $url;
+        }
+
+        return $url.'&variant='.$variant;
     }
 
     private function applyLastVisitAggregates(Builder $query): Builder
@@ -591,14 +627,117 @@ class PatientController extends Controller
         $disk = is_string($patient->photo_disk) && $patient->photo_disk !== ''
             ? $patient->photo_disk
             : $this->patientPhotoDisk();
-        if (Storage::disk($disk)->exists($patient->photo_path)) {
-            Storage::disk($disk)->delete($patient->photo_path);
-        }
+        Storage::disk($disk)->delete([
+            $patient->photo_path,
+            $this->buildPatientPhotoVariantPath($patient->photo_path, self::IMAGE_VARIANT_THUMBNAIL),
+            $this->buildPatientPhotoVariantPath($patient->photo_path, self::IMAGE_VARIANT_PREVIEW),
+        ]);
     }
 
     private function patientPhotoDisk(): string
     {
         return (string) config('filesystems.media_disk', 'local');
+    }
+
+    private function resolvePatientPhotoPath(string $disk, string $path, ?string $variant): string
+    {
+        if ($variant === null) {
+            return $path;
+        }
+
+        if (! array_key_exists($variant, self::IMAGE_VARIANT_MAX_EDGES)) {
+            abort(404);
+        }
+
+        $variantPath = $this->buildPatientPhotoVariantPath($path, $variant);
+
+        return Storage::disk($disk)->exists($variantPath) ? $variantPath : $path;
+    }
+
+    private function buildPatientPhotoVariantPath(string $path, string $variant): string
+    {
+        $directory = pathinfo($path, PATHINFO_DIRNAME);
+        $filename = pathinfo($path, PATHINFO_FILENAME);
+        $extension = pathinfo($path, PATHINFO_EXTENSION) ?: 'jpg';
+
+        return sprintf('%s/variants/%s-%s.%s', $directory, $filename, $variant, $extension);
+    }
+
+    private function generatePatientPhotoVariants(string $disk, string $path): void
+    {
+        if (! function_exists('imagecreatefromstring') || ! function_exists('imagecreatetruecolor')) {
+            return;
+        }
+
+        try {
+            $contents = Storage::disk($disk)->get($path);
+            $source = @imagecreatefromstring($contents);
+            if (! is_object($source) && ! is_resource($source)) {
+                return;
+            }
+
+            foreach (self::IMAGE_VARIANT_MAX_EDGES as $variant => $maxEdge) {
+                $encodedVariant = $this->encodePatientPhotoVariant($source, $path, $maxEdge);
+                if ($encodedVariant === null) {
+                    continue;
+                }
+
+                Storage::disk($disk)->put(
+                    $this->buildPatientPhotoVariantPath($path, $variant),
+                    $encodedVariant
+                );
+            }
+        } catch (\Throwable $exception) {
+            Log::warning('Patient photo variant generation failed.', [
+                'exception' => $exception::class,
+            ]);
+        } finally {
+            if (isset($source) && (is_object($source) || is_resource($source))) {
+                imagedestroy($source);
+            }
+        }
+    }
+
+    private function encodePatientPhotoVariant(mixed $source, string $path, int $maxEdge): ?string
+    {
+        $sourceWidth = imagesx($source);
+        $sourceHeight = imagesy($source);
+        if ($sourceWidth <= 0 || $sourceHeight <= 0) {
+            return null;
+        }
+
+        $ratio = min(1, $maxEdge / max($sourceWidth, $sourceHeight));
+        if ($ratio >= 1) {
+            return null;
+        }
+
+        $targetWidth = max(1, (int) round($sourceWidth * $ratio));
+        $targetHeight = max(1, (int) round($sourceHeight * $ratio));
+
+        $target = imagecreatetruecolor($targetWidth, $targetHeight);
+        if (! is_object($target) && ! is_resource($target)) {
+            return null;
+        }
+
+        imagealphablending($target, false);
+        imagesavealpha($target, true);
+        imagecopyresampled($target, $source, 0, 0, 0, 0, $targetWidth, $targetHeight, $sourceWidth, $sourceHeight);
+
+        $extension = strtolower(pathinfo($path, PATHINFO_EXTENSION) ?: 'jpg');
+
+        try {
+            ob_start();
+            $encoded = match ($extension) {
+                'png' => imagepng($target, null, 7),
+                'webp' => function_exists('imagewebp') ? imagewebp($target, null, self::WEBP_VARIANT_QUALITY) : false,
+                default => imagejpeg($target, null, self::JPEG_VARIANT_QUALITY),
+            };
+            $contents = ob_get_clean();
+
+            return $encoded && is_string($contents) && $contents !== '' ? $contents : null;
+        } finally {
+            imagedestroy($target);
+        }
     }
 
     private function generatePatientId(int $dentistId): string

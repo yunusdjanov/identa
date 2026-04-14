@@ -45,6 +45,7 @@ interface PatientRow {
     id: string;
     fullName: string;
     photoUrl?: string;
+    photoThumbnailUrl?: string;
     phone: string;
     secondaryPhone?: string;
     dateOfBirth?: string;
@@ -58,6 +59,7 @@ function mapPatientRow(patient: ApiPatient): PatientRow {
         id: patient.id,
         fullName: patient.full_name,
         photoUrl: patient.photo_url ?? undefined,
+        photoThumbnailUrl: patient.photo_thumbnail_url ?? patient.photo_url ?? undefined,
         phone: extractPrimaryPhone(patient.phone),
         secondaryPhone: patient.secondary_phone ?? undefined,
         dateOfBirth: patient.date_of_birth ?? undefined,
@@ -277,19 +279,23 @@ export default function PatientsPage() {
 
     return (
         <div className="space-y-8">
-            <div className="flex justify-between items-center">
-                <div>
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="min-w-0">
                     <h1 className="text-3xl font-bold text-gray-900">{t('patients.title')}</h1>
                     <p className="text-gray-500 mt-1">
                         {t('patients.subtitle')}
                     </p>
                 </div>
-                <div className="flex items-center gap-2">
-                    <Button variant="outline" onClick={() => setIsManageCategoriesOpen(true)}>
+                <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center sm:justify-end">
+                    <Button
+                        variant="outline"
+                        className="w-full sm:w-auto"
+                        onClick={() => setIsManageCategoriesOpen(true)}
+                    >
                         <Tags className="w-4 h-4 mr-2" />
                         {t('patients.categories')}
                     </Button>
-                    <Button onClick={() => setIsAddDialogOpen(true)}>
+                    <Button className="w-full sm:w-auto" onClick={() => setIsAddDialogOpen(true)}>
                         <Plus className="w-4 h-4 mr-2" />
                         {t('patients.addPatient')}
                     </Button>
@@ -469,9 +475,9 @@ export default function PatientsPage() {
                                                 {patient.photoUrl ? (
                                                     <Avatar className="h-9 w-9">
                                                         <AvatarImage
-                                                            src={patient.photoUrl}
+                                                            src={patient.photoThumbnailUrl ?? patient.photoUrl}
                                                             alt={patient.fullName}
-                                                            crossOrigin={getProtectedMediaCrossOrigin(patient.photoUrl)}
+                                                            crossOrigin={getProtectedMediaCrossOrigin(patient.photoThumbnailUrl ?? patient.photoUrl)}
                                                         />
                                                         <AvatarFallback className="bg-slate-100 text-slate-700 text-xs font-semibold">
                                                             {getPatientInitials(patient.fullName)}

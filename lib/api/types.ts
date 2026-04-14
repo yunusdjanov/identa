@@ -69,6 +69,8 @@ export interface ApiPatient {
     allergies?: string | null;
     current_medications?: string | null;
     photo_url?: string | null;
+    photo_thumbnail_url?: string | null;
+    photo_preview_url?: string | null;
     created_at?: string | null;
     last_visit_at?: string | null;
     is_archived?: boolean;

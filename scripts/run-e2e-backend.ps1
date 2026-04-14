@@ -33,8 +33,10 @@ $env:SESSION_SAME_SITE = "lax"
 
 Set-Location "$PSScriptRoot\..\backend"
 
-php artisan key:generate --force
-php artisan optimize:clear
-php artisan migrate:fresh --seed --force
+$phpCommand = (& "$PSScriptRoot\resolve-php.ps1" -Quiet).Trim()
+
+& $phpCommand artisan key:generate --force
+& $phpCommand artisan optimize:clear
+& $phpCommand artisan migrate:fresh --seed --force
 Set-Location ".\public"
-php -S "localhost:$Port" "..\vendor\laravel\framework\src\Illuminate\Foundation\resources\server.php"
+& $phpCommand -S "localhost:$Port" "..\vendor\laravel\framework\src\Illuminate\Foundation\resources\server.php"

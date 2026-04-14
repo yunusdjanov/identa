@@ -3,12 +3,13 @@ $ErrorActionPreference = "Stop"
 Set-Location "$PSScriptRoot\..\backend"
 
 $phpCommand = (& "$PSScriptRoot\resolve-php.ps1" -Quiet).Trim()
+$composerCommand = (& "$PSScriptRoot\resolve-composer.ps1" -Quiet).Trim()
 
 if (-not (Test-Path ".env")) {
     Copy-Item ".env.example" ".env"
 }
 
-composer install
+& $composerCommand install
 & $phpCommand artisan key:generate --force
 & $phpCommand artisan migrate --force
 & $phpCommand artisan optimize:clear

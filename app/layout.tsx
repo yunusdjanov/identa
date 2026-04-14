@@ -12,6 +12,10 @@ const inter = Inter({ subsets: ["latin"] });
 export const metadata: Metadata = {
   title: "Identa - Practice Management",
   description: "Solo dentist practice management system",
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL ?? "https://identa.uz"),
+  alternates: {
+    canonical: "/",
+  },
 };
 
 export default async function RootLayout({

@@ -377,18 +377,33 @@ class PatientApiTest extends TestCase
             ])
             ->assertOk()
             ->assertJsonPath('data.id', (string) $patient->id)
-            ->assertJsonPath('data.photo_url', fn ($value): bool => is_string($value) && $value !== '');
+            ->assertJsonPath('data.photo_url', fn ($value): bool => is_string($value) && $value !== '')
+            ->assertJsonPath('data.photo_thumbnail_url', fn ($value): bool => is_string($value) && str_contains($value, 'variant=thumbnail'))
+            ->assertJsonPath('data.photo_preview_url', fn ($value): bool => is_string($value) && str_contains($value, 'variant=preview'));
 
         $downloadResponse = $this->actingAs($dentist, 'web')
             ->get("/api/v1/patients/{$patient->id}/photo");
         $downloadResponse->assertOk();
         $this->assertStringContainsString('image/', (string) $downloadResponse->headers->get('Content-Type'));
+        $this->assertSame('private, max-age=300', (string) $downloadResponse->headers->get('Cache-Control'));
+
+        $thumbnailResponse = $this->actingAs($dentist, 'web')
+            ->get("/api/v1/patients/{$patient->id}/photo?variant=thumbnail");
+        $thumbnailResponse->assertOk();
+        $this->assertStringContainsString('image/', (string) $thumbnailResponse->headers->get('Content-Type'));
+
+        $previewResponse = $this->actingAs($dentist, 'web')
+            ->get("/api/v1/patients/{$patient->id}/photo?variant=preview");
+        $previewResponse->assertOk();
+        $this->assertStringContainsString('image/', (string) $previewResponse->headers->get('Content-Type'));
 
         $this->actingAs($dentist, 'web')
             ->deleteJson("/api/v1/patients/{$patient->id}/photo")
             ->assertOk()
             ->assertJsonPath('data.id', (string) $patient->id)
-            ->assertJsonPath('data.photo_url', null);
+            ->assertJsonPath('data.photo_url', null)
+            ->assertJsonPath('data.photo_thumbnail_url', null)
+            ->assertJsonPath('data.photo_preview_url', null);
     }
 
     public function test_dentist_can_filter_inactive_patients_by_last_visit_threshold(): void

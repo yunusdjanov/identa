@@ -55,6 +55,7 @@ tmp-*.js
 
 # local backups
 /backups/
+/.codex-tmp/
 
 # backend local runtime data
 backend/database/*.sqlite

@@ -299,9 +299,11 @@ export default function PatientDetailPage({
                     <Avatar className="h-14 w-14 border border-slate-200">
                         {patient.photo_url ? (
                             <AvatarImage
-                                src={patient.photo_url}
+                                src={patient.photo_thumbnail_url ?? patient.photo_preview_url ?? patient.photo_url}
                                 alt={patient.full_name}
-                                crossOrigin={getProtectedMediaCrossOrigin(patient.photo_url)}
+                                crossOrigin={getProtectedMediaCrossOrigin(
+                                    patient.photo_thumbnail_url ?? patient.photo_preview_url ?? patient.photo_url
+                                )}
                             />
                         ) : null}
                         <AvatarFallback className="bg-slate-100 text-sm font-semibold text-slate-700">

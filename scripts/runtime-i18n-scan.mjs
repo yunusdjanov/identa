@@ -66,10 +66,17 @@ async function run() {
       ]);
     }
 
-    await page.goto(`${baseUrl}/login`, { waitUntil: 'domcontentloaded' });
+    await page.goto(`${baseUrl}/login`, { waitUntil: 'networkidle' });
     await page.fill('input[type="email"]', email);
     await page.fill('input[type="password"]', password);
+    const loginResponsePromise = page.waitForResponse(
+      (response) =>
+        response.url().includes('/api/v1/auth/login')
+        && response.request().method() === 'POST',
+      { timeout: 20_000 }
+    );
     await page.click('button[type="submit"]');
+    await loginResponsePromise;
     await page.waitForURL('**/dashboard', { timeout: 20000 });
 
     const report = {};

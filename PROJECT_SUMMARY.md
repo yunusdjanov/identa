@@ -241,7 +241,7 @@ npm run dev
 
 **Demo Credentials:**
 - **Dentist:** Click "Continue with Google" (mock)
-- **Admin:** admin@identa.uz / admin123
+- **Admin:** admin@identa.uz / password123
 
 ---
 

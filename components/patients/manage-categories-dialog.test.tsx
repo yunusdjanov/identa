@@ -80,7 +80,7 @@ describe('ManageCategoriesDialog', () => {
             expect(screen.getByText('Priority')).toBeInTheDocument();
         });
 
-        await user.type(screen.getByLabelText(/^Name$/i), 'VIP');
+        await user.type(screen.getByLabelText(/Name/i), 'VIP');
         await user.click(screen.getByRole('button', { name: /^Add$/i }));
 
         await waitFor(() => {

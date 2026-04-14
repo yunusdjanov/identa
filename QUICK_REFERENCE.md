@@ -41,7 +41,7 @@ npm run dev
 4. Invoice status updated
 
 ### Add Dentist (Admin)
-1. Login to `/admin/login` (admin@identa.uz / admin123)
+1. Login to `/admin/login` (admin@identa.uz / password123)
 2. Click "Create" button
 3. Fill dentist details → Submit
 

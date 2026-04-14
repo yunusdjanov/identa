@@ -5,8 +5,8 @@ import { cn } from '@/lib/utils';
 type DataTableVariant = 'standard' | 'history';
 
 const SHELL_VARIANT_CLASS: Record<DataTableVariant, string> = {
-    standard: 'overflow-x-auto rounded-xl border border-gray-200 bg-white',
-    history: 'overflow-x-auto rounded-2xl border border-gray-200 bg-white',
+    standard: 'min-w-0 max-w-full overflow-x-auto rounded-xl border border-gray-200 bg-white',
+    history: 'min-w-0 max-w-full overflow-x-auto rounded-2xl border border-gray-200 bg-white',
 };
 
 const TABLE_VARIANT_CLASS: Record<DataTableVariant, string> = {

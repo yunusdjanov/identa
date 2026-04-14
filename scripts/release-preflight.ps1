@@ -22,17 +22,19 @@ Invoke-Step -Name "Dependency Security Audit" -Action {
     npm run quality:security
 }
 
-Invoke-Step -Name "Secrets Preflight" -Action {
-    npm run check:secrets
-}
-
 if ($Production) {
+    Invoke-Step -Name "Secrets Preflight (Production)" -Action {
+        npx @railway/cli ssh -s identa -e production php artisan security:check-secrets
+    }
+
     Invoke-Step -Name "Runtime Security Policy (Production)" -Action {
-        Set-Location "$PSScriptRoot\..\backend"
-        php artisan security:check-runtime --production
-        Set-Location "$PSScriptRoot\.."
+        npx @railway/cli ssh -s identa -e production php artisan security:check-runtime --production
     }
 } else {
+    Invoke-Step -Name "Secrets Preflight" -Action {
+        npm run check:secrets
+    }
+
     Invoke-Step -Name "Runtime Security Policy (Current Environment)" -Action {
         npm run check:runtime-security
     }

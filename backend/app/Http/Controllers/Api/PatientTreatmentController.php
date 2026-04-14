@@ -26,8 +26,10 @@ class PatientTreatmentController extends Controller
     private const MAX_IMAGES_PER_TREATMENT = 10;
     private const IMAGE_VARIANT_THUMBNAIL = 'thumbnail';
     private const IMAGE_VARIANT_PREVIEW = 'preview';
-    private const THUMBNAIL_MAX_EDGE = 240;
-    private const PREVIEW_MAX_EDGE = 1600;
+    private const THUMBNAIL_MAX_EDGE = 200;
+    private const PREVIEW_MAX_EDGE = 1280;
+    private const JPEG_VARIANT_QUALITY = 82;
+    private const WEBP_VARIANT_QUALITY = 80;
 
     /**
      * @var array<string, int>
@@ -709,9 +711,9 @@ class PatientTreatmentController extends Controller
         try {
             ob_start();
             $encoded = match ($extension) {
-                'png' => imagepng($target, null, 6),
-                'webp' => function_exists('imagewebp') ? imagewebp($target, null, 90) : false,
-                default => imagejpeg($target, null, 90),
+                'png' => imagepng($target, null, 7),
+                'webp' => function_exists('imagewebp') ? imagewebp($target, null, self::WEBP_VARIANT_QUALITY) : false,
+                default => imagejpeg($target, null, self::JPEG_VARIANT_QUALITY),
             };
             $contents = ob_get_clean();
 

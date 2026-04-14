@@ -135,16 +135,6 @@ function getSubscriptionStatusLabel(
     return t(`subscription.status.${subscription.status}`);
 }
 
-function getSubscriptionStatusBadgeClass(status: ApiSubscriptionSummary['status']): string {
-    return {
-        none: 'border-slate-300 text-slate-700',
-        trialing: 'bg-blue-100 text-blue-800 hover:bg-blue-100',
-        active: 'bg-green-100 text-green-800 hover:bg-green-100',
-        grace: 'bg-amber-100 text-amber-800 hover:bg-amber-100',
-        read_only: 'bg-red-100 text-red-800 hover:bg-red-100',
-    }[status];
-}
-
 function getSubscriptionActionLabel(
     action: AdminDentistSubscriptionAction,
     t: (key: string, variables?: Record<string, string | number>) => string
