@@ -2,7 +2,7 @@
 
 $configuredOrigins = (string) env(
     'FRONTEND_URLS',
-    env('FRONTEND_URL', 'http://localhost:3000,http://127.0.0.1:3000')
+    env('FRONTEND_URL', 'http://localhost:3000,http://127.0.0.1:3000,https://identa-dp8w4tfnr-yunusdjanovs-projects.vercel.app')
 );
 
 $allowedOrigins = array_values(array_filter(
