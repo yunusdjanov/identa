@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { cookies } from "next/headers";
+import { Analytics } from "@vercel/analytics/next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
 import { QueryProvider } from "@/components/providers/query-provider";
@@ -33,6 +35,8 @@ export default async function RootLayout({
           <I18nProvider initialLocale={locale}>
             {children}
             <Toaster />
+            <Analytics />
+            <SpeedInsights />
           </I18nProvider>
         </QueryProvider>
       </body>
