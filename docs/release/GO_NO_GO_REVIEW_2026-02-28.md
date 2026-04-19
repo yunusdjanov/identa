@@ -2,7 +2,7 @@
 
 ## Scope
 
-- Project: DentalFlow (frontend + Laravel backend)
+- Project: Identa (frontend + Laravel backend)
 - Review date: 2026-02-28
 - Context: Re-review after production hardening blocker implementation
 

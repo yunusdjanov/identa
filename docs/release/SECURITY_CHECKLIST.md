@@ -1,7 +1,7 @@
 # Security Checklist
 
 Date: 2026-02-15  
-Scope: DentalFlow frontend + Laravel backend (Phase 2 local-ready baseline)
+Scope: Identa frontend + Laravel backend (Phase 2 local-ready baseline)
 
 ## Checklist Status
 

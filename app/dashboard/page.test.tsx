@@ -41,7 +41,7 @@ describe('DashboardPage', () => {
         vi.mocked(getCurrentUser).mockResolvedValue({
             id: 1,
             name: 'Demo Dentist',
-            email: 'dentist@dentalflow.test',
+            email: 'dentist@identa.test',
             role: 'dentist',
         });
     });

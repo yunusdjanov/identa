@@ -27,7 +27,7 @@ $startedAt = microtime(true);
 
 $dentist = User::query()
     ->where('role', User::ROLE_DENTIST)
-    ->where('email', 'dentist@dentalflow.test')
+    ->where('email', 'dentist@identa.test')
     ->first();
 
 if (!$dentist) {
@@ -39,7 +39,7 @@ if (!$dentist) {
 if (!$dentist) {
     $dentist = User::factory()->create([
         'name' => 'Perf Dentist',
-        'email' => 'dentist@dentalflow.test',
+        'email' => 'dentist@identa.test',
         'password' => 'password123',
     ]);
 }

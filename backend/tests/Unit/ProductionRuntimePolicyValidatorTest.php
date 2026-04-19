@@ -34,10 +34,10 @@ class ProductionRuntimePolicyValidatorTest extends TestCase
 
     public function test_find_production_issues_returns_empty_for_valid_runtime_policy(): void
     {
-        config()->set('app.url', 'https://api.dentalflow.test');
+        config()->set('app.url', 'https://api.identa.test');
         config()->set('session.secure', true);
         config()->set('security.headers.hsts_enabled', true);
-        config()->set('sanctum.stateful', ['app.dentalflow.test']);
+        config()->set('sanctum.stateful', ['app.identa.test']);
         config()->set('security.runtime.require_https_app_url', true);
         config()->set('security.runtime.require_session_secure_cookie', true);
         config()->set('security.runtime.require_hsts', true);

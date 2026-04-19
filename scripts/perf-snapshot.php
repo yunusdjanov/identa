@@ -17,7 +17,7 @@ $kernel->bootstrap();
 
 $dentist = User::query()
     ->where('role', User::ROLE_DENTIST)
-    ->where('email', 'dentist@dentalflow.test')
+    ->where('email', 'dentist@identa.test')
     ->first();
 
 if (!$dentist) {

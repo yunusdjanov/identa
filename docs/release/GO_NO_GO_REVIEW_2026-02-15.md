@@ -2,7 +2,7 @@
 
 ## Review Scope
 
-- Project: DentalFlow (frontend + Laravel backend)
+- Project: Identa (frontend + Laravel backend)
 - Milestones reviewed: M0 through M6
 - Decision date: 2026-02-15
 

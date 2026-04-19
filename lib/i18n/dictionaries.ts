@@ -1966,7 +1966,7 @@ Object.assign(ru, {
     'settings.form.phonePlaceholder': '+998 90 123 45 67',
     'settings.duration.oneHour': '1 час',
     'admin.form.dentistNamePlaceholder': 'Анвар Каримов',
-    'admin.form.emailPlaceholder': 'anvar@dentalflow.test',
+    'admin.form.emailPlaceholder': 'anvar@identa.uz',
     'admin.form.practiceNamePlaceholder': 'Стоматология Каримова',
 });
 
@@ -1975,7 +1975,7 @@ Object.assign(uz, {
     'settings.form.phonePlaceholder': '+998 90 123 45 67',
     'settings.duration.oneHour': '1 soat',
     'admin.form.dentistNamePlaceholder': 'Anvar Karimov',
-    'admin.form.emailPlaceholder': 'anvar@dentalflow.test',
+    'admin.form.emailPlaceholder': 'anvar@identa.uz',
     'admin.form.practiceNamePlaceholder': 'Karimov Dental Studio',
 });
 
@@ -1984,7 +1984,7 @@ Object.assign(en, {
     'settings.form.phonePlaceholder': '+998 90 123 45 67',
     'settings.duration.oneHour': '1 hour',
     'admin.form.dentistNamePlaceholder': 'Anvar Karimov',
-    'admin.form.emailPlaceholder': 'anvar@dentalflow.test',
+    'admin.form.emailPlaceholder': 'anvar@identa.uz',
     'admin.form.practiceNamePlaceholder': 'Karimov Dental Studio',
 });
 

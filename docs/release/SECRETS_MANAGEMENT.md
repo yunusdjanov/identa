@@ -1,7 +1,7 @@
 # Secrets Management Baseline
 
 Date: 2026-02-28  
-Scope: DentalFlow backend runtime/deployment hardening
+Scope: Identa backend runtime/deployment hardening
 
 ## Policy
 

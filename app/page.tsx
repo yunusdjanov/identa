@@ -15,7 +15,25 @@ import {
 } from 'lucide-react';
 
 export default function LandingPage() {
-  const { t } = useI18n();
+  const { locale, t } = useI18n();
+
+  const accessCopy = {
+    ru: {
+      ready: 'Готовы войти?',
+      description: 'Доступ к Identa выдается супер-администратором. Используйте выданные учетные данные для входа.',
+      button: t('landing.hero.cta'),
+    },
+    uz: {
+      ready: 'Kirishga tayyormisiz?',
+      description: 'Identa ga kirish superadmin tomonidan beriladi. Kirish uchun sizga berilgan login ma’lumotlaridan foydalaning.',
+      button: t('landing.hero.cta'),
+    },
+    en: {
+      ready: 'Ready to sign in?',
+      description: 'Access to Identa is issued by the super admin. Use your assigned credentials to enter the system.',
+      button: t('landing.hero.cta'),
+    },
+  }[locale];
 
   const features = [
     {
@@ -142,16 +160,16 @@ export default function LandingPage() {
             </div>
             <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 sm:p-8 border border-white/20">
               <div className="space-y-4 sm:space-y-6">
-                <h4 className="text-xl sm:text-2xl font-bold">{t('landing.cta.ready')}</h4>
+                <h4 className="text-xl sm:text-2xl font-bold">{accessCopy.ready}</h4>
                 <p className="text-blue-100 text-sm sm:text-base">
-                  {t('landing.cta.description')}
+                  {accessCopy.description}
                 </p>
                 <Link href="/login">
                   <Button
                     size="lg"
                     className="w-full bg-white text-blue-600 hover:bg-blue-50"
                   >
-                    {t('landing.cta.button')}
+                    {accessCopy.button}
                     <ArrowRight className="w-5 h-5 ml-2" />
                   </Button>
                 </Link>
