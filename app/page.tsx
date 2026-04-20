@@ -970,12 +970,12 @@ export default function LandingPage() {
                                     className="h-full rounded-[30px] border border-slate-200 bg-white shadow-[0_26px_70px_-44px_rgba(15,23,42,0.36)]"
                                 >
                                     <CardContent className="flex h-full flex-col p-6 sm:p-7">
-                                        <div className="flex min-h-[148px] flex-col">
-                                            <div className="flex items-start justify-between gap-4">
-                                                <h3 className="max-w-[220px] text-2xl font-semibold tracking-tight text-slate-950">
+                                        <div className="flex min-h-[136px] flex-col">
+                                            <div className="flex items-start justify-between gap-3">
+                                                <h3 className="max-w-[230px] text-[1.9rem] font-semibold leading-none tracking-tight text-slate-950">
                                                     {plan.title}
                                                 </h3>
-                                                <span className="inline-flex min-h-10 min-w-[98px] items-center justify-center rounded-full bg-slate-950 px-3 py-2 text-center text-xs font-semibold uppercase tracking-[0.14em] text-white">
+                                                <span className="inline-flex min-h-10 min-w-[108px] items-center justify-center rounded-full bg-slate-950 px-3 py-2 text-center text-[11px] font-semibold uppercase leading-tight tracking-[0.14em] text-white">
                                                     {plan.badge}
                                                 </span>
                                             </div>
@@ -983,12 +983,12 @@ export default function LandingPage() {
                                         </div>
 
                                         <div className="mt-6 rounded-[26px] border border-slate-200 bg-slate-50 p-5">
-                                            <div className="flex min-h-[56px] items-end gap-2">
-                                                <p className="text-[2rem] font-semibold tracking-tight text-slate-950 sm:text-[2.15rem]">
+                                            <div className="flex min-h-[48px] items-end gap-2">
+                                                <p className="text-[1.8rem] font-semibold tracking-tight text-slate-950 sm:text-[1.95rem]">
                                                     {priceText}
                                                 </p>
                                                 {plan.periodLabel ? (
-                                                    <p className="pb-1 text-sm font-medium text-slate-500">{plan.periodLabel}</p>
+                                                    <p className="pb-1 text-[13px] font-medium text-slate-500">{plan.periodLabel}</p>
                                                 ) : null}
                                             </div>
 
