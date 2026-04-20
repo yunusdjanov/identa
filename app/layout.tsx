@@ -12,12 +12,63 @@ import { LOCALE_COOKIE_NAME, resolveLocale } from "@/lib/i18n/config";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Identa - Practice Management",
-  description: "Solo dentist practice management system",
+  title: {
+    default: "Identa | Dental practice management for private dentists and small clinics",
+    template: "%s | Identa",
+  },
+  description:
+    "Identa helps private dentists and small clinics manage appointments, patient records, treatment history, and payments in one clear system.",
   metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL ?? "https://identa.uz"),
+  applicationName: "Identa",
+  keywords: [
+    "dental practice management",
+    "dental clinic software",
+    "appointment management",
+    "patient records",
+    "payment tracking",
+    "dentist software",
+    "clinic management",
+    "Identa",
+  ],
   alternates: {
     canonical: "/",
   },
+  openGraph: {
+    type: "website",
+    url: "https://identa.uz",
+    siteName: "Identa",
+    title: "Identa | Dental practice management for private dentists and small clinics",
+    description:
+      "Manage appointments, patient records, treatment history, and payments in one clear system.",
+  },
+  twitter: {
+    card: "summary",
+    title: "Identa | Dental practice management for private dentists and small clinics",
+    description:
+      "Manage appointments, patient records, treatment history, and payments in one clear system.",
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+      "max-video-preview": -1,
+    },
+  },
+  formatDetection: {
+    telephone: false,
+    address: false,
+    email: false,
+  },
+  icons: {
+    icon: "/favicon.ico",
+    shortcut: "/favicon.ico",
+    apple: "/favicon.ico",
+  },
+  category: "healthcare",
 };
 
 export default async function RootLayout({

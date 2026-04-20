@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
+import Script from 'next/script';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import {
@@ -764,6 +765,53 @@ export default function LandingPage() {
 
     const hasErrors = Boolean(errors.name || errors.phone || errors.clinicName || errors.city || errors.note);
     const landingSettings = landingSettingsQuery.data ?? DEFAULT_LANDING_SETTINGS;
+    const structuredData = useMemo(
+        () => [
+            {
+                '@context': 'https://schema.org',
+                '@type': 'Organization',
+                name: 'Identa',
+                url: SITE_URL,
+                sameAs: landingSettings.telegram_contact_url ? [landingSettings.telegram_contact_url] : undefined,
+            },
+            {
+                '@context': 'https://schema.org',
+                '@type': 'WebSite',
+                name: 'Identa',
+                url: SITE_URL,
+                inLanguage: getIntlLocale(landingLocale),
+            },
+            {
+                '@context': 'https://schema.org',
+                '@type': 'SoftwareApplication',
+                name: 'Identa',
+                applicationCategory: 'BusinessApplication',
+                operatingSystem: 'Web',
+                url: SITE_URL,
+                description: content.hero.description,
+                offers: content.plans.items.map((plan) => ({
+                    '@type': 'Offer',
+                    name: plan.title,
+                    price: getPlanAmount(landingSettings, plan.key),
+                    priceCurrency: landingSettings.currency,
+                    availability: 'https://schema.org/InStock',
+                })),
+            },
+            {
+                '@context': 'https://schema.org',
+                '@type': 'FAQPage',
+                mainEntity: content.faq.items.map((item) => ({
+                    '@type': 'Question',
+                    name: item.question,
+                    acceptedAnswer: {
+                        '@type': 'Answer',
+                        text: item.answer,
+                    },
+                })),
+            },
+        ],
+        [content, landingLocale, landingSettings]
+    );
 
     const handleLeadRequestSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault();
@@ -785,6 +833,16 @@ export default function LandingPage() {
 
     return (
         <div className="min-h-screen overflow-x-hidden bg-[radial-gradient(circle_at_14%_8%,rgba(96,165,250,0.18),transparent_26%),radial-gradient(circle_at_78%_10%,rgba(191,219,254,0.34),transparent_24%),radial-gradient(circle_at_86%_2%,rgba(255,255,255,0.95),transparent_18%),linear-gradient(180deg,#f5f9ff_0%,#ffffff_42%,#f8fbff_100%)] text-slate-950">
+            {structuredData.map((item, index) => (
+                <Script
+                    id={`landing-structured-data-${index}`}
+                    key={`landing-structured-data-${index}`}
+                    type="application/ld+json"
+                >
+                    {JSON.stringify(item)}
+                </Script>
+            ))}
+
             <header className="border-b border-slate-200/80 bg-white/88 backdrop-blur-xl">
                 <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
                     <div className="flex items-center justify-between gap-4 py-4">
@@ -845,13 +903,18 @@ export default function LandingPage() {
                             </div>
 
                             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-                                <Button asChild size="lg" className="h-12 rounded-xl px-6 text-base">
+                                <Button asChild size="lg" className="h-12 w-full rounded-xl px-6 text-base sm:w-auto">
                                     <a href="#form">
                                         {content.hero.primary}
                                         <ArrowRight className="ml-2 h-4 w-4" />
                                     </a>
                                 </Button>
-                                <Button asChild size="lg" variant="outline" className="h-12 rounded-xl px-6 text-base">
+                                <Button
+                                    asChild
+                                    size="lg"
+                                    variant="outline"
+                                    className="h-12 w-full rounded-xl px-6 text-base sm:w-auto"
+                                >
                                     <Link href="/login">{content.hero.secondary}</Link>
                                 </Button>
                             </div>
@@ -1145,13 +1208,19 @@ export default function LandingPage() {
                                         <Button
                                             type="submit"
                                             size="lg"
-                                            className="h-12 flex-1 rounded-xl text-base"
+                                            className="h-12 w-full rounded-xl px-4 text-sm sm:flex-1 sm:text-base"
                                             disabled={leadRequestMutation.isPending}
                                         >
                                             {leadRequestMutation.isPending ? content.form.submitting : content.form.submit}
-                                            <ArrowRight className="ml-2 h-4 w-4" />
+                                            <ArrowRight className="h-4 w-4" />
                                         </Button>
-                                        <Button asChild type="button" size="lg" variant="outline" className="h-12 rounded-xl px-5">
+                                        <Button
+                                            asChild
+                                            type="button"
+                                            size="lg"
+                                            variant="outline"
+                                            className="h-12 w-full rounded-xl px-5 text-sm sm:w-auto sm:text-base"
+                                        >
                                             <a
                                                 href={buildTelegramHref(content.form.telegramPrompt, landingSettings.telegram_contact_url)}
                                                 target="_blank"
@@ -1211,7 +1280,7 @@ export default function LandingPage() {
                                 <Button
                                     asChild
                                     size="lg"
-                                    className="h-12 rounded-xl bg-slate-950 px-6 text-base text-white hover:bg-slate-800"
+                                    className="h-12 w-full rounded-xl bg-slate-950 px-6 text-base text-white hover:bg-slate-800 sm:w-auto"
                                 >
                                     <a href="#form">
                                         {content.finalCta.primary}
@@ -1222,7 +1291,7 @@ export default function LandingPage() {
                                     asChild
                                     size="lg"
                                     variant="outline"
-                                    className="h-12 rounded-xl border-slate-300 bg-white/70 px-6 text-base text-slate-900 hover:bg-white"
+                                    className="h-12 w-full rounded-xl border-slate-300 bg-white/70 px-6 text-base text-slate-900 hover:bg-white sm:w-auto"
                                 >
                                     <Link href="/login">{content.finalCta.secondary}</Link>
                                 </Button>
