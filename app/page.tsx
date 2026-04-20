@@ -136,6 +136,12 @@ interface LandingContent {
         title: string;
         items: FaqItem[];
     };
+    finalCta: {
+        title: string;
+        description: string;
+        primary: string;
+        secondary: string;
+    };
     footer: {
         tagline: string;
         signIn: string;
@@ -299,6 +305,12 @@ const LANDING_CONTENT: Record<LandingLocale, LandingContent> = {
                 },
             ],
         },
+        finalCta: {
+            title: "Klinikadagi tartibni bitta tizimga yig'ishga tayyormisiz?",
+            description: "So'rov qoldiring yoki darrov tizimga kirib ishni davom ettiring.",
+            primary: "So'rov qoldirish",
+            secondary: 'Kirish',
+        },
         footer: {
             tagline: 'Xususiy stomatologlar va kichik klinikalar uchun',
             signIn: 'Kirish',
@@ -452,6 +464,12 @@ const LANDING_CONTENT: Record<LandingLocale, LandingContent> = {
                 },
             ],
         },
+        finalCta: {
+            title: 'Готовы навести порядок в работе клиники?',
+            description: 'Оставьте заявку или сразу войдите, если доступ уже открыт.',
+            primary: 'Оставить заявку',
+            secondary: 'Войти',
+        },
         footer: {
             tagline: 'Для частных стоматологов и небольших клиник',
             signIn: 'Войти',
@@ -604,6 +622,12 @@ const LANDING_CONTENT: Record<LandingLocale, LandingContent> = {
                     answer: 'Private dentists and small clinics.',
                 },
             ],
+        },
+        finalCta: {
+            title: 'Ready to make clinic work cleaner?',
+            description: 'Send a request or sign in right away if access is already open.',
+            primary: 'Request access',
+            secondary: 'Sign in',
         },
         footer: {
             tagline: 'Built for private dentists and small clinics',
@@ -760,8 +784,8 @@ export default function LandingPage() {
     };
 
     return (
-        <div className="min-h-screen overflow-x-hidden bg-[linear-gradient(180deg,#f7faff_0%,#ffffff_42%,#f9fbff_100%)] text-slate-950">
-            <header className="border-b border-slate-200/80 bg-white/90 backdrop-blur-xl">
+        <div className="min-h-screen overflow-x-hidden bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.10),transparent_24%),radial-gradient(circle_at_72%_0%,rgba(251,191,36,0.18),transparent_28%),linear-gradient(180deg,#fbfcff_0%,#ffffff_42%,#f9fbff_100%)] text-slate-950">
+            <header className="border-b border-slate-200/80 bg-white/88 backdrop-blur-xl">
                 <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
                     <div className="flex items-center justify-between gap-4 py-4">
                         <div className="flex items-center gap-3">
@@ -833,7 +857,7 @@ export default function LandingPage() {
                             </div>
                         </div>
 
-                        <Card className="rounded-[32px] border border-slate-200 bg-white shadow-[0_34px_100px_-50px_rgba(15,23,42,0.52)]">
+                        <Card className="rounded-[32px] border border-slate-200/90 bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(255,250,240,0.98)_100%)] shadow-[0_34px_100px_-50px_rgba(15,23,42,0.52)]">
                             <CardContent className="p-6 sm:p-7">
                                 <div className="flex items-start justify-between gap-4">
                                     <div>
@@ -1166,6 +1190,45 @@ export default function LandingPage() {
                             </Card>
                         ))}
                     </div>
+                </section>
+
+                <section className="mx-auto max-w-7xl px-4 pb-12 sm:px-6 lg:px-8">
+                    <Card className="overflow-hidden rounded-[30px] border-0 bg-[linear-gradient(135deg,#0f172a_0%,#1e3a8a_48%,#f59e0b_140%)] text-white shadow-[0_30px_90px_-50px_rgba(15,23,42,0.9)]">
+                        <CardContent className="flex flex-col gap-8 p-8 sm:p-10 lg:flex-row lg:items-center lg:justify-between">
+                            <div className="max-w-2xl">
+                                <p className="text-sm font-semibold uppercase tracking-[0.18em] text-amber-200">
+                                    Identa
+                                </p>
+                                <h2 className="mt-4 text-3xl font-semibold tracking-tight sm:text-4xl">
+                                    {content.finalCta.title}
+                                </h2>
+                                <p className="mt-4 text-base leading-7 text-slate-200">
+                                    {content.finalCta.description}
+                                </p>
+                            </div>
+
+                            <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
+                                <Button
+                                    asChild
+                                    size="lg"
+                                    className="h-12 rounded-xl bg-white px-6 text-base text-slate-950 hover:bg-slate-100"
+                                >
+                                    <a href="#form">
+                                        {content.finalCta.primary}
+                                        <ArrowRight className="ml-2 h-4 w-4" />
+                                    </a>
+                                </Button>
+                                <Button
+                                    asChild
+                                    size="lg"
+                                    variant="outline"
+                                    className="h-12 rounded-xl border-white/20 bg-transparent px-6 text-base text-white hover:bg-white/10"
+                                >
+                                    <Link href="/login">{content.finalCta.secondary}</Link>
+                                </Button>
+                            </div>
+                        </CardContent>
+                    </Card>
                 </section>
             </main>
 
