@@ -111,8 +111,8 @@ class AuthSessionTest extends TestCase
             : null;
 
         $this->assertNotNull($ttlMinutes);
-        $this->assertGreaterThanOrEqual((60 * 24 * 7) - 2, $ttlMinutes);
-        $this->assertLessThanOrEqual(60 * 24 * 7, $ttlMinutes);
+        $this->assertGreaterThanOrEqual((60 * 24 * 30) - 2, $ttlMinutes);
+        $this->assertLessThanOrEqual(60 * 24 * 30, $ttlMinutes);
     }
 
     /**

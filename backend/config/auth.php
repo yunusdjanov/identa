@@ -39,7 +39,7 @@ return [
         'web' => [
             'driver' => 'session',
             'provider' => 'users',
-            'remember' => (int) env('AUTH_REMEMBER_DURATION', 60 * 24 * 7),
+            'remember' => (int) env('AUTH_REMEMBER_DURATION', 60 * 24 * 30),
         ],
     ],
 

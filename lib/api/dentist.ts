@@ -128,6 +128,29 @@ export async function loginWithPassword(
     return data.data;
 }
 
+export async function requestPasswordReset(email: string): Promise<string> {
+    const { data } = await withCsrfRetry(() =>
+        apiClient.post<{ message?: string }>('/auth/forgot-password', {
+            email,
+        })
+    );
+
+    return data.message ?? 'Password reset link sent.';
+}
+
+export async function resetPasswordWithToken(payload: {
+    token: string;
+    email: string;
+    password: string;
+    password_confirmation: string;
+}): Promise<string> {
+    const { data } = await withCsrfRetry(() =>
+        apiClient.post<{ message?: string }>('/auth/reset-password', payload)
+    );
+
+    return data.message ?? 'Password reset completed.';
+}
+
 export async function logoutSession(): Promise<void> {
     await ensureCsrfCookie();
     await apiClient.post('/auth/logout');

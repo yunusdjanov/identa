@@ -74,9 +74,17 @@ export default function LoginPage() {
                 <LanguageSwitcher variant="compact" />
             </div>
             <div className="w-full max-w-md">
-                <div className="text-center mb-8">
+                <div className="mb-8 text-center">
+                    <div className="mb-4">
+                        <Link
+                            href="/"
+                            className="text-sm font-medium text-gray-500 transition hover:text-gray-800"
+                        >
+                            {t('auth.backToHome')}
+                        </Link>
+                    </div>
                     <Link href="/">
-                        <h1 className="text-4xl font-bold text-blue-600 mb-2 cursor-pointer hover:text-blue-700">
+                        <h1 className="mb-2 cursor-pointer text-4xl font-bold text-blue-600 hover:text-blue-700">
                             Identa
                         </h1>
                     </Link>
@@ -129,15 +137,23 @@ export default function LoginPage() {
                                 ) : null}
                             </div>
 
-                            <label className="flex items-center gap-3 text-sm text-gray-600">
-                                <input
-                                    type="checkbox"
-                                    checked={remember}
-                                    onChange={(event) => setRemember(event.target.checked)}
-                                    className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                                />
-                                <span>{t('login.rememberMe')}</span>
-                            </label>
+                            <div className="flex items-center justify-between gap-4">
+                                <label className="flex items-center gap-3 text-sm text-gray-600">
+                                    <input
+                                        type="checkbox"
+                                        checked={remember}
+                                        onChange={(event) => setRemember(event.target.checked)}
+                                        className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                    />
+                                    <span>{t('login.rememberMe')}</span>
+                                </label>
+                                <Link
+                                    href="/forgot-password"
+                                    className="text-sm font-medium text-blue-600 transition hover:text-blue-700"
+                                >
+                                    {t('login.forgotPassword')}
+                                </Link>
+                            </div>
 
                             <Button
                                 type="submit"

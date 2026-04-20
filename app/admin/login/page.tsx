@@ -15,6 +15,7 @@ import { Shield } from 'lucide-react';
 import { INPUT_LIMITS, getEmailValidationMessage } from '@/lib/input-validation';
 import { useI18n } from '@/components/providers/i18n-provider';
 import { LanguageSwitcher } from '@/components/layout/language-switcher';
+import Link from 'next/link';
 
 export default function AdminLoginPage() {
     const { t } = useI18n();
@@ -72,8 +73,16 @@ export default function AdminLoginPage() {
                 <LanguageSwitcher variant="compact" />
             </div>
             <div className="w-full max-w-md">
-                <div className="text-center mb-8">
-                    <div className="flex justify-center mb-4">
+                <div className="mb-8 text-center">
+                    <div className="mb-4">
+                        <Link
+                            href="/"
+                            className="text-sm font-medium text-slate-500 transition hover:text-slate-800"
+                        >
+                            {t('auth.backToHome')}
+                        </Link>
+                    </div>
+                    <div className="mb-4 flex justify-center">
                         <div className="w-16 h-16 bg-slate-900 rounded-full flex items-center justify-center">
                             <Shield className="w-8 h-8 text-white" />
                         </div>
@@ -132,15 +141,23 @@ export default function AdminLoginPage() {
                                 ) : null}
                             </div>
 
-                            <label className="flex items-center gap-3 text-sm text-slate-600">
-                                <input
-                                    type="checkbox"
-                                    checked={remember}
-                                    onChange={(event) => setRemember(event.target.checked)}
-                                    className="h-4 w-4 rounded border-gray-300 text-slate-900 focus:ring-slate-500"
-                                />
-                                <span>{t('login.rememberMe')}</span>
-                            </label>
+                            <div className="flex items-center justify-between gap-4">
+                                <label className="flex items-center gap-3 text-sm text-slate-600">
+                                    <input
+                                        type="checkbox"
+                                        checked={remember}
+                                        onChange={(event) => setRemember(event.target.checked)}
+                                        className="h-4 w-4 rounded border-gray-300 text-slate-900 focus:ring-slate-500"
+                                    />
+                                    <span>{t('login.rememberMe')}</span>
+                                </label>
+                                <Link
+                                    href="/forgot-password"
+                                    className="text-sm font-medium text-slate-700 transition hover:text-slate-900"
+                                >
+                                    {t('login.forgotPassword')}
+                                </Link>
+                            </div>
 
                             <Button
                                 type="submit"
