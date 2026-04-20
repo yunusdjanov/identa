@@ -1027,26 +1027,26 @@ export default function LandingPage() {
 
                 <section id="form" className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
                     <div className="grid gap-5 lg:grid-cols-[0.9fr_1.1fr] lg:items-stretch">
-                        <Card className="h-full rounded-[30px] border border-slate-900 bg-slate-950 text-white shadow-[0_32px_90px_-44px_rgba(15,23,42,0.9)]">
+                        <Card className="h-full rounded-[30px] border border-blue-100 bg-[linear-gradient(180deg,#f7fbff_0%,#edf5ff_100%)] text-slate-950 shadow-[0_32px_90px_-46px_rgba(59,130,246,0.22)]">
                             <CardContent className="flex h-full flex-col p-6 sm:p-7">
-                                <div className="inline-flex w-fit items-center rounded-full border border-white/10 bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-blue-100">
+                                <div className="inline-flex w-fit items-center rounded-full border border-blue-200 bg-white/80 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-blue-600">
                                     <MessageCircle className="mr-2 h-4 w-4" />
                                     {content.form.eyebrow}
                                 </div>
 
                                 <h2 className="mt-5 text-3xl font-semibold tracking-tight">{content.form.title}</h2>
-                                <p className="mt-4 text-sm leading-6 text-slate-300">{content.form.description}</p>
+                                <p className="mt-4 text-sm leading-6 text-slate-600">{content.form.description}</p>
 
                                 <div className="mt-6 flex-1 space-y-3">
                                     {content.form.steps.map((step, index) => (
                                         <div
                                             key={step}
-                                            className="flex items-start gap-4 rounded-[22px] border border-white/10 bg-white/5 px-4 py-4"
+                                            className="flex items-start gap-4 rounded-[22px] border border-blue-100 bg-white/80 px-4 py-4 shadow-sm"
                                         >
-                                            <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full border border-blue-300/40 bg-blue-300/10 text-sm font-semibold text-blue-200">
+                                            <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full border border-blue-200 bg-blue-50 text-sm font-semibold text-blue-700">
                                                 {index + 1}
                                             </div>
-                                            <p className="text-sm leading-6 text-slate-200">{step}</p>
+                                            <p className="text-sm leading-6 text-slate-700">{step}</p>
                                         </div>
                                     ))}
                                 </div>
