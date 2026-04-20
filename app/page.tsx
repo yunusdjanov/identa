@@ -8,12 +8,14 @@ import {
     ArrowRight,
     CalendarDays,
     CheckCircle2,
+    Clock3,
     CreditCard,
     MessageCircle,
     ShieldCheck,
     Smartphone,
     Sparkles,
     Stethoscope,
+    Users,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -45,14 +47,37 @@ interface LandingFormState {
     note: string;
 }
 
+interface HeroMetric {
+    label: string;
+    value: string;
+    hint: string;
+}
+
+interface HeroTimelineItem {
+    time: string;
+    title: string;
+    note: string;
+}
+
+interface BenefitItem {
+    title: string;
+    description: string;
+}
+
 interface PlanContent {
     key: PlanKey;
     title: string;
     badge: string;
     description: string;
     periodLabel: string | null;
-    priceHint: string;
+    seatLabel: string;
+    renewalLabel: string;
     bullets: string[];
+}
+
+interface FaqItem {
+    question: string;
+    answer: string;
 }
 
 interface LandingContent {
@@ -69,15 +94,17 @@ interface LandingContent {
         description: string;
         primary: string;
         secondary: string;
-        helper: string;
+        previewBadge: string;
         previewTitle: string;
-        previewSummary: string;
-        previewItems: Array<{ label: string; value: string }>;
+        previewDescription: string;
+        metrics: HeroMetric[];
+        timelineTitle: string;
+        timeline: HeroTimelineItem[];
     };
     benefits: {
         eyebrow: string;
         title: string;
-        items: Array<{ title: string; description: string }>;
+        items: BenefitItem[];
     };
     plans: {
         eyebrow: string;
@@ -108,7 +135,7 @@ interface LandingContent {
     faq: {
         eyebrow: string;
         title: string;
-        items: Array<{ question: string; answer: string }>;
+        items: FaqItem[];
     };
     finalCta: {
         title: string;
@@ -140,21 +167,27 @@ const LANDING_CONTENT: Record<LandingLocale, LandingContent> = {
             badge: 'Xususiy stomatolog va kichik klinikalar uchun',
             title: "Qabullar, bemorlar va to'lovlarni bitta tizimda boshqaring",
             description:
-                'Identa kundalik ishni soddalashtiradi: jadval, bemor kartasi, davolash tarixi va qarzdorlik nazorati bir joyda ishlaydi.',
+                "Identa klinikaning kundalik ishini soddalashtiradi: jadval, bemor kartasi, davolash tarixi va qarzdorlik nazorati bir joyda ishlaydi.",
             primary: "So'rov qoldirish",
             secondary: 'Kirish',
-            helper: "Ulanish so'rov orqali ochiladi. Demo va onboarding bosqichma-bosqich ko'rsatib beriladi.",
-            previewTitle: 'Ichkarida nima bor',
-            previewSummary: "Klinikaning eng ko'p ishlatiladigan ish oqimlari bitta oynada ko'rinadi.",
-            previewItems: [
-                { label: 'Qabullar', value: 'Kunlik va haftalik jadval' },
-                { label: 'Bemorlar', value: 'Kartalar va tarix' },
-                { label: "To'lovlar", value: 'Qarz va tushum nazorati' },
+            previewBadge: 'Identa ichida',
+            previewTitle: 'Bir qarashda boshqariladigan ish oqimi',
+            previewDescription: "Asosiy jarayonlar ko'z oldida turadi va shifokor ishni uzmasdan davom ettira oladi.",
+            metrics: [
+                { label: 'Bugungi qabullar', value: '8', hint: 'Kunlik jadval' },
+                { label: 'Aktiv bemorlar', value: '126', hint: 'Kartalar tartibda' },
+                { label: "Kutilayotgan to'lov", value: '4.8M UZS', hint: 'Qarz nazorati' },
+            ],
+            timelineTitle: 'Bugungi ish oqimi',
+            timeline: [
+                { time: '09:00', title: 'Kontrol qabul', note: 'Bemor kartasi va history ochiq' },
+                { time: '10:30', title: 'Whitening', note: "Oldingi yozuvlar va rasmlar bir joyda" },
+                { time: '12:00', title: "To'lov nazorati", note: "Qancha tushgani va qancha qolgani ko'rinadi" },
             ],
         },
         benefits: {
             eyebrow: 'Nima uchun Identa',
-            title: 'Klinikaga eng kerakli narsalar',
+            title: 'Klinikaga kerakli asosiy narsalar',
             items: [
                 {
                     title: 'Qabul jadvali tartibli',
@@ -162,7 +195,7 @@ const LANDING_CONTENT: Record<LandingLocale, LandingContent> = {
                 },
                 {
                     title: 'Bemor kartalari bir joyda',
-                    description: 'Tarix, odontogramma, yozuvlar va rasmlar tartib bilan saqlanadi.',
+                    description: 'Tarix, odontogramma, yozuvlar va rasmlar tartibli saqlanadi.',
                 },
                 {
                     title: "To'lov nazorati oson",
@@ -170,23 +203,24 @@ const LANDING_CONTENT: Record<LandingLocale, LandingContent> = {
                 },
                 {
                     title: 'Har qurilmada qulay',
-                    description: 'Telefon, planshet va kompyuterda ishlash uchun moslangan.',
+                    description: 'Telefon, planshet va kompyuter uchun moslashtirilgan.',
                 },
             ],
         },
         plans: {
             eyebrow: 'Tariflar',
             title: 'Klinikangizga mos 3 tarif',
-            description: "Farq aniq: qancha muddatga va nechta assistent bilan ishlashingizga qarab tanlaysiz.",
+            description: "Farq aniq ko'rinadi: muddat, assistent limiti va uzaytirish tartibi bo'yicha tanlaysiz.",
             freePrice: 'Bepul',
             items: [
                 {
                     key: 'trial',
                     title: 'Sinov muddati',
                     badge: '30 kun',
-                    description: "Tizimni amalda ko'rib chiqish uchun boshlang'ich variant.",
+                    description: "Tizimni real ish jarayonida ko'rib chiqish uchun boshlang'ich variant.",
                     periodLabel: null,
-                    priceHint: '1 ta assistentgacha',
+                    seatLabel: '1 ta assistentgacha',
+                    renewalLabel: 'Sinovdan keyin pullik tarif tanlanadi',
                     bullets: [
                         'Asosiy modullar ochiq',
                         'Tez onboarding',
@@ -197,26 +231,28 @@ const LANDING_CONTENT: Record<LandingLocale, LandingContent> = {
                     key: 'monthly',
                     title: 'Oylik tarif',
                     badge: 'Oylik',
-                    description: 'Faol ishlayotgan xususiy amaliyot uchun mos variant.',
+                    description: "Faol ishlayotgan xususiy amaliyot uchun mos, moslashuvchan variant.",
                     periodLabel: '/ oy',
-                    priceHint: '3 ta assistentgacha',
+                    seatLabel: '3 ta assistentgacha',
+                    renewalLabel: 'Har oy uzaytiriladi',
                     bullets: [
-                        'To‘liq ishchi kirish',
+                        "To'liq ishchi kirish",
                         "Qabullar, bemorlar va to'lovlar",
-                        'Har oy uzaytirish mumkin',
+                        'Qisqa muddatli boshqaruv uchun qulay',
                     ],
                 },
                 {
                     key: 'yearly',
                     title: 'Yillik tarif',
                     badge: 'Yillik',
-                    description: 'Barqaror klinikalar uchun uzoqroq muddatli format.',
+                    description: 'Barqaror klinika uchun uzoqroq muddatli va qulayroq format.',
                     periodLabel: '/ yil',
-                    priceHint: '5 ta assistentgacha',
+                    seatLabel: '5 ta assistentgacha',
+                    renewalLabel: 'Yiliga bir marta uzaytiriladi',
                     bullets: [
-                        'To‘liq ishchi kirish',
+                        "To'liq ishchi kirish",
                         'Uzoq muddatli foydalanish',
-                        'Yiliga bir marta uzaytiriladi',
+                        'Kengroq jamoa bilan ishlash mumkin',
                     ],
                 },
             ],
@@ -224,7 +260,7 @@ const LANDING_CONTENT: Record<LandingLocale, LandingContent> = {
         request: {
             title: "Demo yoki ulanish uchun so'rov qoldiring",
             description: "Forma orqali so'rov yuborasiz yoki xohlasangiz darrov Telegram orqali yozasiz.",
-            panelTitle: 'Qanday davom etadi',
+            panelTitle: 'Keyingi qadamlar',
             panelItems: [
                 "So'rovni olamiz va siz bilan bog'lanamiz",
                 "Qisqa demo ko'rsatamiz va mos tarifni aniqlaymiz",
@@ -241,8 +277,8 @@ const LANDING_CONTENT: Record<LandingLocale, LandingContent> = {
             submitted: "So'rov yuborildi. Tez orada bog'lanamiz.",
             submitError: "So'rovni yuborib bo'lmadi. Qayta urinib ko'ring.",
             fixErrors: "Majburiy maydonlarni to'g'rilang.",
-            directTelegram: 'Telegram orqali bog‘lanish',
-            telegramPrompt: 'Identa haqida ma’lumot olmoqchiman',
+            directTelegram: "Telegram orqali bog'lanish",
+            telegramPrompt: "Identa haqida ma'lumot olmoqchiman",
         },
         faq: {
             eyebrow: 'Savollar',
@@ -272,7 +308,7 @@ const LANDING_CONTENT: Record<LandingLocale, LandingContent> = {
             primary: "So'rov yuborish",
             secondary: 'Kirish',
         },
-        footer: '(c) 2026 Identa. O‘zbekistondagi xususiy stomatologlar uchun.',
+        footer: "(c) 2026 Identa. O'zbekistondagi xususiy stomatologlar uchun.",
     },
     ru: {
         nav: {
@@ -289,13 +325,19 @@ const LANDING_CONTENT: Record<LandingLocale, LandingContent> = {
                 'Identa упрощает ежедневную работу: расписание, карточки пациентов, история лечения и контроль долгов собраны в одном месте.',
             primary: 'Оставить заявку',
             secondary: 'Войти',
-            helper: 'Доступ открывается по запросу. Показываем демо и помогаем спокойно запуститься.',
-            previewTitle: 'Что внутри системы',
-            previewSummary: 'Самые важные рабочие процессы клиники видны без лишних переходов.',
-            previewItems: [
-                { label: 'Записи', value: 'Дневной и недельный календарь' },
-                { label: 'Пациенты', value: 'Карточки и история лечения' },
-                { label: 'Оплаты', value: 'Контроль долгов и поступлений' },
+            previewBadge: 'Внутри Identa',
+            previewTitle: 'Рабочий процесс, который видно сразу',
+            previewDescription: 'Ключевые процессы клиники находятся перед глазами и не заставляют делать лишние переходы.',
+            metrics: [
+                { label: 'Записи на сегодня', value: '8', hint: 'Дневное расписание' },
+                { label: 'Активные пациенты', value: '126', hint: 'Карточки под рукой' },
+                { label: 'Ожидается к оплате', value: '4.8M UZS', hint: 'Контроль долгов' },
+            ],
+            timelineTitle: 'Поток работы на день',
+            timeline: [
+                { time: '09:00', title: 'Контрольный прием', note: 'Карточка пациента и история открываются сразу' },
+                { time: '10:30', title: 'Whitening', note: 'Записи и изображения уже рядом с пациентом' },
+                { time: '12:00', title: 'Контроль оплат', note: 'Сразу видно, что оплачено и что осталось' },
             ],
         },
         benefits: {
@@ -312,7 +354,7 @@ const LANDING_CONTENT: Record<LandingLocale, LandingContent> = {
                 },
                 {
                     title: 'Оплаты видны сразу',
-                    description: 'Сразу понятно, что оплачено и что ещё осталось закрыть.',
+                    description: 'Сразу понятно, что оплачено и что еще осталось закрыть.',
                 },
                 {
                     title: 'Удобно на любом устройстве',
@@ -322,47 +364,50 @@ const LANDING_CONTENT: Record<LandingLocale, LandingContent> = {
         },
         plans: {
             eyebrow: 'Тарифы',
-            title: 'Три понятных варианта',
-            description: 'Разница прозрачна: срок работы и количество ассистентов видны сразу.',
+            title: 'Три понятных тарифа',
+            description: 'Разница видна сразу: срок, лимит ассистентов и формат продления.',
             freePrice: 'Бесплатно',
             items: [
                 {
                     key: 'trial',
                     title: 'Пробный период',
                     badge: '30 дней',
-                    description: 'Для первого знакомства с системой на реальных задачах клиники.',
+                    description: 'Стартовый вариант, чтобы проверить систему на реальных задачах клиники.',
                     periodLabel: null,
-                    priceHint: 'До 1 ассистента',
+                    seatLabel: 'До 1 ассистента',
+                    renewalLabel: 'После пробного периода выбирается платный тариф',
                     bullets: [
                         'Открыты основные модули',
                         'Быстрый запуск',
-                        'Удобно для первичной проверки',
+                        'Удобно для первой проверки',
                     ],
                 },
                 {
                     key: 'monthly',
                     title: 'Месячный тариф',
                     badge: 'Помесячно',
-                    description: 'Подходит для частной практики с активной ежедневной работой.',
+                    description: 'Гибкий вариант для частной практики с активной ежедневной работой.',
                     periodLabel: '/ месяц',
-                    priceHint: 'До 3 ассистентов',
+                    seatLabel: 'До 3 ассистентов',
+                    renewalLabel: 'Продление каждый месяц',
                     bullets: [
                         'Полный рабочий доступ',
                         'Записи, пациенты и оплаты',
-                        'Можно продлевать каждый месяц',
+                        'Подходит для гибкого управления',
                     ],
                 },
                 {
                     key: 'yearly',
                     title: 'Годовой тариф',
                     badge: 'На год',
-                    description: 'Хороший вариант для стабильной клиники на длинный срок.',
+                    description: 'Долгосрочный формат для стабильной клиники с постоянной нагрузкой.',
                     periodLabel: '/ год',
-                    priceHint: 'До 5 ассистентов',
+                    seatLabel: 'До 5 ассистентов',
+                    renewalLabel: 'Продление один раз в год',
                     bullets: [
                         'Полный рабочий доступ',
-                        'Долгий период использования',
-                        'Продление один раз в год',
+                        'Длинный период использования',
+                        'Удобнее для команды побольше',
                     ],
                 },
             ],
@@ -385,7 +430,7 @@ const LANDING_CONTENT: Record<LandingLocale, LandingContent> = {
             submit: 'Отправить заявку',
             submitting: 'Отправка...',
             submitted: 'Заявка отправлена. Мы скоро свяжемся с вами.',
-            submitError: 'Не удалось отправить заявку. Попробуйте ещё раз.',
+            submitError: 'Не удалось отправить заявку. Попробуйте еще раз.',
             fixErrors: 'Проверьте обязательные поля.',
             directTelegram: 'Связаться в Telegram',
             telegramPrompt: 'Хочу узнать подробнее об Identa',
@@ -430,23 +475,29 @@ const LANDING_CONTENT: Record<LandingLocale, LandingContent> = {
         },
         hero: {
             badge: 'Built for private dentists and small clinics',
-            title: 'Manage appointments, patients, and payments in one clear system',
+            title: 'Manage appointments, patients, and payments in one system',
             description:
-                'Identa keeps the daily workflow simple: scheduling, patient records, treatment history, and payment control are handled in one place.',
+                'Identa simplifies daily clinic work: scheduling, patient records, treatment history, and payment control all stay in one place.',
             primary: 'Request access',
             secondary: 'Sign in',
-            helper: 'Access is issued on request. We show the demo and help you get started step by step.',
-            previewTitle: 'What you get inside',
-            previewSummary: 'The most important clinic workflows stay visible without extra clutter.',
-            previewItems: [
-                { label: 'Appointments', value: 'Daily and weekly calendar' },
-                { label: 'Patients', value: 'Records and treatment history' },
-                { label: 'Payments', value: 'Debt and revenue tracking' },
+            previewBadge: 'Inside Identa',
+            previewTitle: 'A workflow that looks clear at a glance',
+            previewDescription: 'The core clinic actions stay visible, structured, and easy to continue from.',
+            metrics: [
+                { label: 'Today appointments', value: '8', hint: 'Daily schedule' },
+                { label: 'Active patients', value: '126', hint: 'Records stay ready' },
+                { label: 'Pending payments', value: '4.8M UZS', hint: 'Debt control' },
+            ],
+            timelineTitle: 'Day workflow',
+            timeline: [
+                { time: '09:00', title: 'Checkup visit', note: 'Patient record and history open right away' },
+                { time: '10:30', title: 'Whitening', note: 'Notes and images stay attached to the patient' },
+                { time: '12:00', title: 'Payment review', note: 'Paid and pending amounts are easy to see' },
             ],
         },
         benefits: {
             eyebrow: 'Why Identa',
-            title: 'What matters most for daily work',
+            title: 'What matters most in daily work',
             items: [
                 {
                     title: 'Scheduling stays clear',
@@ -469,16 +520,17 @@ const LANDING_CONTENT: Record<LandingLocale, LandingContent> = {
         plans: {
             eyebrow: 'Plans',
             title: 'Three clear pricing options',
-            description: 'The difference is simple: duration and assistant limits are shown right away.',
+            description: 'The difference is shown clearly: duration, assistant limits, and renewal logic.',
             freePrice: 'Free',
             items: [
                 {
                     key: 'trial',
                     title: 'Trial period',
                     badge: '30 days',
-                    description: 'A practical starting point for testing the system in a real clinic workflow.',
+                    description: 'A starter option for testing the system in a real clinic workflow.',
                     periodLabel: null,
-                    priceHint: 'Up to 1 assistant',
+                    seatLabel: 'Up to 1 assistant',
+                    renewalLabel: 'A paid plan is selected after the trial',
                     bullets: [
                         'Core modules included',
                         'Fast onboarding',
@@ -489,26 +541,28 @@ const LANDING_CONTENT: Record<LandingLocale, LandingContent> = {
                     key: 'monthly',
                     title: 'Monthly plan',
                     badge: 'Monthly',
-                    description: 'Best for active private practice with ongoing daily work.',
+                    description: 'A flexible choice for active private practice and day-to-day work.',
                     periodLabel: '/ month',
-                    priceHint: 'Up to 3 assistants',
+                    seatLabel: 'Up to 3 assistants',
+                    renewalLabel: 'Renewed every month',
                     bullets: [
                         'Full working access',
                         'Appointments, patients, and payments',
-                        'Can be renewed every month',
+                        'Good for flexible management',
                     ],
                 },
                 {
                     key: 'yearly',
                     title: 'Yearly plan',
                     badge: 'Yearly',
-                    description: 'A long-term option for stable clinics.',
+                    description: 'A longer-term format for stable clinics with a steady workflow.',
                     periodLabel: '/ year',
-                    priceHint: 'Up to 5 assistants',
+                    seatLabel: 'Up to 5 assistants',
+                    renewalLabel: 'Renewed once per year',
                     bullets: [
                         'Full working access',
                         'Longer usage period',
-                        'Renewed once per year',
+                        'Better for a larger team',
                     ],
                 },
             ],
@@ -553,8 +607,8 @@ const LANDING_CONTENT: Record<LandingLocale, LandingContent> = {
                     answer: 'Yes. The interface is adapted for phone, tablet, and desktop use.',
                 },
                 {
-                    question: 'Who is Identa built for?',
-                    answer: 'Private dentists and small clinics that need a cleaner daily workflow for appointments, patients, and payments.',
+                    question: 'Who is Identa for?',
+                    answer: 'Private dentists and small clinics that need a cleaner workflow for appointments, patients, and payments.',
                 },
             ],
         },
@@ -617,7 +671,7 @@ function buildTelegramHref(message: string, contactUrl?: string | null): string 
 
             return directUrl.toString();
         } catch {
-            // Fallback to share URL below.
+            // Fall back to share URL below.
         }
     }
 
@@ -752,15 +806,15 @@ export default function LandingPage() {
 
             <main>
                 <section className="relative">
-                    <div className="mx-auto grid max-w-7xl gap-10 px-4 py-12 sm:px-6 sm:py-14 lg:grid-cols-[1.08fr_0.92fr] lg:items-start lg:gap-12 lg:px-8 lg:py-16">
-                        <div className="space-y-7">
-                            <div className="inline-flex items-center rounded-full border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-medium text-blue-700">
+                    <div className="mx-auto grid max-w-7xl gap-8 px-4 py-12 sm:px-6 sm:py-14 lg:grid-cols-[1.05fr_0.95fr] lg:items-stretch lg:gap-10 lg:px-8 lg:py-16">
+                        <div className="flex flex-col justify-center space-y-7">
+                            <div className="inline-flex w-fit items-center rounded-full border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-medium text-blue-700">
                                 <ShieldCheck className="mr-2 h-4 w-4" />
                                 {content.hero.badge}
                             </div>
 
                             <div className="space-y-4">
-                                <h1 className="max-w-3xl text-4xl font-semibold tracking-tight text-slate-950 sm:text-5xl lg:text-6xl lg:leading-[1.06]">
+                                <h1 className="max-w-3xl text-4xl font-semibold tracking-tight text-slate-950 sm:text-5xl lg:text-6xl lg:leading-[1.04]">
                                     {content.hero.title}
                                 </h1>
                                 <p className="max-w-2xl text-base leading-7 text-slate-600 sm:text-lg">
@@ -779,33 +833,75 @@ export default function LandingPage() {
                                     <Link href="/login">{content.hero.secondary}</Link>
                                 </Button>
                             </div>
-
-                            <p className="max-w-2xl text-sm leading-6 text-slate-500">{content.hero.helper}</p>
                         </div>
 
-                        <Card className="overflow-hidden rounded-[28px] border border-slate-200/80 bg-white/95 shadow-[0_30px_90px_-40px_rgba(15,23,42,0.55)]">
-                            <CardContent className="space-y-6 p-6 sm:p-7">
-                                <div>
-                                    <p className="text-xs font-semibold uppercase tracking-[0.22em] text-blue-600">
-                                        {content.hero.previewTitle}
-                                    </p>
-                                    <p className="mt-2 text-sm leading-6 text-slate-600">{content.hero.previewSummary}</p>
+                        <Card className="relative overflow-hidden rounded-[32px] border border-slate-200/80 bg-white/95 shadow-[0_34px_100px_-48px_rgba(15,23,42,0.6)]">
+                            <div className="absolute inset-x-0 top-0 h-24 bg-[linear-gradient(180deg,rgba(59,130,246,0.14)_0%,rgba(255,255,255,0)_100%)]" />
+                            <CardContent className="relative flex h-full flex-col p-6 sm:p-7">
+                                <div className="mb-6 flex items-center justify-between gap-3">
+                                    <div>
+                                        <p className="text-xs font-semibold uppercase tracking-[0.22em] text-blue-600">
+                                            {content.hero.previewBadge}
+                                        </p>
+                                        <h2 className="mt-3 text-2xl font-semibold tracking-tight text-slate-950">
+                                            {content.hero.previewTitle}
+                                        </h2>
+                                        <p className="mt-3 max-w-xl text-sm leading-6 text-slate-600">
+                                            {content.hero.previewDescription}
+                                        </p>
+                                    </div>
+                                    <div className="hidden rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-500 sm:inline-flex">
+                                        Live workflow
+                                    </div>
                                 </div>
-                                <div className="space-y-3">
-                                    {content.hero.previewItems.map((item) => (
-                                        <div
-                                            key={item.label}
-                                            className="flex items-start gap-3 rounded-2xl border border-slate-200 bg-slate-50/80 p-4"
-                                        >
-                                            <div className="mt-0.5 rounded-xl bg-blue-50 p-2 text-blue-700">
-                                                <CheckCircle2 className="h-4 w-4" />
+
+                                <div className="grid gap-3 sm:grid-cols-3">
+                                    {content.hero.metrics.map((metric, index) => {
+                                        const Icon = index === 0 ? CalendarDays : index === 1 ? Users : CreditCard;
+
+                                        return (
+                                            <div
+                                                key={metric.label}
+                                                className="rounded-2xl border border-slate-200 bg-slate-50/85 p-4"
+                                            >
+                                                <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-2xl bg-white text-blue-700 shadow-sm">
+                                                    <Icon className="h-4 w-4" />
+                                                </div>
+                                                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
+                                                    {metric.label}
+                                                </p>
+                                                <p className="mt-2 text-2xl font-semibold text-slate-950">{metric.value}</p>
+                                                <p className="mt-1 text-sm text-slate-500">{metric.hint}</p>
                                             </div>
-                                            <div>
-                                                <p className="text-sm font-semibold text-slate-950">{item.label}</p>
-                                                <p className="mt-1 text-sm text-slate-600">{item.value}</p>
+                                        );
+                                    })}
+                                </div>
+
+                                <div className="mt-5 flex-1 rounded-[28px] border border-slate-200 bg-[linear-gradient(180deg,#f8fbff_0%,#eef4ff_100%)] p-4 sm:p-5">
+                                    <div className="mb-4 flex items-center justify-between gap-3">
+                                        <p className="text-sm font-semibold text-slate-900">{content.hero.timelineTitle}</p>
+                                        <span className="rounded-full bg-slate-950 px-2.5 py-1 text-xs font-medium text-white">
+                                            Identa
+                                        </span>
+                                    </div>
+
+                                    <div className="space-y-3">
+                                        {content.hero.timeline.map((item) => (
+                                            <div
+                                                key={`${item.time}-${item.title}`}
+                                                className="flex items-start gap-3 rounded-2xl border border-white/80 bg-white p-4 shadow-sm"
+                                            >
+                                                <div className="rounded-xl bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-700">
+                                                    {item.time}
+                                                </div>
+                                                <div className="min-w-0 flex-1">
+                                                    <p className="text-sm font-semibold text-slate-950">{item.title}</p>
+                                                    <p className="mt-1 text-sm leading-6 text-slate-600">{item.note}</p>
+                                                </div>
+                                                <Clock3 className="mt-1 h-4 w-4 flex-shrink-0 text-slate-400" />
                                             </div>
-                                        </div>
-                                    ))}
+                                        ))}
+                                    </div>
                                 </div>
                             </CardContent>
                         </Card>
@@ -821,6 +917,7 @@ export default function LandingPage() {
                             {content.benefits.title}
                         </h2>
                     </div>
+
                     <div className="mt-10 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                         {content.benefits.items.map((item, index) => {
                             const Icon = BENEFIT_ICONS[index];
@@ -855,6 +952,7 @@ export default function LandingPage() {
                         </h2>
                         <p className="mt-4 text-base leading-7 text-slate-600">{content.plans.description}</p>
                     </div>
+
                     <div className="mt-10 grid gap-5 lg:grid-cols-3">
                         {content.plans.items.map((plan) => {
                             const amount = getPlanAmount(landingSettings, plan.key);
@@ -866,30 +964,43 @@ export default function LandingPage() {
                             return (
                                 <Card
                                     key={plan.title}
-                                    className="rounded-[28px] border-slate-200 bg-white shadow-[0_18px_50px_-38px_rgba(15,23,42,0.4)]"
+                                    className="h-full rounded-[28px] border-slate-200 bg-white shadow-[0_18px_50px_-38px_rgba(15,23,42,0.4)]"
                                 >
-                                    <CardContent className="p-6">
-                                        <div className="flex items-start justify-between gap-4">
-                                            <div>
+                                    <CardContent className="flex h-full flex-col p-6">
+                                        <div className="flex min-h-[152px] flex-col">
+                                            <div className="flex items-start justify-between gap-4">
                                                 <h3 className="text-2xl font-semibold text-slate-950">{plan.title}</h3>
-                                                <p className="mt-3 text-sm leading-6 text-slate-600">{plan.description}</p>
+                                                <span className="inline-flex min-h-10 min-w-[92px] items-center justify-center rounded-full bg-slate-950 px-3 py-2 text-center text-xs font-semibold uppercase tracking-[0.14em] text-white">
+                                                    {plan.badge}
+                                                </span>
                                             </div>
-                                            <span className="rounded-full bg-slate-950 px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-white">
-                                                {plan.badge}
-                                            </span>
+                                            <p className="mt-4 text-sm leading-6 text-slate-600">{plan.description}</p>
                                         </div>
 
-                                        <div className="mt-6 border-t border-slate-200 pt-5">
-                                            <div className="flex flex-wrap items-end gap-2">
+                                        <div className="mt-6 rounded-[24px] border border-slate-200 bg-slate-50/90 p-5">
+                                            <div className="flex min-h-[56px] items-end gap-2">
                                                 <p className="text-4xl font-semibold tracking-tight text-slate-950">{priceText}</p>
                                                 {plan.periodLabel ? (
                                                     <p className="pb-1 text-sm font-medium text-slate-500">{plan.periodLabel}</p>
                                                 ) : null}
                                             </div>
-                                            <p className="mt-2 text-sm font-medium text-blue-700">{plan.priceHint}</p>
+                                            <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
+                                                <div className="rounded-2xl bg-white px-4 py-3 shadow-sm">
+                                                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
+                                                        Jamoa
+                                                    </p>
+                                                    <p className="mt-1 text-sm font-semibold text-blue-700">{plan.seatLabel}</p>
+                                                </div>
+                                                <div className="rounded-2xl bg-white px-4 py-3 shadow-sm">
+                                                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
+                                                        Davom etish
+                                                    </p>
+                                                    <p className="mt-1 text-sm font-semibold text-slate-800">{plan.renewalLabel}</p>
+                                                </div>
+                                            </div>
                                         </div>
 
-                                        <div className="mt-6 space-y-3">
+                                        <div className="mt-6 flex-1 space-y-3">
                                             {plan.bullets.map((bullet) => (
                                                 <div key={bullet} className="flex items-start gap-3">
                                                     <CheckCircle2 className="mt-0.5 h-4 w-4 flex-shrink-0 text-emerald-600" />
@@ -905,9 +1016,9 @@ export default function LandingPage() {
                 </section>
 
                 <section id="request" className="mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-12 lg:px-8">
-                    <div className="grid gap-5 lg:grid-cols-[0.8fr_1.2fr] lg:items-start">
-                        <Card className="rounded-[28px] border-slate-200 bg-slate-950 text-white shadow-[0_24px_80px_-36px_rgba(15,23,42,0.9)]">
-                            <CardContent className="space-y-6 p-6 sm:p-7">
+                    <div className="grid gap-5 lg:grid-cols-[0.82fr_1.18fr] lg:items-stretch">
+                        <Card className="h-full rounded-[28px] border-slate-200 bg-slate-950 text-white shadow-[0_24px_80px_-36px_rgba(15,23,42,0.9)]">
+                            <CardContent className="flex h-full flex-col p-6 sm:p-7">
                                 <div>
                                     <div className="inline-flex items-center rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-blue-100">
                                         <MessageCircle className="mr-2 h-4 w-4" />
@@ -917,7 +1028,7 @@ export default function LandingPage() {
                                     <p className="mt-4 text-sm leading-6 text-slate-300">{content.request.description}</p>
                                 </div>
 
-                                <div className="space-y-3">
+                                <div className="mt-6 flex-1 space-y-3">
                                     <p className="text-sm font-semibold uppercase tracking-[0.16em] text-slate-400">
                                         {content.request.panelTitle}
                                     </p>
@@ -927,16 +1038,16 @@ export default function LandingPage() {
                                             className="flex items-start gap-3 rounded-2xl border border-white/10 bg-white/5 p-4"
                                         >
                                             <CheckCircle2 className="mt-0.5 h-4 w-4 flex-shrink-0 text-cyan-300" />
-                                            <p className="text-sm text-slate-200">{item}</p>
+                                            <p className="text-sm leading-6 text-slate-200">{item}</p>
                                         </div>
                                     ))}
                                 </div>
                             </CardContent>
                         </Card>
 
-                        <Card className="rounded-[28px] border-slate-200 bg-white shadow-[0_24px_80px_-40px_rgba(15,23,42,0.4)]">
-                            <CardContent className="p-6 sm:p-7">
-                                <form className="space-y-4" onSubmit={handleLeadRequestSubmit}>
+                        <Card className="h-full rounded-[28px] border-slate-200 bg-white shadow-[0_24px_80px_-40px_rgba(15,23,42,0.4)]">
+                            <CardContent className="flex h-full flex-col p-6 sm:p-7">
+                                <form className="flex h-full flex-col gap-4" onSubmit={handleLeadRequestSubmit}>
                                     <div className="grid gap-4 sm:grid-cols-2">
                                         <div className="space-y-2">
                                             <label className="text-sm font-medium text-slate-800">
@@ -1023,7 +1134,7 @@ export default function LandingPage() {
                                         {isSubmitted && errors.note ? <p className="text-xs text-red-600">{errors.note}</p> : null}
                                     </div>
 
-                                    <div className="flex flex-col gap-3 sm:flex-row">
+                                    <div className="mt-auto flex flex-col gap-3 sm:flex-row">
                                         <Button
                                             type="submit"
                                             size="lg"
