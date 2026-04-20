@@ -960,7 +960,9 @@ export default function LandingPage() {
 
                                         <div className="mt-6 rounded-[26px] border border-slate-200 bg-slate-50 p-5">
                                             <div className="flex min-h-[56px] items-end gap-2">
-                                                <p className="text-4xl font-semibold tracking-tight text-slate-950">{priceText}</p>
+                                                <p className="text-[2rem] font-semibold tracking-tight text-slate-950 sm:text-[2.15rem]">
+                                                    {priceText}
+                                                </p>
                                                 {plan.periodLabel ? (
                                                     <p className="pb-1 text-sm font-medium text-slate-500">{plan.periodLabel}</p>
                                                 ) : null}
@@ -1168,13 +1170,13 @@ export default function LandingPage() {
             </main>
 
             <footer className="border-t border-slate-200 bg-white/80">
-                <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-6 sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-8">
+                <div className="mx-auto flex max-w-7xl flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-8">
                     <div>
-                        <p className="text-base font-semibold text-slate-950">Identa</p>
-                        <p className="mt-1 text-sm text-slate-500">{content.footer.tagline}</p>
+                        <p className="text-[15px] font-semibold text-slate-950">Identa</p>
+                        <p className="mt-0.5 text-xs text-slate-500 sm:text-sm">{content.footer.tagline}</p>
                     </div>
 
-                    <div className="flex items-center gap-4 text-sm text-slate-500">
+                    <div className="flex items-center gap-4 text-xs text-slate-500 sm:text-sm">
                         <a
                             href={buildTelegramHref(content.form.telegramPrompt, landingSettings.telegram_contact_url)}
                             target="_blank"
@@ -1188,7 +1190,7 @@ export default function LandingPage() {
                         </Link>
                     </div>
                 </div>
-                <div className="mx-auto max-w-7xl px-4 pb-6 text-sm text-slate-400 sm:px-6 lg:px-8">
+                <div className="mx-auto max-w-7xl px-4 pb-4 text-xs text-slate-400 sm:px-6 sm:text-sm lg:px-8">
                     {content.footer.copyright}
                 </div>
             </footer>
