@@ -1,10 +1,12 @@
 <?php
 
 use App\Http\Controllers\Api\Admin\DentistAccountController;
+use App\Http\Controllers\Api\Admin\LandingSettingsController;
 use App\Http\Controllers\Api\AppointmentController;
 use App\Http\Controllers\Api\AuditLogController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\InvoiceController;
+use App\Http\Controllers\Api\LandingController;
 use App\Http\Controllers\Api\PatientController;
 use App\Http\Controllers\Api\PatientCategoryController;
 use App\Http\Controllers\Api\PatientOdontogramController;
@@ -50,6 +52,12 @@ Route::prefix('v1')->group(function (): void {
         });
     });
 
+    Route::prefix('public')->group(function (): void {
+        Route::get('/landing-settings', [LandingController::class, 'showSettings']);
+        Route::post('/lead-requests', [LandingController::class, 'storeLeadRequest'])
+            ->middleware('throttle:10,1');
+    });
+
     Route::prefix('admin')
         ->middleware(['auth:sanctum', 'role:admin'])
         ->group(function (): void {
@@ -59,6 +67,10 @@ Route::prefix('v1')->group(function (): void {
             Route::post('/dentists/{id}/subscription', [DentistAccountController::class, 'manageSubscription']);
             Route::post('/dentists/{id}/reset-password', [DentistAccountController::class, 'resetPassword']);
             Route::delete('/dentists/{id}', [DentistAccountController::class, 'destroy']);
+            Route::get('/landing-settings', [LandingSettingsController::class, 'show']);
+            Route::put('/landing-settings', [LandingSettingsController::class, 'update']);
+            Route::get('/lead-requests', [LandingSettingsController::class, 'leadRequests']);
+            Route::patch('/lead-requests/{id}', [LandingSettingsController::class, 'updateLeadRequestStatus']);
         });
 
     Route::middleware(['auth:sanctum', 'role:dentist,assistant', 'subscription.access'])->group(function (): void {

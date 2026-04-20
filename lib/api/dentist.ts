@@ -10,6 +10,8 @@ import type {
     ApiCollectionEnvelope,
     ApiEnvelope,
     ApiInvoice,
+    ApiLandingSettings,
+    ApiLeadRequest,
     ApiOdontogramEntry,
     ApiOdontogramSummary,
     ApiPatient,
@@ -35,6 +37,8 @@ export type AdminDentistSubscriptionAction =
     | 'apply_yearly'
     | 'cancel_at_period_end'
     | 'cancel_now';
+
+export type AdminLeadRequestStatus = 'new' | 'contacted' | 'closed';
 
 const MAX_API_PER_PAGE = 500;
 
@@ -64,6 +68,26 @@ function buildQueryParams(options?: QueryOptions): Record<string, unknown> {
     }
 
     return params;
+}
+
+export async function getPublicLandingSettings(): Promise<ApiLandingSettings> {
+    const { data } = await apiClient.get<ApiEnvelope<ApiLandingSettings>>('/public/landing-settings');
+
+    return data.data;
+}
+
+export async function createPublicLeadRequest(payload: {
+    name: string;
+    phone: string;
+    clinic_name: string;
+    city: string;
+    note?: string;
+}): Promise<ApiLeadRequest> {
+    const { data } = await withCsrfRetry(() =>
+        apiClient.post<ApiEnvelope<ApiLeadRequest>>('/public/lead-requests', payload)
+    );
+
+    return data.data;
 }
 
 async function collectAllPages<T>(
@@ -940,6 +964,47 @@ export async function manageAdminDentistSubscription(
     const { data } = await apiClient.post<ApiEnvelope<ApiAdminDentist>>(
         `/admin/dentists/${id}/subscription`,
         payload
+    );
+
+    return data.data;
+}
+
+export async function getAdminLandingSettings(): Promise<ApiLandingSettings> {
+    const { data } = await apiClient.get<ApiEnvelope<ApiLandingSettings>>('/admin/landing-settings');
+
+    return data.data;
+}
+
+export async function updateAdminLandingSettings(payload: {
+    trial_price_amount: number;
+    monthly_price_amount: number;
+    yearly_price_amount: number;
+    telegram_contact_url?: string | null;
+}): Promise<ApiLandingSettings> {
+    await ensureCsrfCookie();
+    const { data } = await apiClient.put<ApiEnvelope<ApiLandingSettings>>('/admin/landing-settings', payload);
+
+    return data.data;
+}
+
+export async function listAdminLeadRequests(
+    options?: QueryOptions
+): Promise<ApiCollectionEnvelope<ApiLeadRequest>> {
+    const { data } = await apiClient.get<ApiCollectionEnvelope<ApiLeadRequest>>('/admin/lead-requests', {
+        params: buildQueryParams(options),
+    });
+
+    return data;
+}
+
+export async function updateAdminLeadRequestStatus(
+    id: string,
+    status: AdminLeadRequestStatus
+): Promise<ApiLeadRequest> {
+    await ensureCsrfCookie();
+    const { data } = await apiClient.patch<ApiEnvelope<ApiLeadRequest>>(
+        `/admin/lead-requests/${id}`,
+        { status }
     );
 
     return data.data;

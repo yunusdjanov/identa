@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import {
     ArrowRight,
@@ -9,8 +10,8 @@ import {
     CheckCircle2,
     ChevronRight,
     CreditCard,
+    FileText,
     Globe,
-    Lock,
     MessageCircle,
     ShieldCheck,
     Sparkles,
@@ -22,17 +23,21 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { LanguageSwitcher } from '@/components/layout/language-switcher';
 import { useI18n } from '@/components/providers/i18n-provider';
+import { getApiErrorMessage } from '@/lib/api/client';
+import { createPublicLeadRequest, getPublicLandingSettings } from '@/lib/api/dentist';
 import {
     INPUT_LIMITS,
     formatPhoneInputValue,
     getPhoneValidationMessage,
     getTextValidationMessage,
 } from '@/lib/input-validation';
+import type { ApiLandingSettings } from '@/lib/api/types';
 
 const SITE_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://identa.uz';
 const TELEGRAM_CONTACT_URL = process.env.NEXT_PUBLIC_TELEGRAM_CONTACT_URL?.trim();
 
 type LandingLocale = 'ru' | 'uz' | 'en';
+type PlanKey = 'trial' | 'monthly' | 'yearly';
 
 interface LandingFormState {
     name: string;
@@ -42,81 +47,103 @@ interface LandingFormState {
     note: string;
 }
 
-const LANDING_CONTENT: Record<
-    LandingLocale,
-    {
-        nav: {
-            product: string;
-            workflow: string;
-            plans: string;
-            faq: string;
-            signIn: string;
-        };
-        hero: {
-            badge: string;
-            title: string;
-            accent: string;
-            description: string;
-            primary: string;
-            secondary: string;
-            helper: string;
-            stats: Array<{ value: string; label: string }>;
-        };
-        preview: {
-            title: string;
-            cards: Array<{ label: string; value: string; tone: string }>;
-            queueTitle: string;
-            queue: Array<{ time: string; patient: string; status: string }>;
-            summary: string;
-        };
-        outcomes: {
-            eyebrow: string;
-            title: string;
-            items: Array<{ title: string; description: string }>;
-        };
-        workflow: {
-            eyebrow: string;
-            title: string;
-            description: string;
-            steps: Array<{ title: string; description: string }>;
-        };
-        plans: {
-            eyebrow: string;
-            title: string;
-            description: string;
-            items: Array<{ title: string; badge: string; description: string; bullets: string[] }>;
-        };
-        form: {
-            badge: string;
-            title: string;
-            description: string;
-            helper: string;
-            name: string;
-            phone: string;
-            clinic: string;
-            city: string;
-            note: string;
-            optional: string;
-            submit: string;
-            directTelegram: string;
-            fixErrors: string;
-            openedTelegram: string;
-            copied: string;
-        };
-        faq: {
-            eyebrow: string;
-            title: string;
-            items: Array<{ question: string; answer: string }>;
-        };
-        finalCta: {
-            title: string;
-            description: string;
-            primary: string;
-            secondary: string;
-        };
-        footer: string;
-    }
-> = {
+interface LandingContent {
+    nav: {
+        product: string;
+        workflow: string;
+        plans: string;
+        faq: string;
+        signIn: string;
+    };
+    hero: {
+        badge: string;
+        title: string;
+        accent: string;
+        description: string;
+        primary: string;
+        secondary: string;
+        helper: string;
+        stats: Array<{ value: string; label: string }>;
+    };
+    preview: {
+        title: string;
+        summary: string;
+        cards: Array<{ label: string; value: string; tone: string }>;
+        queueTitle: string;
+        queue: Array<{ time: string; patient: string; status: string }>;
+    };
+    outcomes: {
+        eyebrow: string;
+        title: string;
+        items: Array<{ title: string; description: string }>;
+    };
+    workflow: {
+        eyebrow: string;
+        title: string;
+        description: string;
+        steps: Array<{ title: string; description: string }>;
+    };
+    plans: {
+        eyebrow: string;
+        title: string;
+        description: string;
+        items: Array<{ title: string; badge: string; description: string; bullets: string[] }>;
+    };
+    form: {
+        badge: string;
+        title: string;
+        description: string;
+        helper: string;
+        name: string;
+        phone: string;
+        clinic: string;
+        city: string;
+        note: string;
+        optional: string;
+        submit: string;
+        directTelegram: string;
+        fixErrors: string;
+        openedTelegram: string;
+        copied: string;
+    };
+    faq: {
+        eyebrow: string;
+        title: string;
+        items: Array<{ question: string; answer: string }>;
+    };
+    finalCta: {
+        title: string;
+        description: string;
+        primary: string;
+        secondary: string;
+    };
+    footer: string;
+}
+
+interface LandingRuntimeCopy {
+    requestBadge: string;
+    requestTitle: string;
+    requestDescription: string;
+    requestHelper: string;
+    formSubmit: string;
+    formSubmitting: string;
+    formSubmitted: string;
+    formSubmitError: string;
+    planFree: string;
+    monthlySuffix: string;
+    yearlySuffix: string;
+    telegramPrompt: string;
+}
+
+const DEFAULT_LANDING_SETTINGS: ApiLandingSettings = {
+    trial_price_amount: 0,
+    monthly_price_amount: 450000,
+    yearly_price_amount: 4500000,
+    currency: 'UZS',
+    telegram_contact_url: null,
+};
+
+const LANDING_CONTENT: Record<LandingLocale, LandingContent> = {
     uz: {
         nav: {
             product: 'Imkoniyatlar',
@@ -128,20 +155,21 @@ const LANDING_CONTENT: Record<
         hero: {
             badge: 'Yakka stomatolog va kichik klinikalar uchun',
             title: 'Qabullar, bemorlar va',
-            accent: 'qarzdorlikni bir tizimda boshqaring',
+            accent: 'to‘lov nazoratini bir tizimda boshqaring',
             description:
-                "Identa xususiy stomatologiya amaliyoti uchun yaratilgan: bemor kartasi, odontogramma, treatment history, to'lovlar va staff kirishini bitta tushunarli oqimga jamlaydi.",
+                "Identa xususiy stomatologiya amaliyoti uchun yaratilgan: qabul jadvali, bemor kartasi, odontogramma va davolash tarixi bir joyda ishlaydi.",
             primary: "Kirish so'rovini qoldirish",
             secondary: 'Tizimga kirish',
-            helper: "Ochiq registratsiya yo'q. Access onboarding va superadmin orqali ochiladi.",
+            helper: "Demo va ulanish Telegram orqali. Ochiq registratsiya yo'q.",
             stats: [
                 { value: '30 kun', label: 'free trial' },
                 { value: '3 til', label: 'UZ / RU / EN' },
-                { value: 'Read-only', label: 'muddat tugasa ham ma’lumot saqlanadi' },
+                { value: 'Responsive', label: 'telefon, planshet va desktop' },
             ],
         },
         preview: {
-            title: 'Bir qarashda kunlik ish oqimi',
+            title: 'Kunlik ish oqimi bir ekranda',
+            summary: "Qabullar, bemor holati va to'lovlar tez ko'rinadi.",
             cards: [
                 { label: 'Bugungi qabullar', value: '8', tone: 'bg-blue-600' },
                 { label: "Kutilayotgan to'lov", value: '4.8M UZS', tone: 'bg-emerald-600' },
@@ -151,92 +179,83 @@ const LANDING_CONTENT: Record<
             queue: [
                 { time: '09:00', patient: 'Dilshod Karimov', status: 'Kontrol' },
                 { time: '10:30', patient: 'Madina Rustamova', status: 'Whitening' },
-                { time: '12:00', patient: 'Sardor Ergashev', status: 'Implant konsultatsiya' },
             ],
-            summary: "Bemor ma'lumoti, odontogramma va to'lov holati bir sahifada ko'rinadi.",
         },
         outcomes: {
             eyebrow: 'Nimani hal qiladi',
-            title: 'Landing savollariga qisqa javob: Identa nimaga kerak?',
+            title: 'Klinika uchun eng kerakli natijalar',
             items: [
                 {
-                    title: "Bemorlarni yo'qotmaysiz",
-                    description: "Kartalar, tarix, treatment yozuvlari va rasmlar tartibli saqlanadi.",
+                    title: "Bemorlar tartibda bo'ladi",
+                    description: "Kartalar, tarix va rasmlar tartibli saqlanadi.",
                 },
                 {
-                    title: "Qabullar boshqariladigan bo'ladi",
-                    description: "Kunlik va haftalik jadval chalkashmasdan, tez to'ldiriladi va ko'riladi.",
+                    title: "Qabullar boshqariladi",
+                    description: "Kunlik va haftalik jadvalni tez to'ldirib, ko'rish mumkin.",
                 },
                 {
-                    title: 'Qarz va to‘lov ko‘rinadi',
+                    title: "To'lovlar ko'rinadi",
                     description: "Kim qancha to'lagani va qancha qolganini bir qarashda ko'rasiz.",
                 },
                 {
-                    title: 'Staff access nazoratda bo‘ladi',
-                    description: "Assistentlarga kerakli ruxsatlar beriladi, ortiqcha imkoniyat ochilmaydi.",
+                    title: 'Davolash tarixi bir joyda',
+                    description: "Odontogramma, yozuvlar va rasmlar bitta bemor kartasiga jamlanadi.",
                 },
                 {
-                    title: 'Muddat tugasa ish to‘xtab qolmaydi',
-                    description: "Subscription tugaganda ham read-only rejim orqali ma'lumotlaringizni ko'rishda davom etasiz.",
-                },
-                {
-                    title: 'Har joydan ishlaydi',
-                    description: "Telefon, planshet va desktopda bir xil qulay ishlash uchun optimallashtirilgan.",
+                    title: 'Har qurilmada qulay',
+                    description: "Telefon, planshet va desktopda bir xil qulay ishlash uchun moslangan.",
                 },
             ],
         },
         workflow: {
             eyebrow: 'Qanday boshlanadi',
-            title: 'Self-signup o‘rniga boshqariladigan onboarding',
-            description:
-                "Identa da ommaviy registratsiya yo'q. Bu klinikalarni tartibli ulash, trial berish va access nazoratini soddalashtiradi.",
+            title: 'Boshlash oddiy',
+            description: "Telegram orqali so'rov qoldirasiz, qisqa demo olasiz va access ochiladi.",
             steps: [
                 {
                     title: "1. So'rov qoldirasiz",
-                    description: "Ism, telefon va klinika ma'lumotini qoldirasiz. Telegram orqali tez bog'lanamiz.",
+                    description: "Ism, telefon va klinika ma'lumotini yuborasiz.",
                 },
                 {
                     title: '2. Demo va onboarding',
-                    description: "Jarayon, tarif va trial bo'yicha qisqa demo qilinadi.",
+                    description: "Qisqa demo ko'rsatamiz va mos tarifni tanlashga yordam beramiz.",
                 },
                 {
                     title: '3. Access ochiladi',
-                    description: "Superadmin akkauntni yaratadi, kerak bo'lsa staff va trial darrov ulab beradi.",
+                    description: "Akkaunt ochiladi va ishni boshlaysiz.",
                 },
             ],
         },
         plans: {
-            eyebrow: 'Tarif mantiqi',
-            title: 'Registratsiya emas, access provisioning',
-            description:
-                "Akkauntlar qo'lda ochiladi. Bu sizga trial, oylik va yillik paketlarni nazorat bilan ulash imkonini beradi.",
+            eyebrow: 'Tariflar',
+            title: 'Boshlash uchun 3 oddiy variant',
+            description: "Avval trial bilan ko'rasiz, keyin klinikangizga mos tarifni tanlaysiz.",
             items: [
                 {
                     title: 'Free trial',
                     badge: '30 kun',
-                    description: "Tizimni real ish jarayonida ko'rib chiqish uchun sinov davri.",
-                    bullets: ['Asosiy modullar ochiq', 'Onboarding bilan boshlanadi', "Trial tugaganda read-only qo'llanadi"],
+                    description: "Tizimni real ish jarayonida sinab ko'rish uchun.",
+                    bullets: ['Asosiy modullar ochiq', 'Tez onboarding', "Klinika ichida sinab ko'rish"],
                 },
                 {
                     title: 'Oylik paket',
                     badge: 'Monthly',
-                    description: 'Aktiv ishlayotgan xususiy amaliyot uchun mos variant.',
-                    bullets: ["Bemorlar va qabullar oqimi", "To'lov nazorati", 'Staff limit bilan boshqaruv'],
+                    description: 'Faol ishlayotgan xususiy amaliyot uchun qulay variant.',
+                    bullets: ["Qabullar va bemorlar", "To'lov nazorati", 'Kunlik ishlash uchun qulay'],
                 },
                 {
                     title: 'Yillik paket',
                     badge: 'Yearly',
-                    description: 'Barqaror klinikalar uchun uzoqroq va qulayroq ulanish formati.',
-                    bullets: ['Uzoq muddatli ishlatish', 'Subscription uzaytirish oson', 'Superadmin orqali boshqariladi'],
+                    description: 'Barqaror klinikalar uchun uzoq muddatli format.',
+                    bullets: ['Uzoqroq muddat', 'Boshqarish oson', 'Klinika uchun qulayroq'],
                 },
             ],
         },
         form: {
             badge: 'Telegram orqali boshlaymiz',
-            title: "Kirish uchun so'rov qoldiring",
-            description:
-                "Formani to'ldirsangiz, Telegram uchun tayyor matn ochiladi. Email shart emas.",
-            helper: "So'rov yuborilgach, Telegram orqali tez bog'lanamiz va onboardingni boshlaymiz.",
+            title: "Demo yoki access so'rovi qoldiring",
+            description: "Ism, telefon va klinika nomini qoldiring. Email shart emas.",
+            helper: "Telegram orqali tez bog'lanamiz va keyingi qadamlarni yozamiz.",
             name: 'Ism',
             phone: 'Telefon',
             clinic: 'Klinika nomi',
@@ -247,34 +266,33 @@ const LANDING_CONTENT: Record<
             directTelegram: "Telegramga o'tish",
             fixErrors: "Majburiy maydonlarni to'g'rilang.",
             openedTelegram: 'Telegram oynasi ochildi.',
-            copied: 'So‘rov matni nusxalandi.',
+            copied: "So'rov matni nusxalandi.",
         },
         faq: {
-            eyebrow: 'Ko‘p so‘raladigan savollar',
-            title: 'Landing barcha asosiy savollarga javob berishi kerak',
+            eyebrow: 'FAQ',
+            title: 'Asosiy savollarga qisqa javob',
             items: [
                 {
                     question: "Ro'yxatdan o'tish bormi?",
-                    answer: "Yo'q. Identa da public sign-up yo'q. Access superadmin tomonidan ochiladi.",
+                    answer: "Yo'q. Public sign-up yo'q, access so'rov bo'yicha ochiladi.",
                 },
                 {
-                    question: "Demoni qanday ko'raman?",
-                    answer: "Telegram orqali so'rov qoldirasiz, onboarding va demo bo'yicha bog'lanamiz.",
+                    question: 'Trial bormi?',
+                    answer: "Ha. Trial orqali tizimni klinika ish jarayonida ko'rib chiqish mumkin.",
                 },
                 {
-                    question: "Telefon orqali ham ishlaydimi?",
-                    answer: 'Ha. Landing ham, ichki product ham mobile, tablet va desktop uchun moslangan.',
+                    question: 'Telefon orqali ham ishlaydimi?',
+                    answer: 'Ha. Landing ham, product ham mobile, tablet va desktop uchun moslangan.',
                 },
                 {
-                    question: "Subscription tugasa nima bo'ladi?",
-                    answer: "Akkaunt darrov yo'qolmaydi. Read-only rejimda ma'lumotlar ko'rinib turadi, keyin uzaytirish mumkin.",
+                    question: "Qanday bog'lansam bo'ladi?",
+                    answer: "Telegram orqali so'rov qoldirasiz, keyin demo va ulanish bo'yicha bog'lanamiz.",
                 },
             ],
         },
         finalCta: {
             title: 'Klinikangizni tartibli raqamlashtirishga tayyormisiz?',
-            description:
-                "Telegram orqali bog'laning yoki existing account bilan tizimga kiring.",
+            description: "Telegram orqali bog'laning yoki mavjud akkaunt bilan tizimga kiring.",
             primary: "So'rov yuborish",
             secondary: 'Kirish',
         },
@@ -291,20 +309,21 @@ const LANDING_CONTENT: Record<
         hero: {
             badge: 'Для частных стоматологов и небольших клиник',
             title: 'Управляйте записями, пациентами и',
-            accent: 'задолженностями в одной системе',
+            accent: 'контролем оплат в одной системе',
             description:
-                'Identa создана для частной стоматологической практики: карты пациентов, одонтограмма, история лечения, платежи и доступ сотрудников собраны в единый понятный рабочий поток.',
+                'Identa создана для частной стоматологической практики: расписание, карта пациента, одонтограмма и история лечения работают в одном месте.',
             primary: 'Оставить запрос на доступ',
             secondary: 'Войти в систему',
-            helper: 'Открытой регистрации нет. Доступ выдается через онбординг и супер-админа.',
+            helper: 'Демо и подключение идут через Telegram. Открытой регистрации нет.',
             stats: [
                 { value: '30 дней', label: 'free trial' },
                 { value: '3 языка', label: 'RU / UZ / EN' },
-                { value: 'Read-only', label: 'после окончания доступ к данным сохраняется' },
+                { value: 'Responsive', label: 'телефон, планшет и desktop' },
             ],
         },
         preview: {
             title: 'Ежедневный рабочий поток в одном окне',
+            summary: 'Записи, пациент и платежи видны без лишних переходов.',
             cards: [
                 { label: 'Записи сегодня', value: '8', tone: 'bg-blue-600' },
                 { label: 'Ожидается к оплате', value: '4.8M UZS', tone: 'bg-emerald-600' },
@@ -314,33 +333,27 @@ const LANDING_CONTENT: Record<
             queue: [
                 { time: '09:00', patient: 'Дильшод Каримов', status: 'Контроль' },
                 { time: '10:30', patient: 'Мадина Рустамова', status: 'Whitening' },
-                { time: '12:00', patient: 'Сардор Эргашев', status: 'Консультация по импланту' },
             ],
-            summary: 'Карта пациента, одонтограмма и статус оплаты видны на одной странице.',
         },
         outcomes: {
             eyebrow: 'Что это решает',
-            title: 'Коротко и по делу: зачем вашей клинике Identa?',
+            title: 'Самое важное для клиники',
             items: [
                 {
-                    title: 'Пациенты не теряются',
-                    description: 'Карты, история, записи лечения и изображения хранятся в одном аккуратном месте.',
+                    title: 'Пациенты в порядке',
+                    description: 'Карты, история и изображения хранятся в одном аккуратном месте.',
                 },
                 {
-                    title: 'Расписание становится управляемым',
+                    title: 'Расписание под контролем',
                     description: 'Дневной и недельный календарь заполняется быстро и без путаницы.',
                 },
                 {
-                    title: 'Долги и оплаты под контролем',
-                    description: 'Сразу видно, кто сколько оплатил и что осталось к закрытию.',
+                    title: 'Оплаты видны сразу',
+                    description: 'Сразу видно, что оплачено и что осталось к закрытию.',
                 },
                 {
-                    title: 'Права сотрудников под контролем',
-                    description: 'Ассистентам выдаются только нужные разрешения без лишнего доступа.',
-                },
-                {
-                    title: 'Работа не обрывается после окончания тарифа',
-                    description: 'После завершения подписки данные остаются доступны в режиме read-only.',
+                    title: 'История лечения рядом',
+                    description: 'Одонтограмма, записи и изображения собраны внутри карты пациента.',
                 },
                 {
                     title: 'Работает на любом устройстве',
@@ -350,56 +363,53 @@ const LANDING_CONTENT: Record<
         },
         workflow: {
             eyebrow: 'Как начинается работа',
-            title: 'Не self-signup, а контролируемый онбординг',
-            description:
-                'В Identa нет массовой регистрации. Это помогает аккуратно подключать клиники, запускать trial и держать доступ под контролем.',
+            title: 'Старт без лишних шагов',
+            description: 'Оставляете заявку в Telegram, смотрите короткое демо и получаете доступ.',
             steps: [
                 {
                     title: '1. Оставляете запрос',
-                    description: 'Заполняете имя, телефон и данные клиники. Дальше быстро связываемся через Telegram.',
+                    description: 'Заполняете имя, телефон и данные клиники.',
                 },
                 {
                     title: '2. Демо и онбординг',
-                    description: 'Показываем процесс работы, отвечаем на вопросы по тарифу и trial.',
+                    description: 'Показываем систему и помогаем выбрать подходящий тариф.',
                 },
                 {
                     title: '3. Открываем доступ',
-                    description: 'Супер-админ создает аккаунт и при необходимости сразу подключает trial и сотрудников.',
+                    description: 'Открываем аккаунт и можно начинать работу.',
                 },
             ],
         },
         plans: {
-            eyebrow: 'Логика тарифов',
-            title: 'Не регистрация, а provisioning доступа',
-            description:
-                'Аккаунты создаются вручную. Это позволяет управлять trial, месячным и годовым доступом без хаоса.',
+            eyebrow: 'Тарифы',
+            title: 'Три понятных варианта старта',
+            description: 'Сначала пробуете trial, затем выбираете формат, который подходит вашей клинике.',
             items: [
                 {
                     title: 'Free trial',
                     badge: '30 дней',
-                    description: 'Тестовый период, чтобы попробовать систему в реальном процессе клиники.',
-                    bullets: ['Открыты основные модули', 'Стартует после онбординга', 'После окончания включается read-only'],
+                    description: 'Чтобы протестировать систему в реальном процессе клиники.',
+                    bullets: ['Открыты основные модули', 'Быстрый онбординг', 'Удобный старт без лишней сложности'],
                 },
                 {
                     title: 'Месячный тариф',
                     badge: 'Monthly',
-                    description: 'Подходит для активно работающей частной практики.',
-                    bullets: ['Поток пациентов и записей', 'Контроль платежей', 'Управление staff-лимитом'],
+                    description: 'Удобный вариант для активно работающей частной практики.',
+                    bullets: ['Записи и пациенты', 'Контроль оплат', 'Комфортная ежедневная работа'],
                 },
                 {
                     title: 'Годовой тариф',
                     badge: 'Yearly',
-                    description: 'Удобный формат для стабильных клиник с долгим горизонтом работы.',
-                    bullets: ['Долгосрочное использование', 'Простое продление подписки', 'Управляется супер-админом'],
+                    description: 'Формат для стабильных клиник с долгим горизонтом работы.',
+                    bullets: ['Долгий период', 'Простое продление', 'Удобно для клиники'],
                 },
             ],
         },
         form: {
             badge: 'Стартуем через Telegram',
-            title: 'Оставьте запрос на доступ',
-            description:
-                'Заполните форму, и откроется готовое сообщение для Telegram. Email не обязателен.',
-            helper: 'После отправки запроса быстро связываемся через Telegram и запускаем онбординг.',
+            title: 'Оставьте запрос на демо или доступ',
+            description: 'Оставьте имя, телефон и название клиники. Email не обязателен.',
+            helper: 'После заявки быстро продолжаем общение в Telegram.',
             name: 'Имя',
             phone: 'Телефон',
             clinic: 'Название клиники',
@@ -413,34 +423,34 @@ const LANDING_CONTENT: Record<
             copied: 'Текст заявки скопирован.',
         },
         faq: {
-            eyebrow: 'Частые вопросы',
-            title: 'Лендинг должен снимать основные вопросы до разговора',
+            eyebrow: 'FAQ',
+            title: 'Коротко о главном',
             items: [
                 {
-                    question: 'Можно зарегистрироваться самостоятельно?',
-                    answer: 'Нет. В Identa нет публичной регистрации. Доступ выдает супер-админ.',
+                    question: 'Есть ли открытая регистрация?',
+                    answer: 'Нет. Public sign-up нет, доступ открывается по запросу.',
                 },
                 {
-                    question: 'Как посмотреть демо?',
-                    answer: 'Оставляете запрос через форму, и мы связываемся в Telegram для демо и онбординга.',
+                    question: 'Есть ли trial?',
+                    answer: 'Да. Можно начать с trial и посмотреть систему в реальной работе клиники.',
                 },
                 {
-                    question: 'Система работает на телефоне?',
-                    answer: 'Да. И лендинг, и сам продукт адаптированы для мобильных устройств, планшетов и десктопа.',
+                    question: 'Работает ли с телефона?',
+                    answer: 'Да. И landing, и продукт адаптированы под мобильный, планшет и desktop.',
                 },
                 {
-                    question: 'Что будет после окончания подписки?',
-                    answer: 'Аккаунт не исчезает сразу. Данные остаются доступны в режиме read-only до продления.',
+                    question: 'Как с вами связаться?',
+                    answer: 'Оставляете заявку через Telegram, и дальше быстро договариваемся о демо и подключении.',
                 },
             ],
         },
         finalCta: {
-            title: 'Готовы аккуратно оцифровать практику?',
-            description: 'Напишите в Telegram или перейдите ко входу, если доступ уже выдан.',
-            primary: 'Отправить запрос',
+            title: 'Готовы навести порядок в клинике?',
+            description: 'Свяжитесь через Telegram или войдите, если у вас уже есть аккаунт.',
+            primary: 'Оставить запрос',
             secondary: 'Войти',
         },
-        footer: '(c) 2026 Identa. Создано для частных стоматологов Узбекистана.',
+        footer: '(c) 2026 Identa. Создано для частных стоматологов в Узбекистане.',
     },
     en: {
         nav: {
@@ -448,25 +458,26 @@ const LANDING_CONTENT: Record<
             workflow: 'How it works',
             plans: 'Plans',
             faq: 'FAQ',
-            signIn: 'Sign In',
+            signIn: 'Sign in',
         },
         hero: {
             badge: 'Built for solo dentists and small clinics',
             title: 'Run appointments, patients, and',
-            accent: 'outstanding balances in one system',
+            accent: 'payment control in one system',
             description:
-                'Identa is designed for private dental practice: patient records, odontogram, treatment history, payments, and staff access come together in one clean workflow.',
+                'Identa is built for private dental practice: scheduling, patient records, odontogram, and treatment history all work in one place.',
             primary: 'Request access',
             secondary: 'Sign in',
-            helper: 'There is no public self-signup. Access is provisioned through onboarding and a super admin.',
+            helper: 'Demo and onboarding happen through Telegram. There is no public self-signup.',
             stats: [
                 { value: '30 days', label: 'free trial' },
-                { value: '3 languages', label: 'RU / UZ / EN' },
-                { value: 'Read-only', label: 'data remains visible after expiry' },
+                { value: '3 languages', label: 'UZ / RU / EN' },
+                { value: 'Responsive', label: 'phone, tablet, and desktop' },
             ],
         },
         preview: {
-            title: 'One screen for the daily flow',
+            title: 'Daily workflow in one view',
+            summary: 'Appointments, patient status, and payments stay visible without extra clicks.',
             cards: [
                 { label: 'Today appointments', value: '8', tone: 'bg-blue-600' },
                 { label: 'Pending revenue', value: '4.8M UZS', tone: 'bg-emerald-600' },
@@ -476,92 +487,83 @@ const LANDING_CONTENT: Record<
             queue: [
                 { time: '09:00', patient: 'Dilshod Karimov', status: 'Checkup' },
                 { time: '10:30', patient: 'Madina Rustamova', status: 'Whitening' },
-                { time: '12:00', patient: 'Sardor Ergashev', status: 'Implant consultation' },
             ],
-            summary: 'Patient details, odontogram, and payment status stay visible on a single page.',
         },
         outcomes: {
             eyebrow: 'What it solves',
-            title: 'A compact landing should still answer the important questions',
+            title: 'What matters most for a clinic',
             items: [
                 {
                     title: 'Patients stay organized',
-                    description: 'Records, treatment history, and images live in one structured place.',
+                    description: 'Records, history, and images stay in one structured place.',
                 },
                 {
-                    title: 'Scheduling becomes manageable',
-                    description: 'Daily and weekly calendars are faster to fill and easier to review.',
+                    title: 'Scheduling stays manageable',
+                    description: 'Daily and weekly calendars are easier to fill and review.',
                 },
                 {
-                    title: 'Debts and payments are visible',
-                    description: 'You can instantly see what has been paid and what is still outstanding.',
+                    title: 'Payments stay visible',
+                    description: 'You can quickly see what was paid and what is still pending.',
                 },
                 {
-                    title: 'Staff access stays controlled',
-                    description: 'Assistants get only the permissions they actually need.',
-                },
-                {
-                    title: 'Expiry does not erase your work',
-                    description: 'After subscription expiry, the account can remain available in read-only mode.',
+                    title: 'Treatment history stays together',
+                    description: 'The odontogram, notes, and images remain attached to the patient record.',
                 },
                 {
                     title: 'Works on every device',
-                    description: 'Optimized for phones, tablets, laptops, and wide desktop screens.',
+                    description: 'Optimized for phone, tablet, and desktop workflows.',
                 },
             ],
         },
         workflow: {
-            eyebrow: 'Getting started',
-            title: 'Controlled onboarding instead of self-signup',
-            description:
-                'Identa does not use open registration. That keeps access clean, supports trial provisioning, and makes clinic onboarding more reliable.',
+            eyebrow: 'How it starts',
+            title: 'A simple start',
+            description: 'Send a Telegram request, get a short demo, and receive access.',
             steps: [
                 {
-                    title: '1. Submit a request',
-                    description: 'Share your name, phone number, and clinic details. We continue the conversation in Telegram.',
+                    title: '1. Send a request',
+                    description: 'Leave your name, phone number, and clinic details.',
                 },
                 {
                     title: '2. Demo and onboarding',
-                    description: 'We walk through the product, answer pricing questions, and align on the trial.',
+                    description: 'We show the product and help you choose the right plan.',
                 },
                 {
-                    title: '3. Access is provisioned',
-                    description: 'The super admin creates the account and can immediately attach trial and staff access.',
+                    title: '3. Access is opened',
+                    description: 'Your account is created and you can start working.',
                 },
             ],
         },
         plans: {
-            eyebrow: 'Access model',
-            title: 'Provisioned access, not open registration',
-            description:
-                'Accounts are created manually so trial, monthly, and yearly access can be managed in a controlled way.',
+            eyebrow: 'Plans',
+            title: 'Three simple ways to start',
+            description: 'Start with a trial, then choose the format that fits your clinic best.',
             items: [
                 {
                     title: 'Free trial',
                     badge: '30 days',
-                    description: 'A practical trial period to evaluate the product in your real clinic workflow.',
-                    bullets: ['Core modules enabled', 'Starts with onboarding', 'Read-only can apply after expiry'],
+                    description: 'A quick way to evaluate the workflow inside a real clinic process.',
+                    bullets: ['Core modules included', 'Fast onboarding', 'Easy way to test the product'],
                 },
                 {
                     title: 'Monthly plan',
                     badge: 'Monthly',
-                    description: 'Fits active private practices that prefer flexible billing.',
-                    bullets: ['Patient and schedule flow', 'Payment visibility', 'Managed staff limits'],
+                    description: 'A practical option for clinics already working actively.',
+                    bullets: ['Appointments and patients', 'Payment control', 'Comfortable day-to-day use'],
                 },
                 {
                     title: 'Yearly plan',
                     badge: 'Yearly',
-                    description: 'A steady long-term option for clinics that want predictable access management.',
-                    bullets: ['Longer operating horizon', 'Easy renewal flow', 'Controlled by super admin'],
+                    description: 'A smoother long-term format for stable clinics.',
+                    bullets: ['Longer period', 'Simple renewals', 'Convenient for stable clinics'],
                 },
             ],
         },
         form: {
             badge: 'Start with Telegram',
-            title: 'Request access',
-            description:
-                'Complete the form and we will open a ready-made Telegram message. Email is not required.',
-            helper: 'After the request is sent, we continue the conversation in Telegram and guide you through onboarding.',
+            title: 'Request a demo or access',
+            description: 'Leave your name, phone number, and clinic name. Email is not required.',
+            helper: 'After the request is sent, we continue the conversation in Telegram.',
             name: 'Name',
             phone: 'Phone',
             clinic: 'Clinic name',
@@ -576,29 +578,29 @@ const LANDING_CONTENT: Record<
         },
         faq: {
             eyebrow: 'FAQ',
-            title: 'The landing should reduce friction before the first conversation',
+            title: 'Quick answers to the main questions',
             items: [
                 {
-                    question: 'Can I register on my own?',
-                    answer: 'No. Identa does not have public self-signup. Access is provisioned by a super admin.',
+                    question: 'Is there open registration?',
+                    answer: 'No. There is no public self-signup; access is issued on request.',
                 },
                 {
-                    question: 'How do I see a demo?',
-                    answer: 'Submit the request form and we will continue in Telegram for a short demo and onboarding.',
+                    question: 'Is there a trial?',
+                    answer: 'Yes. You can start with a trial and evaluate the system inside the clinic workflow.',
                 },
                 {
-                    question: 'Does it work on mobile devices?',
-                    answer: 'Yes. Both the landing page and the product experience are designed for mobile, tablet, and desktop use.',
+                    question: 'Does it work on mobile?',
+                    answer: 'Yes. Both the landing page and the product are adapted for phone, tablet, and desktop.',
                 },
                 {
-                    question: 'What happens when subscription ends?',
-                    answer: 'The account does not disappear immediately. Data can remain visible in read-only mode until renewal.',
+                    question: 'How do I contact you?',
+                    answer: 'Leave a Telegram request and we will follow up quickly with demo and onboarding details.',
                 },
             ],
         },
         finalCta: {
-            title: 'Ready to digitize your practice without chaos?',
-            description: 'Use Telegram to start the conversation or sign in if your account already exists.',
+            title: 'Ready to bring order to your clinic?',
+            description: 'Start the conversation in Telegram or sign in if your account already exists.',
             primary: 'Send request',
             secondary: 'Sign in',
         },
@@ -606,17 +608,84 @@ const LANDING_CONTENT: Record<
     },
 };
 
-const OUTCOME_ICONS = [Stethoscope, CalendarDays, CreditCard, ShieldCheck, Lock, Globe] as const;
+const LANDING_RUNTIME_COPY: Record<LandingLocale, LandingRuntimeCopy> = {
+    uz: {
+        requestBadge: "Super-adminga so'rov yuborish",
+        requestTitle: "Demo yoki ulanish so'rovini qoldiring",
+        requestDescription:
+            "Forma orqali yuborilgan so'rov super-adminga tushadi. Xohlasangiz alohida Telegram orqali ham bog'lanishingiz mumkin.",
+        requestHelper:
+            "Email shart emas. So'rovdan keyin siz bilan bog'lanib, demo, trial va ulanish jarayonini tushuntiramiz.",
+        formSubmit: "So'rov yuborish",
+        formSubmitting: 'Yuborilmoqda...',
+        formSubmitted: "So'rov yuborildi. Tez orada siz bilan bog'lanamiz.",
+        formSubmitError: "So'rovni yuborib bo'lmadi. Qayta urinib ko'ring.",
+        planFree: 'Bepul',
+        monthlySuffix: '/ oy',
+        yearlySuffix: '/ yil',
+        telegramPrompt: "Identa haqida ma'lumot olmoqchiman",
+    },
+    ru: {
+        requestBadge: 'Заявка для супер-админа',
+        requestTitle: 'Оставьте заявку на демо или подключение',
+        requestDescription:
+            'Заявка из формы попадает супер-админу. Если удобнее, можно сразу написать в Telegram.',
+        requestHelper:
+            'Email не обязателен. После заявки мы связываемся, показываем демо и открываем доступ.',
+        formSubmit: 'Отправить заявку',
+        formSubmitting: 'Отправка...',
+        formSubmitted: 'Заявка отправлена. Мы скоро свяжемся с вами.',
+        formSubmitError: 'Не удалось отправить заявку. Попробуйте ещё раз.',
+        planFree: 'Бесплатно',
+        monthlySuffix: '/ месяц',
+        yearlySuffix: '/ год',
+        telegramPrompt: 'Хочу узнать подробнее об Identa',
+    },
+    en: {
+        requestBadge: 'Request access from the super admin',
+        requestTitle: 'Request a demo or clinic access',
+        requestDescription:
+            'Form submissions go directly to the super admin. If you prefer, you can also contact us in Telegram.',
+        requestHelper:
+            'Email is not required. After the request, we follow up, show the demo, and arrange onboarding.',
+        formSubmit: 'Send request',
+        formSubmitting: 'Sending...',
+        formSubmitted: 'Request sent. We will contact you shortly.',
+        formSubmitError: 'Could not send the request. Please try again.',
+        planFree: 'Free',
+        monthlySuffix: '/ month',
+        yearlySuffix: '/ year',
+        telegramPrompt: 'I want to learn more about Identa',
+    },
+};
 
-function buildTelegramHref(message: string): string {
-    if (TELEGRAM_CONTACT_URL) {
+const OUTCOME_ICONS = [Stethoscope, CalendarDays, CreditCard, FileText, Globe] as const;
+
+function getIntlLocale(locale: LandingLocale): string {
+    switch (locale) {
+        case 'uz':
+            return 'uz-UZ';
+        case 'ru':
+            return 'ru-RU';
+        default:
+            return 'en-US';
+    }
+}
+
+function buildTelegramHref(message: string, contactUrl?: string | null): string {
+    const configuredUrl = contactUrl?.trim() || TELEGRAM_CONTACT_URL;
+
+    if (configuredUrl) {
         try {
-            const directUrl = new URL(TELEGRAM_CONTACT_URL);
-            directUrl.searchParams.set('text', message);
+            const directUrl = new URL(configuredUrl);
+
+            if (message.trim() !== '') {
+                directUrl.searchParams.set('text', message);
+            }
+
             return directUrl.toString();
-        }
-        catch {
-            // Fallback below if env is not a valid URL.
+        } catch {
+            // Fall back to the standard share flow below.
         }
     }
 
@@ -626,9 +695,9 @@ function buildTelegramHref(message: string): string {
     return shareUrl.toString();
 }
 
-function buildTelegramMessage(copy: (typeof LANDING_CONTENT)[LandingLocale], form: LandingFormState): string {
+function buildTelegramMessage(copy: LandingContent, form: LandingFormState): string {
     const lines = [
-        `Identa access request`,
+        'Identa access request',
         `${copy.form.name}: ${form.name.trim()}`,
         `${copy.form.phone}: ${form.phone.trim()}`,
         `${copy.form.clinic}: ${form.clinicName.trim()}`,
@@ -642,9 +711,43 @@ function buildTelegramMessage(copy: (typeof LANDING_CONTENT)[LandingLocale], for
     return lines.join('\n');
 }
 
+function getPlanAmount(settings: ApiLandingSettings, planKey: PlanKey): number {
+    switch (planKey) {
+        case 'trial':
+            return settings.trial_price_amount;
+        case 'monthly':
+            return settings.monthly_price_amount;
+        case 'yearly':
+            return settings.yearly_price_amount;
+    }
+}
+
+function formatPlanPrice(
+    amount: number,
+    currency: string,
+    locale: LandingLocale,
+    runtimeCopy: LandingRuntimeCopy
+): string {
+    if (amount <= 0) {
+        return runtimeCopy.planFree;
+    }
+
+    try {
+        return new Intl.NumberFormat(getIntlLocale(locale), {
+            style: 'currency',
+            currency,
+            maximumFractionDigits: 0,
+        }).format(amount);
+    } catch {
+        return `${amount.toLocaleString(getIntlLocale(locale))} ${currency}`;
+    }
+}
+
 export default function LandingPage() {
     const { locale } = useI18n();
-    const content = LANDING_CONTENT[locale];
+    const landingLocale = (locale as LandingLocale) ?? 'en';
+    const content = LANDING_CONTENT[landingLocale] ?? LANDING_CONTENT.en;
+    const runtimeCopy = LANDING_RUNTIME_COPY[landingLocale] ?? LANDING_RUNTIME_COPY.en;
     const [form, setForm] = useState<LandingFormState>({
         name: '',
         phone: '',
@@ -654,42 +757,64 @@ export default function LandingPage() {
     });
     const [isSubmitted, setIsSubmitted] = useState(false);
 
-    const errors = useMemo(() => ({
-        name: getTextValidationMessage(form.name, {
-            label: content.form.name,
-            required: true,
-            min: 2,
-            max: INPUT_LIMITS.personName,
-        }),
-        phone: getPhoneValidationMessage(form.phone, { required: true }),
-        clinicName: getTextValidationMessage(form.clinicName, {
-            label: content.form.clinic,
-            required: true,
-            min: 2,
-            max: INPUT_LIMITS.practiceName,
-        }),
-        city: getTextValidationMessage(form.city, {
-            label: content.form.city,
-            required: true,
-            min: 2,
-            max: INPUT_LIMITS.shortText,
-        }),
-        note: getTextValidationMessage(form.note, {
-            label: content.form.note,
-            required: false,
-            max: INPUT_LIMITS.longText,
-        }),
-    }), [content.form.city, content.form.clinic, content.form.name, content.form.note, form]);
+    const landingSettingsQuery = useQuery({
+        queryKey: ['public', 'landing-settings'],
+        queryFn: getPublicLandingSettings,
+        staleTime: 60_000,
+    });
 
-    const hasErrors = Boolean(
-        errors.name
-        || errors.phone
-        || errors.clinicName
-        || errors.city
-        || errors.note
+    const leadRequestMutation = useMutation({
+        mutationFn: createPublicLeadRequest,
+        onSuccess: () => {
+            setForm({
+                name: '',
+                phone: '',
+                clinicName: '',
+                city: '',
+                note: '',
+            });
+            setIsSubmitted(false);
+            toast.success(runtimeCopy.formSubmitted);
+        },
+        onError: (error) => {
+            toast.error(getApiErrorMessage(error, runtimeCopy.formSubmitError));
+        },
+    });
+
+    const errors = useMemo(
+        () => ({
+            name: getTextValidationMessage(form.name, {
+                label: content.form.name,
+                required: true,
+                min: 2,
+                max: INPUT_LIMITS.personName,
+            }),
+            phone: getPhoneValidationMessage(form.phone, { required: true }),
+            clinicName: getTextValidationMessage(form.clinicName, {
+                label: content.form.clinic,
+                required: true,
+                min: 2,
+                max: INPUT_LIMITS.practiceName,
+            }),
+            city: getTextValidationMessage(form.city, {
+                label: content.form.city,
+                required: true,
+                min: 2,
+                max: INPUT_LIMITS.shortText,
+            }),
+            note: getTextValidationMessage(form.note, {
+                label: content.form.note,
+                required: false,
+                max: INPUT_LIMITS.longText,
+            }),
+        }),
+        [content.form.city, content.form.clinic, content.form.name, content.form.note, form]
     );
 
-    const handleTelegramSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    const hasErrors = Boolean(errors.name || errors.phone || errors.clinicName || errors.city || errors.note);
+    const landingSettings = landingSettingsQuery.data ?? DEFAULT_LANDING_SETTINGS;
+
+    const handleLeadRequestSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault();
         setIsSubmitted(true);
 
@@ -698,25 +823,21 @@ export default function LandingPage() {
             return;
         }
 
-        const message = buildTelegramMessage(content, form);
-        const telegramHref = buildTelegramHref(message);
-
-        if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
-            navigator.clipboard.writeText(message).then(
-                () => toast.success(content.form.copied),
-                () => undefined
-            );
-        }
-
-        if (typeof window !== 'undefined') {
-            window.open(telegramHref, '_blank', 'noopener,noreferrer');
-        }
-
-        toast.success(content.form.openedTelegram);
+        await leadRequestMutation.mutateAsync({
+            name: form.name.trim(),
+            phone: form.phone.trim(),
+            clinic_name: form.clinicName.trim(),
+            city: form.city.trim(),
+            note: form.note.trim() || undefined,
+        });
     };
 
+    const directTelegramMessage = hasErrors
+        ? runtimeCopy.telegramPrompt
+        : buildTelegramMessage(content, form);
+
     return (
-        <div className="min-h-screen overflow-x-hidden bg-[radial-gradient(circle_at_top,_rgba(59,130,246,0.14),_transparent_38%),linear-gradient(180deg,#f7fbff_0%,#ffffff_42%,#f5f8ff_100%)] text-slate-950">
+        <div className="min-h-screen overflow-x-hidden bg-[radial-gradient(circle_at_top,_rgba(59,130,246,0.14),_transparent_36%),linear-gradient(180deg,#f8fbff_0%,#ffffff_40%,#f5f8ff_100%)] text-slate-950">
             <header className="sticky top-0 z-30 border-b border-slate-200/70 bg-white/85 backdrop-blur-xl">
                 <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
                     <div className="flex items-center gap-3">
@@ -728,7 +849,8 @@ export default function LandingPage() {
                             <p className="text-xs text-slate-500">{content.hero.badge}</p>
                         </div>
                     </div>
-                    <div className="hidden items-center gap-6 lg:flex">
+
+                    <nav className="hidden items-center gap-6 lg:flex">
                         <a href="#product" className="text-sm font-medium text-slate-600 transition hover:text-slate-950">
                             {content.nav.product}
                         </a>
@@ -741,7 +863,8 @@ export default function LandingPage() {
                         <a href="#faq" className="text-sm font-medium text-slate-600 transition hover:text-slate-950">
                             {content.nav.faq}
                         </a>
-                    </div>
+                    </nav>
+
                     <div className="flex items-center gap-2 sm:gap-3">
                         <LanguageSwitcher variant="compact" />
                         <Button asChild variant="outline" className="hidden sm:inline-flex">
@@ -753,12 +876,13 @@ export default function LandingPage() {
 
             <main>
                 <section className="relative">
-                    <div className="mx-auto grid max-w-7xl gap-10 px-4 py-12 sm:px-6 sm:py-16 lg:grid-cols-[1.1fr_0.9fr] lg:items-start lg:gap-12 lg:px-8 lg:py-20">
+                    <div className="mx-auto grid max-w-7xl gap-10 px-4 py-12 sm:px-6 sm:py-14 lg:grid-cols-[1.1fr_0.9fr] lg:items-start lg:gap-12 lg:px-8 lg:py-16">
                         <div className="space-y-8">
                             <div className="inline-flex items-center rounded-full border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-medium text-blue-700">
                                 <ShieldCheck className="mr-2 h-4 w-4" />
                                 {content.hero.badge}
                             </div>
+
                             <div className="space-y-5">
                                 <h1 className="max-w-3xl text-4xl font-semibold tracking-tight text-slate-950 sm:text-5xl lg:text-6xl lg:leading-[1.05]">
                                     {content.hero.title}{' '}
@@ -862,27 +986,28 @@ export default function LandingPage() {
                             <CardContent className="p-6 sm:p-8">
                                 <div className="inline-flex items-center rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-blue-100">
                                     <MessageCircle className="mr-2 h-4 w-4" />
-                                    {content.form.badge}
+                                    {runtimeCopy.requestBadge}
                                 </div>
-                                <h2 className="mt-5 text-3xl font-semibold tracking-tight">{content.form.title}</h2>
-                                <p className="mt-4 text-sm leading-6 text-slate-300">{content.form.description}</p>
-                                <p className="mt-4 text-sm leading-6 text-slate-400">{content.form.helper}</p>
-                                <div className="mt-8 grid gap-3">
-                                    <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                                        <p className="text-sm font-medium text-white">{content.workflow.steps[0].title}</p>
-                                        <p className="mt-1 text-sm text-slate-300">{content.workflow.steps[0].description}</p>
-                                    </div>
-                                    <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                                        <p className="text-sm font-medium text-white">{content.workflow.steps[1].title}</p>
-                                        <p className="mt-1 text-sm text-slate-300">{content.workflow.steps[1].description}</p>
-                                    </div>
+                                <h2 className="mt-5 text-3xl font-semibold tracking-tight">{runtimeCopy.requestTitle}</h2>
+                                <p className="mt-4 text-sm leading-6 text-slate-300">{runtimeCopy.requestDescription}</p>
+                                <p className="mt-3 text-sm leading-6 text-slate-400">{runtimeCopy.requestHelper}</p>
+                                <div className="mt-6 space-y-3">
+                                    {content.workflow.steps.map((step) => (
+                                        <div key={step.title} className="flex items-start gap-3 rounded-2xl border border-white/10 bg-white/5 p-4">
+                                            <CheckCircle2 className="mt-0.5 h-4 w-4 flex-shrink-0 text-cyan-300" />
+                                            <div>
+                                                <p className="text-sm font-medium text-white">{step.title}</p>
+                                                <p className="mt-1 text-sm text-slate-300">{step.description}</p>
+                                            </div>
+                                        </div>
+                                    ))}
                                 </div>
                             </CardContent>
                         </Card>
 
                         <Card className="rounded-[28px] border-slate-200 bg-white shadow-[0_24px_80px_-40px_rgba(15,23,42,0.4)]">
                             <CardContent className="p-6 sm:p-8">
-                                <form className="space-y-5" onSubmit={handleTelegramSubmit}>
+                                <form className="space-y-5" onSubmit={handleLeadRequestSubmit}>
                                     <div className="grid gap-4 sm:grid-cols-2">
                                         <div className="space-y-2">
                                             <label className="text-sm font-medium text-slate-800">
@@ -895,9 +1020,7 @@ export default function LandingPage() {
                                                 aria-invalid={Boolean(isSubmitted && errors.name)}
                                                 placeholder={content.form.name}
                                             />
-                                            {isSubmitted && errors.name ? (
-                                                <p className="text-xs text-red-600">{errors.name}</p>
-                                            ) : null}
+                                            {isSubmitted && errors.name ? <p className="text-xs text-red-600">{errors.name}</p> : null}
                                         </div>
 
                                         <div className="space-y-2">
@@ -917,9 +1040,7 @@ export default function LandingPage() {
                                                 aria-invalid={Boolean(isSubmitted && errors.phone)}
                                                 placeholder="+998 90 123 45 67"
                                             />
-                                            {isSubmitted && errors.phone ? (
-                                                <p className="text-xs text-red-600">{errors.phone}</p>
-                                            ) : null}
+                                            {isSubmitted && errors.phone ? <p className="text-xs text-red-600">{errors.phone}</p> : null}
                                         </div>
                                     </div>
 
@@ -953,9 +1074,7 @@ export default function LandingPage() {
                                                 aria-invalid={Boolean(isSubmitted && errors.city)}
                                                 placeholder={content.form.city}
                                             />
-                                            {isSubmitted && errors.city ? (
-                                                <p className="text-xs text-red-600">{errors.city}</p>
-                                            ) : null}
+                                            {isSubmitted && errors.city ? <p className="text-xs text-red-600">{errors.city}</p> : null}
                                         </div>
                                     </div>
 
@@ -970,20 +1089,30 @@ export default function LandingPage() {
                                             maxLength={INPUT_LIMITS.longText}
                                             aria-invalid={Boolean(isSubmitted && errors.note)}
                                             placeholder={content.form.note}
-                                            className="min-h-28"
+                                            className="min-h-24"
                                         />
-                                        {isSubmitted && errors.note ? (
-                                            <p className="text-xs text-red-600">{errors.note}</p>
-                                        ) : null}
+                                        {isSubmitted && errors.note ? <p className="text-xs text-red-600">{errors.note}</p> : null}
                                     </div>
 
                                     <div className="flex flex-col gap-3 sm:flex-row">
-                                        <Button type="submit" size="lg" className="h-12 flex-1 rounded-xl text-base">
-                                            {content.form.submit}
+                                        <Button
+                                            type="submit"
+                                            size="lg"
+                                            className="h-12 flex-1 rounded-xl text-base"
+                                            disabled={leadRequestMutation.isPending}
+                                        >
+                                            {leadRequestMutation.isPending ? runtimeCopy.formSubmitting : runtimeCopy.formSubmit}
                                             <ArrowRight className="ml-2 h-4 w-4" />
                                         </Button>
                                         <Button asChild type="button" size="lg" variant="outline" className="h-12 rounded-xl px-5">
-                                            <a href={buildTelegramHref(content.form.title)} target="_blank" rel="noreferrer">
+                                            <a
+                                                href={buildTelegramHref(
+                                                    directTelegramMessage,
+                                                    landingSettings.telegram_contact_url
+                                                )}
+                                                target="_blank"
+                                                rel="noreferrer"
+                                            >
                                                 {content.form.directTelegram}
                                             </a>
                                         </Button>
@@ -994,7 +1123,7 @@ export default function LandingPage() {
                     </div>
                 </section>
 
-                <section id="product" className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
+                <section id="product" className="mx-auto max-w-7xl px-4 py-12 sm:px-6 sm:py-14 lg:px-8">
                     <div className="space-y-4 text-center">
                         <p className="text-sm font-semibold uppercase tracking-[0.18em] text-blue-600">
                             {content.outcomes.eyebrow}
@@ -1003,7 +1132,7 @@ export default function LandingPage() {
                             {content.outcomes.title}
                         </h2>
                     </div>
-                    <div className="mt-10 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                    <div className="mt-10 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
                         {content.outcomes.items.map((item, index) => {
                             const Icon = OUTCOME_ICONS[index];
                             return (
@@ -1027,7 +1156,7 @@ export default function LandingPage() {
                 </section>
 
                 <section id="workflow" className="border-y border-slate-200/70 bg-slate-50/80">
-                    <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
+                    <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 sm:py-14 lg:px-8">
                         <div className="max-w-3xl">
                             <p className="text-sm font-semibold uppercase tracking-[0.18em] text-blue-600">
                                 {content.workflow.eyebrow}
@@ -1050,7 +1179,7 @@ export default function LandingPage() {
                     </div>
                 </section>
 
-                <section id="plans" className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
+                <section id="plans" className="mx-auto max-w-7xl px-4 py-12 sm:px-6 sm:py-14 lg:px-8">
                     <div className="max-w-3xl">
                         <p className="text-sm font-semibold uppercase tracking-[0.18em] text-blue-600">
                             {content.plans.eyebrow}
@@ -1061,8 +1190,27 @@ export default function LandingPage() {
                         <p className="mt-4 text-base leading-7 text-slate-600">{content.plans.description}</p>
                     </div>
                     <div className="mt-10 grid gap-5 lg:grid-cols-3">
-                        {content.plans.items.map((plan) => (
-                            <Card key={plan.title} className="rounded-[28px] border-slate-200 bg-white shadow-[0_18px_50px_-38px_rgba(15,23,42,0.4)]">
+                        {content.plans.items.map((plan, index) => {
+                            const planKey = (['trial', 'monthly', 'yearly'] as const)[index];
+                            const planAmount = getPlanAmount(landingSettings, planKey);
+                            const planPrice = formatPlanPrice(
+                                planAmount,
+                                landingSettings.currency,
+                                landingLocale,
+                                runtimeCopy
+                            );
+                            const billingSuffix =
+                                planKey === 'monthly'
+                                    ? runtimeCopy.monthlySuffix
+                                    : planKey === 'yearly'
+                                      ? runtimeCopy.yearlySuffix
+                                      : null;
+
+                            return (
+                            <Card
+                                key={plan.title}
+                                className="rounded-[28px] border-slate-200 bg-white shadow-[0_18px_50px_-38px_rgba(15,23,42,0.4)]"
+                            >
                                 <CardContent className="p-6">
                                     <div className="flex items-center justify-between gap-3">
                                         <h3 className="text-xl font-semibold text-slate-950">{plan.title}</h3>
@@ -1071,6 +1219,12 @@ export default function LandingPage() {
                                         </span>
                                     </div>
                                     <p className="mt-4 text-sm leading-6 text-slate-600">{plan.description}</p>
+                                    <div className="mt-5 rounded-2xl bg-slate-50 px-4 py-4">
+                                        <p className="text-3xl font-semibold tracking-tight text-slate-950">{planPrice}</p>
+                                        {billingSuffix ? (
+                                            <p className="mt-1 text-sm font-medium text-slate-500">{billingSuffix}</p>
+                                        ) : null}
+                                    </div>
                                     <div className="mt-5 space-y-3">
                                         {plan.bullets.map((bullet) => (
                                             <div key={bullet} className="flex items-start gap-3">
@@ -1081,12 +1235,13 @@ export default function LandingPage() {
                                     </div>
                                 </CardContent>
                             </Card>
-                        ))}
+                            );
+                        })}
                     </div>
                 </section>
 
                 <section id="faq" className="bg-slate-950 text-white">
-                    <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
+                    <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 sm:py-14 lg:px-8">
                         <div className="max-w-3xl">
                             <p className="text-sm font-semibold uppercase tracking-[0.18em] text-cyan-300">
                                 {content.faq.eyebrow}
@@ -1097,7 +1252,10 @@ export default function LandingPage() {
                         </div>
                         <div className="mt-10 grid gap-4 lg:grid-cols-2">
                             {content.faq.items.map((item) => (
-                                <Card key={item.question} className="rounded-[24px] border-white/10 bg-white/5 text-white shadow-none">
+                                <Card
+                                    key={item.question}
+                                    className="rounded-[24px] border-white/10 bg-white/5 text-white shadow-none"
+                                >
                                     <CardContent className="p-6">
                                         <p className="text-lg font-semibold">{item.question}</p>
                                         <p className="mt-3 text-sm leading-6 text-slate-300">{item.answer}</p>
@@ -1108,7 +1266,7 @@ export default function LandingPage() {
                     </div>
                 </section>
 
-                <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
+                <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6 sm:py-14 lg:px-8">
                     <Card className="overflow-hidden rounded-[32px] border-0 bg-[linear-gradient(135deg,#0f172a_0%,#1d4ed8_55%,#0ea5e9_100%)] text-white shadow-[0_28px_90px_-50px_rgba(15,23,42,0.9)]">
                         <CardContent className="flex flex-col gap-8 p-8 sm:p-10 lg:flex-row lg:items-center lg:justify-between">
                             <div className="max-w-2xl">
@@ -1123,13 +1281,22 @@ export default function LandingPage() {
                                 </p>
                             </div>
                             <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
-                                <Button asChild size="lg" className="h-12 rounded-xl bg-white px-6 text-base text-slate-950 hover:bg-slate-100">
+                                <Button
+                                    asChild
+                                    size="lg"
+                                    className="h-12 rounded-xl bg-white px-6 text-base text-slate-950 hover:bg-slate-100"
+                                >
                                     <a href="#access-request">
                                         {content.finalCta.primary}
                                         <ArrowRight className="ml-2 h-4 w-4" />
                                     </a>
                                 </Button>
-                                <Button asChild size="lg" variant="outline" className="h-12 rounded-xl border-white/20 bg-transparent px-6 text-base text-white hover:bg-white/10">
+                                <Button
+                                    asChild
+                                    size="lg"
+                                    variant="outline"
+                                    className="h-12 rounded-xl border-white/20 bg-transparent px-6 text-base text-white hover:bg-white/10"
+                                >
                                     <Link href="/login">{content.finalCta.secondary}</Link>
                                 </Button>
                             </div>
@@ -1142,7 +1309,12 @@ export default function LandingPage() {
                 <div className="mx-auto flex max-w-7xl flex-col gap-3 px-4 py-6 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-8">
                     <p>{content.footer}</p>
                     <div className="flex items-center gap-4">
-                        <a href="#access-request" className="transition hover:text-slate-900">
+                        <a
+                            href={buildTelegramHref(runtimeCopy.telegramPrompt, landingSettings.telegram_contact_url)}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="transition hover:text-slate-900"
+                        >
                             {content.form.directTelegram}
                         </a>
                         <Link href="/login" className="transition hover:text-slate-900">

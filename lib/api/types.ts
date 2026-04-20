@@ -245,6 +245,26 @@ export interface ApiAssistantPasswordResetPayload {
     password_reset: boolean;
 }
 
+export interface ApiLandingSettings {
+    trial_price_amount: number;
+    monthly_price_amount: number;
+    yearly_price_amount: number;
+    currency: string;
+    telegram_contact_url: string | null;
+}
+
+export interface ApiLeadRequest {
+    id: string;
+    name: string;
+    phone: string;
+    clinic_name: string;
+    city: string;
+    note: string | null;
+    status: 'new' | 'contacted' | 'closed';
+    handled_at: string | null;
+    created_at: string | null;
+}
+
 export interface ApiAuditActor {
     id: string;
     name: string;
