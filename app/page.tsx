@@ -1193,16 +1193,16 @@ export default function LandingPage() {
                 </section>
 
                 <section className="mx-auto max-w-7xl px-4 pb-12 sm:px-6 lg:px-8">
-                    <Card className="overflow-hidden rounded-[30px] border border-blue-100 bg-[linear-gradient(135deg,#1d4ed8_0%,#3b82f6_45%,#93c5fd_100%)] text-white shadow-[0_30px_90px_-50px_rgba(59,130,246,0.55)]">
+                    <Card className="overflow-hidden rounded-[30px] border border-blue-100 bg-[linear-gradient(135deg,#f7fbff_0%,#eef5ff_52%,#e4efff_100%)] text-slate-950 shadow-[0_30px_90px_-50px_rgba(59,130,246,0.28)]">
                         <CardContent className="flex flex-col gap-8 p-8 sm:p-10 lg:flex-row lg:items-center lg:justify-between">
                             <div className="max-w-2xl">
-                                <p className="text-sm font-semibold uppercase tracking-[0.18em] text-blue-100">
+                                <p className="text-sm font-semibold uppercase tracking-[0.18em] text-blue-600">
                                     Identa
                                 </p>
                                 <h2 className="mt-4 text-3xl font-semibold tracking-tight sm:text-4xl">
                                     {content.finalCta.title}
                                 </h2>
-                                <p className="mt-4 text-base leading-7 text-blue-50">
+                                <p className="mt-4 text-base leading-7 text-slate-600">
                                     {content.finalCta.description}
                                 </p>
                             </div>
@@ -1211,7 +1211,7 @@ export default function LandingPage() {
                                 <Button
                                     asChild
                                     size="lg"
-                                    className="h-12 rounded-xl bg-white px-6 text-base text-slate-950 hover:bg-slate-100"
+                                    className="h-12 rounded-xl bg-slate-950 px-6 text-base text-white hover:bg-slate-800"
                                 >
                                     <a href="#form">
                                         {content.finalCta.primary}
@@ -1222,7 +1222,7 @@ export default function LandingPage() {
                                     asChild
                                     size="lg"
                                     variant="outline"
-                                    className="h-12 rounded-xl border-white/25 bg-transparent px-6 text-base text-white hover:bg-white/10"
+                                    className="h-12 rounded-xl border-slate-300 bg-white/70 px-6 text-base text-slate-900 hover:bg-white"
                                 >
                                     <Link href="/login">{content.finalCta.secondary}</Link>
                                 </Button>
@@ -1233,13 +1233,14 @@ export default function LandingPage() {
             </main>
 
             <footer className="border-t border-slate-200 bg-white/80">
-                <div className="mx-auto flex max-w-7xl flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-8">
-                    <div>
-                        <p className="text-sm font-semibold text-slate-950">Identa</p>
-                        <p className="mt-0.5 text-xs text-slate-500">{content.footer.tagline}</p>
+                <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-3 text-xs text-slate-500 sm:px-6 lg:px-8">
+                    <div className="flex min-w-0 items-center gap-2">
+                        <span className="font-semibold text-slate-950">Identa</span>
+                        <span className="hidden text-slate-300 sm:inline">•</span>
+                        <span className="truncate">{content.footer.tagline}</span>
                     </div>
 
-                    <div className="flex items-center gap-4 text-xs text-slate-500">
+                    <div className="flex items-center gap-4">
                         <a
                             href={buildTelegramHref(content.form.telegramPrompt, landingSettings.telegram_contact_url)}
                             target="_blank"
@@ -1251,10 +1252,9 @@ export default function LandingPage() {
                         <Link href="/login" className="transition hover:text-slate-900">
                             {content.footer.signIn}
                         </Link>
+                        <span className="hidden text-slate-300 sm:inline">•</span>
+                        <span>{content.footer.copyright}</span>
                     </div>
-                </div>
-                <div className="mx-auto max-w-7xl px-4 pb-3 text-[11px] text-slate-400 sm:px-6 lg:px-8">
-                    {content.footer.copyright}
                 </div>
             </footer>
         </div>
