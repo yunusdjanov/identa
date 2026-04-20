@@ -75,14 +75,6 @@ export default function LoginPage() {
             </div>
             <div className="w-full max-w-md">
                 <div className="mb-8 text-center">
-                    <div className="mb-4">
-                        <Link
-                            href="/"
-                            className="text-sm font-medium text-gray-500 transition hover:text-gray-800"
-                        >
-                            {t('auth.backToHome')}
-                        </Link>
-                    </div>
                     <Link href="/">
                         <h1 className="mb-2 cursor-pointer text-4xl font-bold text-blue-600 hover:text-blue-700">
                             Identa

@@ -74,14 +74,6 @@ export default function AdminLoginPage() {
             </div>
             <div className="w-full max-w-md">
                 <div className="mb-8 text-center">
-                    <div className="mb-4">
-                        <Link
-                            href="/"
-                            className="text-sm font-medium text-slate-500 transition hover:text-slate-800"
-                        >
-                            {t('auth.backToHome')}
-                        </Link>
-                    </div>
                     <div className="mb-4 flex justify-center">
                         <div className="w-16 h-16 bg-slate-900 rounded-full flex items-center justify-center">
                             <Shield className="w-8 h-8 text-white" />
