@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\PrepareTreatmentImageUploadRequest;
 use App\Http\Requests\StoreTreatmentRequest;
 use App\Http\Requests\UpdateTreatmentRequest;
 use App\Http\Requests\UploadTreatmentImageRequest;
@@ -18,10 +19,13 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Lang;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use RuntimeException;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class PatientTreatmentController extends Controller
@@ -49,6 +53,7 @@ class PatientTreatmentController extends Controller
 
     private const DEFAULT_PER_PAGE = 15;
     private const MAX_PER_PAGE = 500;
+    private const DIRECT_UPLOAD_TTL_MINUTES = 15;
 
     /**
      * @var list<string>
@@ -335,6 +340,187 @@ class PatientTreatmentController extends Controller
         ], 201);
     }
 
+    public function prepareImageUpload(
+        PrepareTreatmentImageUploadRequest $request,
+        string $id,
+        string $treatmentId
+    ): JsonResponse {
+        $patient = $this->findOwnedPatient($request, $id);
+        if ($patient->trashed()) {
+            throw ValidationException::withMessages([
+                'patient' => [__('api.treatments.archived_restore_before_upload_images')],
+            ]);
+        }
+
+        $treatment = $this->findOwnedTreatment($request, (string) $patient->id, $treatmentId);
+        $existingImagesCount = $treatment->images()->count();
+        if ($existingImagesCount >= self::MAX_IMAGES_PER_TREATMENT) {
+            throw ValidationException::withMessages([
+                'image' => [__('api.treatments.max_images_reached', ['max' => self::MAX_IMAGES_PER_TREATMENT])],
+            ]);
+        }
+
+        $disk = $this->mediaDisk();
+        if (! $this->mediaDiskSupportsDirectUpload($disk)) {
+            return response()->json([
+                'data' => [
+                    'supported' => false,
+                ],
+            ]);
+        }
+
+        $validated = $request->validated();
+        $path = $this->buildTreatmentImageStoragePath(
+            dentistId: $this->resolveDentistId($request),
+            patientId: (string) $patient->id,
+            treatmentId: (string) $treatment->id,
+            extension: $this->resolveUploadExtension(
+                filename: (string) $validated['filename'],
+                contentType: (string) $validated['content_type']
+            ),
+        );
+        $uploadId = (string) Str::uuid();
+
+        try {
+            $temporaryUpload = Storage::disk($disk)->temporaryUploadUrl(
+                $path,
+                now()->addMinutes(self::DIRECT_UPLOAD_TTL_MINUTES),
+                [
+                    'ContentType' => $validated['content_type'],
+                ]
+            );
+        } catch (RuntimeException) {
+            return response()->json([
+                'data' => [
+                    'supported' => false,
+                ],
+            ]);
+        }
+
+        Cache::put(
+            $this->directUploadCacheKey($uploadId),
+            [
+                'dentist_id' => $this->resolveDentistId($request),
+                'patient_id' => (string) $patient->id,
+                'treatment_id' => (string) $treatment->id,
+                'disk' => $disk,
+                'path' => $path,
+                'mime_type' => (string) $validated['content_type'],
+                'file_size' => (int) $validated['file_size'],
+            ],
+            now()->addMinutes(self::DIRECT_UPLOAD_TTL_MINUTES)
+        );
+
+        return response()->json([
+            'data' => [
+                'supported' => true,
+                'upload_id' => $uploadId,
+                'method' => 'PUT',
+                'url' => $temporaryUpload['url'],
+                'headers' => $this->normalizeTemporaryUploadHeaders($temporaryUpload['headers'] ?? []),
+                'expires_at' => now()->addMinutes(self::DIRECT_UPLOAD_TTL_MINUTES)->toIso8601String(),
+            ],
+        ]);
+    }
+
+    public function finalizeImageUpload(
+        Request $request,
+        string $id,
+        string $treatmentId,
+        string $uploadId
+    ): JsonResponse {
+        $patient = $this->findOwnedPatient($request, $id);
+        if ($patient->trashed()) {
+            throw ValidationException::withMessages([
+                'patient' => [__('api.treatments.archived_restore_before_upload_images')],
+            ]);
+        }
+
+        $treatment = $this->findOwnedTreatment($request, (string) $patient->id, $treatmentId);
+        $ticket = Cache::pull($this->directUploadCacheKey($uploadId));
+
+        if (! is_array($ticket)) {
+            throw ValidationException::withMessages([
+                'image' => [$this->treatmentMessage(
+                    'direct_upload_expired',
+                    'The upload session expired. Please try uploading the image again.'
+                )],
+            ]);
+        }
+
+        $dentistId = $this->resolveDentistId($request);
+        if (
+            (int) ($ticket['dentist_id'] ?? 0) !== $dentistId
+            || (string) ($ticket['patient_id'] ?? '') !== (string) $patient->id
+            || (string) ($ticket['treatment_id'] ?? '') !== (string) $treatment->id
+        ) {
+            throw ValidationException::withMessages([
+                'image' => [$this->treatmentMessage(
+                    'direct_upload_invalid',
+                    'This upload does not belong to the selected treatment entry.'
+                )],
+            ]);
+        }
+
+        if ($treatment->images()->count() >= self::MAX_IMAGES_PER_TREATMENT) {
+            $this->deleteDirectUploadObject((string) $ticket['disk'], (string) $ticket['path']);
+
+            throw ValidationException::withMessages([
+                'image' => [__('api.treatments.max_images_reached', ['max' => self::MAX_IMAGES_PER_TREATMENT])],
+            ]);
+        }
+
+        $disk = (string) $ticket['disk'];
+        $path = (string) $ticket['path'];
+
+        if (! Storage::disk($disk)->exists($path)) {
+            throw ValidationException::withMessages([
+                'image' => [$this->treatmentMessage(
+                    'direct_upload_missing',
+                    'The uploaded image could not be found in storage. Please retry the upload.'
+                )],
+            ]);
+        }
+
+        $storedSize = (int) Storage::disk($disk)->size($path);
+        if ($storedSize <= 0) {
+            $this->deleteDirectUploadObject($disk, $path);
+
+            throw ValidationException::withMessages([
+                'image' => [$this->treatmentMessage(
+                    'direct_upload_missing',
+                    'The uploaded image could not be found in storage. Please retry the upload.'
+                )],
+            ]);
+        }
+
+        $image = $treatment->images()->create([
+            'dentist_id' => $dentistId,
+            'disk' => $disk,
+            'path' => $path,
+            'mime_type' => (string) $ticket['mime_type'],
+            'file_size' => $storedSize,
+        ]);
+
+        $this->queueTreatmentImageVariants($disk, $path);
+
+        $this->auditLogger->logFromRequest(
+            request: $request,
+            eventType: 'patient.treatment.image.uploaded',
+            entityType: 'treatment',
+            entityId: (string) $treatment->id,
+            metadata: [
+                'patient_id' => (string) $patient->id,
+                'image_id' => (string) $image->id,
+                'direct_upload' => true,
+            ],
+        );
+
+        return response()->json([
+            'data' => $this->transformTreatmentImage($treatment, $image),
+        ], 201);
+    }
+
     public function downloadImage(Request $request, string $id, string $treatmentId, string $imageId): StreamedResponse
     {
         $image = $this->findOwnedTreatmentImageForMedia($request, $id, $treatmentId, $imageId);
@@ -608,17 +794,20 @@ class PatientTreatmentController extends Controller
     private function storeTreatmentImage(Request $request, Patient $patient, Treatment $treatment, UploadedFile $uploadedFile): string
     {
         $extension = strtolower($uploadedFile->getClientOriginalExtension() ?: $uploadedFile->extension() ?: 'jpg');
-        $directory = sprintf(
-            'treatments/%d/%s/%s',
-            $this->resolveDentistId($request),
-            (string) $patient->id,
-            (string) $treatment->id
-        );
-        $filename = sprintf('%s.%s', Str::uuid()->toString(), $extension);
         $disk = $this->mediaDisk();
-        $path = $uploadedFile->storeAs($directory, $filename, [
-            'disk' => $disk,
-        ]);
+        $storagePath = $this->buildTreatmentImageStoragePath(
+            dentistId: $this->resolveDentistId($request),
+            patientId: (string) $patient->id,
+            treatmentId: (string) $treatment->id,
+            extension: $extension,
+        );
+        $path = $uploadedFile->storeAs(
+            dirname($storagePath),
+            basename($storagePath),
+            [
+                'disk' => $disk,
+            ]
+        );
 
         if (! is_string($path) || $path === '') {
             throw ValidationException::withMessages([
@@ -876,5 +1065,92 @@ class PatientTreatmentController extends Controller
     private function mediaDisk(): string
     {
         return (string) config('filesystems.media_disk', 'local');
+    }
+
+    private function mediaDiskSupportsDirectUpload(string $disk): bool
+    {
+        return (string) config("filesystems.disks.{$disk}.driver") === 's3';
+    }
+
+    private function directUploadCacheKey(string $uploadId): string
+    {
+        return "treatment-image-upload:{$uploadId}";
+    }
+
+    private function buildTreatmentImageStoragePath(
+        int $dentistId,
+        string $patientId,
+        string $treatmentId,
+        string $extension
+    ): string {
+        return sprintf(
+            'treatments/%d/%s/%s/%s.%s',
+            $dentistId,
+            $patientId,
+            $treatmentId,
+            Str::uuid()->toString(),
+            strtolower($extension)
+        );
+    }
+
+    private function resolveUploadExtension(string $filename, string $contentType): string
+    {
+        $extension = strtolower((string) pathinfo($filename, PATHINFO_EXTENSION));
+        if ($extension !== '') {
+            return $extension;
+        }
+
+        return match (strtolower($contentType)) {
+            'image/jpeg', 'image/jpg' => 'jpg',
+            'image/png' => 'png',
+            'image/webp' => 'webp',
+            default => 'jpg',
+        };
+    }
+
+    /**
+     * @param  array<string, mixed>  $headers
+     * @return array<string, string>
+     */
+    private function normalizeTemporaryUploadHeaders(array $headers): array
+    {
+        $normalized = [];
+
+        foreach ($headers as $name => $value) {
+            if (strtolower((string) $name) === 'host') {
+                continue;
+            }
+
+            if (is_array($value)) {
+                $value = implode(', ', array_map(static fn (mixed $item): string => (string) $item, $value));
+            }
+
+            $normalized[(string) $name] = (string) $value;
+        }
+
+        return $normalized;
+    }
+
+    private function deleteDirectUploadObject(string $disk, string $path): void
+    {
+        if ($disk === '' || $path === '') {
+            return;
+        }
+
+        try {
+            Storage::disk($disk)->delete($path);
+        } catch (\Throwable $exception) {
+            Log::warning('Direct upload cleanup failed.', [
+                'exception' => $exception::class,
+                'disk' => $disk,
+            ]);
+        }
+    }
+
+    private function treatmentMessage(string $key, string $fallback): string
+    {
+        $translationKey = "api.treatments.{$key}";
+
+        return Lang::has($translationKey) ? __($translationKey) : $fallback;
     }
 }

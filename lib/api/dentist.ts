@@ -33,6 +33,15 @@ interface QueryOptions {
     includeImages?: boolean;
 }
 
+interface ApiDirectUploadTicket {
+    supported: boolean;
+    upload_id?: string;
+    method?: 'PUT';
+    url?: string;
+    headers?: Record<string, string>;
+    expires_at?: string;
+}
+
 export type AdminDentistSubscriptionAction =
     | 'apply_monthly'
     | 'apply_yearly'
@@ -581,6 +590,34 @@ export async function uploadPatientTreatmentImage(
     treatmentId: string,
     image: File
 ): Promise<void> {
+    const directUpload = await preparePatientTreatmentImageDirectUpload(patientId, treatmentId, image);
+
+    if (directUpload.supported && directUpload.upload_id && directUpload.url) {
+        try {
+            await performDirectSignedUpload(image, directUpload);
+        } catch {
+            await uploadPatientTreatmentImageViaApi(patientId, treatmentId, image);
+
+            return;
+        }
+
+        await finalizePatientTreatmentImageDirectUpload(
+            patientId,
+            treatmentId,
+            directUpload.upload_id
+        );
+
+        return;
+    }
+
+    await uploadPatientTreatmentImageViaApi(patientId, treatmentId, image);
+}
+
+async function uploadPatientTreatmentImageViaApi(
+    patientId: string,
+    treatmentId: string,
+    image: File
+): Promise<void> {
     const formData = new FormData();
     formData.append('image', image);
 
@@ -595,6 +632,99 @@ export async function uploadPatientTreatmentImage(
             }
         )
     );
+}
+
+async function preparePatientTreatmentImageDirectUpload(
+    patientId: string,
+    treatmentId: string,
+    image: File
+): Promise<ApiDirectUploadTicket> {
+    try {
+        const { data } = await withCsrfRetry(() =>
+            apiClient.post<ApiEnvelope<ApiDirectUploadTicket>>(
+                `/patients/${patientId}/treatments/${treatmentId}/images/direct-upload`,
+                {
+                    filename: image.name,
+                    content_type: resolveDirectUploadContentType(image),
+                    file_size: image.size,
+                }
+            )
+        );
+
+        return data.data;
+    } catch {
+        return { supported: false };
+    }
+}
+
+async function finalizePatientTreatmentImageDirectUpload(
+    patientId: string,
+    treatmentId: string,
+    uploadId: string
+): Promise<void> {
+    await withCsrfRetry(() =>
+        apiClient.post<ApiEnvelope<ApiTreatment>>(
+            `/patients/${patientId}/treatments/${treatmentId}/images/direct-upload/${uploadId}/complete`
+        )
+    );
+}
+
+async function performDirectSignedUpload(
+    image: File,
+    ticket: ApiDirectUploadTicket
+): Promise<void> {
+    if (!ticket.url) {
+        throw new Error('Missing upload URL');
+    }
+
+    const response = await fetch(ticket.url, {
+        method: ticket.method ?? 'PUT',
+        headers: normalizeDirectUploadHeaders(ticket.headers ?? {}, resolveDirectUploadContentType(image)),
+        body: image,
+        mode: 'cors',
+    });
+
+    if (!response.ok) {
+        throw new Error(`Signed upload failed with status ${response.status}`);
+    }
+}
+
+function normalizeDirectUploadHeaders(
+    headers: Record<string, string>,
+    contentType: string
+): Record<string, string> {
+    const normalized: Record<string, string> = {};
+
+    Object.entries(headers).forEach(([name, value]) => {
+        const lowered = name.toLowerCase();
+        if (lowered === 'host' || lowered === 'content-length') {
+            return;
+        }
+
+        normalized[name] = value;
+    });
+
+    if (!Object.keys(normalized).some((name) => name.toLowerCase() === 'content-type')) {
+        normalized['Content-Type'] = contentType;
+    }
+
+    return normalized;
+}
+
+function resolveDirectUploadContentType(image: File): string {
+    if (image.type) {
+        return image.type;
+    }
+
+    const normalizedName = image.name.toLowerCase();
+    if (normalizedName.endsWith('.png')) {
+        return 'image/png';
+    }
+    if (normalizedName.endsWith('.webp')) {
+        return 'image/webp';
+    }
+
+    return 'image/jpeg';
 }
 
 export async function deletePatientTreatmentImage(

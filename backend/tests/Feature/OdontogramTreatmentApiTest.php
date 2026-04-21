@@ -249,6 +249,27 @@ class OdontogramTreatmentApiTest extends TestCase
             ->assertJsonValidationErrors(['image']);
     }
 
+    public function test_prepare_treatment_image_upload_reports_fallback_when_disk_does_not_support_direct_upload(): void
+    {
+        Storage::fake('local');
+
+        $dentist = User::factory()->create();
+        $patient = Patient::factory()->create(['dentist_id' => $dentist->id]);
+        $treatment = Treatment::factory()->create([
+            'dentist_id' => $dentist->id,
+            'patient_id' => $patient->id,
+        ]);
+
+        $this->actingAs($dentist, 'web')
+            ->postJson("/api/v1/patients/{$patient->id}/treatments/{$treatment->id}/images/direct-upload", [
+                'filename' => 'first.jpg',
+                'content_type' => 'image/jpeg',
+                'file_size' => 128000,
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.supported', false);
+    }
+
     public function test_dentist_can_update_delete_and_manage_images_for_owned_odontogram_entry(): void
     {
         Storage::fake('local');

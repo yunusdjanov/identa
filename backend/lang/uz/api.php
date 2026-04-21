@@ -84,6 +84,9 @@ return [
         'max_images_reached' => 'Har bir yozuvga kopi bilan :max ta rasm yuklash mumkin.',
         'image_required' => 'Rasm fayli majburiy.',
         'image_store_failed' => 'Yuklangan davolash rasmini saqlab bolmadi.',
+        'direct_upload_expired' => 'Yuklash sessiyasi tugadi. Rasmni qaytadan yuklab koring.',
+        'direct_upload_invalid' => 'Bu yuklash tanlangan davolash yozuviga tegishli emas.',
+        'direct_upload_missing' => 'Yuklangan rasm storage ichidan topilmadi. Iltimos, qayta urinib koring.',
     ],
     'settings' => [
         'working_hours_end_after_start' => 'Ish tugash vaqti ish boshlash vaqtidan keyin bolishi kerak.',
@@ -96,5 +99,4 @@ return [
         'cannot_update_deleted_account_status' => 'Ochirilgan hisob holatini yangilab bolmaydi.',
     ],
 ];
-
 

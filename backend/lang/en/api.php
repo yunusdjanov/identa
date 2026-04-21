@@ -84,6 +84,9 @@ return [
         'max_images_reached' => 'You can upload up to :max images per entry.',
         'image_required' => 'Image file is required.',
         'image_store_failed' => 'Failed to store uploaded treatment image.',
+        'direct_upload_expired' => 'The upload session expired. Please try uploading the image again.',
+        'direct_upload_invalid' => 'This upload does not belong to the selected treatment entry.',
+        'direct_upload_missing' => 'The uploaded image could not be found in storage. Please retry the upload.',
     ],
     'settings' => [
         'working_hours_end_after_start' => 'Working hours end must be after working hours start.',
