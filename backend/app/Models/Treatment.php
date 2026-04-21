@@ -90,6 +90,8 @@ class Treatment extends Model
      */
     public function primaryImage(): HasOne
     {
-        return $this->hasOne(TreatmentImage::class)->oldestOfMany('created_at');
+        return $this->hasOne(TreatmentImage::class)
+            ->orderBy('created_at')
+            ->orderBy('id');
     }
 }
