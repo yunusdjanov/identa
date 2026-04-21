@@ -580,11 +580,11 @@ export async function uploadPatientTreatmentImage(
     patientId: string,
     treatmentId: string,
     image: File
-): Promise<ApiTreatment> {
+): Promise<void> {
     const formData = new FormData();
     formData.append('image', image);
 
-    const { data } = await withCsrfRetry(() =>
+    await withCsrfRetry(() =>
         apiClient.post<ApiEnvelope<ApiTreatment>>(
             `/patients/${patientId}/treatments/${treatmentId}/images`,
             formData,
@@ -595,22 +595,18 @@ export async function uploadPatientTreatmentImage(
             }
         )
     );
-
-    return data.data;
 }
 
 export async function deletePatientTreatmentImage(
     patientId: string,
     treatmentId: string,
     imageId: string
-): Promise<ApiTreatment> {
-    const { data } = await withCsrfRetry(() =>
-        apiClient.delete<ApiEnvelope<ApiTreatment>>(
+): Promise<void> {
+    await withCsrfRetry(() =>
+        apiClient.delete(
             `/patients/${patientId}/treatments/${treatmentId}/images/${imageId}`
         )
     );
-
-    return data.data;
 }
 
 export async function downloadPatientTreatmentImage(

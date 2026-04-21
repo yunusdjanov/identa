@@ -329,8 +329,8 @@ class PatientTreatmentController extends Controller
         );
 
         return response()->json([
-            'data' => $this->transformTreatment($treatment->fresh()->load('images')),
-        ]);
+            'data' => $this->transformTreatmentImage($treatment, $image),
+        ], 201);
     }
 
     public function downloadImage(Request $request, string $id, string $treatmentId, string $imageId): StreamedResponse
@@ -385,9 +385,7 @@ class PatientTreatmentController extends Controller
             ],
         );
 
-        return response()->json([
-            'data' => $this->transformTreatment($treatment->fresh()->load('images')),
-        ]);
+        return response()->json([], 204);
     }
 
     private function findOwnedPatient(Request $request, string $id): Patient
@@ -626,7 +624,7 @@ class PatientTreatmentController extends Controller
             ]);
         }
 
-        $this->generateTreatmentImageVariants($disk, $path);
+        $this->queueTreatmentImageVariants($disk, $path);
 
         return $path;
     }
@@ -636,21 +634,40 @@ class PatientTreatmentController extends Controller
         $disk = trim((string) $image->disk);
         $path = trim((string) $image->path);
         if ($disk !== '' && $path !== '') {
-            Storage::disk($disk)->delete([
-                $path,
-                $this->buildTreatmentImageVariantPath($path, self::IMAGE_VARIANT_THUMBNAIL),
-                $this->buildTreatmentImageVariantPath($path, self::IMAGE_VARIANT_PREVIEW),
-            ]);
+            Storage::disk($disk)->delete($this->buildTreatmentImageDeletePaths($path));
         }
     }
 
     private function deleteAllTreatmentImages(Treatment $treatment): void
     {
-        $images = $treatment->images()->get();
-        foreach ($images as $image) {
-            $this->deleteTreatmentImageFile($image);
-            $image->delete();
+        $images = $treatment->images()->get(['id', 'disk', 'path']);
+        if ($images->isEmpty()) {
+            return;
         }
+
+        $pathsByDisk = [];
+        $imageIds = [];
+
+        foreach ($images as $image) {
+            $imageIds[] = (string) $image->id;
+            $disk = trim((string) $image->disk);
+            $path = trim((string) $image->path);
+
+            if ($disk === '' || $path === '') {
+                continue;
+            }
+
+            $pathsByDisk[$disk] ??= [];
+            array_push($pathsByDisk[$disk], ...$this->buildTreatmentImageDeletePaths($path));
+        }
+
+        foreach ($pathsByDisk as $disk => $paths) {
+            Storage::disk($disk)->delete(array_values(array_unique($paths)));
+        }
+
+        TreatmentImage::query()
+            ->whereIn('id', $imageIds)
+            ->delete();
     }
 
     /**
@@ -737,6 +754,13 @@ class PatientTreatmentController extends Controller
         }
     }
 
+    private function queueTreatmentImageVariants(string $disk, string $path): void
+    {
+        app()->terminating(function () use ($disk, $path): void {
+            $this->generateTreatmentImageVariants($disk, $path);
+        });
+    }
+
     private function streamTreatmentImageVariant(string $disk, string $path, string $variant): ?StreamedResponse
     {
         $variantPath = $this->resolveTreatmentImagePath($path, $variant);
@@ -796,6 +820,18 @@ class PatientTreatmentController extends Controller
                 'Cache-Control' => $this->imageCacheControlHeader(),
             ]
         );
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function buildTreatmentImageDeletePaths(string $path): array
+    {
+        return [
+            $path,
+            $this->buildTreatmentImageVariantPath($path, self::IMAGE_VARIANT_THUMBNAIL),
+            $this->buildTreatmentImageVariantPath($path, self::IMAGE_VARIANT_PREVIEW),
+        ];
     }
 
     private function shouldIncludeImages(Request $request): bool

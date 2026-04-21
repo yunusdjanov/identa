@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
@@ -103,6 +103,47 @@ export function ToothDetailDialog({
             gcTime: 300_000,
         });
     };
+
+    useEffect(() => {
+        if (!open) {
+            return;
+        }
+
+        const candidates = treatments.filter(
+            (treatment) => getTreatmentImageCount(treatment) > 0 && (treatment.images?.length ?? 0) === 0
+        );
+
+        if (candidates.length === 0) {
+            return;
+        }
+
+        let cancelled = false;
+        const timer = window.setTimeout(() => {
+            void (async () => {
+                for (const treatment of candidates) {
+                    if (cancelled) {
+                        return;
+                    }
+
+                    try {
+                        await queryClient.prefetchQuery({
+                            queryKey: ['patients', 'detail', patientId, 'treatments', treatment.id],
+                            queryFn: () => getPatientTreatment(patientId, treatment.id),
+                            staleTime: 300_000,
+                            gcTime: 300_000,
+                        });
+                    } catch {
+                        return;
+                    }
+                }
+            })();
+        }, 150);
+
+        return () => {
+            cancelled = true;
+            window.clearTimeout(timer);
+        };
+    }, [open, patientId, queryClient, treatments]);
 
     const openTreatmentImageGallery = async (treatment: ApiTreatment, startIndex = 0) => {
         setDetailLoadingTreatmentId(treatment.id);

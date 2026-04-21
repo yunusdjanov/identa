@@ -283,6 +283,43 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
         });
     };
 
+    useEffect(() => {
+        const candidates = treatments
+            .filter((treatment) => getTreatmentImageCount(treatment) > 0 && (treatment.images?.length ?? 0) === 0)
+            .slice(0, 6);
+
+        if (candidates.length === 0) {
+            return;
+        }
+
+        let cancelled = false;
+        const timer = window.setTimeout(() => {
+            void (async () => {
+                for (const treatment of candidates) {
+                    if (cancelled) {
+                        return;
+                    }
+
+                    try {
+                        await queryClient.prefetchQuery({
+                            queryKey: ['patients', 'detail', patientId, 'treatments', treatment.id],
+                            queryFn: () => getPatientTreatment(patientId, treatment.id),
+                            staleTime: 300_000,
+                            gcTime: 300_000,
+                        });
+                    } catch {
+                        return;
+                    }
+                }
+            })();
+        }, 250);
+
+        return () => {
+            cancelled = true;
+            window.clearTimeout(timer);
+        };
+    }, [patientId, queryClient, treatments]);
+
     const saveTreatmentMutation = useMutation({
         mutationFn: async () => {
             const payload = {
