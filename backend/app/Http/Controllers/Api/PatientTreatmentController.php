@@ -62,11 +62,15 @@ class PatientTreatmentController extends Controller
     {
         $patient = $this->findOwnedPatient($request, $id);
         $perPage = $this->resolvePerPage($request);
+        $includeImages = $this->shouldIncludeImages($request);
 
         $query = Treatment::query()
             ->where('dentist_id', $this->resolveDentistId($request))
-            ->where('patient_id', $patient->id)
-            ->with('images');
+            ->where('patient_id', $patient->id);
+
+        if ($includeImages) {
+            $query->with('images');
+        }
 
         $this->applySort($query, $request->query('sort', '-treatment_date,-created_at'));
 
@@ -75,7 +79,7 @@ class PatientTreatmentController extends Controller
         return response()->json([
             'data' => $treatments
                 ->getCollection()
-                ->map(fn (Treatment $treatment): array => $this->transformTreatment($treatment))
+                ->map(fn (Treatment $treatment): array => $this->transformTreatment($treatment, $includeImages))
                 ->values()
                 ->all(),
             'meta' => [
@@ -93,13 +97,17 @@ class PatientTreatmentController extends Controller
     {
         $dentistId = $this->resolveDentistId($request);
         $perPage = $this->resolvePerPage($request);
+        $includeImages = $this->shouldIncludeImages($request);
 
         $query = Treatment::query()
             ->where('dentist_id', $dentistId)
             ->with([
                 'patient:id,full_name,phone,secondary_phone,patient_id',
-                'images',
             ]);
+
+        if ($includeImages) {
+            $query->with('images');
+        }
 
         $patientId = $request->input('filter.patient_id');
         if (is_string($patientId) && $patientId !== '') {
@@ -145,7 +153,7 @@ class PatientTreatmentController extends Controller
         return response()->json([
             'data' => $treatments
                 ->getCollection()
-                ->map(fn (Treatment $treatment): array => $this->transformTreatment($treatment))
+                ->map(fn (Treatment $treatment): array => $this->transformTreatment($treatment, $includeImages))
                 ->values()
                 ->all(),
             'meta' => [
@@ -309,9 +317,7 @@ class PatientTreatmentController extends Controller
 
     public function downloadImage(Request $request, string $id, string $treatmentId, string $imageId): StreamedResponse
     {
-        $patient = $this->findOwnedPatient($request, $id);
-        $treatment = $this->findOwnedTreatment($request, (string) $patient->id, $treatmentId);
-        $image = $this->findOwnedTreatmentImage($treatment, $imageId);
+        $image = $this->findOwnedTreatmentImageForMedia($request, $id, $treatmentId, $imageId);
 
         $disk = trim((string) $image->disk);
         $path = trim((string) $image->path);
@@ -333,7 +339,7 @@ class PatientTreatmentController extends Controller
             abort(404);
         }
 
-        return $this->streamStoredTreatmentImage($disk, $path);
+        return $this->streamStoredTreatmentImage($disk, $path, $image->mime_type);
     }
 
     public function deleteImage(Request $request, string $id, string $treatmentId, string $imageId): JsonResponse
@@ -429,16 +435,18 @@ class PatientTreatmentController extends Controller
     /**
      * @return array<string, mixed>
      */
-    private function transformTreatment(Treatment $treatment): array
+    private function transformTreatment(Treatment $treatment, bool $includeImages = true): array
     {
-        $treatment->loadMissing('images');
-
         $teeth = array_values(array_map(
             static fn (mixed $tooth): int => (int) $tooth,
             array_filter($treatment->teeth ?? [], static fn (mixed $tooth): bool => $tooth !== null && $tooth !== '')
         ));
         $debtAmount = $treatment->debt_amount !== null ? (float) $treatment->debt_amount : (float) ($treatment->cost ?? 0);
         $paidAmount = $treatment->paid_amount !== null ? (float) $treatment->paid_amount : 0.0;
+
+        if ($includeImages) {
+            $treatment->loadMissing('images');
+        }
 
         return [
             'id' => (string) $treatment->id,
@@ -454,10 +462,12 @@ class PatientTreatmentController extends Controller
             'paid_amount' => $paidAmount,
             'balance' => round($debtAmount - $paidAmount, 2),
             'notes' => $treatment->notes,
-            'images' => $treatment->images
-                ->map(fn (TreatmentImage $image): array => $this->transformTreatmentImage($treatment, $image))
-                ->values()
-                ->all(),
+            'images' => $includeImages
+                ? $treatment->images
+                    ->map(fn (TreatmentImage $image): array => $this->transformTreatmentImage($treatment, $image))
+                    ->values()
+                    ->all()
+                : [],
             'created_at' => $treatment->created_at?->toIso8601String(),
             'updated_at' => $treatment->updated_at?->toIso8601String(),
             'patient_name' => $treatment->relationLoaded('patient') ? $treatment->patient?->full_name : null,
@@ -543,6 +553,26 @@ class PatientTreatmentController extends Controller
             ->where('id', $imageId)
             ->where('treatment_id', $treatment->id)
             ->where('dentist_id', $treatment->dentist_id)
+            ->firstOrFail();
+    }
+
+    private function findOwnedTreatmentImageForMedia(
+        Request $request,
+        string $patientId,
+        string $treatmentId,
+        string $imageId
+    ): TreatmentImage {
+        $dentistId = $this->resolveDentistId($request);
+
+        return TreatmentImage::query()
+            ->where('id', $imageId)
+            ->where('dentist_id', $dentistId)
+            ->whereHas('treatment', function (Builder $query) use ($dentistId, $patientId, $treatmentId): void {
+                $query
+                    ->where('id', $treatmentId)
+                    ->where('patient_id', $patientId)
+                    ->where('dentist_id', $dentistId);
+            })
             ->firstOrFail();
     }
 
@@ -682,7 +712,7 @@ class PatientTreatmentController extends Controller
     {
         $variantPath = $this->resolveTreatmentImagePath($path, $variant);
         if (Storage::disk($disk)->exists($variantPath)) {
-            return $this->streamStoredTreatmentImage($disk, $variantPath);
+            return $this->streamStoredTreatmentImage($disk, $variantPath, $this->guessImageMimeType($variantPath));
         }
 
         if (! Storage::disk($disk)->exists($path)) {
@@ -715,7 +745,7 @@ class PatientTreatmentController extends Controller
                 echo $generatedVariant['contents'];
             }, 200, [
                 'Content-Type' => $generatedVariant['mime_type'],
-                'Cache-Control' => 'private, max-age=300',
+                'Cache-Control' => $this->imageCacheControlHeader(),
             ]);
         } catch (\Throwable $exception) {
             Log::warning('Treatment image variant streaming failed.', [
@@ -727,16 +757,53 @@ class PatientTreatmentController extends Controller
         }
     }
 
-    private function streamStoredTreatmentImage(string $disk, string $path): StreamedResponse
+    private function streamStoredTreatmentImage(string $disk, string $path, ?string $fallbackMimeType = null): StreamedResponse
     {
         return Storage::disk($disk)->response(
             $path,
             basename($path),
             [
-                'Content-Type' => Storage::disk($disk)->mimeType($path) ?: 'application/octet-stream',
-                'Cache-Control' => 'private, max-age=300',
+                'Content-Type' => $this->guessImageMimeType($path, $fallbackMimeType),
+                'Cache-Control' => $this->imageCacheControlHeader(),
             ]
         );
+    }
+
+    private function shouldIncludeImages(Request $request): bool
+    {
+        $includeImages = $request->query('include_images');
+
+        if (is_string($includeImages)) {
+            return ! in_array(strtolower($includeImages), ['0', 'false', 'no', 'off'], true);
+        }
+
+        if (is_bool($includeImages)) {
+            return $includeImages;
+        }
+
+        if (is_numeric($includeImages)) {
+            return (int) $includeImages !== 0;
+        }
+
+        return true;
+    }
+
+    private function imageCacheControlHeader(): string
+    {
+        return 'private, max-age=31536000, immutable';
+    }
+
+    private function guessImageMimeType(string $path, ?string $fallbackMimeType = null): string
+    {
+        $extension = strtolower((string) pathinfo($path, PATHINFO_EXTENSION));
+
+        return match ($extension) {
+            'jpg', 'jpeg' => 'image/jpeg',
+            'png' => 'image/png',
+            'webp' => 'image/webp',
+            'gif' => 'image/gif',
+            default => $fallbackMimeType ?: 'application/octet-stream',
+        };
     }
 
     private function mediaDisk(): string

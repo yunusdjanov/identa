@@ -727,7 +727,7 @@ class PatientController extends Controller
                 echo $generatedVariant['contents'];
             }, 200, [
                 'Content-Type' => $generatedVariant['mime_type'],
-                'Cache-Control' => 'private, max-age=300',
+                'Cache-Control' => $this->imageCacheControlHeader(),
             ]);
         } catch (\Throwable $exception) {
             Log::warning('Patient photo variant streaming failed.', [
@@ -741,16 +741,32 @@ class PatientController extends Controller
 
     private function streamStoredPatientPhoto(string $disk, string $path): StreamedResponse
     {
-        $mimeType = Storage::disk($disk)->mimeType($path) ?: 'application/octet-stream';
-
         return Storage::disk($disk)->response(
             $path,
             basename($path),
             [
-                'Content-Type' => $mimeType,
-                'Cache-Control' => 'private, max-age=300',
+                'Content-Type' => $this->guessImageMimeType($path),
+                'Cache-Control' => $this->imageCacheControlHeader(),
             ]
         );
+    }
+
+    private function imageCacheControlHeader(): string
+    {
+        return 'private, max-age=31536000, immutable';
+    }
+
+    private function guessImageMimeType(string $path, ?string $fallbackMimeType = null): string
+    {
+        $extension = strtolower((string) pathinfo($path, PATHINFO_EXTENSION));
+
+        return match ($extension) {
+            'jpg', 'jpeg' => 'image/jpeg',
+            'png' => 'image/png',
+            'webp' => 'image/webp',
+            'gif' => 'image/gif',
+            default => $fallbackMimeType ?: 'application/octet-stream',
+        };
     }
 
     private function generatePatientId(int $dentistId): string

@@ -137,6 +137,8 @@ export function PatientPhotoPreviewDialog({
                                 alt={activeImage.alt}
                                 crossOrigin={getProtectedMediaCrossOrigin(activeImage.src)}
                                 className="h-auto max-h-full w-auto max-w-full rounded-lg object-contain"
+                                decoding="async"
+                                fetchPriority="high"
                             />
                         </div>
                         {canNavigate ? (
@@ -168,6 +170,7 @@ export function PatientPhotoPreviewDialog({
                                                     crossOrigin={getProtectedMediaCrossOrigin(image.thumbnailSrc ?? image.src)}
                                                     className="h-full w-full object-cover"
                                                     loading="lazy"
+                                                    decoding="async"
                                                 />
                                             </button>
                                         ))}

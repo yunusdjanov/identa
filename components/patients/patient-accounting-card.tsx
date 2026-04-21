@@ -29,9 +29,12 @@ export function PatientAccountingCard({
     const { t } = useI18n();
 
     const treatmentsQuery = useQuery({
-        queryKey: ['patients', 'detail', patientId, 'treatments'],
-        queryFn: () => listAllPatientTreatments(patientId, { sort: '-treatment_date,-created_at' }),
+        queryKey: ['patients', 'detail', patientId, 'treatments', 'accounting-summary'],
+        queryFn: () => listAllPatientTreatments(patientId, { sort: '-treatment_date,-created_at', includeImages: false }),
         staleTime: 30_000,
+        gcTime: 300_000,
+        refetchOnWindowFocus: false,
+        refetchOnReconnect: false,
     });
 
     const treatments = useMemo(() => treatmentsQuery.data ?? [], [treatmentsQuery.data]);

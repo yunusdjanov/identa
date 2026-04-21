@@ -145,6 +145,7 @@ export default function PaymentsPage() {
         queryFn: async (): Promise<PatientTreatmentGroup[]> => {
             const treatments = await listAllTreatments({
                 sort: '-treatment_date,-created_at',
+                includeImages: false,
                 filter: {
                     patient_id: patientFilterId || undefined,
                 },

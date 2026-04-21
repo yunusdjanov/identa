@@ -58,6 +58,7 @@ const ALLOWED_HISTORY_IMAGE_TYPES = new Set([
     'image/png',
     'image/webp',
 ]);
+const HISTORY_IMAGE_UPLOAD_CONCURRENCY = 3;
 
 const createEmptyFormState = (): TreatmentFormState => ({
     treatmentDate: toLocalDateKey(),
@@ -104,6 +105,16 @@ function getTreatmentImageThumbnailUrl(image: ApiTreatmentImage) {
 
 function getTreatmentImagePreviewUrl(image: ApiTreatmentImage) {
     return image.preview_url ?? image.url;
+}
+
+async function uploadTreatmentImagesInBatches(
+    imageFiles: File[],
+    uploadFile: (file: File) => Promise<unknown>
+) {
+    for (let start = 0; start < imageFiles.length; start += HISTORY_IMAGE_UPLOAD_CONCURRENCY) {
+        const batch = imageFiles.slice(start, start + HISTORY_IMAGE_UPLOAD_CONCURRENCY);
+        await Promise.all(batch.map((file) => uploadFile(file)));
+    }
 }
 
 function ToothCell({
@@ -207,6 +218,10 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
         queryKey: ['patients', 'detail', patientId, 'treatments'],
         queryFn: () => listAllPatientTreatments(patientId, { sort: '-treatment_date,-created_at' }),
         staleTime: 30_000,
+        gcTime: 300_000,
+        refetchOnWindowFocus: false,
+        refetchOnReconnect: false,
+        placeholderData: (previousData) => previousData,
     });
 
     const treatments = useMemo(() => {
@@ -266,9 +281,10 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                     );
                 }
 
-                for (const imageFile of formState.imageFiles) {
-                    await uploadPatientTreatmentImage(patientId, treatment.id, imageFile);
-                }
+                await uploadTreatmentImagesInBatches(
+                    formState.imageFiles,
+                    (imageFile) => uploadPatientTreatmentImage(patientId, treatment.id, imageFile)
+                );
             }
             catch (error) {
                 // Keep create flow atomic from the user perspective:

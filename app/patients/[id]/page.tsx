@@ -165,9 +165,12 @@ export default function PatientDetailPage({
     });
 
     const treatmentsSummaryQuery = useQuery({
-        queryKey: ['patients', 'detail', id, 'treatments'],
-        queryFn: () => listAllPatientTreatments(id, { sort: '-treatment_date,-created_at' }),
+        queryKey: ['patients', 'detail', id, 'treatments', 'summary'],
+        queryFn: () => listAllPatientTreatments(id, { sort: '-treatment_date,-created_at', includeImages: false }),
         staleTime: 30_000,
+        gcTime: 300_000,
+        refetchOnWindowFocus: false,
+        refetchOnReconnect: false,
     });
 
     const archivePatientMutation = useMutation({

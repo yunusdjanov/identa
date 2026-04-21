@@ -30,6 +30,7 @@ interface QueryOptions {
     perPage?: number;
     sort?: string;
     filter?: Record<string, FilterValue | undefined>;
+    includeImages?: boolean;
 }
 
 export type AdminDentistSubscriptionAction =
@@ -55,6 +56,10 @@ function buildQueryParams(options?: QueryOptions): Record<string, unknown> {
 
     if (options?.sort) {
         params.sort = options.sort;
+    }
+
+    if (options?.includeImages !== undefined) {
+        params.include_images = options.includeImages ? '1' : '0';
     }
 
     if (options?.filter) {

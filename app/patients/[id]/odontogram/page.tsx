@@ -66,6 +66,11 @@ export default function OdontogramPage({
     const treatmentsQuery = useQuery({
         queryKey: ['patients', 'detail', id, 'treatments', 'odontogram'],
         queryFn: () => listAllPatientTreatments(id, { sort: '-treatment_date,-created_at' }),
+        staleTime: 30_000,
+        gcTime: 300_000,
+        refetchOnWindowFocus: false,
+        refetchOnReconnect: false,
+        placeholderData: (previousData) => previousData,
     });
 
     const treatmentsByTooth = useMemo(() => {
