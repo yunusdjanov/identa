@@ -1092,32 +1092,27 @@ export async function getDashboardSnapshot(
     if (includeFinancials) {
         const monthStart = format(startOfMonth(new Date()), 'yyyy-MM-dd');
         const monthEnd = format(endOfMonth(new Date()), 'yyyy-MM-dd');
-        const [invoicesResponse, paymentsResponse] = await Promise.all([
-            listInvoices({
-                page: 1,
-                perPage: 1,
-            }),
-            listPayments({
-                page: 1,
-                perPage: 1,
+        const [monthlyTreatments, allTreatments] = await Promise.all([
+            listAllTreatments({
                 filter: {
                     date_from: monthStart,
                     date_to: monthEnd,
                 },
             }),
+            listAllTreatments(),
         ]);
-        const invoices = invoicesResponse.data;
-        const payments = paymentsResponse.data;
-        const invoiceSummary = invoicesResponse.meta?.summary;
-        const paymentSummary = paymentsResponse.meta?.summary;
 
         revenueThisMonth = Number(
-            paymentSummary?.total_amount
-            ?? payments.reduce((sum, payment) => sum + Number(payment.amount), 0)
+            monthlyTreatments.reduce(
+                (sum, treatment) => sum + Number(treatment.paid_amount ?? 0),
+                0
+            )
         );
         outstandingDebtTotal = Number(
-            invoiceSummary?.outstanding_total
-            ?? invoices.reduce((sum, invoice) => sum + Number(invoice.balance), 0)
+            allTreatments.reduce((sum, treatment) => {
+                const balance = Number(treatment.debt_amount ?? 0) - Number(treatment.paid_amount ?? 0);
+                return sum + Math.max(balance, 0);
+            }, 0)
         );
     }
 
