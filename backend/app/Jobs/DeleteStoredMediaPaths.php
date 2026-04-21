@@ -14,8 +14,6 @@ class DeleteStoredMediaPaths implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    public bool $afterCommit = true;
-
     public int $tries = 3;
 
     public int $timeout = 120;
@@ -28,6 +26,7 @@ class DeleteStoredMediaPaths implements ShouldQueue
         public array $paths,
         public string $logContext = 'Stored media',
     ) {
+        $this->afterCommit();
     }
 
     public function handle(): void

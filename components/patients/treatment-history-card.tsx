@@ -27,7 +27,7 @@ import { optimizeImageFileForUpload } from '@/lib/browser-image';
 import { getProtectedMediaCrossOrigin } from '@/lib/protected-media';
 import { formatCurrency, formatDate, toLocalDateKey } from '@/lib/utils';
 import { toast } from 'sonner';
-import { CalendarDays, Pencil, Plus, RotateCcw, Trash2, X } from 'lucide-react';
+import { CalendarDays, Loader2, Pencil, Plus, RotateCcw, Trash2, X } from 'lucide-react';
 
 const UPPER_RIGHT_TEETH = [8, 7, 6, 5, 4, 3, 2, 1];
 const UPPER_LEFT_TEETH = [9, 10, 11, 12, 13, 14, 15, 16];
@@ -241,6 +241,7 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
         startIndex: number;
         fallbackTitle: string;
     } | null>(null);
+    const [mediaSyncingTreatmentIds, setMediaSyncingTreatmentIds] = useState<string[]>([]);
     const [formState, setFormState] = useState<TreatmentFormState>(createEmptyFormState);
     const [submitAttempted, setSubmitAttempted] = useState(false);
     const [detailLoadingTreatmentId, setDetailLoadingTreatmentId] = useState<string | null>(null);
@@ -283,6 +284,10 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
 
     const invalidateHistory = () => {
         queryClient.invalidateQueries({ queryKey: ['patients', 'detail', patientId, 'treatments'] });
+    };
+
+    const refreshHistory = async () => {
+        await queryClient.invalidateQueries({ queryKey: ['patients', 'detail', patientId, 'treatments'] });
     };
 
     const loadTreatmentDetail = async (treatment: ApiTreatment) => {
@@ -352,6 +357,7 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
 
             const removeImageIds = [...formState.removeImageIds];
             const imageFiles = [...formState.imageFiles];
+            const treatmentId = treatment.id;
 
             if (removeImageIds.length > 0 || imageFiles.length > 0) {
                 void (async () => {
@@ -373,7 +379,8 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                     } catch (error) {
                         toast.error(getApiErrorMessage(error, t('patientHistory.toast.imagesSyncFailed')));
                     } finally {
-                        invalidateHistory();
+                        await refreshHistory();
+                        setMediaSyncingTreatmentIds((current) => current.filter((id) => id !== treatmentId));
                     }
                 })();
             }
@@ -383,10 +390,12 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                 hasBackgroundMediaSync: removeImageIds.length > 0 || imageFiles.length > 0,
             };
         },
-        onSuccess: ({ hasBackgroundMediaSync }) => {
+        onSuccess: ({ treatment, hasBackgroundMediaSync }) => {
             toast.success(editingTreatment ? t('patientHistory.toast.updated') : t('patientHistory.toast.created'));
             if (hasBackgroundMediaSync) {
-                toast.success(t('patientHistory.toast.imagesSyncing'));
+                setMediaSyncingTreatmentIds((current) => (
+                    current.includes(treatment.id) ? current : [...current, treatment.id]
+                ));
             }
             setIsDialogOpen(false);
             setEditingTreatment(null);
@@ -819,6 +828,16 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                                 const treatmentImageCount = getTreatmentImageCount(treatment);
                                                 const primaryImage = getTreatmentPrimaryImage(treatment);
                                                 const isDetailLoading = detailLoadingTreatmentId === treatment.id;
+                                                const isMediaSyncing = mediaSyncingTreatmentIds.includes(treatment.id);
+
+                                                if (isMediaSyncing) {
+                                                    return (
+                                                        <span className="inline-flex h-8 min-w-[120px] items-center justify-center gap-2 rounded-md border border-blue-200 bg-blue-50 px-2 text-xs font-medium text-blue-700">
+                                                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                                            {t('patientHistory.imagesUploading')}
+                                                        </span>
+                                                    );
+                                                }
 
                                                 if (treatmentImageCount === 0 || !primaryImage) {
                                                     return (
