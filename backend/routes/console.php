@@ -1,5 +1,8 @@
 <?php
 
+use App\Jobs\GenerateMediaVariants;
+use App\Models\Patient;
+use App\Models\TreatmentImage;
 use App\Support\ProductionSecretsValidator;
 use App\Support\ProductionRuntimePolicyValidator;
 use App\Models\User;
@@ -315,3 +318,112 @@ Artisan::command(
         return 0;
     }
 )->purpose('Clear application data, purge stored media, and leave a single super admin account');
+
+Artisan::command('media:queue-variants {--force : Queue regeneration even if variants already exist}', function () {
+    $force = (bool) $this->option('force');
+
+    $buildVariantDefinitions = static function (string $path, array $maxEdges): array {
+        $directory = pathinfo($path, PATHINFO_DIRNAME);
+        $filename = pathinfo($path, PATHINFO_FILENAME);
+        $extension = pathinfo($path, PATHINFO_EXTENSION) ?: 'jpg';
+
+        $variants = [];
+
+        foreach ($maxEdges as $variant => $maxEdge) {
+            $variants[$variant] = [
+                'path' => sprintf('%s/variants/%s-%s.%s', $directory, $filename, $variant, $extension),
+                'max_edge' => $maxEdge,
+            ];
+        }
+
+        return $variants;
+    };
+
+    $hasMissingVariants = static function (string $disk, array $variants) use ($force): bool {
+        if ($force) {
+            return true;
+        }
+
+        foreach ($variants as $variant) {
+            $variantPath = trim((string) ($variant['path'] ?? ''));
+            if ($variantPath !== '' && ! Storage::disk($disk)->exists($variantPath)) {
+                return true;
+            }
+        }
+
+        return false;
+    };
+
+    $queuedPatientPhotos = 0;
+    Patient::query()
+        ->whereNotNull('photo_path')
+        ->select(['id', 'photo_disk', 'photo_path'])
+        ->chunk(100, function ($patients) use (&$queuedPatientPhotos, $buildVariantDefinitions, $hasMissingVariants): void {
+            foreach ($patients as $patient) {
+                $path = trim((string) $patient->photo_path);
+                $disk = is_string($patient->photo_disk) && trim($patient->photo_disk) !== ''
+                    ? trim($patient->photo_disk)
+                    : (string) config('filesystems.media_disk', 'local');
+
+                if ($path === '' || $disk === '' || ! Storage::disk($disk)->exists($path)) {
+                    continue;
+                }
+
+                $variants = $buildVariantDefinitions($path, [
+                    'thumbnail' => 160,
+                    'preview' => 960,
+                ]);
+
+                if (! $hasMissingVariants($disk, $variants)) {
+                    continue;
+                }
+
+                GenerateMediaVariants::dispatch(
+                    disk: $disk,
+                    sourcePath: $path,
+                    variants: $variants,
+                    logContext: 'Patient photo',
+                );
+                $queuedPatientPhotos++;
+            }
+        });
+
+    $queuedTreatmentImages = 0;
+    TreatmentImage::query()
+        ->select(['id', 'disk', 'path'])
+        ->chunk(200, function ($images) use (&$queuedTreatmentImages, $buildVariantDefinitions, $hasMissingVariants): void {
+            foreach ($images as $image) {
+                $path = trim((string) $image->path);
+                $disk = trim((string) $image->disk);
+
+                if ($path === '' || $disk === '' || ! Storage::disk($disk)->exists($path)) {
+                    continue;
+                }
+
+                $variants = $buildVariantDefinitions($path, [
+                    'thumbnail' => 200,
+                    'preview' => 1280,
+                ]);
+
+                if (! $hasMissingVariants($disk, $variants)) {
+                    continue;
+                }
+
+                GenerateMediaVariants::dispatch(
+                    disk: $disk,
+                    sourcePath: $path,
+                    variants: $variants,
+                    logContext: 'Treatment image',
+                );
+                $queuedTreatmentImages++;
+            }
+        });
+
+    $this->info(sprintf(
+        'Queued %d patient photo job(s) and %d treatment image job(s).',
+        $queuedPatientPhotos,
+        $queuedTreatmentImages
+    ));
+
+    return 0;
+})->purpose('Queue missing patient photo and treatment image variants for background generation');

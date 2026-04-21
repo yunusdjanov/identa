@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreTreatmentRequest;
 use App\Http\Requests\UpdateTreatmentRequest;
 use App\Http\Requests\UploadTreatmentImageRequest;
+use App\Jobs\DeleteStoredMediaPaths;
+use App\Jobs\GenerateMediaVariants;
 use App\Models\Patient;
 use App\Models\Treatment;
 use App\Models\TreatmentImage;
@@ -634,7 +636,11 @@ class PatientTreatmentController extends Controller
         $disk = trim((string) $image->disk);
         $path = trim((string) $image->path);
         if ($disk !== '' && $path !== '') {
-            Storage::disk($disk)->delete($this->buildTreatmentImageDeletePaths($path));
+            DeleteStoredMediaPaths::dispatch(
+                disk: $disk,
+                paths: $this->buildTreatmentImageDeletePaths($path),
+                logContext: 'Treatment image'
+            );
         }
     }
 
@@ -662,7 +668,11 @@ class PatientTreatmentController extends Controller
         }
 
         foreach ($pathsByDisk as $disk => $paths) {
-            Storage::disk($disk)->delete(array_values(array_unique($paths)));
+            DeleteStoredMediaPaths::dispatch(
+                disk: $disk,
+                paths: array_values(array_unique($paths)),
+                logContext: 'Treatment image batch'
+            );
         }
 
         TreatmentImage::query()
@@ -724,41 +734,33 @@ class PatientTreatmentController extends Controller
         return sprintf('%s/variants/%s-%s.%s', $directory, $filename, $variant, $extension);
     }
 
-    private function generateTreatmentImageVariants(string $disk, string $path): void
+    /**
+     * @return array<string, array{path: string, max_edge: int}>
+     */
+    private function buildTreatmentImageVariantDefinitions(string $path): array
     {
-        try {
-            $contents = Storage::disk($disk)->get($path);
+        $variants = [];
 
-            foreach (self::IMAGE_VARIANT_MAX_EDGES as $variant => $maxEdge) {
-                $generatedVariant = ImageVariantGenerator::make(
-                    $contents,
-                    $path,
-                    $maxEdge,
-                    self::JPEG_VARIANT_QUALITY,
-                    self::WEBP_VARIANT_QUALITY,
-                );
-
-                if ($generatedVariant === null) {
-                    continue;
-                }
-
-                Storage::disk($disk)->put(
-                    $this->buildTreatmentImageVariantPath($path, $variant),
-                    $generatedVariant['contents']
-                );
-            }
-        } catch (\Throwable $exception) {
-            Log::warning('Treatment image variant generation failed.', [
-                'exception' => $exception::class,
-            ]);
+        foreach (self::IMAGE_VARIANT_MAX_EDGES as $variant => $maxEdge) {
+            $variants[$variant] = [
+                'path' => $this->buildTreatmentImageVariantPath($path, $variant),
+                'max_edge' => $maxEdge,
+            ];
         }
+
+        return $variants;
     }
 
     private function queueTreatmentImageVariants(string $disk, string $path): void
     {
-        app()->terminating(function () use ($disk, $path): void {
-            $this->generateTreatmentImageVariants($disk, $path);
-        });
+        GenerateMediaVariants::dispatch(
+            disk: $disk,
+            sourcePath: $path,
+            variants: $this->buildTreatmentImageVariantDefinitions($path),
+            logContext: 'Treatment image',
+            jpegQuality: self::JPEG_VARIANT_QUALITY,
+            webpQuality: self::WEBP_VARIANT_QUALITY,
+        );
     }
 
     private function streamTreatmentImageVariant(string $disk, string $path, string $variant): ?StreamedResponse

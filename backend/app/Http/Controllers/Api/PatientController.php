@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StorePatientRequest;
 use App\Http\Requests\UpdatePatientRequest;
+use App\Jobs\DeleteStoredMediaPaths;
+use App\Jobs\GenerateMediaVariants;
 use App\Models\Appointment;
 use App\Models\Patient;
 use App\Models\User;
@@ -237,12 +239,17 @@ class PatientController extends Controller
             ]);
         }
 
-        $this->generatePatientPhotoVariants($disk, $storedPath);
-        $this->deletePatientPhotoFile($patient);
+        $previousPhotoDisk = is_string($patient->photo_disk) && $patient->photo_disk !== ''
+            ? $patient->photo_disk
+            : $this->patientPhotoDisk();
+        $previousPhotoPath = is_string($patient->photo_path) ? trim($patient->photo_path) : '';
+
         $patient->forceFill([
             'photo_disk' => $disk,
             'photo_path' => $storedPath,
         ])->save();
+        $this->queuePatientPhotoVariants($disk, $storedPath);
+        $this->queuePatientPhotoDeletion($previousPhotoDisk, $previousPhotoPath);
 
         $patient = $this->findOwnedPatient($request, $id);
 
@@ -626,11 +633,7 @@ class PatientController extends Controller
         $disk = is_string($patient->photo_disk) && $patient->photo_disk !== ''
             ? $patient->photo_disk
             : $this->patientPhotoDisk();
-        Storage::disk($disk)->delete([
-            $patient->photo_path,
-            $this->buildPatientPhotoVariantPath($patient->photo_path, self::IMAGE_VARIANT_THUMBNAIL),
-            $this->buildPatientPhotoVariantPath($patient->photo_path, self::IMAGE_VARIANT_PREVIEW),
-        ]);
+        $this->queuePatientPhotoDeletion($disk, $patient->photo_path);
     }
 
     private function patientPhotoDisk(): string
@@ -660,34 +663,45 @@ class PatientController extends Controller
         return sprintf('%s/variants/%s-%s.%s', $directory, $filename, $variant, $extension);
     }
 
-    private function generatePatientPhotoVariants(string $disk, string $path): void
+    private function queuePatientPhotoDeletion(string $disk, string $path): void
     {
-        try {
-            $contents = Storage::disk($disk)->get($path);
+        $disk = trim($disk);
+        $path = trim($path);
 
-            foreach (self::IMAGE_VARIANT_MAX_EDGES as $variant => $maxEdge) {
-                $generatedVariant = ImageVariantGenerator::make(
-                    $contents,
-                    $path,
-                    $maxEdge,
-                    self::JPEG_VARIANT_QUALITY,
-                    self::WEBP_VARIANT_QUALITY,
-                );
-
-                if ($generatedVariant === null) {
-                    continue;
-                }
-
-                Storage::disk($disk)->put(
-                    $this->buildPatientPhotoVariantPath($path, $variant),
-                    $generatedVariant['contents']
-                );
-            }
-        } catch (\Throwable $exception) {
-            Log::warning('Patient photo variant generation failed.', [
-                'exception' => $exception::class,
-            ]);
+        if ($disk === '' || $path === '') {
+            return;
         }
+
+        DeleteStoredMediaPaths::dispatch(
+            disk: $disk,
+            paths: [
+                $path,
+                $this->buildPatientPhotoVariantPath($path, self::IMAGE_VARIANT_THUMBNAIL),
+                $this->buildPatientPhotoVariantPath($path, self::IMAGE_VARIANT_PREVIEW),
+            ],
+            logContext: 'Patient photo'
+        );
+    }
+
+    private function queuePatientPhotoVariants(string $disk, string $path): void
+    {
+        GenerateMediaVariants::dispatch(
+            disk: $disk,
+            sourcePath: $path,
+            variants: [
+                self::IMAGE_VARIANT_THUMBNAIL => [
+                    'path' => $this->buildPatientPhotoVariantPath($path, self::IMAGE_VARIANT_THUMBNAIL),
+                    'max_edge' => self::THUMBNAIL_MAX_EDGE,
+                ],
+                self::IMAGE_VARIANT_PREVIEW => [
+                    'path' => $this->buildPatientPhotoVariantPath($path, self::IMAGE_VARIANT_PREVIEW),
+                    'max_edge' => self::PREVIEW_MAX_EDGE,
+                ],
+            ],
+            logContext: 'Patient photo',
+            jpegQuality: self::JPEG_VARIANT_QUALITY,
+            webpQuality: self::WEBP_VARIANT_QUALITY,
+        );
     }
 
     private function streamPatientPhotoVariant(string $disk, string $path, string $variant): ?StreamedResponse
