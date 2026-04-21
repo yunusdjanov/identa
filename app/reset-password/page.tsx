@@ -19,6 +19,7 @@ import {
 import { getApiErrorMessage } from '@/lib/api/client';
 import { resetPasswordWithToken } from '@/lib/api/dentist';
 import { toast } from 'sonner';
+import { Brand } from '@/components/branding/brand';
 
 export default function ResetPasswordPage() {
     const { t } = useI18n();
@@ -83,11 +84,9 @@ export default function ResetPasswordPage() {
             </div>
             <div className="w-full max-w-md">
                 <div className="mb-8 text-center">
-                    <Link href="/">
-                        <h1 className="mb-2 cursor-pointer text-4xl font-bold text-blue-600 hover:text-blue-700">
-                            Identa
-                        </h1>
-                    </Link>
+                    <div className="mb-3 flex justify-center">
+                        <Brand href="/" variant="text" priority textClassName="w-40 sm:w-44" />
+                    </div>
                     <p className="text-gray-600">{t('resetPassword.subtitle')}</p>
                 </div>
 

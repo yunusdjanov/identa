@@ -11,11 +11,11 @@ import { Label } from '@/components/ui/label';
 import { getApiErrorMessage } from '@/lib/api/client';
 import { loginWithPassword, logoutSession } from '@/lib/api/dentist';
 import { toast } from 'sonner';
-import { Shield } from 'lucide-react';
 import { INPUT_LIMITS, getEmailValidationMessage } from '@/lib/input-validation';
 import { useI18n } from '@/components/providers/i18n-provider';
 import { LanguageSwitcher } from '@/components/layout/language-switcher';
 import Link from 'next/link';
+import { Brand } from '@/components/branding/brand';
 
 export default function AdminLoginPage() {
     const { t } = useI18n();
@@ -75,9 +75,7 @@ export default function AdminLoginPage() {
             <div className="w-full max-w-md">
                 <div className="mb-8 text-center">
                     <div className="mb-4 flex justify-center">
-                        <div className="w-16 h-16 bg-slate-900 rounded-full flex items-center justify-center">
-                            <Shield className="w-8 h-8 text-white" />
-                        </div>
+                        <Brand href="/" variant="full" priority fullClassName="w-28 sm:w-32" />
                     </div>
                     <h1 className="text-3xl font-bold text-slate-900 mb-2">{t('admin.login.title')}</h1>
                     <p className="text-slate-600">{t('admin.login.subtitle')}</p>

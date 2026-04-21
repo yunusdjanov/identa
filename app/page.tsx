@@ -7,10 +7,10 @@ import {
     CreditCard,
     MessageCircle,
     ShieldCheck,
-    Sparkles,
     Stethoscope,
     Users,
 } from 'lucide-react';
+import { Brand } from '@/components/branding/brand';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { PublicLeadForm } from '@/components/landing/public-lead-form';
@@ -766,12 +766,13 @@ export default async function LandingPage() {
             <header className="border-b border-slate-200/80 bg-white/88 backdrop-blur-xl">
                 <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
                     <div className="flex items-center justify-between gap-4 py-4">
-                        <div className="flex items-center gap-3">
-                            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-950 text-white shadow-[0_18px_42px_-22px_rgba(15,23,42,0.72)]">
-                                <Sparkles className="h-5 w-5" />
-                            </div>
-                            <p className="text-xl font-semibold tracking-tight">Identa</p>
-                        </div>
+                        <Brand
+                            href="/"
+                            variant="lockup"
+                            priority
+                            iconClassName="w-11"
+                            textClassName="w-28 sm:w-32"
+                        />
 
                         <nav className="hidden items-center gap-6 lg:flex">
                             <a href="#why" className="text-sm font-medium text-slate-600 transition hover:text-slate-950">
@@ -1079,9 +1080,7 @@ export default async function LandingPage() {
                     <Card className="overflow-hidden rounded-[30px] border border-blue-100 bg-[linear-gradient(135deg,#f7fbff_0%,#eef5ff_52%,#e4efff_100%)] text-slate-950 shadow-[0_30px_90px_-50px_rgba(59,130,246,0.28)]">
                         <CardContent className="flex flex-col gap-8 p-8 sm:p-10 lg:flex-row lg:items-center lg:justify-between">
                             <div className="max-w-2xl">
-                                <p className="text-sm font-semibold uppercase tracking-[0.18em] text-blue-600">
-                                    Identa
-                                </p>
+                                <Brand variant="text" textClassName="w-24 sm:w-28" />
                                 <h2 className="mt-4 text-3xl font-semibold tracking-tight sm:text-4xl">
                                     {content.finalCta.title}
                                 </h2>
@@ -1118,7 +1117,7 @@ export default async function LandingPage() {
             <footer className="border-t border-slate-200 bg-white/80">
                 <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-3 text-xs text-slate-500 sm:px-6 lg:px-8">
                     <div className="flex min-w-0 items-center gap-2">
-                        <span className="font-semibold text-slate-950">Identa</span>
+                        <Brand href="/" variant="text" textClassName="w-20 sm:w-24" />
                         <span className="hidden text-slate-300 sm:inline">•</span>
                         <span className="truncate">{content.footer.tagline}</span>
                     </div>

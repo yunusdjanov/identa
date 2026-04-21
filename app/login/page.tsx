@@ -21,6 +21,7 @@ import { toast } from 'sonner';
 import { INPUT_LIMITS, getEmailValidationMessage } from '@/lib/input-validation';
 import { useI18n } from '@/components/providers/i18n-provider';
 import { LanguageSwitcher } from '@/components/layout/language-switcher';
+import { Brand } from '@/components/branding/brand';
 
 export default function LoginPage() {
     const router = useRouter();
@@ -75,11 +76,9 @@ export default function LoginPage() {
             </div>
             <div className="w-full max-w-md">
                 <div className="mb-8 text-center">
-                    <Link href="/">
-                        <h1 className="mb-2 cursor-pointer text-4xl font-bold text-blue-600 hover:text-blue-700">
-                            Identa
-                        </h1>
-                    </Link>
+                    <div className="mb-3 flex justify-center">
+                        <Brand href="/" variant="text" priority textClassName="w-40 sm:w-44" />
+                    </div>
                     <p className="text-gray-600">{t('login.subtitle')}</p>
                 </div>
 

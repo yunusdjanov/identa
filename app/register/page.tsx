@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useI18n } from '@/components/providers/i18n-provider';
 import { LanguageSwitcher } from '@/components/layout/language-switcher';
+import { Brand } from '@/components/branding/brand';
 
 export default function RegisterPage() {
     const { t } = useI18n();
@@ -16,11 +17,9 @@ export default function RegisterPage() {
             </div>
             <div className="w-full max-w-md">
                 <div className="text-center mb-8">
-                    <Link href="/">
-                        <h1 className="text-4xl font-bold text-blue-600 mb-2 cursor-pointer hover:text-blue-700">
-                            Identa
-                        </h1>
-                    </Link>
+                    <div className="mb-3 flex justify-center">
+                        <Brand href="/" variant="full" priority fullClassName="w-28 sm:w-32" />
+                    </div>
                     <p className="text-gray-600">{t('register.inviteOnlySubtitle')}</p>
                 </div>
 

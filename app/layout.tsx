@@ -40,12 +40,21 @@ export const metadata: Metadata = {
     title: "Identa | Dental practice management for private dentists and small clinics",
     description:
       "Manage appointments, patient records, treatment history, and payments in one clear system.",
+    images: [
+      {
+        url: "/brand/identa-full-logo.png",
+        width: 580,
+        height: 680,
+        alt: "Identa logo",
+      },
+    ],
   },
   twitter: {
     card: "summary",
     title: "Identa | Dental practice management for private dentists and small clinics",
     description:
       "Manage appointments, patient records, treatment history, and payments in one clear system.",
+    images: ["/brand/identa-full-logo.png"],
   },
   robots: {
     index: true,
@@ -64,9 +73,9 @@ export const metadata: Metadata = {
     email: false,
   },
   icons: {
-    icon: "/favicon.ico",
-    shortcut: "/favicon.ico",
-    apple: "/favicon.ico",
+    icon: "/brand/identa-icon-only.png",
+    shortcut: "/brand/identa-icon-only.png",
+    apple: "/brand/identa-icon-only.png",
   },
   category: "healthcare",
 };

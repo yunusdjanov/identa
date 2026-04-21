@@ -40,6 +40,7 @@ import {
 import { toast } from 'sonner';
 import { useI18n } from '@/components/providers/i18n-provider';
 import { SubscriptionBanner } from '@/components/layout/subscription-banner';
+import { Brand } from '@/components/branding/brand';
 
 const navigation = [
     { key: 'nav.dashboard', href: '/dashboard', icon: LayoutDashboard },
@@ -211,11 +212,12 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                             <>
                                 {/* Logo */}
                                 <div className="flex items-center">
-                                    <Link href="/dashboard">
-                                        <h1 className="text-2xl font-bold text-blue-600 cursor-pointer hover:text-blue-700">
-                                            Identa
-                                        </h1>
-                                    </Link>
+                                    <Brand
+                                        href="/dashboard"
+                                        variant="lockup"
+                                        iconClassName="w-10"
+                                        textClassName="w-24 sm:w-28"
+                                    />
                                 </div>
 
                                 {/* Navigation */}
