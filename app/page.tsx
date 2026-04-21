@@ -768,9 +768,8 @@ export default async function LandingPage() {
                     <div className="flex items-center justify-between gap-4 py-4">
                         <Brand
                             href="/"
-                            variant="lockup"
+                            variant="text"
                             priority
-                            iconClassName="w-11"
                             textClassName="w-28 sm:w-32"
                         />
 

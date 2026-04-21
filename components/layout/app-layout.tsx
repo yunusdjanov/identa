@@ -214,8 +214,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                                 <div className="flex items-center">
                                     <Brand
                                         href="/dashboard"
-                                        variant="lockup"
-                                        iconClassName="w-10"
+                                        variant="text"
                                         textClassName="w-24 sm:w-28"
                                     />
                                 </div>

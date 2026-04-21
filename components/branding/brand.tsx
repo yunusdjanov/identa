@@ -2,7 +2,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
 
-type BrandVariant = 'icon' | 'text' | 'full' | 'lockup';
+type BrandVariant = 'icon' | 'text' | 'full';
 
 interface BrandProps {
     variant?: BrandVariant;
@@ -62,24 +62,14 @@ function BrandContent({
     }
 
     return (
-        <div className={cn('flex items-center gap-3', className)}>
-            <Image
-                src="/brand/identa-icon-only.png"
-                alt="Identa icon"
-                width={510}
-                height={440}
-                priority={priority}
-                className={cn('h-auto w-11', iconClassName)}
-            />
-            <Image
-                src="/brand/identa-text-only.png"
-                alt="Identa"
-                width={640}
-                height={240}
-                priority={priority}
-                className={cn('h-auto w-28', textClassName)}
-            />
-        </div>
+        <Image
+            src="/brand/identa-text-only.png"
+            alt="Identa"
+            width={640}
+            height={240}
+            priority={priority}
+            className={cn('h-auto w-32', textClassName, className)}
+        />
     );
 }
 
