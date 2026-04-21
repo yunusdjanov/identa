@@ -65,7 +65,10 @@ export default function OdontogramPage({
     });
     const treatmentsQuery = useQuery({
         queryKey: ['patients', 'detail', id, 'treatments', 'odontogram'],
-        queryFn: () => listAllPatientTreatments(id, { sort: '-treatment_date,-created_at' }),
+        queryFn: () => listAllPatientTreatments(id, {
+            sort: '-treatment_date,-created_at',
+            includeImages: false,
+        }),
         staleTime: 30_000,
         gcTime: 300_000,
         refetchOnWindowFocus: false,
@@ -244,6 +247,7 @@ export default function OdontogramPage({
                 <ToothDetailDialog
                     open={selectedTooth !== null}
                     onOpenChange={(open) => !open && setSelectedTooth(null)}
+                    patientId={id}
                     toothNumber={selectedTooth}
                     treatments={treatmentsByTooth.get(selectedTooth) ?? []}
                 />

@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Treatment extends Model
@@ -82,5 +83,13 @@ class Treatment extends Model
     public function images(): HasMany
     {
         return $this->hasMany(TreatmentImage::class)->orderBy('created_at');
+    }
+
+    /**
+     * @return HasOne<TreatmentImage>
+     */
+    public function primaryImage(): HasOne
+    {
+        return $this->hasOne(TreatmentImage::class)->oldestOfMany('created_at');
     }
 }

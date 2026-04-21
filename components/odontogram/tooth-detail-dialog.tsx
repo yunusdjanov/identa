@@ -1,17 +1,22 @@
-﻿'use client';
+'use client';
 
 import { useMemo, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
+import { getPatientTreatment } from '@/lib/api/dentist';
+import { getApiErrorMessage } from '@/lib/api/client';
 import type { ApiTreatment, ApiTreatmentImage } from '@/lib/api/types';
 import { getProtectedMediaCrossOrigin } from '@/lib/protected-media';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { useI18n } from '@/components/providers/i18n-provider';
 import { PatientPhotoPreviewDialog, type PreviewGalleryImage } from '@/components/patients/patient-photo-preview-dialog';
+import { toast } from 'sonner';
 
 interface ToothDetailDialogProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
+    patientId: string;
     toothNumber: number;
     treatments: ApiTreatment[];
 }
@@ -24,17 +29,36 @@ function getTreatmentImagePreviewUrl(image: ApiTreatmentImage) {
     return image.preview_url ?? image.url;
 }
 
+function getTreatmentImageCount(treatment: ApiTreatment) {
+    return Math.max(
+        Number(treatment.image_count ?? 0),
+        treatment.images?.length ?? 0
+    );
+}
+
+function getTreatmentPrimaryImage(treatment: ApiTreatment) {
+    if ((treatment.images?.length ?? 0) > 0) {
+        return treatment.images[0];
+    }
+
+    return treatment.primary_image ?? null;
+}
+
 export function ToothDetailDialog({
     open,
     onOpenChange,
+    patientId,
     toothNumber,
     treatments,
 }: ToothDetailDialogProps) {
     const { t } = useI18n();
+    const queryClient = useQueryClient();
     const [previewGallery, setPreviewGallery] = useState<{
         images: PreviewGalleryImage[];
         startIndex: number;
     } | null>(null);
+    const [detailLoadingTreatmentId, setDetailLoadingTreatmentId] = useState<string | null>(null);
+
     const getLinkedTeeth = (treatment: ApiTreatment): number[] => {
         const linkedTeeth = new Set<number>();
 
@@ -67,24 +91,44 @@ export function ToothDetailDialog({
         };
     }, [treatments]);
 
-    const openTreatmentImageGallery = (
-        images: ApiTreatmentImage[],
-        treatmentDate: string,
-        startIndex = 0
-    ) => {
-        if (!images || images.length === 0) {
-            return;
+    const loadTreatmentDetail = async (treatment: ApiTreatment) => {
+        if ((treatment.images?.length ?? 0) > 0 || getTreatmentImageCount(treatment) === 0) {
+            return treatment;
         }
 
-        setPreviewGallery({
-            images: images.map((image, index) => ({
-                src: getTreatmentImagePreviewUrl(image),
-                thumbnailSrc: getTreatmentImageThumbnailUrl(image),
-                alt: `${t('patientHistory.image')} ${index + 1} ${formatDate(treatmentDate)}`,
-                title: `${t('patientHistory.image')} ${index + 1} - ${formatDate(treatmentDate)}`,
-            })),
-            startIndex,
+        return queryClient.fetchQuery({
+            queryKey: ['patients', 'detail', patientId, 'treatments', treatment.id],
+            queryFn: () => getPatientTreatment(patientId, treatment.id),
+            staleTime: 300_000,
+            gcTime: 300_000,
         });
+    };
+
+    const openTreatmentImageGallery = async (treatment: ApiTreatment, startIndex = 0) => {
+        setDetailLoadingTreatmentId(treatment.id);
+
+        try {
+            const detailedTreatment = await loadTreatmentDetail(treatment);
+            const images = detailedTreatment.images ?? [];
+
+            if (images.length === 0) {
+                return;
+            }
+
+            setPreviewGallery({
+                images: images.map((image, index) => ({
+                    src: getTreatmentImagePreviewUrl(image),
+                    thumbnailSrc: getTreatmentImageThumbnailUrl(image),
+                    alt: `${t('patientHistory.image')} ${index + 1} ${formatDate(detailedTreatment.treatment_date)}`,
+                    title: `${t('patientHistory.image')} ${index + 1} - ${formatDate(detailedTreatment.treatment_date)}`,
+                })),
+                startIndex,
+            });
+        } catch (error) {
+            toast.error(getApiErrorMessage(error, t('patientHistory.error.loadFailed')));
+        } finally {
+            setDetailLoadingTreatmentId((current) => (current === treatment.id ? null : current));
+        }
     };
 
     return (
@@ -130,92 +174,92 @@ export function ToothDetailDialog({
                             <div className="max-h-[52vh] space-y-2 overflow-x-hidden overflow-y-auto pr-1">
                                 {treatments.map((treatment) => {
                                     const linkedTeeth = getLinkedTeeth(treatment);
+                                    const treatmentImageCount = getTreatmentImageCount(treatment);
+                                    const primaryImage = getTreatmentPrimaryImage(treatment);
+                                    const isDetailLoading = detailLoadingTreatmentId === treatment.id;
 
                                     return (
-                                    <div key={treatment.id} className="overflow-hidden rounded-xl border border-gray-200 bg-white px-3 py-3">
-                                        <div className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(330px,360px)] sm:items-start sm:gap-4">
-                                            <div className="min-w-0 flex-1">
-                                                <p className="text-sm font-medium text-gray-700">{formatDate(treatment.treatment_date)}</p>
-                                                <p
-                                                    className="block max-w-[320px] truncate text-sm font-semibold text-gray-900 sm:max-w-[380px] lg:max-w-[460px]"
-                                                    title={treatment.treatment_type}
-                                                >
-                                                    {treatment.treatment_type}
-                                                </p>
-                                            </div>
-                                            <div className="grid grid-cols-3 gap-3 text-right text-xs sm:flex-none">
-                                                <div>
-                                                    <p className="text-xs font-medium uppercase tracking-wide text-gray-400">{t('patientHistory.table.debt')}</p>
-                                                    <p className="whitespace-nowrap text-sm font-semibold tabular-nums text-red-700">{formatCurrency(Number(treatment.debt_amount ?? 0))}</p>
-                                                </div>
-                                                <div>
-                                                    <p className="text-xs font-medium uppercase tracking-wide text-gray-400">{t('patientHistory.table.paid')}</p>
-                                                    <p className="whitespace-nowrap text-sm font-semibold tabular-nums text-green-700">{formatCurrency(Number(treatment.paid_amount ?? 0))}</p>
-                                                </div>
-                                                <div>
-                                                    <p className="text-xs font-medium uppercase tracking-wide text-gray-400">{t('patientHistory.table.remaining')}</p>
+                                        <div key={treatment.id} className="overflow-hidden rounded-xl border border-gray-200 bg-white px-3 py-3">
+                                            <div className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(330px,360px)] sm:items-start sm:gap-4">
+                                                <div className="min-w-0 flex-1">
+                                                    <p className="text-sm font-medium text-gray-700">{formatDate(treatment.treatment_date)}</p>
                                                     <p
-                                                        className={`whitespace-nowrap text-sm font-semibold tabular-nums ${
-                                                            Number(treatment.balance ?? 0) > 0
-                                                                ? 'text-red-700'
-                                                                : Number(treatment.balance ?? 0) < 0
-                                                                    ? 'text-green-700'
-                                                                    : 'text-gray-700'
-                                                        }`}
+                                                        className="block max-w-[320px] truncate text-sm font-semibold text-gray-900 sm:max-w-[380px] lg:max-w-[460px]"
+                                                        title={treatment.treatment_type}
                                                     >
-                                                        {formatCurrency(Number(treatment.balance ?? 0))}
+                                                        {treatment.treatment_type}
                                                     </p>
                                                 </div>
+                                                <div className="grid grid-cols-3 gap-3 text-right text-xs sm:flex-none">
+                                                    <div>
+                                                        <p className="text-xs font-medium uppercase tracking-wide text-gray-400">{t('patientHistory.table.debt')}</p>
+                                                        <p className="whitespace-nowrap text-sm font-semibold tabular-nums text-red-700">{formatCurrency(Number(treatment.debt_amount ?? 0))}</p>
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-xs font-medium uppercase tracking-wide text-gray-400">{t('patientHistory.table.paid')}</p>
+                                                        <p className="whitespace-nowrap text-sm font-semibold tabular-nums text-green-700">{formatCurrency(Number(treatment.paid_amount ?? 0))}</p>
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-xs font-medium uppercase tracking-wide text-gray-400">{t('patientHistory.table.remaining')}</p>
+                                                        <p
+                                                            className={`whitespace-nowrap text-sm font-semibold tabular-nums ${
+                                                                Number(treatment.balance ?? 0) > 0
+                                                                    ? 'text-red-700'
+                                                                    : Number(treatment.balance ?? 0) < 0
+                                                                        ? 'text-green-700'
+                                                                        : 'text-gray-700'
+                                                            }`}
+                                                        >
+                                                            {formatCurrency(Number(treatment.balance ?? 0))}
+                                                        </p>
+                                                    </div>
+                                                </div>
                                             </div>
-                                        </div>
-                                        <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                                            {linkedTeeth.slice(0, 1).map((tooth) => (
-                                                <Badge key={`${treatment.id}-${tooth}`} variant="outline" className="border-gray-300 bg-gray-50 text-gray-700">
-                                                    #{tooth}
-                                                </Badge>
-                                            ))}
-                                            {linkedTeeth.length > 1 ? (
-                                                <Badge variant="outline" className="border-blue-200 bg-blue-50 text-blue-700">
-                                                    +{linkedTeeth.length - 1}
-                                                </Badge>
-                                            ) : null}
-                                            {(() => {
-                                                const treatmentImages = treatment.images ?? [];
-                                                if (treatmentImages.length === 0) {
-                                                    return (
-                                                        <span className="inline-flex h-8 min-w-[74px] items-center justify-center rounded-md border border-dashed border-gray-300 px-2 text-xs font-medium text-gray-400">
-                                                            -
-                                                        </span>
-                                                    );
-                                                }
-
-                                                return (
+                                            <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                                                {linkedTeeth.slice(0, 1).map((tooth) => (
+                                                    <Badge key={`${treatment.id}-${tooth}`} variant="outline" className="border-gray-300 bg-gray-50 text-gray-700">
+                                                        #{tooth}
+                                                    </Badge>
+                                                ))}
+                                                {linkedTeeth.length > 1 ? (
+                                                    <Badge variant="outline" className="border-blue-200 bg-blue-50 text-blue-700">
+                                                        +{linkedTeeth.length - 1}
+                                                    </Badge>
+                                                ) : null}
+                                                {treatmentImageCount === 0 || !primaryImage ? (
+                                                    <span className="inline-flex h-8 min-w-[74px] items-center justify-center rounded-md border border-dashed border-gray-300 px-2 text-xs font-medium text-gray-400">
+                                                        -
+                                                    </span>
+                                                ) : (
                                                     <button
                                                         type="button"
+                                                        disabled={isDetailLoading}
                                                         className="group inline-flex h-8 min-w-[74px] items-center gap-2 rounded-md border border-gray-300 bg-white px-2 text-xs font-semibold text-gray-700 shadow-sm transition-all hover:border-blue-400 hover:bg-blue-50 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1 active:translate-y-px active:shadow-sm"
-                                                        onClick={() => openTreatmentImageGallery(treatmentImages, treatment.treatment_date, 0)}
-                                                        title={`${t('patientHistory.images')}: ${treatmentImages.length}`}
-                                                        aria-label={`${t('patientHistory.images')} (${treatmentImages.length})`}
+                                                        onClick={() => {
+                                                            void openTreatmentImageGallery(treatment, 0);
+                                                        }}
+                                                        title={`${t('patientHistory.images')}: ${treatmentImageCount}`}
+                                                        aria-label={`${t('patientHistory.images')} (${treatmentImageCount})`}
                                                     >
                                                         <span className="inline-flex h-5 w-5 items-center justify-center overflow-hidden rounded-[6px] border border-gray-200 bg-gray-100">
                                                             {/* eslint-disable-next-line @next/next/no-img-element */}
                                                             <img
-                                                                src={getTreatmentImageThumbnailUrl(treatmentImages[0])}
+                                                                src={getTreatmentImageThumbnailUrl(primaryImage)}
                                                                 alt={`${t('patientHistory.image')} 1`}
-                                                                crossOrigin={getProtectedMediaCrossOrigin(getTreatmentImageThumbnailUrl(treatmentImages[0]))}
+                                                                crossOrigin={getProtectedMediaCrossOrigin(getTreatmentImageThumbnailUrl(primaryImage))}
                                                                 className="h-full w-full object-cover"
                                                                 loading="lazy"
                                                             />
                                                         </span>
                                                         <span className="inline-flex h-5 min-w-6 items-center justify-center rounded-[6px] bg-blue-100 px-1.5 text-[11px] font-semibold text-blue-700">
-                                                            +{treatmentImages.length}
+                                                            +{treatmentImageCount}
                                                         </span>
                                                     </button>
-                                                );
-                                            })()}
+                                                )}
+                                            </div>
                                         </div>
-                                    </div>
-                                )})}
+                                    );
+                                })}
                             </div>
                         )}
                     </div>
@@ -240,5 +284,3 @@ export function ToothDetailDialog({
         </>
     );
 }
-
-

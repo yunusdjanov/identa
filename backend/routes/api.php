@@ -125,6 +125,8 @@ Route::prefix('v1')->group(function (): void {
             ->middleware('permission:'.User::PERMISSION_TREATMENTS_VIEW);
         Route::get('treatments', [PatientTreatmentController::class, 'indexAll'])
             ->middleware('permission:'.User::PERMISSION_TREATMENTS_VIEW);
+        Route::get('patients/{id}/treatments/{treatmentId}', [PatientTreatmentController::class, 'show'])
+            ->middleware('permission:'.User::PERMISSION_TREATMENTS_VIEW);
         Route::post('patients/{id}/treatments', [PatientTreatmentController::class, 'store'])
             ->middleware('permission:'.User::PERMISSION_TREATMENTS_MANAGE);
         Route::put('patients/{id}/treatments/{treatmentId}', [PatientTreatmentController::class, 'update'])

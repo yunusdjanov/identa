@@ -513,6 +513,17 @@ export async function listAllPatientTreatments(
     );
 }
 
+export async function getPatientTreatment(
+    patientId: string,
+    treatmentId: string
+): Promise<ApiTreatment> {
+    const { data } = await apiClient.get<ApiEnvelope<ApiTreatment>>(
+        `/patients/${patientId}/treatments/${treatmentId}`
+    );
+
+    return data.data;
+}
+
 export async function createPatientTreatment(
     patientId: string,
     payload: {

@@ -1,5 +1,6 @@
 import { cleanup, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { afterEach, describe, expect, it } from 'vitest';
 import type { ApiTreatment } from '@/lib/api/types';
 import { ToothDetailDialog } from '@/components/odontogram/tooth-detail-dialog';
@@ -28,6 +29,8 @@ function buildTreatment(overrides: Partial<ApiTreatment>): ApiTreatment {
         paid_amount: 40000,
         balance: 80000,
         notes: null,
+        image_count: 0,
+        primary_image: null,
         images: [],
         created_at: '2026-03-29T10:00:00Z',
         updated_at: '2026-03-29T10:00:00Z',
@@ -36,15 +39,26 @@ function buildTreatment(overrides: Partial<ApiTreatment>): ApiTreatment {
 }
 
 function renderDialog(treatments: ApiTreatment[]) {
+    const queryClient = new QueryClient({
+        defaultOptions: {
+            queries: {
+                retry: false,
+            },
+        },
+    });
+
     render(
-        <I18nProvider initialLocale="en">
-            <ToothDetailDialog
-                open={true}
-                onOpenChange={() => {}}
-                toothNumber={14}
-                treatments={treatments}
-            />
-        </I18nProvider>
+        <QueryClientProvider client={queryClient}>
+            <I18nProvider initialLocale="en">
+                <ToothDetailDialog
+                    open={true}
+                    onOpenChange={() => {}}
+                    patientId="patient-1"
+                    toothNumber={14}
+                    treatments={treatments}
+                />
+            </I18nProvider>
+        </QueryClientProvider>
     );
 }
 
@@ -82,6 +96,14 @@ describe('ToothDetailDialog (history-first mode)', () => {
         renderDialog([
             buildTreatment({
                 id: 't-3',
+                image_count: 2,
+                primary_image: {
+                    id: 'img-1',
+                    mime_type: 'image/jpeg',
+                    file_size: 1234,
+                    created_at: '2026-03-29T10:00:00Z',
+                    url: 'https://example.com/before.jpg',
+                },
                 images: [
                     {
                         id: 'img-1',

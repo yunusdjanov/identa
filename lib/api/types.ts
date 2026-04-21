@@ -144,6 +144,8 @@ export interface ApiTreatment {
     paid_amount: number;
     balance: number;
     notes: string | null;
+    image_count: number;
+    primary_image?: ApiTreatmentImage | null;
     images: ApiTreatmentImage[];
     created_at: string | null;
     updated_at: string | null;

@@ -10,6 +10,7 @@ import { formatCurrency, formatDate } from '@/lib/utils';
 import { ToothDetailDialog } from '@/components/odontogram/tooth-detail-dialog';
 
 interface ClinicalSnapshotCardProps {
+    patientId: string;
     treatments: ApiTreatment[];
     isTreatmentsLoading?: boolean;
     isTreatmentsError?: boolean;
@@ -22,6 +23,7 @@ const LOWER_RIGHT_TEETH = [32, 31, 30, 29, 28, 27, 26, 25] as const;
 const LOWER_LEFT_TEETH = [17, 18, 19, 20, 21, 22, 23, 24] as const;
 
 export function ClinicalSnapshotCard({
+    patientId,
     treatments,
     isTreatmentsLoading = false,
     isTreatmentsError = false,
@@ -336,6 +338,7 @@ export function ClinicalSnapshotCard({
                             setSelectedTooth(null);
                         }
                     }}
+                    patientId={patientId}
                     toothNumber={selectedTooth}
                     treatments={treatmentsByTooth.get(selectedTooth) ?? []}
                 />

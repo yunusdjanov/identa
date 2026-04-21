@@ -66,10 +66,13 @@ class PatientTreatmentController extends Controller
 
         $query = Treatment::query()
             ->where('dentist_id', $this->resolveDentistId($request))
-            ->where('patient_id', $patient->id);
+            ->where('patient_id', $patient->id)
+            ->withCount('images');
 
         if ($includeImages) {
             $query->with('images');
+        } else {
+            $query->with('primaryImage');
         }
 
         $this->applySort($query, $request->query('sort', '-treatment_date,-created_at'));
@@ -99,35 +102,31 @@ class PatientTreatmentController extends Controller
         $perPage = $this->resolvePerPage($request);
         $includeImages = $this->shouldIncludeImages($request);
 
-        $query = Treatment::query()
+        $baseQuery = Treatment::query()
             ->where('dentist_id', $dentistId)
             ->with([
                 'patient:id,full_name,phone,secondary_phone,patient_id',
             ]);
 
-        if ($includeImages) {
-            $query->with('images');
-        }
-
         $patientId = $request->input('filter.patient_id');
         if (is_string($patientId) && $patientId !== '') {
-            $query->where('patient_id', $patientId);
+            $baseQuery->where('patient_id', $patientId);
         }
 
         $dateFrom = $request->input('filter.date_from');
         if (is_string($dateFrom) && $dateFrom !== '') {
-            $query->whereDate('treatment_date', '>=', $dateFrom);
+            $baseQuery->whereDate('treatment_date', '>=', $dateFrom);
         }
 
         $dateTo = $request->input('filter.date_to');
         if (is_string($dateTo) && $dateTo !== '') {
-            $query->whereDate('treatment_date', '<=', $dateTo);
+            $baseQuery->whereDate('treatment_date', '<=', $dateTo);
         }
 
         $search = $request->input('filter.search');
         if (is_string($search) && trim($search) !== '') {
             $search = trim($search);
-            $query->where(function (Builder $builder) use ($search): void {
+            $baseQuery->where(function (Builder $builder) use ($search): void {
                 $builder
                     ->where('treatment_type', 'like', "%{$search}%")
                     ->orWhere('comment', 'like', "%{$search}%")
@@ -142,9 +141,17 @@ class PatientTreatmentController extends Controller
             });
         }
 
-        $this->applySort($query, $request->query('sort', '-treatment_date,-created_at'));
+        $summaryQuery = clone $baseQuery;
+        $query = clone $baseQuery;
 
-        $summaryQuery = clone $query;
+        $query->withCount('images');
+        if ($includeImages) {
+            $query->with('images');
+        } else {
+            $query->with('primaryImage');
+        }
+
+        $this->applySort($query, $request->query('sort', '-treatment_date,-created_at'));
         $treatments = $query->paginate($perPage);
         $totalCount = (clone $summaryQuery)->count();
         $totalDebt = (float) ((clone $summaryQuery)->sum('debt_amount'));
@@ -170,6 +177,17 @@ class PatientTreatmentController extends Controller
                     'total_balance' => $totalDebt - $totalPaid,
                 ],
             ],
+        ]);
+    }
+
+    public function show(Request $request, string $id, string $treatmentId): JsonResponse
+    {
+        $patient = $this->findOwnedPatient($request, $id);
+        $treatment = $this->findOwnedTreatment($request, (string) $patient->id, $treatmentId);
+        $treatment->load('images');
+
+        return response()->json([
+            'data' => $this->transformTreatment($treatment, true),
         ]);
     }
 
@@ -446,7 +464,14 @@ class PatientTreatmentController extends Controller
 
         if ($includeImages) {
             $treatment->loadMissing('images');
+        } else {
+            $treatment->loadMissing('primaryImage');
         }
+
+        $imageCount = (int) ($treatment->images_count ?? ($includeImages ? $treatment->images->count() : 0));
+        $primaryImage = $includeImages
+            ? $treatment->images->first()
+            : ($treatment->relationLoaded('primaryImage') ? $treatment->primaryImage : null);
 
         return [
             'id' => (string) $treatment->id,
@@ -462,6 +487,10 @@ class PatientTreatmentController extends Controller
             'paid_amount' => $paidAmount,
             'balance' => round($debtAmount - $paidAmount, 2),
             'notes' => $treatment->notes,
+            'image_count' => $imageCount,
+            'primary_image' => $primaryImage instanceof TreatmentImage
+                ? $this->transformTreatmentImage($treatment, $primaryImage)
+                : null,
             'images' => $includeImages
                 ? $treatment->images
                     ->map(fn (TreatmentImage $image): array => $this->transformTreatmentImage($treatment, $image))

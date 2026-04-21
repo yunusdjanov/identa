@@ -6,6 +6,7 @@ import {
     createPatientTreatment,
     deletePatientTreatment,
     deletePatientTreatmentImage,
+    getPatientTreatment,
     listAllPatientTreatments,
     updatePatientTreatment,
     uploadPatientTreatmentImage,
@@ -105,6 +106,21 @@ function getTreatmentImageThumbnailUrl(image: ApiTreatmentImage) {
 
 function getTreatmentImagePreviewUrl(image: ApiTreatmentImage) {
     return image.preview_url ?? image.url;
+}
+
+function getTreatmentImageCount(treatment: ApiTreatment) {
+    return Math.max(
+        Number(treatment.image_count ?? 0),
+        treatment.images?.length ?? 0
+    );
+}
+
+function getTreatmentPrimaryImage(treatment: ApiTreatment) {
+    if ((treatment.images?.length ?? 0) > 0) {
+        return treatment.images[0];
+    }
+
+    return treatment.primary_image ?? null;
 }
 
 async function uploadTreatmentImagesInBatches(
@@ -213,10 +229,14 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
     } | null>(null);
     const [formState, setFormState] = useState<TreatmentFormState>(createEmptyFormState);
     const [submitAttempted, setSubmitAttempted] = useState(false);
+    const [detailLoadingTreatmentId, setDetailLoadingTreatmentId] = useState<string | null>(null);
 
     const treatmentsQuery = useQuery({
         queryKey: ['patients', 'detail', patientId, 'treatments'],
-        queryFn: () => listAllPatientTreatments(patientId, { sort: '-treatment_date,-created_at' }),
+        queryFn: () => listAllPatientTreatments(patientId, {
+            sort: '-treatment_date,-created_at',
+            includeImages: false,
+        }),
         staleTime: 30_000,
         gcTime: 300_000,
         refetchOnWindowFocus: false,
@@ -248,6 +268,19 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
 
     const invalidateHistory = () => {
         queryClient.invalidateQueries({ queryKey: ['patients', 'detail', patientId, 'treatments'] });
+    };
+
+    const loadTreatmentDetail = async (treatment: ApiTreatment) => {
+        if ((treatment.images?.length ?? 0) > 0 || getTreatmentImageCount(treatment) === 0) {
+            return treatment;
+        }
+
+        return queryClient.fetchQuery({
+            queryKey: ['patients', 'detail', patientId, 'treatments', treatment.id],
+            queryFn: () => getPatientTreatment(patientId, treatment.id),
+            staleTime: 300_000,
+            gcTime: 300_000,
+        });
     };
 
     const saveTreatmentMutation = useMutation({
@@ -390,20 +423,30 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
         setIsDialogOpen(true);
     };
 
-    const openEditDialog = (treatment: ApiTreatment) => {
-        setEditingTreatment(treatment);
-        setFormState({
-            treatmentDate: treatment.treatment_date ?? toLocalDateKey(),
-            treatmentType: treatment.treatment_type ?? '',
-            comment: treatment.comment ?? treatment.description ?? '',
-            debtAmount: treatment.debt_amount ? String(Number(treatment.debt_amount)) : '',
-            paidAmount: treatment.paid_amount ? String(Number(treatment.paid_amount)) : '',
-            teeth: treatment.teeth ?? [],
-            imageFiles: [],
-            removeImageIds: [],
-        });
-        setSubmitAttempted(false);
-        setIsDialogOpen(true);
+    const openEditDialog = async (treatment: ApiTreatment) => {
+        setDetailLoadingTreatmentId(treatment.id);
+
+        try {
+            const detailedTreatment = await loadTreatmentDetail(treatment);
+
+            setEditingTreatment(detailedTreatment);
+            setFormState({
+                treatmentDate: detailedTreatment.treatment_date ?? toLocalDateKey(),
+                treatmentType: detailedTreatment.treatment_type ?? '',
+                comment: detailedTreatment.comment ?? detailedTreatment.description ?? '',
+                debtAmount: detailedTreatment.debt_amount ? String(Number(detailedTreatment.debt_amount)) : '',
+                paidAmount: detailedTreatment.paid_amount ? String(Number(detailedTreatment.paid_amount)) : '',
+                teeth: detailedTreatment.teeth ?? [],
+                imageFiles: [],
+                removeImageIds: [],
+            });
+            setSubmitAttempted(false);
+            setIsDialogOpen(true);
+        } catch (error) {
+            toast.error(getApiErrorMessage(error, t('patientHistory.error.loadFailed')));
+        } finally {
+            setDetailLoadingTreatmentId((current) => (current === treatment.id ? null : current));
+        }
     };
 
     const handleImageFilesSelected = (event: ChangeEvent<HTMLInputElement>) => {
@@ -453,25 +496,37 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
         }));
     };
 
-    const openTreatmentImageGallery = (
-        images: ApiTreatmentImage[],
-        treatmentDate: string,
+    const openTreatmentImageGallery = async (
+        treatment: ApiTreatment,
         startIndex = 0
     ) => {
-        if (!images || images.length === 0) {
-            return;
-        }
+        setDetailLoadingTreatmentId(treatment.id);
 
-        setPreviewGallery({
-            images: images.map((image, index) => ({
-                src: getTreatmentImagePreviewUrl(image),
-                thumbnailSrc: getTreatmentImageThumbnailUrl(image),
-                alt: `${patientName} ${t('patientHistory.image')} ${index + 1}`,
-                title: `${t('patientHistory.image')} ${index + 1} - ${formatDate(treatmentDate)}`,
-            })),
-            startIndex,
-            fallbackTitle: patientName,
-        });
+        try {
+            const detailedTreatment = await loadTreatmentDetail(treatment);
+            const images = detailedTreatment.images ?? [];
+
+            if (!images || images.length === 0) {
+                return;
+            }
+
+            const treatmentDate = detailedTreatment.treatment_date;
+
+            setPreviewGallery({
+                images: images.map((image, index) => ({
+                    src: getTreatmentImagePreviewUrl(image),
+                    thumbnailSrc: getTreatmentImageThumbnailUrl(image),
+                    alt: `${patientName} ${t('patientHistory.image')} ${index + 1}`,
+                    title: `${t('patientHistory.image')} ${index + 1} - ${formatDate(treatmentDate)}`,
+                })),
+                startIndex,
+                fallbackTitle: patientName,
+            });
+        } catch (error) {
+            toast.error(getApiErrorMessage(error, t('patientHistory.error.loadFailed')));
+        } finally {
+            setDetailLoadingTreatmentId((current) => (current === treatment.id ? null : current));
+        }
     };
 
     const isLoading = treatmentsQuery.isLoading;
@@ -491,6 +546,7 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                 </CardHeader>
                 <CardContent className="space-y-6">
                     <ClinicalSnapshotCard
+                        patientId={patientId}
                         treatments={treatments}
                         isTreatmentsLoading={treatmentsQuery.isLoading}
                         isTreatmentsError={treatmentsQuery.isError}
@@ -639,8 +695,11 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                         <div className="lg:flex lg:items-center">
                                             <p className="text-xs font-medium uppercase tracking-wide text-gray-400 lg:hidden">{t('patientHistory.images')}</p>
                                             {(() => {
-                                                const treatmentImages = treatment.images ?? [];
-                                                if (treatmentImages.length === 0) {
+                                                const treatmentImageCount = getTreatmentImageCount(treatment);
+                                                const primaryImage = getTreatmentPrimaryImage(treatment);
+                                                const isDetailLoading = detailLoadingTreatmentId === treatment.id;
+
+                                                if (treatmentImageCount === 0 || !primaryImage) {
                                                     return (
                                                         <span className="inline-flex h-8 min-w-[74px] items-center justify-center rounded-md border border-dashed border-gray-300 px-2 text-xs font-medium text-gray-400">
                                                             -
@@ -651,23 +710,26 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                                 return (
                                                     <button
                                                         type="button"
+                                                        disabled={isDetailLoading}
                                                         className="group inline-flex h-8 min-w-[74px] items-center gap-2 rounded-md border border-gray-300 bg-white px-2 text-xs font-semibold text-gray-700 shadow-sm transition-all hover:border-blue-400 hover:bg-blue-50 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1 active:translate-y-px active:shadow-sm"
-                                                        onClick={() => openTreatmentImageGallery(treatmentImages, treatment.treatment_date, 0)}
-                                                        title={`${t('patientHistory.images')}: ${treatmentImages.length}`}
-                                                        aria-label={`${t('patientHistory.images')} (${treatmentImages.length})`}
+                                                        onClick={() => {
+                                                            void openTreatmentImageGallery(treatment, 0);
+                                                        }}
+                                                        title={`${t('patientHistory.images')}: ${treatmentImageCount}`}
+                                                        aria-label={`${t('patientHistory.images')} (${treatmentImageCount})`}
                                                     >
                                                         <span className="inline-flex h-5 w-5 items-center justify-center overflow-hidden rounded-[6px] border border-gray-200 bg-gray-100">
                                                             {/* eslint-disable-next-line @next/next/no-img-element */}
                                                             <img
-                                                                src={getTreatmentImageThumbnailUrl(treatmentImages[0])}
+                                                                src={getTreatmentImageThumbnailUrl(primaryImage)}
                                                                 alt={`${patientName} ${t('patientHistory.image')} 1`}
-                                                                crossOrigin={getProtectedMediaCrossOrigin(getTreatmentImageThumbnailUrl(treatmentImages[0]))}
+                                                                crossOrigin={getProtectedMediaCrossOrigin(getTreatmentImageThumbnailUrl(primaryImage))}
                                                                 className="h-full w-full object-cover"
                                                                 loading="lazy"
                                                             />
                                                         </span>
                                                         <span className="inline-flex h-5 min-w-6 items-center justify-center rounded-[6px] bg-blue-100 px-1.5 text-[11px] font-semibold text-blue-700">
-                                                            +{treatmentImages.length}
+                                                            +{treatmentImageCount}
                                                         </span>
                                                     </button>
                                                 );
@@ -680,7 +742,10 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                                 size="icon-sm"
                                                 className="border-gray-200 bg-white text-gray-700 shadow-sm hover:bg-gray-100"
                                                 aria-label={t('patientHistory.editEntry')}
-                                                onClick={() => openEditDialog(treatment)}
+                                                disabled={detailLoadingTreatmentId === treatment.id}
+                                                onClick={() => {
+                                                    void openEditDialog(treatment);
+                                                }}
                                             >
                                                 <Pencil className="h-4 w-4" />
                                             </Button>
@@ -839,7 +904,18 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                                     src={getTreatmentImageThumbnailUrl(image)}
                                                     alt={imageLabel}
                                                     markedForRemoval={isMarkedForRemoval}
-                                                    onPreview={() => openTreatmentImageGallery(existingImages, formState.treatmentDate, index)}
+                                                    onPreview={() =>
+                                                        setPreviewGallery({
+                                                            images: existingImages.map((existingImage, imageIndex) => ({
+                                                                src: getTreatmentImagePreviewUrl(existingImage),
+                                                                thumbnailSrc: getTreatmentImageThumbnailUrl(existingImage),
+                                                                alt: `${patientName} ${t('patientHistory.image')} ${imageIndex + 1}`,
+                                                                title: `${t('patientHistory.image')} ${imageIndex + 1} - ${formatDate(formState.treatmentDate)}`,
+                                                            })),
+                                                            startIndex: index,
+                                                            fallbackTitle: patientName,
+                                                        })
+                                                    }
                                                     onToggleRemove={() => toggleExistingImageRemoval(image.id)}
                                                     removeLabel={t('patientHistory.removeImage')}
                                                     restoreLabel={t('patients.restore')}
