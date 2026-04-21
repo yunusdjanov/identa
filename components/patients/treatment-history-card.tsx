@@ -23,6 +23,7 @@ import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { PatientPhotoPreviewDialog, type PreviewGalleryImage } from '@/components/patients/patient-photo-preview-dialog';
 import { ClinicalSnapshotCard } from '@/components/patients/clinical-snapshot-card';
+import { optimizeImageFileForUpload } from '@/lib/browser-image';
 import { getProtectedMediaCrossOrigin } from '@/lib/protected-media';
 import { formatCurrency, formatDate, toLocalDateKey } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -113,6 +114,19 @@ function getTreatmentImageCount(treatment: ApiTreatment) {
         Number(treatment.image_count ?? 0),
         treatment.images?.length ?? 0
     );
+}
+
+function createTreatmentFormState(treatment?: ApiTreatment | null): TreatmentFormState {
+    return {
+        treatmentDate: treatment?.treatment_date ?? toLocalDateKey(),
+        treatmentType: treatment?.treatment_type ?? '',
+        comment: treatment?.comment ?? treatment?.description ?? '',
+        debtAmount: treatment?.debt_amount ? String(Number(treatment.debt_amount)) : '',
+        paidAmount: treatment?.paid_amount ? String(Number(treatment.paid_amount)) : '',
+        teeth: treatment?.teeth ?? [],
+        imageFiles: [],
+        removeImageIds: [],
+    };
 }
 
 function getTreatmentPrimaryImage(treatment: ApiTreatment) {
@@ -230,6 +244,7 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
     const [formState, setFormState] = useState<TreatmentFormState>(createEmptyFormState);
     const [submitAttempted, setSubmitAttempted] = useState(false);
     const [detailLoadingTreatmentId, setDetailLoadingTreatmentId] = useState<string | null>(null);
+    const [isPreparingImages, setIsPreparingImages] = useState(false);
 
     const treatmentsQuery = useQuery({
         queryKey: ['patients', 'detail', patientId, 'treatments'],
@@ -331,48 +346,48 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                 debt_amount: Number(formState.debtAmount || 0),
                 paid_amount: Number(formState.paidAmount || 0),
             };
-            const isCreateMode = !editingTreatment;
-            let createdTreatmentId: string | null = null;
+            const treatment = editingTreatment
+                ? await updatePatientTreatment(patientId, editingTreatment.id, payload)
+                : await createPatientTreatment(patientId, payload);
 
-            try {
-                const treatment = editingTreatment
-                    ? await updatePatientTreatment(patientId, editingTreatment.id, payload)
-                    : await createPatientTreatment(patientId, payload);
+            const removeImageIds = [...formState.removeImageIds];
+            const imageFiles = [...formState.imageFiles];
 
-                if (isCreateMode) {
-                    createdTreatmentId = treatment.id;
-                }
-
-                if (formState.removeImageIds.length > 0) {
-                    await Promise.all(
-                        formState.removeImageIds.map((imageId) =>
-                            deletePatientTreatmentImage(patientId, treatment.id, imageId)
-                        )
-                    );
-                }
-
-                await uploadTreatmentImagesInBatches(
-                    formState.imageFiles,
-                    (imageFile) => uploadPatientTreatmentImage(patientId, treatment.id, imageFile)
-                );
-            }
-            catch (error) {
-                // Keep create flow atomic from the user perspective:
-                // if image upload fails after creating the row, remove that row.
-                if (isCreateMode && createdTreatmentId) {
+            if (removeImageIds.length > 0 || imageFiles.length > 0) {
+                void (async () => {
                     try {
-                        await deletePatientTreatment(patientId, createdTreatmentId);
-                    }
-                    catch {
-                        // no-op: we still surface the original failure to user
-                    }
-                }
+                        if (removeImageIds.length > 0) {
+                            await Promise.all(
+                                removeImageIds.map((imageId) =>
+                                    deletePatientTreatmentImage(patientId, treatment.id, imageId)
+                                )
+                            );
+                        }
 
-                throw error;
+                        if (imageFiles.length > 0) {
+                            await uploadTreatmentImagesInBatches(
+                                imageFiles,
+                                (imageFile) => uploadPatientTreatmentImage(patientId, treatment.id, imageFile)
+                            );
+                        }
+                    } catch (error) {
+                        toast.error(getApiErrorMessage(error, t('patientHistory.toast.imagesSyncFailed')));
+                    } finally {
+                        invalidateHistory();
+                    }
+                })();
             }
+
+            return {
+                treatment,
+                hasBackgroundMediaSync: removeImageIds.length > 0 || imageFiles.length > 0,
+            };
         },
-        onSuccess: () => {
+        onSuccess: ({ hasBackgroundMediaSync }) => {
             toast.success(editingTreatment ? t('patientHistory.toast.updated') : t('patientHistory.toast.created'));
+            if (hasBackgroundMediaSync) {
+                toast.success(t('patientHistory.toast.imagesSyncing'));
+            }
             setIsDialogOpen(false);
             setEditingTreatment(null);
             setFormState(createEmptyFormState());
@@ -386,13 +401,36 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
 
     const deleteTreatmentMutation = useMutation({
         mutationFn: (treatmentId: string) => deletePatientTreatment(patientId, treatmentId),
+        onMutate: async (treatmentId: string) => {
+            const queryKey = ['patients', 'detail', patientId, 'treatments'] as const;
+            await queryClient.cancelQueries({ queryKey });
+            const previousTreatments = queryClient.getQueryData<ApiTreatment[]>(queryKey);
+
+            queryClient.setQueryData<ApiTreatment[]>(
+                queryKey,
+                (current) => current?.filter((treatment) => treatment.id !== treatmentId) ?? []
+            );
+
+            setTreatmentToDelete(null);
+
+            return { previousTreatments };
+        },
         onSuccess: () => {
             toast.success(t('patientHistory.toast.deleted'));
-            setTreatmentToDelete(null);
             invalidateHistory();
         },
-        onError: (error) => {
+        onError: (error, _treatmentId, context) => {
+            if (context?.previousTreatments) {
+                queryClient.setQueryData(
+                    ['patients', 'detail', patientId, 'treatments'],
+                    context.previousTreatments
+                );
+            }
+
             toast.error(getApiErrorMessage(error, t('patientHistory.toast.deleteFailed')));
+        },
+        onSettled: () => {
+            invalidateHistory();
         },
     });
 
@@ -411,6 +449,12 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
     const visibleExistingImagesCount = editingTreatment
         ? getVisibleTreatmentImages(editingTreatment, formState.removeImageIds).length
         : 0;
+    const isEditingImagePanelLoading = Boolean(
+        editingTreatment
+        && detailLoadingTreatmentId === editingTreatment.id
+        && getTreatmentImageCount(editingTreatment) > 0
+        && (editingTreatment.images?.length ?? 0) === 0
+    );
     const maxImagesError =
         submitAttempted && visibleExistingImagesCount + formState.imageFiles.length > MAX_HISTORY_IMAGES_PER_ENTRY
             ? t('patientHistory.validation.maxImages', { max: MAX_HISTORY_IMAGES_PER_ENTRY })
@@ -436,7 +480,7 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
 
     const handleSubmit = () => {
         setSubmitAttempted(true);
-        if (treatmentTypeError || dateError || amountError || imageValidationError || maxImagesError) {
+        if (isPreparingImages || treatmentTypeError || dateError || amountError || imageValidationError || maxImagesError) {
             toast.error(t('patientHistory.validation.fixErrors'));
             return;
         }
@@ -461,24 +505,20 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
     };
 
     const openEditDialog = async (treatment: ApiTreatment) => {
+        setEditingTreatment(treatment);
+        setFormState(createTreatmentFormState(treatment));
+        setSubmitAttempted(false);
+        setIsDialogOpen(true);
+
+        if ((treatment.images?.length ?? 0) > 0 || getTreatmentImageCount(treatment) === 0) {
+            return;
+        }
+
         setDetailLoadingTreatmentId(treatment.id);
 
         try {
             const detailedTreatment = await loadTreatmentDetail(treatment);
-
             setEditingTreatment(detailedTreatment);
-            setFormState({
-                treatmentDate: detailedTreatment.treatment_date ?? toLocalDateKey(),
-                treatmentType: detailedTreatment.treatment_type ?? '',
-                comment: detailedTreatment.comment ?? detailedTreatment.description ?? '',
-                debtAmount: detailedTreatment.debt_amount ? String(Number(detailedTreatment.debt_amount)) : '',
-                paidAmount: detailedTreatment.paid_amount ? String(Number(detailedTreatment.paid_amount)) : '',
-                teeth: detailedTreatment.teeth ?? [],
-                imageFiles: [],
-                removeImageIds: [],
-            });
-            setSubmitAttempted(false);
-            setIsDialogOpen(true);
         } catch (error) {
             toast.error(getApiErrorMessage(error, t('patientHistory.error.loadFailed')));
         } finally {
@@ -486,7 +526,7 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
         }
     };
 
-    const handleImageFilesSelected = (event: ChangeEvent<HTMLInputElement>) => {
+    const handleImageFilesSelected = async (event: ChangeEvent<HTMLInputElement>) => {
         const selectedFiles = Array.from(event.target.files ?? []);
         event.target.value = '';
         if (selectedFiles.length === 0) {
@@ -511,10 +551,22 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
             toast.error(t('patientHistory.validation.maxImages', { max: MAX_HISTORY_IMAGES_PER_ENTRY }));
         }
 
-        setFormState((current) => ({
-            ...current,
-            imageFiles: [...current.imageFiles, ...filesToAdd],
-        }));
+        setIsPreparingImages(true);
+
+        try {
+            const optimizedFiles: File[] = [];
+
+            for (const file of filesToAdd) {
+                optimizedFiles.push(await optimizeImageFileForUpload(file));
+            }
+
+            setFormState((current) => ({
+                ...current,
+                imageFiles: [...current.imageFiles, ...optimizedFiles],
+            }));
+        } finally {
+            setIsPreparingImages(false);
+        }
     };
 
     const removeSelectedImage = (index: number) => {
@@ -537,6 +589,38 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
         treatment: ApiTreatment,
         startIndex = 0
     ) => {
+        const knownImages = treatment.images ?? [];
+        const primaryImage = getTreatmentPrimaryImage(treatment);
+        const fallbackDate = treatment.treatment_date;
+
+        if (knownImages.length > 0) {
+            setPreviewGallery({
+                images: knownImages.map((image, index) => ({
+                    src: getTreatmentImagePreviewUrl(image),
+                    thumbnailSrc: getTreatmentImageThumbnailUrl(image),
+                    alt: `${patientName} ${t('patientHistory.image')} ${index + 1}`,
+                    title: `${t('patientHistory.image')} ${index + 1} - ${formatDate(fallbackDate)}`,
+                })),
+                startIndex: Math.min(startIndex, knownImages.length - 1),
+                fallbackTitle: patientName,
+            });
+        } else if (primaryImage) {
+            setPreviewGallery({
+                images: [{
+                    src: getTreatmentImagePreviewUrl(primaryImage),
+                    thumbnailSrc: getTreatmentImageThumbnailUrl(primaryImage),
+                    alt: `${patientName} ${t('patientHistory.image')} 1`,
+                    title: `${t('patientHistory.image')} 1 - ${formatDate(fallbackDate)}`,
+                }],
+                startIndex: 0,
+                fallbackTitle: patientName,
+            });
+        }
+
+        if (knownImages.length > 0 || getTreatmentImageCount(treatment) === 0) {
+            return;
+        }
+
         setDetailLoadingTreatmentId(treatment.id);
 
         try {
@@ -556,7 +640,7 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                     alt: `${patientName} ${t('patientHistory.image')} ${index + 1}`,
                     title: `${t('patientHistory.image')} ${index + 1} - ${formatDate(treatmentDate)}`,
                 })),
-                startIndex,
+                startIndex: Math.min(startIndex, images.length - 1),
                 fallbackTitle: patientName,
             });
         } catch (error) {
@@ -918,16 +1002,20 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                     className="sr-only"
                                 />
                                 <Label
-                                    htmlFor="historyImages"
-                                    className="inline-flex h-9 cursor-pointer items-center justify-center gap-2 rounded-lg border border-gray-200 bg-white px-3 text-sm font-medium text-gray-900 shadow-sm transition-colors hover:bg-gray-50"
+                                    htmlFor={isPreparingImages ? undefined : 'historyImages'}
+                                    className={`inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-gray-200 bg-white px-3 text-sm font-medium text-gray-900 shadow-sm transition-colors ${isPreparingImages ? 'cursor-not-allowed opacity-70' : 'cursor-pointer hover:bg-gray-50'}`}
                                 >
                                     <Plus className="h-4 w-4" />
-                                    {t('odontogram.image.upload')}
+                                    {isPreparingImages ? t('common.loading') : t('odontogram.image.upload')}
                                 </Label>
                             </div>
 
                             <div className="mt-3 flex flex-wrap gap-2">
-                                {editingTreatment ? (
+                                {isEditingImagePanelLoading ? (
+                                    Array.from({ length: Math.min(editingTreatment ? getTreatmentImageCount(editingTreatment) : 0, 4) }).map((_, index) => (
+                                        <Skeleton key={`image-loading-${index}`} className="h-16 w-16 rounded-lg" />
+                                    ))
+                                ) : editingTreatment ? (
                                     (() => {
                                         const existingImages = editingTreatment.images ?? [];
 
@@ -995,8 +1083,8 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                         </div>
                     </div>
                     <DialogFooter>
-                        <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)} disabled={saveTreatmentMutation.isPending}>{t('common.cancel')}</Button>
-                        <Button type="button" onClick={handleSubmit} disabled={saveTreatmentMutation.isPending}>{saveTreatmentMutation.isPending ? t('common.saving') : t('common.saveChanges')}</Button>
+                        <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)} disabled={saveTreatmentMutation.isPending || isPreparingImages}>{t('common.cancel')}</Button>
+                        <Button type="button" onClick={handleSubmit} disabled={saveTreatmentMutation.isPending || isPreparingImages}>{saveTreatmentMutation.isPending ? t('common.saving') : isPreparingImages ? t('common.loading') : t('common.saveChanges')}</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
