@@ -109,7 +109,7 @@ function getTreatmentImageThumbnailUrl(image: ApiTreatmentImage) {
             return image.preview_url ?? image.url;
         }
 
-        return null;
+        return image.url;
     }
 
     return image.thumbnail_url ?? image.preview_url ?? image.url;
