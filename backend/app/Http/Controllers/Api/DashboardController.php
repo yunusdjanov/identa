@@ -72,8 +72,14 @@ class DashboardController extends Controller
 
                 $outstandingDebtTotal = (float) Treatment::query()
                     ->where('dentist_id', $tenantDentistId)
-                    ->selectRaw('COALESCE(SUM(CASE WHEN COALESCE(debt_amount, 0) > COALESCE(paid_amount, 0) THEN COALESCE(debt_amount, 0) - COALESCE(paid_amount, 0) ELSE 0 END), 0) AS total')
-                    ->value('total');
+                    ->selectRaw('patient_id, COALESCE(SUM(debt_amount), 0) AS total_debt, COALESCE(SUM(paid_amount), 0) AS total_paid')
+                    ->groupBy('patient_id')
+                    ->get()
+                    ->sum(function (Treatment $treatment): float {
+                        $balance = (float) $treatment->getAttribute('total_debt') - (float) $treatment->getAttribute('total_paid');
+
+                        return max($balance, 0.0);
+                    });
             }
 
             return [
