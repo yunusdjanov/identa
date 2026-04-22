@@ -10,6 +10,7 @@ use App\Jobs\DeleteStoredMediaPaths;
 use App\Jobs\GenerateMediaVariants;
 use App\Models\Appointment;
 use App\Models\Patient;
+use App\Models\Treatment;
 use App\Models\User;
 use App\Support\AuditLogger;
 use App\Support\ImageVariantGenerator;
