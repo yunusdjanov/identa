@@ -151,7 +151,10 @@ export function PatientPhotoPreviewDialog({
                                         className="flex w-fit max-w-full items-center justify-start gap-2 overflow-x-auto px-1 pb-1"
                                         aria-label="Image thumbnails"
                                     >
-                                        {resolvedImages.map((image, index) => (
+                                        {resolvedImages.map((image, index) => {
+                                            const thumbnailDisplaySrc = image.thumbnailSrc ?? image.src;
+
+                                            return (
                                             <button
                                                 key={`${image.src}-${index}`}
                                                 type="button"
@@ -163,12 +166,12 @@ export function PatientPhotoPreviewDialog({
                                                 onClick={() => updateCurrentIndex(index)}
                                                 title={image.title ?? `${title} ${index + 1}`}
                                             >
-                                                {image.thumbnailSrc ? (
+                                                {thumbnailDisplaySrc ? (
                                                     // eslint-disable-next-line @next/next/no-img-element
                                                     <img
-                                                        src={image.thumbnailSrc}
+                                                        src={thumbnailDisplaySrc}
                                                         alt={image.alt}
-                                                        crossOrigin={getProtectedMediaCrossOrigin(image.thumbnailSrc)}
+                                                        crossOrigin={getProtectedMediaCrossOrigin(thumbnailDisplaySrc)}
                                                         className="h-full w-full object-cover"
                                                         loading="lazy"
                                                         decoding="async"
@@ -179,7 +182,8 @@ export function PatientPhotoPreviewDialog({
                                                     </span>
                                                 )}
                                             </button>
-                                        ))}
+                                            );
+                                        })}
                                     </div>
                                 </div>
                             </div>
