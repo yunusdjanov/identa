@@ -260,6 +260,7 @@ function HistoryImageTile({
 export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistoryCardProps) {
     const { t } = useI18n();
     const queryClient = useQueryClient();
+    const treatmentsQueryKey = ['patients', 'detail', patientId, 'treatments'] as const;
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [editingTreatment, setEditingTreatment] = useState<ApiTreatment | null>(null);
     const [treatmentToDelete, setTreatmentToDelete] = useState<ApiTreatment | null>(null);
@@ -310,27 +311,74 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
     }, [treatments]);
 
     const invalidateHistory = () => {
-        queryClient.invalidateQueries({ queryKey: ['patients', 'detail', patientId, 'treatments'] });
+        queryClient.invalidateQueries({ queryKey: treatmentsQueryKey });
     };
 
-    const refreshHistory = async () => {
-        await queryClient.invalidateQueries({ queryKey: ['patients', 'detail', patientId, 'treatments'] });
+    const getTreatmentDetailQueryKey = (treatmentId: string) => (
+        ['patients', 'detail', patientId, 'treatments', treatmentId] as const
+    );
+
+    const mergeTreatmentIntoCaches = (updatedTreatment: ApiTreatment) => {
+        queryClient.setQueryData<ApiTreatment>(
+            getTreatmentDetailQueryKey(updatedTreatment.id),
+            updatedTreatment
+        );
+
+        queryClient.setQueryData<ApiTreatment[]>(
+            treatmentsQueryKey,
+            (current) => {
+                if (!current || current.length === 0) {
+                    return [updatedTreatment];
+                }
+
+                const existingIndex = current.findIndex((treatment) => treatment.id === updatedTreatment.id);
+
+                if (existingIndex === -1) {
+                    return [updatedTreatment, ...current];
+                }
+
+                return current.map((treatment) => (
+                    treatment.id === updatedTreatment.id ? updatedTreatment : treatment
+                ));
+            }
+        );
     };
 
-    const loadTreatmentDetail = async (treatment: ApiTreatment) => {
+    const refreshHistory = async (updatedTreatment?: ApiTreatment) => {
+        if (updatedTreatment) {
+            mergeTreatmentIntoCaches(updatedTreatment);
+        }
+
+        await queryClient.invalidateQueries({ queryKey: treatmentsQueryKey });
+    };
+
+    const loadTreatmentDetail = async (treatment: ApiTreatment): Promise<ApiTreatment> => {
         if ((treatment.images?.length ?? 0) > 0 || getTreatmentImageCount(treatment) === 0) {
             return treatment;
         }
 
-        return queryClient.fetchQuery({
-            queryKey: ['patients', 'detail', patientId, 'treatments', treatment.id],
+        const detailQueryKey = getTreatmentDetailQueryKey(treatment.id);
+        const cachedDetail = queryClient.getQueryData<ApiTreatment>(detailQueryKey);
+
+        if (cachedDetail && (cachedDetail.images?.length ?? 0) > 0) {
+            return cachedDetail;
+        }
+
+        const detailedTreatment = await queryClient.fetchQuery({
+            queryKey: detailQueryKey,
             queryFn: () => getPatientTreatment(patientId, treatment.id),
-            staleTime: 300_000,
+            staleTime: 0,
             gcTime: 300_000,
         });
+
+        if (!detailedTreatment) {
+            throw new Error('Treatment detail not found');
+        }
+
+        return detailedTreatment;
     };
 
-    const waitForTreatmentMediaReady = async (treatmentId: string, expectedImageCount: number) => {
+    const waitForTreatmentMediaReady = async (treatmentId: string, expectedImageCount: number): Promise<ApiTreatment> => {
         const deadline = Date.now() + MEDIA_READINESS_TIMEOUT_MS;
 
         while (Date.now() < deadline) {
@@ -348,11 +396,24 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
             );
 
             if (hasExpectedImages && variantsReady) {
-                return;
+                return detail;
             }
 
             await delay(MEDIA_READINESS_POLL_INTERVAL_MS);
         }
+
+        const detailedTreatment = await queryClient.fetchQuery({
+            queryKey: getTreatmentDetailQueryKey(treatmentId),
+            queryFn: () => getPatientTreatment(patientId, treatmentId),
+            staleTime: 0,
+            gcTime: 300_000,
+        });
+
+        if (!detailedTreatment) {
+            throw new Error('Treatment detail not found');
+        }
+
+        return detailedTreatment;
     };
 
     useEffect(() => {
@@ -414,6 +475,7 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
             if (removeImageIds.length > 0 || imageFiles.length > 0) {
                 void (async () => {
                     let hasMediaSyncFailure = false;
+                    let refreshedTreatment: ApiTreatment | undefined;
 
                     try {
                         const expectedImageCount = Math.max(
@@ -441,7 +503,7 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                         }
 
                         if (!hasMediaSyncFailure) {
-                            await waitForTreatmentMediaReady(treatment.id, expectedImageCount);
+                            refreshedTreatment = await waitForTreatmentMediaReady(treatment.id, expectedImageCount);
                         }
                     } catch {
                         hasMediaSyncFailure = true;
@@ -450,7 +512,7 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                             toast.error(t('patientHistory.toast.imagesSyncFailed'));
                         }
 
-                        await refreshHistory();
+                        await refreshHistory(refreshedTreatment);
                         setMediaSyncingTreatmentIds((current) => current.filter((id) => id !== treatmentId));
                     }
                 })();
@@ -482,12 +544,11 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
     const deleteTreatmentMutation = useMutation({
         mutationFn: (treatmentId: string) => deletePatientTreatment(patientId, treatmentId),
         onMutate: async (treatmentId: string) => {
-            const queryKey = ['patients', 'detail', patientId, 'treatments'] as const;
-            await queryClient.cancelQueries({ queryKey });
-            const previousTreatments = queryClient.getQueryData<ApiTreatment[]>(queryKey);
+            await queryClient.cancelQueries({ queryKey: treatmentsQueryKey });
+            const previousTreatments = queryClient.getQueryData<ApiTreatment[]>(treatmentsQueryKey);
 
             queryClient.setQueryData<ApiTreatment[]>(
-                queryKey,
+                treatmentsQueryKey,
                 (current) => current?.filter((treatment) => treatment.id !== treatmentId) ?? []
             );
 
@@ -502,7 +563,7 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
         onError: (error, _treatmentId, context) => {
             if (context?.previousTreatments) {
                 queryClient.setQueryData(
-                    ['patients', 'detail', patientId, 'treatments'],
+                    treatmentsQueryKey,
                     context.previousTreatments
                 );
             }
