@@ -92,6 +92,8 @@ Route::prefix('v1')->group(function (): void {
             ->middleware('permission:'.User::PERMISSION_PATIENTS_MANAGE);
         Route::get('patients/{id}', [PatientController::class, 'show'])
             ->middleware('permission:'.User::PERMISSION_PATIENTS_VIEW);
+        Route::get('patients/{id}/overview', [PatientController::class, 'overview'])
+            ->middleware('permission:'.User::PERMISSION_PATIENTS_VIEW);
         Route::get('patients/{id}/photo', [PatientController::class, 'downloadPhoto'])
             ->middleware('permission:'.User::PERMISSION_PATIENTS_VIEW);
         Route::post('patients/{id}/photo/direct-upload', [PatientController::class, 'preparePhotoUpload'])

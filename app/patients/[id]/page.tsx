@@ -13,8 +13,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
     archivePatient,
     getPatient,
-    listAllPatientTreatments,
-    listAppointments,
+    getPatientOverview,
     permanentlyDeletePatient,
     restorePatient,
 } from '@/lib/api/dentist';
@@ -134,39 +133,9 @@ export default function PatientDetailPage({
         staleTime: 30_000,
     });
 
-    const appointmentsSummaryQuery = useQuery({
-        queryKey: ['appointments', 'summary', 'patient-detail', id],
-        queryFn: () =>
-            listAppointments({
-                page: 1,
-                perPage: 1,
-                sort: '-appointment_date,-start_time',
-                filter: {
-                    patient_id: id,
-                },
-            }),
-        staleTime: 30_000,
-    });
-
-    const upcomingAppointmentsQuery = useQuery({
-        queryKey: ['appointments', 'upcoming', 'patient-detail', id, todayDateKey],
-        queryFn: () =>
-            listAppointments({
-                page: 1,
-                perPage: 3,
-                sort: 'appointment_date,start_time',
-                filter: {
-                    patient_id: id,
-                    status: 'scheduled',
-                    date_from: todayDateKey,
-                },
-            }),
-        staleTime: 30_000,
-    });
-
-    const treatmentsSummaryQuery = useQuery({
-        queryKey: ['patients', 'detail', id, 'treatments', 'summary'],
-        queryFn: () => listAllPatientTreatments(id, { sort: '-treatment_date,-created_at', includeImages: false }),
+    const overviewQuery = useQuery({
+        queryKey: ['patients', 'detail', id, 'overview', todayDateKey],
+        queryFn: () => getPatientOverview(id),
         staleTime: 30_000,
         gcTime: 300_000,
         refetchOnWindowFocus: false,
@@ -216,47 +185,32 @@ export default function PatientDetailPage({
     });
 
     const patient = patientQuery.data;
-    const patientAppointmentsCount = appointmentsSummaryQuery.data?.meta?.pagination?.total
-        ?? appointmentsSummaryQuery.data?.data.length
-        ?? 0;
-    const latestVisitDate = patient?.last_visit_at ?? appointmentsSummaryQuery.data?.data[0]?.appointment_date;
+    const patientAppointmentsCount = overviewQuery.data?.appointment_count ?? 0;
+    const latestVisitDate = patient?.last_visit_at ?? undefined;
     const upcomingAppointments = useMemo(
-        () => upcomingAppointmentsQuery.data?.data ?? [],
-        [upcomingAppointmentsQuery.data]
+        () => overviewQuery.data?.upcoming_appointments ?? [],
+        [overviewQuery.data]
     );
-    const treatmentEntries = useMemo(
-        () => treatmentsSummaryQuery.data ?? [],
-        [treatmentsSummaryQuery.data]
-    );
-    const totalBalance = useMemo(
-        () => treatmentEntries.reduce((sum, treatment) => sum + Number(treatment.balance ?? 0), 0),
-        [treatmentEntries]
-    );
+    const totalBalance = overviewQuery.data?.total_balance ?? 0;
     const isPatientArchived = Boolean(patient?.is_archived);
 
     if (
         patientQuery.isLoading ||
-        appointmentsSummaryQuery.isLoading ||
-        upcomingAppointmentsQuery.isLoading ||
-        treatmentsSummaryQuery.isLoading
+        overviewQuery.isLoading
     ) {
         return <PatientDetailLoadingSkeleton />;
     }
 
     if (
         patientQuery.isError ||
-        appointmentsSummaryQuery.isError ||
-        upcomingAppointmentsQuery.isError ||
-        treatmentsSummaryQuery.isError
+        overviewQuery.isError
     ) {
         return (
             <div className="space-y-4">
                 <p className="text-sm text-red-600">
                     {getApiErrorMessage(
                         patientQuery.error ||
-                            appointmentsSummaryQuery.error ||
-                            upcomingAppointmentsQuery.error ||
-                            treatmentsSummaryQuery.error,
+                            overviewQuery.error,
                         t('patientDetail.error.loadFailed')
                     )}
                 </p>
@@ -264,9 +218,7 @@ export default function PatientDetailPage({
                     variant="outline"
                     onClick={() => {
                         patientQuery.refetch();
-                        appointmentsSummaryQuery.refetch();
-                        upcomingAppointmentsQuery.refetch();
-                        treatmentsSummaryQuery.refetch();
+                        overviewQuery.refetch();
                     }}
                 >
                     {t('common.retry')}

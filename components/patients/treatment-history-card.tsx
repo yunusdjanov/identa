@@ -23,7 +23,7 @@ import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { PatientPhotoPreviewDialog, type PreviewGalleryImage } from '@/components/patients/patient-photo-preview-dialog';
 import { ClinicalSnapshotCard } from '@/components/patients/clinical-snapshot-card';
-import { optimizeImageFileForUpload } from '@/lib/browser-image';
+import { optimizeImageFilesForUpload } from '@/lib/browser-image';
 import { getProtectedMediaCrossOrigin } from '@/lib/protected-media';
 import { formatCurrency, formatDate, toLocalDateKey } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -695,11 +695,9 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
         setIsPreparingImages(true);
 
         try {
-            const optimizedFiles: File[] = [];
-
-            for (const file of filesToAdd) {
-                optimizedFiles.push(await optimizeImageFileForUpload(file));
-            }
+            const optimizedFiles = await optimizeImageFilesForUpload(filesToAdd, {
+                concurrency: 3,
+            });
 
             setFormState((current) => ({
                 ...current,

@@ -1,6 +1,6 @@
 const DEFAULT_MAX_EDGE = 1600;
 const DEFAULT_QUALITY = 0.82;
-const SKIP_REENCODE_BELOW_BYTES = 350 * 1024;
+const SKIP_REENCODE_BELOW_BYTES = 1024 * 1024;
 
 function buildOptimizedFileName(name: string, extension: string) {
     const baseName = name.replace(/\.[^.]+$/, '') || 'image';
@@ -94,4 +94,43 @@ export async function optimizeImageFileForUpload(
     } finally {
         URL.revokeObjectURL(sourceUrl);
     }
+}
+
+export async function optimizeImageFilesForUpload(
+    files: File[],
+    {
+        maxEdge = DEFAULT_MAX_EDGE,
+        quality = DEFAULT_QUALITY,
+        concurrency = 3,
+    }: {
+        maxEdge?: number;
+        quality?: number;
+        concurrency?: number;
+    } = {}
+): Promise<File[]> {
+    if (files.length <= 1) {
+        return Promise.all(files.map((file) => optimizeImageFileForUpload(file, { maxEdge, quality })));
+    }
+
+    const results = new Array<File>(files.length);
+    const workerCount = Math.max(1, Math.min(concurrency, files.length));
+    let currentIndex = 0;
+
+    await Promise.all(Array.from({ length: workerCount }, async () => {
+        while (true) {
+            const nextIndex = currentIndex;
+            currentIndex += 1;
+
+            if (nextIndex >= files.length) {
+                return;
+            }
+
+            results[nextIndex] = await optimizeImageFileForUpload(files[nextIndex], {
+                maxEdge,
+                quality,
+            });
+        }
+    }));
+
+    return results;
 }

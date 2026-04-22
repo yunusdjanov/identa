@@ -183,6 +183,76 @@ class PatientController extends Controller
         ]);
     }
 
+    public function overview(Request $request, string $id): JsonResponse
+    {
+        $dentistId = $this->resolveDentistId($request);
+
+        Patient::query()
+            ->withTrashed()
+            ->where('id', $id)
+            ->where('dentist_id', $dentistId)
+            ->firstOrFail(['id']);
+
+        $cacheKey = sprintf('patients:overview:%s:%s', $dentistId, $id);
+
+        $data = Cache::remember($cacheKey, now()->addSeconds(10), function () use ($dentistId, $id): array {
+            $appointmentCount = (int) Appointment::query()
+                ->where('dentist_id', $dentistId)
+                ->where('patient_id', $id)
+                ->count();
+
+            $upcomingAppointments = Appointment::query()
+                ->where('dentist_id', $dentistId)
+                ->where('patient_id', $id)
+                ->where('status', Appointment::STATUS_SCHEDULED)
+                ->whereDate('appointment_date', '>=', today()->toDateString())
+                ->orderBy('appointment_date')
+                ->orderBy('start_time')
+                ->limit(3)
+                ->get([
+                    'id',
+                    'appointment_date',
+                    'start_time',
+                    'end_time',
+                    'status',
+                    'notes',
+                ])
+                ->map(static function (Appointment $appointment): array {
+                    return [
+                        'id' => (string) $appointment->id,
+                        'appointment_date' => $appointment->appointment_date?->toDateString(),
+                        'start_time' => (string) $appointment->start_time,
+                        'end_time' => (string) $appointment->end_time,
+                        'status' => (string) $appointment->status,
+                        'notes' => $appointment->notes,
+                    ];
+                })
+                ->values()
+                ->all();
+
+            $treatmentTotals = Treatment::query()
+                ->where('dentist_id', $dentistId)
+                ->where('patient_id', $id)
+                ->selectRaw('COALESCE(SUM(debt_amount), 0) AS total_debt, COALESCE(SUM(paid_amount), 0) AS total_paid')
+                ->first();
+
+            $totalDebt = (float) ($treatmentTotals?->getAttribute('total_debt') ?? 0);
+            $totalPaid = (float) ($treatmentTotals?->getAttribute('total_paid') ?? 0);
+
+            return [
+                'appointment_count' => $appointmentCount,
+                'upcoming_appointments' => $upcomingAppointments,
+                'total_debt' => $totalDebt,
+                'total_paid' => $totalPaid,
+                'total_balance' => round($totalDebt - $totalPaid, 2),
+            ];
+        });
+
+        return response()->json([
+            'data' => $data,
+        ]);
+    }
+
     public function update(UpdatePatientRequest $request, string $id): JsonResponse
     {
         $patient = $this->findOwnedPatient($request, $id);

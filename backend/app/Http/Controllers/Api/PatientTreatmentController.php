@@ -231,7 +231,7 @@ class PatientTreatmentController extends Controller
         );
 
         return response()->json([
-            'data' => $this->transformTreatment($treatment),
+            'data' => $this->transformTreatment($treatment, false),
         ], 201);
     }
 
@@ -261,7 +261,7 @@ class PatientTreatmentController extends Controller
         );
 
         return response()->json([
-            'data' => $this->transformTreatment($treatment->fresh()),
+            'data' => $this->transformTreatment($treatment->fresh(), false),
         ]);
     }
 

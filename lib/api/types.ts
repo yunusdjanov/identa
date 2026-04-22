@@ -80,6 +80,14 @@ export interface ApiPatient {
     categories?: ApiPatientCategory[];
 }
 
+export interface ApiPatientOverview {
+    appointment_count: number;
+    upcoming_appointments: ApiAppointment[];
+    total_debt: number;
+    total_paid: number;
+    total_balance: number;
+}
+
 export interface ApiAppointment {
     id: string;
     patient_id: string;

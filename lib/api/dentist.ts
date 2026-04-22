@@ -14,6 +14,7 @@ import type {
     ApiOdontogramEntry,
     ApiOdontogramSummary,
     ApiPatient,
+    ApiPatientOverview,
     ApiPatientCategory,
     ApiPayment,
     ApiProfile,
@@ -196,6 +197,12 @@ export async function listAllPatients(options?: Omit<QueryOptions, 'page' | 'per
 
 export async function getPatient(id: string): Promise<ApiPatient> {
     const { data } = await apiClient.get<ApiEnvelope<ApiPatient>>(`/patients/${id}`);
+
+    return data.data;
+}
+
+export async function getPatientOverview(id: string): Promise<ApiPatientOverview> {
+    const { data } = await apiClient.get<ApiEnvelope<ApiPatientOverview>>(`/patients/${id}/overview`);
 
     return data.data;
 }
