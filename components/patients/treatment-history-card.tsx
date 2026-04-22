@@ -60,7 +60,7 @@ const ALLOWED_HISTORY_IMAGE_TYPES = new Set([
     'image/png',
     'image/webp',
 ]);
-const HISTORY_IMAGE_UPLOAD_CONCURRENCY = 3;
+const HISTORY_IMAGE_UPLOAD_CONCURRENCY = 4;
 const MEDIA_READINESS_POLL_INTERVAL_MS = 1200;
 const MEDIA_READINESS_TIMEOUT_MS = 20000;
 
@@ -696,7 +696,7 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
 
         try {
             const optimizedFiles = await optimizeImageFilesForUpload(filesToAdd, {
-                concurrency: 3,
+                concurrency: 4,
             });
 
             setFormState((current) => ({

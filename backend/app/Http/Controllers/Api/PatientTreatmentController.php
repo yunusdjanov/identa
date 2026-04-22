@@ -161,9 +161,12 @@ class PatientTreatmentController extends Controller
 
         $this->applySort($query, $request->query('sort', '-treatment_date,-created_at'));
         $treatments = $query->paginate($perPage);
-        $totalCount = (clone $summaryQuery)->count();
-        $totalDebt = (float) ((clone $summaryQuery)->sum('debt_amount'));
-        $totalPaid = (float) ((clone $summaryQuery)->sum('paid_amount'));
+        $summary = (clone $summaryQuery)
+            ->selectRaw('COALESCE(SUM(debt_amount), 0) AS total_debt, COALESCE(SUM(paid_amount), 0) AS total_paid')
+            ->first();
+        $totalCount = $treatments->total();
+        $totalDebt = (float) ($summary?->getAttribute('total_debt') ?? 0);
+        $totalPaid = (float) ($summary?->getAttribute('total_paid') ?? 0);
 
         return response()->json([
             'data' => $treatments
