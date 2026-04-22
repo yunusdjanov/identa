@@ -73,8 +73,11 @@ export const metadata: Metadata = {
     email: false,
   },
   icons: {
-    icon: "/icon.png",
-    shortcut: "/icon.png",
+    icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/icon.png", type: "image/png", sizes: "256x256" },
+    ],
+    shortcut: "/favicon.ico",
     apple: "/icon.png",
   },
   category: "healthcare",
