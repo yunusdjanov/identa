@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\PrepareOdontogramEntryImageUploadRequest;
 use App\Http\Requests\StoreOdontogramEntryRequest;
 use App\Http\Requests\UpdateOdontogramEntryRequest;
 use App\Http\Requests\UploadOdontogramEntryImageRequest;
@@ -14,9 +15,12 @@ use App\Support\AuditLogger;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Lang;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use RuntimeException;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class PatientOdontogramController extends Controller
@@ -30,6 +34,7 @@ class PatientOdontogramController extends Controller
     private const MAX_PER_PAGE = 100;
     private const DEFAULT_SUMMARY_LIMIT = 5;
     private const MAX_SUMMARY_LIMIT = 10;
+    private const DIRECT_UPLOAD_TTL_MINUTES = 15;
 
     /**
      * @var list<string>
@@ -256,6 +261,179 @@ class PatientOdontogramController extends Controller
         ]);
     }
 
+    public function prepareImageUpload(
+        PrepareOdontogramEntryImageUploadRequest $request,
+        string $id,
+        string $entryId
+    ): JsonResponse {
+        $patient = $this->findOwnedPatient($request, $id);
+        if ($patient->trashed()) {
+            throw ValidationException::withMessages([
+                'patient' => [__('api.odontogram.archived_restore_before_upload_images')],
+            ]);
+        }
+
+        $entry = $this->findOwnedEntry($request, (string) $patient->id, $entryId);
+        $disk = $this->mediaDisk();
+        if (! $this->mediaDiskSupportsDirectUpload($disk)) {
+            return response()->json([
+                'data' => [
+                    'supported' => false,
+                ],
+            ]);
+        }
+
+        $validated = $request->validated();
+        $path = $this->buildOdontogramImageStoragePath(
+            dentistId: $this->resolveDentistId($request),
+            patientId: (string) $patient->id,
+            entryId: (string) $entry->id,
+            stage: (string) $validated['stage'],
+            extension: $this->resolveUploadExtension(
+                filename: (string) $validated['filename'],
+                contentType: (string) $validated['content_type'],
+            ),
+        );
+        $uploadId = (string) Str::uuid();
+
+        try {
+            $temporaryUpload = Storage::disk($disk)->temporaryUploadUrl(
+                $path,
+                now()->addMinutes(self::DIRECT_UPLOAD_TTL_MINUTES),
+                [
+                    'ContentType' => $validated['content_type'],
+                ]
+            );
+        } catch (RuntimeException) {
+            return response()->json([
+                'data' => [
+                    'supported' => false,
+                ],
+            ]);
+        }
+
+        Cache::put(
+            $this->directUploadCacheKey($uploadId),
+            [
+                'dentist_id' => $this->resolveDentistId($request),
+                'patient_id' => (string) $patient->id,
+                'entry_id' => (string) $entry->id,
+                'stage' => (string) $validated['stage'],
+                'captured_at' => $validated['captured_at'] ?? null,
+                'disk' => $disk,
+                'path' => $path,
+                'mime_type' => (string) $validated['content_type'],
+                'file_size' => (int) $validated['file_size'],
+            ],
+            now()->addMinutes(self::DIRECT_UPLOAD_TTL_MINUTES)
+        );
+
+        return response()->json([
+            'data' => [
+                'supported' => true,
+                'upload_id' => $uploadId,
+                'method' => 'PUT',
+                'url' => $temporaryUpload['url'],
+                'headers' => $this->normalizeTemporaryUploadHeaders($temporaryUpload['headers'] ?? []),
+                'expires_at' => now()->addMinutes(self::DIRECT_UPLOAD_TTL_MINUTES)->toIso8601String(),
+            ],
+        ]);
+    }
+
+    public function finalizeImageUpload(
+        Request $request,
+        string $id,
+        string $entryId,
+        string $uploadId
+    ): JsonResponse {
+        $patient = $this->findOwnedPatient($request, $id);
+        if ($patient->trashed()) {
+            throw ValidationException::withMessages([
+                'patient' => [__('api.odontogram.archived_restore_before_upload_images')],
+            ]);
+        }
+
+        $entry = $this->findOwnedEntry($request, (string) $patient->id, $entryId);
+        $ticket = Cache::pull($this->directUploadCacheKey($uploadId));
+
+        if (! is_array($ticket)) {
+            throw ValidationException::withMessages([
+                'image' => [$this->odontogramMessage(
+                    'direct_upload_expired',
+                    'The upload session expired. Please try uploading the image again.'
+                )],
+            ]);
+        }
+
+        $dentistId = $this->resolveDentistId($request);
+        if (
+            (int) ($ticket['dentist_id'] ?? 0) !== $dentistId
+            || (string) ($ticket['patient_id'] ?? '') !== (string) $patient->id
+            || (string) ($ticket['entry_id'] ?? '') !== (string) $entry->id
+        ) {
+            throw ValidationException::withMessages([
+                'image' => [$this->odontogramMessage(
+                    'direct_upload_invalid',
+                    'This upload does not belong to the selected odontogram record.'
+                )],
+            ]);
+        }
+
+        $disk = (string) ($ticket['disk'] ?? '');
+        $path = (string) ($ticket['path'] ?? '');
+        if ($disk === '' || $path === '' || ! Storage::disk($disk)->exists($path)) {
+            throw ValidationException::withMessages([
+                'image' => [$this->odontogramMessage(
+                    'direct_upload_missing',
+                    'The uploaded image could not be found in storage. Please retry the upload.'
+                )],
+            ]);
+        }
+
+        $existingImage = $entry->images()
+            ->where('stage', (string) $ticket['stage'])
+            ->first();
+
+        if ($existingImage) {
+            $this->deleteImageFile($existingImage);
+            $existingImage->update([
+                'disk' => $disk,
+                'path' => $path,
+                'mime_type' => (string) $ticket['mime_type'],
+                'file_size' => max((int) Storage::disk($disk)->size($path), 0),
+                'captured_at' => $ticket['captured_at'] ?? null,
+            ]);
+        } else {
+            $entry->images()->create([
+                'dentist_id' => $dentistId,
+                'stage' => (string) $ticket['stage'],
+                'disk' => $disk,
+                'path' => $path,
+                'mime_type' => (string) $ticket['mime_type'],
+                'file_size' => max((int) Storage::disk($disk)->size($path), 0),
+                'captured_at' => $ticket['captured_at'] ?? null,
+            ]);
+        }
+
+        $entry->load('images');
+
+        $this->auditLogger->logFromRequest(
+            request: $request,
+            eventType: 'patient.odontogram_entry.image.uploaded',
+            entityType: 'odontogram_entry',
+            entityId: (string) $entry->id,
+            metadata: [
+                'patient_id' => (string) $patient->id,
+                'stage' => (string) $ticket['stage'],
+                'direct_upload' => true,
+            ],
+        );
+
+        return response()->json([
+            'data' => $this->transformOdontogramEntry($entry),
+        ]);
+    }
+
     public function downloadImage(Request $request, string $id, string $entryId, string $imageId): StreamedResponse
     {
         $patient = $this->findOwnedPatient($request, $id);
@@ -271,7 +449,7 @@ class PatientOdontogramController extends Controller
             basename($image->path),
             [
                 'Content-Type' => $image->mime_type,
-                'Cache-Control' => 'private, max-age=300',
+                'Cache-Control' => 'private, max-age=31536000, immutable',
             ]
         );
     }
@@ -479,6 +657,7 @@ class PatientOdontogramController extends Controller
                     'file_size' => (int) $image->file_size,
                     'captured_at' => $image->captured_at?->toDateString(),
                     'created_at' => $image->created_at?->toIso8601String(),
+                    'url' => $this->buildOdontogramImageUrl($entry, $image),
                 ])
                 ->values()
                 ->all(),
@@ -488,5 +667,102 @@ class PatientOdontogramController extends Controller
     private function mediaDisk(): string
     {
         return (string) config('filesystems.media_disk', 'local');
+    }
+
+    private function mediaDiskSupportsDirectUpload(string $disk): bool
+    {
+        return (string) config("filesystems.disks.{$disk}.driver") === 's3';
+    }
+
+    private function directUploadCacheKey(string $uploadId): string
+    {
+        return "odontogram-image-upload:{$uploadId}";
+    }
+
+    private function buildOdontogramImageStoragePath(
+        int $dentistId,
+        string $patientId,
+        string $entryId,
+        string $stage,
+        string $extension
+    ): string {
+        return sprintf(
+            'odontogram/%d/%s/%s/%s-%s.%s',
+            $dentistId,
+            $patientId,
+            $entryId,
+            $stage,
+            Str::uuid()->toString(),
+            strtolower($extension)
+        );
+    }
+
+    private function resolveUploadExtension(string $filename, string $contentType): string
+    {
+        $extension = strtolower((string) pathinfo($filename, PATHINFO_EXTENSION));
+        if ($extension !== '') {
+            return $extension;
+        }
+
+        return match (strtolower($contentType)) {
+            'image/jpeg', 'image/jpg' => 'jpg',
+            'image/png' => 'png',
+            'image/webp' => 'webp',
+            default => 'jpg',
+        };
+    }
+
+    /**
+     * @param  array<string, mixed>  $headers
+     * @return array<string, string>
+     */
+    private function normalizeTemporaryUploadHeaders(array $headers): array
+    {
+        $normalized = [];
+
+        foreach ($headers as $name => $value) {
+            if (strtolower((string) $name) === 'host') {
+                continue;
+            }
+
+            if (is_array($value)) {
+                $value = implode(', ', array_map(static fn (mixed $item): string => (string) $item, $value));
+            }
+
+            $normalized[(string) $name] = (string) $value;
+        }
+
+        return $normalized;
+    }
+
+    private function buildOdontogramImageUrl(OdontogramEntry $entry, OdontogramEntryImage $image): string
+    {
+        if ($this->mediaDiskSupportsDirectUpload((string) $image->disk)) {
+            try {
+                return Storage::disk((string) $image->disk)->temporaryUrl(
+                    (string) $image->path,
+                    now()->addMinutes(10),
+                    [
+                        'ResponseContentType' => (string) $image->mime_type,
+                    ]
+                );
+            } catch (RuntimeException) {
+                // Fallback to the protected route below.
+            }
+        }
+
+        return url(sprintf(
+            '/api/v1/patients/%s/odontogram/%s/images/%s',
+            (string) $entry->patient_id,
+            (string) $entry->id,
+            (string) $image->id
+        ));
+    }
+
+    private function odontogramMessage(string $key, string $fallback): string
+    {
+        $translationKey = "api.odontogram.{$key}";
+
+        return Lang::has($translationKey) ? __($translationKey) : $fallback;
     }
 }

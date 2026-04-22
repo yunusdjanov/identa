@@ -22,6 +22,15 @@ export function getProtectedMediaCrossOrigin(src?: string | null): 'use-credenti
             return undefined;
         }
 
+        const host = resolvedUrl.hostname.toLowerCase();
+        const hasSignedStorageQuery = resolvedUrl.searchParams.has('X-Amz-Signature')
+            || resolvedUrl.searchParams.has('X-Amz-Credential')
+            || resolvedUrl.searchParams.has('X-Amz-Algorithm');
+
+        if (hasSignedStorageQuery || host.endsWith('.r2.cloudflarestorage.com') || host.endsWith('.r2.dev')) {
+            return undefined;
+        }
+
         if (typeof window !== 'undefined' && resolvedUrl.origin === window.location.origin) {
             return undefined;
         }

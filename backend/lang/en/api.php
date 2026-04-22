@@ -64,6 +64,9 @@ return [
         'archive_before_permanent_delete' => 'Archive the patient first before permanent deletion.',
         'cannot_permanently_delete_with_records' => 'Cannot permanently delete patient with existing clinical or billing records.',
         'photo_store_failed' => 'Failed to store uploaded patient photo.',
+        'direct_upload_expired' => 'The upload session expired. Please try uploading the patient photo again.',
+        'direct_upload_invalid' => 'This upload does not belong to the selected patient.',
+        'direct_upload_missing' => 'The uploaded patient photo could not be found in storage. Please retry the upload.',
     ],
     'odontogram' => [
         'archived_restore_before_add' => 'Archived patients must be restored before adding odontogram records.',
@@ -74,6 +77,9 @@ return [
         'archived_restore_before_delete_images' => 'Archived patients must be restored before deleting odontogram images.',
         'image_required' => 'Image file is required.',
         'image_store_failed' => 'Failed to store uploaded image.',
+        'direct_upload_expired' => 'The upload session expired. Please try uploading the image again.',
+        'direct_upload_invalid' => 'This upload does not belong to the selected odontogram record.',
+        'direct_upload_missing' => 'The uploaded image could not be found in storage. Please retry the upload.',
     ],
     'treatments' => [
         'archived_restore_before_add' => 'Archived patients must be restored before adding treatments.',

@@ -435,6 +435,25 @@ class PatientApiTest extends TestCase
             ->assertJsonPath('data.photo_preview_url', null);
     }
 
+    public function test_prepare_patient_photo_upload_reports_fallback_when_disk_does_not_support_direct_upload(): void
+    {
+        Storage::fake('local');
+
+        $dentist = User::factory()->create();
+        $patient = Patient::factory()->create([
+            'dentist_id' => $dentist->id,
+        ]);
+
+        $this->actingAs($dentist, 'web')
+            ->postJson("/api/v1/patients/{$patient->id}/photo/direct-upload", [
+                'filename' => 'avatar.jpg',
+                'content_type' => 'image/jpeg',
+                'file_size' => 128000,
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.supported', false);
+    }
+
     public function test_dentist_can_filter_inactive_patients_by_last_visit_threshold(): void
     {
         $dentist = User::factory()->create();

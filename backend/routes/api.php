@@ -91,6 +91,10 @@ Route::prefix('v1')->group(function (): void {
             ->middleware('permission:'.User::PERMISSION_PATIENTS_VIEW);
         Route::get('patients/{id}/photo', [PatientController::class, 'downloadPhoto'])
             ->middleware('permission:'.User::PERMISSION_PATIENTS_VIEW);
+        Route::post('patients/{id}/photo/direct-upload', [PatientController::class, 'preparePhotoUpload'])
+            ->middleware('permission:'.User::PERMISSION_PATIENTS_MANAGE);
+        Route::post('patients/{id}/photo/direct-upload/{uploadId}/complete', [PatientController::class, 'finalizePhotoUpload'])
+            ->middleware('permission:'.User::PERMISSION_PATIENTS_MANAGE);
         Route::post('patients/{id}/photo', [PatientController::class, 'uploadPhoto'])
             ->middleware('permission:'.User::PERMISSION_PATIENTS_MANAGE);
         Route::delete('patients/{id}/photo', [PatientController::class, 'deletePhoto'])
@@ -113,6 +117,10 @@ Route::prefix('v1')->group(function (): void {
         Route::put('patients/{id}/odontogram/{entryId}', [PatientOdontogramController::class, 'update'])
             ->middleware('permission:'.User::PERMISSION_ODONTOGRAM_MANAGE);
         Route::delete('patients/{id}/odontogram/{entryId}', [PatientOdontogramController::class, 'destroy'])
+            ->middleware('permission:'.User::PERMISSION_ODONTOGRAM_MANAGE);
+        Route::post('patients/{id}/odontogram/{entryId}/images/direct-upload', [PatientOdontogramController::class, 'prepareImageUpload'])
+            ->middleware('permission:'.User::PERMISSION_ODONTOGRAM_MANAGE);
+        Route::post('patients/{id}/odontogram/{entryId}/images/direct-upload/{uploadId}/complete', [PatientOdontogramController::class, 'finalizeImageUpload'])
             ->middleware('permission:'.User::PERMISSION_ODONTOGRAM_MANAGE);
         Route::post('patients/{id}/odontogram/{entryId}/images', [PatientOdontogramController::class, 'uploadImage'])
             ->middleware('permission:'.User::PERMISSION_ODONTOGRAM_MANAGE);

@@ -64,6 +64,9 @@ return [
         'archive_before_permanent_delete' => 'Butunlay ochirishdan oldin bemorni avval arxivga yuboring.',
         'cannot_permanently_delete_with_records' => 'Klinik yoki billing yozuvlari mavjud bemorni butunlay ochirib bolmaydi.',
         'photo_store_failed' => 'Bemor rasmini saqlab bolmadi.',
+        'direct_upload_expired' => 'Yuklash sessiyasi tugadi. Bemor rasmini qaytadan yuklab koring.',
+        'direct_upload_invalid' => 'Bu yuklash tanlangan bemorga tegishli emas.',
+        'direct_upload_missing' => 'Yuklangan bemor rasmi storage ichidan topilmadi. Iltimos, qayta urinib koring.',
     ],
     'odontogram' => [
         'archived_restore_before_add' => 'Odontogramma yozuvini qoshishdan oldin arxivdagi bemorni tiklang.',
@@ -74,6 +77,9 @@ return [
         'archived_restore_before_delete_images' => 'Odontogramma rasmini ochirishdan oldin arxivdagi bemorni tiklang.',
         'image_required' => 'Rasm fayli majburiy.',
         'image_store_failed' => 'Yuklangan rasmni saqlab bolmadi.',
+        'direct_upload_expired' => 'Yuklash sessiyasi tugadi. Rasmni qaytadan yuklab koring.',
+        'direct_upload_invalid' => 'Bu yuklash tanlangan odontogramma yozuviga tegishli emas.',
+        'direct_upload_missing' => 'Yuklangan rasm storage ichidan topilmadi. Iltimos, qayta urinib koring.',
     ],
     'treatments' => [
         'archived_restore_before_add' => 'Davolash yozuvini qoshishdan oldin arxivdagi bemorni tiklang.',
@@ -99,4 +105,3 @@ return [
         'cannot_update_deleted_account_status' => 'Ochirilgan hisob holatini yangilab bolmaydi.',
     ],
 ];
-

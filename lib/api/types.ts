@@ -110,6 +110,7 @@ export interface ApiOdontogramEntryImage {
     file_size: number;
     captured_at: string | null;
     created_at: string | null;
+    url?: string | null;
 }
 
 export interface ApiOdontogramSummaryEntry {

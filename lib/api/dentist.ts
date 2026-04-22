@@ -243,18 +243,19 @@ export async function updatePatient(
 }
 
 export async function uploadPatientPhoto(id: string, photo: File): Promise<ApiPatient> {
-    const formData = new FormData();
-    formData.append('photo', photo);
+    const directUpload = await preparePatientPhotoDirectUpload(id, photo);
 
-    const { data } = await withCsrfRetry(() =>
-        apiClient.post<ApiEnvelope<ApiPatient>>(`/patients/${id}/photo`, formData, {
-            headers: {
-                'Content-Type': 'multipart/form-data',
-            },
-        })
-    );
+    if (directUpload.supported && directUpload.upload_id && directUpload.url) {
+        try {
+            await performDirectSignedUpload(photo, directUpload);
+        } catch {
+            return uploadPatientPhotoViaApi(id, photo);
+        }
 
-    return data.data;
+        return finalizePatientPhotoDirectUpload(id, directUpload.upload_id);
+    }
+
+    return uploadPatientPhotoViaApi(id, photo);
 }
 
 export async function deletePatientPhoto(id: string): Promise<ApiPatient> {
@@ -428,6 +429,80 @@ export async function uploadPatientOdontogramEntryImage(
         captured_at?: string;
     }
 ): Promise<ApiOdontogramEntry> {
+    const directUpload = await preparePatientOdontogramEntryImageDirectUpload(
+        patientId,
+        entryId,
+        payload
+    );
+
+    if (directUpload.supported && directUpload.upload_id && directUpload.url) {
+        try {
+            await performDirectSignedUpload(payload.image, directUpload);
+        } catch {
+            return uploadPatientOdontogramEntryImageViaApi(patientId, entryId, payload);
+        }
+
+        return finalizePatientOdontogramEntryImageDirectUpload(
+            patientId,
+            entryId,
+            directUpload.upload_id
+        );
+    }
+
+    return uploadPatientOdontogramEntryImageViaApi(patientId, entryId, payload);
+}
+
+async function uploadPatientPhotoViaApi(id: string, photo: File): Promise<ApiPatient> {
+    const formData = new FormData();
+    formData.append('photo', photo);
+
+    const { data } = await withCsrfRetry(() =>
+        apiClient.post<ApiEnvelope<ApiPatient>>(`/patients/${id}/photo`, formData, {
+            headers: {
+                'Content-Type': 'multipart/form-data',
+            },
+        })
+    );
+
+    return data.data;
+}
+
+async function preparePatientPhotoDirectUpload(
+    id: string,
+    photo: File
+): Promise<ApiDirectUploadTicket> {
+    try {
+        const { data } = await withCsrfRetry(() =>
+            apiClient.post<ApiEnvelope<ApiDirectUploadTicket>>(`/patients/${id}/photo/direct-upload`, {
+                filename: photo.name,
+                content_type: resolveDirectUploadContentType(photo),
+                file_size: photo.size,
+            })
+        );
+
+        return data.data;
+    } catch {
+        return { supported: false };
+    }
+}
+
+async function finalizePatientPhotoDirectUpload(id: string, uploadId: string): Promise<ApiPatient> {
+    const { data } = await withCsrfRetry(() =>
+        apiClient.post<ApiEnvelope<ApiPatient>>(`/patients/${id}/photo/direct-upload/${uploadId}/complete`)
+    );
+
+    return data.data;
+}
+
+async function uploadPatientOdontogramEntryImageViaApi(
+    patientId: string,
+    entryId: string,
+    payload: {
+        stage: 'before' | 'after';
+        image: File;
+        captured_at?: string;
+    }
+): Promise<ApiOdontogramEntry> {
     const formData = new FormData();
     formData.append('stage', payload.stage);
     formData.append('image', payload.image);
@@ -528,6 +603,49 @@ export async function getPatientTreatment(
 ): Promise<ApiTreatment> {
     const { data } = await apiClient.get<ApiEnvelope<ApiTreatment>>(
         `/patients/${patientId}/treatments/${treatmentId}`
+    );
+
+    return data.data;
+}
+
+async function preparePatientOdontogramEntryImageDirectUpload(
+    patientId: string,
+    entryId: string,
+    payload: {
+        stage: 'before' | 'after';
+        image: File;
+        captured_at?: string;
+    }
+): Promise<ApiDirectUploadTicket> {
+    try {
+        const { data } = await withCsrfRetry(() =>
+            apiClient.post<ApiEnvelope<ApiDirectUploadTicket>>(
+                `/patients/${patientId}/odontogram/${entryId}/images/direct-upload`,
+                {
+                    stage: payload.stage,
+                    captured_at: payload.captured_at,
+                    filename: payload.image.name,
+                    content_type: resolveDirectUploadContentType(payload.image),
+                    file_size: payload.image.size,
+                }
+            )
+        );
+
+        return data.data;
+    } catch {
+        return { supported: false };
+    }
+}
+
+async function finalizePatientOdontogramEntryImageDirectUpload(
+    patientId: string,
+    entryId: string,
+    uploadId: string
+): Promise<ApiOdontogramEntry> {
+    const { data } = await withCsrfRetry(() =>
+        apiClient.post<ApiEnvelope<ApiOdontogramEntry>>(
+            `/patients/${patientId}/odontogram/${entryId}/images/direct-upload/${uploadId}/complete`
+        )
     );
 
     return data.data;

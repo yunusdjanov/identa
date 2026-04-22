@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\PreparePatientPhotoUploadRequest;
 use App\Http\Requests\StorePatientRequest;
 use App\Http\Requests\UpdatePatientRequest;
 use App\Jobs\DeleteStoredMediaPaths;
@@ -16,11 +17,14 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Lang;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use RuntimeException;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class PatientController extends Controller
@@ -47,6 +51,7 @@ class PatientController extends Controller
 
     private const DEFAULT_PER_PAGE = 15;
     private const MAX_PER_PAGE = 100;
+    private const DIRECT_UPLOAD_TTL_MINUTES = 15;
 
     /**
      * @var list<string>
@@ -258,6 +263,156 @@ class PatientController extends Controller
             eventType: 'patient.photo.updated',
             entityType: 'patient',
             entityId: (string) $patient->id,
+        );
+
+        return response()->json([
+            'data' => $this->transformPatient($patient, $request),
+        ]);
+    }
+
+    public function preparePhotoUpload(
+        PreparePatientPhotoUploadRequest $request,
+        string $id
+    ): JsonResponse {
+        $patient = $this->findOwnedPatient($request, $id);
+        if ($patient->trashed()) {
+            throw ValidationException::withMessages([
+                'patient' => [__('api.patients.archived_restore_before_edit')],
+            ]);
+        }
+
+        $disk = $this->patientPhotoDisk();
+        if (! $this->mediaDiskSupportsDirectUpload($disk)) {
+            return response()->json([
+                'data' => [
+                    'supported' => false,
+                ],
+            ]);
+        }
+
+        $validated = $request->validated();
+        $path = $this->buildPatientPhotoStoragePath(
+            dentistId: $this->resolveDentistId($request),
+            patientId: (string) $patient->id,
+            extension: $this->resolveUploadExtension(
+                filename: (string) $validated['filename'],
+                contentType: (string) $validated['content_type'],
+            ),
+        );
+        $uploadId = (string) Str::uuid();
+
+        try {
+            $temporaryUpload = Storage::disk($disk)->temporaryUploadUrl(
+                $path,
+                now()->addMinutes(self::DIRECT_UPLOAD_TTL_MINUTES),
+                [
+                    'ContentType' => $validated['content_type'],
+                ]
+            );
+        } catch (RuntimeException) {
+            return response()->json([
+                'data' => [
+                    'supported' => false,
+                ],
+            ]);
+        }
+
+        Cache::put(
+            $this->photoUploadCacheKey($uploadId),
+            [
+                'dentist_id' => $this->resolveDentistId($request),
+                'patient_id' => (string) $patient->id,
+                'disk' => $disk,
+                'path' => $path,
+                'mime_type' => (string) $validated['content_type'],
+                'file_size' => (int) $validated['file_size'],
+            ],
+            now()->addMinutes(self::DIRECT_UPLOAD_TTL_MINUTES)
+        );
+
+        return response()->json([
+            'data' => [
+                'supported' => true,
+                'upload_id' => $uploadId,
+                'method' => 'PUT',
+                'url' => $temporaryUpload['url'],
+                'headers' => $this->normalizeTemporaryUploadHeaders($temporaryUpload['headers'] ?? []),
+                'expires_at' => now()->addMinutes(self::DIRECT_UPLOAD_TTL_MINUTES)->toIso8601String(),
+            ],
+        ]);
+    }
+
+    public function finalizePhotoUpload(
+        Request $request,
+        string $id,
+        string $uploadId
+    ): JsonResponse {
+        $patient = $this->findOwnedPatient($request, $id);
+        if ($patient->trashed()) {
+            throw ValidationException::withMessages([
+                'patient' => [__('api.patients.archived_restore_before_edit')],
+            ]);
+        }
+
+        $ticket = Cache::pull($this->photoUploadCacheKey($uploadId));
+
+        if (! is_array($ticket)) {
+            throw ValidationException::withMessages([
+                'photo' => [$this->patientMessage(
+                    'direct_upload_expired',
+                    'The upload session expired. Please try uploading the patient photo again.'
+                )],
+            ]);
+        }
+
+        $dentistId = $this->resolveDentistId($request);
+        if (
+            (int) ($ticket['dentist_id'] ?? 0) !== $dentistId
+            || (string) ($ticket['patient_id'] ?? '') !== (string) $patient->id
+        ) {
+            throw ValidationException::withMessages([
+                'photo' => [$this->patientMessage(
+                    'direct_upload_invalid',
+                    'This upload does not belong to the selected patient.'
+                )],
+            ]);
+        }
+
+        $disk = (string) ($ticket['disk'] ?? '');
+        $path = (string) ($ticket['path'] ?? '');
+
+        if ($disk === '' || $path === '' || ! Storage::disk($disk)->exists($path)) {
+            throw ValidationException::withMessages([
+                'photo' => [$this->patientMessage(
+                    'direct_upload_missing',
+                    'The uploaded patient photo could not be found in storage. Please retry the upload.'
+                )],
+            ]);
+        }
+
+        $previousPhotoDisk = is_string($patient->photo_disk) && $patient->photo_disk !== ''
+            ? $patient->photo_disk
+            : $this->patientPhotoDisk();
+        $previousPhotoPath = is_string($patient->photo_path) ? trim($patient->photo_path) : '';
+
+        $patient->forceFill([
+            'photo_disk' => $disk,
+            'photo_path' => $path,
+        ])->save();
+
+        $this->queuePatientPhotoVariants($disk, $path);
+        $this->queuePatientPhotoDeletion($previousPhotoDisk, $previousPhotoPath);
+
+        $patient = $this->findOwnedPatient($request, $id);
+
+        $this->auditLogger->logFromRequest(
+            request: $request,
+            eventType: 'patient.photo.updated',
+            entityType: 'patient',
+            entityId: (string) $patient->id,
+            metadata: [
+                'direct_upload' => true,
+            ],
         );
 
         return response()->json([
@@ -509,6 +664,21 @@ class PatientController extends Controller
             return null;
         }
 
+        if ($variant === null) {
+            $temporaryUrl = $this->buildTemporaryMediaUrl(
+                is_string($patient->photo_disk) && $patient->photo_disk !== ''
+                    ? $patient->photo_disk
+                    : $this->patientPhotoDisk(),
+                $patient->photo_path,
+                now()->addMinutes(10),
+                $this->guessImageMimeType($patient->photo_path)
+            );
+
+            if ($temporaryUrl !== null) {
+                return $temporaryUrl;
+            }
+        }
+
         $baseUrl = $request !== null
             ? $request->getSchemeAndHttpHost()
             : rtrim((string) config('app.url'), '/');
@@ -639,6 +809,98 @@ class PatientController extends Controller
     private function patientPhotoDisk(): string
     {
         return (string) config('filesystems.media_disk', 'local');
+    }
+
+    private function mediaDiskSupportsDirectUpload(string $disk): bool
+    {
+        return (string) config("filesystems.disks.{$disk}.driver") === 's3';
+    }
+
+    private function photoUploadCacheKey(string $uploadId): string
+    {
+        return "patient-photo-upload:{$uploadId}";
+    }
+
+    private function buildPatientPhotoStoragePath(
+        int $dentistId,
+        string $patientId,
+        string $extension
+    ): string {
+        return sprintf(
+            'patients/%d/%s/%s.%s',
+            $dentistId,
+            $patientId,
+            Str::uuid()->toString(),
+            strtolower($extension)
+        );
+    }
+
+    private function resolveUploadExtension(string $filename, string $contentType): string
+    {
+        $extension = strtolower((string) pathinfo($filename, PATHINFO_EXTENSION));
+        if ($extension !== '') {
+            return $extension;
+        }
+
+        return match (strtolower($contentType)) {
+            'image/jpeg', 'image/jpg' => 'jpg',
+            'image/png' => 'png',
+            'image/webp' => 'webp',
+            default => 'jpg',
+        };
+    }
+
+    /**
+     * @param  array<string, mixed>  $headers
+     * @return array<string, string>
+     */
+    private function normalizeTemporaryUploadHeaders(array $headers): array
+    {
+        $normalized = [];
+
+        foreach ($headers as $name => $value) {
+            if (strtolower((string) $name) === 'host') {
+                continue;
+            }
+
+            if (is_array($value)) {
+                $value = implode(', ', array_map(static fn (mixed $item): string => (string) $item, $value));
+            }
+
+            $normalized[(string) $name] = (string) $value;
+        }
+
+        return $normalized;
+    }
+
+    private function buildTemporaryMediaUrl(
+        string $disk,
+        string $path,
+        \DateTimeInterface $expiresAt,
+        ?string $contentType = null
+    ): ?string {
+        if (! $this->mediaDiskSupportsDirectUpload($disk)) {
+            return null;
+        }
+
+        try {
+            return Storage::disk($disk)->temporaryUrl(
+                $path,
+                $expiresAt,
+                $contentType !== null
+                    ? ['ResponseContentType' => $contentType]
+                    : []
+            );
+        } catch (RuntimeException) {
+            return null;
+        }
+    }
+
+    private function patientMessage(string $key, string $fallback): string
+    {
+        $translationKey = "api.patients.{$key}";
+
+        return Lang::has($translationKey) ? __($translationKey) : $fallback;
     }
 
     private function resolvePatientPhotoPath(string $path, ?string $variant): string

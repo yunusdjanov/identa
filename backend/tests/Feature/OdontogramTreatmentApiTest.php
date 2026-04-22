@@ -270,6 +270,31 @@ class OdontogramTreatmentApiTest extends TestCase
             ->assertJsonPath('data.supported', false);
     }
 
+    public function test_prepare_odontogram_image_upload_reports_fallback_when_disk_does_not_support_direct_upload(): void
+    {
+        Storage::fake('local');
+
+        $dentist = User::factory()->create();
+        $patient = Patient::factory()->create(['dentist_id' => $dentist->id]);
+        $entry = OdontogramEntry::factory()->create([
+            'dentist_id' => $dentist->id,
+            'patient_id' => $patient->id,
+            'tooth_number' => 8,
+            'condition_type' => 'cavity',
+            'condition_date' => '2026-03-08',
+        ]);
+
+        $this->actingAs($dentist, 'web')
+            ->postJson("/api/v1/patients/{$patient->id}/odontogram/{$entry->id}/images/direct-upload", [
+                'stage' => 'before',
+                'filename' => 'before.jpg',
+                'content_type' => 'image/jpeg',
+                'file_size' => 128000,
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.supported', false);
+    }
+
     public function test_dentist_can_update_delete_and_manage_images_for_owned_odontogram_entry(): void
     {
         Storage::fake('local');
