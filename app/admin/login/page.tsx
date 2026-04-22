@@ -1,15 +1,15 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { PasswordInput } from '@/components/ui/password-input';
 import { Label } from '@/components/ui/label';
 import { getApiErrorMessage } from '@/lib/api/client';
-import { loginWithPassword, logoutSession } from '@/lib/api/dentist';
+import { getCurrentUser, loginWithPassword, logoutSession } from '@/lib/api/dentist';
 import { toast } from 'sonner';
 import { INPUT_LIMITS, getEmailValidationMessage } from '@/lib/input-validation';
 import { useI18n } from '@/components/providers/i18n-provider';
@@ -30,6 +30,12 @@ export default function AdminLoginPage() {
     const emailError = getEmailValidationMessage(credentials.email, { required: true });
     const passwordError = credentials.password ? null : t('admin.login.passwordRequired');
     const hasValidationErrors = Boolean(emailError || passwordError);
+    const currentUserQuery = useQuery({
+        queryKey: ['auth', 'me'],
+        queryFn: getCurrentUser,
+        retry: false,
+        staleTime: 5 * 60_000,
+    });
 
     const loginMutation = useMutation({
         mutationFn: async () => {
@@ -56,6 +62,14 @@ export default function AdminLoginPage() {
         },
     });
 
+    useEffect(() => {
+        if (!currentUserQuery.data) {
+            return;
+        }
+
+        router.replace(currentUserQuery.data.role === 'admin' ? '/admin' : '/dashboard');
+    }, [currentUserQuery.data, router]);
+
     const handleLogin = (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault();
         setIsSubmitted(true);
@@ -66,6 +80,20 @@ export default function AdminLoginPage() {
 
         loginMutation.mutate();
     };
+
+    if (currentUserQuery.isLoading) {
+        return (
+            <div className="relative min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50 flex items-center justify-center p-4">
+                <div className="w-full max-w-md">
+                    <Card className="shadow-xl">
+                        <CardContent className="flex items-center justify-center py-10 text-sm text-slate-500">
+                            {t('common.loading')}
+                        </CardContent>
+                    </Card>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="relative min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50 flex items-center justify-center p-4">
