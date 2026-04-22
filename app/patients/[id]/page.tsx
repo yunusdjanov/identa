@@ -291,6 +291,9 @@ export default function PatientDetailPage({
     const daysSinceVisit = getDaysSinceLastVisit(latestVisitDate);
     const isInactive = daysSinceVisit > 180;
     const primaryCategory = patient.categories?.[0] ?? null;
+    const patientAvatarUrl = patient.photo_thumbnail_ready === false
+        ? (patient.photo_preview_ready ? patient.photo_preview_url ?? undefined : undefined)
+        : patient.photo_thumbnail_url ?? patient.photo_preview_url ?? undefined;
 
     return (
         <div className="space-y-8">
@@ -300,13 +303,11 @@ export default function PatientDetailPage({
                         <ArrowLeft className="h-4 w-4" />
                     </Button>
                     <Avatar className="h-14 w-14 border border-slate-200">
-                        {patient.photo_url ? (
+                        {patientAvatarUrl ? (
                             <AvatarImage
-                                src={patient.photo_thumbnail_url ?? patient.photo_preview_url ?? patient.photo_url}
+                                src={patientAvatarUrl}
                                 alt={patient.full_name}
-                                crossOrigin={getProtectedMediaCrossOrigin(
-                                    patient.photo_thumbnail_url ?? patient.photo_preview_url ?? patient.photo_url
-                                )}
+                                crossOrigin={getProtectedMediaCrossOrigin(patientAvatarUrl)}
                             />
                         ) : null}
                         <AvatarFallback className="bg-slate-100 text-sm font-semibold text-slate-700">

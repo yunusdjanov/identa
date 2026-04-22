@@ -223,7 +223,11 @@ export function EditPatientDialog({ open, onOpenChange, patient }: EditPatientDi
                             selectedFile={photoFile}
                             currentPhotoUrl={
                                 patient.photo_url && !removePhoto && !photoFile
-                                    ? patient.photo_thumbnail_url ?? patient.photo_preview_url ?? patient.photo_url
+                                    ? (
+                                        patient.photo_thumbnail_ready === false
+                                            ? (patient.photo_preview_ready ? patient.photo_preview_url ?? undefined : undefined)
+                                            : patient.photo_thumbnail_url ?? patient.photo_preview_url ?? undefined
+                                    )
                                     : undefined
                             }
                             onPickClick={() => photoInputRef.current?.click()}

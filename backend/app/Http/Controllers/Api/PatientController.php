@@ -13,6 +13,7 @@ use App\Models\Patient;
 use App\Models\User;
 use App\Support\AuditLogger;
 use App\Support\ImageVariantGenerator;
+use App\Support\MediaPathCache;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -253,6 +254,7 @@ class PatientController extends Controller
             'photo_disk' => $disk,
             'photo_path' => $storedPath,
         ])->save();
+        MediaPathCache::markPresent($disk, $storedPath);
         $this->queuePatientPhotoVariants($disk, $storedPath);
         $this->queuePatientPhotoDeletion($previousPhotoDisk, $previousPhotoPath);
 
@@ -400,6 +402,7 @@ class PatientController extends Controller
             'photo_path' => $path,
         ])->save();
 
+        MediaPathCache::markPresent($disk, $path);
         $this->queuePatientPhotoVariants($disk, $path);
         $this->queuePatientPhotoDeletion($previousPhotoDisk, $previousPhotoPath);
 
@@ -622,6 +625,10 @@ class PatientController extends Controller
      */
     private function transformPatient(Patient $patient, ?Request $request = null): array
     {
+        $photoDisk = is_string($patient->photo_disk) && $patient->photo_disk !== ''
+            ? $patient->photo_disk
+            : $this->patientPhotoDisk();
+
         return [
             'id' => (string) $patient->id,
             'patient_id' => $patient->patient_id,
@@ -637,6 +644,16 @@ class PatientController extends Controller
             'photo_url' => $this->resolvePatientPhotoUrl($patient, $request),
             'photo_thumbnail_url' => $this->resolvePatientPhotoUrl($patient, $request, self::IMAGE_VARIANT_THUMBNAIL),
             'photo_preview_url' => $this->resolvePatientPhotoUrl($patient, $request, self::IMAGE_VARIANT_PREVIEW),
+            'photo_thumbnail_ready' => $this->resolvePatientPhotoVariantReady(
+                $photoDisk,
+                $patient,
+                self::IMAGE_VARIANT_THUMBNAIL
+            ),
+            'photo_preview_ready' => $this->resolvePatientPhotoVariantReady(
+                $photoDisk,
+                $patient,
+                self::IMAGE_VARIANT_PREVIEW
+            ),
             'created_at' => $patient->created_at?->toIso8601String(),
             'is_archived' => $patient->trashed(),
             'archived_at' => $patient->deleted_at?->toIso8601String(),
@@ -664,11 +681,13 @@ class PatientController extends Controller
             return null;
         }
 
+        $disk = is_string($patient->photo_disk) && $patient->photo_disk !== ''
+            ? $patient->photo_disk
+            : $this->patientPhotoDisk();
+
         if ($variant === null) {
             $temporaryUrl = $this->buildTemporaryMediaUrl(
-                is_string($patient->photo_disk) && $patient->photo_disk !== ''
-                    ? $patient->photo_disk
-                    : $this->patientPhotoDisk(),
+                $disk,
                 $patient->photo_path,
                 now()->addMinutes(10),
                 $this->guessImageMimeType($patient->photo_path)
@@ -689,7 +708,32 @@ class PatientController extends Controller
             return $url;
         }
 
+        $variantPath = $this->buildPatientPhotoVariantPath($patient->photo_path, $variant);
+        if (! $this->mediaPathExists($disk, $variantPath)) {
+            return $this->mediaDiskSupportsDirectUpload($disk) ? null : $url.'&variant='.$variant;
+        }
+
+        $temporaryVariantUrl = $this->buildTemporaryMediaUrl(
+            $disk,
+            $variantPath,
+            now()->addMinutes(10),
+            $this->guessImageMimeType($variantPath)
+        );
+
+        if ($temporaryVariantUrl !== null) {
+            return $temporaryVariantUrl;
+        }
+
         return $url.'&variant='.$variant;
+    }
+
+    private function resolvePatientPhotoVariantReady(string $disk, Patient $patient, string $variant): bool
+    {
+        if (! is_string($patient->photo_path) || $patient->photo_path === '') {
+            return false;
+        }
+
+        return $this->mediaPathExists($disk, $this->buildPatientPhotoVariantPath($patient->photo_path, $variant));
     }
 
     private function applyLastVisitAggregates(Builder $query): Builder
@@ -896,6 +940,24 @@ class PatientController extends Controller
         }
     }
 
+    private function mediaPathExists(string $disk, string $path): bool
+    {
+        $cached = MediaPathCache::get($disk, $path);
+        if ($cached !== null) {
+            return $cached;
+        }
+
+        $exists = Storage::disk($disk)->exists($path);
+
+        if ($exists) {
+            MediaPathCache::markPresent($disk, $path);
+        } else {
+            MediaPathCache::markMissing($disk, $path);
+        }
+
+        return $exists;
+    }
+
     private function patientMessage(string $key, string $fallback): string
     {
         $translationKey = "api.patients.{$key}";
@@ -947,6 +1009,9 @@ class PatientController extends Controller
 
     private function queuePatientPhotoVariants(string $disk, string $path): void
     {
+        MediaPathCache::markMissing($disk, $this->buildPatientPhotoVariantPath($path, self::IMAGE_VARIANT_THUMBNAIL));
+        MediaPathCache::markMissing($disk, $this->buildPatientPhotoVariantPath($path, self::IMAGE_VARIANT_PREVIEW));
+
         GenerateMediaVariants::dispatch(
             disk: $disk,
             sourcePath: $path,
@@ -970,8 +1035,11 @@ class PatientController extends Controller
     {
         $variantPath = $this->resolvePatientPhotoPath($path, $variant);
         if (Storage::disk($disk)->exists($variantPath)) {
+            MediaPathCache::markPresent($disk, $variantPath);
             return $this->streamStoredPatientPhoto($disk, $variantPath);
         }
+
+        MediaPathCache::markMissing($disk, $variantPath);
 
         if (! Storage::disk($disk)->exists($path)) {
             return null;
@@ -992,6 +1060,7 @@ class PatientController extends Controller
 
             try {
                 Storage::disk($disk)->put($variantPath, $generatedVariant['contents']);
+                MediaPathCache::markPresent($disk, $variantPath);
             } catch (\Throwable $exception) {
                 Log::warning('Patient photo variant persistence failed.', [
                     'exception' => $exception::class,

@@ -7,16 +7,21 @@ use App\Http\Requests\PrepareOdontogramEntryImageUploadRequest;
 use App\Http\Requests\StoreOdontogramEntryRequest;
 use App\Http\Requests\UpdateOdontogramEntryRequest;
 use App\Http\Requests\UploadOdontogramEntryImageRequest;
+use App\Jobs\DeleteStoredMediaPaths;
+use App\Jobs\GenerateMediaVariants;
 use App\Models\OdontogramEntry;
 use App\Models\OdontogramEntryImage;
 use App\Models\Patient;
 use App\Models\User;
 use App\Support\AuditLogger;
+use App\Support\ImageVariantGenerator;
+use App\Support\MediaPathCache;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Lang;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -25,6 +30,21 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class PatientOdontogramController extends Controller
 {
+    private const IMAGE_VARIANT_THUMBNAIL = 'thumbnail';
+    private const IMAGE_VARIANT_PREVIEW = 'preview';
+    private const THUMBNAIL_MAX_EDGE = 160;
+    private const PREVIEW_MAX_EDGE = 960;
+    private const JPEG_VARIANT_QUALITY = 82;
+    private const WEBP_VARIANT_QUALITY = 80;
+
+    /**
+     * @var array<string, int>
+     */
+    private const IMAGE_VARIANT_MAX_EDGES = [
+        self::IMAGE_VARIANT_THUMBNAIL => self::THUMBNAIL_MAX_EDGE,
+        self::IMAGE_VARIANT_PREVIEW => self::PREVIEW_MAX_EDGE,
+    ];
+
     public function __construct(
         private readonly AuditLogger $auditLogger,
     ) {
@@ -243,6 +263,8 @@ class PatientOdontogramController extends Controller
             ]);
         }
 
+        MediaPathCache::markPresent($disk, $path);
+        $this->queueOdontogramImageVariants($disk, $path);
         $entry->load('images');
 
         $this->auditLogger->logFromRequest(
@@ -415,6 +437,8 @@ class PatientOdontogramController extends Controller
             ]);
         }
 
+        MediaPathCache::markPresent($disk, $path);
+        $this->queueOdontogramImageVariants($disk, $path);
         $entry->load('images');
 
         $this->auditLogger->logFromRequest(
@@ -439,6 +463,15 @@ class PatientOdontogramController extends Controller
         $patient = $this->findOwnedPatient($request, $id);
         $entry = $this->findOwnedEntry($request, (string) $patient->id, $entryId);
         $image = $this->findOwnedEntryImage($entry, $imageId);
+        $variant = $request->query('variant');
+        $variant = is_string($variant) && $variant !== '' ? $variant : null;
+
+        if ($variant !== null) {
+            $variantResponse = $this->streamOdontogramImageVariant($image, $variant);
+            if ($variantResponse !== null) {
+                return $variantResponse;
+            }
+        }
 
         if (! Storage::disk($image->disk)->exists($image->path)) {
             abort(404);
@@ -576,9 +609,7 @@ class PatientOdontogramController extends Controller
 
     private function deleteImageFile(OdontogramEntryImage $image): void
     {
-        if (Storage::disk($image->disk)->exists($image->path)) {
-            Storage::disk($image->disk)->delete($image->path);
-        }
+        $this->queueOdontogramImageDeletion((string) $image->disk, (string) $image->path);
     }
 
     private function resolvePerPage(Request $request): int
@@ -658,6 +689,10 @@ class PatientOdontogramController extends Controller
                     'captured_at' => $image->captured_at?->toDateString(),
                     'created_at' => $image->created_at?->toIso8601String(),
                     'url' => $this->buildOdontogramImageUrl($entry, $image),
+                    'thumbnail_url' => $this->buildOdontogramImageUrl($entry, $image, self::IMAGE_VARIANT_THUMBNAIL),
+                    'preview_url' => $this->buildOdontogramImageUrl($entry, $image, self::IMAGE_VARIANT_PREVIEW),
+                    'thumbnail_ready' => $this->isOdontogramImageVariantReady($image, self::IMAGE_VARIANT_THUMBNAIL),
+                    'preview_ready' => $this->isOdontogramImageVariantReady($image, self::IMAGE_VARIANT_PREVIEW),
                 ])
                 ->values()
                 ->all(),
@@ -735,12 +770,45 @@ class PatientOdontogramController extends Controller
         return $normalized;
     }
 
-    private function buildOdontogramImageUrl(OdontogramEntry $entry, OdontogramEntryImage $image): string
+    private function buildOdontogramImageUrl(
+        OdontogramEntry $entry,
+        OdontogramEntryImage $image,
+        ?string $variant = null
+    ): ?string
     {
-        if ($this->mediaDiskSupportsDirectUpload((string) $image->disk)) {
+        $disk = (string) $image->disk;
+        $path = (string) $image->path;
+
+        if ($variant !== null) {
+            $variantPath = $this->buildOdontogramImageVariantPath($path, $variant);
+            if (! $this->mediaPathExists($disk, $variantPath)) {
+                return $this->mediaDiskSupportsDirectUpload($disk)
+                    ? null
+                    : url(sprintf(
+                        '/api/v1/patients/%s/odontogram/%s/images/%s?variant=%s',
+                        (string) $entry->patient_id,
+                        (string) $entry->id,
+                        (string) $image->id,
+                        $variant
+                    ));
+            }
+
+            $temporaryVariantUrl = $this->buildTemporaryMediaUrl(
+                $disk,
+                $variantPath,
+                now()->addMinutes(10),
+                (string) $image->mime_type
+            );
+
+            if ($temporaryVariantUrl !== null) {
+                return $temporaryVariantUrl;
+            }
+        }
+
+        if ($variant === null && $this->mediaDiskSupportsDirectUpload($disk)) {
             try {
-                return Storage::disk((string) $image->disk)->temporaryUrl(
-                    (string) $image->path,
+                return Storage::disk($disk)->temporaryUrl(
+                    $path,
                     now()->addMinutes(10),
                     [
                         'ResponseContentType' => (string) $image->mime_type,
@@ -756,7 +824,184 @@ class PatientOdontogramController extends Controller
             (string) $entry->patient_id,
             (string) $entry->id,
             (string) $image->id
-        ));
+        ).($variant !== null ? '?variant='.$variant : ''));
+    }
+
+    private function buildTemporaryMediaUrl(
+        string $disk,
+        string $path,
+        \DateTimeInterface $expiresAt,
+        ?string $contentType = null
+    ): ?string {
+        if (! $this->mediaDiskSupportsDirectUpload($disk)) {
+            return null;
+        }
+
+        try {
+            return Storage::disk($disk)->temporaryUrl(
+                $path,
+                $expiresAt,
+                $contentType !== null
+                    ? ['ResponseContentType' => $contentType]
+                    : []
+            );
+        } catch (RuntimeException) {
+            return null;
+        }
+    }
+
+    private function mediaPathExists(string $disk, string $path): bool
+    {
+        $cached = MediaPathCache::get($disk, $path);
+        if ($cached !== null) {
+            return $cached;
+        }
+
+        $exists = Storage::disk($disk)->exists($path);
+
+        if ($exists) {
+            MediaPathCache::markPresent($disk, $path);
+        } else {
+            MediaPathCache::markMissing($disk, $path);
+        }
+
+        return $exists;
+    }
+
+    private function isOdontogramImageVariantReady(OdontogramEntryImage $image, string $variant): bool
+    {
+        return $this->mediaPathExists(
+            (string) $image->disk,
+            $this->buildOdontogramImageVariantPath((string) $image->path, $variant)
+        );
+    }
+
+    private function buildOdontogramImageVariantPath(string $path, string $variant): string
+    {
+        $directory = pathinfo($path, PATHINFO_DIRNAME);
+        $filename = pathinfo($path, PATHINFO_FILENAME);
+        $extension = pathinfo($path, PATHINFO_EXTENSION) ?: 'jpg';
+
+        return sprintf('%s/variants/%s-%s.%s', $directory, $filename, $variant, $extension);
+    }
+
+    private function queueOdontogramImageDeletion(string $disk, string $path): void
+    {
+        $disk = trim($disk);
+        $path = trim($path);
+
+        if ($disk === '' || $path === '') {
+            return;
+        }
+
+        DeleteStoredMediaPaths::dispatch(
+            disk: $disk,
+            paths: [
+                $path,
+                $this->buildOdontogramImageVariantPath($path, self::IMAGE_VARIANT_THUMBNAIL),
+                $this->buildOdontogramImageVariantPath($path, self::IMAGE_VARIANT_PREVIEW),
+            ],
+            logContext: 'Odontogram image'
+        );
+    }
+
+    private function queueOdontogramImageVariants(string $disk, string $path): void
+    {
+        MediaPathCache::markMissing($disk, $this->buildOdontogramImageVariantPath($path, self::IMAGE_VARIANT_THUMBNAIL));
+        MediaPathCache::markMissing($disk, $this->buildOdontogramImageVariantPath($path, self::IMAGE_VARIANT_PREVIEW));
+
+        GenerateMediaVariants::dispatch(
+            disk: $disk,
+            sourcePath: $path,
+            variants: [
+                self::IMAGE_VARIANT_THUMBNAIL => [
+                    'path' => $this->buildOdontogramImageVariantPath($path, self::IMAGE_VARIANT_THUMBNAIL),
+                    'max_edge' => self::THUMBNAIL_MAX_EDGE,
+                ],
+                self::IMAGE_VARIANT_PREVIEW => [
+                    'path' => $this->buildOdontogramImageVariantPath($path, self::IMAGE_VARIANT_PREVIEW),
+                    'max_edge' => self::PREVIEW_MAX_EDGE,
+                ],
+            ],
+            logContext: 'Odontogram image',
+            jpegQuality: self::JPEG_VARIANT_QUALITY,
+            webpQuality: self::WEBP_VARIANT_QUALITY,
+        );
+    }
+
+    private function streamOdontogramImageVariant(OdontogramEntryImage $image, string $variant): ?StreamedResponse
+    {
+        if (! array_key_exists($variant, self::IMAGE_VARIANT_MAX_EDGES)) {
+            abort(404);
+        }
+
+        $disk = (string) $image->disk;
+        $sourcePath = (string) $image->path;
+        $variantPath = $this->buildOdontogramImageVariantPath($sourcePath, $variant);
+        $storage = Storage::disk($disk);
+
+        if ($storage->exists($variantPath)) {
+            MediaPathCache::markPresent($disk, $variantPath);
+
+            return $storage->response(
+                $variantPath,
+                basename($variantPath),
+                [
+                    'Content-Type' => (string) $image->mime_type,
+                    'Cache-Control' => 'private, max-age=31536000, immutable',
+                ]
+            );
+        }
+
+        MediaPathCache::markMissing($disk, $variantPath);
+
+        if (! $storage->exists($sourcePath)) {
+            return null;
+        }
+
+        try {
+            $generatedVariant = ImageVariantGenerator::make(
+                $storage->get($sourcePath),
+                $sourcePath,
+                self::IMAGE_VARIANT_MAX_EDGES[$variant],
+                self::JPEG_VARIANT_QUALITY,
+                self::WEBP_VARIANT_QUALITY,
+            );
+
+            if ($generatedVariant === null) {
+                return null;
+            }
+
+            try {
+                $storage->put($variantPath, $generatedVariant['contents']);
+                MediaPathCache::markPresent($disk, $variantPath);
+            } catch (\Throwable $exception) {
+                Log::warning('Odontogram image variant persistence failed.', [
+                    'exception' => $exception::class,
+                    'variant' => $variant,
+                ]);
+            }
+
+            return response()->streamDownload(
+                static function () use ($generatedVariant): void {
+                    echo $generatedVariant['contents'];
+                },
+                basename($variantPath),
+                [
+                    'Content-Type' => $generatedVariant['mime_type'] ?? (string) $image->mime_type,
+                    'Cache-Control' => 'private, max-age=31536000, immutable',
+                ]
+            );
+        } catch (\Throwable $exception) {
+            Log::warning('Odontogram image variant generation failed.', [
+                'exception' => $exception::class,
+                'variant' => $variant,
+                'disk' => $disk,
+                'source_path' => $sourcePath,
+            ]);
+
+            return null;
+        }
     }
 
     private function odontogramMessage(string $key, string $fallback): string

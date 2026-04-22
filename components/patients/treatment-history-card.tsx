@@ -157,10 +157,15 @@ async function uploadTreatmentImagesInBatches(
     imageFiles: File[],
     uploadFile: (file: File) => Promise<unknown>
 ) {
+    let failedCount = 0;
+
     for (let start = 0; start < imageFiles.length; start += HISTORY_IMAGE_UPLOAD_CONCURRENCY) {
         const batch = imageFiles.slice(start, start + HISTORY_IMAGE_UPLOAD_CONCURRENCY);
-        await Promise.all(batch.map((file) => uploadFile(file)));
+        const results = await Promise.allSettled(batch.map((file) => uploadFile(file)));
+        failedCount += results.filter((result) => result.status === 'rejected').length;
     }
+
+    return failedCount;
 }
 
 function ToothCell({
@@ -408,6 +413,8 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
 
             if (removeImageIds.length > 0 || imageFiles.length > 0) {
                 void (async () => {
+                    let hasMediaSyncFailure = false;
+
                     try {
                         const expectedImageCount = Math.max(
                             0,
@@ -415,24 +422,34 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                         );
 
                         if (removeImageIds.length > 0) {
-                            await Promise.all(
+                            const deleteResults = await Promise.allSettled(
                                 removeImageIds.map((imageId) =>
                                     deletePatientTreatmentImage(patientId, treatment.id, imageId)
                                 )
                             );
+
+                            hasMediaSyncFailure = deleteResults.some((result) => result.status === 'rejected');
                         }
 
                         if (imageFiles.length > 0) {
-                            await uploadTreatmentImagesInBatches(
+                            const failedUploadCount = await uploadTreatmentImagesInBatches(
                                 imageFiles,
                                 (imageFile) => uploadPatientTreatmentImage(patientId, treatment.id, imageFile)
                             );
+
+                            hasMediaSyncFailure = hasMediaSyncFailure || failedUploadCount > 0;
                         }
 
-                        await waitForTreatmentMediaReady(treatment.id, expectedImageCount);
-                    } catch (error) {
-                        toast.error(getApiErrorMessage(error, t('patientHistory.toast.imagesSyncFailed')));
+                        if (!hasMediaSyncFailure) {
+                            await waitForTreatmentMediaReady(treatment.id, expectedImageCount);
+                        }
+                    } catch {
+                        hasMediaSyncFailure = true;
                     } finally {
+                        if (hasMediaSyncFailure) {
+                            toast.error(t('patientHistory.toast.imagesSyncFailed'));
+                        }
+
                         await refreshHistory();
                         setMediaSyncingTreatmentIds((current) => current.filter((id) => id !== treatmentId));
                     }

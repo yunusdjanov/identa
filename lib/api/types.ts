@@ -71,6 +71,8 @@ export interface ApiPatient {
     photo_url?: string | null;
     photo_thumbnail_url?: string | null;
     photo_preview_url?: string | null;
+    photo_thumbnail_ready?: boolean;
+    photo_preview_ready?: boolean;
     created_at?: string | null;
     last_visit_at?: string | null;
     is_archived?: boolean;
@@ -111,6 +113,10 @@ export interface ApiOdontogramEntryImage {
     captured_at: string | null;
     created_at: string | null;
     url?: string | null;
+    thumbnail_url?: string | null;
+    preview_url?: string | null;
+    thumbnail_ready?: boolean;
+    preview_ready?: boolean;
 }
 
 export interface ApiOdontogramSummaryEntry {

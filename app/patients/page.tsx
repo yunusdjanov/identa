@@ -44,7 +44,6 @@ const PATIENT_CATEGORY_UI_LIMIT = 20;
 interface PatientRow {
     id: string;
     fullName: string;
-    photoUrl?: string;
     photoThumbnailUrl?: string;
     phone: string;
     secondaryPhone?: string;
@@ -55,11 +54,14 @@ interface PatientRow {
 }
 
 function mapPatientRow(patient: ApiPatient): PatientRow {
+    const photoThumbnailUrl = patient.photo_thumbnail_ready === false
+        ? (patient.photo_preview_ready ? patient.photo_preview_url ?? undefined : undefined)
+        : patient.photo_thumbnail_url ?? patient.photo_preview_url ?? undefined;
+
     return {
         id: patient.id,
         fullName: patient.full_name,
-        photoUrl: patient.photo_url ?? undefined,
-        photoThumbnailUrl: patient.photo_thumbnail_url ?? patient.photo_url ?? undefined,
+        photoThumbnailUrl,
         phone: extractPrimaryPhone(patient.phone),
         secondaryPhone: patient.secondary_phone ?? undefined,
         dateOfBirth: patient.date_of_birth ?? undefined,
@@ -472,12 +474,12 @@ export default function PatientsPage() {
                                                 {rowNumber}
                                             </TableCell>
                                             <TableCell>
-                                                {patient.photoUrl ? (
+                                                {patient.photoThumbnailUrl ? (
                                                     <Avatar className="h-9 w-9">
                                                         <AvatarImage
-                                                            src={patient.photoThumbnailUrl ?? patient.photoUrl}
+                                                            src={patient.photoThumbnailUrl}
                                                             alt={patient.fullName}
-                                                            crossOrigin={getProtectedMediaCrossOrigin(patient.photoThumbnailUrl ?? patient.photoUrl)}
+                                                            crossOrigin={getProtectedMediaCrossOrigin(patient.photoThumbnailUrl)}
                                                         />
                                                         <AvatarFallback className="bg-slate-100 text-slate-700 text-xs font-semibold">
                                                             {getPatientInitials(patient.fullName)}
