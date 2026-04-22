@@ -120,6 +120,11 @@
     @apply border-border outline-ring/50;
   }
 
+  :focus:not(:focus-visible) {
+    outline: none !important;
+    box-shadow: none !important;
+  }
+
   /* Hide browser scrollbar arrow buttons that can appear as floating up/down controls on some Windows setups. */
   *::-webkit-scrollbar-button {
     width: 0;
