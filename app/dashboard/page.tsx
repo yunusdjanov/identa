@@ -38,11 +38,10 @@ function toMinutesFromTime(timeInput: string): number {
 
 function DashboardLoadingSkeleton() {
     return (
-        <div className="space-y-6">
+        <div className="space-y-4">
             <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                 <div className="space-y-2">
-                    <Skeleton className="h-8 w-40" />
-                    <Skeleton className="h-4 w-72" />
+                    <Skeleton className="h-9 w-48" />
                 </div>
                 <div className="flex flex-wrap gap-2">
                     <Skeleton className="h-9 w-32" />
@@ -83,19 +82,6 @@ function DashboardLoadingSkeleton() {
                     ))}
                 </CardContent>
             </Card>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {Array.from({ length: 2 }).map((_, index) => (
-                    <Card key={index}>
-                        <CardHeader>
-                            <Skeleton className="h-6 w-40" />
-                        </CardHeader>
-                        <CardContent>
-                            <Skeleton className="h-4 w-full" />
-                        </CardContent>
-                    </Card>
-                ))}
-            </div>
         </div>
     );
 }
@@ -132,6 +118,10 @@ export default function DashboardPage() {
         queryKey: ['dashboard', 'snapshot', canViewFinance ? 'finance' : 'standard'],
         queryFn: () => getDashboardSnapshot({ includeFinancials: canViewFinance }),
         enabled: Boolean(currentUser),
+        staleTime: 30_000,
+        gcTime: 5 * 60_000,
+        refetchOnWindowFocus: false,
+        refetchOnReconnect: false,
     });
 
     if (currentUserQuery.isLoading) {

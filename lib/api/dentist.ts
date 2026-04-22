@@ -1,4 +1,3 @@
-import { endOfMonth, format, startOfMonth } from 'date-fns';
 import { apiClient, ensureCsrfCookie, invalidateCsrfCookie, withCsrfRetry } from '@/lib/api/client';
 import type {
     ApiAdminDentist,
@@ -1313,72 +1312,14 @@ interface DashboardSnapshotOptions {
     includeFinancials?: boolean;
 }
 
-function getDurationMinutes(startTime: string, endTime: string): number {
-    const [startHour, startMinute] = startTime.split(':').map(Number);
-    const [endHour, endMinute] = endTime.split(':').map(Number);
-
-    return Math.max(0, endHour * 60 + endMinute - (startHour * 60 + startMinute));
-}
-
 export async function getDashboardSnapshot(
     options: DashboardSnapshotOptions = {}
 ): Promise<DashboardSnapshot> {
-    const includeFinancials = options.includeFinancials ?? true;
-    const today = format(new Date(), 'yyyy-MM-dd');
-    const appointmentsResponse = await listAppointments({
-        page: 1,
-        perPage: 100,
-        sort: 'start_time',
-        filter: {
-            date_from: today,
-            date_to: today,
+    const { data } = await apiClient.get<ApiEnvelope<DashboardSnapshot>>('/dashboard/snapshot', {
+        params: {
+            include_financials: options.includeFinancials === false ? '0' : '1',
         },
     });
-    const appointments = appointmentsResponse.data;
 
-    const todayAppointments = appointments.map((appointment) => ({
-        id: appointment.id,
-        patientName: appointment.patient_name ?? 'Unknown patient',
-        appointmentDate: appointment.appointment_date,
-        startTime: appointment.start_time,
-        durationMinutes: getDurationMinutes(appointment.start_time, appointment.end_time),
-        status: appointment.status,
-        reason: appointment.notes ?? undefined,
-    }));
-
-    let revenueThisMonth = 0;
-    let outstandingDebtTotal = 0;
-
-    if (includeFinancials) {
-        const monthStart = format(startOfMonth(new Date()), 'yyyy-MM-dd');
-        const monthEnd = format(endOfMonth(new Date()), 'yyyy-MM-dd');
-        const [monthlyTreatments, allTreatments] = await Promise.all([
-            listAllTreatments({
-                filter: {
-                    date_from: monthStart,
-                    date_to: monthEnd,
-                },
-            }),
-            listAllTreatments(),
-        ]);
-
-        revenueThisMonth = Number(
-            monthlyTreatments.reduce(
-                (sum, treatment) => sum + Number(treatment.paid_amount ?? 0),
-                0
-            )
-        );
-        outstandingDebtTotal = Number(
-            allTreatments.reduce((sum, treatment) => {
-                const balance = Number(treatment.debt_amount ?? 0) - Number(treatment.paid_amount ?? 0);
-                return sum + Math.max(balance, 0);
-            }, 0)
-        );
-    }
-
-    return {
-        revenueThisMonth,
-        outstandingDebtTotal,
-        todayAppointments,
-    };
+    return data.data;
 }

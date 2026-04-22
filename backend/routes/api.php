@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\Admin\LandingSettingsController;
 use App\Http\Controllers\Api\AppointmentController;
 use App\Http\Controllers\Api\AuditLogController;
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\InvoiceController;
 use App\Http\Controllers\Api\LandingController;
 use App\Http\Controllers\Api\PatientController;
@@ -74,6 +75,8 @@ Route::prefix('v1')->group(function (): void {
         });
 
     Route::middleware(['auth:sanctum', 'role:dentist,assistant', 'subscription.access'])->group(function (): void {
+        Route::get('dashboard/snapshot', [DashboardController::class, 'show']);
+
         Route::get('patient-categories', [PatientCategoryController::class, 'index'])
             ->middleware('permission:'.User::PERMISSION_PATIENT_CATEGORIES_VIEW);
         Route::post('patient-categories', [PatientCategoryController::class, 'store'])
