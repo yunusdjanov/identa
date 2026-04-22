@@ -19,7 +19,7 @@ class PreparePatientPhotoUploadRequest extends FormRequest
         return [
             'filename' => ['required', 'string', 'max:255'],
             'content_type' => ['required', 'string', 'in:image/jpeg,image/jpg,image/png,image/webp'],
-            'file_size' => ['required', 'integer', 'min:1', 'max:2048'],
+            'file_size' => ['required', 'integer', 'min:1', 'max:1048576'],
         ];
     }
 }

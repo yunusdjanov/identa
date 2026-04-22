@@ -53,7 +53,7 @@ interface PatientFormState {
     currentMedications: string;
 }
 const NO_CATEGORY_VALUE = '__none__';
-const MAX_PATIENT_PHOTO_SIZE_MB = 2;
+const MAX_PATIENT_PHOTO_SIZE_MB = 1;
 const MAX_PATIENT_PHOTO_SIZE_BYTES = MAX_PATIENT_PHOTO_SIZE_MB * 1024 * 1024;
 
 function createInitialState(patient: ApiPatient): PatientFormState {

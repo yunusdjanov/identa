@@ -20,7 +20,7 @@ class UploadOdontogramEntryImageRequest extends FormRequest
         return [
             'stage' => ['required', Rule::in(['before', 'after'])],
             'captured_at' => ['nullable', 'date'],
-            'image' => ['required', 'file', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
+            'image' => ['required', 'file', 'image', 'mimes:jpg,jpeg,png,webp', 'max:1024'],
         ];
     }
 }

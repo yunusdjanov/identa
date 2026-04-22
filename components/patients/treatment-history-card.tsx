@@ -53,7 +53,7 @@ interface TreatmentFormState {
 }
 
 const MAX_HISTORY_IMAGES_PER_ENTRY = 10;
-const MAX_HISTORY_IMAGE_SIZE_BYTES = 2 * 1024 * 1024;
+const MAX_HISTORY_IMAGE_SIZE_BYTES = 1 * 1024 * 1024;
 const ALLOWED_HISTORY_IMAGE_TYPES = new Set([
     'image/jpeg',
     'image/jpg',

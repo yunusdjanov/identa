@@ -225,7 +225,7 @@ class PatientController extends Controller
         }
 
         $validated = $request->validate([
-            'photo' => ['required', 'file', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
+            'photo' => ['required', 'file', 'image', 'mimes:jpg,jpeg,png,webp', 'max:1024'],
         ]);
 
         /** @var UploadedFile $uploadedPhoto */
