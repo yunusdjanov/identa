@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Support\MediaPathCache;
 use App\Support\ImageVariantGenerator;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -70,6 +71,7 @@ class GenerateMediaVariants implements ShouldQueue
                 }
 
                 $storage->put($variantPath, $generatedVariant['contents']);
+                MediaPathCache::markPresent($disk, $variantPath);
             }
         } catch (\Throwable $exception) {
             Log::warning($this->logContext.' variant generation failed.', [

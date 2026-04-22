@@ -12,6 +12,7 @@ use App\Jobs\GenerateMediaVariants;
 use App\Models\Patient;
 use App\Models\Treatment;
 use App\Models\TreatmentImage;
+use App\Support\MediaPathCache;
 use App\Models\User;
 use App\Support\AuditLogger;
 use App\Support\ImageVariantGenerator;
@@ -502,6 +503,7 @@ class PatientTreatmentController extends Controller
             'file_size' => $storedSize,
         ]);
 
+        MediaPathCache::markPresent($disk, $path);
         $this->queueTreatmentImageVariants($disk, $path);
 
         $this->auditLogger->logFromRequest(
@@ -815,6 +817,7 @@ class PatientTreatmentController extends Controller
             ]);
         }
 
+        MediaPathCache::markPresent($disk, $path);
         $this->queueTreatmentImageVariants($disk, $path);
 
         return $path;
@@ -874,20 +877,51 @@ class PatientTreatmentController extends Controller
      */
     private function transformTreatmentImage(Treatment $treatment, TreatmentImage $image): array
     {
+        $disk = trim((string) $image->disk) !== '' ? trim((string) $image->disk) : $this->mediaDisk();
+        $originalPath = trim((string) $image->path);
+        $thumbnailPath = $this->buildTreatmentImageVariantPath($originalPath, self::IMAGE_VARIANT_THUMBNAIL);
+        $previewPath = $this->buildTreatmentImageVariantPath($originalPath, self::IMAGE_VARIANT_PREVIEW);
+
+        $thumbnailReady = $this->mediaPathExists($disk, $thumbnailPath);
+        $previewReady = $this->mediaPathExists($disk, $previewPath);
+
         return [
             'id' => (string) $image->id,
             'mime_type' => $image->mime_type,
             'file_size' => (int) $image->file_size,
             'created_at' => $image->created_at?->toIso8601String(),
             'url' => $this->buildTreatmentImageUrl($treatment, $image),
-            'thumbnail_url' => $this->buildTreatmentImageUrl($treatment, $image, self::IMAGE_VARIANT_THUMBNAIL),
-            'preview_url' => $this->buildTreatmentImageUrl($treatment, $image, self::IMAGE_VARIANT_PREVIEW),
+            'thumbnail_url' => $this->buildTreatmentImageUrl(
+                $treatment,
+                $image,
+                self::IMAGE_VARIANT_THUMBNAIL,
+                $thumbnailReady,
+                $previewReady
+            ),
+            'preview_url' => $this->buildTreatmentImageUrl(
+                $treatment,
+                $image,
+                self::IMAGE_VARIANT_PREVIEW,
+                $thumbnailReady,
+                $previewReady
+            ),
+            'thumbnail_ready' => $thumbnailReady,
+            'preview_ready' => $previewReady,
         ];
     }
 
-    private function buildTreatmentImageUrl(Treatment $treatment, TreatmentImage $image, ?string $variant = null): string
+    private function buildTreatmentImageUrl(
+        Treatment $treatment,
+        TreatmentImage $image,
+        ?string $variant = null,
+        ?bool $thumbnailReady = null,
+        ?bool $previewReady = null
+    ): ?string
     {
-        $url = url(sprintf(
+        $disk = trim((string) $image->disk) !== '' ? trim((string) $image->disk) : $this->mediaDisk();
+        $path = trim((string) $image->path);
+
+        $apiUrl = url(sprintf(
             '/api/v1/patients/%s/treatments/%s/images/%s',
             (string) $treatment->patient_id,
             (string) $treatment->id,
@@ -895,10 +929,71 @@ class PatientTreatmentController extends Controller
         ));
 
         if ($variant === null) {
-            return $url;
+            $temporaryUrl = $this->buildTemporaryMediaUrl(
+                $disk,
+                $path,
+                now()->addMinutes(10),
+                $image->mime_type
+            );
+
+            return $temporaryUrl ?? $apiUrl;
         }
 
-        return $url.'?variant='.$variant;
+        if ($variant === self::IMAGE_VARIANT_THUMBNAIL) {
+            $thumbnailReady ??= $this->mediaPathExists(
+                $disk,
+                $this->buildTreatmentImageVariantPath($path, self::IMAGE_VARIANT_THUMBNAIL)
+            );
+            $previewReady ??= $this->mediaPathExists(
+                $disk,
+                $this->buildTreatmentImageVariantPath($path, self::IMAGE_VARIANT_PREVIEW)
+            );
+
+            if ($thumbnailReady) {
+                return $this->buildTemporaryMediaUrl(
+                    $disk,
+                    $this->buildTreatmentImageVariantPath($path, self::IMAGE_VARIANT_THUMBNAIL),
+                    now()->addMinutes(10),
+                    $this->guessImageMimeType($this->buildTreatmentImageVariantPath($path, self::IMAGE_VARIANT_THUMBNAIL))
+                ) ?? ($apiUrl.'?variant='.self::IMAGE_VARIANT_THUMBNAIL);
+            }
+
+            if ($previewReady) {
+                return $this->buildTemporaryMediaUrl(
+                    $disk,
+                    $this->buildTreatmentImageVariantPath($path, self::IMAGE_VARIANT_PREVIEW),
+                    now()->addMinutes(10),
+                    $this->guessImageMimeType($this->buildTreatmentImageVariantPath($path, self::IMAGE_VARIANT_PREVIEW))
+                ) ?? ($apiUrl.'?variant='.self::IMAGE_VARIANT_PREVIEW);
+            }
+
+            return null;
+        }
+
+        if ($variant === self::IMAGE_VARIANT_PREVIEW) {
+            $previewReady ??= $this->mediaPathExists(
+                $disk,
+                $this->buildTreatmentImageVariantPath($path, self::IMAGE_VARIANT_PREVIEW)
+            );
+
+            if ($previewReady) {
+                return $this->buildTemporaryMediaUrl(
+                    $disk,
+                    $this->buildTreatmentImageVariantPath($path, self::IMAGE_VARIANT_PREVIEW),
+                    now()->addMinutes(10),
+                    $this->guessImageMimeType($this->buildTreatmentImageVariantPath($path, self::IMAGE_VARIANT_PREVIEW))
+                ) ?? ($apiUrl.'?variant='.self::IMAGE_VARIANT_PREVIEW);
+            }
+
+            return $this->buildTemporaryMediaUrl(
+                $disk,
+                $path,
+                now()->addMinutes(10),
+                $image->mime_type
+            ) ?? $apiUrl;
+        }
+
+        return $apiUrl.'?variant='.$variant;
     }
 
     private function resolveTreatmentImagePath(string $path, ?string $variant): string
@@ -942,6 +1037,10 @@ class PatientTreatmentController extends Controller
 
     private function queueTreatmentImageVariants(string $disk, string $path): void
     {
+        foreach ($this->buildTreatmentImageVariantDefinitions($path) as $variantConfig) {
+            MediaPathCache::markMissing($disk, (string) $variantConfig['path']);
+        }
+
         GenerateMediaVariants::dispatch(
             disk: $disk,
             sourcePath: $path,
@@ -1072,6 +1171,46 @@ class PatientTreatmentController extends Controller
         return (string) config("filesystems.disks.{$disk}.driver") === 's3';
     }
 
+    private function mediaPathExists(string $disk, string $path): bool
+    {
+        $cached = MediaPathCache::get($disk, $path);
+        if ($cached !== null) {
+            return $cached;
+        }
+
+        $exists = Storage::disk($disk)->exists($path);
+        if ($exists) {
+            MediaPathCache::markPresent($disk, $path);
+        } else {
+            MediaPathCache::markMissing($disk, $path);
+        }
+
+        return $exists;
+    }
+
+    private function buildTemporaryMediaUrl(
+        string $disk,
+        string $path,
+        \DateTimeInterface $expiresAt,
+        ?string $fallbackMimeType = null
+    ): ?string {
+        if ($disk === '' || $path === '' || ! $this->mediaDiskSupportsDirectUpload($disk)) {
+            return null;
+        }
+
+        try {
+            return Storage::disk($disk)->temporaryUrl(
+                $path,
+                $expiresAt,
+                [
+                    'ResponseContentType' => $this->guessImageMimeType($path, $fallbackMimeType),
+                ]
+            );
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
     private function directUploadCacheKey(string $uploadId): string
     {
         return "treatment-image-upload:{$uploadId}";
@@ -1139,6 +1278,7 @@ class PatientTreatmentController extends Controller
 
         try {
             Storage::disk($disk)->delete($path);
+            MediaPathCache::forgetPaths($disk, [$path]);
         } catch (\Throwable $exception) {
             Log::warning('Direct upload cleanup failed.', [
                 'exception' => $exception::class,

@@ -61,6 +61,8 @@ const ALLOWED_HISTORY_IMAGE_TYPES = new Set([
     'image/webp',
 ]);
 const HISTORY_IMAGE_UPLOAD_CONCURRENCY = 3;
+const MEDIA_READINESS_POLL_INTERVAL_MS = 1200;
+const MEDIA_READINESS_TIMEOUT_MS = 20000;
 
 const createEmptyFormState = (): TreatmentFormState => ({
     treatmentDate: toLocalDateKey(),
@@ -102,11 +104,25 @@ function getVisibleTreatmentImages(treatment: ApiTreatment, removeImageIds: stri
 }
 
 function getTreatmentImageThumbnailUrl(image: ApiTreatmentImage) {
+    if (image.thumbnail_ready === false) {
+        if (image.preview_ready === true) {
+            return image.preview_url ?? image.url;
+        }
+
+        return null;
+    }
+
     return image.thumbnail_url ?? image.preview_url ?? image.url;
 }
 
 function getTreatmentImagePreviewUrl(image: ApiTreatmentImage) {
     return image.preview_url ?? image.url;
+}
+
+function delay(ms: number) {
+    return new Promise((resolve) => {
+        window.setTimeout(resolve, ms);
+    });
 }
 
 function getTreatmentImageCount(treatment: ApiTreatment) {
@@ -177,7 +193,7 @@ function HistoryImageTile({
     restoreLabel,
     isNew = false,
 }: {
-    src: string;
+    src?: string | null;
     alt: string;
     markedForRemoval?: boolean;
     onPreview: () => void;
@@ -202,16 +218,22 @@ function HistoryImageTile({
                 onClick={onPreview}
                 aria-label={alt}
             >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                    src={src}
-                    alt={alt}
-                    crossOrigin={getProtectedMediaCrossOrigin(src)}
-                    className={`h-full w-full object-cover transition-transform group-hover:scale-[1.03] ${
-                        markedForRemoval ? 'grayscale' : ''
-                    }`}
-                    loading="lazy"
-                />
+                {src ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                        src={src}
+                        alt={alt}
+                        crossOrigin={getProtectedMediaCrossOrigin(src)}
+                        className={`h-full w-full object-cover transition-transform group-hover:scale-[1.03] ${
+                            markedForRemoval ? 'grayscale' : ''
+                        }`}
+                        loading="lazy"
+                    />
+                ) : (
+                    <span className="inline-flex h-full w-full items-center justify-center bg-slate-50 text-slate-400">
+                        <Loader2 className="h-4 w-4 animate-spin opacity-70" />
+                    </span>
+                )}
             </button>
             <button
                 type="button"
@@ -303,6 +325,31 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
         });
     };
 
+    const waitForTreatmentMediaReady = async (treatmentId: string, expectedImageCount: number) => {
+        const deadline = Date.now() + MEDIA_READINESS_TIMEOUT_MS;
+
+        while (Date.now() < deadline) {
+            const detail = await queryClient.fetchQuery({
+                queryKey: ['patients', 'detail', patientId, 'treatments', treatmentId],
+                queryFn: () => getPatientTreatment(patientId, treatmentId),
+                staleTime: 0,
+                gcTime: 300_000,
+            });
+
+            const images = detail.images ?? [];
+            const hasExpectedImages = images.length >= expectedImageCount;
+            const variantsReady = images.every(
+                (image) => (image.preview_ready ?? true) && (image.thumbnail_ready ?? true)
+            );
+
+            if (hasExpectedImages && variantsReady) {
+                return;
+            }
+
+            await delay(MEDIA_READINESS_POLL_INTERVAL_MS);
+        }
+    };
+
     useEffect(() => {
         const candidates = treatments
             .filter((treatment) => getTreatmentImageCount(treatment) > 0 && (treatment.images?.length ?? 0) === 0)
@@ -362,6 +409,11 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
             if (removeImageIds.length > 0 || imageFiles.length > 0) {
                 void (async () => {
                     try {
+                        const expectedImageCount = Math.max(
+                            0,
+                            getTreatmentImageCount(treatment) - removeImageIds.length + imageFiles.length
+                        );
+
                         if (removeImageIds.length > 0) {
                             await Promise.all(
                                 removeImageIds.map((imageId) =>
@@ -376,6 +428,8 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                 (imageFile) => uploadPatientTreatmentImage(patientId, treatment.id, imageFile)
                             );
                         }
+
+                        await waitForTreatmentMediaReady(treatment.id, expectedImageCount);
                     } catch (error) {
                         toast.error(getApiErrorMessage(error, t('patientHistory.toast.imagesSyncFailed')));
                     } finally {
@@ -606,7 +660,7 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
             setPreviewGallery({
                 images: knownImages.map((image, index) => ({
                     src: getTreatmentImagePreviewUrl(image),
-                    thumbnailSrc: getTreatmentImageThumbnailUrl(image),
+                    thumbnailSrc: getTreatmentImageThumbnailUrl(image) ?? undefined,
                     alt: `${patientName} ${t('patientHistory.image')} ${index + 1}`,
                     title: `${t('patientHistory.image')} ${index + 1} - ${formatDate(fallbackDate)}`,
                 })),
@@ -617,7 +671,7 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
             setPreviewGallery({
                 images: [{
                     src: getTreatmentImagePreviewUrl(primaryImage),
-                    thumbnailSrc: getTreatmentImageThumbnailUrl(primaryImage),
+                    thumbnailSrc: getTreatmentImageThumbnailUrl(primaryImage) ?? undefined,
                     alt: `${patientName} ${t('patientHistory.image')} 1`,
                     title: `${t('patientHistory.image')} 1 - ${formatDate(fallbackDate)}`,
                 }],
@@ -645,7 +699,7 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
             setPreviewGallery({
                 images: images.map((image, index) => ({
                     src: getTreatmentImagePreviewUrl(image),
-                    thumbnailSrc: getTreatmentImageThumbnailUrl(image),
+                    thumbnailSrc: getTreatmentImageThumbnailUrl(image) ?? undefined,
                     alt: `${patientName} ${t('patientHistory.image')} ${index + 1}`,
                     title: `${t('patientHistory.image')} ${index + 1} - ${formatDate(treatmentDate)}`,
                 })),
@@ -832,9 +886,11 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
 
                                                 if (isMediaSyncing) {
                                                     return (
-                                                        <span className="inline-flex h-8 min-w-[120px] items-center justify-center gap-2 rounded-md border border-blue-200 bg-blue-50 px-2 text-xs font-medium text-blue-700">
+                                                        <span
+                                                            className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-blue-200 bg-blue-50 text-blue-700"
+                                                            title={t('patientHistory.imagesUploading')}
+                                                        >
                                                             <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                                            {t('patientHistory.imagesUploading')}
                                                         </span>
                                                     );
                                                 }
@@ -859,14 +915,18 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                                         aria-label={`${t('patientHistory.images')} (${treatmentImageCount})`}
                                                     >
                                                         <span className="inline-flex h-5 w-5 items-center justify-center overflow-hidden rounded-[6px] border border-gray-200 bg-gray-100">
-                                                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                                                            <img
-                                                                src={getTreatmentImageThumbnailUrl(primaryImage)}
-                                                                alt={`${patientName} ${t('patientHistory.image')} 1`}
-                                                                crossOrigin={getProtectedMediaCrossOrigin(getTreatmentImageThumbnailUrl(primaryImage))}
-                                                                className="h-full w-full object-cover"
-                                                                loading="lazy"
-                                                            />
+                                                            {getTreatmentImageThumbnailUrl(primaryImage) ? (
+                                                                // eslint-disable-next-line @next/next/no-img-element
+                                                                <img
+                                                                    src={getTreatmentImageThumbnailUrl(primaryImage) ?? ''}
+                                                                    alt={`${patientName} ${t('patientHistory.image')} 1`}
+                                                                    crossOrigin={getProtectedMediaCrossOrigin(getTreatmentImageThumbnailUrl(primaryImage) ?? '')}
+                                                                    className="h-full w-full object-cover"
+                                                                    loading="lazy"
+                                                                />
+                                                            ) : (
+                                                                <Loader2 className="h-3 w-3 animate-spin text-slate-400" />
+                                                            )}
                                                         </span>
                                                         <span className="inline-flex h-5 min-w-6 items-center justify-center rounded-[6px] bg-blue-100 px-1.5 text-[11px] font-semibold text-blue-700">
                                                             +{treatmentImageCount}
@@ -1052,7 +1112,7 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                                         setPreviewGallery({
                                                             images: existingImages.map((existingImage, imageIndex) => ({
                                                                 src: getTreatmentImagePreviewUrl(existingImage),
-                                                                thumbnailSrc: getTreatmentImageThumbnailUrl(existingImage),
+                                                                thumbnailSrc: getTreatmentImageThumbnailUrl(existingImage) ?? undefined,
                                                                 alt: `${patientName} ${t('patientHistory.image')} ${imageIndex + 1}`,
                                                                 title: `${t('patientHistory.image')} ${imageIndex + 1} - ${formatDate(formState.treatmentDate)}`,
                                                             })),

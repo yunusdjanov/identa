@@ -160,6 +160,8 @@ export interface ApiTreatmentImage {
     url: string;
     thumbnail_url?: string | null;
     preview_url?: string | null;
+    thumbnail_ready?: boolean;
+    preview_ready?: boolean;
 }
 
 export interface ApiInvoiceItem {

@@ -9,7 +9,7 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog';
 import { getProtectedMediaCrossOrigin } from '@/lib/protected-media';
-import { ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Loader2, X } from 'lucide-react';
 
 export interface PreviewGalleryImage {
     src: string;
@@ -163,15 +163,21 @@ export function PatientPhotoPreviewDialog({
                                                 onClick={() => updateCurrentIndex(index)}
                                                 title={image.title ?? `${title} ${index + 1}`}
                                             >
-                                                {/* eslint-disable-next-line @next/next/no-img-element */}
-                                                <img
-                                                    src={image.thumbnailSrc ?? image.src}
-                                                    alt={image.alt}
-                                                    crossOrigin={getProtectedMediaCrossOrigin(image.thumbnailSrc ?? image.src)}
-                                                    className="h-full w-full object-cover"
-                                                    loading="lazy"
-                                                    decoding="async"
-                                                />
+                                                {image.thumbnailSrc ? (
+                                                    // eslint-disable-next-line @next/next/no-img-element
+                                                    <img
+                                                        src={image.thumbnailSrc}
+                                                        alt={image.alt}
+                                                        crossOrigin={getProtectedMediaCrossOrigin(image.thumbnailSrc)}
+                                                        className="h-full w-full object-cover"
+                                                        loading="lazy"
+                                                        decoding="async"
+                                                    />
+                                                ) : (
+                                                    <span className="inline-flex h-full w-full items-center justify-center bg-slate-50 text-slate-400">
+                                                        <Loader2 className="h-3.5 w-3.5 animate-spin opacity-60" />
+                                                    </span>
+                                                )}
                                             </button>
                                         ))}
                                     </div>

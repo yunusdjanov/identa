@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Support\MediaPathCache;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -46,6 +47,7 @@ class DeleteStoredMediaPaths implements ShouldQueue
 
         try {
             Storage::disk($disk)->delete($paths);
+            MediaPathCache::forgetPaths($disk, $paths);
         } catch (\Throwable $exception) {
             Log::warning($this->logContext.' deletion failed.', [
                 'exception' => $exception::class,
