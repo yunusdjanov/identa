@@ -770,7 +770,7 @@ export default async function LandingPage() {
                             href="/"
                             variant="text"
                             priority
-                            textClassName="w-28 sm:w-32"
+                            textClassName="w-32 sm:w-36"
                         />
 
                         <nav className="hidden items-center gap-6 lg:flex">
@@ -1079,7 +1079,7 @@ export default async function LandingPage() {
                     <Card className="overflow-hidden rounded-[30px] border border-blue-100 bg-[linear-gradient(135deg,#f7fbff_0%,#eef5ff_52%,#e4efff_100%)] text-slate-950 shadow-[0_30px_90px_-50px_rgba(59,130,246,0.28)]">
                         <CardContent className="flex flex-col gap-8 p-8 sm:p-10 lg:flex-row lg:items-center lg:justify-between">
                             <div className="max-w-2xl">
-                                <Brand variant="text" textClassName="w-24 sm:w-28" />
+                                <Brand variant="text" textClassName="w-28 sm:w-32" />
                                 <h2 className="mt-4 text-3xl font-semibold tracking-tight sm:text-4xl">
                                     {content.finalCta.title}
                                 </h2>
@@ -1116,7 +1116,7 @@ export default async function LandingPage() {
             <footer className="border-t border-slate-200 bg-white/80">
                 <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-3 text-xs text-slate-500 sm:px-6 lg:px-8">
                     <div className="flex min-w-0 items-center gap-2">
-                        <Brand href="/" variant="text" textClassName="w-20 sm:w-24" />
+                        <Brand href="/" variant="text" textClassName="w-24 sm:w-28" />
                         <span className="hidden text-slate-300 sm:inline">•</span>
                         <span className="truncate">{content.footer.tagline}</span>
                     </div>

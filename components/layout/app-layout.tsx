@@ -215,7 +215,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                                     <Brand
                                         href="/dashboard"
                                         variant="text"
-                                        textClassName="w-24 sm:w-28"
+                                        textClassName="w-28 sm:w-32"
                                     />
                                 </div>
 

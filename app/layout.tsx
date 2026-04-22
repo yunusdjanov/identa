@@ -73,9 +73,9 @@ export const metadata: Metadata = {
     email: false,
   },
   icons: {
-    icon: "/brand/identa-icon-only.png",
-    shortcut: "/brand/identa-icon-only.png",
-    apple: "/brand/identa-icon-only.png",
+    icon: "/icon.png",
+    shortcut: "/icon.png",
+    apple: "/icon.png",
   },
   category: "healthcare",
 };
