@@ -159,15 +159,15 @@ class PatientTreatmentController extends Controller
         $query->withCount('images');
         if ($includeImages) {
             $query->with('images');
-        } else {
-            $query->with('primaryImage');
         }
 
         $this->applySort($query, $request->query('sort', '-treatment_date,-created_at'));
         $treatments = $query->paginate($perPage);
-        $summary = (clone $summaryQuery)
-            ->selectRaw('COALESCE(SUM(debt_amount), 0) AS total_debt, COALESCE(SUM(paid_amount), 0) AS total_paid')
-            ->first();
+        $summary = $this->shouldIncludeSummary($request)
+            ? (clone $summaryQuery)
+                ->selectRaw('COALESCE(SUM(debt_amount), 0) AS total_debt, COALESCE(SUM(paid_amount), 0) AS total_paid')
+                ->first()
+            : null;
         $totalCount = $treatments->total();
         $totalDebt = (float) ($summary?->getAttribute('total_debt') ?? 0);
         $totalPaid = (float) ($summary?->getAttribute('total_paid') ?? 0);
@@ -175,7 +175,11 @@ class PatientTreatmentController extends Controller
         return response()->json([
             'data' => $treatments
                 ->getCollection()
-                ->map(fn (Treatment $treatment): array => $this->transformTreatment($treatment, $includeImages))
+                ->map(fn (Treatment $treatment): array => $this->transformTreatment(
+                    $treatment,
+                    $includeImages,
+                    $includeImages
+                ))
                 ->values()
                 ->all(),
             'meta' => [
@@ -185,12 +189,12 @@ class PatientTreatmentController extends Controller
                     'total' => $treatments->total(),
                     'total_pages' => $treatments->lastPage(),
                 ],
-                'summary' => [
+                'summary' => $summary !== null ? [
                     'total_count' => $totalCount,
                     'total_debt' => $totalDebt,
                     'total_paid' => $totalPaid,
                     'total_balance' => $totalDebt - $totalPaid,
-                ],
+                ] : null,
             ],
         ]);
     }
@@ -717,7 +721,11 @@ class PatientTreatmentController extends Controller
     /**
      * @return array<string, mixed>
      */
-    private function transformTreatment(Treatment $treatment, bool $includeImages = true): array
+    private function transformTreatment(
+        Treatment $treatment,
+        bool $includeImages = true,
+        bool $includePrimaryImage = true
+    ): array
     {
         $teeth = array_values(array_map(
             static fn (mixed $tooth): int => (int) $tooth,
@@ -728,14 +736,14 @@ class PatientTreatmentController extends Controller
 
         if ($includeImages) {
             $treatment->loadMissing('images');
-        } else {
+        } elseif ($includePrimaryImage) {
             $treatment->loadMissing('primaryImage');
         }
 
         $imageCount = (int) ($treatment->images_count ?? ($includeImages ? $treatment->images->count() : 0));
         $primaryImage = $includeImages
             ? $treatment->images->first()
-            : ($treatment->relationLoaded('primaryImage') ? $treatment->primaryImage : null);
+            : ($includePrimaryImage && $treatment->relationLoaded('primaryImage') ? $treatment->primaryImage : null);
 
         return [
             'id' => (string) $treatment->id,
@@ -1222,6 +1230,25 @@ class PatientTreatmentController extends Controller
         }
 
         return true;
+    }
+
+    private function shouldIncludeSummary(Request $request): bool
+    {
+        $includeSummary = $request->query('include_summary');
+
+        if (is_string($includeSummary)) {
+            return in_array(strtolower($includeSummary), ['1', 'true', 'yes', 'on'], true);
+        }
+
+        if (is_bool($includeSummary)) {
+            return $includeSummary;
+        }
+
+        if (is_numeric($includeSummary)) {
+            return (int) $includeSummary !== 0;
+        }
+
+        return false;
     }
 
     private function imageCacheControlHeader(): string
