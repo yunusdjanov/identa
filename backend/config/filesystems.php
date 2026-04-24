@@ -30,6 +30,19 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Direct Upload Finalization
+    |--------------------------------------------------------------------------
+    |
+    | Browser direct uploads already receive a successful response from the
+    | storage provider before finalization is called. Keeping this disabled in
+    | production avoids extra R2 HEAD requests on every saved clinical image.
+    |
+    */
+
+    'verify_direct_uploads_on_finalize' => env('MEDIA_VERIFY_DIRECT_UPLOADS_ON_FINALIZE', false),
+
+    /*
+    |--------------------------------------------------------------------------
     | Filesystem Disks
     |--------------------------------------------------------------------------
     |

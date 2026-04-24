@@ -908,7 +908,7 @@ class PatientTreatmentController extends Controller
                 disk: $disk,
                 paths: $this->buildTreatmentImageDeletePaths($path),
                 logContext: 'Treatment image'
-            );
+            )->afterResponse();
         }
     }
 
@@ -940,7 +940,7 @@ class PatientTreatmentController extends Controller
                 disk: $disk,
                 paths: array_values(array_unique($paths)),
                 logContext: 'Treatment image batch'
-            );
+            )->afterResponse();
         }
 
         TreatmentImage::query()
@@ -1124,7 +1124,7 @@ class PatientTreatmentController extends Controller
             logContext: 'Treatment image',
             jpegQuality: self::JPEG_VARIANT_QUALITY,
             webpQuality: self::WEBP_VARIANT_QUALITY,
-        );
+        )->afterResponse();
     }
 
     private function streamTreatmentImageVariant(string $disk, string $path, string $variant): ?StreamedResponse

@@ -145,12 +145,12 @@ class TreatmentImageDirectUploadService
                 continue;
             }
 
-            if ($disk === '' || $path === '' || ! Storage::disk($disk)->exists($path)) {
+            if ($disk === '' || $path === '') {
                 $failed[] = ['upload_id' => $uploadId, 'reason' => 'missing'];
                 continue;
             }
 
-            $storedSize = (int) Storage::disk($disk)->size($path);
+            $storedSize = $this->resolveUploadedObjectSize($disk, $path, (int) ($ticket['file_size'] ?? 0));
             if ($storedSize <= 0) {
                 $this->deleteDirectUploadObject($disk, $path);
                 $failed[] = ['upload_id' => $uploadId, 'reason' => 'missing'];
@@ -189,7 +189,7 @@ class TreatmentImageDirectUploadService
             logContext: 'Treatment image',
             jpegQuality: self::JPEG_VARIANT_QUALITY,
             webpQuality: self::WEBP_VARIANT_QUALITY,
-        );
+        )->afterResponse();
     }
 
     /**
@@ -214,7 +214,7 @@ class TreatmentImageDirectUploadService
             disk: $disk,
             paths: array_values(array_unique($paths)),
             logContext: $logContext
-        );
+        )->afterResponse();
     }
 
     private function mediaDisk(): string
@@ -310,6 +310,19 @@ class TreatmentImageDirectUploadService
         }
 
         return $normalized;
+    }
+
+    private function resolveUploadedObjectSize(string $disk, string $path, int $expectedSize): int
+    {
+        if (! (bool) config('filesystems.verify_direct_uploads_on_finalize', false)) {
+            return $expectedSize;
+        }
+
+        try {
+            return (int) Storage::disk($disk)->size($path);
+        } catch (\Throwable) {
+            return 0;
+        }
     }
 
     private function deleteDirectUploadObject(string $disk, string $path): void
