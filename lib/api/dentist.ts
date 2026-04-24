@@ -1436,6 +1436,7 @@ export interface DashboardSnapshot {
 
 interface DashboardSnapshotOptions {
     includeFinancials?: boolean;
+    date?: string;
 }
 
 export async function getDashboardSnapshot(
@@ -1444,6 +1445,7 @@ export async function getDashboardSnapshot(
     const { data } = await apiClient.get<ApiEnvelope<DashboardSnapshot>>('/dashboard/snapshot', {
         params: {
             include_financials: options.includeFinancials === false ? '0' : '1',
+            date: options.date,
         },
     });
 

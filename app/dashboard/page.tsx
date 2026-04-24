@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { getCurrentUser, getDashboardSnapshot } from '@/lib/api/dentist';
 import { getApiErrorMessage } from '@/lib/api/client';
-import { formatCurrency, formatTime, truncateForUi } from '@/lib/utils';
+import { formatCurrency, formatTime, toLocalDateKey, truncateForUi } from '@/lib/utils';
 import { formatLocalizedDate } from '@/lib/i18n/date';
 import { AlertCircle, ArrowRight, Calendar, CheckCircle2, Clock3, DollarSign, Plus } from 'lucide-react';
 import Link from 'next/link';
@@ -173,6 +173,7 @@ export default function DashboardPage() {
     const monthLabel = isClient
         ? formatLocalizedDate(new Date(), locale, { month: 'long', year: 'numeric' })
         : t('dashboard.currentMonth');
+    const todayDateKey = isClient ? toLocalDateKey(new Date()) : '';
     const currentUserQuery = useQuery({
         queryKey: ['auth', 'me'],
         queryFn: getCurrentUser,
@@ -192,16 +193,16 @@ export default function DashboardPage() {
     );
 
     const dashboardQuery = useQuery({
-        queryKey: ['dashboard', 'snapshot', canViewFinance ? 'finance' : 'standard'],
-        queryFn: () => getDashboardSnapshot({ includeFinancials: canViewFinance }),
-        enabled: Boolean(currentUser),
+        queryKey: ['dashboard', 'snapshot', canViewFinance ? 'finance' : 'standard', todayDateKey],
+        queryFn: () => getDashboardSnapshot({ includeFinancials: canViewFinance, date: todayDateKey }),
+        enabled: Boolean(currentUser && todayDateKey),
         staleTime: 30_000,
         gcTime: 5 * 60_000,
         refetchOnWindowFocus: false,
         refetchOnReconnect: false,
     });
 
-    if (currentUserQuery.isLoading) {
+    if (!isClient || currentUserQuery.isLoading) {
         return <DashboardLoadingSkeleton />;
     }
 
@@ -252,7 +253,7 @@ export default function DashboardPage() {
             return appointmentMinutes < nowMinutes + 120;
         })
         .length;
-    const pendingTodayCount = upcomingTodayAppointments.length;
+    const pendingTodayCount = scheduledTodayAppointments.length;
     const noShowTodayCount = allTodayAppointments.filter((appointment) => appointment.status === 'no_show').length;
     const cancelledTodayCount = allTodayAppointments.filter((appointment) => appointment.status === 'cancelled').length;
     const visibleUpcomingAppointments = upcomingTodayAppointments.slice(0, 3);
@@ -456,7 +457,7 @@ export default function DashboardPage() {
                                 <div>
                                     <p className="text-sm font-bold text-slate-950">{t('dashboard.todayAppointments')}</p>
                                     <p className="mt-1 text-sm text-slate-500">
-                                        {pendingTodayCount} {t('dashboard.scheduled')}
+                                        {scheduledTodayAppointments.length} {t('dashboard.scheduled')}
                                     </p>
                                 </div>
                                 <Link href={showAllTodayHref}>

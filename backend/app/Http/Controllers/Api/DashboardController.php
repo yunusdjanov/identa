@@ -22,16 +22,21 @@ class DashboardController extends Controller
         abort_unless($tenantDentistId !== null, 403);
 
         $includeFinancials = $user->isDentist();
+        $validated = $request->validate([
+            'date' => ['nullable', 'date_format:Y-m-d'],
+        ]);
+        $targetDate = (string) ($validated['date'] ?? today()->toDateString());
         $cacheKey = sprintf(
-            'dashboard:snapshot:%s:%s',
+            'dashboard:snapshot:%s:%s:%s',
             $tenantDentistId,
+            $targetDate,
             $includeFinancials ? 'finance' : 'standard'
         );
 
-        $data = Cache::remember($cacheKey, now()->addSeconds(30), function () use ($tenantDentistId, $includeFinancials): array {
+        $data = Cache::remember($cacheKey, now()->addSeconds(30), function () use ($tenantDentistId, $includeFinancials, $targetDate): array {
             $todayAppointments = Appointment::query()
                 ->where('dentist_id', $tenantDentistId)
-                ->whereDate('appointment_date', today())
+                ->whereDate('appointment_date', $targetDate)
                 ->with(['patient:id,full_name'])
                 ->orderBy('start_time')
                 ->get([
