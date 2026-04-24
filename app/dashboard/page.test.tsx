@@ -50,7 +50,7 @@ describe('DashboardPage', () => {
         cleanup();
     });
 
-    it('shows only 3 upcoming appointments and keeps show-all action', async () => {
+    it('shows only 4 upcoming appointments and keeps show-all action', async () => {
         vi.mocked(getDashboardSnapshot).mockResolvedValue({
             revenueThisMonth: 1000000,
             outstandingDebtTotal: 500000,
@@ -63,15 +63,6 @@ describe('DashboardPage', () => {
                     durationMinutes: 30,
                     status: 'scheduled',
                     reason: 'Checkup',
-                },
-                {
-                    id: 'a-2',
-                    patientName: 'Early Two',
-                    appointmentDate: '2026-03-01',
-                    startTime: timeOffsetFromNow(-10),
-                    durationMinutes: 30,
-                    status: 'scheduled',
-                    reason: 'Consult',
                 },
                 {
                     id: 'a-3',
@@ -100,6 +91,15 @@ describe('DashboardPage', () => {
                     status: 'scheduled',
                     reason: 'Review',
                 },
+                {
+                    id: 'a-6',
+                    patientName: 'Upcoming Four',
+                    appointmentDate: '2026-03-01',
+                    startTime: timeOffsetFromNow(40),
+                    durationMinutes: 30,
+                    status: 'scheduled',
+                    reason: 'Follow up',
+                },
             ],
         });
 
@@ -109,11 +109,11 @@ describe('DashboardPage', () => {
             expect(screen.getByText('Upcoming One')).toBeInTheDocument();
             expect(screen.getByText('Upcoming Two')).toBeInTheDocument();
             expect(screen.getByText('Upcoming Three')).toBeInTheDocument();
+            expect(screen.getByText('Upcoming Four')).toBeInTheDocument();
         });
 
         expect(screen.queryByText('Early One')).not.toBeInTheDocument();
         expect(screen.queryByText('Early Two')).not.toBeInTheDocument();
-
         const showAllLink = screen.getByRole('link', { name: /(Show all today|Показать все на сегодня) \(5\)/i });
         expect(showAllLink).toHaveAttribute('href', '/appointments');
     });

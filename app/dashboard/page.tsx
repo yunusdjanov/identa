@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { getCurrentUser, getDashboardSnapshot } from '@/lib/api/dentist';
 import { getApiErrorMessage } from '@/lib/api/client';
-import { formatCurrency, formatTime, toLocalDateKey, truncateForUi } from '@/lib/utils';
+import { formatCurrency, toLocalDateKey, truncateForUi } from '@/lib/utils';
 import { formatLocalizedDate } from '@/lib/i18n/date';
 import { AlertCircle, ArrowRight, Calendar, CheckCircle2, Clock3, DollarSign, Plus } from 'lucide-react';
 import Link from 'next/link';
@@ -69,6 +69,10 @@ function getStatusTone(status: string): { dot: string; text: string } {
 function toMinutesFromTime(timeInput: string): number {
     const [hours, minutes] = timeInput.split(':').map(Number);
     return hours * 60 + minutes;
+}
+
+function formatAppointmentHourMinute(timeInput: string): string {
+    return timeInput.slice(0, 5);
 }
 
 function DashboardLoadingSkeleton() {
@@ -256,7 +260,7 @@ export default function DashboardPage() {
     const pendingTodayCount = scheduledTodayAppointments.length;
     const noShowTodayCount = allTodayAppointments.filter((appointment) => appointment.status === 'no_show').length;
     const cancelledTodayCount = allTodayAppointments.filter((appointment) => appointment.status === 'cancelled').length;
-    const visibleUpcomingAppointments = upcomingTodayAppointments.slice(0, 3);
+    const visibleUpcomingAppointments = upcomingTodayAppointments.slice(0, 4);
     const showAllTodayHref = '/appointments';
     const viewAllDebtsLabel = t('dashboard.viewAllDebts')
         .replace(' ->', '')
@@ -269,15 +273,21 @@ export default function DashboardPage() {
 
     return (
         <div className="space-y-4">
-            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div className="flex flex-col gap-4 rounded-3xl border border-white/70 bg-gradient-to-br from-white via-blue-50/35 to-white p-4 shadow-sm md:flex-row md:items-center md:justify-between md:p-5">
                 <div>
-                    <h1 className="text-[2rem] font-bold leading-tight text-gray-900 md:text-3xl">{t('dashboard.title')}</h1>
+                    <p className="text-xs font-bold uppercase tracking-[0.2em] text-blue-600">
+                        Identa
+                    </p>
+                    <h1 className="mt-1 text-[2rem] font-bold leading-tight text-slate-950 md:text-3xl">{t('dashboard.title')}</h1>
+                    <p className="mt-1 text-sm text-slate-500">
+                        {monthLabel}
+                    </p>
                 </div>
                 {(canCreatePatients || canManageAppointments) ? (
-                    <div className="flex flex-wrap gap-2">
+                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 md:flex md:flex-wrap md:justify-end">
                         {canCreatePatients ? (
                             <Link href="/patients?action=new">
-                                <Button size="sm">
+                                <Button size="sm" className="h-10 w-full rounded-full px-4 shadow-sm md:w-auto">
                                     <Plus className="w-4 h-4 mr-2" />
                                     {t('dashboard.addPatient')}
                                 </Button>
@@ -285,7 +295,7 @@ export default function DashboardPage() {
                         ) : null}
                         {canManageAppointments ? (
                             <Link href="/appointments?action=new">
-                                <Button variant="outline" size="sm">
+                                <Button variant="outline" size="sm" className="h-10 w-full rounded-full border-blue-100 bg-white px-4 shadow-sm hover:bg-blue-50 md:w-auto">
                                     <Calendar className="w-4 h-4 mr-2" />
                                     {t('dashboard.newAppointment')}
                                 </Button>
@@ -413,8 +423,8 @@ export default function DashboardPage() {
                             </Link>
                         </div>
                     ) : (
-                        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_260px]">
-                            <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
+                        <div className="space-y-4">
+                            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
                                 {visibleUpcomingAppointments.map((appointment) => {
                                     const translatedStatus = t(`status.${appointment.status}`);
                                     const statusLabel = translatedStatus.startsWith('status.')
@@ -428,11 +438,11 @@ export default function DashboardPage() {
                                             className="group rounded-2xl border border-white/80 bg-white/90 p-3 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-blue-100 hover:shadow-md"
                                         >
                                             <div className="mb-3 flex items-start justify-between gap-3">
-                                                <div className="flex shrink-0 flex-col items-center justify-center rounded-2xl bg-blue-600 px-3 py-2 leading-none text-white shadow-sm shadow-blue-200">
-                                                    <span className="text-sm font-bold">
-                                                        {formatTime(appointment.startTime)}
+                                                <div className="flex shrink-0 flex-col items-center justify-center rounded-xl bg-blue-600 px-3 py-2 leading-none text-white shadow-sm shadow-blue-200">
+                                                    <span className="text-[13px] font-bold">
+                                                        {formatAppointmentHourMinute(appointment.startTime)}
                                                     </span>
-                                                    <span className="mt-1 text-[11px] text-blue-100">
+                                                    <span className="mt-1 text-[10px] text-blue-100">
                                                         {t('dashboard.minutesShort', { count: appointment.durationMinutes })}
                                                     </span>
                                                 </div>
@@ -453,15 +463,20 @@ export default function DashboardPage() {
                                     );
                                 })}
                             </div>
-                            <div className="flex flex-col justify-between rounded-2xl border border-blue-100 bg-white/75 p-4">
-                                <div>
-                                    <p className="text-sm font-bold text-slate-950">{t('dashboard.todayAppointments')}</p>
-                                    <p className="mt-1 text-sm text-slate-500">
-                                        {scheduledTodayAppointments.length} {t('dashboard.scheduled')}
-                                    </p>
+                            <div className="flex flex-col gap-3 rounded-2xl border border-blue-100 bg-white/75 p-3 sm:flex-row sm:items-center sm:justify-between">
+                                <div className="flex items-center gap-3">
+                                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-50 text-blue-600">
+                                        <Calendar className="h-4 w-4" />
+                                    </div>
+                                    <div>
+                                        <p className="text-sm font-bold text-slate-950">{t('dashboard.todayAppointments')}</p>
+                                        <p className="mt-1 text-sm text-slate-500">
+                                            {scheduledTodayAppointments.length} {t('dashboard.scheduled')}
+                                        </p>
+                                    </div>
                                 </div>
                                 <Link href={showAllTodayHref}>
-                                    <Button variant="outline" size="sm" className="mt-4 w-full rounded-full bg-white">
+                                    <Button variant="outline" size="sm" className="w-full rounded-full bg-white sm:w-auto">
                                         {t('dashboard.showAllToday', { count: scheduledTodayAppointments.length })}
                                     </Button>
                                 </Link>
