@@ -5,6 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { PageHeader } from '@/components/ui/page-shell';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
     getPatient,
@@ -180,17 +181,16 @@ export default function OdontogramPage({
 
     return (
         <div className="space-y-8">
-            <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-4">
-                    <Button variant="ghost" size="icon" onClick={() => router.push(`/patients/${id}`)}>
+            <PageHeader
+                title={t('odontogram.title')}
+                description={patientQuery.data.full_name}
+                actions={(
+                    <Button variant="outline" onClick={() => router.push(`/patients/${id}`)}>
                         <ArrowLeft className="w-4 h-4" />
+                        {t('patientDetail.backToPatients')}
                     </Button>
-                    <div>
-                        <h1 className="text-3xl font-bold text-gray-900">{t('odontogram.title')}</h1>
-                        <p className="text-gray-500 mt-1">{patientQuery.data.full_name}</p>
-                    </div>
-                </div>
-            </div>
+                )}
+            />
 
             <Card>
                 <CardHeader>

@@ -249,12 +249,12 @@ export default function PatientDetailPage({
 
     return (
         <div className="space-y-8">
-            <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+            <div className="flex flex-col gap-4 rounded-[1.75rem] border border-white/80 bg-gradient-to-br from-white via-blue-50/55 to-white p-5 shadow-sm shadow-slate-200/70 sm:p-6 xl:flex-row xl:items-start xl:justify-between">
                 <div className="flex min-w-0 items-start gap-4">
                     <Button variant="ghost" size="icon" onClick={() => router.push('/patients')}>
                         <ArrowLeft className="h-4 w-4" />
                     </Button>
-                    <Avatar className="h-14 w-14 border border-slate-200">
+                    <Avatar className="h-14 w-14 border border-white shadow-sm shadow-slate-200">
                         {patientAvatarUrl ? (
                             <AvatarImage
                                 src={patientAvatarUrl}
@@ -268,7 +268,7 @@ export default function PatientDetailPage({
                     </Avatar>
                     <div className="min-w-0">
                         <h1
-                            className="max-w-full truncate text-3xl font-bold text-gray-900"
+                            className="max-w-full truncate text-3xl font-bold tracking-[-0.04em] text-slate-950 sm:text-4xl"
                             title={patient.full_name}
                         >
                             {truncateForUi(patient.full_name, PATIENT_HEADER_NAME_UI_LIMIT)}

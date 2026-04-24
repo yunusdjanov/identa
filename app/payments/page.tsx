@@ -16,6 +16,7 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import { DataTableShell, getDataTableClassName } from '@/components/ui/data-table-shell';
+import { PageHeader } from '@/components/ui/page-shell';
 import { getApiErrorMessage } from '@/lib/api/client';
 import { getPatient, listAllTreatments } from '@/lib/api/dentist';
 import type { ApiPatient, ApiTreatment } from '@/lib/api/types';
@@ -68,7 +69,7 @@ function PaymentsLoadingSkeleton() {
                 <Skeleton className="h-9 w-72" />
                 <Skeleton className="h-4 w-80" />
             </div>
-            <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white">
+            <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white/95 shadow-sm shadow-slate-200/60">
                 <div className="grid grid-cols-1 divide-y divide-gray-100 md:grid-cols-2 md:divide-x md:divide-y xl:grid-cols-4 xl:divide-y-0">
                     {Array.from({ length: 4 }).map((_, index) => (
                         <div key={index} className="space-y-2 p-4 md:p-5">
@@ -362,10 +363,7 @@ export default function PaymentsPage() {
     if (accountingQuery.isError) {
         return (
             <div className="space-y-6">
-                <div className="space-y-2">
-                    <h1 className="text-3xl font-bold text-gray-900">{t('payments.title')}</h1>
-                    <p className="text-gray-600">{t('payments.subtitle')}</p>
-                </div>
+                <PageHeader title={t('payments.title')} description={t('payments.subtitle')} />
                 <Card className="border-red-100 bg-red-50">
                     <CardContent className="flex flex-col gap-4 pt-6">
                         <div className="flex items-start gap-3">
@@ -385,78 +383,73 @@ export default function PaymentsPage() {
 
     return (
         <div className="space-y-8">
-            <div className="space-y-2">
-                <h1 className="text-3xl font-bold text-gray-900">{t('payments.title')}</h1>
-                <p className="text-gray-600">{t('payments.subtitle')}</p>
-            </div>
+            <PageHeader title={t('payments.title')} description={t('payments.subtitle')} />
 
-            <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white">
-                <div className="grid grid-cols-1 divide-y divide-gray-100 md:grid-cols-2 md:divide-x md:divide-y xl:grid-cols-4 xl:divide-y-0">
-                    <div className="p-4 md:p-5">
-                        <div className="flex items-center gap-2 text-sm font-medium text-gray-600">
-                            <AlertCircle className="h-4 w-4 text-red-500" />
-                            {t('payments.summary.totalDebt')}
-                        </div>
-                        <p className="mt-2 text-2xl font-semibold leading-none tabular-nums text-red-700">
-                            {formatCurrency(overallSummary.totalDebt)}
-                        </p>
-                        <p className="mt-1 text-xs text-gray-500">{t('payments.summary.totalDebtHint')}</p>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+                <div className="rounded-2xl border border-red-100 bg-gradient-to-br from-white to-red-50/70 p-4 shadow-sm shadow-red-100/60 md:p-5">
+                    <div className="flex items-center gap-2 text-sm font-medium text-gray-600">
+                        <AlertCircle className="h-4 w-4 text-red-500" />
+                        {t('payments.summary.totalDebt')}
                     </div>
+                    <p className="mt-2 text-2xl font-semibold leading-none tabular-nums text-red-700">
+                        {formatCurrency(overallSummary.totalDebt)}
+                    </p>
+                    <p className="mt-1 text-xs text-gray-500">{t('payments.summary.totalDebtHint')}</p>
+                </div>
 
-                    <div className="p-4 md:p-5">
-                        <div className="flex items-center gap-2 text-sm font-medium text-gray-600">
-                            <Wallet className="h-4 w-4 text-green-600" />
-                            {t('payments.summary.totalPaid')}
-                        </div>
-                        <p className="mt-2 text-2xl font-semibold leading-none tabular-nums text-green-700">
-                            {formatCurrency(overallSummary.totalPaid)}
-                        </p>
-                        <p className="mt-1 text-xs text-gray-500">{t('payments.summary.totalPaidHint')}</p>
+                <div className="rounded-2xl border border-emerald-100 bg-gradient-to-br from-white to-emerald-50/70 p-4 shadow-sm shadow-emerald-100/60 md:p-5">
+                    <div className="flex items-center gap-2 text-sm font-medium text-gray-600">
+                        <Wallet className="h-4 w-4 text-green-600" />
+                        {t('payments.summary.totalPaid')}
                     </div>
+                    <p className="mt-2 text-2xl font-semibold leading-none tabular-nums text-green-700">
+                        {formatCurrency(overallSummary.totalPaid)}
+                    </p>
+                    <p className="mt-1 text-xs text-gray-500">{t('payments.summary.totalPaidHint')}</p>
+                </div>
 
-                    <div className="p-4 md:p-5">
-                        <div className="flex items-center gap-2 text-sm font-medium text-gray-600">
-                            <History className="h-4 w-4 text-slate-500" />
-                            {t('payments.summary.netBalance')}
-                        </div>
-                        <p
-                            className={`mt-2 text-2xl font-semibold leading-none tabular-nums ${
-                                overallSummary.totalBalance > 0
-                                    ? 'text-red-700'
-                                    : overallSummary.totalBalance < 0
-                                        ? 'text-green-700'
-                                        : 'text-gray-900'
-                            }`}
-                        >
-                            {formatCurrency(overallSummary.totalBalance)}
-                        </p>
-                        <p className="mt-1 text-xs text-gray-500">{t('payments.summary.netBalanceHint')}</p>
+                <div className="rounded-2xl border border-blue-100 bg-gradient-to-br from-white to-blue-50/70 p-4 shadow-sm shadow-blue-100/60 md:p-5">
+                    <div className="flex items-center gap-2 text-sm font-medium text-gray-600">
+                        <History className="h-4 w-4 text-slate-500" />
+                        {t('payments.summary.netBalance')}
                     </div>
+                    <p
+                        className={`mt-2 text-2xl font-semibold leading-none tabular-nums ${
+                            overallSummary.totalBalance > 0
+                                ? 'text-red-700'
+                                : overallSummary.totalBalance < 0
+                                    ? 'text-green-700'
+                                    : 'text-gray-900'
+                        }`}
+                    >
+                        {formatCurrency(overallSummary.totalBalance)}
+                    </p>
+                    <p className="mt-1 text-xs text-gray-500">{t('payments.summary.netBalanceHint')}</p>
+                </div>
 
-                    <div className="p-4 md:p-5">
-                        <div className="flex items-center gap-2 text-sm font-medium text-gray-600">
-                            <Users className="h-4 w-4 text-slate-500" />
-                            {t('payments.summary.totalPatients')}
-                        </div>
-                        <p className="mt-2 text-2xl font-semibold leading-none tabular-nums text-gray-900">
-                            {overallSummary.totalPatients}
-                        </p>
-                        <p className="mt-1 text-xs text-gray-500">
-                            {t('payments.summary.entryCount', { count: overallSummary.totalEntries })}
-                        </p>
+                <div className="rounded-2xl border border-slate-200 bg-white/95 p-4 shadow-sm shadow-slate-200/60 md:p-5">
+                    <div className="flex items-center gap-2 text-sm font-medium text-gray-600">
+                        <Users className="h-4 w-4 text-slate-500" />
+                        {t('payments.summary.totalPatients')}
                     </div>
+                    <p className="mt-2 text-2xl font-semibold leading-none tabular-nums text-gray-900">
+                        {overallSummary.totalPatients}
+                    </p>
+                    <p className="mt-1 text-xs text-gray-500">
+                        {t('payments.summary.entryCount', { count: overallSummary.totalEntries })}
+                    </p>
                 </div>
             </div>
 
             <Card>
                 <CardContent className="space-y-6 pt-6">
                     <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                        <div className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 p-1">
-                            <Button type="button" variant={activeTab === 'patients' ? 'default' : 'ghost'} className="gap-2 rounded-md" onClick={() => handleTabChange('patients')}>
+                        <div className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white/70 p-1 shadow-xs">
+                            <Button type="button" variant={activeTab === 'patients' ? 'default' : 'ghost'} className="gap-2 rounded-lg" onClick={() => handleTabChange('patients')}>
                                 <Users className="h-4 w-4" />
                                 {t('payments.tabs.patients')}
                             </Button>
-                            <Button type="button" variant={activeTab === 'history' ? 'default' : 'ghost'} className="gap-2 rounded-md" onClick={() => handleTabChange('history')}>
+                            <Button type="button" variant={activeTab === 'history' ? 'default' : 'ghost'} className="gap-2 rounded-lg" onClick={() => handleTabChange('history')}>
                                 <History className="h-4 w-4" />
                                 {t('payments.tabs.history')}
                             </Button>

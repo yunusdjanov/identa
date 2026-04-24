@@ -9,6 +9,7 @@ import { ArrowLeft, Lock, MessageSquare, Settings2, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { PageHeader } from '@/components/ui/page-shell';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useI18n } from '@/components/providers/i18n-provider';
 import { getApiErrorMessage } from '@/lib/api/client';
@@ -184,6 +185,45 @@ const ADMIN_LANDING_COPY: Record<AdminLocale, AdminLandingCopy> = {
     },
 };
 
+const ADMIN_RU_COPY: AdminLandingCopy = {
+    landing: {
+        title: 'Тарифы лендинга и контакты',
+        description: 'Здесь управляются цены на лендинге и ссылка на Telegram.',
+        trialPrice: 'Цена пробного периода',
+        monthlyPrice: 'Цена месячного тарифа',
+        yearlyPrice: 'Цена годового тарифа',
+        telegramUrl: 'Ссылка Telegram',
+        optional: 'необязательно',
+        save: 'Сохранить',
+        saving: 'Сохранение...',
+        saved: 'Настройки лендинга сохранены.',
+        fixErrors: 'Проверьте заполнение полей.',
+        required: 'Обязательное поле',
+        invalidAmount: 'Введите целое неотрицательное число.',
+        invalidUrl: 'Введите корректный URL.',
+    },
+    leads: {
+        title: 'Входящие заявки',
+        description: 'Все заявки, отправленные через форму лендинга, попадают сюда.',
+        empty: 'Пока заявок нет.',
+        requestedAt: 'Отправлено',
+        clinic: 'Клиника',
+        city: 'Город',
+        note: 'Комментарий',
+        phone: 'Телефон',
+        markNew: 'Новая',
+        markContacted: 'Связались',
+        markClosed: 'Закрыта',
+        updated: 'Статус заявки обновлен.',
+        updateFailed: 'Не удалось обновить статус заявки.',
+        statuses: {
+            new: 'Новая',
+            contacted: 'Связались',
+            closed: 'Закрыта',
+        },
+    },
+};
+
 function mapSettingsToForm(settings: ApiLandingSettings): LandingSettingsFormState {
     return {
         trialPriceAmount: String(settings.trial_price_amount),
@@ -221,7 +261,7 @@ function getStatusClasses(status: AdminLeadRequestStatus): string {
 
 function AdminSettingsLoadingSkeleton() {
     return (
-        <div className="min-h-screen bg-gray-50 p-4 sm:p-6 lg:p-8">
+        <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(219,234,254,0.55),transparent_34rem),linear-gradient(180deg,#f8fbff_0%,#f8fafc_42%,#f1f5f9_100%)] p-4 sm:p-6 lg:p-8">
             <div className="mx-auto max-w-5xl space-y-8">
                 <div className="flex items-center gap-4">
                     <Skeleton className="h-10 w-10" />
@@ -251,7 +291,7 @@ function AdminSettingsLoadingSkeleton() {
 export default function AdminSettingsPage() {
     const { locale, t } = useI18n();
     const adminLocale = (locale as AdminLocale) ?? 'en';
-    const copy = ADMIN_LANDING_COPY[adminLocale] ?? ADMIN_LANDING_COPY.en;
+    const copy = adminLocale === 'ru' ? ADMIN_RU_COPY : ADMIN_LANDING_COPY[adminLocale] ?? ADMIN_LANDING_COPY.en;
     const router = useRouter();
     const queryClient = useQueryClient();
     const [settingsDraft, setSettingsDraft] = useState<Partial<LandingSettingsFormState>>({});
@@ -409,19 +449,20 @@ export default function AdminSettingsPage() {
     }
 
     return (
-        <div className="min-h-screen bg-gray-50 p-4 sm:p-6 lg:p-8">
+        <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(219,234,254,0.55),transparent_34rem),linear-gradient(180deg,#f8fbff_0%,#f8fafc_42%,#f1f5f9_100%)] p-4 sm:p-6 lg:p-8">
             <div className="mx-auto max-w-5xl space-y-8">
-                <div className="flex items-center gap-4">
-                    <Link href="/admin">
-                        <Button variant="outline" size="icon">
-                            <ArrowLeft className="h-4 w-4" />
+                <PageHeader
+                    title={t('admin.settings.title')}
+                    description={t('admin.settings.subtitle')}
+                    actions={(
+                        <Button variant="outline" asChild>
+                            <Link href="/admin">
+                                <ArrowLeft className="h-4 w-4" />
+                                {t('admin.dashboardTitle')}
+                            </Link>
                         </Button>
-                    </Link>
-                    <div>
-                        <h1 className="text-3xl font-bold text-gray-900">{t('admin.settings.title')}</h1>
-                        <p className="mt-1 text-gray-500">{t('admin.settings.subtitle')}</p>
-                    </div>
-                </div>
+                    )}
+                />
 
                 <Card>
                     <CardHeader>

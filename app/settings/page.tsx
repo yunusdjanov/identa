@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Skeleton } from '@/components/ui/skeleton';
+import { PageHeader } from '@/components/ui/page-shell';
 import {
     Select,
     SelectContent,
@@ -322,13 +323,17 @@ export default function SettingsPage() {
 
     return (
         <div className="space-y-8">
-            <div>
-                <h1 className="text-3xl font-bold text-gray-900">{t('settings.title')}</h1>
-                <p className="text-gray-500 mt-1">{t('settings.subtitle')}</p>
-                {!canManageSettings ? (
-                    <p className="text-sm text-amber-600 mt-2">{t('settings.readOnlyNotice')}</p>
-                ) : null}
-            </div>
+            <PageHeader
+                title={t('settings.title')}
+                description={(
+                    <>
+                        {t('settings.subtitle')}
+                        {!canManageSettings ? (
+                            <span className="mt-2 block text-sm text-amber-600">{t('settings.readOnlyNotice')}</span>
+                        ) : null}
+                    </>
+                )}
+            />
 
             <Card>
                 <CardHeader className="space-y-3">

@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { PasswordInput } from '@/components/ui/password-input';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { PageHeader } from '@/components/ui/page-shell';
 import {
     Table,
     TableBody,
@@ -73,6 +74,7 @@ import { truncateForUi } from '@/lib/utils';
 import { useI18n } from '@/components/providers/i18n-provider';
 import { formatLocalizedDate } from '@/lib/i18n/date';
 import { LanguageSwitcher } from '@/components/layout/language-switcher';
+import { Brand } from '@/components/branding/brand';
 
 interface CreateDentistForm {
     name: string;
@@ -144,8 +146,8 @@ function getSubscriptionActionLabel(
 
 function AdminDashboardLoadingSkeleton() {
     return (
-        <div className="min-h-screen bg-gray-50">
-            <header className="bg-white border-b">
+        <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(219,234,254,0.55),transparent_34rem),linear-gradient(180deg,#f8fbff_0%,#f8fafc_42%,#f1f5f9_100%)]">
+            <header className="border-b border-slate-200/70 bg-white/88">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
                     <div className="flex justify-between items-center">
                         <div className="space-y-2">
@@ -481,15 +483,15 @@ export default function AdminDashboardPage() {
     }
 
     return (
-        <div className="min-h-screen bg-gray-50">
-            <header className="bg-white border-b">
+        <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(219,234,254,0.55),transparent_34rem),linear-gradient(180deg,#f8fbff_0%,#f8fafc_42%,#f1f5f9_100%)]">
+            <header className="sticky top-0 z-10 border-b border-slate-200/70 bg-white/88 backdrop-blur-xl">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-                    <div className="flex justify-between items-center">
-                        <div>
-                            <h1 className="text-2xl font-bold text-slate-900">{t('admin.brandTitle')}</h1>
-                            <p className="text-sm text-slate-600">{t('admin.brandSubtitle')}</p>
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="space-y-1">
+                            <Brand href="/admin" variant="text" textClassName="w-28 sm:w-32" />
+                            <p className="text-xs font-medium text-slate-500">{t('admin.brandSubtitle')}</p>
                         </div>
-                        <div className="flex items-center gap-3">
+                        <div className="flex flex-wrap items-center gap-2">
                             <LanguageSwitcher variant="compact" />
                             <Button variant="outline" asChild>
                                 <Link href="/admin/settings">
@@ -508,29 +510,26 @@ export default function AdminDashboardPage() {
 
             <div className="p-4 sm:p-6 lg:p-8">
                 <div className="max-w-7xl mx-auto space-y-8">
-                    <div>
-                        <h1 className="text-3xl font-bold text-gray-900">{t('admin.dashboardTitle')}</h1>
-                        <p className="text-gray-500 mt-1">{t('admin.dashboardSubtitle')}</p>
-                    </div>
+                    <PageHeader title={t('admin.dashboardTitle')} description={t('admin.dashboardSubtitle')} />
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <Card>
+                        <Card className="bg-gradient-to-br from-white to-blue-50/70">
                             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                                 <CardTitle className="text-sm font-medium">{t('admin.stats.totalDentists')}</CardTitle>
-                                <Users className="h-4 w-4 text-muted-foreground" />
+                                <Users className="h-4 w-4 text-blue-600" />
                             </CardHeader>
                             <CardContent>
-                                <div className="text-2xl font-bold">{stats.totalDentists}</div>
+                                <div className="text-3xl font-bold tracking-[-0.04em] text-slate-950">{stats.totalDentists}</div>
                             </CardContent>
                         </Card>
 
-                        <Card>
+                        <Card className="bg-gradient-to-br from-white to-emerald-50/70">
                             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                                 <CardTitle className="text-sm font-medium">{t('admin.stats.activeDentists')}</CardTitle>
-                                <UserCheck className="h-4 w-4 text-muted-foreground" />
+                                <UserCheck className="h-4 w-4 text-emerald-600" />
                             </CardHeader>
                             <CardContent>
-                                <div className="text-2xl font-bold">{stats.activeDentists}</div>
+                                <div className="text-3xl font-bold tracking-[-0.04em] text-slate-950">{stats.activeDentists}</div>
                                 <p className="text-xs text-muted-foreground">
                                     {stats.totalDentists === 0
                                         ? '0'
@@ -540,13 +539,13 @@ export default function AdminDashboardPage() {
                             </CardContent>
                         </Card>
 
-                        <Card>
+                        <Card className="bg-gradient-to-br from-white to-sky-50/70">
                             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                                 <CardTitle className="text-sm font-medium">{t('admin.stats.newLast7Days')}</CardTitle>
-                                <UserPlus className="h-4 w-4 text-muted-foreground" />
+                                <UserPlus className="h-4 w-4 text-sky-600" />
                             </CardHeader>
                             <CardContent>
-                                <div className="text-2xl font-bold">{stats.newRegistrations}</div>
+                                <div className="text-3xl font-bold tracking-[-0.04em] text-slate-950">{stats.newRegistrations}</div>
                             </CardContent>
                         </Card>
                     </div>

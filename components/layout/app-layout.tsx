@@ -188,9 +188,9 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     const showHeaderSkeleton = !isMounted || isUserLoading;
 
     return (
-        <div className="min-h-screen bg-gray-50">
+        <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(219,234,254,0.55),transparent_34rem),linear-gradient(180deg,#f8fbff_0%,#f8fafc_42%,#f1f5f9_100%)]">
             {/* Header */}
-            <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
+            <header className="sticky top-0 z-10 border-b border-slate-200/70 bg-white/88 backdrop-blur-xl">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="flex justify-between items-center h-16">
                         {showHeaderSkeleton ? (
@@ -220,7 +220,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                                 </div>
 
                                 {/* Navigation */}
-                                <nav className="hidden md:flex space-x-1">
+                                <nav className="hidden rounded-2xl border border-slate-200/70 bg-white/70 p-1 shadow-sm shadow-slate-200/60 md:flex">
                                     {visibleNavigation.map((item) => {
                                         const isActive = isActiveRoute(item.href);
                                         const Icon = item.icon;
@@ -229,10 +229,10 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                                                 key={item.key}
                                                 href={item.href}
                                                 className={cn(
-                                                    'flex items-center px-4 py-2 rounded-md text-sm font-medium transition-colors',
+                                                    'flex items-center rounded-xl px-4 py-2 text-sm font-medium transition-colors',
                                                     isActive
-                                                        ? 'bg-blue-50 text-blue-700'
-                                                        : 'text-gray-700 hover:bg-gray-100'
+                                                        ? 'bg-blue-600 text-white shadow-sm shadow-blue-200'
+                                                        : 'text-slate-600 hover:bg-slate-50 hover:text-slate-950'
                                                 )}
                                             >
                                                 <Icon className="w-4 h-4 mr-2" />
@@ -249,7 +249,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                                             <Button
                                                 variant="ghost"
                                                 size="sm"
-                                                className="flex items-center gap-1 px-2 sm:px-3 text-gray-700 hover:bg-gray-100 focus-visible:ring-0 focus-visible:border-transparent focus-visible:outline-none data-[state=open]:bg-gray-100"
+                                                className="flex items-center gap-1 rounded-xl px-2 text-slate-700 hover:bg-slate-100 sm:px-3 focus-visible:ring-0 focus-visible:border-transparent focus-visible:outline-none data-[state=open]:bg-slate-100"
                                                 aria-label={t('menu.language')}
                                             >
                                                 <Languages className="w-4 h-4 mr-1" />
@@ -280,10 +280,10 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                                         <DropdownMenuTrigger asChild>
                                             <Button
                                                 variant="ghost"
-                                                className="flex items-center space-x-2 sm:space-x-3 border-transparent hover:bg-gray-100 px-2 sm:px-4 focus-visible:ring-0 focus-visible:border-transparent focus-visible:outline-none data-[state=open]:bg-gray-100"
+                                                className="flex items-center space-x-2 rounded-2xl border border-slate-200/80 bg-white/70 px-2 shadow-sm shadow-slate-200/50 hover:bg-white sm:space-x-3 sm:px-4 focus-visible:ring-0 focus-visible:border-transparent focus-visible:outline-none data-[state=open]:bg-white"
                                             >
                                                 <Avatar className="w-8 h-8">
-                                                    <AvatarFallback className="bg-blue-600 text-white text-sm">
+                                                    <AvatarFallback className="bg-blue-600 text-white text-sm shadow-sm shadow-blue-200">
                                                         {(() => {
                                                             const firstInitial = displayName.split(' ')[0]?.[0] || '?';
                                                             return `${showDoctorPrefix ? t('common.doctorPrefix') : ''}${firstInitial}`;
@@ -335,7 +335,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
                 {/* Mobile Navigation */}
                 {showHeaderSkeleton ? (
-                    <div className="md:hidden border-t border-gray-200">
+                    <div className="md:hidden border-t border-slate-200/70 bg-white/80">
                         <div className="flex justify-around py-2 px-2">
                             <Skeleton className="h-12 w-16 rounded-md" />
                             <Skeleton className="h-12 w-16 rounded-md" />
@@ -344,7 +344,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                         </div>
                     </div>
                 ) : (
-                    <div className="md:hidden border-t border-gray-200">
+                    <div className="md:hidden border-t border-slate-200/70 bg-white/80">
                         <nav className="flex justify-around py-2">
                             {visibleNavigation.map((item) => {
                                 const isActive = isActiveRoute(item.href);
@@ -355,10 +355,17 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                                         href={item.href}
                                         className={cn(
                                             'flex flex-col items-center px-3 py-2 text-xs font-medium',
-                                            isActive ? 'text-blue-700' : 'text-gray-600'
+                                            isActive ? 'text-blue-700' : 'text-slate-600'
                                         )}
                                     >
-                                        <Icon className="w-5 h-5 mb-1" />
+                                        <span
+                                            className={cn(
+                                                'mb-1 rounded-xl p-1.5',
+                                                isActive ? 'bg-blue-50 text-blue-700' : 'text-slate-500'
+                                            )}
+                                        >
+                                            <Icon className="h-4 w-4" />
+                                        </span>
                                         {t(item.key)}
                                     </Link>
                                 );
@@ -375,7 +382,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             />
 
             {/* Main Content */}
-            <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
                 {children}
             </main>
         </div>

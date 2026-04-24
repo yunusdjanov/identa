@@ -24,6 +24,7 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import { DataTableShell, getDataTableClassName } from '@/components/ui/data-table-shell';
+import { PageHeader } from '@/components/ui/page-shell';
 import { listPatientCategories, listPatients, restorePatient } from '@/lib/api/dentist';
 import { getApiErrorMessage } from '@/lib/api/client';
 import type { ApiPatient } from '@/lib/api/types';
@@ -281,28 +282,26 @@ export default function PatientsPage() {
 
     return (
         <div className="space-y-8">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                <div className="min-w-0">
-                    <h1 className="text-3xl font-bold text-gray-900">{t('patients.title')}</h1>
-                    <p className="text-gray-500 mt-1">
-                        {t('patients.subtitle')}
-                    </p>
-                </div>
-                <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center sm:justify-end">
-                    <Button
-                        variant="outline"
-                        className="w-full sm:w-auto"
-                        onClick={() => setIsManageCategoriesOpen(true)}
-                    >
-                        <Tags className="w-4 h-4 mr-2" />
-                        {t('patients.categories')}
-                    </Button>
-                    <Button className="w-full sm:w-auto" onClick={() => setIsAddDialogOpen(true)}>
-                        <Plus className="w-4 h-4 mr-2" />
-                        {t('patients.addPatient')}
-                    </Button>
-                </div>
-            </div>
+            <PageHeader
+                title={t('patients.title')}
+                description={t('patients.subtitle')}
+                actions={(
+                    <>
+                        <Button
+                            variant="outline"
+                            className="w-full sm:w-auto"
+                            onClick={() => setIsManageCategoriesOpen(true)}
+                        >
+                            <Tags className="w-4 h-4 mr-2" />
+                            {t('patients.categories')}
+                        </Button>
+                        <Button className="w-full sm:w-auto" onClick={() => setIsAddDialogOpen(true)}>
+                            <Plus className="w-4 h-4 mr-2" />
+                            {t('patients.addPatient')}
+                        </Button>
+                    </>
+                )}
+            />
 
             <Card>
                 <CardContent className="py-4">

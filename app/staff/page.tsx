@@ -7,6 +7,7 @@ import { Users, History } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { PageHeader } from '@/components/ui/page-shell';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { getCurrentUser } from '@/lib/api/dentist';
 import { getApiErrorMessage } from '@/lib/api/client';
@@ -92,10 +93,7 @@ export default function StaffPage() {
 
     return (
         <div className="space-y-8">
-            <div>
-                <h1 className="text-3xl font-bold text-gray-900">{t('staff.title')}</h1>
-                <p className="text-gray-500 mt-1">{t('staff.subtitle')}</p>
-            </div>
+            <PageHeader title={t('staff.title')} description={t('staff.subtitle')} />
 
             <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as TeamTab)} className="space-y-6">
                 <div className="overflow-x-auto overflow-y-hidden no-scrollbar -mx-4 px-4 sm:mx-0 sm:px-0">

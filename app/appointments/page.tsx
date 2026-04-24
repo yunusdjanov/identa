@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { PageHeader } from '@/components/ui/page-shell';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -1021,18 +1022,18 @@ export default function AppointmentsPage() {
 
     return (
         <div className="space-y-8">
-            <div className="flex justify-between items-center">
-                <div>
-                    <h1 className="text-3xl font-bold text-gray-900">{t('appointments.title')}</h1>
-                    <p className="text-gray-500 mt-1">{t('appointments.subtitle')}</p>
-                </div>
-                <Button onClick={() => openAddDialog({ date: currentDate })}>
-                    <Plus aria-hidden="true" className="w-4 h-4 mr-2" />
-                    {t('appointments.new')}
-                </Button>
-            </div>
+            <PageHeader
+                title={t('appointments.title')}
+                description={t('appointments.subtitle')}
+                actions={(
+                    <Button className="w-full sm:w-auto" onClick={() => openAddDialog({ date: currentDate })}>
+                        <Plus aria-hidden="true" className="w-4 h-4 mr-2" />
+                        {t('appointments.new')}
+                    </Button>
+                )}
+            />
 
-            <Card>
+            <Card className="overflow-hidden">
                 <CardContent className="pt-5">
                     <div className="space-y-5">
                         <div className="flex flex-col md:flex-row justify-between items-center gap-4">

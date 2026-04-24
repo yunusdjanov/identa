@@ -9,6 +9,7 @@ import { getPatient } from '@/lib/api/dentist';
 import { getApiErrorMessage } from '@/lib/api/client';
 import { useI18n } from '@/components/providers/i18n-provider';
 import { Button } from '@/components/ui/button';
+import { PageHeader } from '@/components/ui/page-shell';
 import { Skeleton } from '@/components/ui/skeleton';
 import { TreatmentHistoryCard } from '@/components/patients/treatment-history-card';
 
@@ -71,20 +72,18 @@ export default function PatientHistoryPage({
 
     return (
         <div className="space-y-6">
-            <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-                <div>
-                    <h1 className="text-3xl font-bold text-gray-900">{patient.full_name}</h1>
-                    <p className="mt-1 text-sm text-gray-500">{t('patientHistory.subtitle')}</p>
-                </div>
-                <div className="flex items-center gap-2">
+            <PageHeader
+                title={patient.full_name}
+                description={t('patientHistory.subtitle')}
+                actions={(
                     <Link href={backHref}>
                         <Button variant="outline">
                             <ArrowLeft className="mr-2 h-4 w-4" />
                             {backLabel}
                         </Button>
                     </Link>
-                </div>
-            </div>
+                )}
+            />
 
             <TreatmentHistoryCard patientId={id} patientName={patient.full_name} />
         </div>
