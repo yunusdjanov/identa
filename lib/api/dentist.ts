@@ -42,6 +42,26 @@ interface ApiDirectUploadTicket {
     expires_at?: string;
 }
 
+interface ApiDirectUploadBatchTicket {
+    supported: boolean;
+    uploads?: ApiDirectUploadBatchItem[];
+    expires_at?: string;
+}
+
+interface ApiDirectUploadBatchItem extends ApiDirectUploadTicket {
+    client_id: string;
+    upload_id: string;
+    url: string;
+}
+
+interface ApiDirectUploadBatchCompletion {
+    completed_count: number;
+    failed: Array<{
+        upload_id: string;
+        reason: string;
+    }>;
+}
+
 export type AdminDentistSubscriptionAction =
     | 'apply_monthly'
     | 'apply_yearly'
@@ -737,6 +757,58 @@ export async function uploadPatientTreatmentImage(
     await uploadPatientTreatmentImageViaApi(patientId, treatmentId, image);
 }
 
+export async function uploadPatientTreatmentImages(
+    patientId: string,
+    treatmentId: string,
+    images: File[]
+): Promise<number> {
+    if (images.length === 0) {
+        return 0;
+    }
+
+    const directUpload = await preparePatientTreatmentImageBatchDirectUpload(patientId, treatmentId, images);
+    if (directUpload.supported && directUpload.uploads?.length === images.length) {
+        const filesByClientId = new Map(
+            images.map((image, index) => [buildTreatmentImageClientId(index), image])
+        );
+        const uploadResults = await Promise.allSettled(
+            directUpload.uploads.map((upload) => {
+                const image = filesByClientId.get(upload.client_id);
+                if (!image) {
+                    throw new Error('Missing file for direct upload ticket');
+                }
+
+                return performDirectSignedUpload(image, upload);
+            })
+        );
+        const completedUploadIds = directUpload.uploads
+            .filter((_, index) => uploadResults[index]?.status === 'fulfilled')
+            .map((upload) => upload.upload_id);
+        let failedCount = uploadResults.filter((result) => result.status === 'rejected').length;
+
+        if (completedUploadIds.length > 0) {
+            try {
+                const completion = await finalizePatientTreatmentImageBatchDirectUpload(
+                    patientId,
+                    treatmentId,
+                    completedUploadIds
+                );
+                failedCount += completion.failed.length;
+            } catch {
+                failedCount += completedUploadIds.length;
+            }
+        }
+
+        return failedCount;
+    }
+
+    const fallbackResults = await Promise.allSettled(
+        images.map((image) => uploadPatientTreatmentImage(patientId, treatmentId, image))
+    );
+
+    return fallbackResults.filter((result) => result.status === 'rejected').length;
+}
+
 async function uploadPatientTreatmentImageViaApi(
     patientId: string,
     treatmentId: string,
@@ -781,6 +853,32 @@ async function preparePatientTreatmentImageDirectUpload(
     }
 }
 
+async function preparePatientTreatmentImageBatchDirectUpload(
+    patientId: string,
+    treatmentId: string,
+    images: File[]
+): Promise<ApiDirectUploadBatchTicket> {
+    try {
+        const { data } = await withCsrfRetry(() =>
+            apiClient.post<ApiEnvelope<ApiDirectUploadBatchTicket>>(
+                `/patients/${patientId}/treatments/${treatmentId}/images/direct-upload-batch`,
+                {
+                    files: images.map((image, index) => ({
+                        client_id: buildTreatmentImageClientId(index),
+                        filename: image.name,
+                        content_type: resolveDirectUploadContentType(image),
+                        file_size: image.size,
+                    })),
+                }
+            )
+        );
+
+        return data.data;
+    } catch {
+        return { supported: false };
+    }
+}
+
 async function finalizePatientTreatmentImageDirectUpload(
     patientId: string,
     treatmentId: string,
@@ -791,6 +889,23 @@ async function finalizePatientTreatmentImageDirectUpload(
             `/patients/${patientId}/treatments/${treatmentId}/images/direct-upload/${uploadId}/complete`
         )
     );
+}
+
+async function finalizePatientTreatmentImageBatchDirectUpload(
+    patientId: string,
+    treatmentId: string,
+    uploadIds: string[]
+): Promise<ApiDirectUploadBatchCompletion> {
+    const { data } = await withCsrfRetry(() =>
+        apiClient.post<ApiEnvelope<ApiDirectUploadBatchCompletion>>(
+            `/patients/${patientId}/treatments/${treatmentId}/images/direct-upload-batch/complete`,
+            {
+                upload_ids: uploadIds,
+            }
+        )
+    );
+
+    return data.data;
 }
 
 async function performDirectSignedUpload(
@@ -849,6 +964,10 @@ function resolveDirectUploadContentType(image: File): string {
     }
 
     return 'image/jpeg';
+}
+
+function buildTreatmentImageClientId(index: number): string {
+    return `image-${index}`;
 }
 
 export async function deletePatientTreatmentImage(

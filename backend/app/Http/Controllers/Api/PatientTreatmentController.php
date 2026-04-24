@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\FinalizeTreatmentImageBatchUploadRequest;
+use App\Http\Requests\PrepareTreatmentImageBatchUploadRequest;
 use App\Http\Requests\PrepareTreatmentImageUploadRequest;
 use App\Http\Requests\StoreTreatmentRequest;
 use App\Http\Requests\UpdateTreatmentRequest;
@@ -16,6 +18,7 @@ use App\Support\MediaPathCache;
 use App\Models\User;
 use App\Support\AuditLogger;
 use App\Support\ImageVariantGenerator;
+use App\Support\TreatmentImageDirectUploadService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -49,6 +52,7 @@ class PatientTreatmentController extends Controller
 
     public function __construct(
         private readonly AuditLogger $auditLogger,
+        private readonly TreatmentImageDirectUploadService $directUploadService,
     ) {
     }
 
@@ -427,6 +431,31 @@ class PatientTreatmentController extends Controller
         ]);
     }
 
+    public function prepareImageBatchUpload(
+        PrepareTreatmentImageBatchUploadRequest $request,
+        string $id,
+        string $treatmentId
+    ): JsonResponse {
+        $patient = $this->findOwnedPatient($request, $id);
+        if ($patient->trashed()) {
+            throw ValidationException::withMessages([
+                'patient' => [__('api.treatments.archived_restore_before_upload_images')],
+            ]);
+        }
+
+        $treatment = $this->findOwnedTreatment($request, (string) $patient->id, $treatmentId);
+        $validated = $request->validated();
+
+        return response()->json([
+            'data' => $this->directUploadService->prepareBatch(
+                dentistId: $this->resolveDentistId($request),
+                patientId: (string) $patient->id,
+                treatment: $treatment,
+                files: array_values($validated['files'])
+            ),
+        ]);
+    }
+
     public function finalizeImageUpload(
         Request $request,
         string $id,
@@ -524,6 +553,50 @@ class PatientTreatmentController extends Controller
         return response()->json([
             'data' => $this->transformTreatmentImage($treatment, $image),
         ], 201);
+    }
+
+    public function finalizeImageBatchUpload(
+        FinalizeTreatmentImageBatchUploadRequest $request,
+        string $id,
+        string $treatmentId
+    ): JsonResponse {
+        $patient = $this->findOwnedPatient($request, $id);
+        if ($patient->trashed()) {
+            throw ValidationException::withMessages([
+                'patient' => [__('api.treatments.archived_restore_before_upload_images')],
+            ]);
+        }
+
+        $treatment = $this->findOwnedTreatment($request, (string) $patient->id, $treatmentId);
+        $validated = $request->validated();
+        $result = $this->directUploadService->finalizeBatch(
+            treatment: $treatment,
+            dentistId: $this->resolveDentistId($request),
+            patientId: (string) $patient->id,
+            uploadIds: array_values($validated['upload_ids'])
+        );
+
+        if ($result['completed'] !== []) {
+            $this->auditLogger->logFromRequest(
+                request: $request,
+                eventType: 'patient.treatment.images.uploaded',
+                entityType: 'treatment',
+                entityId: (string) $treatment->id,
+                metadata: [
+                    'patient_id' => (string) $patient->id,
+                    'image_count' => count($result['completed']),
+                    'direct_upload' => true,
+                    'batch' => true,
+                ],
+            );
+        }
+
+        return response()->json([
+            'data' => [
+                'completed_count' => count($result['completed']),
+                'failed' => $result['failed'],
+            ],
+        ], $result['failed'] === [] ? 201 : 207);
     }
 
     public function downloadImage(Request $request, string $id, string $treatmentId, string $imageId): StreamedResponse

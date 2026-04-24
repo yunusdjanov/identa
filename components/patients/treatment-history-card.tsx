@@ -9,7 +9,7 @@ import {
     getPatientTreatment,
     listAllPatientTreatments,
     updatePatientTreatment,
-    uploadPatientTreatmentImage,
+    uploadPatientTreatmentImages,
 } from '@/lib/api/dentist';
 import type { ApiTreatment, ApiTreatmentImage } from '@/lib/api/types';
 import { getApiErrorMessage } from '@/lib/api/client';
@@ -60,7 +60,7 @@ const ALLOWED_HISTORY_IMAGE_TYPES = new Set([
     'image/png',
     'image/webp',
 ]);
-const HISTORY_IMAGE_UPLOAD_CONCURRENCY = 4;
+const HISTORY_IMAGE_UPLOAD_CONCURRENCY = 10;
 const MEDIA_READINESS_POLL_INTERVAL_MS = 1200;
 const MEDIA_READINESS_TIMEOUT_MS = 20000;
 
@@ -155,14 +155,13 @@ function getTreatmentPrimaryImage(treatment: ApiTreatment) {
 
 async function uploadTreatmentImagesInBatches(
     imageFiles: File[],
-    uploadFile: (file: File) => Promise<unknown>
+    uploadFiles: (files: File[]) => Promise<number>
 ) {
     let failedCount = 0;
 
     for (let start = 0; start < imageFiles.length; start += HISTORY_IMAGE_UPLOAD_CONCURRENCY) {
         const batch = imageFiles.slice(start, start + HISTORY_IMAGE_UPLOAD_CONCURRENCY);
-        const results = await Promise.allSettled(batch.map((file) => uploadFile(file)));
-        failedCount += results.filter((result) => result.status === 'rejected').length;
+        failedCount += await uploadFiles(batch);
     }
 
     return failedCount;
@@ -496,7 +495,7 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                         if (imageFiles.length > 0) {
                             const failedUploadCount = await uploadTreatmentImagesInBatches(
                                 imageFiles,
-                                (imageFile) => uploadPatientTreatmentImage(patientId, treatment.id, imageFile)
+                                (imageBatch) => uploadPatientTreatmentImages(patientId, treatment.id, imageBatch)
                             );
 
                             hasMediaSyncFailure = hasMediaSyncFailure || failedUploadCount > 0;

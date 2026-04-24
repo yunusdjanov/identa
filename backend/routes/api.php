@@ -150,6 +150,10 @@ Route::prefix('v1')->group(function (): void {
             ->middleware('permission:'.User::PERMISSION_TREATMENTS_MANAGE);
         Route::post('patients/{id}/treatments/{treatmentId}/images/direct-upload/{uploadId}/complete', [PatientTreatmentController::class, 'finalizeImageUpload'])
             ->middleware('permission:'.User::PERMISSION_TREATMENTS_MANAGE);
+        Route::post('patients/{id}/treatments/{treatmentId}/images/direct-upload-batch', [PatientTreatmentController::class, 'prepareImageBatchUpload'])
+            ->middleware('permission:'.User::PERMISSION_TREATMENTS_MANAGE);
+        Route::post('patients/{id}/treatments/{treatmentId}/images/direct-upload-batch/complete', [PatientTreatmentController::class, 'finalizeImageBatchUpload'])
+            ->middleware('permission:'.User::PERMISSION_TREATMENTS_MANAGE);
         Route::post('patients/{id}/treatments/{treatmentId}/images', [PatientTreatmentController::class, 'uploadImage'])
             ->middleware('permission:'.User::PERMISSION_TREATMENTS_MANAGE);
         Route::get('patients/{id}/treatments/{treatmentId}/images/{imageId}', [PatientTreatmentController::class, 'downloadImage'])
