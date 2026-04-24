@@ -3,6 +3,7 @@
 namespace App\Support;
 
 use App\Jobs\DeleteStoredMediaPaths;
+use App\Jobs\GenerateMediaVariantBatch;
 use App\Jobs\GenerateMediaVariants;
 use App\Models\Treatment;
 use App\Models\TreatmentImage;
@@ -184,9 +185,7 @@ class TreatmentImageDirectUploadService
         if ($rows !== []) {
             TreatmentImage::query()->insert($rows);
 
-            foreach ($variantQueue as [$disk, $path]) {
-                $this->queueVariants((string) $disk, (string) $path);
-            }
+            $this->queueVariantBatch($variantQueue);
         }
 
         return [
@@ -202,6 +201,27 @@ class TreatmentImageDirectUploadService
             sourcePath: $path,
             variants: $this->variantDefinitions($path),
             logContext: 'Treatment image',
+            jpegQuality: self::JPEG_VARIANT_QUALITY,
+            webpQuality: self::WEBP_VARIANT_QUALITY,
+        )->afterResponse();
+    }
+
+    /**
+     * @param list<array{0: string, 1: string}> $items
+     */
+    private function queueVariantBatch(array $items): void
+    {
+        if ($items === []) {
+            return;
+        }
+
+        GenerateMediaVariantBatch::dispatch(
+            items: array_map(fn (array $item): array => [
+                'disk' => (string) $item[0],
+                'source_path' => (string) $item[1],
+                'variants' => $this->variantDefinitions((string) $item[1]),
+                'log_context' => 'Treatment image',
+            ], $items),
             jpegQuality: self::JPEG_VARIANT_QUALITY,
             webpQuality: self::WEBP_VARIANT_QUALITY,
         )->afterResponse();
