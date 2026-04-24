@@ -1,5 +1,6 @@
 'use client';
 
+import type { ReactNode } from 'react';
 import { useSyncExternalStore } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,13 +10,47 @@ import { getCurrentUser, getDashboardSnapshot } from '@/lib/api/dentist';
 import { getApiErrorMessage } from '@/lib/api/client';
 import { formatCurrency, formatTime, truncateForUi } from '@/lib/utils';
 import { formatLocalizedDate } from '@/lib/i18n/date';
-import { Plus, Calendar, Clock3, DollarSign, AlertCircle } from 'lucide-react';
+import { AlertCircle, ArrowRight, Calendar, CheckCircle2, Clock3, DollarSign, Plus } from 'lucide-react';
 import Link from 'next/link';
 import { useI18n } from '@/components/providers/i18n-provider';
 
 const noopSubscribe = () => () => undefined;
 const DASHBOARD_NAME_UI_LIMIT = 25;
 const DASHBOARD_REASON_UI_LIMIT = 40;
+
+type DashboardStatTone = 'blue' | 'green' | 'red' | 'amber';
+
+const statToneClasses: Record<DashboardStatTone, {
+    card: string;
+    icon: string;
+    value: string;
+    glow: string;
+}> = {
+    blue: {
+        card: 'border-blue-100 bg-gradient-to-br from-white via-blue-50/35 to-white',
+        icon: 'bg-blue-600 text-white shadow-blue-200',
+        value: 'text-blue-950',
+        glow: 'bg-blue-500/10',
+    },
+    green: {
+        card: 'border-emerald-100 bg-gradient-to-br from-white via-emerald-50/35 to-white',
+        icon: 'bg-emerald-600 text-white shadow-emerald-200',
+        value: 'text-emerald-950',
+        glow: 'bg-emerald-500/10',
+    },
+    red: {
+        card: 'border-red-100 bg-gradient-to-br from-white via-red-50/35 to-white',
+        icon: 'bg-red-600 text-white shadow-red-200',
+        value: 'text-red-950',
+        glow: 'bg-red-500/10',
+    },
+    amber: {
+        card: 'border-amber-100 bg-gradient-to-br from-white via-amber-50/35 to-white',
+        icon: 'bg-amber-500 text-white shadow-amber-200',
+        value: 'text-amber-950',
+        glow: 'bg-amber-500/10',
+    },
+};
 
 function getStatusTone(status: string): { dot: string; text: string } {
     switch (status) {
@@ -83,6 +118,48 @@ function DashboardLoadingSkeleton() {
                 </CardContent>
             </Card>
         </div>
+    );
+}
+
+function DashboardStatCard({
+    title,
+    value,
+    helper,
+    icon,
+    tone,
+    action,
+}: {
+    title: string;
+    value: string | number;
+    helper: string;
+    icon: ReactNode;
+    tone: DashboardStatTone;
+    action?: ReactNode;
+}) {
+    const classes = statToneClasses[tone];
+
+    return (
+        <Card className={`relative overflow-hidden rounded-3xl shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-md ${classes.card}`}>
+            <div className={`absolute -right-10 -top-10 h-28 w-28 rounded-full blur-2xl ${classes.glow}`} />
+            <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-white to-transparent" />
+            <CardContent className="relative flex min-h-[156px] flex-col justify-between p-5">
+                <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                        <p className="text-sm font-semibold text-slate-600">{title}</p>
+                        <p className={`mt-4 text-3xl font-bold tracking-tight ${classes.value}`}>
+                            {value}
+                        </p>
+                    </div>
+                    <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl shadow-lg ${classes.icon}`}>
+                        {icon}
+                    </div>
+                </div>
+                <div className="mt-4 flex min-h-8 items-end justify-between gap-3">
+                    <p className="text-sm font-medium text-slate-500">{helper}</p>
+                    {action}
+                </div>
+            </CardContent>
+        </Card>
     );
 }
 
@@ -166,9 +243,9 @@ export default function DashboardPage() {
         .sort((a, b) => a.startTime.localeCompare(b.startTime));
     const scheduledTodayAppointments = allTodayAppointments
         .filter((appointment) => appointment.status === 'scheduled');
-    const upcomingTodayAppointments = scheduledTodayAppointments
-        .filter((appointment) => appointment.startTime >= nowTimeKey);
     const nowMinutes = toMinutesFromTime(nowTimeKey);
+    const upcomingTodayAppointments = scheduledTodayAppointments
+        .filter((appointment) => toMinutesFromTime(appointment.startTime) > nowMinutes);
     const startingSoonCount = upcomingTodayAppointments
         .filter((appointment) => {
             const appointmentMinutes = toMinutesFromTime(appointment.startTime);
@@ -180,6 +257,14 @@ export default function DashboardPage() {
     const cancelledTodayCount = allTodayAppointments.filter((appointment) => appointment.status === 'cancelled').length;
     const visibleUpcomingAppointments = upcomingTodayAppointments.slice(0, 3);
     const showAllTodayHref = '/appointments';
+    const viewAllDebtsLabel = t('dashboard.viewAllDebts')
+        .replace(' ->', '')
+        .replace('->', '')
+        .trim();
+    const debtTone: DashboardStatTone = stats.outstandingDebtTotal > 0 ? 'red' : 'green';
+    const debtActionClassName = debtTone === 'red'
+        ? 'h-8 rounded-full px-2 text-red-700 hover:bg-red-100 hover:text-red-800'
+        : 'h-8 rounded-full px-2 text-emerald-700 hover:bg-emerald-100 hover:text-emerald-800';
 
     return (
         <div className="space-y-4">
@@ -212,147 +297,123 @@ export default function DashboardPage() {
             <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
                 {canViewFinance ? (
                     <>
-                        <Card>
-                            <CardHeader className="flex flex-row items-center justify-between pb-1 pt-3.5">
-                                <CardTitle className="text-sm font-medium text-gray-600">
-                                    {t('dashboard.revenueThisMonth')}
-                                </CardTitle>
-                                <DollarSign className="w-4 h-4 text-green-600" />
-                            </CardHeader>
-                            <CardContent className="pt-0 pb-3.5">
-                                <div className="text-2xl font-bold text-gray-900">
-                                    {formatCurrency(stats.revenueThisMonth)}
-                                </div>
-                                <p className="text-xs text-gray-500 mt-1">
-                                    {monthLabel}
-                                </p>
-                            </CardContent>
-                        </Card>
-
-                        <Card>
-                            <CardHeader className="flex flex-row items-center justify-between pb-1 pt-3.5">
-                                <CardTitle className="text-sm font-medium text-gray-600">
-                                    {t('dashboard.outstandingDebts')}
-                                </CardTitle>
-                                <AlertCircle className="w-4 h-4 text-red-600" />
-                            </CardHeader>
-                            <CardContent className="pt-0 pb-3.5">
-                                <div className="text-2xl font-bold text-gray-900">
-                                    {formatCurrency(stats.outstandingDebtTotal)}
-                                </div>
-                                <Button
-                                    asChild
-                                    variant="ghost"
-                                    size="sm"
-                                    className="mt-2 h-8 w-fit px-2 text-blue-700 hover:bg-blue-50 hover:text-blue-800"
-                                >
-                                    <Link href="/payments">{t('dashboard.viewAllDebts')}</Link>
+                        <DashboardStatCard
+                            title={t('dashboard.todayAppointments')}
+                            value={scheduledTodayAppointments.length}
+                            helper={scheduledTodayAppointments.length === 0 ? t('dashboard.noAppointments') : t('dashboard.scheduled')}
+                            tone="blue"
+                            icon={<Calendar className="h-5 w-5" />}
+                            action={(
+                                <Button asChild variant="ghost" size="sm" className="h-8 rounded-full px-2 text-blue-700 hover:bg-blue-100 hover:text-blue-800">
+                                    <Link href="/appointments" aria-label={t('dashboard.todayAppointments')}>
+                                        <ArrowRight className="h-4 w-4" />
+                                    </Link>
                                 </Button>
-                            </CardContent>
-                        </Card>
+                            )}
+                        />
 
-                        <Card>
-                            <CardHeader className="flex flex-row items-center justify-between pb-1 pt-3.5">
-                                <CardTitle className="text-sm font-medium text-gray-600">
-                                    {t('dashboard.todayAppointments')}
-                                </CardTitle>
-                                <Calendar className="w-4 h-4 text-blue-600" />
-                            </CardHeader>
-                            <CardContent className="pt-0 pb-3.5">
-                                <div className="text-2xl font-bold text-gray-900">
-                                    {scheduledTodayAppointments.length}
-                                </div>
-                                <p className="text-xs text-gray-500 mt-1">
-                                    {scheduledTodayAppointments.length === 0 ? t('dashboard.noAppointments') : t('dashboard.scheduled')}
-                                </p>
-                            </CardContent>
-                        </Card>
+                        <DashboardStatCard
+                            title={t('dashboard.revenueThisMonth')}
+                            value={formatCurrency(stats.revenueThisMonth)}
+                            helper={monthLabel}
+                            tone="green"
+                            icon={<DollarSign className="h-5 w-5" />}
+                        />
+
+                        <DashboardStatCard
+                            title={t('dashboard.outstandingDebts')}
+                            value={formatCurrency(stats.outstandingDebtTotal)}
+                            helper={viewAllDebtsLabel}
+                            tone={debtTone}
+                            icon={<AlertCircle className="h-5 w-5" />}
+                            action={(
+                                <Button asChild variant="ghost" size="sm" className={debtActionClassName}>
+                                    <Link href="/payments" aria-label={viewAllDebtsLabel}>
+                                        <ArrowRight className="h-4 w-4" />
+                                    </Link>
+                                </Button>
+                            )}
+                        />
                     </>
                 ) : (
                     <>
-                        <Card>
-                            <CardHeader className="flex flex-row items-center justify-between pb-1 pt-3.5">
-                                <CardTitle className="text-sm font-medium text-gray-600">
-                                    {t('dashboard.pendingToday')}
-                                </CardTitle>
-                                <Calendar className="w-4 h-4 text-blue-600" />
-                            </CardHeader>
-                            <CardContent className="pt-0 pb-3.5">
-                                <div className="text-2xl font-bold text-gray-900">
-                                    {pendingTodayCount}
-                                </div>
-                                <p className="text-xs text-gray-500 mt-1">{t('dashboard.scheduled')}</p>
-                            </CardContent>
-                        </Card>
+                        <DashboardStatCard
+                            title={t('dashboard.pendingToday')}
+                            value={pendingTodayCount}
+                            helper={t('dashboard.scheduled')}
+                            tone="blue"
+                            icon={<Calendar className="h-5 w-5" />}
+                        />
 
-                        <Card>
-                            <CardHeader className="flex flex-row items-center justify-between pb-1 pt-3.5">
-                                <CardTitle className="text-sm font-medium text-gray-600">
-                                    {t('dashboard.startingSoon')}
-                                </CardTitle>
-                                <Clock3 className="w-4 h-4 text-amber-600" />
-                            </CardHeader>
-                            <CardContent className="pt-0 pb-3.5">
-                                <div className="text-2xl font-bold text-gray-900">
-                                    {startingSoonCount}
-                                </div>
-                                <p className="text-xs text-gray-500 mt-1">{t('dashboard.nextTwoHours')}</p>
-                            </CardContent>
-                        </Card>
+                        <DashboardStatCard
+                            title={t('dashboard.startingSoon')}
+                            value={startingSoonCount}
+                            helper={t('dashboard.nextTwoHours')}
+                            tone="amber"
+                            icon={<Clock3 className="h-5 w-5" />}
+                        />
 
-                        <Card>
-                            <CardHeader className="flex flex-row items-center justify-between pb-1 pt-3.5">
-                                <CardTitle className="text-sm font-medium text-gray-600">
-                                    {t('dashboard.cancelledNoShowToday')}
-                                </CardTitle>
-                                <AlertCircle className="w-4 h-4 text-red-600" />
-                            </CardHeader>
-                            <CardContent className="space-y-2 pt-0 pb-3.5">
-                                <div className="flex items-center justify-between text-sm">
-                                    <span className="text-gray-500">{t('dashboard.noShowLabel')}</span>
-                                    <span className="font-semibold text-gray-900">{noShowTodayCount}</span>
-                                </div>
-                                <div className="flex items-center justify-between text-sm">
-                                    <span className="text-gray-500">{t('dashboard.cancelledLabel')}</span>
-                                    <span className="font-semibold text-gray-900">{cancelledTodayCount}</span>
-                                </div>
-                            </CardContent>
-                        </Card>
+                        <DashboardStatCard
+                            title={t('dashboard.cancelledNoShowToday')}
+                            value={`${noShowTodayCount} / ${cancelledTodayCount}`}
+                            helper={`${t('dashboard.noShowLabel')} / ${t('dashboard.cancelledLabel')}`}
+                            tone="red"
+                            icon={<AlertCircle className="h-5 w-5" />}
+                        />
                     </>
                 )}
             </div>
 
-            <Card>
-                <CardHeader className="pb-1 pt-4">
-                    <CardTitle>{t('dashboard.upcomingToday')}</CardTitle>
+            <Card className="overflow-hidden rounded-3xl border-blue-100 bg-gradient-to-br from-white via-slate-50 to-blue-50/70 shadow-sm">
+                <CardHeader className="pb-3 pt-5">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                        <div>
+                            <p className="text-xs font-bold uppercase tracking-[0.22em] text-blue-600">
+                                {t('dashboard.todayAppointments')}
+                            </p>
+                            <CardTitle className="mt-2 text-2xl tracking-tight text-slate-950">
+                                {t('dashboard.upcomingToday')}
+                            </CardTitle>
+                        </div>
+                        <div className="inline-flex w-fit items-center gap-2 rounded-full border border-blue-100 bg-white/80 px-3 py-1.5 text-sm font-semibold text-slate-700 shadow-sm">
+                            <Calendar className="h-4 w-4 text-blue-600" />
+                            {scheduledTodayAppointments.length} {t('dashboard.scheduled')}
+                        </div>
+                    </div>
                 </CardHeader>
-                <CardContent className="pt-0">
+                <CardContent className="pb-5 pt-0">
                     {scheduledTodayAppointments.length === 0 ? (
-                        <div className="flex flex-col gap-4 rounded-lg border border-dashed border-gray-200 px-4 py-5 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="flex flex-col gap-4 rounded-2xl border border-dashed border-blue-200 bg-white/70 px-4 py-6 sm:flex-row sm:items-center sm:justify-between">
                             <div className="flex items-center gap-3">
-                                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gray-50">
-                                    <Calendar className="h-5 w-5 text-gray-300" />
+                                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-blue-50">
+                                    <Calendar className="h-5 w-5 text-blue-600" />
                                 </div>
-                                <p className="text-sm text-gray-500">{t('dashboard.noAppointmentsToday')}</p>
+                                <div>
+                                    <p className="text-sm font-semibold text-slate-900">{t('dashboard.noAppointmentsToday')}</p>
+                                    <p className="mt-1 text-sm text-slate-500">{t('dashboard.scheduleAppointment')}</p>
+                                </div>
                             </div>
                             <Link href="/appointments?action=new" className="sm:shrink-0">
-                                <Button variant="outline" size="sm" className="w-full sm:w-auto">
+                                <Button size="sm" className="w-full rounded-full sm:w-auto">
                                     {t('dashboard.scheduleAppointment')}
                                 </Button>
                             </Link>
                         </div>
                     ) : upcomingTodayAppointments.length === 0 ? (
-                        <div className="text-center py-8">
-                            <p className="text-sm text-gray-500">{t('dashboard.noMoreUpcoming')}</p>
+                        <div className="flex flex-col items-center justify-center rounded-2xl border border-emerald-100 bg-white/75 px-4 py-10 text-center">
+                            <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600">
+                                <CheckCircle2 className="h-6 w-6" />
+                            </div>
+                            <p className="text-sm font-semibold text-slate-900">{t('dashboard.noMoreUpcoming')}</p>
                             <Link href={showAllTodayHref}>
-                                <Button variant="outline" className="mt-4">
+                                <Button variant="outline" className="mt-4 rounded-full">
                                     {t('dashboard.showAllToday', { count: scheduledTodayAppointments.length })}
                                 </Button>
                             </Link>
                         </div>
                     ) : (
-                        <div className="space-y-2.5">
-                            <div className="grid grid-cols-1 gap-2.5 lg:grid-cols-3">
+                        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_260px]">
+                            <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
                                 {visibleUpcomingAppointments.map((appointment) => {
                                     const translatedStatus = t(`status.${appointment.status}`);
                                     const statusLabel = translatedStatus.startsWith('status.')
@@ -363,27 +424,27 @@ export default function DashboardPage() {
                                     return (
                                         <div
                                             key={appointment.id}
-                                            className="rounded-md border border-gray-200 px-3 py-2.5 hover:bg-gray-50 transition-colors"
+                                            className="group rounded-2xl border border-white/80 bg-white/90 p-3 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-blue-100 hover:shadow-md"
                                         >
-                                            <div className="mb-2 flex items-start justify-between gap-2">
-                                                <div className="flex shrink-0 flex-col items-center justify-center rounded-md bg-blue-50 px-2 py-1.5 leading-none">
-                                                    <span className="text-sm font-semibold text-blue-700">
+                                            <div className="mb-3 flex items-start justify-between gap-3">
+                                                <div className="flex shrink-0 flex-col items-center justify-center rounded-2xl bg-blue-600 px-3 py-2 leading-none text-white shadow-sm shadow-blue-200">
+                                                    <span className="text-sm font-bold">
                                                         {formatTime(appointment.startTime)}
                                                     </span>
-                                                    <span className="mt-1 text-[11px] text-gray-500">
+                                                    <span className="mt-1 text-[11px] text-blue-100">
                                                         {t('dashboard.minutesShort', { count: appointment.durationMinutes })}
                                                     </span>
                                                 </div>
-                                                <span className={`inline-flex shrink-0 items-center gap-1 text-xs font-medium ${statusTone.text}`}>
+                                                <span className={`inline-flex shrink-0 items-center gap-1 rounded-full bg-white px-2 py-1 text-xs font-semibold shadow-xs ${statusTone.text}`}>
                                                     <span className={`h-1.5 w-1.5 rounded-full ${statusTone.dot}`} />
                                                     {statusLabel}
                                                 </span>
                                             </div>
                                             <div className="min-w-0">
-                                                <p className="truncate text-sm font-medium leading-tight text-gray-900" title={appointment.patientName}>
+                                                <p className="truncate text-sm font-bold leading-tight text-slate-950" title={appointment.patientName}>
                                                     {truncateForUi(appointment.patientName, DASHBOARD_NAME_UI_LIMIT)}
                                                 </p>
-                                                <p className="mt-1 truncate text-xs text-gray-500">
+                                                <p className="mt-1 truncate text-xs font-medium text-slate-500">
                                                     {truncateForUi(appointment.reason || t('dashboard.generalAppointment'), DASHBOARD_REASON_UI_LIMIT)}
                                                 </p>
                                             </div>
@@ -391,9 +452,15 @@ export default function DashboardPage() {
                                     );
                                 })}
                             </div>
-                            <div className="pt-1">
+                            <div className="flex flex-col justify-between rounded-2xl border border-blue-100 bg-white/75 p-4">
+                                <div>
+                                    <p className="text-sm font-bold text-slate-950">{t('dashboard.todayAppointments')}</p>
+                                    <p className="mt-1 text-sm text-slate-500">
+                                        {pendingTodayCount} {t('dashboard.scheduled')}
+                                    </p>
+                                </div>
                                 <Link href={showAllTodayHref}>
-                                    <Button variant="outline" size="sm" className="w-full">
+                                    <Button variant="outline" size="sm" className="mt-4 w-full rounded-full bg-white">
                                         {t('dashboard.showAllToday', { count: scheduledTodayAppointments.length })}
                                     </Button>
                                 </Link>
