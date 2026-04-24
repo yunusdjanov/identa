@@ -122,9 +122,20 @@ class TreatmentImageDirectUploadService
         $variantQueue = [];
         $now = now();
         $availableSlots = max(0, self::MAX_IMAGES_PER_TREATMENT - $treatment->images()->count());
+        $cacheKeysByUploadId = [];
 
         foreach ($uploadIds as $uploadId) {
-            $ticket = Cache::pull($this->directUploadCacheKey($uploadId));
+            $cacheKeysByUploadId[$uploadId] = $this->directUploadCacheKey($uploadId);
+        }
+
+        $ticketsByCacheKey = Cache::many(array_values($cacheKeysByUploadId));
+
+        foreach ($cacheKeysByUploadId as $cacheKey) {
+            Cache::forget($cacheKey);
+        }
+
+        foreach ($uploadIds as $uploadId) {
+            $ticket = $ticketsByCacheKey[$cacheKeysByUploadId[$uploadId]] ?? null;
             if (! is_array($ticket)) {
                 $failed[] = ['upload_id' => $uploadId, 'reason' => 'expired'];
                 continue;
