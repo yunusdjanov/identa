@@ -1126,10 +1126,6 @@ class PatientTreatmentController extends Controller
 
     private function queueTreatmentImageVariants(string $disk, string $path): void
     {
-        foreach ($this->buildTreatmentImageVariantDefinitions($path) as $variantConfig) {
-            MediaPathCache::markMissing($disk, (string) $variantConfig['path']);
-        }
-
         GenerateMediaVariants::dispatch(
             disk: $disk,
             sourcePath: $path,
@@ -1287,8 +1283,6 @@ class PatientTreatmentController extends Controller
         }
 
         if ($this->shouldSkipRemoteMediaPathLookup($disk)) {
-            MediaPathCache::markMissing($disk, $path);
-
             return false;
         }
 

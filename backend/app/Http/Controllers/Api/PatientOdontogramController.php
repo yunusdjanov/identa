@@ -864,8 +864,6 @@ class PatientOdontogramController extends Controller
         }
 
         if ($this->shouldSkipRemoteMediaPathLookup($disk)) {
-            MediaPathCache::markMissing($disk, $path);
-
             return false;
         }
 
@@ -925,9 +923,6 @@ class PatientOdontogramController extends Controller
 
     private function queueOdontogramImageVariants(string $disk, string $path): void
     {
-        MediaPathCache::markMissing($disk, $this->buildOdontogramImageVariantPath($path, self::IMAGE_VARIANT_THUMBNAIL));
-        MediaPathCache::markMissing($disk, $this->buildOdontogramImageVariantPath($path, self::IMAGE_VARIANT_PREVIEW));
-
         GenerateMediaVariants::dispatch(
             disk: $disk,
             sourcePath: $path,

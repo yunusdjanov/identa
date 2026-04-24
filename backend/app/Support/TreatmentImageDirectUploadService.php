@@ -185,7 +185,6 @@ class TreatmentImageDirectUploadService
             TreatmentImage::query()->insert($rows);
 
             foreach ($variantQueue as [$disk, $path]) {
-                MediaPathCache::markPresent($disk, $path);
                 $this->queueVariants((string) $disk, (string) $path);
             }
         }
@@ -198,10 +197,6 @@ class TreatmentImageDirectUploadService
 
     public function queueVariants(string $disk, string $path): void
     {
-        foreach ($this->variantDefinitions($path) as $variantConfig) {
-            MediaPathCache::markMissing($disk, (string) $variantConfig['path']);
-        }
-
         GenerateMediaVariants::dispatch(
             disk: $disk,
             sourcePath: $path,
