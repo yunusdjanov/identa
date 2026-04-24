@@ -1043,7 +1043,12 @@ class PatientTreatmentController extends Controller
                 ) ?? ($apiUrl.'?variant='.self::IMAGE_VARIANT_PREVIEW);
             }
 
-            return null;
+            return $this->buildTemporaryMediaUrl(
+                $disk,
+                $path,
+                now()->addMinutes(10),
+                $image->mime_type
+            ) ?? $apiUrl;
         }
 
         if ($variant === self::IMAGE_VARIANT_PREVIEW) {

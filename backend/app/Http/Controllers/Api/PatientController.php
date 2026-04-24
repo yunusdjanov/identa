@@ -454,7 +454,7 @@ class PatientController extends Controller
         $disk = (string) ($ticket['disk'] ?? '');
         $path = (string) ($ticket['path'] ?? '');
 
-        if ($disk === '' || $path === '' || ! Storage::disk($disk)->exists($path)) {
+        if ($disk === '' || $path === '') {
             throw ValidationException::withMessages([
                 'photo' => [$this->patientMessage(
                     'direct_upload_missing',
@@ -781,7 +781,16 @@ class PatientController extends Controller
 
         $variantPath = $this->buildPatientPhotoVariantPath($patient->photo_path, $variant);
         if (! $this->mediaPathExists($disk, $variantPath)) {
-            return $this->mediaDiskSupportsDirectUpload($disk) ? null : $url.'&variant='.$variant;
+            if ($this->mediaDiskSupportsDirectUpload($disk)) {
+                return $this->buildTemporaryMediaUrl(
+                    $disk,
+                    $patient->photo_path,
+                    now()->addMinutes(10),
+                    $this->guessImageMimeType($patient->photo_path)
+                );
+            }
+
+            return $url;
         }
 
         $temporaryVariantUrl = $this->buildTemporaryMediaUrl(
@@ -1075,7 +1084,7 @@ class PatientController extends Controller
                 $this->buildPatientPhotoVariantPath($path, self::IMAGE_VARIANT_PREVIEW),
             ],
             logContext: 'Patient photo'
-        );
+        )->afterResponse();
     }
 
     private function queuePatientPhotoVariants(string $disk, string $path): void
@@ -1099,7 +1108,7 @@ class PatientController extends Controller
             logContext: 'Patient photo',
             jpegQuality: self::JPEG_VARIANT_QUALITY,
             webpQuality: self::WEBP_VARIANT_QUALITY,
-        );
+        )->afterResponse();
     }
 
     private function streamPatientPhotoVariant(string $disk, string $path, string $variant): ?StreamedResponse

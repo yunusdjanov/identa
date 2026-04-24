@@ -403,7 +403,7 @@ class PatientOdontogramController extends Controller
 
         $disk = (string) ($ticket['disk'] ?? '');
         $path = (string) ($ticket['path'] ?? '');
-        if ($disk === '' || $path === '' || ! Storage::disk($disk)->exists($path)) {
+        if ($disk === '' || $path === '') {
             throw ValidationException::withMessages([
                 'image' => [$this->odontogramMessage(
                     'direct_upload_missing',
@@ -422,7 +422,7 @@ class PatientOdontogramController extends Controller
                 'disk' => $disk,
                 'path' => $path,
                 'mime_type' => (string) $ticket['mime_type'],
-                'file_size' => max((int) Storage::disk($disk)->size($path), 0),
+                'file_size' => $this->resolveUploadedObjectSize($disk, $path, (int) ($ticket['file_size'] ?? 0)),
                 'captured_at' => $ticket['captured_at'] ?? null,
             ]);
         } else {
@@ -432,7 +432,7 @@ class PatientOdontogramController extends Controller
                 'disk' => $disk,
                 'path' => $path,
                 'mime_type' => (string) $ticket['mime_type'],
-                'file_size' => max((int) Storage::disk($disk)->size($path), 0),
+                'file_size' => $this->resolveUploadedObjectSize($disk, $path, (int) ($ticket['file_size'] ?? 0)),
                 'captured_at' => $ticket['captured_at'] ?? null,
             ]);
         }
@@ -782,15 +782,21 @@ class PatientOdontogramController extends Controller
         if ($variant !== null) {
             $variantPath = $this->buildOdontogramImageVariantPath($path, $variant);
             if (! $this->mediaPathExists($disk, $variantPath)) {
-                return $this->mediaDiskSupportsDirectUpload($disk)
-                    ? null
-                    : url(sprintf(
-                        '/api/v1/patients/%s/odontogram/%s/images/%s?variant=%s',
-                        (string) $entry->patient_id,
-                        (string) $entry->id,
-                        (string) $image->id,
-                        $variant
-                    ));
+                if ($this->mediaDiskSupportsDirectUpload($disk)) {
+                    return $this->buildTemporaryMediaUrl(
+                        $disk,
+                        $path,
+                        now()->addMinutes(10),
+                        (string) $image->mime_type
+                    );
+                }
+
+                return url(sprintf(
+                    '/api/v1/patients/%s/odontogram/%s/images/%s',
+                    (string) $entry->patient_id,
+                    (string) $entry->id,
+                    (string) $image->id
+                ));
             }
 
             $temporaryVariantUrl = $this->buildTemporaryMediaUrl(
@@ -902,7 +908,7 @@ class PatientOdontogramController extends Controller
                 $this->buildOdontogramImageVariantPath($path, self::IMAGE_VARIANT_PREVIEW),
             ],
             logContext: 'Odontogram image'
-        );
+        )->afterResponse();
     }
 
     private function queueOdontogramImageVariants(string $disk, string $path): void
@@ -926,7 +932,20 @@ class PatientOdontogramController extends Controller
             logContext: 'Odontogram image',
             jpegQuality: self::JPEG_VARIANT_QUALITY,
             webpQuality: self::WEBP_VARIANT_QUALITY,
-        );
+        )->afterResponse();
+    }
+
+    private function resolveUploadedObjectSize(string $disk, string $path, int $expectedSize): int
+    {
+        if (! (bool) config('filesystems.verify_direct_uploads_on_finalize', false)) {
+            return $expectedSize;
+        }
+
+        try {
+            return max((int) Storage::disk($disk)->size($path), 0);
+        } catch (\Throwable) {
+            return 0;
+        }
     }
 
     private function streamOdontogramImageVariant(OdontogramEntryImage $image, string $variant): ?StreamedResponse
