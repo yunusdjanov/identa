@@ -15,12 +15,12 @@ class MediaPathCache
 
     public static function markPresent(string $disk, string $path): void
     {
-        Cache::put(self::key($disk, $path), true, now()->addHours(12));
+        Cache::put(self::key($disk, $path), true, now()->addDays(7));
     }
 
     public static function markMissing(string $disk, string $path): void
     {
-        Cache::put(self::key($disk, $path), false, now()->addMinutes(5));
+        Cache::put(self::key($disk, $path), false, now()->addMinutes(2));
     }
 
     /**

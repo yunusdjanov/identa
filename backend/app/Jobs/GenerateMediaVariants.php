@@ -43,18 +43,18 @@ class GenerateMediaVariants implements ShouldQueue
         }
 
         $storage = Storage::disk($disk);
-        if (! $storage->exists($sourcePath)) {
-            return;
-        }
 
         try {
             $contents = $storage->get($sourcePath);
+            if (! is_string($contents) || $contents === '') {
+                return;
+            }
 
             foreach ($this->variants as $variant => $config) {
                 $variantPath = trim((string) ($config['path'] ?? ''));
                 $maxEdge = (int) ($config['max_edge'] ?? 0);
 
-                if ($variantPath === '' || $maxEdge <= 0 || $storage->exists($variantPath)) {
+                if ($variantPath === '' || $maxEdge <= 0) {
                     continue;
                 }
 

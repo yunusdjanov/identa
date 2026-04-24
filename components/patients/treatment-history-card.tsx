@@ -62,7 +62,7 @@ const ALLOWED_HISTORY_IMAGE_TYPES = new Set([
 ]);
 const HISTORY_IMAGE_UPLOAD_CONCURRENCY = 10;
 const MEDIA_READINESS_POLL_INTERVAL_MS = 1200;
-const MEDIA_READINESS_TIMEOUT_MS = 20000;
+const MEDIA_READINESS_TIMEOUT_MS = 8000;
 
 const createEmptyFormState = (): TreatmentFormState => ({
     treatmentDate: toLocalDateKey(),
@@ -390,11 +390,7 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
 
             const images = detail.images ?? [];
             const hasExpectedImages = images.length >= expectedImageCount;
-            const variantsReady = images.every(
-                (image) => (image.preview_ready ?? true) && (image.thumbnail_ready ?? true)
-            );
-
-            if (hasExpectedImages && variantsReady) {
+            if (hasExpectedImages) {
                 return detail;
             }
 

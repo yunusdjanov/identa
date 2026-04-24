@@ -9,6 +9,7 @@ use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 
 class DashboardController extends Controller
 {
@@ -27,7 +28,7 @@ class DashboardController extends Controller
             $includeFinancials ? 'finance' : 'standard'
         );
 
-        $data = Cache::remember($cacheKey, now()->addSeconds(10), function () use ($tenantDentistId, $includeFinancials): array {
+        $data = Cache::remember($cacheKey, now()->addSeconds(30), function () use ($tenantDentistId, $includeFinancials): array {
             $todayAppointments = Appointment::query()
                 ->where('dentist_id', $tenantDentistId)
                 ->whereDate('appointment_date', today())
@@ -70,16 +71,15 @@ class DashboardController extends Controller
                     ->whereBetween('treatment_date', [now()->startOfMonth()->toDateString(), now()->endOfMonth()->toDateString()])
                     ->sum('paid_amount');
 
-                $outstandingDebtTotal = (float) Treatment::query()
+                $patientBalances = Treatment::query()
                     ->where('dentist_id', $tenantDentistId)
                     ->selectRaw('patient_id, COALESCE(SUM(debt_amount), 0) AS total_debt, COALESCE(SUM(paid_amount), 0) AS total_paid')
-                    ->groupBy('patient_id')
-                    ->get()
-                    ->sum(function (Treatment $treatment): float {
-                        $balance = (float) $treatment->getAttribute('total_debt') - (float) $treatment->getAttribute('total_paid');
+                    ->groupBy('patient_id');
 
-                        return max($balance, 0.0);
-                    });
+                $outstandingDebtTotal = (float) DB::query()
+                    ->fromSub($patientBalances->toBase(), 'patient_balances')
+                    ->selectRaw('COALESCE(SUM(GREATEST(total_debt - total_paid, 0)), 0) AS total')
+                    ->value('total');
             }
 
             return [

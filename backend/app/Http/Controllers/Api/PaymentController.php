@@ -69,8 +69,11 @@ class PaymentController extends Controller
         $this->applySort($query, $request->query('sort', '-payment_date'));
 
         $payments = $query->paginate($perPage);
-        $totalCount = (clone $summaryQuery)->count();
-        $totalAmount = (float) ((clone $summaryQuery)->sum('amount'));
+        $summary = $summaryQuery
+            ->selectRaw('COUNT(*) AS total_count, COALESCE(SUM(amount), 0) AS total_amount')
+            ->first();
+        $totalCount = (int) ($summary?->getAttribute('total_count') ?? 0);
+        $totalAmount = (float) ($summary?->getAttribute('total_amount') ?? 0);
 
         return response()->json([
             'data' => $payments

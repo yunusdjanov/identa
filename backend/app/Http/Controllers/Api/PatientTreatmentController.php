@@ -1286,6 +1286,12 @@ class PatientTreatmentController extends Controller
             return $cached;
         }
 
+        if ($this->shouldSkipRemoteMediaPathLookup($disk)) {
+            MediaPathCache::markMissing($disk, $path);
+
+            return false;
+        }
+
         $exists = Storage::disk($disk)->exists($path);
         if ($exists) {
             MediaPathCache::markPresent($disk, $path);
@@ -1294,6 +1300,12 @@ class PatientTreatmentController extends Controller
         }
 
         return $exists;
+    }
+
+    private function shouldSkipRemoteMediaPathLookup(string $disk): bool
+    {
+        return ! (bool) config('filesystems.check_remote_variant_exists', false)
+            && (string) config("filesystems.disks.{$disk}.driver") === 's3';
     }
 
     private function buildTemporaryMediaUrl(

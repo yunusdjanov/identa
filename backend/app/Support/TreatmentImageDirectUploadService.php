@@ -117,6 +117,9 @@ class TreatmentImageDirectUploadService
     ): array {
         $completed = [];
         $failed = [];
+        $rows = [];
+        $variantQueue = [];
+        $now = now();
         $availableSlots = max(0, self::MAX_IMAGES_PER_TREATMENT - $treatment->images()->count());
 
         foreach ($uploadIds as $uploadId) {
@@ -157,17 +160,34 @@ class TreatmentImageDirectUploadService
                 continue;
             }
 
-            $image = $treatment->images()->create([
+            $attributes = [
+                'id' => (string) Str::uuid(),
                 'dentist_id' => $dentistId,
+                'treatment_id' => (string) $treatment->id,
                 'disk' => $disk,
                 'path' => $path,
                 'mime_type' => (string) ($ticket['mime_type'] ?? 'application/octet-stream'),
                 'file_size' => $storedSize,
-            ]);
+                'created_at' => $now,
+                'updated_at' => $now,
+            ];
 
-            MediaPathCache::markPresent($disk, $path);
-            $this->queueVariants($disk, $path);
+            $rows[] = $attributes;
+            $variantQueue[] = [$disk, $path];
+            $image = new TreatmentImage();
+            $image->forceFill($attributes);
+            $image->exists = true;
+            $image->wasRecentlyCreated = true;
             $completed[] = $image;
+        }
+
+        if ($rows !== []) {
+            TreatmentImage::query()->insert($rows);
+
+            foreach ($variantQueue as [$disk, $path]) {
+                MediaPathCache::markPresent($disk, $path);
+                $this->queueVariants((string) $disk, (string) $path);
+            }
         }
 
         return [

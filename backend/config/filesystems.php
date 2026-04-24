@@ -43,6 +43,20 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Remote Variant Existence Checks
+    |--------------------------------------------------------------------------
+    |
+    | Variant readiness is tracked in Redis by the media queue. Keeping remote
+    | checks disabled prevents user-facing R2 HEAD requests when opening
+    | galleries or rendering thumbnail lists; original signed URLs are used as
+    | an immediate fallback until variants are marked ready.
+    |
+    */
+
+    'check_remote_variant_exists' => env('MEDIA_CHECK_REMOTE_VARIANT_EXISTS', false),
+
+    /*
+    |--------------------------------------------------------------------------
     | Filesystem Disks
     |--------------------------------------------------------------------------
     |
