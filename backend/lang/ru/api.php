@@ -2,6 +2,7 @@
 
 return [
     'auth' => [
+        'current_password_incorrect' => 'Текущий пароль указан неверно.',
         'authentication_required' => 'Требуется авторизация.',
         'forbidden' => 'У вас нет прав для выполнения этого действия.',
         'account_inactive' => 'Ваш аккаунт неактивен.',

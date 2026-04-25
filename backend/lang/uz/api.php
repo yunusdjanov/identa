@@ -6,6 +6,7 @@ return [
         'forbidden' => 'Bu amalni bajarish uchun sizda ruxsat yoq.',
         'account_inactive' => 'Hisobingiz faol emas.',
         'invalid_credentials' => 'Login yoki parol notogri.',
+        'current_password_incorrect' => "Joriy parol noto'g'ri.",
     ],
     'appointments' => [
         'conflict' => 'Qabul vaqti mavjud qabul bilan toqnashmoqda.',

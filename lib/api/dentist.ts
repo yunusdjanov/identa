@@ -185,6 +185,19 @@ export async function resetPasswordWithToken(payload: {
     return data.message ?? 'Password reset completed.';
 }
 
+export async function changeCurrentPassword(payload: {
+    current_password?: string;
+    new_password: string;
+    new_password_confirmation: string;
+}): Promise<ApiUser> {
+    const { data } = await withCsrfRetry(() =>
+        apiClient.post<ApiEnvelope<ApiUser>>('/auth/change-password', payload)
+    );
+    invalidateCsrfCookie();
+
+    return data.data;
+}
+
 export async function logoutSession(): Promise<void> {
     await ensureCsrfCookie();
     await apiClient.post('/auth/logout');

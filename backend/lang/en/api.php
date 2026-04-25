@@ -6,6 +6,7 @@ return [
         'forbidden' => 'You are not authorized to perform this action.',
         'account_inactive' => 'Your account is not active.',
         'invalid_credentials' => 'Invalid credentials provided.',
+        'current_password_incorrect' => 'Current password is incorrect.',
     ],
     'appointments' => [
         'conflict' => 'Appointment time conflicts with an existing appointment.',

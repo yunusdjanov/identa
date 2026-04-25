@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rules\Password as PasswordRule;
 use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
@@ -138,7 +139,7 @@ class AuthController extends Controller
         $user = $request->user();
 
         $rules = [
-            'new_password' => ['required', 'string', 'min:8', 'confirmed'],
+            'new_password' => ['required', 'string', 'confirmed', PasswordRule::min(8)->letters()->numbers()],
         ];
 
         if (! $user->must_change_password) {
@@ -152,7 +153,7 @@ class AuthController extends Controller
             && ! Hash::check((string) $validated['current_password'], (string) $user->password)
         ) {
             throw ValidationException::withMessages([
-                'current_password' => ['Current password is incorrect.'],
+                'current_password' => [__('api.auth.current_password_incorrect')],
             ]);
         }
 
@@ -203,14 +204,14 @@ class AuthController extends Controller
             $request->only('email')
         );
 
-        if ($status !== Password::RESET_LINK_SENT) {
+        if ($status === Password::RESET_THROTTLED) {
             throw ValidationException::withMessages([
                 'email' => [__($status)],
             ]);
         }
 
         return response()->json([
-            'message' => __($status),
+            'message' => __(Password::RESET_LINK_SENT),
         ]);
     }
 
@@ -219,7 +220,7 @@ class AuthController extends Controller
         $request->validate([
             'token' => ['required', 'string'],
             'email' => ['required', 'email'],
-            'password' => ['required', 'string', 'min:8', 'confirmed'],
+            'password' => ['required', 'string', 'confirmed', PasswordRule::min(8)->letters()->numbers()],
         ]);
 
         $resetUserId = null;

@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useMutation } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -17,6 +18,8 @@ import { Brand } from '@/components/branding/brand';
 
 export default function ForgotPasswordPage() {
     const { t } = useI18n();
+    const searchParams = useSearchParams();
+    const backToLoginHref = searchParams.get('from') === 'admin' ? '/admin/login' : '/login';
     const [email, setEmail] = useState('');
     const [isSubmitted, setIsSubmitted] = useState(false);
     const [isSent, setIsSent] = useState(false);
@@ -106,7 +109,7 @@ export default function ForgotPasswordPage() {
 
                             <div className="text-center">
                                 <Link
-                                    href="/login"
+                                    href={backToLoginHref}
                                     className="text-sm font-medium text-blue-600 transition hover:text-blue-700"
                                 >
                                     {t('forgotPassword.backToLogin')}

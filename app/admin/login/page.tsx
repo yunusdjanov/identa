@@ -170,7 +170,7 @@ export default function AdminLoginPage() {
                                     <span>{t('login.rememberMe')}</span>
                                 </label>
                                 <Link
-                                    href="/forgot-password"
+                                    href="/forgot-password?from=admin"
                                     className="text-sm font-medium text-slate-700 transition hover:text-slate-900"
                                 >
                                     {t('login.forgotPassword')}

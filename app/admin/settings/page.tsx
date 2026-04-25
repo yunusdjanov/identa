@@ -5,13 +5,14 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { ArrowLeft, Lock, MessageSquare, Settings2, User } from 'lucide-react';
+import { ArrowLeft, MessageSquare, Settings2, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { PageHeader } from '@/components/ui/page-shell';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useI18n } from '@/components/providers/i18n-provider';
+import { PasswordSecurityCard } from '@/components/settings/password-security-card';
 import { getApiErrorMessage } from '@/lib/api/client';
 import {
     getAdminLandingSettings,
@@ -704,16 +705,14 @@ export default function AdminSettingsPage() {
                     </CardContent>
                 </Card>
 
+                <PasswordSecurityCard user={authQuery.data} className="interactive-card" />
+
                 <Card className="interactive-card">
                     <CardHeader>
-                        <CardTitle className="flex items-center">
-                            <Lock className="mr-2 h-4 w-4" />
-                            {t('settings.tab.security')}
-                        </CardTitle>
+                        <CardTitle>{t('menu.logout')}</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-3">
-                        <p className="text-sm text-gray-600">{t('admin.settings.securityInfo')}</p>
-                        <p className="text-xs text-gray-500">{t('admin.settings.securityHint')}</p>
+                        <p className="text-sm text-gray-600">{t('admin.settings.securityHint')}</p>
                         <Button variant="outline" onClick={() => logoutMutation.mutate()}>
                             {logoutMutation.isPending ? t('menu.loggingOut') : t('menu.logout')}
                         </Button>

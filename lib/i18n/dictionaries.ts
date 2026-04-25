@@ -3164,16 +3164,55 @@ Object.assign(en, {
 Object.assign(ru, {
     'patientHistory.imagesUploading': '\u0418\u0434\u0451\u0442 \u0437\u0430\u0433\u0440\u0443\u0437\u043a\u0430...',
     'patientHistory.toast.imagesSyncFailed': '\u0417\u0430\u043f\u0438\u0441\u044c \u0441\u043e\u0445\u0440\u0430\u043d\u0435\u043d\u0430, \u043d\u043e \u0447\u0430\u0441\u0442\u044c \u0438\u0437\u043e\u0431\u0440\u0430\u0436\u0435\u043d\u0438\u0439 \u043d\u0435 \u0437\u0430\u0432\u0435\u0440\u0448\u0438\u043b\u0430 \u043e\u0431\u0440\u0430\u0431\u043e\u0442\u043a\u0443. \u041e\u0442\u043a\u0440\u043e\u0439\u0442\u0435 \u0437\u0430\u043f\u0438\u0441\u044c \u0438 \u043f\u043e\u043f\u0440\u043e\u0431\u0443\u0439\u0442\u0435 \u0435\u0449\u0451 \u0440\u0430\u0437.',
+    'settings.passwordSelfServiceInfo': '\u0421\u043c\u0435\u043d\u0430 \u043f\u0430\u0440\u043e\u043b\u044f \u0434\u043e\u0441\u0442\u0443\u043f\u043d\u0430 \u0434\u043b\u044f \u0441\u0443\u043f\u0435\u0440\u0430\u0434\u043c\u0438\u043d\u0430, \u0441\u0442\u043e\u043c\u0430\u0442\u043e\u043b\u043e\u0433\u0430 \u0438 \u0430\u0441\u0441\u0438\u0441\u0442\u0435\u043d\u0442\u0430.',
+    'settings.currentPassword': '\u0422\u0435\u043a\u0443\u0449\u0438\u0439 \u043f\u0430\u0440\u043e\u043b\u044c',
+    'settings.newPassword': '\u041d\u043e\u0432\u044b\u0439 \u043f\u0430\u0440\u043e\u043b\u044c',
+    'settings.confirmNewPassword': '\u041f\u043e\u0434\u0442\u0432\u0435\u0440\u0434\u0438\u0442\u0435 \u043d\u043e\u0432\u044b\u0439 \u043f\u0430\u0440\u043e\u043b\u044c',
+    'settings.currentPasswordRequired': '\u0423\u043a\u0430\u0436\u0438\u0442\u0435 \u0442\u0435\u043a\u0443\u0449\u0438\u0439 \u043f\u0430\u0440\u043e\u043b\u044c.',
+    'settings.passwordConfirmationRequired': '\u041f\u043e\u0434\u0442\u0432\u0435\u0440\u0434\u0438\u0442\u0435 \u043d\u043e\u0432\u044b\u0439 \u043f\u0430\u0440\u043e\u043b\u044c.',
+    'settings.passwordMismatch': '\u041f\u0430\u0440\u043e\u043b\u0438 \u043d\u0435 \u0441\u043e\u0432\u043f\u0430\u0434\u0430\u044e\u0442.',
+    'settings.passwordChanged': '\u041f\u0430\u0440\u043e\u043b\u044c \u043e\u0431\u043d\u043e\u0432\u043b\u0451\u043d.',
+    'settings.passwordChangeFailed': '\u041d\u0435 \u0443\u0434\u0430\u043b\u043e\u0441\u044c \u0441\u043c\u0435\u043d\u0438\u0442\u044c \u043f\u0430\u0440\u043e\u043b\u044c.',
+    'settings.passwordFixErrors': '\u0418\u0441\u043f\u0440\u0430\u0432\u044c\u0442\u0435 \u043e\u0448\u0438\u0431\u043a\u0438 \u0432 \u0444\u043e\u0440\u043c\u0435.',
+    'settings.changePassword': '\u0421\u043c\u0435\u043d\u0438\u0442\u044c \u043f\u0430\u0440\u043e\u043b\u044c',
+    'settings.changingPassword': '\u0421\u043c\u0435\u043d\u0430...',
+    'settings.newPasswordHelp': '\u041c\u0438\u043d\u0438\u043c\u0443\u043c 8 \u0441\u0438\u043c\u0432\u043e\u043b\u043e\u0432, \u0431\u0443\u043a\u0432\u044b \u0438 \u0446\u0438\u0444\u0440\u044b.',
 });
 
 Object.assign(uz, {
     'patientHistory.imagesUploading': 'Yuklanmoqda...',
     'patientHistory.toast.imagesSyncFailed': "Yozuv saqlandi, lekin ayrim rasmlar yakuniga yetmadi. Yozuvni qayta ochib yana urinib ko'ring.",
+    'settings.passwordSelfServiceInfo': "Parolni superadmin, stomatolog va assistent o'z kabinetidan almashtirishi mumkin.",
+    'settings.currentPassword': 'Joriy parol',
+    'settings.newPassword': 'Yangi parol',
+    'settings.confirmNewPassword': 'Yangi parolni tasdiqlang',
+    'settings.currentPasswordRequired': 'Joriy parolni kiriting.',
+    'settings.passwordConfirmationRequired': 'Yangi parolni tasdiqlang.',
+    'settings.passwordMismatch': 'Parollar mos emas.',
+    'settings.passwordChanged': 'Parol yangilandi.',
+    'settings.passwordChangeFailed': "Parolni almashtirib bo'lmadi.",
+    'settings.passwordFixErrors': "Formadagi xatolarni to'g'rilang.",
+    'settings.changePassword': 'Parolni almashtirish',
+    'settings.changingPassword': 'Almashtirilmoqda...',
+    'settings.newPasswordHelp': 'Kamida 8 ta belgi, harf va raqam bo‘lsin.',
 });
 
 Object.assign(en, {
     'patientHistory.imagesUploading': 'Uploading...',
     'patientHistory.toast.imagesSyncFailed': 'Entry saved, but some images did not finish processing. Please reopen the entry and try again.',
+    'settings.passwordSelfServiceInfo': 'Super admins, dentists, and assistants can change their own password from here.',
+    'settings.currentPassword': 'Current password',
+    'settings.newPassword': 'New password',
+    'settings.confirmNewPassword': 'Confirm new password',
+    'settings.currentPasswordRequired': 'Enter your current password.',
+    'settings.passwordConfirmationRequired': 'Confirm the new password.',
+    'settings.passwordMismatch': 'Passwords do not match.',
+    'settings.passwordChanged': 'Password updated.',
+    'settings.passwordChangeFailed': 'Could not change password.',
+    'settings.passwordFixErrors': 'Please fix the password form errors.',
+    'settings.changePassword': 'Change password',
+    'settings.changingPassword': 'Changing...',
+    'settings.newPasswordHelp': 'Use at least 8 characters with letters and numbers.',
 });
 
 export const DICTIONARIES: Record<AppLocale, TranslationDictionary> = {

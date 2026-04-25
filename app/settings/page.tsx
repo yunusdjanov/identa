@@ -22,6 +22,7 @@ import { getCurrentUser, getProfile, updateProfile } from '@/lib/api/dentist';
 import { getApiErrorMessage } from '@/lib/api/client';
 import { toast } from 'sonner';
 import { User, Building2, Clock, Lock } from 'lucide-react';
+import { PasswordSecurityCard } from '@/components/settings/password-security-card';
 import type { DentistProfile } from '@/lib/types';
 import type { ApiSubscriptionSummary } from '@/lib/api/types';
 import { useI18n } from '@/components/providers/i18n-provider';
@@ -148,13 +149,14 @@ export default function SettingsPage() {
         staleTime: 5 * 60_000,
     });
     const isDentist = currentUserQuery.data?.role === 'dentist';
-    const canViewSettings = Boolean(currentUserQuery.data && isDentist);
+    const isAssistant = currentUserQuery.data?.role === 'assistant';
+    const canViewSettings = Boolean(currentUserQuery.data && (isDentist || isAssistant));
     const canManageSettings = Boolean(currentUserQuery.data && isDentist);
 
     const profileQuery = useQuery({
         queryKey: ['settings', 'profile'],
         queryFn: getProfile,
-        enabled: canViewSettings,
+        enabled: canManageSettings,
     });
 
     const [profileDraft, setProfileDraft] = useState<DentistProfile | null>(null);
@@ -273,12 +275,7 @@ export default function SettingsPage() {
         });
     };
 
-    const handlePasswordChange = (event: React.FormEvent) => {
-        event.preventDefault();
-        toast.info(t('settings.passwordFlowNotAvailable'));
-    };
-
-    if (currentUserQuery.isLoading || (canViewSettings && profileQuery.isLoading)) {
+    if (currentUserQuery.isLoading || (canManageSettings && profileQuery.isLoading)) {
         return <SettingsLoadingSkeleton />;
     }
 
@@ -362,21 +359,25 @@ export default function SettingsPage() {
                 </CardContent>
             </Card>
 
-            <Tabs defaultValue="profile" className="space-y-6">
+            <Tabs defaultValue={isDentist ? 'profile' : 'security'} className="space-y-6">
                 <div className="overflow-x-auto overflow-y-hidden no-scrollbar -mx-4 px-4 sm:mx-0 sm:px-0">
                     <TabsList className="inline-flex w-full sm:w-auto min-w-max">
-                        <TabsTrigger value="profile" className="flex-shrink-0">
-                            <User className="w-4 h-4 sm:mr-2" />
-                            <span className="hidden sm:inline">{t('settings.tab.profile')}</span>
-                        </TabsTrigger>
-                        <TabsTrigger value="practice" className="flex-shrink-0">
-                            <Building2 className="w-4 h-4 sm:mr-2" />
-                            <span className="hidden sm:inline">{t('settings.tab.practice')}</span>
-                        </TabsTrigger>
-                        <TabsTrigger value="hours" className="flex-shrink-0">
-                            <Clock className="w-4 h-4 sm:mr-2" />
-                            <span className="hidden sm:inline">{t('settings.tab.hours')}</span>
-                        </TabsTrigger>
+                        {isDentist ? (
+                            <>
+                                <TabsTrigger value="profile" className="flex-shrink-0">
+                                    <User className="w-4 h-4 sm:mr-2" />
+                                    <span className="hidden sm:inline">{t('settings.tab.profile')}</span>
+                                </TabsTrigger>
+                                <TabsTrigger value="practice" className="flex-shrink-0">
+                                    <Building2 className="w-4 h-4 sm:mr-2" />
+                                    <span className="hidden sm:inline">{t('settings.tab.practice')}</span>
+                                </TabsTrigger>
+                                <TabsTrigger value="hours" className="flex-shrink-0">
+                                    <Clock className="w-4 h-4 sm:mr-2" />
+                                    <span className="hidden sm:inline">{t('settings.tab.hours')}</span>
+                                </TabsTrigger>
+                            </>
+                        ) : null}
                         <TabsTrigger value="security" className="flex-shrink-0">
                             <Lock className="w-4 h-4 sm:mr-2" />
                             <span className="hidden sm:inline">{t('settings.tab.security')}</span>
@@ -384,7 +385,8 @@ export default function SettingsPage() {
                     </TabsList>
                 </div>
 
-                <TabsContent value="profile">
+                {isDentist ? (
+                    <TabsContent value="profile">
                     <Card className="interactive-card">
                         <CardHeader>
                             <CardTitle>{t('settings.personalInfo')}</CardTitle>
@@ -483,9 +485,11 @@ export default function SettingsPage() {
                             </form>
                         </CardContent>
                     </Card>
-                </TabsContent>
+                    </TabsContent>
+                ) : null}
 
-                <TabsContent value="practice">
+                {isDentist ? (
+                    <TabsContent value="practice">
                     <Card className="interactive-card">
                         <CardHeader>
                             <CardTitle>{t('settings.practiceInfo')}</CardTitle>
@@ -533,9 +537,11 @@ export default function SettingsPage() {
                             </form>
                         </CardContent>
                     </Card>
-                </TabsContent>
+                    </TabsContent>
+                ) : null}
 
-                <TabsContent value="hours">
+                {isDentist ? (
+                    <TabsContent value="hours">
                     <Card className="interactive-card">
                         <CardHeader>
                             <CardTitle>{t('settings.workingHoursAndAppointments')}</CardTitle>
@@ -636,24 +642,13 @@ export default function SettingsPage() {
                             </form>
                         </CardContent>
                     </Card>
-                </TabsContent>
+                    </TabsContent>
+                ) : null}
 
                 <TabsContent value="security">
-                    <Card className="interactive-card">
-                        <CardHeader>
-                            <CardTitle>{t('settings.passwordSecurity')}</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <form onSubmit={handlePasswordChange} className="space-y-4">
-                                <p className="text-sm text-gray-600">
-                                    {t('settings.passwordSelfServiceInfo')}
-                                </p>
-                                <div className="flex justify-end">
-                                    <Button type="submit">{t('settings.requestPasswordFlow')}</Button>
-                                </div>
-                            </form>
-                        </CardContent>
-                    </Card>
+                    {currentUserQuery.data ? (
+                        <PasswordSecurityCard user={currentUserQuery.data} className="interactive-card" />
+                    ) : null}
                 </TabsContent>
             </Tabs>
         </div>

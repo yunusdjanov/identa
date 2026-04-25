@@ -166,7 +166,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             : currentUser?.role === 'dentist'
               ? 'role.dentist'
               : null;
-    const canOpenSettings = currentUser ? currentUser.role === 'dentist' : true;
+    const canOpenSettings = currentUser ? currentUser.role === 'dentist' || currentUser.role === 'assistant' : true;
     const assistantPermissions = new Set(currentUser?.assistant_permissions ?? []);
     const canManageTeam = Boolean(currentUser && (currentUser.role === 'dentist' || assistantPermissions.has('team.manage')));
     const canViewAuditLogs = Boolean(
