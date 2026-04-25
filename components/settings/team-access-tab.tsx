@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
+import { Clock3, Mail, Phone, ShieldCheck } from 'lucide-react';
 import {
     createAssistant,
     deleteAssistant,
@@ -166,6 +167,19 @@ function formatDateLabel(value: string | null): string | null {
     }
 
     return date.toLocaleDateString();
+}
+
+function getAssistantInitials(name: string): string {
+    const parts = name.trim().split(/\s+/).filter(Boolean);
+    if (parts.length === 0) {
+        return '?';
+    }
+
+    if (parts.length === 1) {
+        return parts[0].slice(0, 2).toUpperCase();
+    }
+
+    return `${parts[0][0] ?? ''}${parts[1][0] ?? ''}`.toUpperCase();
 }
 
 function getSubscriptionAccessSummary(
@@ -516,7 +530,7 @@ export function TeamAccessTab({ canManageTeam, subscription, t }: TeamAccessTabP
 
     if (!canManageTeam) {
         return (
-            <Card className="overflow-hidden rounded-[1.5rem] bg-white/95">
+            <Card className="interactive-card overflow-hidden rounded-[1.75rem] bg-gradient-to-br from-white via-white to-blue-50/25">
                 <CardHeader className="space-y-4 pb-4">
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                         <CardTitle className="text-base">{t('settings.team.title')}</CardTitle>
@@ -542,7 +556,7 @@ export function TeamAccessTab({ canManageTeam, subscription, t }: TeamAccessTabP
 
     return (
         <div className="space-y-4">
-            <Card className="overflow-hidden rounded-[1.5rem] bg-white/95">
+            <Card className="interactive-card overflow-hidden rounded-[1.75rem] bg-gradient-to-br from-white via-white to-blue-50/25">
                 <CardHeader className="space-y-4 pb-4">
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                         <CardTitle className="text-base">{t('settings.team.title')}</CardTitle>
@@ -643,36 +657,53 @@ export function TeamAccessTab({ canManageTeam, subscription, t }: TeamAccessTabP
                                 return (
                                     <div
                                         key={assistant.id}
-                                        className="interactive-card space-y-3 rounded-2xl border border-slate-200/80 bg-white/95 p-4 shadow-xs hover:border-blue-100 hover:bg-blue-50/20"
+                                        className="interactive-card rounded-2xl border border-slate-200/80 bg-white/95 p-4 shadow-xs hover:border-blue-100 hover:bg-blue-50/20 sm:p-5"
                                     >
-                                        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                                            <div>
-                                                <p className="font-semibold text-gray-900">{assistant.name}</p>
-                                                <p className="text-sm text-gray-600">{assistant.email}</p>
-                                                <p className="text-xs text-gray-500">
-                                                    {assistant.phone || '-'} | {t('settings.team.lastLogin')}:{' '}
-                                                    {formatDateTime(assistant.last_login_at)}
-                                                </p>
+                                        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                                            <div className="flex min-w-0 gap-3">
+                                                <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-blue-50 text-sm font-bold text-blue-700 shadow-sm shadow-blue-100">
+                                                    {getAssistantInitials(assistant.name)}
+                                                </span>
+                                                <div className="min-w-0">
+                                                    <p className="truncate font-semibold text-slate-950">{assistant.name}</p>
+                                                    <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-slate-600">
+                                                        <span className="inline-flex min-w-0 items-center gap-1">
+                                                            <Mail className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+                                                            <span className="truncate [overflow-wrap:anywhere]">{assistant.email}</span>
+                                                        </span>
+                                                        <span className="inline-flex items-center gap-1">
+                                                            <Phone className="h-3.5 w-3.5 text-slate-400" />
+                                                            {assistant.phone || '-'}
+                                                        </span>
+                                                    </div>
+                                                    <p className="mt-1 inline-flex items-center gap-1 text-xs text-slate-500">
+                                                        <Clock3 className="h-3.5 w-3.5" />
+                                                        {t('settings.team.lastLogin')}: {formatDateTime(assistant.last_login_at)}
+                                                    </p>
+                                                </div>
                                             </div>
                                             <Badge
                                                 variant="outline"
-                                                className={
+                                                className={cn(
+                                                    'w-fit shrink-0 rounded-full px-3 py-1 text-xs font-semibold',
                                                     assistant.account_status === 'active'
-                                                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                                        ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
                                                         : assistant.account_status === 'blocked'
-                                                            ? 'bg-amber-50 text-amber-700 border-amber-200'
-                                                            : 'bg-gray-100 text-gray-600 border-gray-200'
-                                                }
+                                                            ? 'border-amber-200 bg-amber-50 text-amber-700'
+                                                            : 'border-gray-200 bg-gray-100 text-gray-600'
+                                                )}
                                             >
                                                 {assistant.account_status}
                                             </Badge>
                                         </div>
-                                        <p className="text-xs text-gray-500">
-                                            {t('settings.team.permissionsCount', {
-                                                count: assistant.assistant_permissions.length,
-                                            })}
-                                        </p>
-                                        <div className="flex flex-wrap gap-2">
+                                        <div className="mt-4 flex flex-col gap-3 border-t border-slate-100 pt-3 sm:flex-row sm:items-center sm:justify-between">
+                                            <p className="inline-flex items-center gap-2 text-xs font-medium text-slate-500">
+                                                <ShieldCheck className="h-4 w-4 text-blue-500" />
+                                                {t('settings.team.permissionsCount', {
+                                                    count: assistant.assistant_permissions.length,
+                                                })}
+                                            </p>
+                                            <div className="flex flex-wrap gap-2">
                                             <Button
                                                 type="button"
                                                 variant="outline"
@@ -718,6 +749,7 @@ export function TeamAccessTab({ canManageTeam, subscription, t }: TeamAccessTabP
                                             >
                                                 {t('common.delete')}
                                             </Button>
+                                            </div>
                                         </div>
                                     </div>
                                 );

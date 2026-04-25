@@ -388,8 +388,8 @@ export default function SettingsPage() {
 
                 {isDentist ? (
                     <TabsContent value="profile">
-                    <Card className="interactive-card">
-                        <CardHeader>
+                    <Card className="interactive-card overflow-hidden rounded-[1.75rem] bg-gradient-to-br from-white via-white to-blue-50/25">
+                        <CardHeader className="pb-2">
                             <CardTitle>{t('settings.personalInfo')}</CardTitle>
                         </CardHeader>
                         <CardContent>
@@ -491,8 +491,8 @@ export default function SettingsPage() {
 
                 {isDentist ? (
                     <TabsContent value="practice">
-                    <Card className="interactive-card">
-                        <CardHeader>
+                    <Card className="interactive-card overflow-hidden rounded-[1.75rem] bg-gradient-to-br from-white via-white to-blue-50/25">
+                        <CardHeader className="pb-2">
                             <CardTitle>{t('settings.practiceInfo')}</CardTitle>
                         </CardHeader>
                         <CardContent>
@@ -543,8 +543,8 @@ export default function SettingsPage() {
 
                 {isDentist ? (
                     <TabsContent value="hours">
-                    <Card className="interactive-card">
-                        <CardHeader>
+                    <Card className="interactive-card overflow-hidden rounded-[1.75rem] bg-gradient-to-br from-white via-white to-blue-50/25">
+                        <CardHeader className="pb-2">
                             <CardTitle>{t('settings.workingHoursAndAppointments')}</CardTitle>
                         </CardHeader>
                         <CardContent>

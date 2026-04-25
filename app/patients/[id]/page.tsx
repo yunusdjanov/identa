@@ -29,7 +29,10 @@ import {
     AlertCircle,
     ArrowLeft,
     Calendar,
+    CalendarCheck,
+    Clock3,
     Edit,
+    HeartPulse,
     MapPin,
     Phone,
     Trash2,
@@ -347,44 +350,54 @@ export default function PatientDetailPage({
             </div>
 
             <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
-                <Card className="interactive-card">
-                    <CardHeader>
-                        <CardTitle className="text-lg">{t('patientDetail.contactInfo')}</CardTitle>
+                <Card className="interactive-card overflow-hidden bg-gradient-to-br from-white via-white to-blue-50/35">
+                    <CardHeader className="pb-2">
+                        <div className="flex items-center justify-between gap-3">
+                            <CardTitle className="text-lg">{t('patientDetail.contactInfo')}</CardTitle>
+                            <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-blue-50 text-blue-600 shadow-sm shadow-blue-100">
+                                <Phone className="h-4 w-4" />
+                            </span>
+                        </div>
                     </CardHeader>
-                    <CardContent className="space-y-3">
-                        <div className="flex items-center text-sm">
-                            <Phone className="mr-2 h-4 w-4 text-gray-400" />
-                            <span>{patient.phone}</span>
+                    <CardContent className="space-y-2.5">
+                        <div className="flex items-center rounded-2xl border border-slate-100 bg-white/80 px-3 py-2.5 text-sm shadow-xs">
+                            <Phone className="mr-2 h-4 w-4 text-blue-500" />
+                            <span className="[overflow-wrap:anywhere]">{patient.phone}</span>
                         </div>
                         {patient.secondary_phone ? (
-                            <div className="flex items-center text-sm">
-                                <Phone className="mr-2 h-4 w-4 text-gray-400" />
-                                <span>{patient.secondary_phone}</span>
+                            <div className="flex items-center rounded-2xl border border-slate-100 bg-white/80 px-3 py-2.5 text-sm shadow-xs">
+                                <Phone className="mr-2 h-4 w-4 text-blue-500" />
+                                <span className="[overflow-wrap:anywhere]">{patient.secondary_phone}</span>
                             </div>
                         ) : null}
                         {patient.address ? (
-                            <div className="flex items-start text-sm">
-                                <MapPin className="mr-2 mt-0.5 h-4 w-4 text-gray-400" />
+                            <div className="flex items-start rounded-2xl border border-slate-100 bg-white/80 px-3 py-2.5 text-sm shadow-xs">
+                                <MapPin className="mr-2 mt-0.5 h-4 w-4 text-blue-500" />
                                 <span className="[overflow-wrap:anywhere]">{patient.address}</span>
                             </div>
                         ) : null}
                         {patient.date_of_birth ? (
-                            <div className="flex items-center text-sm">
-                                <Calendar className="mr-2 h-4 w-4 text-gray-400" />
+                            <div className="flex items-center rounded-2xl border border-slate-100 bg-white/80 px-3 py-2.5 text-sm shadow-xs">
+                                <Calendar className="mr-2 h-4 w-4 text-blue-500" />
                                 <span>{t('patientDetail.born', { date: formatDate(patient.date_of_birth) })}</span>
                             </div>
                         ) : null}
                     </CardContent>
                 </Card>
 
-                <Card className="interactive-card">
-                    <CardHeader>
-                        <CardTitle className="text-lg">{t('patientDetail.medicalInfo')}</CardTitle>
+                <Card className="interactive-card overflow-hidden bg-gradient-to-br from-white via-white to-emerald-50/25">
+                    <CardHeader className="pb-2">
+                        <div className="flex items-center justify-between gap-3">
+                            <CardTitle className="text-lg">{t('patientDetail.medicalInfo')}</CardTitle>
+                            <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600 shadow-sm shadow-emerald-100">
+                                <HeartPulse className="h-4 w-4" />
+                            </span>
+                        </div>
                     </CardHeader>
                     <CardContent className="space-y-3">
                         {patient.allergies ? (
                             <div>
-                                <p className="mb-1 text-xs text-gray-500">{t('patientDetail.allergies')}</p>
+                                <p className="mb-1 text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">{t('patientDetail.allergies')}</p>
                                 <Badge
                                     variant="secondary"
                                     className="inline-flex max-w-full items-start justify-start whitespace-normal break-words border border-red-200 bg-red-50 py-1.5 text-red-800"
@@ -399,7 +412,7 @@ export default function PatientDetailPage({
                         ) : null}
                         {patient.current_medications ? (
                             <div>
-                                <p className="mb-1 text-xs text-gray-500">{t('patientDetail.currentMedications')}</p>
+                                <p className="mb-1 text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">{t('patientDetail.currentMedications')}</p>
                                 <p className="text-sm whitespace-pre-wrap [overflow-wrap:anywhere] break-words">
                                     {patient.current_medications}
                                 </p>
@@ -407,7 +420,7 @@ export default function PatientDetailPage({
                         ) : null}
                         {patient.medical_history ? (
                             <div>
-                                <p className="mb-1 text-xs text-gray-500">{t('patientDetail.medicalHistory')}</p>
+                                <p className="mb-1 text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">{t('patientDetail.medicalHistory')}</p>
                                 <p className="text-sm whitespace-pre-wrap [overflow-wrap:anywhere] break-words">
                                     {patient.medical_history}
                                 </p>
@@ -419,24 +432,29 @@ export default function PatientDetailPage({
                     </CardContent>
                 </Card>
 
-                <Card className="interactive-card">
-                    <CardHeader>
-                        <CardTitle className="text-lg">{t('patientDetail.visitSummary')}</CardTitle>
+                <Card className="interactive-card overflow-hidden bg-gradient-to-br from-white via-white to-slate-50">
+                    <CardHeader className="pb-2">
+                        <div className="flex items-center justify-between gap-3">
+                            <CardTitle className="text-lg">{t('patientDetail.visitSummary')}</CardTitle>
+                            <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-100 text-slate-700 shadow-sm shadow-slate-200">
+                                <CalendarCheck className="h-4 w-4" />
+                            </span>
+                        </div>
                     </CardHeader>
-                    <CardContent className="space-y-3">
-                        <div>
-                            <p className="mb-1 text-xs text-gray-500">{t('patientDetail.lastVisit')}</p>
-                            <p className="text-sm font-medium">
+                    <CardContent className="space-y-2.5">
+                        <div className="rounded-2xl border border-slate-100 bg-white/80 px-3 py-2.5 shadow-xs">
+                            <p className="mb-1 text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">{t('patientDetail.lastVisit')}</p>
+                            <p className="text-sm font-semibold text-slate-950">
                                 {latestVisitDate ? formatDate(latestVisitDate) : t('patients.never')}
                             </p>
                         </div>
-                        <div>
-                            <p className="mb-1 text-xs text-gray-500">{t('patientDetail.totalAppointments')}</p>
-                            <p className="text-sm font-medium">{patientAppointmentsCount}</p>
+                        <div className="rounded-2xl border border-slate-100 bg-white/80 px-3 py-2.5 shadow-xs">
+                            <p className="mb-1 text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">{t('patientDetail.totalAppointments')}</p>
+                            <p className="text-sm font-semibold text-slate-950">{patientAppointmentsCount}</p>
                         </div>
-                        <div>
-                            <p className="mb-1 text-xs text-gray-500">{t('patientDetail.openBalance')}</p>
-                            <p className="text-sm font-medium">
+                        <div className="rounded-2xl border border-slate-100 bg-white/80 px-3 py-2.5 shadow-xs">
+                            <p className="mb-1 text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">{t('patientDetail.openBalance')}</p>
+                            <p className="text-sm font-semibold">
                                 {totalBalance > 0 ? (
                                     <span className="text-red-600">{formatCurrency(totalBalance)}</span>
                                 ) : (
@@ -447,7 +465,7 @@ export default function PatientDetailPage({
                         <div className="pt-2">
                             <Link
                                 href={`/patients/${id}/history?from=patients`}
-                                className="inline-flex items-center text-sm font-medium text-blue-600 transition-colors hover:text-blue-700"
+                                className="inline-flex items-center rounded-xl bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-700 transition-colors hover:bg-blue-100"
                             >
                                 {t('patientHistory.title')}
                                 <span className="ml-1" aria-hidden="true">→</span>
@@ -457,9 +475,14 @@ export default function PatientDetailPage({
                 </Card>
             </div>
 
-            <Card>
-                <CardHeader className="flex flex-row items-center justify-between">
-                    <CardTitle>{t('appointments.title')}</CardTitle>
+            <Card className="interactive-card overflow-hidden rounded-[1.75rem] bg-gradient-to-br from-white via-white to-blue-50/30">
+                <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex items-center gap-3">
+                        <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-blue-50 text-blue-600 shadow-sm shadow-blue-100">
+                            <Clock3 className="h-4 w-4" />
+                        </span>
+                        <CardTitle>{t('appointments.title')}</CardTitle>
+                    </div>
                     <Link href={`/appointments?action=new&patientId=${encodeURIComponent(id)}`}>
                         <Button variant="outline" size="sm">
                             {t('dashboard.scheduleAppointment')}
@@ -468,15 +491,17 @@ export default function PatientDetailPage({
                 </CardHeader>
                 <CardContent>
                     {upcomingAppointments.length === 0 ? (
-                        <p className="py-4 text-sm text-gray-400">{t('patientDetail.noUpcomingAppointments')}</p>
+                        <div className="rounded-2xl border border-dashed border-slate-200 bg-white/75 px-4 py-5 text-sm text-slate-500">
+                            {t('patientDetail.noUpcomingAppointments')}
+                        </div>
                     ) : (
                         <div className="space-y-3">
                             {upcomingAppointments.map((appointment) => (
                                 <div
                                     key={appointment.id}
-                                    className="flex items-center justify-between rounded-lg border border-gray-200 p-3"
+                                    className="flex flex-col gap-3 rounded-2xl border border-slate-200/80 bg-white/90 p-4 shadow-xs sm:flex-row sm:items-center sm:justify-between"
                                 >
-                                    <div>
+                                    <div className="min-w-0">
                                         <p className="font-medium text-sm">
                                             {(appointment.notes?.split('|')[0]?.trim() || t('appointments.general'))}
                                         </p>
