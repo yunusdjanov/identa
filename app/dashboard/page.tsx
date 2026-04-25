@@ -27,28 +27,28 @@ const statToneClasses: Record<DashboardStatTone, {
     glow: string;
 }> = {
     blue: {
-        card: 'border-blue-100 bg-gradient-to-br from-white via-blue-50/35 to-white',
-        icon: 'bg-blue-600 text-white shadow-blue-200',
+        card: 'border-blue-100 bg-white/95',
+        icon: 'bg-blue-50 text-blue-700 ring-blue-100',
         value: 'text-blue-950',
-        glow: 'bg-blue-500/10',
+        glow: 'bg-blue-500/[0.06]',
     },
     green: {
-        card: 'border-emerald-100 bg-gradient-to-br from-white via-emerald-50/35 to-white',
-        icon: 'bg-emerald-600 text-white shadow-emerald-200',
+        card: 'border-emerald-100 bg-white/95',
+        icon: 'bg-emerald-50 text-emerald-700 ring-emerald-100',
         value: 'text-emerald-950',
-        glow: 'bg-emerald-500/10',
+        glow: 'bg-emerald-500/[0.06]',
     },
     red: {
-        card: 'border-red-100 bg-gradient-to-br from-white via-red-50/35 to-white',
-        icon: 'bg-red-600 text-white shadow-red-200',
+        card: 'border-red-100 bg-white/95',
+        icon: 'bg-red-50 text-red-700 ring-red-100',
         value: 'text-red-950',
-        glow: 'bg-red-500/10',
+        glow: 'bg-red-500/[0.06]',
     },
     amber: {
-        card: 'border-amber-100 bg-gradient-to-br from-white via-amber-50/35 to-white',
-        icon: 'bg-amber-500 text-white shadow-amber-200',
+        card: 'border-amber-100 bg-white/95',
+        icon: 'bg-amber-50 text-amber-700 ring-amber-100',
         value: 'text-amber-950',
-        glow: 'bg-amber-500/10',
+        glow: 'bg-amber-500/[0.06]',
     },
 };
 
@@ -143,22 +143,22 @@ function DashboardStatCard({
     const classes = statToneClasses[tone];
 
     return (
-        <Card className={`relative overflow-hidden rounded-3xl shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-md ${classes.card}`}>
-            <div className={`absolute -right-10 -top-10 h-28 w-28 rounded-full blur-2xl ${classes.glow}`} />
+        <Card className={`relative overflow-hidden rounded-[1.5rem] shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-md ${classes.card}`}>
+            <div className={`absolute -right-8 -top-8 h-24 w-24 rounded-full blur-2xl ${classes.glow}`} />
             <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-white to-transparent" />
-            <CardContent className="relative flex min-h-[156px] flex-col justify-between p-5">
+            <CardContent className="relative flex min-h-[136px] flex-col justify-between p-5">
                 <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                         <p className="text-sm font-semibold text-slate-600">{title}</p>
-                        <p className={`mt-4 text-3xl font-bold tracking-tight ${classes.value}`}>
+                        <p className={`mt-3 text-[1.7rem] font-bold leading-none tracking-[-0.04em] ${classes.value}`}>
                             {value}
                         </p>
                     </div>
-                    <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl shadow-lg ${classes.icon}`}>
+                    <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl ring-1 ${classes.icon}`}>
                         {icon}
                     </div>
                 </div>
-                <div className="mt-4 flex min-h-8 items-end justify-between gap-3">
+                <div className="mt-3 flex min-h-7 items-end justify-between gap-3">
                     <p className="text-sm font-medium text-slate-500">{helper}</p>
                     {action}
                 </div>
@@ -375,18 +375,18 @@ export default function DashboardPage() {
                 )}
             </div>
 
-            <Card className="overflow-hidden rounded-3xl border-blue-100 bg-gradient-to-br from-white via-slate-50 to-blue-50/70 shadow-sm">
-                <CardHeader className="pb-3 pt-5">
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <Card className="overflow-hidden rounded-[1.5rem] border-blue-100 bg-gradient-to-br from-white via-slate-50/70 to-blue-50/45 shadow-sm">
+                <CardHeader className="pb-2 pt-5">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                         <div>
-                            <p className="text-xs font-bold uppercase tracking-[0.22em] text-blue-600">
+                            <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-blue-600">
                                 {t('dashboard.todayAppointments')}
                             </p>
-                            <CardTitle className="mt-2 text-2xl tracking-tight text-slate-950">
+                            <CardTitle className="mt-1 text-xl tracking-tight text-slate-950 sm:text-2xl">
                                 {t('dashboard.upcomingToday')}
                             </CardTitle>
                         </div>
-                        <div className="inline-flex w-fit items-center gap-2 rounded-full border border-blue-100 bg-white/80 px-3 py-1.5 text-sm font-semibold text-slate-700 shadow-sm">
+                        <div className="inline-flex w-fit items-center gap-2 rounded-full border border-blue-100 bg-white/80 px-2.5 py-1 text-xs font-semibold text-slate-600 shadow-sm">
                             <Calendar className="h-4 w-4 text-blue-600" />
                             {scheduledTodayAppointments.length} {t('dashboard.scheduled')}
                         </div>
@@ -435,48 +435,40 @@ export default function DashboardPage() {
                                     return (
                                         <div
                                             key={appointment.id}
-                                            className="group rounded-2xl border border-white/80 bg-white/90 p-3 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-blue-100 hover:shadow-md"
+                                            className="group rounded-2xl border border-slate-200/70 bg-white/92 p-3 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-blue-100 hover:shadow-md"
                                         >
-                                            <div className="mb-3 flex items-start justify-between gap-3">
-                                                <div className="flex shrink-0 flex-col items-center justify-center rounded-xl bg-blue-600 px-3 py-2 leading-none text-white shadow-sm shadow-blue-200">
-                                                    <span className="text-[13px] font-bold">
+                                            <div className="mb-3 flex items-center justify-between gap-3">
+                                                <div className="flex shrink-0 items-center justify-center rounded-full bg-blue-50 px-2.5 py-1.5 text-blue-700 ring-1 ring-blue-100">
+                                                    <span className="text-[13px] font-bold tabular-nums">
                                                         {formatAppointmentHourMinute(appointment.startTime)}
                                                     </span>
-                                                    <span className="mt-1 text-[10px] text-blue-100">
-                                                        {t('dashboard.minutesShort', { count: appointment.durationMinutes })}
-                                                    </span>
                                                 </div>
-                                                <span className={`inline-flex shrink-0 items-center gap-1 rounded-full bg-white px-2 py-1 text-xs font-semibold shadow-xs ${statusTone.text}`}>
+                                                <span className={`inline-flex shrink-0 items-center gap-1 rounded-full bg-slate-50 px-2 py-1 text-[11px] font-semibold ${statusTone.text}`}>
                                                     <span className={`h-1.5 w-1.5 rounded-full ${statusTone.dot}`} />
                                                     {statusLabel}
                                                 </span>
                                             </div>
                                             <div className="min-w-0">
-                                                <p className="truncate text-sm font-bold leading-tight text-slate-950" title={appointment.patientName}>
+                                                <p className="truncate text-[15px] font-bold leading-tight text-slate-950" title={appointment.patientName}>
                                                     {truncateForUi(appointment.patientName, DASHBOARD_NAME_UI_LIMIT)}
                                                 </p>
                                                 <p className="mt-1 truncate text-xs font-medium text-slate-500">
                                                     {truncateForUi(appointment.reason || t('dashboard.generalAppointment'), DASHBOARD_REASON_UI_LIMIT)}
+                                                </p>
+                                                <p className="mt-2 text-[11px] font-semibold text-slate-400">
+                                                    {t('dashboard.minutesShort', { count: appointment.durationMinutes })}
                                                 </p>
                                             </div>
                                         </div>
                                     );
                                 })}
                             </div>
-                            <div className="flex flex-col gap-3 rounded-2xl border border-blue-100 bg-white/75 p-3 sm:flex-row sm:items-center sm:justify-between">
-                                <div className="flex items-center gap-3">
-                                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-50 text-blue-600">
-                                        <Calendar className="h-4 w-4" />
-                                    </div>
-                                    <div>
-                                        <p className="text-sm font-bold text-slate-950">{t('dashboard.todayAppointments')}</p>
-                                        <p className="mt-1 text-sm text-slate-500">
-                                            {scheduledTodayAppointments.length} {t('dashboard.scheduled')}
-                                        </p>
-                                    </div>
-                                </div>
+                            <div className="flex flex-col gap-2 border-t border-blue-100/80 pt-3 sm:flex-row sm:items-center sm:justify-between">
+                                <p className="text-sm font-medium text-slate-500">
+                                    {scheduledTodayAppointments.length} {t('dashboard.scheduled')}
+                                </p>
                                 <Link href={showAllTodayHref}>
-                                    <Button variant="outline" size="sm" className="w-full rounded-full bg-white sm:w-auto">
+                                    <Button variant="ghost" size="sm" className="w-full rounded-full text-blue-700 hover:bg-blue-50 hover:text-blue-800 sm:w-auto">
                                         {t('dashboard.showAllToday', { count: scheduledTodayAppointments.length })}
                                     </Button>
                                 </Link>

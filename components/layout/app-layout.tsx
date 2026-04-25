@@ -190,9 +190,9 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     return (
         <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(219,234,254,0.55),transparent_34rem),linear-gradient(180deg,#f8fbff_0%,#f8fafc_42%,#f1f5f9_100%)]">
             {/* Header */}
-            <header className="sticky top-0 z-10 border-b border-slate-200/70 bg-white/88 backdrop-blur-xl">
+            <header className="sticky top-0 z-10 border-b border-slate-200/70 bg-white/92 backdrop-blur-xl">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                    <div className="flex justify-between items-center h-16">
+                    <div className="flex h-14 items-center justify-between">
                         {showHeaderSkeleton ? (
                             <>
                                 <Skeleton className="h-9 w-32 rounded-md" />
@@ -215,12 +215,12 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                                     <Brand
                                         href="/dashboard"
                                         variant="text"
-                                        textClassName="w-28 sm:w-32"
+                                        textClassName="w-24 sm:w-28"
                                     />
                                 </div>
 
                                 {/* Navigation */}
-                                <nav className="hidden rounded-2xl border border-slate-200/70 bg-white/70 p-1 shadow-sm shadow-slate-200/60 md:flex">
+                                <nav className="hidden items-center gap-1 rounded-full bg-slate-100/60 p-1 md:flex">
                                     {visibleNavigation.map((item) => {
                                         const isActive = isActiveRoute(item.href);
                                         const Icon = item.icon;
@@ -229,13 +229,13 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                                                 key={item.key}
                                                 href={item.href}
                                                 className={cn(
-                                                    'flex items-center rounded-xl px-4 py-2 text-sm font-medium transition-colors',
+                                                    'flex h-9 items-center rounded-full border px-3.5 text-sm font-medium transition-colors',
                                                     isActive
-                                                        ? 'bg-blue-600 text-white shadow-sm shadow-blue-200'
-                                                        : 'text-slate-600 hover:bg-slate-50 hover:text-slate-950'
+                                                        ? 'border-blue-100 bg-white text-blue-700 shadow-sm shadow-slate-200/80'
+                                                        : 'border-transparent text-slate-600 hover:bg-white/75 hover:text-slate-950'
                                                 )}
                                             >
-                                                <Icon className="w-4 h-4 mr-2" />
+                                                <Icon className="mr-2 h-4 w-4" />
                                                 {t(item.key)}
                                             </Link>
                                         );
@@ -249,7 +249,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                                             <Button
                                                 variant="ghost"
                                                 size="sm"
-                                                className="flex items-center gap-1 rounded-xl px-2 text-slate-700 hover:bg-slate-100 sm:px-3 focus-visible:ring-0 focus-visible:border-transparent focus-visible:outline-none data-[state=open]:bg-slate-100"
+                                                className="flex h-9 items-center gap-1 rounded-full px-2 text-slate-700 hover:bg-slate-100 sm:px-3 focus-visible:ring-0 focus-visible:border-transparent focus-visible:outline-none data-[state=open]:bg-slate-100"
                                                 aria-label={t('menu.language')}
                                             >
                                                 <Languages className="w-4 h-4 mr-1" />
@@ -280,7 +280,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                                         <DropdownMenuTrigger asChild>
                                             <Button
                                                 variant="ghost"
-                                                className="flex items-center space-x-2 rounded-2xl border border-slate-200/80 bg-white/70 px-2 shadow-sm shadow-slate-200/50 hover:bg-white sm:space-x-3 sm:px-4 focus-visible:ring-0 focus-visible:border-transparent focus-visible:outline-none data-[state=open]:bg-white"
+                                                className="flex h-10 items-center space-x-2 rounded-full border border-slate-200/80 bg-white/75 px-2.5 shadow-sm shadow-slate-200/50 hover:bg-white sm:space-x-3 sm:px-3.5 focus-visible:ring-0 focus-visible:border-transparent focus-visible:outline-none data-[state=open]:bg-white"
                                             >
                                                 <Avatar className="w-8 h-8">
                                                     <AvatarFallback className="bg-blue-600 text-white text-sm shadow-sm shadow-blue-200">
