@@ -784,6 +784,16 @@ export async function uploadPatientTreatmentImages(
         const filesByClientId = new Map(
             images.map((image, index) => [buildTreatmentImageClientId(index), image])
         );
+        const fallbackFiles: File[] = [];
+        const queuedFallbackFiles = new Set<File>();
+        const queueFallbackFile = (image: File | undefined) => {
+            if (!image || queuedFallbackFiles.has(image)) {
+                return;
+            }
+
+            queuedFallbackFiles.add(image);
+            fallbackFiles.push(image);
+        };
         const uploadResults = await Promise.allSettled(
             directUpload.uploads.map((upload) => {
                 const image = filesByClientId.get(upload.client_id);
@@ -794,10 +804,15 @@ export async function uploadPatientTreatmentImages(
                 return performDirectSignedUpload(image, upload);
             })
         );
-        const completedUploadIds = directUpload.uploads
-            .filter((_, index) => uploadResults[index]?.status === 'fulfilled')
-            .map((upload) => upload.upload_id);
-        let failedCount = uploadResults.filter((result) => result.status === 'rejected').length;
+        const completedUploads = directUpload.uploads
+            .filter((_, index) => uploadResults[index]?.status === 'fulfilled');
+        const completedUploadIds = completedUploads.map((upload) => upload.upload_id);
+
+        directUpload.uploads.forEach((upload, index) => {
+            if (uploadResults[index]?.status === 'rejected') {
+                queueFallbackFile(filesByClientId.get(upload.client_id));
+            }
+        });
 
         if (completedUploadIds.length > 0) {
             try {
@@ -806,17 +821,36 @@ export async function uploadPatientTreatmentImages(
                     treatmentId,
                     completedUploadIds
                 );
-                failedCount += completion.failed.length;
+                const failedUploadIds = new Set(completion.failed.map((failed) => failed.upload_id));
+                directUpload.uploads.forEach((upload) => {
+                    if (failedUploadIds.has(upload.upload_id)) {
+                        queueFallbackFile(filesByClientId.get(upload.client_id));
+                    }
+                });
             } catch {
-                failedCount += completedUploadIds.length;
+                completedUploads.forEach((upload) => {
+                    queueFallbackFile(filesByClientId.get(upload.client_id));
+                });
             }
         }
 
-        return failedCount;
+        if (fallbackFiles.length === 0) {
+            return 0;
+        }
+
+        return uploadPatientTreatmentImagesViaApi(patientId, treatmentId, fallbackFiles);
     }
 
+    return uploadPatientTreatmentImagesViaApi(patientId, treatmentId, images);
+}
+
+async function uploadPatientTreatmentImagesViaApi(
+    patientId: string,
+    treatmentId: string,
+    images: File[]
+): Promise<number> {
     const fallbackResults = await Promise.allSettled(
-        images.map((image) => uploadPatientTreatmentImage(patientId, treatmentId, image))
+        images.map((image) => uploadPatientTreatmentImageViaApi(patientId, treatmentId, image))
     );
 
     return fallbackResults.filter((result) => result.status === 'rejected').length;
