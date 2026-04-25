@@ -95,7 +95,7 @@ class TeamAssistantController extends Controller
 
         if (! $dentist->hasAvailableAssistantSlot()) {
             throw ValidationException::withMessages([
-                'permissions' => [
+                'staff_limit' => [
                     __('api.subscription.assistant_limit_reached', [
                         'limit' => $dentist->subscriptionStaffLimit() ?? 0,
                     ]),

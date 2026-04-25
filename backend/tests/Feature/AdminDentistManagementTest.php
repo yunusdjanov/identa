@@ -241,7 +241,7 @@ class AdminDentistManagementTest extends TestCase
                 'permissions' => User::defaultAssistantPermissions(),
             ], $this->csrfHeaders())
             ->assertUnprocessable()
-            ->assertJsonValidationErrors(['permissions']);
+            ->assertJsonValidationErrors(['staff_limit']);
     }
 
     public function test_read_only_subscription_blocks_mutations_but_allows_reads(): void

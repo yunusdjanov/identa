@@ -98,8 +98,8 @@ return [
         'working_hours_end_after_start' => 'Ish tugash vaqti ish boshlash vaqtidan keyin bolishi kerak.',
     ],
     'subscription' => [
-        'read_only' => 'Obuna yangilanmaguncha klinika faqat oqish rejimida ishlaydi.',
-        'assistant_limit_reached' => 'Joriy tarif bo‘yicha ko‘pi bilan :limit ta faol staff akkaunti ruxsat etiladi.',
+        'read_only' => "Obuna yangilanmaguncha klinika faqat o'qish rejimida ishlaydi.",
+        'assistant_limit_reached' => "Joriy tarif bo'yicha ko'pi bilan :limit ta faol staff akkaunti ruxsat etiladi.",
     ],
     'admin' => [
         'cannot_update_deleted_account_status' => 'Ochirilgan hisob holatini yangilab bolmaydi.',

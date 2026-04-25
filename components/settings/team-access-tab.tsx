@@ -11,7 +11,7 @@ import {
     updateAssistant,
     updateAssistantStatus,
 } from '@/lib/api/dentist';
-import { getApiErrorMessage } from '@/lib/api/client';
+import { getApiErrorMessage, getDisplayableApiMessage } from '@/lib/api/client';
 import type { ApiAssistantAccount, ApiSubscriptionSummary } from '@/lib/api/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -226,21 +226,31 @@ export function TeamAccessTab({ canManageTeam, subscription, t }: TeamAccessTabP
     const totalPages = assistantsQuery.data?.meta?.pagination?.total_pages ?? 1;
     const canPrev = page > 1;
     const canNext = page < totalPages;
+    const assistantSummary = assistantsQuery.data?.meta?.summary;
+    const hasUnfilteredAssistantSummary = search.trim() === '' && status === 'all';
     const staffLimit = subscription?.staff_limit ?? null;
-    const activeStaffCount = subscription?.active_staff_count ?? 0;
+    const activeStaffCount = hasUnfilteredAssistantSummary && typeof assistantSummary?.active_count === 'number'
+        ? assistantSummary.active_count
+        : subscription?.active_staff_count ?? 0;
     const isAtStaffLimit = staffLimit !== null && activeStaffCount >= staffLimit;
     const isReadOnly = subscription?.is_read_only === true;
     const subscriptionEndsOn = formatDateLabel(subscription?.ends_at ?? null);
 
+    const refreshTeamAccessData = () => {
+        queryClient.invalidateQueries({ queryKey: ['settings', 'team-assistants'] });
+        queryClient.invalidateQueries({ queryKey: ['auth', 'me'] });
+    };
+
     const setMutationErrors = (error: unknown, fallbackMessage: string) => {
         const extractedFieldErrors: AssistantFormFieldErrors = {};
         let extractedGeneralMessage: string | null = null;
+        const fallbackErrorMessage = getApiErrorMessage(error, fallbackMessage);
 
         if (axios.isAxiosError(error)) {
             const responseData = error.response?.data as
                 | {
                     message?: string;
-                    errors?: Record<string, string[]>;
+                    errors?: Record<string, string[] | string>;
                     error?: { message?: string };
                 }
                 | undefined;
@@ -248,8 +258,14 @@ export function TeamAccessTab({ canManageTeam, subscription, t }: TeamAccessTabP
             const rawErrors = responseData?.errors;
             if (rawErrors) {
                 for (const [rawField, messages] of Object.entries(rawErrors)) {
-                    const firstMessage = messages[0];
+                    const firstRawMessage = Array.isArray(messages) ? messages[0] : messages;
+                    const firstMessage = getDisplayableApiMessage(firstRawMessage, fallbackErrorMessage);
                     if (!firstMessage) {
+                        continue;
+                    }
+
+                    if (rawField === 'staff_limit') {
+                        extractedGeneralMessage = firstMessage;
                         continue;
                     }
 
@@ -285,14 +301,16 @@ export function TeamAccessTab({ canManageTeam, subscription, t }: TeamAccessTabP
                 }
             }
 
-            extractedGeneralMessage =
-                responseData?.message
-                ?? responseData?.error?.message
-                ?? error.message
-                ?? fallbackMessage;
+            if (Object.keys(extractedFieldErrors).length === 0 && !extractedGeneralMessage) {
+                extractedGeneralMessage =
+                    getDisplayableApiMessage(responseData?.message)
+                    || getDisplayableApiMessage(responseData?.error?.message)
+                    || getDisplayableApiMessage(error.message)
+                    || fallbackErrorMessage;
+            }
         }
         else if (error instanceof Error) {
-            extractedGeneralMessage = error.message;
+            extractedGeneralMessage = getDisplayableApiMessage(error.message, fallbackMessage);
         }
         else {
             extractedGeneralMessage = fallbackMessage;
@@ -311,11 +329,10 @@ export function TeamAccessTab({ canManageTeam, subscription, t }: TeamAccessTabP
             setFormState(createEmptyAssistantForm());
             setFormFieldErrors({});
             setFormGeneralError(null);
-            queryClient.invalidateQueries({ queryKey: ['settings', 'team-assistants'] });
+            refreshTeamAccessData();
         },
         onError: (error) => {
             setMutationErrors(error, t('settings.team.createFailed'));
-            toast.error(getApiErrorMessage(error, t('settings.team.createFailed')));
         },
     });
 
@@ -329,11 +346,10 @@ export function TeamAccessTab({ canManageTeam, subscription, t }: TeamAccessTabP
             setFormState(createEmptyAssistantForm());
             setFormFieldErrors({});
             setFormGeneralError(null);
-            queryClient.invalidateQueries({ queryKey: ['settings', 'team-assistants'] });
+            refreshTeamAccessData();
         },
         onError: (error) => {
             setMutationErrors(error, t('settings.team.updateFailed'));
-            toast.error(getApiErrorMessage(error, t('settings.team.updateFailed')));
         },
     });
 
@@ -341,7 +357,7 @@ export function TeamAccessTab({ canManageTeam, subscription, t }: TeamAccessTabP
         mutationFn: ({ id, nextStatus }: { id: string; nextStatus: 'active' | 'blocked' }) =>
             updateAssistantStatus(id, nextStatus),
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['settings', 'team-assistants'] });
+            refreshTeamAccessData();
         },
         onError: (error) => {
             toast.error(getApiErrorMessage(error, t('settings.team.statusUpdateFailed')));
@@ -359,7 +375,7 @@ export function TeamAccessTab({ canManageTeam, subscription, t }: TeamAccessTabP
             setResetTarget(null);
             setResetPasswordValue('');
             setResetPasswordConfirmation('');
-            queryClient.invalidateQueries({ queryKey: ['settings', 'team-assistants'] });
+            refreshTeamAccessData();
         },
         onError: (error) => {
             toast.error(getApiErrorMessage(error, t('settings.team.passwordResetFailed')));
@@ -371,7 +387,7 @@ export function TeamAccessTab({ canManageTeam, subscription, t }: TeamAccessTabP
         onSuccess: () => {
             toast.success(t('settings.team.deleted'));
             setDeleteTarget(null);
-            queryClient.invalidateQueries({ queryKey: ['settings', 'team-assistants'] });
+            refreshTeamAccessData();
         },
         onError: (error) => {
             toast.error(getApiErrorMessage(error, t('settings.team.deleteFailed')));

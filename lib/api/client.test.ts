@@ -158,6 +158,31 @@ describe('getApiErrorMessage', () => {
         );
     });
 
+    it('does not expose mojibake backend messages', () => {
+        const error = new AxiosError(
+            'Request failed',
+            '422',
+            undefined,
+            undefined,
+            {
+                data: {
+                    message: 'The given data was invalid.',
+                    errors: {
+                        staff_limit: [
+                            'РўРµРєСѓС‰РёР№ С‚Р°СЂРёС„ РїРѕР·РІРѕР»СЏРµС‚ РЅРµ Р±РѕР»РµРµ 3 СЃРѕС‚СЂСѓРґРЅРёРєРѕРІ.',
+                        ],
+                    },
+                },
+                status: 422,
+                statusText: 'Unprocessable Entity',
+                headers: {},
+                config: {} as never,
+            }
+        );
+
+        expect(getApiErrorMessage(error, 'Friendly fallback')).toBe('Friendly fallback');
+    });
+
     it('returns a localized generic server message for 5xx responses', () => {
         const error = new AxiosError(
             'Request failed',

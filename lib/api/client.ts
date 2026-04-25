@@ -188,6 +188,68 @@ function isGenericAxiosWrapperMessage(value: string | null | undefined): boolean
         || normalized.startsWith('request failed with status code ');
 }
 
+function isGenericValidationMessage(value: string | null | undefined): boolean {
+    if (!value) {
+        return false;
+    }
+
+    const normalized = value.trim().toLowerCase();
+    return normalized === 'the given data was invalid.'
+        || normalized === 'the given data was invalid';
+}
+
+function looksLikeMojibakeMessage(value: string | null | undefined): boolean {
+    if (!value) {
+        return false;
+    }
+
+    const mojibakeMarkers = [
+        'Рў',
+        'РЈ',
+        'Рќ',
+        'Р’',
+        'Р°',
+        'Р±',
+        'Рґ',
+        'Рµ',
+        'Рё',
+        'Р»',
+        'РЅ',
+        'Рї',
+        'Рѕ',
+        'РС',
+        'СЃ',
+        'С‚',
+        'СЊ',
+        'С€',
+        'С‹',
+        'Ð',
+        'Ñ',
+        'вЂ',
+        '�',
+    ];
+
+    return mojibakeMarkers.some((marker) => value.includes(marker));
+}
+
+export function getDisplayableApiMessage(
+    value: string | null | undefined,
+    fallback = ''
+): string {
+    const trimmed = value?.trim();
+    if (
+        !trimmed
+        || looksLikeTranslationKey(trimmed)
+        || looksLikeMojibakeMessage(trimmed)
+        || isGenericAxiosWrapperMessage(trimmed)
+        || isGenericValidationMessage(trimmed)
+    ) {
+        return fallback;
+    }
+
+    return trimmed;
+}
+
 apiClient.interceptors.request.use((config) => {
     if (typeof window !== 'undefined') {
         config.baseURL = `${resolveApiRootUrl()}/v1`;
@@ -364,8 +426,9 @@ export function getApiErrorMessage(error: unknown, fallback = 'Request failed.')
             return getLocalizedClientMessage('errors.unauthorized', fallback);
         }
 
-        if (firstValidationError && !looksLikeTranslationKey(firstValidationError)) {
-            return firstValidationError;
+        const displayableValidationError = getDisplayableApiMessage(firstValidationError);
+        if (displayableValidationError) {
+            return displayableValidationError;
         }
 
         if (!error.response || isGenericNetworkMessage(error.message)) {
@@ -376,17 +439,19 @@ export function getApiErrorMessage(error: unknown, fallback = 'Request failed.')
             return getLocalizedClientMessage('errors.server', fallback);
         }
 
-        if (responseData?.message && !looksLikeTranslationKey(responseData.message)) {
-            return responseData.message;
+        const displayableResponseMessage = getDisplayableApiMessage(responseData?.message);
+        if (displayableResponseMessage) {
+            return displayableResponseMessage;
         }
 
-        if (nestedErrorMessage && !looksLikeTranslationKey(nestedErrorMessage)) {
-            return nestedErrorMessage;
+        const displayableNestedErrorMessage = getDisplayableApiMessage(nestedErrorMessage);
+        if (displayableNestedErrorMessage) {
+            return displayableNestedErrorMessage;
         }
 
         if (
             error.message
-            && !looksLikeTranslationKey(error.message)
+            && getDisplayableApiMessage(error.message)
             && !isGenericNetworkMessage(error.message)
             && !isGenericAxiosWrapperMessage(error.message)
         ) {
@@ -401,7 +466,7 @@ export function getApiErrorMessage(error: unknown, fallback = 'Request failed.')
             return getLocalizedClientMessage('errors.network', fallback);
         }
 
-        return error.message;
+        return getDisplayableApiMessage(error.message, fallback);
     }
 
     return fallback;
