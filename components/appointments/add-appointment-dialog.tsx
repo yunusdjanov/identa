@@ -27,8 +27,17 @@ import {
 } from '@/lib/appointments/messages';
 import { INPUT_LIMITS } from '@/lib/input-validation';
 import { isValidTimeInput, toLocalDateKey, truncateForUi } from '@/lib/utils';
+import {
+    createAppointmentStartSlots,
+    isAppointmentWithinWorkingHours,
+    normalizeAppointmentWorkingHours,
+    resolveAppointmentEndTime,
+    type AppointmentWorkingHours,
+    type NormalizedAppointmentWorkingHours,
+} from '@/lib/appointments/time-slots';
 import type { ApiPatient } from '@/lib/api/types';
 import { useI18n } from '@/components/providers/i18n-provider';
+import { AppointmentTimePicker } from '@/components/appointments/appointment-time-picker';
 
 type AppointmentStatus = 'scheduled' | 'completed' | 'cancelled' | 'no_show';
 const PATIENT_LOOKUP_PAGE_SIZE = 20;
@@ -36,7 +45,6 @@ const PATIENT_LOOKUP_DEBOUNCE_MS = 250;
 const APPOINTMENT_LOOKUP_NAME_UI_LIMIT = 25;
 const APPOINTMENT_LOOKUP_PHONE_UI_LIMIT = 20;
 const APPOINTMENT_SELECTED_PATIENT_UI_LIMIT = 40;
-const APPOINTMENT_TIME_SLOTS = createTimeSlots();
 
 type PatientLookupOption = Pick<ApiPatient, 'id' | 'patient_id' | 'full_name' | 'phone' | 'secondary_phone'>;
 
@@ -58,6 +66,7 @@ interface AddAppointmentDialogProps {
     prefillStartTime?: string;
     prefillPatientId?: string;
     editingAppointment?: EditableAppointment;
+    workingHours?: AppointmentWorkingHours;
 }
 
 function createEditingPatientSnapshot(editingAppointment?: EditableAppointment): PatientLookupOption | null {
@@ -78,8 +87,11 @@ function createInitialFormData(
     prefillDate?: string,
     prefillStartTime?: string,
     prefillPatientId?: string,
-    editingAppointment?: EditableAppointment
+    editingAppointment?: EditableAppointment,
+    workingHours?: AppointmentWorkingHours
 ) {
+    const normalizedWorkingHours = normalizeAppointmentWorkingHours(workingHours);
+
     if (editingAppointment) {
         return {
             patientId: editingAppointment.patientId,
@@ -92,7 +104,9 @@ function createInitialFormData(
     }
 
     const appointmentDate = isValidDateInput(prefillDate) ? prefillDate : toLocalDateKey();
-    const startTime = isValidTimeInput(prefillStartTime) ? prefillStartTime : '09:00';
+    const startTime = isValidTimeInput(prefillStartTime)
+        ? prefillStartTime
+        : createAppointmentStartSlots(normalizedWorkingHours)[0] ?? normalizedWorkingHours.start;
 
     return {
         patientId: prefillPatientId ?? '',
@@ -110,34 +124,6 @@ function isValidDateInput(value: string | undefined): value is string {
     }
 
     return /^\d{4}-\d{2}-\d{2}$/.test(value);
-}
-
-function resolveEndTime(startTime: string, durationMinutes: number): string | null {
-    const [hours, minutes] = startTime.split(':').map(Number);
-    const total = hours * 60 + minutes + durationMinutes;
-    if (total >= 24 * 60) {
-        return null;
-    }
-    const endHour = Math.floor(total / 60);
-    const endMinute = total % 60;
-
-    return `${String(endHour).padStart(2, '0')}:${String(endMinute).padStart(2, '0')}`;
-}
-
-function createTimeSlots(): string[] {
-    const slots: string[] = [];
-
-    for (let hour = 7; hour <= 22; hour += 1) {
-        for (let minute = 0; minute < 60; minute += 30) {
-            if (hour === 22 && minute > 0) {
-                break;
-            }
-
-            slots.push(`${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`);
-        }
-    }
-
-    return slots;
 }
 
 function formatPatientLabel(patient: { full_name: string; patient_id?: string | null }): string {
@@ -188,12 +174,24 @@ function getAvailableStartTimes(
     payload: {
         durationMinutes: number;
         status: AppointmentStatus;
+        workingHours: NormalizedAppointmentWorkingHours;
         ignoreAppointmentId?: string;
+        includeStartTime?: string;
     }
 ): string[] {
-    return APPOINTMENT_TIME_SLOTS.filter((startTime) => {
-        const endTime = resolveEndTime(startTime, payload.durationMinutes);
+    const startSlots = createAppointmentStartSlots(payload.workingHours, {
+        extraSlots: payload.includeStartTime ? [payload.includeStartTime] : [],
+    });
+
+    return startSlots.filter((startTime) => {
+        const endTime = resolveAppointmentEndTime(startTime, payload.durationMinutes);
         if (!endTime) {
+            return false;
+        }
+        if (
+            startTime !== payload.includeStartTime
+            && !isAppointmentWithinWorkingHours(startTime, endTime, payload.workingHours)
+        ) {
             return false;
         }
 
@@ -213,13 +211,15 @@ export function AddAppointmentDialog({
     prefillStartTime,
     prefillPatientId,
     editingAppointment,
+    workingHours,
 }: AddAppointmentDialogProps) {
     const { t } = useI18n();
     const queryClient = useQueryClient();
     const isEditing = Boolean(editingAppointment);
     const patientComboboxRef = useRef<HTMLDivElement | null>(null);
+    const normalizedWorkingHours = normalizeAppointmentWorkingHours(workingHours);
     const [formData, setFormData] = useState(() =>
-        createInitialFormData(prefillDate, prefillStartTime, prefillPatientId, editingAppointment)
+        createInitialFormData(prefillDate, prefillStartTime, prefillPatientId, editingAppointment, normalizedWorkingHours)
     );
     const [patientSearch, setPatientSearch] = useState(editingAppointment?.patientName ?? '');
     const [debouncedPatientSearch, setDebouncedPatientSearch] = useState(editingAppointment?.patientName ?? '');
@@ -278,14 +278,13 @@ export function AddAppointmentDialog({
             }),
     });
     const dayAppointments = useMemo(() => dayAppointmentsQuery.data?.data ?? [], [dayAppointmentsQuery.data]);
-    const availableStartTimes = useMemo(
-        () => getAvailableStartTimes(dayAppointments, {
-            durationMinutes: formData.durationMinutes,
-            status: formData.status,
-            ignoreAppointmentId: editingAppointment?.id,
-        }),
-        [dayAppointments, editingAppointment?.id, formData.durationMinutes, formData.status]
-    );
+    const availableStartTimes = getAvailableStartTimes(dayAppointments, {
+        durationMinutes: formData.durationMinutes,
+        status: formData.status,
+        workingHours: normalizedWorkingHours,
+        ignoreAppointmentId: editingAppointment?.id,
+        includeStartTime: editingAppointment?.startTime,
+    });
     const isSelectedTimeAvailable = availableStartTimes.includes(formData.startTime);
     const reasonError = formData.reason.trim().length > INPUT_LIMITS.shortText
         ? t('appointments.dialog.reasonMax', { max: INPUT_LIMITS.shortText })
@@ -324,7 +323,7 @@ export function AddAppointmentDialog({
 
     const mutation = useMutation({
         mutationFn: () => {
-            const endTime = resolveEndTime(formData.startTime, formData.durationMinutes);
+            const endTime = resolveAppointmentEndTime(formData.startTime, formData.durationMinutes);
             if (!endTime) {
                 throw new Error(t('appointments.toast.endOfDay'));
             }
@@ -352,7 +351,7 @@ export function AddAppointmentDialog({
         },
         onSuccess: () => {
             toast.success(isEditing ? t('appointments.dialog.toast.updated') : t('appointments.dialog.toast.scheduled'));
-            setFormData(createInitialFormData(prefillDate, prefillStartTime, prefillPatientId, editingAppointment));
+            setFormData(createInitialFormData(prefillDate, prefillStartTime, prefillPatientId, editingAppointment, normalizedWorkingHours));
             setPatientSearch(editingAppointment?.patientName ?? '');
             setDebouncedPatientSearch(editingAppointment?.patientName ?? '');
             setSubmitAttempted(false);
@@ -391,7 +390,7 @@ export function AddAppointmentDialog({
             return;
         }
 
-        const endTime = resolveEndTime(formData.startTime, formData.durationMinutes);
+        const endTime = resolveAppointmentEndTime(formData.startTime, formData.durationMinutes);
         if (!endTime) {
             toast.error(t('appointments.toast.endOfDay'));
             return;
@@ -560,28 +559,20 @@ export function AddAppointmentDialog({
                             <Label htmlFor="time">
                                 {t('appointments.dialog.time')} <span className="text-red-500">*</span>
                             </Label>
-                            <Select
+                            <AppointmentTimePicker
+                                id="time"
                                 value={formData.startTime}
                                 onValueChange={(value) => setFormData({ ...formData, startTime: value })}
                                 disabled={dayAppointmentsQuery.isLoading || availableStartTimes.length === 0}
-                            >
-                                <SelectTrigger id="time" className="w-full" aria-invalid={Boolean(submitAttempted && (timeError || slotError))}>
-                                    <SelectValue
-                                        placeholder={
-                                            dayAppointmentsQuery.isLoading
-                                                ? t('appointments.dialog.loadingSlots')
-                                                : t('appointments.dialog.noAvailableSlots')
-                                        }
-                                    />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {availableStartTimes.map((time) => (
-                                        <SelectItem key={time} value={time}>
-                                            {time}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                                options={availableStartTimes}
+                                placeholder={
+                                    dayAppointmentsQuery.isLoading
+                                        ? t('appointments.dialog.loadingSlots')
+                                        : t('appointments.dialog.time')
+                                }
+                                emptyLabel={t('appointments.dialog.noAvailableSlots')}
+                                ariaInvalid={Boolean(submitAttempted && (timeError || slotError))}
+                            />
                             {submitAttempted && (timeError || slotError) ? (
                                 <p className="text-xs text-red-600">{timeError ?? slotError}</p>
                             ) : null}
@@ -597,7 +588,9 @@ export function AddAppointmentDialog({
                                 const nextAvailableStartTimes = getAvailableStartTimes(dayAppointments, {
                                     durationMinutes: nextDuration,
                                     status: formData.status,
+                                    workingHours: normalizedWorkingHours,
                                     ignoreAppointmentId: editingAppointment?.id,
+                                    includeStartTime: editingAppointment?.startTime,
                                 });
 
                                 setFormData({
@@ -632,7 +625,9 @@ export function AddAppointmentDialog({
                                     const nextAvailableStartTimes = getAvailableStartTimes(dayAppointments, {
                                         durationMinutes: formData.durationMinutes,
                                         status: value,
+                                        workingHours: normalizedWorkingHours,
                                         ignoreAppointmentId: editingAppointment?.id,
+                                        includeStartTime: editingAppointment?.startTime,
                                     });
 
                                     setFormData({

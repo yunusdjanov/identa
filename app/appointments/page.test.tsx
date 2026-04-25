@@ -2,7 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import AppointmentsPage from '@/app/appointments/page';
-import { deleteAppointment, listAllAppointments, updateAppointment } from '@/lib/api/dentist';
+import { deleteAppointment, getProfile, listAllAppointments, updateAppointment } from '@/lib/api/dentist';
 import { toLocalDateKey } from '@/lib/utils';
 import { toast } from 'sonner';
 import { I18nProvider } from '@/components/providers/i18n-provider';
@@ -10,6 +10,7 @@ import { I18nProvider } from '@/components/providers/i18n-provider';
 const addAppointmentDialogSpy = vi.fn();
 
 vi.mock('@/lib/api/dentist', () => ({
+    getProfile: vi.fn(),
     listAllAppointments: vi.fn(),
     updateAppointment: vi.fn(),
     deleteAppointment: vi.fn(),
@@ -95,6 +96,7 @@ describe('AppointmentsPage drag and drop', () => {
 
     beforeEach(() => {
         vi.mocked(listAllAppointments).mockReset();
+        vi.mocked(getProfile).mockReset();
         vi.mocked(updateAppointment).mockReset();
         vi.mocked(deleteAppointment).mockReset();
         vi.mocked(toast.error).mockReset();
@@ -103,6 +105,20 @@ describe('AppointmentsPage drag and drop', () => {
 
         vi.spyOn(Date, 'now').mockReturnValue(new Date(`${today}T00:00:00`).getTime() - 1000);
         vi.mocked(deleteAppointment).mockResolvedValue(undefined);
+        vi.mocked(getProfile).mockResolvedValue({
+            id: 'profile-1',
+            name: 'Dr. Test',
+            email: 'doctor@example.test',
+            phone: null,
+            practice_name: 'Test Clinic',
+            license_number: null,
+            address: null,
+            working_hours: {
+                start: '07:00',
+                end: '22:30',
+            },
+            default_appointment_duration: 30,
+        });
     });
 
     afterEach(() => {

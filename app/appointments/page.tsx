@@ -18,6 +18,7 @@ import {
 } from '@/components/ui/select';
 import {
     deleteAppointment,
+    getProfile,
     listAllAppointments,
     updateAppointment,
 } from '@/lib/api/dentist';
@@ -27,9 +28,19 @@ import {
 import { getApiErrorMessage } from '@/lib/api/client';
 import { INPUT_LIMITS } from '@/lib/input-validation';
 import { formatTime, getStatusBadgeColor, isValidTimeInput, toLocalDateKey, truncateForUi } from '@/lib/utils';
+import {
+    createAppointmentCoveredSlots,
+    createAppointmentStartSlots,
+    isAppointmentWithinWorkingHours,
+    normalizeAppointmentWorkingHours,
+    resolveAppointmentEndTime,
+    toMinutesFromTime,
+    type NormalizedAppointmentWorkingHours,
+} from '@/lib/appointments/time-slots';
 import { formatLocalizedDate } from '@/lib/i18n/date';
 import { Plus, Calendar as CalendarIcon, ChevronLeft, ChevronRight, Pencil, Trash2 } from 'lucide-react';
 import { AddAppointmentDialog } from '@/components/appointments/add-appointment-dialog';
+import { AppointmentTimePicker } from '@/components/appointments/appointment-time-picker';
 import { ConfirmActionDialog } from '@/components/ui/confirm-action-dialog';
 import {
     Dialog,
@@ -79,27 +90,6 @@ function extractReason(notes: string | null): string {
 
     const parts = notes.split('|').map((part) => part.trim()).filter(Boolean);
     return parts[0] ?? '';
-}
-
-function resolveEndTime(startTime: string, durationMinutes: number): string | null {
-    if (durationMinutes <= 0) {
-        return null;
-    }
-
-    const [hours, minutes] = startTime.split(':').map(Number);
-    const total = hours * 60 + minutes + durationMinutes;
-    if (total >= 24 * 60) {
-        return null;
-    }
-
-    const endHour = Math.floor(total / 60);
-    const endMinute = total % 60;
-    return `${String(endHour).padStart(2, '0')}:${String(endMinute).padStart(2, '0')}`;
-}
-
-function toMinutesFromTime(timeInput: string): number {
-    const [hours, minutes] = timeInput.split(':').map(Number);
-    return hours * 60 + minutes;
 }
 
 function getWeekStart(date: Date): Date {
@@ -226,12 +216,20 @@ function getAvailableAppointmentStartTimes(
         durationMinutes: number;
         status: AppointmentStatus;
         ignoreAppointmentId?: string;
+        includeStartTime?: string;
+        workingHours: NormalizedAppointmentWorkingHours;
     },
     timeSlots: string[]
 ): string[] {
     return timeSlots.filter((startTime) => {
-        const endTime = resolveEndTime(startTime, payload.durationMinutes);
+        const endTime = resolveAppointmentEndTime(startTime, payload.durationMinutes);
         if (!endTime) {
+            return false;
+        }
+        if (
+            startTime !== payload.includeStartTime
+            && !isAppointmentWithinWorkingHours(startTime, endTime, payload.workingHours)
+        ) {
             return false;
         }
 
@@ -364,7 +362,7 @@ export default function AppointmentsPage() {
     const openAddDialog = (options?: { date?: Date; startTime?: string }) => {
         const dialogDate = options?.date ?? currentDate;
         setPrefillDate(toLocalDateKey(dialogDate));
-        setPrefillStartTime(options?.startTime);
+        setPrefillStartTime(options?.startTime ?? availabilityTimeSlots[0]);
         setDialogVersion((version) => version + 1);
         setIsAddDialogOpen(true);
     };
@@ -461,6 +459,15 @@ export default function AppointmentsPage() {
         refetchOnWindowFocus: false,
         refetchOnReconnect: false,
     });
+    const profileQuery = useQuery({
+        queryKey: ['settings', 'profile'],
+        queryFn: getProfile,
+        staleTime: 300000,
+        gcTime: 900000,
+        refetchOnWindowFocus: false,
+        refetchOnReconnect: false,
+    });
+    const workingHours = normalizeAppointmentWorkingHours(profileQuery.data?.working_hours);
 
     const appointmentRows = useMemo<AppointmentRow[]>(() => {
         return (appointmentsQuery.data ?? []).map((appointment) => {
@@ -515,22 +522,13 @@ export default function AppointmentsPage() {
             return true;
         });
     }, [appointmentRows, nowTimeKey, todayDateKey, urlStatuses, urlWhen, urlWindowMinutes]);
-    const timeSlots = useMemo(() => {
-        const slots: string[] = [];
-
-        for (let hour = 7; hour <= 22; hour += 1) {
-            for (let minute = 0; minute < 60; minute += 30) {
-                if (hour === 22 && minute > 0) break;
-                slots.push(`${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`);
-            }
-        }
-
-        return slots;
-    }, []);
-    const slotMinutesByTime = useMemo(
-        () => new Map(timeSlots.map((time) => [time, toMinutesFromTime(time)])),
-        [timeSlots]
-    );
+    const availabilityTimeSlots = createAppointmentStartSlots(workingHours);
+    const timeSlots = createAppointmentStartSlots(workingHours, {
+        extraSlots: appointmentRows.flatMap((appointment) =>
+            createAppointmentCoveredSlots(appointment.startTime, appointment.endTime)
+        ),
+    });
+    const slotMinutesByTime = new Map(timeSlots.map((time) => [time, toMinutesFromTime(time)]));
     const currentDateKey = useMemo(() => toLocalDateKey(currentDate), [currentDate]);
     const appointmentById = useMemo(
         () => new Map(filteredAppointmentRows.map((appointment) => [appointment.id, appointment])),
@@ -587,7 +585,7 @@ export default function AppointmentsPage() {
 
         return grouped;
     }, [appointmentsByDate]);
-    const appointmentsCoveringByDateAndTime = useMemo(() => {
+    const appointmentsCoveringByDateAndTime = (() => {
         const grouped = new Map<string, Map<string, AppointmentRow[]>>();
 
         for (const [date, items] of appointmentsByDate.entries()) {
@@ -616,7 +614,7 @@ export default function AppointmentsPage() {
         }
 
         return grouped;
-    }, [appointmentsByDate, slotMinutesByTime, timeSlots]);
+    })();
 
     const rescheduleMutation = useMutation({
         mutationFn: async (payload: {
@@ -662,7 +660,7 @@ export default function AppointmentsPage() {
 
     const weekInlineEditMutation = useMutation({
         mutationFn: async (payload: { appointment: AppointmentRow; formData: WeekInlineEditFormData }) => {
-            const endTime = resolveEndTime(payload.formData.startTime, payload.formData.durationMinutes);
+            const endTime = resolveAppointmentEndTime(payload.formData.startTime, payload.formData.durationMinutes);
             if (!endTime) {
                 throw new Error(t('appointments.toast.endOfDay'));
             }
@@ -1013,7 +1011,7 @@ export default function AppointmentsPage() {
             return;
         }
 
-        const targetEndTime = resolveEndTime(targetStartTime, draggedAppointment.durationMinutes);
+        const targetEndTime = resolveAppointmentEndTime(targetStartTime, draggedAppointment.durationMinutes);
         if (!targetEndTime) {
             toast.error(t('appointments.toast.endOfDay'));
             setDraggedAppointmentId(null);
@@ -1421,6 +1419,8 @@ export default function AppointmentsPage() {
                                                 durationMinutes: weekInlineEditFormData.durationMinutes,
                                                 status: weekInlineEditFormData.status,
                                                 ignoreAppointmentId: appointment.id,
+                                                includeStartTime: appointment.startTime,
+                                                workingHours,
                                             },
                                             timeSlots
                                         )
@@ -1489,7 +1489,8 @@ export default function AppointmentsPage() {
                                                     <div className="grid gap-3 md:grid-cols-3">
                                                         <div className="space-y-2">
                                                             <Label htmlFor={`week-edit-time-${appointment.id}`}>{t('appointments.dialog.time')}</Label>
-                                                            <Select
+                                                            <AppointmentTimePicker
+                                                                id={`week-edit-time-${appointment.id}`}
                                                                 value={weekInlineEditFormData.startTime}
                                                                 onValueChange={(value) => {
                                                                     setWeekInlineEditFormData((current) => current
@@ -1497,18 +1498,11 @@ export default function AppointmentsPage() {
                                                                         : current);
                                                                 }}
                                                                 disabled={inlineAvailableStartTimes.length === 0}
-                                                            >
-                                                                <SelectTrigger id={`week-edit-time-${appointment.id}`} className="w-full" aria-invalid={Boolean(timeError)}>
-                                                                    <SelectValue placeholder={t('appointments.dialog.noAvailableSlots')} />
-                                                                </SelectTrigger>
-                                                                <SelectContent>
-                                                                    {inlineAvailableStartTimes.map((time) => (
-                                                                        <SelectItem key={time} value={time}>
-                                                                            {time}
-                                                                        </SelectItem>
-                                                                    ))}
-                                                                </SelectContent>
-                                                            </Select>
+                                                                options={inlineAvailableStartTimes}
+                                                                placeholder={t('appointments.dialog.time')}
+                                                                emptyLabel={t('appointments.dialog.noAvailableSlots')}
+                                                                ariaInvalid={Boolean(timeError)}
+                                                            />
                                                             {timeError ? (
                                                                 <p className="text-xs text-red-600">{timeError}</p>
                                                             ) : null}
@@ -1528,6 +1522,8 @@ export default function AppointmentsPage() {
                                                                                     durationMinutes: nextDuration,
                                                                                     status: current.status,
                                                                                     ignoreAppointmentId: appointment.id,
+                                                                                    includeStartTime: appointment.startTime,
+                                                                                    workingHours,
                                                                                 },
                                                                                 timeSlots
                                                                             );
@@ -1571,6 +1567,8 @@ export default function AppointmentsPage() {
                                                                                     durationMinutes: current.durationMinutes,
                                                                                     status: nextStatus,
                                                                                     ignoreAppointmentId: appointment.id,
+                                                                                    includeStartTime: appointment.startTime,
+                                                                                    workingHours,
                                                                                 },
                                                                                 timeSlots
                                                                             );
@@ -1680,6 +1678,7 @@ export default function AppointmentsPage() {
                 prefillDate={prefillDate}
                 prefillStartTime={prefillStartTime}
                 prefillPatientId={urlPrefillPatientId}
+                workingHours={workingHours}
             />
             <AddAppointmentDialog
                 key={`edit-appointment-${editDialogVersion}`}
@@ -1699,6 +1698,7 @@ export default function AppointmentsPage() {
                         }
                         : undefined
                 }
+                workingHours={workingHours}
             />
             <ConfirmActionDialog
                 open={isDeleteDialogOpen}
