@@ -457,21 +457,12 @@ export default function DashboardPage() {
                                     );
                                 })}
                             </div>
-                            <div className="rounded-2xl border border-blue-100 bg-white/80 p-2.5 shadow-sm shadow-blue-100/50 sm:flex sm:items-center sm:justify-between sm:gap-4 sm:p-3">
-                                <div className="hidden items-center gap-3 sm:flex">
-                                    <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-50 text-blue-700 ring-1 ring-blue-100">
-                                        <Calendar className="h-4 w-4" />
-                                    </div>
-                                    <div>
-                                        <p className="text-sm font-semibold text-slate-900">{t('dashboard.todayAppointments')}</p>
-                                        <p className="text-xs font-medium text-slate-500">{t('dashboard.upcomingToday')}</p>
-                                    </div>
-                                </div>
+                            <div className="flex justify-center border-t border-blue-100/70 pt-4 sm:justify-end">
                                 <Button
                                     asChild
                                     variant="outline"
                                     size="sm"
-                                    className="group h-9 w-full rounded-full border-blue-100 bg-white px-4 text-sm font-semibold text-blue-700 shadow-sm transition hover:-translate-y-0.5 hover:border-blue-200 hover:bg-blue-50 hover:text-blue-800 sm:w-auto"
+                                    className="group h-10 w-full rounded-full border-blue-100 bg-white px-4 text-sm font-semibold text-blue-700 shadow-sm shadow-blue-100/50 transition hover:-translate-y-0.5 hover:border-blue-200 hover:bg-blue-50 hover:text-blue-800 sm:w-auto"
                                 >
                                     <Link href={showAllTodayHref}>
                                         {t('dashboard.showAllToday', { count: scheduledTodayAppointments.length })}
