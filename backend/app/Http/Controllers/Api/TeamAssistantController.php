@@ -12,6 +12,7 @@ use App\Support\AuditLogger;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 
@@ -87,36 +88,30 @@ class TeamAssistantController extends Controller
     public function store(StoreAssistantRequest $request): JsonResponse
     {
         $dentistId = $this->resolveDentistId($request);
-        $dentist = User::query()->findOrFail($dentistId);
         $validated = $request->validated();
         $permissions = $this->sanitizePermissions(
             $validated['permissions'] ?? User::defaultAssistantPermissions()
         );
 
-        if (! $dentist->hasAvailableAssistantSlot()) {
-            throw ValidationException::withMessages([
-                'staff_limit' => [
-                    __('api.subscription.assistant_limit_reached', [
-                        'limit' => $dentist->subscriptionStaffLimit() ?? 0,
-                    ]),
-                ],
-            ]);
-        }
+        $assistant = DB::transaction(function () use ($dentistId, $validated, $permissions): User {
+            $dentist = $this->lockDentistForAssistantLimit($dentistId);
+            $this->ensureAssistantSlotAvailable($dentist);
 
-        $assistant = User::query()->create([
-            'name' => trim((string) $validated['name']),
-            'email' => trim((string) $validated['email']),
-            'password' => Hash::make((string) $validated['password']),
-            'phone' => $validated['phone'] ?? null,
-            'role' => User::ROLE_ASSISTANT,
-            'dentist_owner_id' => $dentistId,
-            'assistant_permissions' => $permissions,
-            'must_change_password' => true,
-            'account_status' => User::ACCOUNT_STATUS_ACTIVE,
-            'practice_name' => null,
-            'license_number' => null,
-            'address' => null,
-        ]);
+            return User::query()->create([
+                'name' => trim((string) $validated['name']),
+                'email' => trim((string) $validated['email']),
+                'password' => Hash::make((string) $validated['password']),
+                'phone' => $validated['phone'] ?? null,
+                'role' => User::ROLE_ASSISTANT,
+                'dentist_owner_id' => $dentistId,
+                'assistant_permissions' => $permissions,
+                'must_change_password' => true,
+                'account_status' => User::ACCOUNT_STATUS_ACTIVE,
+                'practice_name' => null,
+                'license_number' => null,
+                'address' => null,
+            ]);
+        });
 
         $this->auditLogger->logFromRequest(
             request: $request,
@@ -170,12 +165,25 @@ class TeamAssistantController extends Controller
     public function updateStatus(UpdateAssistantStatusRequest $request, string $id): JsonResponse
     {
         $dentistId = $this->resolveDentistId($request);
-        $assistant = $this->findOwnedAssistant($id, $dentistId, true);
         $status = (string) $request->validated('status');
 
-        $assistant->update([
-            'account_status' => $status,
-        ]);
+        $assistant = DB::transaction(function () use ($dentistId, $id, $status): User {
+            $dentist = $this->lockDentistForAssistantLimit($dentistId);
+            $assistant = $this->findOwnedAssistant($id, $dentistId, true);
+
+            if (
+                $status === User::ACCOUNT_STATUS_ACTIVE
+                && $assistant->account_status !== User::ACCOUNT_STATUS_ACTIVE
+            ) {
+                $this->ensureAssistantSlotAvailable($dentist);
+            }
+
+            $assistant->update([
+                'account_status' => $status,
+            ]);
+
+            return $assistant->refresh();
+        });
 
         $this->auditLogger->logFromRequest(
             request: $request,
@@ -188,7 +196,7 @@ class TeamAssistantController extends Controller
         );
 
         return response()->json([
-            'data' => $this->transformAssistant($assistant->fresh()),
+            'data' => $this->transformAssistant($assistant),
         ]);
     }
 
@@ -274,6 +282,29 @@ class TeamAssistantController extends Controller
         }
 
         return $query->firstOrFail();
+    }
+
+    private function lockDentistForAssistantLimit(int $dentistId): User
+    {
+        return User::query()
+            ->whereKey($dentistId)
+            ->lockForUpdate()
+            ->firstOrFail();
+    }
+
+    private function ensureAssistantSlotAvailable(User $dentist): void
+    {
+        if ($dentist->hasAvailableAssistantSlot()) {
+            return;
+        }
+
+        throw ValidationException::withMessages([
+            'staff_limit' => [
+                __('api.subscription.assistant_limit_reached', [
+                    'limit' => $dentist->subscriptionStaffLimit() ?? 0,
+                ]),
+            ],
+        ]);
     }
 
     /**

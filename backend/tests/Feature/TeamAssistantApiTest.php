@@ -104,4 +104,59 @@ class TeamAssistantApiTest extends TestCase
             ->getJson('/api/v1/team/assistants')
             ->assertForbidden();
     }
+
+    public function test_blocked_assistant_cannot_be_reactivated_when_staff_limit_is_full(): void
+    {
+        $dentist = User::factory()->create([
+            'subscription_plan' => User::SUBSCRIPTION_PLAN_TRIAL,
+            'trial_ends_at' => now()->addDays(10),
+            'subscription_started_at' => now(),
+        ]);
+
+        $blockedAssistant = User::factory()->assistant($dentist)->create([
+            'account_status' => User::ACCOUNT_STATUS_ACTIVE,
+        ]);
+
+        $this->actingAs($dentist, 'web')
+            ->patchJson("/api/v1/team/assistants/{$blockedAssistant->id}/status", [
+                'status' => User::ACCOUNT_STATUS_BLOCKED,
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.account_status', User::ACCOUNT_STATUS_BLOCKED);
+
+        $this->actingAs($dentist, 'web')
+            ->postJson('/api/v1/team/assistants', [
+                'name' => 'Replacement Assistant',
+                'email' => 'replacement.assistant@example.com',
+                'password' => 'password123',
+                'password_confirmation' => 'password123',
+                'phone' => '+998901112255',
+                'permissions' => [
+                    User::PERMISSION_PATIENTS_VIEW,
+                ],
+            ])
+            ->assertCreated()
+            ->assertJsonPath('data.account_status', User::ACCOUNT_STATUS_ACTIVE);
+
+        $this->actingAs($dentist, 'web')
+            ->patchJson("/api/v1/team/assistants/{$blockedAssistant->id}/status", [
+                'status' => User::ACCOUNT_STATUS_ACTIVE,
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('staff_limit');
+
+        $this->assertDatabaseHas('users', [
+            'id' => $blockedAssistant->id,
+            'account_status' => User::ACCOUNT_STATUS_BLOCKED,
+        ]);
+
+        $this->assertSame(
+            User::STAFF_LIMIT_TRIAL,
+            User::query()
+                ->where('dentist_owner_id', $dentist->id)
+                ->where('role', User::ROLE_ASSISTANT)
+                ->where('account_status', User::ACCOUNT_STATUS_ACTIVE)
+                ->count()
+        );
+    }
 }
