@@ -463,12 +463,9 @@ export default function DashboardPage() {
                                     );
                                 })}
                             </div>
-                            <div className="flex flex-col gap-2 border-t border-blue-100/80 pt-3 sm:flex-row sm:items-center sm:justify-between">
-                                <p className="text-sm font-medium text-slate-500">
-                                    {scheduledTodayAppointments.length} {t('dashboard.scheduled')}
-                                </p>
+                            <div className="flex justify-end pt-1">
                                 <Link href={showAllTodayHref}>
-                                    <Button variant="ghost" size="sm" className="w-full rounded-full text-blue-700 hover:bg-blue-50 hover:text-blue-800 sm:w-auto">
+                                    <Button variant="ghost" size="sm" className="h-8 w-full rounded-lg px-2 text-sm font-semibold text-blue-700 hover:bg-blue-50 hover:text-blue-800 sm:w-auto">
                                         {t('dashboard.showAllToday', { count: scheduledTodayAppointments.length })}
                                     </Button>
                                 </Link>
