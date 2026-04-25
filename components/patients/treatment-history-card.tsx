@@ -63,6 +63,7 @@ const ALLOWED_HISTORY_IMAGE_TYPES = new Set([
 const HISTORY_IMAGE_UPLOAD_CONCURRENCY = 10;
 const MEDIA_READINESS_POLL_INTERVAL_MS = 1200;
 const MEDIA_READINESS_TIMEOUT_MS = 8000;
+const HISTORY_TABLE_GRID_CLASS = 'grid min-w-[980px] grid-cols-[120px_96px_minmax(220px,1.4fr)_116px_116px_120px_160px_84px] gap-3';
 
 const createEmptyFormState = (): TreatmentFormState => ({
     treatmentDate: toLocalDateKey(),
@@ -825,8 +826,8 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                     </div>
 
                     {isLoading ? (
-                        <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white">
-                            <div className="hidden grid-cols-[120px_110px_minmax(220px,1.6fr)_110px_110px_120px_180px_88px] gap-3 border-b border-gray-200 bg-gray-50 px-4 py-3 text-xs font-medium uppercase tracking-wide text-gray-500 lg:grid">
+                        <div className="overflow-x-auto rounded-2xl border border-gray-200 bg-white pb-1">
+                            <div className={`${HISTORY_TABLE_GRID_CLASS} border-b border-gray-200 bg-gray-50 px-4 py-3 text-xs font-medium uppercase tracking-wide text-gray-500`}>
                                 <span>{t('patientHistory.table.date')}</span>
                                 <span>{t('patientHistory.teethLabel')}</span>
                                 <span>{t('patientHistory.table.workDone')}</span>
@@ -838,7 +839,7 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                             </div>
                             <div className="divide-y divide-gray-100">
                                 {Array.from({ length: 3 }).map((_, index) => (
-                                    <div key={index} className="space-y-3 px-4 py-4 lg:grid lg:grid-cols-[120px_110px_minmax(220px,1.6fr)_110px_110px_120px_180px_88px] lg:items-start lg:gap-3 lg:space-y-0">
+                                    <div key={index} className={`${HISTORY_TABLE_GRID_CLASS} items-start px-4 py-4`}>
                                         <Skeleton className="h-4 w-24" />
                                         <Skeleton className="h-6 w-24 rounded-full" />
                                         <div className="space-y-2">
@@ -875,8 +876,8 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                             </Button>
                         </div>
                     ) : (
-                        <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white">
-                            <div className="hidden grid-cols-[120px_110px_minmax(220px,1.6fr)_110px_110px_120px_180px_88px] gap-3 border-b border-gray-200 bg-gray-50 px-4 py-3 text-xs font-medium uppercase tracking-wide text-gray-500 lg:grid">
+                        <div className="overflow-x-auto rounded-2xl border border-gray-200 bg-white pb-1">
+                            <div className={`${HISTORY_TABLE_GRID_CLASS} border-b border-gray-200 bg-gray-50 px-4 py-3 text-xs font-medium uppercase tracking-wide text-gray-500`}>
                                 <span>{t('patientHistory.table.date')}</span>
                                 <span>{t('patientHistory.teethLabel')}</span>
                                 <span>{t('patientHistory.table.workDone')}</span>
@@ -888,13 +889,13 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                             </div>
                             <div className="divide-y divide-gray-100">
                                 {treatments.map((treatment) => (
-                                    <div key={treatment.id} className="space-y-3 px-4 py-4 transition-colors hover:bg-gray-50/50 lg:grid lg:grid-cols-[120px_110px_minmax(220px,1.6fr)_110px_110px_120px_180px_88px] lg:items-start lg:gap-3 lg:space-y-0">
+                                    <div key={treatment.id} className={`${HISTORY_TABLE_GRID_CLASS} items-start px-4 py-4 transition-colors hover:bg-gray-50/50`}>
                                         <div>
-                                            <p className="text-xs font-medium uppercase tracking-wide text-gray-400 lg:hidden">{t('patientHistory.table.date')}</p>
+                                            <p className="sr-only">{t('patientHistory.table.date')}</p>
                                             <p className="text-sm text-gray-700">{formatDate(treatment.treatment_date)}</p>
                                         </div>
                                         <div>
-                                            <p className="text-xs font-medium uppercase tracking-wide text-gray-400 lg:hidden">{t('patientHistory.teethLabel')}</p>
+                                            <p className="sr-only">{t('patientHistory.teethLabel')}</p>
                                             {(() => {
                                                 const teeth = treatment.teeth ?? [];
                                                 if (teeth.length === 0) {
@@ -925,7 +926,7 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                             })()}
                                         </div>
                                         <div className="min-w-0">
-                                            <p className="text-xs font-medium uppercase tracking-wide text-gray-400 lg:hidden">{t('patientHistory.table.workDone')}</p>
+                                            <p className="sr-only">{t('patientHistory.table.workDone')}</p>
                                             <p
                                                 className="max-w-[220px] truncate text-sm font-semibold text-gray-900 sm:max-w-[260px] lg:max-w-[300px] xl:max-w-[340px]"
                                                 title={treatment.treatment_type}
@@ -934,21 +935,21 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                             </p>
                                         </div>
                                         <div>
-                                            <p className="text-xs font-medium uppercase tracking-wide text-gray-400 lg:hidden">{t('patientHistory.table.debt')}</p>
-                                            <p className="text-sm font-semibold text-red-700">{formatCurrency(Number(treatment.debt_amount))}</p>
+                                            <p className="sr-only">{t('patientHistory.table.debt')}</p>
+                                            <p className="whitespace-nowrap text-sm font-semibold text-red-700">{formatCurrency(Number(treatment.debt_amount))}</p>
                                         </div>
                                         <div>
-                                            <p className="text-xs font-medium uppercase tracking-wide text-gray-400 lg:hidden">{t('patientHistory.table.paid')}</p>
-                                            <p className="text-sm font-semibold text-green-700">{formatCurrency(Number(treatment.paid_amount))}</p>
+                                            <p className="sr-only">{t('patientHistory.table.paid')}</p>
+                                            <p className="whitespace-nowrap text-sm font-semibold text-green-700">{formatCurrency(Number(treatment.paid_amount))}</p>
                                         </div>
                                         <div>
-                                            <p className="text-xs font-medium uppercase tracking-wide text-gray-400 lg:hidden">{t('patientHistory.table.remaining')}</p>
-                                            <p className={`text-sm font-semibold ${Number(treatment.balance) > 0 ? 'text-red-700' : 'text-green-700'}`}>
+                                            <p className="sr-only">{t('patientHistory.table.remaining')}</p>
+                                            <p className={`whitespace-nowrap text-sm font-semibold ${Number(treatment.balance) > 0 ? 'text-red-700' : 'text-green-700'}`}>
                                                 {formatCurrency(Number(treatment.balance))}
                                             </p>
                                         </div>
                                         <div className="lg:flex lg:items-center">
-                                            <p className="text-xs font-medium uppercase tracking-wide text-gray-400 lg:hidden">{t('patientHistory.images')}</p>
+                                            <p className="sr-only">{t('patientHistory.images')}</p>
                                             {(() => {
                                                 const treatmentImageCount = getTreatmentImageCount(treatment);
                                                 const primaryImage = getTreatmentPrimaryImage(treatment);
