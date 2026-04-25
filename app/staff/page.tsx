@@ -96,8 +96,8 @@ export default function StaffPage() {
             <PageHeader title={t('staff.title')} description={t('staff.subtitle')} />
 
             <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as TeamTab)} className="space-y-6">
-                <div className="overflow-x-auto overflow-y-hidden no-scrollbar -mx-4 px-4 sm:mx-0 sm:px-0">
-                    <TabsList className="inline-flex w-full sm:w-auto min-w-max">
+                <div className="-mx-4 overflow-x-auto overflow-y-hidden px-4 no-scrollbar sm:mx-0 sm:px-0">
+                    <TabsList className="inline-flex min-w-max border border-slate-200/80 bg-white/80 shadow-sm shadow-slate-200/50 sm:w-auto">
                         <TabsTrigger value="access" className="flex-shrink-0">
                             <Users className="w-4 h-4 sm:mr-2" />
                             <span className="hidden sm:inline">{t('menu.staffAccess')}</span>

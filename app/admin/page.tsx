@@ -513,7 +513,7 @@ export default function AdminDashboardPage() {
                     <PageHeader title={t('admin.dashboardTitle')} description={t('admin.dashboardSubtitle')} />
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <Card className="bg-gradient-to-br from-white to-blue-50/70">
+                        <Card className="rounded-[1.5rem] border-blue-100 bg-gradient-to-br from-white to-blue-50/70 shadow-sm shadow-blue-100/50">
                             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                                 <CardTitle className="text-sm font-medium">{t('admin.stats.totalDentists')}</CardTitle>
                                 <Users className="h-4 w-4 text-blue-600" />
@@ -523,7 +523,7 @@ export default function AdminDashboardPage() {
                             </CardContent>
                         </Card>
 
-                        <Card className="bg-gradient-to-br from-white to-emerald-50/70">
+                        <Card className="rounded-[1.5rem] border-emerald-100 bg-gradient-to-br from-white to-emerald-50/70 shadow-sm shadow-emerald-100/50">
                             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                                 <CardTitle className="text-sm font-medium">{t('admin.stats.activeDentists')}</CardTitle>
                                 <UserCheck className="h-4 w-4 text-emerald-600" />
@@ -539,7 +539,7 @@ export default function AdminDashboardPage() {
                             </CardContent>
                         </Card>
 
-                        <Card className="bg-gradient-to-br from-white to-sky-50/70">
+                        <Card className="rounded-[1.5rem] border-sky-100 bg-gradient-to-br from-white to-sky-50/70 shadow-sm shadow-sky-100/50">
                             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                                 <CardTitle className="text-sm font-medium">{t('admin.stats.newLast7Days')}</CardTitle>
                                 <UserPlus className="h-4 w-4 text-sky-600" />
@@ -550,10 +550,10 @@ export default function AdminDashboardPage() {
                         </Card>
                     </div>
 
-                    <Card>
-                        <CardHeader>
+                    <Card className="overflow-hidden rounded-[1.5rem] bg-white/95">
+                        <CardHeader className="pb-4">
                             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                                <CardTitle>{t('admin.accountsTitle')}</CardTitle>
+                                <CardTitle className="text-base">{t('admin.accountsTitle')}</CardTitle>
                                 <div className="flex items-center gap-3 w-full sm:w-auto">
                                     <div className="relative flex-1 sm:w-64">
                                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -564,18 +564,18 @@ export default function AdminDashboardPage() {
                                                 setSearchQuery(event.target.value);
                                                 setPage(1);
                                             }}
-                                            className="pl-10"
+                                            className="h-10 rounded-xl border-slate-200 bg-white/90 pl-10 shadow-xs"
                                             maxLength={INPUT_LIMITS.shortText}
                                         />
                                     </div>
-                                    <Button onClick={() => setShowCreateModal(true)}>
+                                    <Button className="rounded-xl" onClick={() => setShowCreateModal(true)}>
                                         <UserPlus className="w-4 h-4 sm:mr-2" />
                                         <span className="hidden sm:inline">{t('admin.createButton')}</span>
                                     </Button>
                                 </div>
                             </div>
                         </CardHeader>
-                        <CardContent>
+                        <CardContent className="px-4 pb-5 sm:px-5">
                             <DataTableShell>
                                 <Table className={getDataTableClassName('standard')}>
                                     <TableHeader>
@@ -818,7 +818,7 @@ export default function AdminDashboardPage() {
                                         >
                                             {t('payments.pagination.previous')}
                                         </Button>
-                                        <span>
+                                        <span className="inline-flex min-w-[132px] justify-center rounded-xl border border-slate-200 bg-white px-3 py-1 text-sm text-slate-600 shadow-xs">
                                             {t('payments.pagination.pageOf', {
                                                 page: pagination.page,
                                                 total: pagination.total_pages,

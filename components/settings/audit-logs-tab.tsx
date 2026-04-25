@@ -262,7 +262,7 @@ export function AuditLogsTab({ canViewAuditLogs, t }: AuditLogsTabProps) {
 
     if (!canViewAuditLogs) {
         return (
-            <Card>
+            <Card className="overflow-hidden rounded-[1.5rem] bg-white/95">
                 <CardHeader className="space-y-2">
                     <CardTitle>{t('settings.logs.title')}</CardTitle>
                 </CardHeader>
@@ -277,10 +277,10 @@ export function AuditLogsTab({ canViewAuditLogs, t }: AuditLogsTabProps) {
     }
 
     return (
-        <Card>
-            <CardHeader className="space-y-3">
-                <CardTitle>{t('settings.logs.title')}</CardTitle>
-                <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-4">
+        <Card className="overflow-hidden rounded-[1.5rem] bg-white/95">
+            <CardHeader className="space-y-4 pb-4">
+                <CardTitle className="text-base">{t('settings.logs.title')}</CardTitle>
+                <div className="grid grid-cols-1 gap-3 rounded-2xl border border-blue-100/80 bg-gradient-to-r from-white via-blue-50/30 to-white p-3 shadow-xs md:grid-cols-2 lg:grid-cols-4">
                     <Input
                         value={search}
                         onChange={(event) => {
@@ -288,6 +288,7 @@ export function AuditLogsTab({ canViewAuditLogs, t }: AuditLogsTabProps) {
                             setPage(1);
                         }}
                         placeholder={t('settings.logs.searchPlaceholder')}
+                        className="h-10 rounded-xl border-slate-200 bg-white/90 shadow-xs"
                     />
                     <Select
                         value={eventType}
@@ -296,7 +297,7 @@ export function AuditLogsTab({ canViewAuditLogs, t }: AuditLogsTabProps) {
                             setPage(1);
                         }}
                     >
-                        <SelectTrigger>
+                        <SelectTrigger className="h-10 rounded-xl border-slate-200 bg-white/90 shadow-xs">
                             <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -316,6 +317,7 @@ export function AuditLogsTab({ canViewAuditLogs, t }: AuditLogsTabProps) {
                             setDateFrom(event.target.value);
                             setPage(1);
                         }}
+                        className="h-10 rounded-xl border-slate-200 bg-white/90 shadow-xs"
                     />
                     <Input
                         type="date"
@@ -324,10 +326,11 @@ export function AuditLogsTab({ canViewAuditLogs, t }: AuditLogsTabProps) {
                             setDateTo(event.target.value);
                             setPage(1);
                         }}
+                        className="h-10 rounded-xl border-slate-200 bg-white/90 shadow-xs"
                     />
                 </div>
             </CardHeader>
-            <CardContent>
+            <CardContent className="px-4 pb-5 sm:px-5">
                 {logsQuery.isLoading ? (
                     <AuditLogsLoadingSkeleton />
                 ) : logsQuery.isError ? (
@@ -343,7 +346,7 @@ export function AuditLogsTab({ canViewAuditLogs, t }: AuditLogsTabProps) {
                                 : null;
 
                             return (
-                                <div key={entry.id} className="rounded-lg border border-gray-200 p-4">
+                                <div key={entry.id} className="rounded-2xl border border-slate-200/80 bg-white/95 p-4 shadow-xs transition-colors hover:border-blue-100 hover:bg-blue-50/20">
                                     <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                                         <p className="text-sm font-semibold text-gray-900">
                                             {formatEventTypeLabel(entry.event_type, t)}
@@ -384,7 +387,7 @@ export function AuditLogsTab({ canViewAuditLogs, t }: AuditLogsTabProps) {
                             >
                                 {t('common.previous')}
                             </Button>
-                            <span className="text-xs text-gray-500">
+                            <span className="inline-flex min-w-[112px] justify-center rounded-xl border border-slate-200 bg-white px-3 py-1 text-xs text-slate-500 shadow-xs">
                                 {t('settings.logs.pageOf', { page, total: totalPages })}
                             </span>
                             <Button

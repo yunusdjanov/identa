@@ -500,12 +500,13 @@ export function TeamAccessTab({ canManageTeam, subscription, t }: TeamAccessTabP
 
     if (!canManageTeam) {
         return (
-            <Card>
-                <CardHeader className="space-y-3">
+            <Card className="overflow-hidden rounded-[1.5rem] bg-white/95">
+                <CardHeader className="space-y-4 pb-4">
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                        <CardTitle>{t('settings.team.title')}</CardTitle>
+                        <CardTitle className="text-base">{t('settings.team.title')}</CardTitle>
                         <Button
                             type="button"
+                            className="rounded-xl"
                             variant="outline"
                             onClick={() => toast.error(t('errors.forbidden'))}
                         >
@@ -525,12 +526,13 @@ export function TeamAccessTab({ canManageTeam, subscription, t }: TeamAccessTabP
 
     return (
         <div className="space-y-4">
-            <Card>
-                <CardHeader className="space-y-3">
+            <Card className="overflow-hidden rounded-[1.5rem] bg-white/95">
+                <CardHeader className="space-y-4 pb-4">
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                        <CardTitle>{t('settings.team.title')}</CardTitle>
+                        <CardTitle className="text-base">{t('settings.team.title')}</CardTitle>
                         <Button
                             type="button"
+                            className="rounded-xl"
                             onClick={openCreateDialog}
                             disabled={isReadOnly || isAtStaffLimit}
                         >
@@ -540,10 +542,10 @@ export function TeamAccessTab({ canManageTeam, subscription, t }: TeamAccessTabP
                     {subscription?.is_configured ? (
                         <div
                             className={cn(
-                                'rounded-lg border px-4 py-3',
+                                'rounded-2xl border px-4 py-3',
                                 isAtStaffLimit
                                     ? 'border-amber-200 bg-amber-50'
-                                    : 'border-slate-200 bg-slate-50'
+                                    : 'border-blue-100 bg-blue-50/45'
                             )}
                         >
                             <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
@@ -582,7 +584,7 @@ export function TeamAccessTab({ canManageTeam, subscription, t }: TeamAccessTabP
                             ) : null}
                         </div>
                     ) : null}
-                    <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                    <div className="grid grid-cols-1 gap-3 rounded-2xl border border-blue-100/80 bg-gradient-to-r from-white via-blue-50/30 to-white p-3 shadow-xs md:grid-cols-3">
                         <Input
                             value={search}
                             onChange={(event) => {
@@ -590,6 +592,7 @@ export function TeamAccessTab({ canManageTeam, subscription, t }: TeamAccessTabP
                                 setPage(1);
                             }}
                             placeholder={t('settings.team.searchPlaceholder')}
+                            className="h-10 rounded-xl border-slate-200 bg-white/90 shadow-xs"
                         />
                         <Select
                             value={status}
@@ -598,7 +601,7 @@ export function TeamAccessTab({ canManageTeam, subscription, t }: TeamAccessTabP
                                 setPage(1);
                             }}
                         >
-                            <SelectTrigger>
+                            <SelectTrigger className="h-10 rounded-xl border-slate-200 bg-white/90 shadow-xs">
                                 <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
@@ -610,7 +613,7 @@ export function TeamAccessTab({ canManageTeam, subscription, t }: TeamAccessTabP
                         </Select>
                     </div>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="px-4 pb-5 sm:px-5">
                     {assistantsQuery.isLoading ? (
                         <TeamAccessLoadingSkeleton />
                     ) : assistantsQuery.isError ? (
@@ -624,7 +627,7 @@ export function TeamAccessTab({ canManageTeam, subscription, t }: TeamAccessTabP
                                 return (
                                     <div
                                         key={assistant.id}
-                                        className="rounded-lg border border-gray-200 p-4 space-y-3"
+                                        className="space-y-3 rounded-2xl border border-slate-200/80 bg-white/95 p-4 shadow-xs transition-colors hover:border-blue-100 hover:bg-blue-50/20"
                                     >
                                         <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                                             <div>
@@ -718,7 +721,7 @@ export function TeamAccessTab({ canManageTeam, subscription, t }: TeamAccessTabP
                                 >
                                     {t('common.previous')}
                                 </Button>
-                                <span className="text-xs text-gray-500">
+                                <span className="inline-flex min-w-[112px] justify-center rounded-xl border border-slate-200 bg-white px-3 py-1 text-xs text-slate-500 shadow-xs">
                                     {t('settings.logs.pageOf', { page, total: totalPages })}
                                 </span>
                                 <Button
