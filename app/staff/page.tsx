@@ -1,8 +1,7 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { useSearchParams } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Users, History } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
@@ -47,6 +46,8 @@ function TeamLoadingSkeleton() {
 
 export default function StaffPage() {
     const { t } = useI18n();
+    const router = useRouter();
+    const pathname = usePathname();
     const searchParams = useSearchParams();
     const requestedTab = searchParams.get('tab');
 
@@ -64,15 +65,20 @@ export default function StaffPage() {
         currentUser && (isDentist || assistantPermissions.has('audit_logs.view'))
     );
 
-    const resolvedTab = useMemo<TeamTab>(() => {
-        return requestedTab === 'logs' ? 'logs' : 'access';
-    }, [requestedTab]);
+    const activeTab: TeamTab = requestedTab === 'logs' ? 'logs' : 'access';
 
-    const [activeTab, setActiveTab] = useState<TeamTab>('access');
+    const updateActiveTab = (nextTab: TeamTab) => {
+        const params = new URLSearchParams(searchParams.toString());
+        if (nextTab === 'logs') {
+            params.set('tab', 'logs');
+        }
+        else {
+            params.delete('tab');
+        }
 
-    useEffect(() => {
-        setActiveTab(resolvedTab);
-    }, [resolvedTab]);
+        const nextSearch = params.toString();
+        router.replace(nextSearch ? `${pathname}?${nextSearch}` : pathname, { scroll: false });
+    };
 
     if (currentUserQuery.isLoading) {
         return <TeamLoadingSkeleton />;
@@ -95,7 +101,7 @@ export default function StaffPage() {
         <div className="space-y-8">
             <PageHeader title={t('staff.title')} description={t('staff.subtitle')} />
 
-            <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as TeamTab)} className="space-y-6">
+            <Tabs value={activeTab} onValueChange={(value) => updateActiveTab(value as TeamTab)} className="space-y-6">
                 <div className="-mx-4 overflow-x-auto overflow-y-hidden px-4 no-scrollbar sm:mx-0 sm:px-0">
                     <TabsList className="inline-flex min-w-max border border-slate-200/80 bg-white/80 shadow-sm shadow-slate-200/50 sm:w-auto">
                         <TabsTrigger value="access" className="flex-shrink-0">

@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import axios from 'axios';
 import { Clock3, Mail, Phone, ShieldCheck } from 'lucide-react';
 import {
@@ -20,13 +21,7 @@ import { Input } from '@/components/ui/input';
 import { PasswordInput } from '@/components/ui/password-input';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
     Dialog,
     DialogContent,
@@ -72,6 +67,18 @@ const DEFAULT_ASSISTANT_PERMISSIONS = [
     'treatments.manage',
     'patient_categories.view',
 ];
+
+type StaffStatusFilter = 'active' | 'blocked' | 'deleted';
+
+const STAFF_STATUS_FILTERS: Array<{ value: StaffStatusFilter; labelKey: string }> = [
+    { value: 'active', labelKey: 'settings.team.statusActive' },
+    { value: 'blocked', labelKey: 'settings.team.statusBlocked' },
+    { value: 'deleted', labelKey: 'settings.team.statusDeleted' },
+];
+
+function isStaffStatusFilter(value: string | null): value is StaffStatusFilter {
+    return value === 'active' || value === 'blocked' || value === 'deleted';
+}
 
 interface AssistantFormState {
     name: string;
@@ -182,6 +189,18 @@ function getAssistantInitials(name: string): string {
     return `${parts[0][0] ?? ''}${parts[1][0] ?? ''}`.toUpperCase();
 }
 
+function getStaffStatusLabel(status: StaffStatusFilter, t: TeamAccessTabProps['t']): string {
+    if (status === 'blocked') {
+        return t('settings.team.statusBlocked');
+    }
+
+    if (status === 'deleted') {
+        return t('settings.team.statusDeleted');
+    }
+
+    return t('settings.team.statusActive');
+}
+
 function getSubscriptionAccessSummary(
     subscription: ApiSubscriptionSummary | null | undefined,
     endsOn: string | null,
@@ -208,8 +227,13 @@ function getSubscriptionAccessSummary(
 
 export function TeamAccessTab({ canManageTeam, subscription, t }: TeamAccessTabProps) {
     const queryClient = useQueryClient();
+    const router = useRouter();
+    const pathname = usePathname();
+    const searchParams = useSearchParams();
+    const requestedStatus = searchParams.get('staffStatus');
+    const resolvedStatus: StaffStatusFilter = isStaffStatusFilter(requestedStatus) ? requestedStatus : 'active';
     const [search, setSearch] = useState('');
-    const [status, setStatus] = useState<'all' | 'active' | 'blocked' | 'deleted'>('all');
+    const status = resolvedStatus;
     const [page, setPage] = useState(1);
     const [dialogOpen, setDialogOpen] = useState(false);
     const [editingAssistant, setEditingAssistant] = useState<ApiAssistantAccount | null>(null);
@@ -231,7 +255,7 @@ export function TeamAccessTab({ canManageTeam, subscription, t }: TeamAccessTabP
                 sort: '-created_at',
                 filter: {
                     search: search || undefined,
-                    status: status === 'all' ? undefined : status,
+                    status,
                 },
             }),
         enabled: canManageTeam,
@@ -240,15 +264,20 @@ export function TeamAccessTab({ canManageTeam, subscription, t }: TeamAccessTabP
     const totalPages = assistantsQuery.data?.meta?.pagination?.total_pages ?? 1;
     const canPrev = page > 1;
     const canNext = page < totalPages;
-    const assistantSummary = assistantsQuery.data?.meta?.summary;
-    const hasUnfilteredAssistantSummary = search.trim() === '' && status === 'all';
     const staffLimit = subscription?.staff_limit ?? null;
-    const activeStaffCount = hasUnfilteredAssistantSummary && typeof assistantSummary?.active_count === 'number'
-        ? assistantSummary.active_count
-        : subscription?.active_staff_count ?? 0;
+    const activeStaffCount = subscription?.active_staff_count ?? 0;
     const isAtStaffLimit = staffLimit !== null && activeStaffCount >= staffLimit;
     const isReadOnly = subscription?.is_read_only === true;
     const subscriptionEndsOn = formatDateLabel(subscription?.ends_at ?? null);
+
+    const updateStatusFilter = (nextStatus: StaffStatusFilter) => {
+        setPage(1);
+
+        const params = new URLSearchParams(searchParams.toString());
+        params.set('staffStatus', nextStatus);
+        const nextSearch = params.toString();
+        router.replace(nextSearch ? `${pathname}?${nextSearch}` : pathname, { scroll: false });
+    };
 
     const refreshTeamAccessData = () => {
         queryClient.invalidateQueries({ queryKey: ['settings', 'team-assistants'] });
@@ -614,7 +643,7 @@ export function TeamAccessTab({ canManageTeam, subscription, t }: TeamAccessTabP
                             ) : null}
                         </div>
                     ) : null}
-                    <div className="grid grid-cols-1 gap-3 rounded-2xl border border-blue-100/80 bg-gradient-to-r from-white via-blue-50/30 to-white p-3 shadow-xs md:grid-cols-3">
+                    <div className="flex flex-col gap-3 rounded-2xl border border-blue-100/80 bg-gradient-to-r from-white via-blue-50/30 to-white p-3 shadow-xs lg:flex-row lg:items-center lg:justify-between">
                         <Input
                             value={search}
                             onChange={(event) => {
@@ -622,25 +651,25 @@ export function TeamAccessTab({ canManageTeam, subscription, t }: TeamAccessTabP
                                 setPage(1);
                             }}
                             placeholder={t('settings.team.searchPlaceholder')}
-                            className="h-10 rounded-xl border-slate-200 bg-white/90 shadow-xs"
+                            className="h-10 rounded-xl border-slate-200 bg-white/90 shadow-xs lg:max-w-md"
                         />
-                        <Select
+                        <Tabs
                             value={status}
-                            onValueChange={(value) => {
-                                setStatus(value as typeof status);
-                                setPage(1);
-                            }}
+                            onValueChange={(value) => updateStatusFilter(value as StaffStatusFilter)}
+                            className="w-full lg:w-auto"
                         >
-                            <SelectTrigger className="h-10 rounded-xl border-slate-200 bg-white/90 shadow-xs">
-                                <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="all">{t('settings.team.statusAll')}</SelectItem>
-                                <SelectItem value="active">{t('settings.team.statusActive')}</SelectItem>
-                                <SelectItem value="blocked">{t('settings.team.statusBlocked')}</SelectItem>
-                                <SelectItem value="deleted">{t('settings.team.statusDeleted')}</SelectItem>
-                            </SelectContent>
-                        </Select>
+                            <TabsList className="grid h-10 w-full grid-cols-3 rounded-xl border border-slate-200 bg-white/90 p-1 shadow-xs lg:w-auto">
+                                {STAFF_STATUS_FILTERS.map((item) => (
+                                    <TabsTrigger
+                                        key={item.value}
+                                        value={item.value}
+                                        className="rounded-lg px-3 text-xs sm:text-sm"
+                                    >
+                                        {t(item.labelKey)}
+                                    </TabsTrigger>
+                                ))}
+                            </TabsList>
+                        </Tabs>
                     </div>
                 </CardHeader>
                 <CardContent className="px-4 pb-5 sm:px-5">
@@ -654,6 +683,7 @@ export function TeamAccessTab({ canManageTeam, subscription, t }: TeamAccessTabP
                         <div className="space-y-3">
                             {(assistantsQuery.data?.data ?? []).map((assistant) => {
                                 const nextStatus = assistant.account_status === 'active' ? 'blocked' : 'active';
+                                const statusLabel = getStaffStatusLabel(assistant.account_status, t);
                                 return (
                                     <div
                                         key={assistant.id}
@@ -693,7 +723,7 @@ export function TeamAccessTab({ canManageTeam, subscription, t }: TeamAccessTabP
                                                             : 'border-gray-200 bg-gray-100 text-gray-600'
                                                 )}
                                             >
-                                                {assistant.account_status}
+                                                {statusLabel}
                                             </Badge>
                                         </div>
                                         <div className="mt-4 flex flex-col gap-3 border-t border-slate-100 pt-3 sm:flex-row sm:items-center sm:justify-between">
