@@ -281,7 +281,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                                         <DropdownMenuTrigger asChild>
                                             <Button
                                                 variant="ghost"
-                                                className="flex h-11 items-center space-x-2 rounded-2xl border border-slate-200/80 bg-white/80 px-2.5 shadow-sm shadow-slate-200/60 hover:border-blue-100 hover:bg-white sm:space-x-3 sm:px-3.5 focus-visible:ring-0 focus-visible:border-blue-100 focus-visible:outline-none data-[state=open]:border-blue-100 data-[state=open]:bg-white"
+                                                className="flex h-11 items-center space-x-2 rounded-2xl bg-white/75 px-2.5 shadow-sm shadow-slate-200/50 transition-colors hover:bg-blue-50/70 sm:space-x-3 sm:px-3.5 focus-visible:ring-0 focus-visible:outline-none data-[state=open]:bg-blue-50/80"
                                             >
                                                 <Avatar className="w-8 h-8">
                                                     <AvatarFallback className="bg-blue-600 text-white text-sm shadow-sm shadow-blue-200">
