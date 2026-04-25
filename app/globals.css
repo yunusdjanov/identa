@@ -138,6 +138,37 @@
 }
 
 @layer utilities {
+  .interactive-card {
+    transition:
+      transform 200ms ease,
+      box-shadow 200ms ease,
+      border-color 200ms ease,
+      background-color 200ms ease;
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .interactive-card:hover {
+      transform: translateY(-0.125rem);
+      box-shadow:
+        0 10px 15px -3px rgb(15 23 42 / 0.08),
+        0 4px 6px -4px rgb(15 23 42 / 0.08);
+    }
+
+    .interactive-card:focus-within {
+      transform: none;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .interactive-card {
+      transition: none;
+    }
+
+    .interactive-card:hover {
+      transform: none;
+    }
+  }
+
   .no-scrollbar {
     -ms-overflow-style: none;
     scrollbar-width: none;

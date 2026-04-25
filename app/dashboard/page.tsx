@@ -143,7 +143,7 @@ function DashboardStatCard({
     const classes = statToneClasses[tone];
 
     return (
-        <Card className={`relative overflow-hidden rounded-[1.5rem] shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-md ${classes.card}`}>
+        <Card className={`interactive-card relative overflow-hidden rounded-[1.5rem] shadow-sm ${classes.card}`}>
             <div className={`absolute -right-8 -top-8 h-24 w-24 rounded-full blur-2xl ${classes.glow}`} />
             <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-white to-transparent" />
             <CardContent className="relative flex min-h-[136px] flex-col justify-between p-5">
@@ -375,7 +375,7 @@ export default function DashboardPage() {
                 )}
             </div>
 
-            <Card className="overflow-hidden rounded-[1.5rem] border-blue-100 bg-gradient-to-br from-white via-slate-50/70 to-blue-50/45 shadow-sm">
+            <Card className="interactive-card overflow-hidden rounded-[1.5rem] border-blue-100 bg-gradient-to-br from-white via-slate-50/70 to-blue-50/45 shadow-sm">
                 <CardHeader className="pb-2 pt-5">
                     <div>
                         <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-blue-600">
@@ -429,7 +429,7 @@ export default function DashboardPage() {
                                     return (
                                         <div
                                             key={appointment.id}
-                                            className="group rounded-2xl border border-slate-200/70 bg-white/92 p-3 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-blue-100 hover:shadow-md"
+                                            className="interactive-card group rounded-2xl border border-slate-200/70 bg-white/92 p-3 shadow-sm hover:border-blue-100"
                                         >
                                             <div className="mb-3 flex items-center justify-between gap-3">
                                                 <div className="flex shrink-0 items-center justify-center rounded-full bg-blue-50 px-2.5 py-1.5 text-blue-700 ring-1 ring-blue-100">

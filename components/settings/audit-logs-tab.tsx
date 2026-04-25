@@ -346,7 +346,7 @@ export function AuditLogsTab({ canViewAuditLogs, t }: AuditLogsTabProps) {
                                 : null;
 
                             return (
-                                <div key={entry.id} className="rounded-2xl border border-slate-200/80 bg-white/95 p-4 shadow-xs transition-colors hover:border-blue-100 hover:bg-blue-50/20">
+                                <div key={entry.id} className="interactive-card rounded-2xl border border-slate-200/80 bg-white/95 p-4 shadow-xs hover:border-blue-100 hover:bg-blue-50/20">
                                     <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                                         <p className="text-sm font-semibold text-gray-900">
                                             {formatEventTypeLabel(entry.event_type, t)}

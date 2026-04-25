@@ -703,7 +703,7 @@ export default function AppointmentsPage() {
         return (
             <div
                 key={descriptor.dayIndex}
-                className={`flex flex-col overflow-hidden rounded-2xl border shadow-sm transition-all ${
+                className={`interactive-card flex flex-col overflow-hidden rounded-2xl border shadow-sm ${
                     compact ? 'h-[23rem] self-start' : 'h-auto min-h-[20rem] self-start'
                 } ${isTodayLane ? 'border-blue-200 bg-blue-50/35 shadow-blue-100/70 ring-1 ring-blue-100' : 'border-slate-200/80 bg-white/95 shadow-slate-200/50'}`}
                 data-testid={includeTestIds ? `week-day-card-${descriptor.dateKey}` : undefined}

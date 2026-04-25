@@ -347,7 +347,7 @@ export default function PatientDetailPage({
             </div>
 
             <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
-                <Card>
+                <Card className="interactive-card">
                     <CardHeader>
                         <CardTitle className="text-lg">{t('patientDetail.contactInfo')}</CardTitle>
                     </CardHeader>
@@ -377,7 +377,7 @@ export default function PatientDetailPage({
                     </CardContent>
                 </Card>
 
-                <Card>
+                <Card className="interactive-card">
                     <CardHeader>
                         <CardTitle className="text-lg">{t('patientDetail.medicalInfo')}</CardTitle>
                     </CardHeader>
@@ -419,7 +419,7 @@ export default function PatientDetailPage({
                     </CardContent>
                 </Card>
 
-                <Card>
+                <Card className="interactive-card">
                     <CardHeader>
                         <CardTitle className="text-lg">{t('patientDetail.visitSummary')}</CardTitle>
                     </CardHeader>

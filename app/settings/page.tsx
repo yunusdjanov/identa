@@ -335,7 +335,7 @@ export default function SettingsPage() {
                 )}
             />
 
-            <Card>
+            <Card className="interactive-card">
                 <CardHeader className="space-y-3">
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                         <div>
@@ -385,7 +385,7 @@ export default function SettingsPage() {
                 </div>
 
                 <TabsContent value="profile">
-                    <Card>
+                    <Card className="interactive-card">
                         <CardHeader>
                             <CardTitle>{t('settings.personalInfo')}</CardTitle>
                         </CardHeader>
@@ -486,7 +486,7 @@ export default function SettingsPage() {
                 </TabsContent>
 
                 <TabsContent value="practice">
-                    <Card>
+                    <Card className="interactive-card">
                         <CardHeader>
                             <CardTitle>{t('settings.practiceInfo')}</CardTitle>
                         </CardHeader>
@@ -536,7 +536,7 @@ export default function SettingsPage() {
                 </TabsContent>
 
                 <TabsContent value="hours">
-                    <Card>
+                    <Card className="interactive-card">
                         <CardHeader>
                             <CardTitle>{t('settings.workingHoursAndAppointments')}</CardTitle>
                         </CardHeader>
@@ -639,7 +639,7 @@ export default function SettingsPage() {
                 </TabsContent>
 
                 <TabsContent value="security">
-                    <Card>
+                    <Card className="interactive-card">
                         <CardHeader>
                             <CardTitle>{t('settings.passwordSecurity')}</CardTitle>
                         </CardHeader>

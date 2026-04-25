@@ -464,7 +464,7 @@ export default function AdminSettingsPage() {
                     )}
                 />
 
-                <Card>
+                <Card className="interactive-card">
                     <CardHeader>
                         <CardTitle className="flex items-center">
                             <User className="mr-2 h-4 w-4" />
@@ -487,7 +487,7 @@ export default function AdminSettingsPage() {
                     </CardContent>
                 </Card>
 
-                <Card>
+                <Card className="interactive-card">
                     <CardHeader>
                         <CardTitle className="flex items-center">
                             <Settings2 className="mr-2 h-4 w-4" />
@@ -603,7 +603,7 @@ export default function AdminSettingsPage() {
                     </CardContent>
                 </Card>
 
-                <Card>
+                <Card className="interactive-card">
                     <CardHeader>
                         <CardTitle className="flex items-center">
                             <MessageSquare className="mr-2 h-4 w-4" />
@@ -704,7 +704,7 @@ export default function AdminSettingsPage() {
                     </CardContent>
                 </Card>
 
-                <Card>
+                <Card className="interactive-card">
                     <CardHeader>
                         <CardTitle className="flex items-center">
                             <Lock className="mr-2 h-4 w-4" />

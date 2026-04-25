@@ -52,7 +52,7 @@ export function PatientAccountingCard({
     const previewRows = treatments.slice(0, previewLimit);
 
     return (
-        <Card>
+        <Card className="interactive-card">
             <CardHeader className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                 <div>
                     <CardTitle>{t('patientDetail.accountingTitle')}</CardTitle>
@@ -66,19 +66,19 @@ export function PatientAccountingCard({
             </CardHeader>
             <CardContent className="space-y-6">
                 <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-                    <div className="rounded-lg border border-gray-200 p-3">
+                    <div className="interactive-card rounded-lg border border-gray-200 p-3">
                         <p className="text-xs text-gray-500">{t('patientHistory.totalDebt')}</p>
                         <p className="mt-1 text-sm font-semibold text-red-700">
                             {formatCurrency(summary.totalDebt)}
                         </p>
                     </div>
-                    <div className="rounded-lg border border-gray-200 p-3">
+                    <div className="interactive-card rounded-lg border border-gray-200 p-3">
                         <p className="text-xs text-gray-500">{t('patientHistory.totalPaid')}</p>
                         <p className="mt-1 text-sm font-semibold text-green-700">
                             {formatCurrency(summary.totalPaid)}
                         </p>
                     </div>
-                    <div className="rounded-lg border border-gray-200 p-3">
+                    <div className="interactive-card rounded-lg border border-gray-200 p-3">
                         <p className="text-xs text-gray-500">{t('patientHistory.netBalance')}</p>
                         <p className={`mt-1 text-sm font-semibold ${summary.netBalance > 0 ? 'text-red-700' : 'text-green-700'}`}>
                             {formatCurrency(summary.netBalance)}

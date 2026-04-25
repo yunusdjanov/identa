@@ -627,7 +627,7 @@ export function TeamAccessTab({ canManageTeam, subscription, t }: TeamAccessTabP
                                 return (
                                     <div
                                         key={assistant.id}
-                                        className="space-y-3 rounded-2xl border border-slate-200/80 bg-white/95 p-4 shadow-xs transition-colors hover:border-blue-100 hover:bg-blue-50/20"
+                                        className="interactive-card space-y-3 rounded-2xl border border-slate-200/80 bg-white/95 p-4 shadow-xs hover:border-blue-100 hover:bg-blue-50/20"
                                     >
                                         <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                                             <div>

@@ -511,7 +511,7 @@ export default function AdminDashboardPage() {
                     <PageHeader title={t('admin.dashboardTitle')} description={t('admin.dashboardSubtitle')} />
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <Card className="rounded-[1.5rem] border-blue-100 bg-gradient-to-br from-white to-blue-50/70 shadow-sm shadow-blue-100/50">
+                        <Card className="interactive-card rounded-[1.5rem] border-blue-100 bg-gradient-to-br from-white to-blue-50/70 shadow-sm shadow-blue-100/50">
                             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                                 <CardTitle className="text-sm font-medium">{t('admin.stats.totalDentists')}</CardTitle>
                                 <Users className="h-4 w-4 text-blue-600" />
@@ -521,7 +521,7 @@ export default function AdminDashboardPage() {
                             </CardContent>
                         </Card>
 
-                        <Card className="rounded-[1.5rem] border-emerald-100 bg-gradient-to-br from-white to-emerald-50/70 shadow-sm shadow-emerald-100/50">
+                        <Card className="interactive-card rounded-[1.5rem] border-emerald-100 bg-gradient-to-br from-white to-emerald-50/70 shadow-sm shadow-emerald-100/50">
                             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                                 <CardTitle className="text-sm font-medium">{t('admin.stats.activeDentists')}</CardTitle>
                                 <UserCheck className="h-4 w-4 text-emerald-600" />
@@ -537,7 +537,7 @@ export default function AdminDashboardPage() {
                             </CardContent>
                         </Card>
 
-                        <Card className="rounded-[1.5rem] border-sky-100 bg-gradient-to-br from-white to-sky-50/70 shadow-sm shadow-sky-100/50">
+                        <Card className="interactive-card rounded-[1.5rem] border-sky-100 bg-gradient-to-br from-white to-sky-50/70 shadow-sm shadow-sky-100/50">
                             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                                 <CardTitle className="text-sm font-medium">{t('admin.stats.newLast7Days')}</CardTitle>
                                 <UserPlus className="h-4 w-4 text-sky-600" />
