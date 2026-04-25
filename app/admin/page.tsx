@@ -147,13 +147,10 @@ function getSubscriptionActionLabel(
 function AdminDashboardLoadingSkeleton() {
     return (
         <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(219,234,254,0.55),transparent_34rem),linear-gradient(180deg,#f8fbff_0%,#f8fafc_42%,#f1f5f9_100%)]">
-            <header className="border-b border-slate-200/70 bg-white/88">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-                    <div className="flex justify-between items-center">
-                        <div className="space-y-2">
-                            <Skeleton className="h-7 w-44" />
-                            <Skeleton className="h-4 w-36" />
-                        </div>
+            <header className="border-b border-blue-100/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(248,251,255,0.94)_100%)]">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                    <div className="flex h-16 items-center justify-between">
+                        <Skeleton className="h-10 w-36 rounded-md" />
                         <div className="flex items-center gap-3">
                             <Skeleton className="h-10 w-16" />
                             <Skeleton className="h-10 w-28" />
@@ -484,22 +481,23 @@ export default function AdminDashboardPage() {
 
     return (
         <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(219,234,254,0.55),transparent_34rem),linear-gradient(180deg,#f8fbff_0%,#f8fafc_42%,#f1f5f9_100%)]">
-            <header className="sticky top-0 z-10 border-b border-slate-200/70 bg-white/88 backdrop-blur-xl">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-                    <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                        <div className="space-y-1">
-                            <Brand href="/admin" variant="text" textClassName="w-28 sm:w-32" />
-                            <p className="text-xs font-medium text-slate-500">{t('admin.brandSubtitle')}</p>
-                        </div>
+            <header className="sticky top-0 z-10 border-b border-blue-100/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(248,251,255,0.94)_100%)] shadow-sm shadow-slate-200/40 backdrop-blur-xl">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                    <div className="flex min-h-16 flex-col gap-3 py-2 sm:flex-row sm:items-center sm:justify-between">
+                        <Brand href="/admin" variant="text" priority textClassName="w-32 sm:w-36" />
                         <div className="flex flex-wrap items-center gap-2">
                             <LanguageSwitcher variant="compact" />
-                            <Button variant="outline" asChild>
+                            <Button variant="outline" className="rounded-2xl bg-white/80 shadow-sm shadow-slate-200/60" asChild>
                                 <Link href="/admin/settings">
                                     <Settings className="w-4 h-4 mr-2" />
                                     {t('menu.settings')}
                                 </Link>
                             </Button>
-                            <Button variant="outline" onClick={() => logoutMutation.mutate()}>
+                            <Button
+                                variant="outline"
+                                className="rounded-2xl bg-white/80 shadow-sm shadow-slate-200/60"
+                                onClick={() => logoutMutation.mutate()}
+                            >
                                 <LogOut className="w-4 h-4 mr-2" />
                                 {logoutMutation.isPending ? t('menu.loggingOut') : t('menu.logout')}
                             </Button>
