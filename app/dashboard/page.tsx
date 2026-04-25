@@ -377,19 +377,13 @@ export default function DashboardPage() {
 
             <Card className="overflow-hidden rounded-[1.5rem] border-blue-100 bg-gradient-to-br from-white via-slate-50/70 to-blue-50/45 shadow-sm">
                 <CardHeader className="pb-2 pt-5">
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                        <div>
-                            <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-blue-600">
-                                {t('dashboard.todayAppointments')}
-                            </p>
-                            <CardTitle className="mt-1 text-xl tracking-tight text-slate-950 sm:text-2xl">
-                                {t('dashboard.upcomingToday')}
-                            </CardTitle>
-                        </div>
-                        <div className="inline-flex w-fit items-center gap-2 rounded-full border border-blue-100 bg-white/80 px-2.5 py-1 text-xs font-semibold text-slate-600 shadow-sm">
-                            <Calendar className="h-4 w-4 text-blue-600" />
-                            {scheduledTodayAppointments.length} {t('dashboard.scheduled')}
-                        </div>
+                    <div>
+                        <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-blue-600">
+                            {t('dashboard.todayAppointments')}
+                        </p>
+                        <CardTitle className="mt-1 text-xl tracking-tight text-slate-950 sm:text-2xl">
+                            {t('dashboard.upcomingToday')}
+                        </CardTitle>
                     </div>
                 </CardHeader>
                 <CardContent className="pb-5 pt-0">
@@ -463,12 +457,21 @@ export default function DashboardPage() {
                                     );
                                 })}
                             </div>
-                            <div className="flex justify-center pt-2">
+                            <div className="rounded-2xl border border-blue-100 bg-white/80 p-2.5 shadow-sm shadow-blue-100/50 sm:flex sm:items-center sm:justify-between sm:gap-4 sm:p-3">
+                                <div className="hidden items-center gap-3 sm:flex">
+                                    <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-50 text-blue-700 ring-1 ring-blue-100">
+                                        <Calendar className="h-4 w-4" />
+                                    </div>
+                                    <div>
+                                        <p className="text-sm font-semibold text-slate-900">{t('dashboard.todayAppointments')}</p>
+                                        <p className="text-xs font-medium text-slate-500">{t('dashboard.upcomingToday')}</p>
+                                    </div>
+                                </div>
                                 <Button
                                     asChild
                                     variant="outline"
                                     size="sm"
-                                    className="group h-9 w-full rounded-full border-blue-100 bg-white/90 px-4 text-sm font-semibold text-blue-700 shadow-sm shadow-blue-100/70 transition hover:-translate-y-0.5 hover:border-blue-200 hover:bg-blue-50 hover:text-blue-800 sm:w-auto"
+                                    className="group h-9 w-full rounded-full border-blue-100 bg-white px-4 text-sm font-semibold text-blue-700 shadow-sm transition hover:-translate-y-0.5 hover:border-blue-200 hover:bg-blue-50 hover:text-blue-800 sm:w-auto"
                                 >
                                     <Link href={showAllTodayHref}>
                                         {t('dashboard.showAllToday', { count: scheduledTodayAppointments.length })}
