@@ -26,7 +26,7 @@ import {
 } from '@/lib/appointments/messages';
 import { getApiErrorMessage } from '@/lib/api/client';
 import { INPUT_LIMITS } from '@/lib/input-validation';
-import { formatTime, getStatusBadgeColor, isValidTimeInput, sanitizeTimeInput, toLocalDateKey, truncateForUi } from '@/lib/utils';
+import { formatTime, getStatusBadgeColor, isValidTimeInput, toLocalDateKey, truncateForUi } from '@/lib/utils';
 import { formatLocalizedDate } from '@/lib/i18n/date';
 import { Plus, Calendar as CalendarIcon, ChevronLeft, ChevronRight, Pencil, Trash2 } from 'lucide-react';
 import { AddAppointmentDialog } from '@/components/appointments/add-appointment-dialog';
@@ -191,6 +191,58 @@ interface WeekInlineEditFormData {
     durationMinutes: number;
     status: AppointmentStatus;
     reason: string;
+}
+
+function hasAppointmentRowConflict(
+    appointments: AppointmentRow[],
+    payload: {
+        appointmentDate: string;
+        startTime: string;
+        endTime: string;
+        status: AppointmentStatus;
+        ignoreAppointmentId?: string;
+    }
+): boolean {
+    if (payload.status === 'cancelled' || payload.status === 'no_show') {
+        return false;
+    }
+
+    return appointments.some((appointment) => {
+        if (appointment.id === payload.ignoreAppointmentId || appointment.appointmentDate !== payload.appointmentDate) {
+            return false;
+        }
+        if (appointment.status === 'cancelled' || appointment.status === 'no_show') {
+            return false;
+        }
+
+        return appointment.startTime < payload.endTime && appointment.endTime > payload.startTime;
+    });
+}
+
+function getAvailableAppointmentStartTimes(
+    appointments: AppointmentRow[],
+    payload: {
+        appointmentDate: string;
+        durationMinutes: number;
+        status: AppointmentStatus;
+        ignoreAppointmentId?: string;
+    },
+    timeSlots: string[]
+): string[] {
+    return timeSlots.filter((startTime) => {
+        const endTime = resolveEndTime(startTime, payload.durationMinutes);
+        if (!endTime) {
+            return false;
+        }
+
+        return !hasAppointmentRowConflict(appointments, {
+            appointmentDate: payload.appointmentDate,
+            startTime,
+            endTime,
+            status: payload.status,
+            ignoreAppointmentId: payload.ignoreAppointmentId,
+        });
+    });
 }
 
 function AppointmentsLoadingSkeleton() {
@@ -1361,12 +1413,26 @@ export default function AppointmentsPage() {
                             <div className="space-y-2">
                                 {expandedWeekAppointments.map((appointment) => {
                                     const isExpanded = editingWeekAppointmentId === appointment.id && weekInlineEditFormData !== null;
+                                    const inlineAvailableStartTimes = isExpanded
+                                        ? getAvailableAppointmentStartTimes(
+                                            appointmentRows,
+                                            {
+                                                appointmentDate: appointment.appointmentDate,
+                                                durationMinutes: weekInlineEditFormData.durationMinutes,
+                                                status: weekInlineEditFormData.status,
+                                                ignoreAppointmentId: appointment.id,
+                                            },
+                                            timeSlots
+                                        )
+                                        : [];
                                     const reasonError = isExpanded && weekInlineEditFormData.reason.trim().length > INPUT_LIMITS.shortText
                                         ? t('appointments.dialog.reasonMax', { max: INPUT_LIMITS.shortText })
                                         : null;
                                     const timeError = isExpanded && !isValidTimeInput(weekInlineEditFormData.startTime)
                                         ? t('appointments.dialog.timeInvalid')
-                                        : null;
+                                        : isExpanded && !inlineAvailableStartTimes.includes(weekInlineEditFormData.startTime)
+                                            ? t('appointments.dialog.timeUnavailable')
+                                            : null;
 
                                     return (
                                         <div
@@ -1423,20 +1489,26 @@ export default function AppointmentsPage() {
                                                     <div className="grid gap-3 md:grid-cols-3">
                                                         <div className="space-y-2">
                                                             <Label htmlFor={`week-edit-time-${appointment.id}`}>{t('appointments.dialog.time')}</Label>
-                                                            <Input
-                                                                id={`week-edit-time-${appointment.id}`}
-                                                                type="text"
-                                                                inputMode="text"
-                                                                maxLength={5}
+                                                            <Select
                                                                 value={weekInlineEditFormData.startTime}
-                                                                onChange={(event) => {
+                                                                onValueChange={(value) => {
                                                                     setWeekInlineEditFormData((current) => current
-                                                                        ? { ...current, startTime: sanitizeTimeInput(event.target.value) }
+                                                                        ? { ...current, startTime: value }
                                                                         : current);
                                                                 }}
-                                                                placeholder="09:00"
-                                                                aria-invalid={Boolean(timeError)}
-                                                            />
+                                                                disabled={inlineAvailableStartTimes.length === 0}
+                                                            >
+                                                                <SelectTrigger id={`week-edit-time-${appointment.id}`} className="w-full" aria-invalid={Boolean(timeError)}>
+                                                                    <SelectValue placeholder={t('appointments.dialog.noAvailableSlots')} />
+                                                                </SelectTrigger>
+                                                                <SelectContent>
+                                                                    {inlineAvailableStartTimes.map((time) => (
+                                                                        <SelectItem key={time} value={time}>
+                                                                            {time}
+                                                                        </SelectItem>
+                                                                    ))}
+                                                                </SelectContent>
+                                                            </Select>
                                                             {timeError ? (
                                                                 <p className="text-xs text-red-600">{timeError}</p>
                                                             ) : null}
@@ -1447,7 +1519,27 @@ export default function AppointmentsPage() {
                                                                 value={String(weekInlineEditFormData.durationMinutes)}
                                                                 onValueChange={(value) => {
                                                                     setWeekInlineEditFormData((current) => current
-                                                                        ? { ...current, durationMinutes: Number(value) }
+                                                                        ? (() => {
+                                                                            const nextDuration = Number(value);
+                                                                            const nextAvailableStartTimes = getAvailableAppointmentStartTimes(
+                                                                                appointmentRows,
+                                                                                {
+                                                                                    appointmentDate: appointment.appointmentDate,
+                                                                                    durationMinutes: nextDuration,
+                                                                                    status: current.status,
+                                                                                    ignoreAppointmentId: appointment.id,
+                                                                                },
+                                                                                timeSlots
+                                                                            );
+
+                                                                            return {
+                                                                                ...current,
+                                                                                durationMinutes: nextDuration,
+                                                                                startTime: nextAvailableStartTimes.includes(current.startTime)
+                                                                                    ? current.startTime
+                                                                                    : nextAvailableStartTimes[0] ?? current.startTime,
+                                                                            };
+                                                                        })()
                                                                         : current);
                                                                 }}
                                                             >
@@ -1470,7 +1562,27 @@ export default function AppointmentsPage() {
                                                                 value={weekInlineEditFormData.status}
                                                                 onValueChange={(value) => {
                                                                     setWeekInlineEditFormData((current) => current
-                                                                        ? { ...current, status: value as AppointmentStatus }
+                                                                        ? (() => {
+                                                                            const nextStatus = value as AppointmentStatus;
+                                                                            const nextAvailableStartTimes = getAvailableAppointmentStartTimes(
+                                                                                appointmentRows,
+                                                                                {
+                                                                                    appointmentDate: appointment.appointmentDate,
+                                                                                    durationMinutes: current.durationMinutes,
+                                                                                    status: nextStatus,
+                                                                                    ignoreAppointmentId: appointment.id,
+                                                                                },
+                                                                                timeSlots
+                                                                            );
+
+                                                                            return {
+                                                                                ...current,
+                                                                                status: nextStatus,
+                                                                                startTime: nextAvailableStartTimes.includes(current.startTime)
+                                                                                    ? current.startTime
+                                                                                    : nextAvailableStartTimes[0] ?? current.startTime,
+                                                                            };
+                                                                        })()
                                                                         : current);
                                                                 }}
                                                             >

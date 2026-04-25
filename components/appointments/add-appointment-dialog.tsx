@@ -26,7 +26,7 @@ import {
     getAppointmentApiErrorMessage,
 } from '@/lib/appointments/messages';
 import { INPUT_LIMITS } from '@/lib/input-validation';
-import { isValidTimeInput, sanitizeTimeInput, toLocalDateKey, truncateForUi } from '@/lib/utils';
+import { isValidTimeInput, toLocalDateKey, truncateForUi } from '@/lib/utils';
 import type { ApiPatient } from '@/lib/api/types';
 import { useI18n } from '@/components/providers/i18n-provider';
 
@@ -36,6 +36,7 @@ const PATIENT_LOOKUP_DEBOUNCE_MS = 250;
 const APPOINTMENT_LOOKUP_NAME_UI_LIMIT = 25;
 const APPOINTMENT_LOOKUP_PHONE_UI_LIMIT = 20;
 const APPOINTMENT_SELECTED_PATIENT_UI_LIMIT = 40;
+const APPOINTMENT_TIME_SLOTS = createTimeSlots();
 
 type PatientLookupOption = Pick<ApiPatient, 'id' | 'patient_id' | 'full_name' | 'phone' | 'secondary_phone'>;
 
@@ -123,6 +124,22 @@ function resolveEndTime(startTime: string, durationMinutes: number): string | nu
     return `${String(endHour).padStart(2, '0')}:${String(endMinute).padStart(2, '0')}`;
 }
 
+function createTimeSlots(): string[] {
+    const slots: string[] = [];
+
+    for (let hour = 7; hour <= 22; hour += 1) {
+        for (let minute = 0; minute < 60; minute += 30) {
+            if (hour === 22 && minute > 0) {
+                break;
+            }
+
+            slots.push(`${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`);
+        }
+    }
+
+    return slots;
+}
+
 function formatPatientLabel(patient: { full_name: string; patient_id?: string | null }): string {
     if (!patient.patient_id) {
         return patient.full_name;
@@ -158,6 +175,34 @@ function hasAppointmentConflict(
         }
 
         return appointment.start_time < payload.endTime && appointment.end_time > payload.startTime;
+    });
+}
+
+function getAvailableStartTimes(
+    appointments: Array<{
+        id: string;
+        start_time: string;
+        end_time: string;
+        status: AppointmentStatus;
+    }>,
+    payload: {
+        durationMinutes: number;
+        status: AppointmentStatus;
+        ignoreAppointmentId?: string;
+    }
+): string[] {
+    return APPOINTMENT_TIME_SLOTS.filter((startTime) => {
+        const endTime = resolveEndTime(startTime, payload.durationMinutes);
+        if (!endTime) {
+            return false;
+        }
+
+        return !hasAppointmentConflict(appointments, {
+            startTime,
+            endTime,
+            status: payload.status,
+            ignoreAppointmentId: payload.ignoreAppointmentId,
+        });
     });
 }
 
@@ -232,11 +277,24 @@ export function AddAppointmentDialog({
                 },
             }),
     });
+    const dayAppointments = useMemo(() => dayAppointmentsQuery.data?.data ?? [], [dayAppointmentsQuery.data]);
+    const availableStartTimes = useMemo(
+        () => getAvailableStartTimes(dayAppointments, {
+            durationMinutes: formData.durationMinutes,
+            status: formData.status,
+            ignoreAppointmentId: editingAppointment?.id,
+        }),
+        [dayAppointments, editingAppointment?.id, formData.durationMinutes, formData.status]
+    );
+    const isSelectedTimeAvailable = availableStartTimes.includes(formData.startTime);
     const reasonError = formData.reason.trim().length > INPUT_LIMITS.shortText
         ? t('appointments.dialog.reasonMax', { max: INPUT_LIMITS.shortText })
         : null;
     const timeError = !isValidTimeInput(formData.startTime)
         ? t('appointments.dialog.timeInvalid')
+        : null;
+    const slotError = !dayAppointmentsQuery.isLoading && !dayAppointmentsQuery.isFetching && !isSelectedTimeAvailable
+        ? t('appointments.dialog.timeUnavailable')
         : null;
 
     useEffect(() => {
@@ -323,8 +381,8 @@ export function AddAppointmentDialog({
             return;
         }
 
-        if (timeError) {
-            toast.error(timeError);
+        if (timeError || slotError) {
+            toast.error(timeError ?? slotError);
             return;
         }
 
@@ -339,7 +397,6 @@ export function AddAppointmentDialog({
             return;
         }
 
-        const dayAppointments = dayAppointmentsQuery.data?.data ?? [];
         const hasConflict = hasAppointmentConflict(dayAppointments, {
             startTime: formData.startTime,
             endTime,
@@ -503,21 +560,30 @@ export function AddAppointmentDialog({
                             <Label htmlFor="time">
                                 {t('appointments.dialog.time')} <span className="text-red-500">*</span>
                             </Label>
-                            <Input
-                                id="time"
-                                type="text"
-                                inputMode="text"
-                                maxLength={5}
-                                required
+                            <Select
                                 value={formData.startTime}
-                                onChange={(event) =>
-                                    setFormData({ ...formData, startTime: sanitizeTimeInput(event.target.value) })
-                                }
-                                placeholder="09:00"
-                                aria-invalid={Boolean(submitAttempted && timeError)}
-                            />
-                            {submitAttempted && timeError ? (
-                                <p className="text-xs text-red-600">{timeError}</p>
+                                onValueChange={(value) => setFormData({ ...formData, startTime: value })}
+                                disabled={dayAppointmentsQuery.isLoading || availableStartTimes.length === 0}
+                            >
+                                <SelectTrigger id="time" className="w-full" aria-invalid={Boolean(submitAttempted && (timeError || slotError))}>
+                                    <SelectValue
+                                        placeholder={
+                                            dayAppointmentsQuery.isLoading
+                                                ? t('appointments.dialog.loadingSlots')
+                                                : t('appointments.dialog.noAvailableSlots')
+                                        }
+                                    />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {availableStartTimes.map((time) => (
+                                        <SelectItem key={time} value={time}>
+                                            {time}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            {submitAttempted && (timeError || slotError) ? (
+                                <p className="text-xs text-red-600">{timeError ?? slotError}</p>
                             ) : null}
                         </div>
                     </div>
@@ -526,9 +592,22 @@ export function AddAppointmentDialog({
                         <Label htmlFor="duration">{t('appointments.dialog.duration')}</Label>
                         <Select
                             value={String(formData.durationMinutes)}
-                            onValueChange={(value) =>
-                                setFormData({ ...formData, durationMinutes: Number(value) })
-                            }
+                            onValueChange={(value) => {
+                                const nextDuration = Number(value);
+                                const nextAvailableStartTimes = getAvailableStartTimes(dayAppointments, {
+                                    durationMinutes: nextDuration,
+                                    status: formData.status,
+                                    ignoreAppointmentId: editingAppointment?.id,
+                                });
+
+                                setFormData({
+                                    ...formData,
+                                    durationMinutes: nextDuration,
+                                    startTime: nextAvailableStartTimes.includes(formData.startTime)
+                                        ? formData.startTime
+                                        : nextAvailableStartTimes[0] ?? formData.startTime,
+                                });
+                            }}
                         >
                             <SelectTrigger id="duration" className="w-full">
                                 <SelectValue />
@@ -549,9 +628,21 @@ export function AddAppointmentDialog({
                             <Label htmlFor="status">{t('appointments.dialog.status')}</Label>
                             <Select
                                 value={formData.status}
-                                onValueChange={(value: AppointmentStatus) =>
-                                    setFormData({ ...formData, status: value })
-                                }
+                                onValueChange={(value: AppointmentStatus) => {
+                                    const nextAvailableStartTimes = getAvailableStartTimes(dayAppointments, {
+                                        durationMinutes: formData.durationMinutes,
+                                        status: value,
+                                        ignoreAppointmentId: editingAppointment?.id,
+                                    });
+
+                                    setFormData({
+                                        ...formData,
+                                        status: value,
+                                        startTime: nextAvailableStartTimes.includes(formData.startTime)
+                                            ? formData.startTime
+                                            : nextAvailableStartTimes[0] ?? formData.startTime,
+                                    });
+                                }}
                             >
                                 <SelectTrigger id="status" className="w-full">
                                     <SelectValue />
@@ -592,7 +683,16 @@ export function AddAppointmentDialog({
                         >
                             {t('common.cancel')}
                         </Button>
-                        <Button type="submit" disabled={mutation.isPending || patientsQuery.isLoading || Boolean(timeError)}>
+                        <Button
+                            type="submit"
+                            disabled={
+                                mutation.isPending
+                                || patientsQuery.isLoading
+                                || dayAppointmentsQuery.isLoading
+                                || availableStartTimes.length === 0
+                                || Boolean(timeError)
+                            }
+                        >
                             {mutation.isPending
                                 ? isEditing ? t('common.saving') : t('appointments.dialog.scheduling')
                                 : isEditing ? t('common.saveChanges') : t('appointments.dialog.newTitle')}

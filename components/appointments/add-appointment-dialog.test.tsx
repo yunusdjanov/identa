@@ -203,7 +203,7 @@ describe('AddAppointmentDialog', () => {
 
         await waitFor(() => {
             expect((screen.getByLabelText(/Date/i) as HTMLInputElement).value).toBe('2026-02-20');
-            expect((screen.getByLabelText(/Time/i) as HTMLInputElement).value).toBe('14:30');
+            expect(screen.getAllByText('14:30').length).toBeGreaterThan(0);
         });
     });
 
@@ -425,7 +425,7 @@ describe('AddAppointmentDialog', () => {
         await waitFor(() => {
             expect(vi.mocked(createAppointment)).not.toHaveBeenCalled();
             expect(vi.mocked(toast.error)).toHaveBeenCalledWith(
-                'This time slot is already occupied.'
+                'Choose an available time.'
             );
         });
     });
