@@ -113,15 +113,15 @@ function getWeekStart(date: Date): Date {
 function getAppointmentCardClass(status: AppointmentRow['status']): string {
     switch (status) {
         case 'scheduled':
-            return 'border-blue-500 bg-blue-50';
+            return 'border-blue-500 bg-blue-50/80';
         case 'completed':
-            return 'border-green-500 bg-green-50';
+            return 'border-green-500 bg-green-50/80';
         case 'cancelled':
-            return 'border-gray-400 bg-gray-100';
+            return 'border-slate-400 bg-slate-100/80';
         case 'no_show':
-            return 'border-red-500 bg-red-50';
+            return 'border-red-500 bg-red-50/80';
         default:
-            return 'border-blue-500 bg-blue-50';
+            return 'border-blue-500 bg-blue-50/80';
     }
 }
 
@@ -703,9 +703,9 @@ export default function AppointmentsPage() {
         return (
             <div
                 key={descriptor.dayIndex}
-                className={`flex flex-col overflow-hidden rounded-xl border bg-white shadow-sm ${
+                className={`flex flex-col overflow-hidden rounded-2xl border shadow-sm transition-all ${
                     compact ? 'h-[23rem] self-start' : 'h-auto min-h-[20rem] self-start'
-                } ${isTodayLane ? 'border-blue-500 ring-1 ring-blue-100' : 'border-slate-200'}`}
+                } ${isTodayLane ? 'border-blue-200 bg-blue-50/35 shadow-blue-100/70 ring-1 ring-blue-100' : 'border-slate-200/80 bg-white/95 shadow-slate-200/50'}`}
                 data-testid={includeTestIds ? `week-day-card-${descriptor.dateKey}` : undefined}
             >
                 <div className={`w-full border-b text-left ${
@@ -713,7 +713,7 @@ export default function AppointmentsPage() {
                 } ${
                     isTodayLane
                         ? 'border-blue-500 bg-blue-600 text-white'
-                        : 'border-slate-100 bg-slate-50'
+                        : 'border-slate-100 bg-slate-50/80'
                 }`}>
                     <div className={compact ? 'relative flex min-h-[1.5rem] items-center justify-center' : 'flex items-start justify-between gap-3'}>
                         {compact ? (
@@ -762,21 +762,21 @@ export default function AppointmentsPage() {
                 </div>
                 <div className={`flex flex-1 min-h-0 flex-col ${compact ? 'p-1' : 'gap-2 p-2'}`}>
                     {dayAppointments.length === 0 ? (
-                        <div className={`flex flex-1 items-center justify-center rounded-lg border border-dashed border-slate-200 bg-slate-50 px-3 text-center text-sm text-slate-500 ${
+                        <div className={`flex flex-1 items-center justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50/70 px-3 text-center text-sm text-slate-500 ${
                             compact ? 'h-[10.75rem] py-4' : 'min-h-[12rem] py-6'
                         }`}>
                             {t('appointments.noAppointments')}
                         </div>
                     ) : (
                         <>
-                            <div className={compact ? 'h-[17.5rem] rounded-lg border border-slate-100 bg-slate-50 p-1' : 'space-y-1.5'}>
+                            <div className={compact ? 'h-[17.5rem] rounded-xl border border-slate-100 bg-slate-50/70 p-1.5' : 'space-y-1.5'}>
                                 <div className={compact ? 'space-y-0.5' : ''}>
                                 {visibleAppointments.map((appointment) => (
                                     <div
                                         key={appointment.id}
                                         className={`border-l-4 ${
                                             compact
-                                                ? `${getAppointmentBorderClass(appointment.status)} flex h-7 items-center rounded-md bg-white px-1.5`
+                                                ? `${getAppointmentBorderClass(appointment.status)} flex h-7 items-center rounded-lg bg-white px-1.5 shadow-xs ring-1 ring-slate-100`
                                                 : 'rounded-lg px-2.5 py-1.5'
                                         } ${
                                             compact ? '' : getAppointmentCardClass(appointment.status)
@@ -818,7 +818,7 @@ export default function AppointmentsPage() {
                             <div className={`mt-auto flex gap-1.5 ${compact ? 'pt-1' : 'pt-2'}`}>
                                 <button
                                     type="button"
-                                    className={`inline-flex flex-1 items-center justify-center rounded-md border border-blue-200 bg-blue-50 font-medium text-blue-700 transition-colors hover:bg-blue-100 ${
+                                    className={`inline-flex flex-1 items-center justify-center rounded-lg border border-blue-200 bg-blue-50 font-medium text-blue-700 transition-colors hover:bg-blue-100 ${
                                         compact ? 'h-7 px-1.5 text-[10px]' : 'h-8 px-3 text-xs'
                                     }`}
                                     aria-label={hiddenAppointmentsCount > 0
@@ -833,7 +833,7 @@ export default function AppointmentsPage() {
                                 </button>
                                 <button
                                     type="button"
-                                    className={`inline-flex flex-1 items-center justify-center rounded-md border border-slate-200 bg-white font-medium text-slate-700 transition-colors hover:bg-slate-50 ${
+                                    className={`inline-flex flex-1 items-center justify-center rounded-lg border border-slate-200 bg-white font-medium text-slate-700 transition-colors hover:bg-slate-50 ${
                                         compact ? 'h-7 px-1.5 text-[10px]' : 'h-8 px-3 text-xs'
                                     }`}
                                     data-testid={includeTestIds ? `week-day-add-${descriptor.dateKey}` : undefined}
@@ -848,7 +848,7 @@ export default function AppointmentsPage() {
                         <div className={compact ? 'mt-auto pt-1.5' : 'mt-auto pt-2'}>
                             <button
                                 type="button"
-                                className={`inline-flex w-full items-center justify-center rounded-md border border-blue-200 bg-blue-50 font-medium text-blue-700 transition-colors hover:bg-blue-100 ${
+                                className={`inline-flex w-full items-center justify-center rounded-lg border border-blue-200 bg-blue-50 font-medium text-blue-700 transition-colors hover:bg-blue-100 ${
                                     compact ? 'h-7 px-1.5 text-[10px]' : 'h-8 px-3 text-xs'
                                 }`}
                                 aria-label={t('appointments.addForDay')}
@@ -1033,13 +1033,14 @@ export default function AppointmentsPage() {
                 )}
             />
 
-            <Card className="overflow-hidden">
-                <CardContent className="pt-5">
+            <Card className="overflow-hidden rounded-[1.75rem] border-blue-100/80 bg-white/95 shadow-sm shadow-blue-100/50">
+                <CardContent className="p-4 sm:p-5">
                     <div className="space-y-5">
-                        <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-                            <div className="flex space-x-2">
+                        <div className="flex flex-col gap-4 rounded-2xl border border-blue-100/80 bg-gradient-to-r from-white via-blue-50/30 to-white p-3 shadow-xs md:flex-row md:items-center md:justify-between">
+                            <div className="inline-flex w-full items-center gap-1 rounded-xl border border-slate-200/80 bg-slate-100/70 p-1 shadow-xs sm:w-auto">
                                 <Button
                                     variant={view === 'week' ? 'default' : 'outline'}
+                                    className="flex-1 rounded-lg sm:flex-none"
                                     onClick={() => {
                                         setViewOverride('week');
                                         setExpandedWeekDateKey(null);
@@ -1053,6 +1054,7 @@ export default function AppointmentsPage() {
                                 </Button>
                                 <Button
                                     variant={view === 'day' ? 'default' : 'outline'}
+                                    className="flex-1 rounded-lg sm:flex-none"
                                     onClick={() => {
                                         setViewOverride('day');
                                         setExpandedWeekDateKey(null);
@@ -1066,19 +1068,20 @@ export default function AppointmentsPage() {
                                 </Button>
                             </div>
 
-                            <div className="flex items-center space-x-4">
+                            <div className="flex w-full items-center justify-center gap-2 md:w-auto">
                                 <Button
                                     variant="outline"
                                     size="icon"
+                                    className="rounded-xl bg-white/90 shadow-xs"
                                     onClick={() => navigateDate('prev')}
                                     aria-label={view === 'day' ? t('appointments.aria.previousDay') : t('appointments.aria.previousWeek')}
                                 >
                                     <ChevronLeft aria-hidden="true" className="w-4 h-4" />
                                 </Button>
 
-                                <div className="flex items-center space-x-2">
+                                <div className="flex min-h-9 min-w-0 items-center gap-2 rounded-xl border border-slate-200 bg-white/90 px-3 shadow-xs">
                                     <CalendarIcon aria-hidden="true" className="w-4 h-4 text-gray-500" />
-                                    <span className="font-medium">
+                                    <span className="truncate text-sm font-semibold text-slate-800">
                                         {view === 'day'
                                             ? formatLocalizedDate(currentDate, locale, {
                                                 weekday: 'long',
@@ -1093,6 +1096,7 @@ export default function AppointmentsPage() {
                                 <Button
                                     variant="outline"
                                     size="icon"
+                                    className="rounded-xl bg-white/90 shadow-xs"
                                     onClick={() => navigateDate('next')}
                                     aria-label={view === 'day' ? t('appointments.aria.nextDay') : t('appointments.aria.nextWeek')}
                                 >
@@ -1102,6 +1106,7 @@ export default function AppointmentsPage() {
 
                             <Button
                                 variant="outline"
+                                className="w-full rounded-xl bg-white/90 shadow-xs md:w-auto"
                                 onClick={() => {
                                     const today = new Date();
                                     setCurrentDateOverride(today);
@@ -1117,7 +1122,7 @@ export default function AppointmentsPage() {
                         </div>
 
                         {hasUrlFilters && activeFilterLabel ? (
-                            <div className="flex items-center justify-between rounded-md border border-blue-200 bg-blue-50 px-3 py-2">
+                            <div className="flex items-center justify-between rounded-2xl border border-blue-100 bg-blue-50/80 px-4 py-3">
                                 <p className="text-sm text-blue-800">
                                     {t('appointments.filters.active')}: <span className="font-medium">{activeFilterLabel}</span>
                                 </p>
@@ -1127,7 +1132,7 @@ export default function AppointmentsPage() {
                             </div>
                         ) : null}
 
-                        <div className="border-t border-slate-200 pt-5">
+                        <div className="border-t border-slate-100 pt-5">
             {view === 'day' ? (
                             <div className="space-y-4">
                                 <p className="text-lg font-semibold text-slate-900">

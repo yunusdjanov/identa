@@ -303,11 +303,11 @@ export default function PatientsPage() {
                 )}
             />
 
-            <Card>
-                <CardContent className="py-4">
-                    <div className="flex flex-col gap-2 lg:flex-row lg:items-center">
+            <Card className="rounded-[1.5rem] border-blue-100/80 bg-gradient-to-br from-white via-blue-50/35 to-white shadow-sm shadow-blue-100/50">
+                <CardContent className="p-4 sm:p-5">
+                    <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
                         <div className="relative flex-1">
-                            <Search aria-hidden="true" className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                            <Search aria-hidden="true" className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                             <Input
                                 placeholder={t('patients.searchPlaceholder')}
                                 aria-label={t('patients.searchAria')}
@@ -316,10 +316,10 @@ export default function PatientsPage() {
                                     setSearchQuery(event.target.value);
                                     setCurrentPage(1);
                                 }}
-                                className="h-11 pl-10"
+                                className="h-11 rounded-xl border-slate-200 bg-white/90 pl-10 shadow-xs"
                             />
                         </div>
-                        <div className="flex flex-wrap items-center gap-2 lg:justify-end">
+                        <div className="flex flex-wrap items-center gap-2.5 lg:justify-end">
                             <Select
                                 value={selectedCategoryId}
                                 onValueChange={(value) => {
@@ -328,7 +328,7 @@ export default function PatientsPage() {
                                 }}
                             >
                                 <SelectTrigger
-                                    className="h-11 w-full min-w-[168px] md:w-[168px] text-left"
+                                    className="h-11 w-full min-w-[168px] rounded-xl border-slate-200 bg-white/90 text-left shadow-xs md:w-[168px]"
                                     aria-label={t('patients.filterByCategoryAria')}
                                 >
                                     <SelectValue placeholder={t('patients.allCategories')} />
@@ -351,7 +351,7 @@ export default function PatientsPage() {
                                 }}
                             >
                                 <SelectTrigger
-                                    className="h-11 w-full min-w-[168px] md:w-[168px] text-left"
+                                    className="h-11 w-full min-w-[168px] rounded-xl border-slate-200 bg-white/90 text-left shadow-xs md:w-[168px]"
                                     aria-label={t('patients.filterByVisitActivityAria')}
                                 >
                                     <SelectValue placeholder={t('patients.visitFilterLabel')} />
@@ -366,10 +366,10 @@ export default function PatientsPage() {
                                 <Button
                                     variant="outline"
                                     className={cn(
-                                        'h-11 min-w-[120px] px-4',
+                                        'h-11 min-w-[120px] rounded-xl px-4 shadow-xs',
                                         showArchivedOnly
                                             ? 'border-slate-900 bg-slate-900 text-white hover:border-slate-900 hover:bg-slate-800 hover:text-white'
-                                            : 'border-slate-200 bg-white text-slate-900 hover:bg-slate-50'
+                                            : 'border-slate-200 bg-white/90 text-slate-900 hover:bg-white'
                                     )}
                                     aria-pressed={showArchivedOnly}
                                     onClick={() => {
@@ -383,7 +383,7 @@ export default function PatientsPage() {
                                 {hasActiveFilters ? (
                                     <Button
                                         variant="ghost"
-                                        className="absolute right-0 top-full mt-1 h-6 whitespace-nowrap px-2 text-xs text-gray-500 hover:bg-gray-50 hover:text-gray-900"
+                                        className="absolute right-0 top-full mt-1 h-6 whitespace-nowrap px-2 text-xs text-slate-500 hover:bg-white/80 hover:text-slate-900"
                                         onClick={resetFilters}
                                     >
                                         <FilterX className="h-3.5 w-3.5" />
@@ -396,16 +396,16 @@ export default function PatientsPage() {
                 </CardContent>
             </Card>
 
-            <Card>
-                <CardHeader>
-                    <CardTitle>
+            <Card className="overflow-hidden rounded-[1.5rem] bg-white/95">
+                <CardHeader className="pb-2">
+                    <CardTitle className="text-base">
                         {t('patients.totalCount', { count: totalPatients })}
                         {inactiveFilter === '6m' && ` (${t('patients.noVisit6m')})`}
                         {inactiveFilter === '1y' && ` (${t('patients.noVisit1y')})`}
                         {showArchivedOnly && ` (${t('patients.archived')})`}
                     </CardTitle>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="px-4 pb-5 sm:px-5">
                     {patientRows.length === 0 ? (
                         <div className="text-center py-12">
                             <p className="text-gray-500">
@@ -457,7 +457,7 @@ export default function PatientsPage() {
                                         return (
                                         <TableRow
                                             key={patient.id}
-                                            className="cursor-pointer hover:bg-gray-50"
+                                            className="cursor-pointer hover:bg-blue-50/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-100"
                                             role="button"
                                             tabIndex={0}
                                             aria-label={t('patients.aria.openDetailsFor', { patientName: patient.fullName })}
@@ -542,7 +542,7 @@ export default function PatientsPage() {
                                                         <Button
                                                             variant="outline"
                                                             size="sm"
-                                                            className="h-8"
+                                                            className="h-8 rounded-lg"
                                                             onClick={(event) => {
                                                                 event.stopPropagation();
                                                                 restoreMutation.mutate(patient.id);
@@ -555,7 +555,7 @@ export default function PatientsPage() {
                                                         <Button
                                                             variant="outline"
                                                             size="sm"
-                                                            className="h-8"
+                                                            className="h-8 rounded-lg"
                                                             onClick={(event) => {
                                                                 event.stopPropagation();
                                                                 router.push(
@@ -570,7 +570,7 @@ export default function PatientsPage() {
                                                     <Button
                                                         variant="outline"
                                                         size="sm"
-                                                        className="h-8"
+                                                        className="h-8 rounded-lg"
                                                         onClick={(event) => {
                                                             event.stopPropagation();
                                                             router.push(`/patients/${patient.id}/history?from=patients`);
@@ -582,7 +582,7 @@ export default function PatientsPage() {
                                                     <Button
                                                         variant="outline"
                                                         size="sm"
-                                                        className="h-8 border-slate-300 text-slate-700 hover:bg-slate-100"
+                                                        className="h-8 rounded-lg border-slate-300 text-slate-700 hover:bg-slate-100"
                                                         onClick={(event) => {
                                                             event.stopPropagation();
                                                             openPatientDetails(patient.id);
@@ -613,7 +613,7 @@ export default function PatientsPage() {
                                     >
                                         {t('patients.previous')}
                                     </Button>
-                                    <span className="inline-flex min-w-[132px] justify-center rounded-md border border-gray-200 bg-white px-3 py-1 text-sm text-gray-600">
+                                    <span className="inline-flex min-w-[132px] justify-center rounded-xl border border-slate-200 bg-white px-3 py-1 text-sm text-slate-600 shadow-xs">
                                         {t('patients.pageOf', { page: pageNumber, total: totalPages })}
                                     </span>
                                     <Button

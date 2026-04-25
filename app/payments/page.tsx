@@ -441,22 +441,22 @@ export default function PaymentsPage() {
                 </div>
             </div>
 
-            <Card>
-                <CardContent className="space-y-6 pt-6">
-                    <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                        <div className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white/70 p-1 shadow-xs">
-                            <Button type="button" variant={activeTab === 'patients' ? 'default' : 'ghost'} className="gap-2 rounded-lg" onClick={() => handleTabChange('patients')}>
+            <Card className="overflow-hidden rounded-[1.5rem] bg-white/95">
+                <CardContent className="space-y-5 p-4 sm:p-5">
+                    <div className="flex flex-col gap-4 rounded-2xl border border-blue-100/80 bg-gradient-to-r from-white via-blue-50/30 to-white p-3 shadow-xs lg:flex-row lg:items-center lg:justify-between">
+                        <div className="inline-flex w-full items-center gap-1 rounded-xl border border-slate-200/80 bg-slate-100/70 p-1 shadow-xs sm:w-auto">
+                            <Button type="button" variant={activeTab === 'patients' ? 'default' : 'ghost'} className="flex-1 gap-2 rounded-lg sm:flex-none" onClick={() => handleTabChange('patients')}>
                                 <Users className="h-4 w-4" />
                                 {t('payments.tabs.patients')}
                             </Button>
-                            <Button type="button" variant={activeTab === 'history' ? 'default' : 'ghost'} className="gap-2 rounded-lg" onClick={() => handleTabChange('history')}>
+                            <Button type="button" variant={activeTab === 'history' ? 'default' : 'ghost'} className="flex-1 gap-2 rounded-lg sm:flex-none" onClick={() => handleTabChange('history')}>
                                 <History className="h-4 w-4" />
                                 {t('payments.tabs.history')}
                             </Button>
                         </div>
 
                         <div className="flex flex-col gap-3 sm:flex-row">
-                            <div className="relative min-w-0 sm:w-80">
+                            <div className="relative min-w-0 sm:w-[22rem]">
                                 <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
                                 <Input
                                     value={activeTab === 'patients' ? patientSearch : historySearch}
@@ -471,17 +471,17 @@ export default function PaymentsPage() {
                                         setHistoryPage(1);
                                     }}
                                     placeholder={activeTab === 'patients' ? t('payments.search.patientPlaceholder') : t('payments.search.historyPlaceholder')}
-                                    className="pl-9"
+                                    className="h-10 rounded-xl border-slate-200 bg-white/90 pl-9 shadow-xs"
                                 />
                             </div>
                             {patientFilterId ? (
-                                <Button variant="outline" onClick={clearPatientFilter}>{t('payments.clearFilter')}</Button>
+                                <Button variant="outline" className="rounded-xl bg-white/90" onClick={clearPatientFilter}>{t('payments.clearFilter')}</Button>
                             ) : null}
                         </div>
                     </div>
 
                     {patientFilterId ? (
-                        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-blue-100 bg-blue-50 px-4 py-3">
+                        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-blue-100 bg-blue-50/80 px-4 py-3">
                             <div className="space-y-1">
                                 <p className="text-sm font-medium text-blue-900">{t('payments.patientFilterActive')}</p>
                                 <p className="text-xs text-blue-700">{t('payments.patientFilterDescription')}</p>
@@ -492,12 +492,12 @@ export default function PaymentsPage() {
 
                     {activeTab === 'patients' ? (
                         <div className="space-y-4">
-                            <div className="flex flex-wrap items-center justify-between gap-3">
+                            <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-slate-50/70 p-4">
                                 <div>
                                     <h2 className="text-lg font-semibold text-gray-900">{t('payments.patientsTitle')}</h2>
                                     <p className="text-sm text-gray-500">{t('payments.patientsSubtitle')}</p>
                                 </div>
-                                <p className="text-sm text-gray-500">{t('payments.summary.filteredPatients', { count: patientRows.length })}</p>
+                                <p className="rounded-full border border-slate-200 bg-white px-3 py-1 text-sm text-slate-500 shadow-xs">{t('payments.summary.filteredPatients', { count: patientRows.length })}</p>
                             </div>
 
                             {patientRows.length === 0 ? (
@@ -564,7 +564,7 @@ export default function PaymentsPage() {
                                             >
                                                 {t('payments.pagination.previous')}
                                             </Button>
-                                            <span className="inline-flex min-w-[132px] justify-center rounded-md border border-gray-200 bg-white px-3 py-1 text-sm text-gray-600">
+                                            <span className="inline-flex min-w-[132px] justify-center rounded-xl border border-slate-200 bg-white px-3 py-1 text-sm text-slate-600 shadow-xs">
                                                 {t('payments.pagination.pageOf', { page: effectivePatientPage, total: patientTotalPages })}
                                             </span>
                                             <Button
@@ -583,12 +583,12 @@ export default function PaymentsPage() {
                         </div>
                     ) : (
                         <div className="space-y-4">
-                            <div className="flex flex-wrap items-center justify-between gap-3">
+                            <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-slate-50/70 p-4">
                                 <div>
                                     <h2 className="text-lg font-semibold text-gray-900">{t('payments.historyTitle')}</h2>
                                     <p className="text-sm text-gray-500">{t('payments.historySubtitle')}</p>
                                 </div>
-                                <p className="text-sm text-gray-500">{t('payments.summary.filteredEntries', { count: globalHistoryRows.length })}</p>
+                                <p className="rounded-full border border-slate-200 bg-white px-3 py-1 text-sm text-slate-500 shadow-xs">{t('payments.summary.filteredEntries', { count: globalHistoryRows.length })}</p>
                             </div>
 
                             {globalHistoryRows.length === 0 ? (
@@ -678,7 +678,7 @@ export default function PaymentsPage() {
                                             >
                                                 {t('payments.pagination.previous')}
                                             </Button>
-                                            <span className="inline-flex min-w-[132px] justify-center rounded-md border border-gray-200 bg-white px-3 py-1 text-sm text-gray-600">
+                                            <span className="inline-flex min-w-[132px] justify-center rounded-xl border border-slate-200 bg-white px-3 py-1 text-sm text-slate-600 shadow-xs">
                                                 {t('payments.pagination.pageOf', { page: effectiveHistoryPage, total: historyTotalPages })}
                                             </span>
                                             <Button
