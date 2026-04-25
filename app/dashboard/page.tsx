@@ -463,12 +463,18 @@ export default function DashboardPage() {
                                     );
                                 })}
                             </div>
-                            <div className="flex justify-end pt-1">
-                                <Link href={showAllTodayHref}>
-                                    <Button variant="ghost" size="sm" className="h-8 w-full rounded-lg px-2 text-sm font-semibold text-blue-700 hover:bg-blue-50 hover:text-blue-800 sm:w-auto">
+                            <div className="flex justify-center pt-2">
+                                <Button
+                                    asChild
+                                    variant="outline"
+                                    size="sm"
+                                    className="group h-9 w-full rounded-full border-blue-100 bg-white/90 px-4 text-sm font-semibold text-blue-700 shadow-sm shadow-blue-100/70 transition hover:-translate-y-0.5 hover:border-blue-200 hover:bg-blue-50 hover:text-blue-800 sm:w-auto"
+                                >
+                                    <Link href={showAllTodayHref}>
                                         {t('dashboard.showAllToday', { count: scheduledTodayAppointments.length })}
-                                    </Button>
-                                </Link>
+                                        <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+                                    </Link>
+                                </Button>
                             </div>
                         </div>
                     )}
