@@ -36,6 +36,7 @@ import {
 } from '@/lib/input-validation';
 import { isValidTimeInput, sanitizeTimeInput } from '@/lib/utils';
 import { formatLocalizedDate } from '@/lib/i18n/date';
+import { DEFAULT_APPOINTMENT_WORKING_HOURS } from '@/lib/appointments/time-slots';
 
 const defaultProfile: DentistProfile = {
     id: '',
@@ -46,8 +47,8 @@ const defaultProfile: DentistProfile = {
     licenseNumber: '',
     address: '',
     workingHours: {
-        start: '09:00',
-        end: '18:00',
+        start: DEFAULT_APPOINTMENT_WORKING_HOURS.start,
+        end: DEFAULT_APPOINTMENT_WORKING_HOURS.end,
     },
     defaultAppointmentDuration: 30,
 };
@@ -62,8 +63,8 @@ function mapProfileToForm(profile: Awaited<ReturnType<typeof getProfile>>): Dent
         licenseNumber: profile.license_number ?? '',
         address: profile.address ?? '',
         workingHours: {
-            start: profile.working_hours.start ?? '09:00',
-            end: profile.working_hours.end ?? '18:00',
+            start: profile.working_hours.start ?? DEFAULT_APPOINTMENT_WORKING_HOURS.start,
+            end: profile.working_hours.end ?? DEFAULT_APPOINTMENT_WORKING_HOURS.end,
         },
         defaultAppointmentDuration: profile.default_appointment_duration || 30,
     };
@@ -566,7 +567,7 @@ export default function SettingsPage() {
                                                     },
                                                 })
                                             }
-                                            placeholder="09:00"
+                                            placeholder={DEFAULT_APPOINTMENT_WORKING_HOURS.start}
                                             aria-invalid={Boolean(workingHoursStartError)}
                                         />
                                         {workingHoursStartError ? (
@@ -591,7 +592,7 @@ export default function SettingsPage() {
                                                     },
                                                 })
                                             }
-                                            placeholder="18:00"
+                                            placeholder={DEFAULT_APPOINTMENT_WORKING_HOURS.end}
                                             aria-invalid={Boolean(workingHoursEndError)}
                                         />
                                         {workingHoursEndError ? (

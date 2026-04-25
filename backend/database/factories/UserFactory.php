@@ -32,7 +32,7 @@ class UserFactory extends Factory
             'license_number' => fake()->optional()->bothify('LIC-####-??'),
             'address' => fake()->optional()->streetAddress(),
             'working_hours_start' => '09:00',
-            'working_hours_end' => '18:00',
+            'working_hours_end' => '20:00',
             'default_appointment_duration' => 30,
             'email_verified_at' => now(),
             'password' => static::$password ??= Hash::make('password'),

@@ -67,7 +67,7 @@ class DatabaseSeeder extends Seeder
                 'license_number' => null,
                 'address' => null,
                 'working_hours_start' => '09:00',
-                'working_hours_end' => '18:00',
+                'working_hours_end' => '20:00',
                 'default_appointment_duration' => 30,
             ]
         );
@@ -90,7 +90,7 @@ class DatabaseSeeder extends Seeder
                 'license_number' => 'LIC-2026-DEMO',
                 'address' => '1 Demo Street, Tashkent',
                 'working_hours_start' => '09:00',
-                'working_hours_end' => '18:00',
+                'working_hours_end' => '20:00',
                 'default_appointment_duration' => 30,
             ]
         );
@@ -136,7 +136,7 @@ class DatabaseSeeder extends Seeder
                     'license_number' => null,
                     'address' => null,
                     'working_hours_start' => '09:00',
-                    'working_hours_end' => '18:00',
+                    'working_hours_end' => '20:00',
                     'default_appointment_duration' => 30,
                 ]
             );
@@ -583,4 +583,3 @@ class DatabaseSeeder extends Seeder
         );
     }
 }
-

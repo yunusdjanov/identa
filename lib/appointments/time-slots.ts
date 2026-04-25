@@ -12,7 +12,7 @@ export interface NormalizedAppointmentWorkingHours {
 
 export const DEFAULT_APPOINTMENT_WORKING_HOURS: NormalizedAppointmentWorkingHours = {
     start: '09:00',
-    end: '18:00',
+    end: '20:00',
 };
 
 export const APPOINTMENT_SLOT_STEP_MINUTES = 30;

@@ -96,6 +96,9 @@ class DentistAccountController extends Controller
             'practice_name' => $validated['practice_name'] ?? null,
             'license_number' => $validated['license_number'] ?? null,
             'address' => $validated['address'] ?? null,
+            'working_hours_start' => '09:00',
+            'working_hours_end' => '20:00',
+            'default_appointment_duration' => 30,
             'role' => User::ROLE_DENTIST,
             'account_status' => User::ACCOUNT_STATUS_ACTIVE,
         ]);
