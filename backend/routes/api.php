@@ -74,6 +74,11 @@ Route::prefix('v1')->group(function (): void {
             Route::patch('/lead-requests/{id}', [LandingSettingsController::class, 'updateLeadRequestStatus']);
         });
 
+    Route::middleware(['auth:sanctum', 'role:dentist,assistant'])->group(function (): void {
+        Route::get('settings/profile', [SettingsProfileController::class, 'show']);
+        Route::put('settings/profile', [SettingsProfileController::class, 'update']);
+    });
+
     Route::middleware(['auth:sanctum', 'role:dentist,assistant', 'subscription.access'])->group(function (): void {
         Route::get('dashboard/snapshot', [DashboardController::class, 'show']);
 
@@ -193,11 +198,6 @@ Route::prefix('v1')->group(function (): void {
             ->middleware('permission:'.User::PERMISSION_PAYMENTS_MANAGE);
         Route::delete('payments/{id}', [PaymentController::class, 'destroy'])
             ->middleware('permission:'.User::PERMISSION_PAYMENTS_MANAGE);
-
-        Route::get('settings/profile', [SettingsProfileController::class, 'show'])
-            ->middleware('permission:'.User::PERMISSION_SETTINGS_VIEW);
-        Route::put('settings/profile', [SettingsProfileController::class, 'update'])
-            ->middleware('permission:'.User::PERMISSION_SETTINGS_MANAGE);
 
         Route::get('audit-logs', [AuditLogController::class, 'index'])
             ->middleware('permission:'.User::PERMISSION_AUDIT_LOGS_VIEW);

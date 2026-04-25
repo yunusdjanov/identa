@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -144,6 +144,7 @@ function SettingsLoadingSkeleton() {
 
 export default function SettingsPage() {
     const { t, locale } = useI18n();
+    const queryClient = useQueryClient();
     const currentUserQuery = useQuery({
         queryKey: ['auth', 'me'],
         queryFn: getCurrentUser,
@@ -152,12 +153,13 @@ export default function SettingsPage() {
     const isDentist = currentUserQuery.data?.role === 'dentist';
     const isAssistant = currentUserQuery.data?.role === 'assistant';
     const canViewSettings = Boolean(currentUserQuery.data && (isDentist || isAssistant));
-    const canManageSettings = Boolean(currentUserQuery.data && isDentist);
+    const canManagePersonalProfile = Boolean(currentUserQuery.data && (isDentist || isAssistant));
+    const canManagePracticeSettings = Boolean(currentUserQuery.data && isDentist);
 
     const profileQuery = useQuery({
         queryKey: ['settings', 'profile'],
         queryFn: getProfile,
-        enabled: canManageSettings,
+        enabled: canViewSettings,
     });
 
     const [profileDraft, setProfileDraft] = useState<DentistProfile | null>(null);
@@ -169,7 +171,9 @@ export default function SettingsPage() {
         onSuccess: () => {
             toast.success(t('settings.profileUpdated'));
             setProfileDraft(null);
-            profileQuery.refetch();
+            void currentUserQuery.refetch();
+            void profileQuery.refetch();
+            void queryClient.invalidateQueries({ queryKey: ['auth', 'me'] });
         },
         onError: (error) => {
             toast.error(getApiErrorMessage(error, t('settings.profileUpdateFailed')));
@@ -224,8 +228,8 @@ export default function SettingsPage() {
     const handleProfileUpdate = (event: React.FormEvent) => {
         event.preventDefault();
         setProfileSubmitAttempted(true);
-        if (!canManageSettings) {
-            toast.error(t('settings.readOnlyNotice'));
+        if (!canManagePersonalProfile) {
+            toast.error(t('settings.noAccess'));
             return;
         }
         if (profileHasErrors) {
@@ -237,14 +241,14 @@ export default function SettingsPage() {
             name: profile.name.trim(),
             email: profile.email.trim(),
             phone: profile.phone ? normalizePhoneForApi(profile.phone) : undefined,
-            license_number: profile.licenseNumber,
+            ...(isDentist ? { license_number: profile.licenseNumber } : {}),
         });
     };
 
     const handlePracticeUpdate = (event: React.FormEvent) => {
         event.preventDefault();
         setPracticeSubmitAttempted(true);
-        if (!canManageSettings) {
+        if (!canManagePracticeSettings) {
             toast.error(t('settings.readOnlyNotice'));
             return;
         }
@@ -261,7 +265,7 @@ export default function SettingsPage() {
 
     const handleWorkingHoursUpdate = (event: React.FormEvent) => {
         event.preventDefault();
-        if (!canManageSettings) {
+        if (!canManagePracticeSettings) {
             toast.error(t('settings.readOnlyNotice'));
             return;
         }
@@ -276,7 +280,7 @@ export default function SettingsPage() {
         });
     };
 
-    if (currentUserQuery.isLoading || (canManageSettings && profileQuery.isLoading)) {
+    if (currentUserQuery.isLoading || (canViewSettings && profileQuery.isLoading)) {
         return <SettingsLoadingSkeleton />;
     }
 
@@ -321,54 +325,46 @@ export default function SettingsPage() {
 
     return (
         <div className="space-y-8">
-            <PageHeader
-                title={t('settings.title')}
-                description={(
-                    <>
-                        {t('settings.subtitle')}
-                        {!canManageSettings ? (
-                            <span className="mt-2 block text-sm text-amber-600">{t('settings.readOnlyNotice')}</span>
-                        ) : null}
-                    </>
-                )}
-            />
+            <PageHeader title={t('settings.title')} description={t('settings.subtitle')} />
 
-            <Card className="interactive-card">
-                <CardHeader className="space-y-3">
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                        <div>
-                            <CardTitle>{t('settings.subscriptionTitle')}</CardTitle>
-                            <p className="mt-1 text-sm text-gray-500">
-                                {t('settings.subscriptionDescription')}
-                            </p>
+            {isDentist ? (
+                <Card className="interactive-card">
+                    <CardHeader className="space-y-3">
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <div>
+                                <CardTitle>{t('settings.subscriptionTitle')}</CardTitle>
+                                <p className="mt-1 text-sm text-gray-500">
+                                    {t('settings.subscriptionDescription')}
+                                </p>
+                            </div>
+                            <Badge
+                                variant="outline"
+                                className={subscription ? getSubscriptionBadgeClass(subscription.status) : getSubscriptionBadgeClass('none')}
+                            >
+                                {subscriptionStatusLabel}
+                            </Badge>
                         </div>
-                        <Badge
-                            variant="outline"
-                            className={subscription ? getSubscriptionBadgeClass(subscription.status) : getSubscriptionBadgeClass('none')}
-                        >
-                            {subscriptionStatusLabel}
-                        </Badge>
-                    </div>
-                </CardHeader>
-                <CardContent className="space-y-2">
-                    <p className="text-base font-medium text-slate-900">{subscriptionSummary}</p>
-                    {subscription?.cancel_at_period_end && subscriptionEndsOn ? (
-                        <p className="text-sm text-amber-700">
-                            {t('subscription.banner.cancelScheduledDescription', { date: subscriptionEndsOn })}
-                        </p>
-                    ) : null}
-                </CardContent>
-            </Card>
+                    </CardHeader>
+                    <CardContent className="space-y-2">
+                        <p className="text-base font-medium text-slate-900">{subscriptionSummary}</p>
+                        {subscription?.cancel_at_period_end && subscriptionEndsOn ? (
+                            <p className="text-sm text-amber-700">
+                                {t('subscription.banner.cancelScheduledDescription', { date: subscriptionEndsOn })}
+                            </p>
+                        ) : null}
+                    </CardContent>
+                </Card>
+            ) : null}
 
-            <Tabs defaultValue={isDentist ? 'profile' : 'security'} className="space-y-6">
+            <Tabs defaultValue="profile" className="space-y-6">
                 <div className="overflow-x-auto overflow-y-hidden no-scrollbar -mx-4 px-4 sm:mx-0 sm:px-0">
                     <TabsList className="inline-flex w-full sm:w-auto min-w-max">
+                        <TabsTrigger value="profile" className="flex-shrink-0">
+                            <User className="w-4 h-4 sm:mr-2" />
+                            <span className="hidden sm:inline">{t('settings.tab.profile')}</span>
+                        </TabsTrigger>
                         {isDentist ? (
                             <>
-                                <TabsTrigger value="profile" className="flex-shrink-0">
-                                    <User className="w-4 h-4 sm:mr-2" />
-                                    <span className="hidden sm:inline">{t('settings.tab.profile')}</span>
-                                </TabsTrigger>
                                 <TabsTrigger value="practice" className="flex-shrink-0">
                                     <Building2 className="w-4 h-4 sm:mr-2" />
                                     <span className="hidden sm:inline">{t('settings.tab.practice')}</span>
@@ -386,8 +382,7 @@ export default function SettingsPage() {
                     </TabsList>
                 </div>
 
-                {isDentist ? (
-                    <TabsContent value="profile">
+                <TabsContent value="profile">
                     <Card className="interactive-card overflow-hidden rounded-[1.75rem] bg-gradient-to-br from-white via-white to-blue-50/25">
                         <CardHeader className="pb-2">
                             <CardTitle>{t('settings.personalInfo')}</CardTitle>
@@ -400,13 +395,15 @@ export default function SettingsPage() {
                                             {t('settings.fullName')} <span className="text-red-500">*</span>
                                         </Label>
                                         <div className="flex items-center gap-2">
-                                            <span className="text-sm font-medium text-gray-700 bg-gray-100 px-3 py-2 rounded-md border border-gray-300">
-                                                {t('common.doctorPrefix')}
-                                            </span>
+                                            {isDentist ? (
+                                                <span className="text-sm font-medium text-gray-700 bg-gray-100 px-3 py-2 rounded-md border border-gray-300">
+                                                    {t('common.doctorPrefix')}
+                                                </span>
+                                            ) : null}
                                             <Input
                                                 id="name"
                                                 required
-                                                value={profile.name.replace(/^Dr\.\s*/i, '')}
+                                                value={isDentist ? profile.name.replace(/^Dr\.\s*/i, '') : profile.name}
                                                 onChange={(event) =>
                                                     setProfileDraft({ ...profile, name: event.target.value })
                                                 }
@@ -465,29 +462,30 @@ export default function SettingsPage() {
                                         ) : null}
                                     </div>
 
-                                    <div className="space-y-2">
-                                        <Label htmlFor="license">{t('settings.licenseNumber')}</Label>
-                                        <Input
-                                            id="license"
-                                            value={profile.licenseNumber || ''}
-                                            onChange={(event) =>
-                                                setProfileDraft({ ...profile, licenseNumber: event.target.value })
-                                            }
-                                            maxLength={INPUT_LIMITS.licenseNumber}
-                                        />
-                                    </div>
+                                    {isDentist ? (
+                                        <div className="space-y-2">
+                                            <Label htmlFor="license">{t('settings.licenseNumber')}</Label>
+                                            <Input
+                                                id="license"
+                                                value={profile.licenseNumber || ''}
+                                                onChange={(event) =>
+                                                    setProfileDraft({ ...profile, licenseNumber: event.target.value })
+                                                }
+                                                maxLength={INPUT_LIMITS.licenseNumber}
+                                            />
+                                        </div>
+                                    ) : null}
                                 </div>
 
                                 <div className="flex justify-end">
-                                    <Button type="submit" disabled={profileMutation.isPending || !canManageSettings}>
+                                    <Button type="submit" disabled={profileMutation.isPending || !canManagePersonalProfile}>
                                         {profileMutation.isPending ? t('common.saving') : t('common.saveChanges')}
                                     </Button>
                                 </div>
                             </form>
                         </CardContent>
                     </Card>
-                    </TabsContent>
-                ) : null}
+                </TabsContent>
 
                 {isDentist ? (
                     <TabsContent value="practice">
@@ -531,7 +529,7 @@ export default function SettingsPage() {
                                 </div>
 
                                 <div className="flex justify-end">
-                                    <Button type="submit" disabled={profileMutation.isPending || !canManageSettings}>
+                                    <Button type="submit" disabled={profileMutation.isPending || !canManagePracticeSettings}>
                                         {profileMutation.isPending ? t('common.saving') : t('common.saveChanges')}
                                     </Button>
                                 </div>
@@ -636,7 +634,7 @@ export default function SettingsPage() {
                                 </div>
 
                                 <div className="flex justify-end">
-                                    <Button type="submit" disabled={profileMutation.isPending || !canManageSettings || workingHoursHasErrors}>
+                                    <Button type="submit" disabled={profileMutation.isPending || !canManagePracticeSettings || workingHoursHasErrors}>
                                         {profileMutation.isPending ? t('common.saving') : t('common.saveChanges')}
                                     </Button>
                                 </div>

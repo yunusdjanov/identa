@@ -7,6 +7,7 @@ use App\Http\Requests\UpdateProfileRequest;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
 use Illuminate\Validation\ValidationException;
 
 class SettingsProfileController extends Controller
@@ -26,6 +27,10 @@ class SettingsProfileController extends Controller
         /** @var User $user */
         $user = $request->user();
         $validated = $request->validated();
+
+        if ($user->isAssistant()) {
+            $validated = Arr::only($validated, ['name', 'email', 'phone']);
+        }
 
         $start = $validated['working_hours_start'] ?? null;
         $end = $validated['working_hours_end'] ?? null;

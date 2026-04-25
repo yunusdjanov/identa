@@ -438,7 +438,7 @@ class User extends Authenticatable
         /** @var array<int, string> $permissions */
         $permissions = $this->assistant_permissions ?? [];
 
-        // Assistants are intentionally blocked from settings/audit access.
+        // Staff can edit their own profile through a dedicated route, but not shared settings or audit logs.
         if (
             $permission === self::PERMISSION_SETTINGS_VIEW
             || $permission === self::PERMISSION_SETTINGS_MANAGE

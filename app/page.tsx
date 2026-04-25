@@ -198,9 +198,9 @@ const LANDING_CONTENT: Record<LandingLocale, LandingContent> = {
         plans: {
             eyebrow: 'Tariflar',
             title: 'Klinikaga mos tarifni tez tanlaysiz',
-            description: "Har bir tarifda farq aniq: muddat, assistent limiti va yangilanish tartibi ko'rsatilgan.",
+            description: "Har bir tarifda farq aniq: muddat, xodim limiti va yangilanish tartibi ko'rsatilgan.",
             freePrice: 'Bepul',
-            assistantsLabel: 'Assistentlar',
+            assistantsLabel: 'Xodimlar',
             renewalLabel: 'Yangilanish',
             items: [
                 {
@@ -209,7 +209,7 @@ const LANDING_CONTENT: Record<LandingLocale, LandingContent> = {
                     title: 'Sinov muddati',
                     description: "Tizimni real ish jarayonida tekshirib ko'rish uchun.",
                     periodLabel: null,
-                    assistants: '1 ta assistentgacha',
+                    assistants: '1 ta xodimgacha',
                     renewal: 'Keyin pullik tarif tanlanadi',
                     bullets: [
                         'Asosiy bo‘limlar ochiq bo‘ladi',
@@ -223,7 +223,7 @@ const LANDING_CONTENT: Record<LandingLocale, LandingContent> = {
                     title: 'Oylik tarif',
                     description: 'Faol ishlayotgan xususiy amaliyot uchun moslashuvchan variant.',
                     periodLabel: '/ oy',
-                    assistants: '3 ta assistentgacha',
+                    assistants: '3 ta xodimgacha',
                     renewal: 'Har oy yangilanadi',
                     bullets: [
                         "Qabullar, bemorlar va to'lovlar to'liq ishlaydi",
@@ -237,7 +237,7 @@ const LANDING_CONTENT: Record<LandingLocale, LandingContent> = {
                     title: 'Yillik tarif',
                     description: 'Barqaror klinika uchun uzoq muddatli va qulayroq format.',
                     periodLabel: '/ yil',
-                    assistants: '5 ta assistentgacha',
+                    assistants: '5 ta xodimgacha',
                     renewal: 'Yiliga bir marta yangilanadi',
                     bullets: [
                         "To'liq ishchi kirish saqlanadi",
@@ -357,9 +357,9 @@ const LANDING_CONTENT: Record<LandingLocale, LandingContent> = {
         plans: {
             eyebrow: 'Тарифы',
             title: 'Подходящий тариф выбирается без лишних вопросов',
-            description: 'Разница показана ясно: срок, лимит ассистентов и порядок обновления.',
+            description: 'Разница показана ясно: срок, лимит сотрудников и порядок обновления.',
             freePrice: 'Бесплатно',
-            assistantsLabel: 'Ассистенты',
+            assistantsLabel: 'Сотрудники',
             renewalLabel: 'Обновление',
             items: [
                 {
@@ -368,7 +368,7 @@ const LANDING_CONTENT: Record<LandingLocale, LandingContent> = {
                     title: 'Пробный период',
                     description: 'Для спокойной проверки системы на реальной работе клиники.',
                     periodLabel: null,
-                    assistants: 'До 1 ассистента',
+                    assistants: 'До 1 сотрудника',
                     renewal: 'Дальше выбирается платный тариф',
                     bullets: [
                         'Открыты основные разделы',
@@ -382,7 +382,7 @@ const LANDING_CONTENT: Record<LandingLocale, LandingContent> = {
                     title: 'Месячный тариф',
                     description: 'Гибкий вариант для активной частной практики.',
                     periodLabel: '/ месяц',
-                    assistants: 'До 3 ассистентов',
+                    assistants: 'До 3 сотрудников',
                     renewal: 'Обновляется каждый месяц',
                     bullets: [
                         'Записи, пациенты и оплаты работают полностью',
@@ -396,7 +396,7 @@ const LANDING_CONTENT: Record<LandingLocale, LandingContent> = {
                     title: 'Годовой тариф',
                     description: 'Долгосрочный формат для стабильной клиники.',
                     periodLabel: '/ год',
-                    assistants: 'До 5 ассистентов',
+                    assistants: 'До 5 сотрудников',
                     renewal: 'Обновляется один раз в год',
                     bullets: [
                         'Полный рабочий доступ сохраняется',
@@ -516,9 +516,9 @@ const LANDING_CONTENT: Record<LandingLocale, LandingContent> = {
         plans: {
             eyebrow: 'Plans',
             title: 'Choose the right plan without guesswork',
-            description: 'The difference is clear in duration, assistant limits, and renewal logic.',
+            description: 'The difference is clear in duration, staff limits, and renewal logic.',
             freePrice: 'Free',
-            assistantsLabel: 'Assistants',
+            assistantsLabel: 'Staff',
             renewalLabel: 'Renewal',
             items: [
                 {
@@ -527,7 +527,7 @@ const LANDING_CONTENT: Record<LandingLocale, LandingContent> = {
                     title: 'Trial period',
                     description: 'For checking the system in a real clinic workflow.',
                     periodLabel: null,
-                    assistants: 'Up to 1 assistant',
+                    assistants: 'Up to 1 staff member',
                     renewal: 'A paid plan is chosen after the trial',
                     bullets: [
                         'Core sections stay open',
@@ -541,7 +541,7 @@ const LANDING_CONTENT: Record<LandingLocale, LandingContent> = {
                     title: 'Monthly plan',
                     description: 'A flexible option for active private practice.',
                     periodLabel: '/ month',
-                    assistants: 'Up to 3 assistants',
+                    assistants: 'Up to 3 staff members',
                     renewal: 'Renews every month',
                     bullets: [
                         'Appointments, patients, and payments stay fully available',
@@ -555,7 +555,7 @@ const LANDING_CONTENT: Record<LandingLocale, LandingContent> = {
                     title: 'Yearly plan',
                     description: 'A longer-term format for stable clinics.',
                     periodLabel: '/ year',
-                    assistants: 'Up to 5 assistants',
+                    assistants: 'Up to 5 staff members',
                     renewal: 'Renews once a year',
                     bullets: [
                         'Full working access remains open',
