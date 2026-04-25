@@ -316,7 +316,7 @@ export default function PatientsPage() {
                                     setSearchQuery(event.target.value);
                                     setCurrentPage(1);
                                 }}
-                                className="h-11 rounded-xl border-slate-200 bg-white/90 pl-10 shadow-xs"
+                                className="h-10 rounded-xl border-slate-200 bg-white/90 pl-10 shadow-xs"
                             />
                         </div>
                         <div className="flex flex-wrap items-center gap-2.5 lg:justify-end">
@@ -328,7 +328,7 @@ export default function PatientsPage() {
                                 }}
                             >
                                 <SelectTrigger
-                                    className="h-11 w-full min-w-[168px] rounded-xl border-slate-200 bg-white/90 text-left shadow-xs md:w-[168px]"
+                                    className="h-10 w-full min-w-[168px] rounded-xl border-slate-200 bg-white/90 text-left shadow-xs md:w-[168px]"
                                     aria-label={t('patients.filterByCategoryAria')}
                                 >
                                     <SelectValue placeholder={t('patients.allCategories')} />
@@ -351,7 +351,7 @@ export default function PatientsPage() {
                                 }}
                             >
                                 <SelectTrigger
-                                    className="h-11 w-full min-w-[168px] rounded-xl border-slate-200 bg-white/90 text-left shadow-xs md:w-[168px]"
+                                    className="h-10 w-full min-w-[168px] rounded-xl border-slate-200 bg-white/90 text-left shadow-xs md:w-[168px]"
                                     aria-label={t('patients.filterByVisitActivityAria')}
                                 >
                                     <SelectValue placeholder={t('patients.visitFilterLabel')} />
@@ -362,11 +362,11 @@ export default function PatientsPage() {
                                     <SelectItem value="1y">{t('patients.noVisit1y')}</SelectItem>
                                 </SelectContent>
                             </Select>
-                            <div className="relative flex h-11 shrink-0 items-center">
+                            <div className="relative flex h-10 shrink-0 items-center">
                                 <Button
                                     variant="outline"
                                     className={cn(
-                                        'h-11 min-w-[120px] rounded-xl px-4 shadow-xs',
+                                        'h-10 min-w-[120px] rounded-xl px-4 shadow-xs',
                                         showArchivedOnly
                                             ? 'border-slate-900 bg-slate-900 text-white hover:border-slate-900 hover:bg-slate-800 hover:text-white'
                                             : 'border-slate-200 bg-white/90 text-slate-900 hover:bg-white'
