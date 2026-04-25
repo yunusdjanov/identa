@@ -1604,6 +1604,10 @@ Object.assign(en, {
 Object.assign(ru, {
     'admin.brandTitle': 'Identa Admin',
     'admin.brandSubtitle': 'Супер-администратор',
+    'admin.nav.dashboard': 'Аккаунты',
+    'admin.nav.landing': 'Лендинг',
+    'admin.nav.requests': 'Заявки',
+    'admin.nav.settings': 'Настройки',
     'admin.dashboardTitle': 'Панель супер-админа',
     'admin.dashboardSubtitle': 'Управление аккаунтами стоматологов и обзор системы',
     'admin.stats.totalDentists': 'Всего стоматологов',
@@ -1672,11 +1676,19 @@ Object.assign(ru, {
     'admin.settings.securityInfo': 'Эндпоинты обновления профиля администратора и смены пароля пока недоступны в API v1.',
     'admin.settings.securityHint': 'Текущий обходной путь: используйте системный инструмент сброса из backend-администрирования.',
     'admin.settings.loadFailed': 'Не удалось загрузить данные админ-аккаунта.',
+    'admin.landing.title': 'Лендинг',
+    'admin.landing.subtitle': 'Тарифы и контакты публичной страницы',
+    'admin.leads.title': 'Заявки',
+    'admin.leads.subtitle': 'Запросы, отправленные через форму лендинга',
 });
 
 Object.assign(uz, {
     'admin.brandTitle': 'Identa Admin',
     'admin.brandSubtitle': 'Super administrator',
+    'admin.nav.dashboard': 'Akkauntlar',
+    'admin.nav.landing': 'Landing',
+    'admin.nav.requests': "So'rovlar",
+    'admin.nav.settings': 'Sozlamalar',
     'admin.dashboardTitle': 'Super admin paneli',
     'admin.dashboardSubtitle': 'Stomatolog akkauntlari va tizim ko‘rinishini boshqarish',
     'admin.stats.totalDentists': 'Jami stomatologlar',
@@ -1745,11 +1757,19 @@ Object.assign(uz, {
     'admin.settings.securityInfo': 'Admin profilini yangilash va parolni almashtirish endpointlari API v1 da hozircha ochilmagan.',
     'admin.settings.securityHint': 'Hozircha: backend administratsiyasidagi reset vositasidan foydalaning.',
     'admin.settings.loadFailed': 'Admin akkaunt ma’lumotlarini yuklab bo‘lmadi.',
+    'admin.landing.title': 'Landing',
+    'admin.landing.subtitle': 'Ommaviy sahifa tariflari va kontaktlarini boshqarish',
+    'admin.leads.title': "So'rovlar",
+    'admin.leads.subtitle': 'Landing formasi orqali yuborilgan murojaatlar',
 });
 
 Object.assign(en, {
     'admin.brandTitle': 'Identa Admin',
     'admin.brandSubtitle': 'Super Administrator',
+    'admin.nav.dashboard': 'Accounts',
+    'admin.nav.landing': 'Landing',
+    'admin.nav.requests': 'Requests',
+    'admin.nav.settings': 'Settings',
     'admin.dashboardTitle': 'Super Admin Dashboard',
     'admin.dashboardSubtitle': 'Manage dentist accounts and system overview',
     'admin.stats.totalDentists': 'Total Dentists',
@@ -1818,6 +1838,10 @@ Object.assign(en, {
     'admin.settings.securityInfo': 'Admin profile update and password change endpoints are not yet exposed in API v1.',
     'admin.settings.securityHint': 'Current workaround: use platform-level reset tooling from backend administration.',
     'admin.settings.loadFailed': 'Failed to load admin account.',
+    'admin.landing.title': 'Landing',
+    'admin.landing.subtitle': 'Manage public pricing and contact details',
+    'admin.leads.title': 'Requests',
+    'admin.leads.subtitle': 'Requests submitted through the landing form',
 });
 
 Object.assign(ru, {

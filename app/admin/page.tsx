@@ -59,10 +59,7 @@ import {
     CheckCircle,
     Key,
     Trash2,
-    Settings,
-    LogOut,
 } from 'lucide-react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
     INPUT_LIMITS,
@@ -73,8 +70,7 @@ import {
 import { truncateForUi } from '@/lib/utils';
 import { useI18n } from '@/components/providers/i18n-provider';
 import { formatLocalizedDate } from '@/lib/i18n/date';
-import { LanguageSwitcher } from '@/components/layout/language-switcher';
-import { Brand } from '@/components/branding/brand';
+import { AdminHeader } from '@/components/admin/admin-header';
 
 interface CreateDentistForm {
     name: string;
@@ -481,30 +477,11 @@ export default function AdminDashboardPage() {
 
     return (
         <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(219,234,254,0.55),transparent_34rem),linear-gradient(180deg,#f8fbff_0%,#f8fafc_42%,#f1f5f9_100%)]">
-            <header className="sticky top-0 z-10 border-b border-blue-100/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(248,251,255,0.94)_100%)] shadow-sm shadow-slate-200/40 backdrop-blur-xl">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                    <div className="flex min-h-16 flex-col gap-3 py-2 sm:flex-row sm:items-center sm:justify-between">
-                        <Brand href="/admin" variant="text" priority textClassName="w-32 sm:w-36" />
-                        <div className="flex flex-wrap items-center gap-2">
-                            <LanguageSwitcher variant="compact" />
-                            <Button variant="outline" className="rounded-2xl bg-white/80 shadow-sm shadow-slate-200/60" asChild>
-                                <Link href="/admin/settings">
-                                    <Settings className="w-4 h-4 mr-2" />
-                                    {t('menu.settings')}
-                                </Link>
-                            </Button>
-                            <Button
-                                variant="outline"
-                                className="rounded-2xl bg-white/80 shadow-sm shadow-slate-200/60"
-                                onClick={() => logoutMutation.mutate()}
-                            >
-                                <LogOut className="w-4 h-4 mr-2" />
-                                {logoutMutation.isPending ? t('menu.loggingOut') : t('menu.logout')}
-                            </Button>
-                        </div>
-                    </div>
-                </div>
-            </header>
+            <AdminHeader
+                active="dashboard"
+                isLoggingOut={logoutMutation.isPending}
+                onLogout={() => logoutMutation.mutate()}
+            />
 
             <div className="p-4 sm:p-6 lg:p-8">
                 <div className="max-w-7xl mx-auto space-y-8">
