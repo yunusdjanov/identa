@@ -822,7 +822,7 @@ export default function AdminDashboardPage() {
                 </div>
 
                 <Dialog open={showCreateModal} onOpenChange={handleCreateModalOpenChange}>
-                    <DialogContent>
+                    <DialogContent className="max-h-[calc(100dvh-1.5rem)] overflow-y-auto p-5 sm:p-6">
                         <DialogHeader>
                             <DialogTitle>{t('admin.createAccountTitle')}</DialogTitle>
                         </DialogHeader>
@@ -929,7 +929,7 @@ export default function AdminDashboardPage() {
                                 ) : null}
                             </div>
 
-                            <div className="flex gap-3 pt-4">
+                            <div className="flex flex-col-reverse gap-3 pt-4 sm:flex-row">
                                 <Button
                                     type="button"
                                     variant="outline"
@@ -961,7 +961,7 @@ export default function AdminDashboardPage() {
                         setSubscriptionForm(createEmptySubscriptionForm());
                     }}
                 >
-                    <DialogContent className="sm:max-w-lg">
+                    <DialogContent className="max-h-[calc(100dvh-1.5rem)] overflow-y-auto p-5 sm:max-w-lg sm:p-6">
                         <DialogHeader>
                             <DialogTitle>
                                 {subscriptionDialog
@@ -1075,7 +1075,7 @@ export default function AdminDashboardPage() {
                                 />
                             </div>
 
-                            <div className="flex gap-3 pt-2">
+                            <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row">
                                 <Button
                                     type="button"
                                     variant="outline"
@@ -1121,7 +1121,7 @@ export default function AdminDashboardPage() {
                         });
                     }}
                 >
-                    <DialogContent>
+                    <DialogContent className="max-h-[calc(100dvh-1.5rem)] overflow-y-auto p-5 sm:p-6">
                         <DialogHeader>
                             <DialogTitle>
                                 {resetPasswordTarget
@@ -1202,7 +1202,7 @@ export default function AdminDashboardPage() {
                                 ) : null}
                             </div>
 
-                            <div className="flex gap-3 pt-4">
+                            <div className="flex flex-col-reverse gap-3 pt-4 sm:flex-row">
                                 <Button
                                     type="button"
                                     variant="outline"

@@ -94,13 +94,13 @@ export function PatientPhotoPreviewDialog({
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent
                 showCloseButton={false}
-                className="grid h-[min(88vh,720px)] max-h-[88vh] w-[min(92vw,920px)] max-w-[calc(100vw-2rem)] grid-rows-[auto_minmax(0,1fr)] gap-0 overflow-hidden rounded-2xl border border-slate-200 bg-white p-0 text-slate-900 shadow-2xl sm:max-w-[920px]"
+                className="grid h-[min(88dvh,720px)] max-h-[calc(100dvh-1.5rem)] w-[min(94vw,920px)] max-w-[calc(100vw-1rem)] grid-rows-[auto_minmax(0,1fr)] gap-0 overflow-hidden rounded-[1.75rem] border border-slate-200/90 bg-white/96 p-0 text-slate-900 shadow-[0_30px_90px_-42px_rgba(15,23,42,0.58)] sm:max-w-[920px]"
             >
-                <div className="flex min-w-0 items-center gap-3 border-b border-slate-100 px-5 py-4">
+                <div className="flex min-w-0 items-center gap-3 border-b border-slate-100 bg-gradient-to-br from-white via-white to-blue-50/45 px-5 py-4">
                     <DialogTitle className="min-w-0 flex-1 truncate text-lg font-semibold tracking-tight text-slate-900">
                         {activeImage?.title ?? title}
                     </DialogTitle>
-                    <DialogClose className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 transition-colors hover:bg-slate-50 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-200">
+                    <DialogClose className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-slate-200/90 bg-white/90 text-slate-500 shadow-xs transition hover:-translate-y-0.5 hover:border-blue-100 hover:bg-blue-50 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-100">
                         <X className="h-4 w-4" />
                         <span className="sr-only">Close</span>
                     </DialogClose>
@@ -110,7 +110,7 @@ export function PatientPhotoPreviewDialog({
                 </DialogDescription>
                 {activeImage ? (
                     <div className="flex min-h-0 flex-col px-5 py-4">
-                        <div className="relative flex min-h-0 min-w-0 flex-1 items-center justify-center overflow-hidden rounded-xl bg-slate-50 p-3">
+                        <div className="relative flex min-h-0 min-w-0 flex-1 items-center justify-center overflow-hidden rounded-[1.35rem] border border-slate-100 bg-slate-50/80 p-3">
                             {canNavigate ? (
                                 <>
                                     <button
@@ -158,9 +158,9 @@ export function PatientPhotoPreviewDialog({
                                             <button
                                                 key={`${image.src}-${index}`}
                                                 type="button"
-                                                className={`inline-flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-md border transition-colors ${
+                                                className={`inline-flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-xl border bg-white shadow-xs transition-colors ${
                                                     index === currentIndex
-                                                        ? 'border-blue-300 ring-1 ring-blue-100'
+                                                        ? 'border-blue-300 ring-2 ring-blue-100'
                                                         : 'border-slate-200 hover:border-slate-300'
                                                 }`}
                                                 onClick={() => updateCurrentIndex(index)}

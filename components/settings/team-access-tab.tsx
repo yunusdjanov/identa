@@ -1025,7 +1025,7 @@ export function TeamAccessTab({ canManageTeam, subscription, t }: TeamAccessTabP
                     setResetPasswordConfirmation('');
                 }}
             >
-                <DialogContent className="max-w-md">
+                <DialogContent className="max-h-[calc(100dvh-1.5rem)] max-w-md overflow-y-auto p-5 sm:p-6">
                     <DialogHeader>
                         <DialogTitle>{t('settings.team.resetPassword')}</DialogTitle>
                     </DialogHeader>

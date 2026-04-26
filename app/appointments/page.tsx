@@ -1391,24 +1391,26 @@ export default function AppointmentsPage() {
                     }
                 }}
             >
-            <DialogContent className="flex max-h-[86vh] flex-col overflow-hidden sm:max-w-xl">
-                    <DialogHeader>
-                        <DialogTitle>
-                            {expandedWeekDescriptor
-                                ? t('appointments.dayQueueTitle', { date: expandedWeekDescriptor.fullDateLabel })
-                                : t('appointments.moreAppointments')}
-                        </DialogTitle>
-                        <DialogDescription>
-                            {t('appointments.dayQueueDescription')}
-                        </DialogDescription>
-                    </DialogHeader>
-                    <div className="min-h-0 flex-1 overflow-y-auto pr-1" data-testid="week-day-queue-modal">
+                <DialogContent className="flex max-h-[calc(100dvh-1.5rem)] flex-col overflow-hidden p-0 sm:max-w-xl">
+                    <div className="border-b border-slate-100 bg-gradient-to-br from-white via-white to-blue-50/45 px-5 pb-4 pt-5 sm:px-6 sm:pt-6">
+                        <DialogHeader>
+                            <DialogTitle>
+                                {expandedWeekDescriptor
+                                    ? t('appointments.dayQueueTitle', { date: expandedWeekDescriptor.fullDateLabel })
+                                    : t('appointments.moreAppointments')}
+                            </DialogTitle>
+                            <DialogDescription>
+                                {t('appointments.dayQueueDescription')}
+                            </DialogDescription>
+                        </DialogHeader>
+                    </div>
+                    <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4 sm:px-6" data-testid="week-day-queue-modal">
                         {expandedWeekAppointments.length === 0 ? (
-                            <div className="flex min-h-[12rem] items-center justify-center rounded-lg border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">
+                            <div className="flex min-h-[12rem] items-center justify-center rounded-2xl border border-dashed border-blue-100 bg-blue-50/40 px-4 py-8 text-center text-sm text-slate-500">
                                 {t('appointments.noAppointments')}
                             </div>
                         ) : (
-                            <div className="space-y-2">
+                            <div className="space-y-2.5">
                                 {expandedWeekAppointments.map((appointment) => {
                                     const isExpanded = editingWeekAppointmentId === appointment.id && weekInlineEditFormData !== null;
                                     const inlineAvailableStartTimes = isExpanded
@@ -1437,17 +1439,17 @@ export default function AppointmentsPage() {
                                     return (
                                         <div
                                             key={appointment.id}
-                                            className={`rounded-lg border-l-4 px-3 py-2.5 ${getAppointmentCardClass(appointment.status)}`}
+                                            className={`interactive-card rounded-2xl border border-l-4 px-3.5 py-3 shadow-sm ${getAppointmentCardClass(appointment.status)}`}
                                         >
                                             <div
                                                 className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-2"
                                                 data-testid={`week-modal-appointment-${appointment.id}`}
                                             >
                                                 <div className="min-w-0 flex-1">
-                                                    <p className="text-xs font-semibold text-slate-900">
+                                                    <p className="inline-flex rounded-full bg-white/80 px-2 py-0.5 text-[11px] font-semibold text-slate-700 shadow-xs">
                                                         {appointment.startTime} - {appointment.endTime}
                                                     </p>
-                                                    <p className="truncate text-sm font-semibold text-slate-900 leading-tight" title={appointment.patientName}>
+                                                    <p className="mt-1 truncate text-sm font-bold text-slate-950 leading-tight" title={appointment.patientName}>
                                                         {truncateForUi(appointment.patientName, APPOINTMENT_MODAL_NAME_UI_LIMIT)}
                                                     </p>
                                                     <p className="truncate text-[11px] text-slate-600 leading-tight" title={appointment.reason || t('appointments.general')}>
@@ -1462,7 +1464,7 @@ export default function AppointmentsPage() {
                                                         type="button"
                                                         size="icon"
                                                         variant="outline"
-                                                        className="h-8 w-8"
+                                                        className="h-8 w-8 rounded-full bg-white/90"
                                                         onClick={() => openWeekInlineEditor(appointment)}
                                                         disabled={appointment.status !== 'scheduled'}
                                                         aria-label={t('appointments.edit')}
@@ -1474,7 +1476,7 @@ export default function AppointmentsPage() {
                                                         type="button"
                                                         size="icon"
                                                         variant="destructive"
-                                                        className="h-8 w-8"
+                                                        className="h-8 w-8 rounded-full shadow-sm shadow-red-100/60"
                                                         onClick={() => openDeleteDialog(appointment)}
                                                         disabled={deleteMutation.isPending}
                                                         aria-label={t('appointments.delete')}
@@ -1652,10 +1654,10 @@ export default function AppointmentsPage() {
                             </div>
                         )}
                     </div>
-                    <DialogFooter className="border-t border-slate-200 pt-3 sm:justify-end">
+                    <DialogFooter className="border-t border-slate-100 bg-slate-50/80 px-5 py-4 sm:justify-end sm:px-6">
                         <Button
                             type="button"
-                            className="h-9 w-full px-4 sm:w-auto sm:min-w-[10rem]"
+                            className="h-10 w-full rounded-xl px-4 shadow-sm sm:w-auto sm:min-w-[10rem]"
                             disabled={!expandedWeekDescriptor}
                             onClick={() => {
                                 if (expandedWeekDescriptor) {

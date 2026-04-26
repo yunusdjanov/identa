@@ -32,7 +32,7 @@ describe('PatientPhotoPreviewDialog', () => {
             />
         );
 
-        expect(screen.getByRole('dialog').className).toContain('h-[min(88vh,720px)]');
+        expect(screen.getByRole('dialog').className).toContain('h-[min(88dvh,720px)]');
         expect(screen.getByRole('heading', { name: 'Image 1' })).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Close' })).toBeInTheDocument();
         expect(screen.getByText('1 / 10')).toBeInTheDocument();
