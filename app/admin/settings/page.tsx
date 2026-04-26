@@ -24,8 +24,8 @@ function AdminSettingsLoadingSkeleton() {
                     <Skeleton className="h-10 w-80 rounded-2xl" />
                 </div>
             </div>
-            <main className="p-4 sm:p-6 lg:p-8">
-                <div className="mx-auto max-w-5xl space-y-8">
+            <main className="p-4 sm:p-5 lg:p-6">
+                <div className="mx-auto max-w-5xl space-y-5 lg:space-y-6">
                     <div className="space-y-2">
                         <Skeleton className="h-9 w-64" />
                         <Skeleton className="h-4 w-72" />
@@ -99,8 +99,8 @@ export default function AdminSettingsPage() {
                 onLogout={() => logoutMutation.mutate()}
             />
 
-            <main className="p-4 sm:p-6 lg:p-8">
-                <div className="mx-auto max-w-5xl space-y-8">
+        <main className="p-4 sm:p-5 lg:p-6">
+            <div className="mx-auto max-w-5xl space-y-5 lg:space-y-6">
                     <PageHeader title={t('admin.settings.title')} description={t('admin.settings.subtitle')} />
 
                     {authQuery.isError || !authQuery.data ? (

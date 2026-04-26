@@ -91,7 +91,7 @@ function getPatientInitials(fullName: string): string {
 
 function PatientsLoadingSkeleton() {
     return (
-        <div className="space-y-8">
+        <div className="space-y-5 lg:space-y-6">
             <div className="flex justify-between items-center">
                 <div className="space-y-2">
                     <Skeleton className="h-9 w-36" />
@@ -281,7 +281,7 @@ export default function PatientsPage() {
     }
 
     return (
-        <div className="space-y-8">
+        <div className="space-y-5 lg:space-y-6">
             <PageHeader
                 title={t('patients.title')}
                 description={t('patients.subtitle')}

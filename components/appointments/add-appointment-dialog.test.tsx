@@ -369,7 +369,7 @@ describe('AddAppointmentDialog', () => {
         });
     });
 
-    it('blocks submission when selected slot overlaps with existing appointments', async () => {
+    it('moves a booked prefilled slot to the next available time before submission', async () => {
         const user = userEvent.setup();
         const queryClient = new QueryClient({
             defaultOptions: {
@@ -423,8 +423,15 @@ describe('AddAppointmentDialog', () => {
         await user.click(submitButtons[submitButtons.length - 1]);
 
         await waitFor(() => {
-            expect(vi.mocked(createAppointment)).not.toHaveBeenCalled();
-            expect(vi.mocked(toast.error)).toHaveBeenCalledWith(
+            expect(vi.mocked(createAppointment)).toHaveBeenCalledWith({
+                patient_id: 'patient-fallback',
+                appointment_date: '2099-01-01',
+                start_time: '10:00',
+                end_time: '10:30',
+                status: 'scheduled',
+                reason: undefined,
+            });
+            expect(vi.mocked(toast.error)).not.toHaveBeenCalledWith(
                 'Choose an available time.'
             );
         });

@@ -53,8 +53,8 @@ export default function AdminLandingPage() {
                 onLogout={() => logoutMutation.mutate()}
             />
 
-            <main className="p-4 sm:p-6 lg:p-8">
-                <div className="mx-auto max-w-5xl space-y-8">
+            <main className="p-4 sm:p-5 lg:p-6">
+                <div className="mx-auto max-w-5xl space-y-5 lg:space-y-6">
                     <PageHeader title={t('admin.landing.title')} description={t('admin.landing.subtitle')} />
 
                     {authQuery.isError ? (

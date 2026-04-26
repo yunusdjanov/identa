@@ -177,7 +177,7 @@ function ToothCell({
 }) {
     return (
         <div
-            className={`flex h-9 w-full items-center justify-center rounded-md border text-xs font-semibold transition-colors ${
+            className={`flex h-8 w-full items-center justify-center rounded-md border text-xs font-semibold transition-colors ${
                 selected
                     ? 'border-blue-300 bg-blue-50 text-blue-700'
                     : 'border-gray-200 bg-white text-gray-600'
@@ -209,7 +209,7 @@ function HistoryImageTile({
 }) {
     return (
         <div
-            className={`group relative h-16 w-16 overflow-hidden rounded-lg border bg-white shadow-sm transition-all ${
+            className={`group relative h-14 w-14 overflow-hidden rounded-lg border bg-white shadow-sm transition-all ${
                 markedForRemoval
                     ? 'border-red-200 opacity-70 ring-1 ring-red-100'
                     : isNew
@@ -1040,13 +1040,13 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
             </Card>
 
             <Dialog open={isDialogOpen} onOpenChange={handleDialogOpenChange}>
-                <DialogContent className="max-h-[92vh] w-[min(96vw,1040px)] max-w-[1040px] overflow-x-hidden overflow-y-auto">
+                <DialogContent className="grid max-h-[calc(100dvh-1.5rem)] w-[min(96vw,980px)] max-w-[980px] grid-rows-[auto_minmax(0,1fr)_auto] gap-3 overflow-hidden p-4 sm:p-5">
                     <DialogHeader>
                         <DialogTitle>{editingTreatment ? t('patientHistory.editEntry') : t('patientHistory.addEntry')}</DialogTitle>
                         <DialogDescription>{editingTreatment ? t('patientHistory.editDescription', { patientName }) : t('patientHistory.addDescription', { patientName })}</DialogDescription>
                     </DialogHeader>
-                    <div className="space-y-4">
-                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                    <div className="min-h-0 space-y-3 overflow-y-auto pr-1">
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                             <div className="space-y-2">
                                 <Label htmlFor="historyDate">{t('patientHistory.table.date')}</Label>
                                 <Input id="historyDate" type="date" value={formState.treatmentDate} onChange={(event) => setFormState((current) => ({ ...current, treatmentDate: event.target.value }))} />
@@ -1060,10 +1060,10 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                         </div>
                         <div className="space-y-2">
                             <Label>{t('patientHistory.teethLabel')}</Label>
-                            <div className="rounded-xl border border-gray-200 bg-gray-50/60 p-2.5">
-                                <div className="space-y-2">
+                            <div className="rounded-xl border border-gray-200 bg-gray-50/60 p-2">
+                                <div className="space-y-1.5">
                                     <div>
-                                        <p className="mb-2 text-[11px] font-medium uppercase tracking-wide text-gray-500">{t('odontogram.upperJaw')}</p>
+                                        <p className="mb-1.5 text-[11px] font-medium uppercase tracking-wide text-gray-500">{t('odontogram.upperJaw')}</p>
                                         <div className="pb-1">
                                             <div className="grid grid-cols-[repeat(16,minmax(0,1fr))] gap-1">
                                             {UPPER_TEETH.map((toothNumber) => {
@@ -1093,7 +1093,7 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                     </div>
                                     <div className="border-t border-gray-200" />
                                     <div>
-                                        <p className="mb-2 text-[11px] font-medium uppercase tracking-wide text-gray-500">{t('odontogram.lowerJaw')}</p>
+                                        <p className="mb-1.5 text-[11px] font-medium uppercase tracking-wide text-gray-500">{t('odontogram.lowerJaw')}</p>
                                         <div className="pb-1">
                                             <div className="grid grid-cols-[repeat(16,minmax(0,1fr))] gap-1">
                                             {LOWER_TEETH.map((toothNumber) => {
@@ -1125,7 +1125,7 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                             </div>
                             <p className="text-xs text-gray-500">{t('patientHistory.teethHint')}</p>
                         </div>
-                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                             <div className="space-y-2">
                                 <Label htmlFor="historyDebt">{t('patientHistory.table.debt')}</Label>
                                 <Input id="historyDebt" type="number" min="0" step="0.01" value={formState.debtAmount} onChange={(event) => setFormState((current) => ({ ...current, debtAmount: event.target.value }))} placeholder="0" />
@@ -1136,8 +1136,8 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                             </div>
                         </div>
                         {amountError ? <p className="text-xs text-red-600">{amountError}</p> : null}
-                        <div className="rounded-xl border border-gray-200 bg-gray-50/40 p-3">
-                            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="rounded-xl border border-gray-200 bg-gray-50/40 p-2.5">
+                            <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
                                 <div className="min-w-0">
                                     <Label htmlFor="historyImages">{t('patientHistory.images')}</Label>
                                     <p className="mt-1 text-xs text-gray-500">
@@ -1161,7 +1161,7 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                 </Label>
                             </div>
 
-                            <div className="mt-3 flex flex-wrap gap-2">
+                            <div className="mt-2 flex max-h-36 flex-wrap gap-2 overflow-y-auto pr-1">
                                 {isEditingImagePanelLoading ? (
                                     Array.from({ length: Math.min(editingTreatment ? getTreatmentImageCount(editingTreatment) : 0, 4) }).map((_, index) => (
                                         <Skeleton key={`image-loading-${index}`} className="h-16 w-16 rounded-lg" />
@@ -1233,7 +1233,7 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                             {maxImagesError ? <p className="mt-2 text-xs text-red-600">{maxImagesError}</p> : null}
                         </div>
                     </div>
-                    <DialogFooter>
+                    <DialogFooter className="border-t border-slate-100 pt-3">
                         <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)} disabled={saveTreatmentMutation.isPending || isPreparingImages}>{t('common.cancel')}</Button>
                         <Button type="button" onClick={handleSubmit} disabled={saveTreatmentMutation.isPending || isPreparingImages}>{saveTreatmentMutation.isPending ? t('common.saving') : isPreparingImages ? t('common.loading') : t('common.saveChanges')}</Button>
                     </DialogFooter>

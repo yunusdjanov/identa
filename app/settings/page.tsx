@@ -106,7 +106,7 @@ function getSubscriptionBadgeClass(status: ApiSubscriptionSummary['status']): st
 
 function SettingsLoadingSkeleton() {
     return (
-        <div className="space-y-8">
+        <div className="space-y-5 lg:space-y-6">
             <div className="space-y-2">
                 <Skeleton className="h-9 w-40" />
                 <Skeleton className="h-4 w-64" />
@@ -324,7 +324,7 @@ export default function SettingsPage() {
     }
 
     return (
-        <div className="space-y-8">
+        <div className="space-y-5 lg:space-y-6">
             <PageHeader title={t('settings.title')} description={t('settings.subtitle')} />
 
             {isDentist ? (

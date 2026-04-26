@@ -156,8 +156,8 @@ function AdminDashboardLoadingSkeleton() {
                 </div>
             </header>
 
-            <div className="p-4 sm:p-6 lg:p-8">
-                <div className="max-w-7xl mx-auto space-y-8">
+        <div className="p-4 sm:p-5 lg:p-6">
+            <div className="max-w-7xl mx-auto space-y-5 lg:space-y-6">
                     <div className="space-y-2">
                         <Skeleton className="h-9 w-72" />
                         <Skeleton className="h-4 w-80" />
@@ -464,7 +464,7 @@ export default function AdminDashboardPage() {
 
     if (accountsQuery.isError) {
         return (
-            <div className="p-8 space-y-4">
+            <div className="space-y-4 p-5 lg:p-6">
                 <p className="text-sm text-red-600">
                     {getApiErrorMessage(accountsQuery.error, t('admin.error.loadAccountsFailed'))}
                 </p>
@@ -483,8 +483,8 @@ export default function AdminDashboardPage() {
                 onLogout={() => logoutMutation.mutate()}
             />
 
-            <div className="p-4 sm:p-6 lg:p-8">
-                <div className="max-w-7xl mx-auto space-y-8">
+        <div className="p-4 sm:p-5 lg:p-6">
+            <div className="max-w-7xl mx-auto space-y-5 lg:space-y-6">
                     <PageHeader title={t('admin.dashboardTitle')} description={t('admin.dashboardSubtitle')} />
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

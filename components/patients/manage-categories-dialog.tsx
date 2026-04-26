@@ -209,7 +209,7 @@ export function ManageCategoriesDialog({ open, onOpenChange }: ManageCategoriesD
     return (
         <>
             <Dialog open={open} onOpenChange={handleDialogOpenChange}>
-                <DialogContent className="flex max-h-[90vh] max-w-2xl flex-col overflow-hidden">
+        <DialogContent className="flex max-h-[calc(100dvh-1.5rem)] max-w-2xl flex-col overflow-hidden p-5 sm:p-6">
                     <DialogHeader className="shrink-0">
                         <DialogTitle>{t('patients.categories.manageTitle')}</DialogTitle>
                         <DialogDescription>

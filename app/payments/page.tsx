@@ -64,7 +64,7 @@ type PaymentsTab = 'patients' | 'history';
 
 function PaymentsLoadingSkeleton() {
     return (
-        <div className="space-y-8">
+        <div className="space-y-5 lg:space-y-6">
             <div className="space-y-2">
                 <Skeleton className="h-9 w-72" />
                 <Skeleton className="h-4 w-80" />
@@ -382,7 +382,7 @@ export default function PaymentsPage() {
     }
 
     return (
-        <div className="space-y-8">
+        <div className="space-y-5 lg:space-y-6">
             <PageHeader title={t('payments.title')} description={t('payments.subtitle')} />
 
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">

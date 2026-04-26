@@ -61,7 +61,7 @@ function getPatientInitials(fullName: string): string {
 
 function PatientDetailLoadingSkeleton() {
     return (
-        <div className="space-y-8">
+        <div className="space-y-5 lg:space-y-6">
             <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-4">
                     <Skeleton className="h-9 w-9" />
@@ -251,7 +251,7 @@ export default function PatientDetailPage({
         : patient.photo_thumbnail_url ?? patient.photo_preview_url ?? undefined;
 
     return (
-        <div className="space-y-8">
+        <div className="space-y-5 lg:space-y-6">
             <div className="flex flex-col gap-4 rounded-[1.75rem] border border-white/80 bg-gradient-to-br from-white via-blue-50/55 to-white p-5 shadow-sm shadow-slate-200/70 sm:p-6 xl:flex-row xl:items-start xl:justify-between">
                 <div className="flex min-w-0 items-start gap-4">
                     <Button variant="ghost" size="icon" onClick={() => router.push('/patients')}>

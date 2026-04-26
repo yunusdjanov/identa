@@ -175,7 +175,7 @@ export function ToothDetailDialog({
     return (
         <>
             <Dialog open={open} onOpenChange={onOpenChange}>
-                <DialogContent className="h-auto max-h-[90vh] w-[min(96vw,1040px)] max-w-[1040px] overflow-x-hidden overflow-y-auto sm:max-w-[1040px]">
+        <DialogContent className="h-auto max-h-[calc(100dvh-1.5rem)] w-[min(96vw,1040px)] max-w-[1040px] overflow-x-hidden overflow-y-auto p-5 sm:max-w-[1040px] sm:p-6">
                     <DialogHeader>
                         <DialogTitle>{t('odontogram.toothTitle', { toothNumber })}</DialogTitle>
                         <DialogDescription>{t('patientHistory.subtitle')}</DialogDescription>

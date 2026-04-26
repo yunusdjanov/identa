@@ -19,7 +19,7 @@ import { useI18n } from '@/components/providers/i18n-provider';
 
 function OdontogramLoadingSkeleton() {
     return (
-        <div className="space-y-8">
+        <div className="space-y-5 lg:space-y-6">
             <div className="flex items-center space-x-4">
                 <Skeleton className="h-9 w-9" />
                 <div className="space-y-2">
@@ -180,7 +180,7 @@ export default function OdontogramPage({
     };
 
     return (
-        <div className="space-y-8">
+        <div className="space-y-5 lg:space-y-6">
             <PageHeader
                 title={t('odontogram.title')}
                 description={patientQuery.data.full_name}
@@ -197,7 +197,7 @@ export default function OdontogramPage({
                     <CardTitle>{t('odontogram.chartTitle')}</CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <div className="space-y-8">
+        <div className="space-y-5 lg:space-y-6">
                         <div className="space-y-2">
                             <p className="text-sm font-medium text-gray-600 text-center">{t('odontogram.upperJaw')}</p>
                             <div className="flex justify-center space-x-4 sm:space-x-6 md:space-x-8">

@@ -35,7 +35,7 @@ import {
     type AppointmentWorkingHours,
     type NormalizedAppointmentWorkingHours,
 } from '@/lib/appointments/time-slots';
-import type { ApiPatient } from '@/lib/api/types';
+import type { ApiAppointment, ApiCollectionEnvelope, ApiPatient } from '@/lib/api/types';
 import { useI18n } from '@/components/providers/i18n-provider';
 import { AppointmentTimePicker } from '@/components/appointments/appointment-time-picker';
 
@@ -204,6 +204,47 @@ function getAvailableStartTimes(
     });
 }
 
+function upsertAppointmentInCollection(
+    collection: ApiCollectionEnvelope<ApiAppointment> | undefined,
+    appointment: ApiAppointment
+): ApiCollectionEnvelope<ApiAppointment> | undefined {
+    if (!collection) {
+        return collection;
+    }
+
+    const nextItems = collection.data.some((item) => item.id === appointment.id)
+        ? collection.data.map((item) => (item.id === appointment.id ? appointment : item))
+        : [...collection.data, appointment];
+
+    nextItems.sort((a, b) => {
+        const dateCompare = a.appointment_date.localeCompare(b.appointment_date);
+        if (dateCompare !== 0) {
+            return dateCompare;
+        }
+
+        return a.start_time.localeCompare(b.start_time);
+    });
+
+    return {
+        ...collection,
+        data: nextItems,
+    };
+}
+
+function removeAppointmentFromCollection(
+    collection: ApiCollectionEnvelope<ApiAppointment> | undefined,
+    appointmentId: string
+): ApiCollectionEnvelope<ApiAppointment> | undefined {
+    if (!collection) {
+        return collection;
+    }
+
+    return {
+        ...collection,
+        data: collection.data.filter((item) => item.id !== appointmentId),
+    };
+}
+
 export function AddAppointmentDialog({
     open,
     onOpenChange,
@@ -286,13 +327,18 @@ export function AddAppointmentDialog({
         includeStartTime: editingAppointment?.startTime,
     });
     const isSelectedTimeAvailable = availableStartTimes.includes(formData.startTime);
+    const hasLoadedAvailability = !dayAppointmentsQuery.isLoading && !dayAppointmentsQuery.isFetching;
+    const effectiveStartTime = hasLoadedAvailability && !isSelectedTimeAvailable
+        ? availableStartTimes[0] ?? formData.startTime
+        : formData.startTime;
+    const isEffectiveTimeAvailable = availableStartTimes.includes(effectiveStartTime);
     const reasonError = formData.reason.trim().length > INPUT_LIMITS.shortText
         ? t('appointments.dialog.reasonMax', { max: INPUT_LIMITS.shortText })
         : null;
-    const timeError = !isValidTimeInput(formData.startTime)
+    const timeError = !isValidTimeInput(effectiveStartTime)
         ? t('appointments.dialog.timeInvalid')
         : null;
-    const slotError = !dayAppointmentsQuery.isLoading && !dayAppointmentsQuery.isFetching && !isSelectedTimeAvailable
+    const slotError = hasLoadedAvailability && !isEffectiveTimeAvailable
         ? t('appointments.dialog.timeUnavailable')
         : null;
 
@@ -323,7 +369,7 @@ export function AddAppointmentDialog({
 
     const mutation = useMutation({
         mutationFn: () => {
-            const endTime = resolveAppointmentEndTime(formData.startTime, formData.durationMinutes);
+            const endTime = resolveAppointmentEndTime(effectiveStartTime, formData.durationMinutes);
             if (!endTime) {
                 throw new Error(t('appointments.toast.endOfDay'));
             }
@@ -333,7 +379,7 @@ export function AddAppointmentDialog({
                 return updateAppointment(editingAppointment.id, {
                     patient_id: formData.patientId,
                     appointment_date: formData.appointmentDate,
-                    start_time: formData.startTime,
+                    start_time: effectiveStartTime,
                     end_time: endTime,
                     status: formData.status,
                     reason: reasonPayload,
@@ -343,14 +389,24 @@ export function AddAppointmentDialog({
             return createAppointment({
                 patient_id: formData.patientId,
                 appointment_date: formData.appointmentDate,
-                start_time: formData.startTime,
+                start_time: effectiveStartTime,
                 end_time: endTime,
                 status: 'scheduled',
                 reason: reasonPayload,
             });
         },
-        onSuccess: () => {
+        onSuccess: (savedAppointment) => {
             toast.success(isEditing ? t('appointments.dialog.toast.updated') : t('appointments.dialog.toast.scheduled'));
+            if (editingAppointment && editingAppointment.appointmentDate !== savedAppointment.appointment_date) {
+                queryClient.setQueryData<ApiCollectionEnvelope<ApiAppointment>>(
+                    ['appointments', 'availability', editingAppointment.appointmentDate],
+                    (current) => removeAppointmentFromCollection(current, savedAppointment.id)
+                );
+            }
+            queryClient.setQueryData<ApiCollectionEnvelope<ApiAppointment>>(
+                ['appointments', 'availability', savedAppointment.appointment_date],
+                (current) => upsertAppointmentInCollection(current, savedAppointment)
+            );
             setFormData(createInitialFormData(prefillDate, prefillStartTime, prefillPatientId, editingAppointment, normalizedWorkingHours));
             setPatientSearch(editingAppointment?.patientName ?? '');
             setDebouncedPatientSearch(editingAppointment?.patientName ?? '');
@@ -390,14 +446,14 @@ export function AddAppointmentDialog({
             return;
         }
 
-        const endTime = resolveAppointmentEndTime(formData.startTime, formData.durationMinutes);
+        const endTime = resolveAppointmentEndTime(effectiveStartTime, formData.durationMinutes);
         if (!endTime) {
             toast.error(t('appointments.toast.endOfDay'));
             return;
         }
 
         const hasConflict = hasAppointmentConflict(dayAppointments, {
-            startTime: formData.startTime,
+            startTime: effectiveStartTime,
             endTime,
             status: formData.status,
             ignoreAppointmentId: editingAppointment?.id,
@@ -561,7 +617,7 @@ export function AddAppointmentDialog({
                             </Label>
                             <AppointmentTimePicker
                                 id="time"
-                                value={formData.startTime}
+                                value={effectiveStartTime}
                                 onValueChange={(value) => setFormData({ ...formData, startTime: value })}
                                 disabled={dayAppointmentsQuery.isLoading || availableStartTimes.length === 0}
                                 options={availableStartTimes}

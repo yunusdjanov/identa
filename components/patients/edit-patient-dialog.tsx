@@ -193,7 +193,7 @@ export function EditPatientDialog({ open, onOpenChange, patient }: EditPatientDi
     };
     return (
         <Dialog open={open} onOpenChange={handleDialogOpenChange}>
-            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-h-[calc(100dvh-1.5rem)] max-w-2xl overflow-y-auto p-5 sm:p-6">
                 <DialogHeader>
                     <DialogTitle>{t('patientDetail.editPatient')}</DialogTitle>
                     <DialogDescription>
