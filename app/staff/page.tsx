@@ -1,5 +1,6 @@
 'use client';
 
+import { useSyncExternalStore } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Users, History } from 'lucide-react';
@@ -15,6 +16,37 @@ import { AuditLogsTab } from '@/components/settings/audit-logs-tab';
 import { useI18n } from '@/components/providers/i18n-provider';
 
 type TeamTab = 'access' | 'logs';
+
+const STAFF_ACTIVE_TAB_STORAGE_KEY = 'identa.staff.activeTab';
+const noopSubscribe = () => () => undefined;
+
+function parseTeamTab(value: string | null): TeamTab | null {
+    return value === 'access' || value === 'logs' ? value : null;
+}
+
+function getStoredTeamTab(): TeamTab | null {
+    if (typeof window === 'undefined') {
+        return null;
+    }
+
+    try {
+        return parseTeamTab(window.localStorage.getItem(STAFF_ACTIVE_TAB_STORAGE_KEY));
+    } catch {
+        return null;
+    }
+}
+
+function setStoredTeamTab(tab: TeamTab) {
+    if (typeof window === 'undefined') {
+        return;
+    }
+
+    try {
+        window.localStorage.setItem(STAFF_ACTIVE_TAB_STORAGE_KEY, tab);
+    } catch {
+        // Storage can be unavailable in some private browsing modes; URL state still works.
+    }
+}
 
 function TeamLoadingSkeleton() {
     return (
@@ -49,7 +81,8 @@ export default function StaffPage() {
     const router = useRouter();
     const pathname = usePathname();
     const searchParams = useSearchParams();
-    const requestedTab = searchParams.get('tab');
+    const requestedTab = parseTeamTab(searchParams.get('tab'));
+    const storedTab = useSyncExternalStore(noopSubscribe, getStoredTeamTab, () => null);
 
     const currentUserQuery = useQuery({
         queryKey: ['auth', 'me'],
@@ -65,16 +98,12 @@ export default function StaffPage() {
         currentUser && (isDentist || assistantPermissions.has('audit_logs.view'))
     );
 
-    const activeTab: TeamTab = requestedTab === 'logs' ? 'logs' : 'access';
+    const activeTab: TeamTab = requestedTab ?? storedTab ?? 'access';
 
     const updateActiveTab = (nextTab: TeamTab) => {
+        setStoredTeamTab(nextTab);
         const params = new URLSearchParams(searchParams.toString());
-        if (nextTab === 'logs') {
-            params.set('tab', 'logs');
-        }
-        else {
-            params.delete('tab');
-        }
+        params.set('tab', nextTab);
 
         const nextSearch = params.toString();
         router.replace(nextSearch ? `${pathname}?${nextSearch}` : pathname, { scroll: false });
