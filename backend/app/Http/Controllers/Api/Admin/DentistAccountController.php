@@ -120,6 +120,23 @@ class DentistAccountController extends Controller
         ], 201);
     }
 
+    public function staff(string $id): JsonResponse
+    {
+        $dentist = $this->findDentist($id, true);
+
+        $staff = $dentist->assistants()
+            ->orderBy('account_status')
+            ->orderBy('name')
+            ->get();
+
+        return response()->json([
+            'data' => $staff
+                ->map(fn (User $assistant): array => $this->transformAssistant($assistant))
+                ->values()
+                ->all(),
+        ]);
+    }
+
     public function manageSubscription(ManageDentistSubscriptionRequest $request, string $id): JsonResponse
     {
         $dentist = $this->findDentist($id, false);
@@ -314,6 +331,24 @@ class DentistAccountController extends Controller
             'patient_count' => $dentist->patients_count ?? 0,
             'appointment_count' => $dentist->appointments_count ?? 0,
             'subscription' => $dentist->subscriptionSummary(),
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function transformAssistant(User $assistant): array
+    {
+        return [
+            'id' => (string) $assistant->id,
+            'name' => $assistant->name,
+            'email' => $assistant->email,
+            'phone' => $assistant->phone,
+            'account_status' => $assistant->account_status,
+            'assistant_permissions' => $assistant->assistant_permissions ?? [],
+            'must_change_password' => (bool) $assistant->must_change_password,
+            'last_login_at' => $assistant->last_login_at?->toIso8601String(),
+            'created_at' => $assistant->created_at?->toIso8601String(),
         ];
     }
 }

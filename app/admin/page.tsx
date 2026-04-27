@@ -25,7 +25,13 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import {
@@ -40,13 +46,14 @@ import {
     createAdminDentist,
     deleteAdminDentist,
     getCurrentUser,
+    listAdminDentistStaff,
     listAdminDentists,
     manageAdminDentistSubscription,
     logoutSession,
     resetAdminDentistPassword,
     updateAdminDentistStatus,
 } from '@/lib/api/dentist';
-import type { ApiAdminDentist, ApiSubscriptionSummary } from '@/lib/api/types';
+import type { ApiAdminDentist, ApiAssistantAccount, ApiSubscriptionSummary } from '@/lib/api/types';
 import { getApiErrorMessage } from '@/lib/api/client';
 import { toast } from 'sonner';
 import {
@@ -140,6 +147,18 @@ function getSubscriptionActionLabel(
     return t(`admin.subscription.action.${action}`);
 }
 
+function getStaffStatusBadgeClassName(status: ApiAssistantAccount['account_status']): string {
+    if (status === 'active') {
+        return 'border-emerald-100 bg-emerald-50 text-emerald-700';
+    }
+
+    if (status === 'blocked') {
+        return 'border-amber-100 bg-amber-50 text-amber-700';
+    }
+
+    return 'border-slate-200 bg-slate-100 text-slate-500';
+}
+
 function AdminDashboardLoadingSkeleton() {
     return (
         <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(219,234,254,0.55),transparent_34rem),linear-gradient(180deg,#f8fbff_0%,#f8fafc_42%,#f1f5f9_100%)]">
@@ -218,6 +237,7 @@ export default function AdminDashboardPage() {
         null
     );
     const [subscriptionDialog, setSubscriptionDialog] = useState<SubscriptionDialogState | null>(null);
+    const [staffDialogAccount, setStaffDialogAccount] = useState<ApiAdminDentist | null>(null);
     const [newDentist, setNewDentist] = useState<CreateDentistForm>({
         name: '',
         email: '',
@@ -293,6 +313,13 @@ export default function AdminDashboardPage() {
             }),
         enabled: authQuery.data?.role === 'admin',
         placeholderData: (previousData) => previousData,
+    });
+    const staffDialogAccountId = staffDialogAccount?.id;
+    const staffQuery = useQuery({
+        queryKey: ['admin', 'dentists', staffDialogAccountId, 'staff'],
+        queryFn: () => listAdminDentistStaff(staffDialogAccountId ?? ''),
+        enabled: Boolean(staffDialogAccountId),
+        staleTime: 30_000,
     });
 
     useEffect(() => {
@@ -411,6 +438,7 @@ export default function AdminDashboardPage() {
     });
 
     const accounts = useMemo(() => accountsQuery.data?.data ?? [], [accountsQuery.data]);
+    const staffMembers = staffQuery.data?.data ?? [];
     const pagination = accountsQuery.data?.meta?.pagination;
     const summary = accountsQuery.data?.meta?.summary;
 
@@ -660,6 +688,13 @@ export default function AdminDashboardPage() {
                                                                 </Button>
                                                             </DropdownMenuTrigger>
                                                             <DropdownMenuContent align="end">
+                                                                <DropdownMenuItem
+                                                                    onClick={() => setStaffDialogAccount(account)}
+                                                                >
+                                                                    <Users className="w-4 h-4 mr-2" />
+                                                                    {t('admin.viewStaff')}
+                                                                </DropdownMenuItem>
+                                                                <DropdownMenuSeparator />
                                                                 {account.status !== 'deleted' ? (
                                                                     <>
                                                                         <DropdownMenuItem
@@ -820,6 +855,106 @@ export default function AdminDashboardPage() {
                         </CardContent>
                     </Card>
                 </div>
+
+                <Dialog
+                    open={staffDialogAccount !== null}
+                    onOpenChange={(open) => {
+                        if (!open) {
+                            setStaffDialogAccount(null);
+                        }
+                    }}
+                >
+                    <DialogContent className="max-h-[calc(100dvh-1.5rem)] overflow-y-auto p-5 sm:max-w-2xl sm:p-6">
+                        <DialogHeader>
+                            <DialogTitle>
+                                {staffDialogAccount
+                                    ? t('admin.staffDialog.title', { name: staffDialogAccount.name })
+                                    : t('admin.viewStaff')}
+                            </DialogTitle>
+                            <DialogDescription>
+                                {t('admin.staffDialog.description')}
+                            </DialogDescription>
+                        </DialogHeader>
+
+                        {staffQuery.isLoading ? (
+                            <div className="space-y-3">
+                                {Array.from({ length: 3 }).map((_, index) => (
+                                    <div key={index} className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
+                                        <Skeleton className="h-4 w-40" />
+                                        <Skeleton className="mt-2 h-3 w-56" />
+                                        <div className="mt-4 grid gap-2 sm:grid-cols-3">
+                                            <Skeleton className="h-3 w-28" />
+                                            <Skeleton className="h-3 w-24" />
+                                            <Skeleton className="h-3 w-32" />
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : staffQuery.isError ? (
+                            <div className="rounded-2xl border border-red-100 bg-red-50 p-4">
+                                <p className="text-sm text-red-700">
+                                    {getApiErrorMessage(staffQuery.error, t('admin.staffDialog.loadFailed'))}
+                                </p>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    className="mt-3"
+                                    onClick={() => staffQuery.refetch()}
+                                >
+                                    {t('common.retry')}
+                                </Button>
+                            </div>
+                        ) : staffMembers.length === 0 ? (
+                            <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/80 p-6 text-center text-sm text-slate-500">
+                                {t('admin.staffDialog.empty')}
+                            </div>
+                        ) : (
+                            <div className="space-y-3">
+                                {staffMembers.map((staff) => (
+                                    <div
+                                        key={staff.id}
+                                        className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs"
+                                    >
+                                        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                                            <div className="min-w-0">
+                                                <p className="truncate text-sm font-semibold text-slate-950">
+                                                    {staff.name}
+                                                </p>
+                                                <p className="truncate text-sm text-slate-500">{staff.email}</p>
+                                            </div>
+                                            <Badge
+                                                variant="outline"
+                                                className={getStaffStatusBadgeClassName(staff.account_status)}
+                                            >
+                                                {t(`admin.status.${staff.account_status}`)}
+                                            </Badge>
+                                        </div>
+                                        <div className="mt-4 grid gap-2 text-xs text-slate-500 sm:grid-cols-3">
+                                            <span>{staff.phone || t('admin.staffDialog.phoneFallback')}</span>
+                                            <span>
+                                                {t('admin.staffDialog.permissionCount', {
+                                                    count: staff.assistant_permissions.length,
+                                                })}
+                                            </span>
+                                            <span>
+                                                {staff.last_login_at
+                                                    ? t('admin.staffDialog.lastLogin', {
+                                                        date: formatLocalizedDate(staff.last_login_at, locale, {
+                                                            year: 'numeric',
+                                                            month: 'short',
+                                                            day: 'numeric',
+                                                        }),
+                                                    })
+                                                    : t('admin.staffDialog.neverLoggedIn')}
+                                            </span>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </DialogContent>
+                </Dialog>
 
                 <Dialog open={showCreateModal} onOpenChange={handleCreateModalOpenChange}>
                     <DialogContent className="max-h-[calc(100dvh-1.5rem)] overflow-y-auto p-5 sm:p-6">

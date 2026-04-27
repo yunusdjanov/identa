@@ -1452,6 +1452,14 @@ export async function listAdminLeadRequests(
     return data;
 }
 
+export async function listAdminDentistStaff(id: string): Promise<ApiCollectionEnvelope<ApiAssistantAccount>> {
+    const { data } = await apiClient.get<ApiCollectionEnvelope<ApiAssistantAccount>>(
+        `/admin/dentists/${id}/staff`
+    );
+
+    return data;
+}
+
 export async function updateAdminLeadRequestStatus(
     id: string,
     status: AdminLeadRequestStatus
