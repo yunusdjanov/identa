@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import type { ApiTreatment } from '@/lib/api/types';
 import { ToothDetailDialog } from '@/components/odontogram/tooth-detail-dialog';
 import { I18nProvider } from '@/components/providers/i18n-provider';
+import { DICTIONARIES } from '@/lib/i18n/dictionaries';
 
 function normalizeText(value: string | null | undefined) {
     return (value ?? '').replace(/\u00A0/g, ' ').replace(/\s+/g, ' ').trim();
@@ -49,7 +50,7 @@ function renderDialog(treatments: ApiTreatment[]) {
 
     render(
         <QueryClientProvider client={queryClient}>
-            <I18nProvider initialLocale="en">
+            <I18nProvider initialLocale="en" initialDictionary={DICTIONARIES.en}>
                 <ToothDetailDialog
                     open={true}
                     onOpenChange={() => {}}

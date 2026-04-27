@@ -15,11 +15,11 @@ import {
     resolveLocale,
     type AppLocale,
 } from '@/lib/i18n/config';
-import { DICTIONARIES } from '@/lib/i18n/dictionaries';
+import type { TranslationDictionary } from '@/lib/i18n/dictionaries';
 import { setValidationLocale } from '@/lib/input-validation';
 
 type TranslationValue = string | number;
-const FALLBACK_DICTIONARY = DICTIONARIES.en;
+const EMPTY_DICTIONARY: TranslationDictionary = {};
 
 interface I18nContextValue {
     locale: AppLocale;
@@ -47,19 +47,42 @@ const FALLBACK_CONTEXT: I18nContextValue = {
     locale: DEFAULT_LOCALE,
     setLocale: () => undefined,
     t: (key, variables) => {
-        const template = FALLBACK_DICTIONARY[key] ?? key;
+        const template = EMPTY_DICTIONARY[key] ?? key;
         return interpolate(template, variables);
     },
 };
 
+async function loadDictionary(locale: AppLocale): Promise<TranslationDictionary | null> {
+    try {
+        const response = await fetch(`/api/i18n/${locale}`, {
+            cache: 'force-cache',
+            headers: {
+                Accept: 'application/json',
+            },
+        });
+
+        if (!response.ok) {
+            return null;
+        }
+
+        const payload = await response.json() as { dictionary?: TranslationDictionary };
+        return payload.dictionary ?? null;
+    } catch {
+        return null;
+    }
+}
+
 export function I18nProvider({
     children,
     initialLocale,
+    initialDictionary = EMPTY_DICTIONARY,
 }: {
     children: React.ReactNode;
     initialLocale?: AppLocale;
+    initialDictionary?: TranslationDictionary;
 }) {
     const [locale, setLocaleState] = useState<AppLocale>(resolveLocale(initialLocale ?? DEFAULT_LOCALE));
+    const [dictionary, setDictionary] = useState<TranslationDictionary>(initialDictionary);
 
     useEffect(() => {
         setValidationLocale(locale);
@@ -68,17 +91,22 @@ export function I18nProvider({
     }, [locale]);
 
     const setLocale = useCallback((nextLocale: AppLocale) => {
-        setLocaleState(resolveLocale(nextLocale));
+        const resolvedLocale = resolveLocale(nextLocale);
+        setLocaleState(resolvedLocale);
+
+        void loadDictionary(resolvedLocale).then((nextDictionary) => {
+            if (nextDictionary) {
+                setDictionary(nextDictionary);
+            }
+        });
     }, []);
 
     const t = useCallback(
         (key: string, variables?: Record<string, TranslationValue>) => {
-            const active = DICTIONARIES[locale];
-            const fallback = FALLBACK_DICTIONARY;
-            const template = active[key] ?? fallback[key] ?? key;
+            const template = dictionary[key] ?? key;
             return interpolate(template, variables);
         },
-        [locale]
+        [dictionary]
     );
 
     const contextValue = useMemo(

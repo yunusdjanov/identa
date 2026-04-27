@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AddPatientDialog } from '@/components/patients/add-patient-dialog';
 import { createPatient, listPatientCategories, uploadPatientPhoto } from '@/lib/api/dentist';
 import { I18nProvider } from '@/components/providers/i18n-provider';
+import { DICTIONARIES } from '@/lib/i18n/dictionaries';
 
 vi.mock('@/components/ui/select', async () => {
     const React = await import('react');
@@ -122,7 +123,7 @@ describe('AddPatientDialog', () => {
         const user = userEvent.setup();
 
         render(
-            <I18nProvider initialLocale="en">
+            <I18nProvider initialLocale="en" initialDictionary={DICTIONARIES.en}>
                 <QueryClientProvider client={queryClient}>
                     <AddPatientDialog open={true} onOpenChange={onOpenChange} />
                 </QueryClientProvider>
@@ -186,7 +187,7 @@ describe('AddPatientDialog', () => {
         const user = userEvent.setup();
 
         render(
-            <I18nProvider initialLocale="en">
+            <I18nProvider initialLocale="en" initialDictionary={DICTIONARIES.en}>
                 <QueryClientProvider client={queryClient}>
                     <AddPatientDialog open={true} onOpenChange={vi.fn()} />
                 </QueryClientProvider>

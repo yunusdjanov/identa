@@ -16,7 +16,7 @@ import {
     getTextValidationMessage,
 } from '@/lib/input-validation';
 
-interface LandingFormContent {
+export interface LandingFormContent {
     name: string;
     phone: string;
     clinic: string;

@@ -197,9 +197,9 @@ export default function DashboardPage() {
     );
 
     const dashboardQuery = useQuery({
-        queryKey: ['dashboard', 'snapshot', canViewFinance ? 'finance' : 'standard', todayDateKey],
-        queryFn: () => getDashboardSnapshot({ includeFinancials: canViewFinance, date: todayDateKey }),
-        enabled: Boolean(currentUser && todayDateKey),
+        queryKey: ['dashboard', 'snapshot', todayDateKey],
+        queryFn: () => getDashboardSnapshot({ date: todayDateKey }),
+        enabled: Boolean(todayDateKey),
         staleTime: 30_000,
         gcTime: 5 * 60_000,
         refetchOnWindowFocus: false,

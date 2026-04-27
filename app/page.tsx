@@ -13,7 +13,7 @@ import {
 import { Brand } from '@/components/branding/brand';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { PublicLeadForm } from '@/components/landing/public-lead-form';
+import { PublicLeadFormShell } from '@/components/landing/public-lead-form-shell';
 import { LanguageSwitcher } from '@/components/layout/language-switcher';
 import { LOCALE_COOKIE_NAME, resolveLocale } from '@/lib/i18n/config';
 import type { ApiLandingSettings } from '@/lib/api/types';
@@ -1038,7 +1038,7 @@ export default async function LandingPage() {
 
                         <Card className="h-full rounded-[30px] border border-slate-200 bg-white shadow-[0_32px_90px_-46px_rgba(15,23,42,0.38)]">
                             <CardContent className="flex h-full flex-col p-5 sm:p-6">
-                                <PublicLeadForm
+                                <PublicLeadFormShell
                                     content={content.form}
                                     telegramHref={buildTelegramHref(
                                         content.form.telegramPrompt,

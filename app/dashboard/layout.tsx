@@ -1,10 +1,15 @@
 import { AppLayout } from '@/components/layout/app-layout';
+import { QueryProvider } from '@/components/providers/query-provider';
 
 export default function DashboardLayout({
     children,
 }: {
     children: React.ReactNode;
 }) {
-    return <AppLayout>{children}</AppLayout>;
+    return (
+        <QueryProvider>
+            <AppLayout>{children}</AppLayout>
+        </QueryProvider>
+    );
 }
 

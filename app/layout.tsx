@@ -1,15 +1,14 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { cookies } from "next/headers";
-import { Analytics } from "@vercel/analytics/next";
-import { SpeedInsights } from "@vercel/speed-insights/next";
 import "./globals.css";
-import { Toaster } from "@/components/ui/sonner";
-import { QueryProvider } from "@/components/providers/query-provider";
 import { I18nProvider } from "@/components/providers/i18n-provider";
+import { ClientRuntime } from "@/components/providers/client-runtime";
 import { LOCALE_COOKIE_NAME, resolveLocale } from "@/lib/i18n/config";
+import { DICTIONARIES } from "@/lib/i18n/dictionaries";
 
-const inter = Inter({ subsets: ["latin"] });
+const inter = Inter({ subsets: ["latin"], display: "swap" });
+const apiOrigin = new URL(process.env.NEXT_PUBLIC_API_URL ?? "https://api.identa.uz/api").origin;
 
 export const metadata: Metadata = {
   title: {
@@ -93,15 +92,15 @@ export default async function RootLayout({
 
   return (
     <html lang={locale}>
+      <head>
+        <link rel="preconnect" href={apiOrigin} crossOrigin="anonymous" />
+        <link rel="dns-prefetch" href={apiOrigin} />
+      </head>
       <body className={inter.className}>
-        <QueryProvider>
-          <I18nProvider initialLocale={locale}>
-            {children}
-            <Toaster />
-            <Analytics />
-            <SpeedInsights />
-          </I18nProvider>
-        </QueryProvider>
+        <I18nProvider initialLocale={locale} initialDictionary={DICTIONARIES[locale]}>
+          {children}
+          <ClientRuntime />
+        </I18nProvider>
       </body>
     </html>
   );

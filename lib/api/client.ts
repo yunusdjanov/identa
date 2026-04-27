@@ -1,8 +1,34 @@
 import axios from 'axios';
 import type { AppLocale } from '@/lib/i18n/config';
-import { DICTIONARIES } from '@/lib/i18n/dictionaries';
 import { LOCALE_COOKIE_NAME } from '@/lib/i18n/config';
 import { notifySessionExpired } from '@/lib/auth/session-expiry';
+
+const CLIENT_ERROR_MESSAGES: Record<AppLocale, Record<string, string>> = {
+    ru: {
+        'errors.sessionExpired': 'Сессия истекла. Войдите снова.',
+        'errors.forbidden': 'У вас нет доступа к этому действию.',
+        'errors.accountInactive': 'Ваш аккаунт неактивен. Обратитесь к администратору.',
+        'errors.unauthorized': 'Не удалось выполнить действие. Войдите снова.',
+        'errors.network': 'Проблема с подключением. Проверьте сеть и повторите попытку.',
+        'errors.server': 'Ошибка сервера. Повторите попытку позже.',
+    },
+    uz: {
+        'errors.sessionExpired': 'Sessiya tugadi. Qayta kiring.',
+        'errors.forbidden': 'Bu amalni bajarish uchun ruxsat yo‘q.',
+        'errors.accountInactive': "Akkauntingiz faol emas. Administrator bilan bog'laning.",
+        'errors.unauthorized': 'Amalni bajarib bo‘lmadi. Qayta kiring.',
+        'errors.network': "Ulanish bilan muammo. Tarmoqni tekshirib, qayta urinib ko'ring.",
+        'errors.server': 'Server xatosi. Keyinroq qayta urinib ko‘ring.',
+    },
+    en: {
+        'errors.sessionExpired': 'Your session expired. Please sign in again.',
+        'errors.forbidden': 'You do not have permission to perform this action.',
+        'errors.accountInactive': 'Your account is inactive. Please contact support.',
+        'errors.unauthorized': 'Unable to complete this action. Please sign in again.',
+        'errors.network': 'Connection problem. Check your network and try again.',
+        'errors.server': 'Server error. Please try again later.',
+    },
+};
 
 const configuredApiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://127.0.0.1:8001/api';
 const normalizedApiUrl = configuredApiUrl.replace(/\/+$/, '');
@@ -154,7 +180,7 @@ function getResolvedLocale(): AppLocale {
 
 function getLocalizedClientMessage(key: string, fallback: string): string {
     const locale = getResolvedLocale();
-    return DICTIONARIES[locale]?.[key] ?? DICTIONARIES.en[key] ?? fallback;
+    return CLIENT_ERROR_MESSAGES[locale]?.[key] ?? CLIENT_ERROR_MESSAGES.en[key] ?? fallback;
 }
 
 function looksLikeTranslationKey(value: string | null | undefined): boolean {

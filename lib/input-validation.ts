@@ -1,4 +1,3 @@
-import { DICTIONARIES } from '@/lib/i18n/dictionaries';
 import { resolveLocale, type AppLocale } from '@/lib/i18n/config';
 
 export const INPUT_LIMITS = {
@@ -32,6 +31,56 @@ const COMMON_PASSWORDS = new Set([
     'qwertyui',
     'welcome1',
 ]);
+const VALIDATION_MESSAGES: Record<AppLocale, Record<string, string>> = {
+    ru: {
+        'validation.phone.required': 'Номер телефона обязателен.',
+        'validation.phone.minDigits': 'Номер телефона должен содержать минимум {{min}} цифр.',
+        'validation.phone.maxDigits': 'Номер телефона должен содержать максимум {{max}} цифр.',
+        'validation.email.required': 'Email обязателен.',
+        'validation.email.maxLength': 'Email должен содержать не более {{max}} символов.',
+        'validation.email.invalid': 'Введите корректный email.',
+        'validation.password.required': 'Пароль обязателен.',
+        'validation.password.minLength': 'Пароль должен содержать минимум {{min}} символов.',
+        'validation.password.maxLength': 'Пароль должен содержать не более {{max}} символов.',
+        'validation.password.tooCommon': 'Пароль слишком простой. Выберите более надежный вариант.',
+        'validation.password.letterNumber': 'Пароль должен содержать хотя бы одну букву и одну цифру.',
+        'validation.text.required': 'Поле "{{label}}" обязательно.',
+        'validation.text.minLength': 'Поле "{{label}}" должно содержать минимум {{min}} символа.',
+        'validation.text.maxLength': 'Поле "{{label}}" должно содержать не более {{max}} символов.',
+    },
+    uz: {
+        'validation.phone.required': 'Telefon raqami majburiy.',
+        'validation.phone.minDigits': 'Telefon raqamida kamida {{min}} ta raqam bo‘lishi kerak.',
+        'validation.phone.maxDigits': 'Telefon raqamida ko‘pi bilan {{max}} ta raqam bo‘lishi kerak.',
+        'validation.email.required': 'Email majburiy.',
+        'validation.email.maxLength': 'Email uzunligi {{max}} ta belgidan oshmasligi kerak.',
+        'validation.email.invalid': 'To‘g‘ri email manzilini kiriting.',
+        'validation.password.required': 'Parol majburiy.',
+        'validation.password.minLength': 'Parol kamida {{min}} ta belgidan iborat bo‘lishi kerak.',
+        'validation.password.maxLength': 'Parol {{max}} ta belgidan oshmasligi kerak.',
+        'validation.password.tooCommon': 'Parol juda sodda. Kuchliroq variant tanlang.',
+        'validation.password.letterNumber': 'Parolda kamida bitta harf va bitta raqam bo‘lishi kerak.',
+        'validation.text.required': '"{{label}}" maydoni majburiy.',
+        'validation.text.minLength': '"{{label}}" maydoni kamida {{min}} ta belgidan iborat bo‘lishi kerak.',
+        'validation.text.maxLength': '"{{label}}" maydoni {{max}} ta belgidan oshmasligi kerak.',
+    },
+    en: {
+        'validation.phone.required': 'Phone number is required.',
+        'validation.phone.minDigits': 'Phone must contain at least {{min}} digits.',
+        'validation.phone.maxDigits': 'Phone must contain at most {{max}} digits.',
+        'validation.email.required': 'Email is required.',
+        'validation.email.maxLength': 'Email must be at most {{max}} characters.',
+        'validation.email.invalid': 'Enter a valid email address.',
+        'validation.password.required': 'Password is required.',
+        'validation.password.minLength': 'Password must be at least {{min}} characters.',
+        'validation.password.maxLength': 'Password must be at most {{max}} characters.',
+        'validation.password.tooCommon': 'This password is too easy to guess. Choose a stronger one.',
+        'validation.password.letterNumber': 'Password must include at least one letter and one number.',
+        'validation.text.required': '{{label}} is required.',
+        'validation.text.minLength': '{{label}} must be at least {{min}} characters.',
+        'validation.text.maxLength': '{{label}} must be at most {{max}} characters.',
+    },
+};
 let validationLocale: AppLocale = 'en';
 
 function interpolate(template: string, variables?: Record<string, string | number>): string {
@@ -49,8 +98,8 @@ function interpolate(template: string, variables?: Record<string, string | numbe
 }
 
 function vt(key: string, variables?: Record<string, string | number>): string {
-    const active = DICTIONARIES[validationLocale];
-    const fallback = DICTIONARIES.en;
+    const active = VALIDATION_MESSAGES[validationLocale];
+    const fallback = VALIDATION_MESSAGES.en;
     const template = active[key] ?? fallback[key] ?? key;
     return interpolate(template, variables);
 }

@@ -6,6 +6,7 @@ import { deleteAppointment, getProfile, listAllAppointments, updateAppointment }
 import { toLocalDateKey } from '@/lib/utils';
 import { toast } from 'sonner';
 import { I18nProvider } from '@/components/providers/i18n-provider';
+import { DICTIONARIES } from '@/lib/i18n/dictionaries';
 
 const addAppointmentDialogSpy = vi.fn();
 
@@ -70,7 +71,7 @@ function renderPage(initialPath = '/appointments?view=day') {
 
     return render(
         <QueryClientProvider client={queryClient}>
-            <I18nProvider initialLocale="en">
+            <I18nProvider initialLocale="en" initialDictionary={DICTIONARIES.en}>
                 <AppointmentsPage />
             </I18nProvider>
         </QueryClientProvider>

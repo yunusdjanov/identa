@@ -10,6 +10,7 @@ import {
     updatePatientCategory,
 } from '@/lib/api/dentist';
 import { I18nProvider } from '@/components/providers/i18n-provider';
+import { DICTIONARIES } from '@/lib/i18n/dictionaries';
 
 vi.mock('@/lib/api/dentist', () => ({
     createPatientCategory: vi.fn(),
@@ -34,7 +35,7 @@ function renderDialog() {
     });
 
     return render(
-        <I18nProvider initialLocale="en">
+        <I18nProvider initialLocale="en" initialDictionary={DICTIONARIES.en}>
             <QueryClientProvider client={queryClient}>
                 <ManageCategoriesDialog open={true} onOpenChange={vi.fn()} />
             </QueryClientProvider>

@@ -159,7 +159,10 @@ export default function SettingsPage() {
     const profileQuery = useQuery({
         queryKey: ['settings', 'profile'],
         queryFn: getProfile,
-        enabled: canViewSettings,
+        staleTime: 300000,
+        gcTime: 900000,
+        refetchOnWindowFocus: false,
+        refetchOnReconnect: false,
     });
 
     const [profileDraft, setProfileDraft] = useState<DentistProfile | null>(null);

@@ -3,6 +3,8 @@ import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import DashboardPage from '@/app/dashboard/page';
 import { getCurrentUser, getDashboardSnapshot } from '@/lib/api/dentist';
+import { I18nProvider } from '@/components/providers/i18n-provider';
+import { DICTIONARIES } from '@/lib/i18n/dictionaries';
 
 vi.mock('@/lib/api/dentist', () => ({
     getCurrentUser: vi.fn(),
@@ -28,7 +30,9 @@ function renderPage() {
 
     return render(
         <QueryClientProvider client={queryClient}>
-            <DashboardPage />
+            <I18nProvider initialLocale="en" initialDictionary={DICTIONARIES.en}>
+                <DashboardPage />
+            </I18nProvider>
         </QueryClientProvider>
     );
 }

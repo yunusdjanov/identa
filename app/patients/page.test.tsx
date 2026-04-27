@@ -4,6 +4,8 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import PatientsPage from '@/app/patients/page';
 import { listPatientCategories, listPatients, restorePatient } from '@/lib/api/dentist';
+import { I18nProvider } from '@/components/providers/i18n-provider';
+import { DICTIONARIES } from '@/lib/i18n/dictionaries';
 
 const pushMock = vi.fn();
 
@@ -33,7 +35,9 @@ function renderPage() {
 
     return render(
         <QueryClientProvider client={queryClient}>
-            <PatientsPage />
+            <I18nProvider initialLocale="en" initialDictionary={DICTIONARIES.en}>
+                <PatientsPage />
+            </I18nProvider>
         </QueryClientProvider>
     );
 }

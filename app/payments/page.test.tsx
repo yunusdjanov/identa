@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import PaymentsPage from '@/app/payments/page';
 import { getPatient, listAllTreatments } from '@/lib/api/dentist';
 import { I18nProvider } from '@/components/providers/i18n-provider';
+import { DICTIONARIES } from '@/lib/i18n/dictionaries';
 
 vi.mock('@/lib/api/dentist', () => ({
     listAllTreatments: vi.fn(),
@@ -19,7 +20,7 @@ function renderPage() {
 
     return render(
         <QueryClientProvider client={queryClient}>
-            <I18nProvider initialLocale="en">
+            <I18nProvider initialLocale="en" initialDictionary={DICTIONARIES.en}>
                 <PaymentsPage />
             </I18nProvider>
         </QueryClientProvider>

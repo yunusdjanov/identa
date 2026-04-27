@@ -3,6 +3,7 @@ import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { I18nProvider } from '@/components/providers/i18n-provider';
+import { DICTIONARIES } from '@/lib/i18n/dictionaries';
 import { TreatmentHistoryCard } from '@/components/patients/treatment-history-card';
 import {
     createPatientTreatment,
@@ -32,7 +33,7 @@ function renderCard() {
 
     return render(
         <QueryClientProvider client={queryClient}>
-            <I18nProvider initialLocale="en">
+            <I18nProvider initialLocale="en" initialDictionary={DICTIONARIES.en}>
                 <TreatmentHistoryCard patientId="patient-1" patientName="Sardor" />
             </I18nProvider>
         </QueryClientProvider>

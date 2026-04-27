@@ -6,6 +6,7 @@ import { AddAppointmentDialog } from '@/components/appointments/add-appointment-
 import { createAppointment, getPatient, listAppointments, listPatients } from '@/lib/api/dentist';
 import { toast } from 'sonner';
 import { I18nProvider } from '@/components/providers/i18n-provider';
+import { DICTIONARIES } from '@/lib/i18n/dictionaries';
 
 vi.mock('@/components/ui/select', async () => {
     const React = await import('react');
@@ -124,7 +125,7 @@ vi.mock('sonner', () => ({
 function Providers({ client, children }: { client: QueryClient; children: React.ReactNode }) {
     return (
         <QueryClientProvider client={client}>
-            <I18nProvider initialLocale="en">
+            <I18nProvider initialLocale="en" initialDictionary={DICTIONARIES.en}>
                 {children}
             </I18nProvider>
         </QueryClientProvider>
