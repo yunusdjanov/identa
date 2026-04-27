@@ -92,6 +92,7 @@ export function I18nProvider({
 
     const setLocale = useCallback((nextLocale: AppLocale) => {
         const resolvedLocale = resolveLocale(nextLocale);
+        document.cookie = `${LOCALE_COOKIE_NAME}=${resolvedLocale}; path=/; max-age=${LOCALE_COOKIE_MAX_AGE_SECONDS}; SameSite=Lax`;
         setLocaleState(resolvedLocale);
 
         void loadDictionary(resolvedLocale).then((nextDictionary) => {

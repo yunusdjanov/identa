@@ -1,5 +1,7 @@
 'use client';
 
+import { useTransition } from 'react';
+import { useRouter } from 'next/navigation';
 import { Languages } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useI18n } from '@/components/providers/i18n-provider';
@@ -18,14 +20,27 @@ interface LanguageSwitcherProps {
     className?: string;
     showIcon?: boolean;
     variant?: 'inline' | 'compact';
+    refreshOnChange?: boolean;
 }
 
 export function LanguageSwitcher({
     className,
     showIcon = true,
     variant = 'inline',
+    refreshOnChange = false,
 }: LanguageSwitcherProps) {
+    const router = useRouter();
+    const [, startTransition] = useTransition();
     const { locale, setLocale, t } = useI18n();
+    const handleLocaleChange = (value: string) => {
+        setLocale(value as 'ru' | 'uz' | 'en');
+
+        if (refreshOnChange) {
+            startTransition(() => {
+                router.refresh();
+            });
+        }
+    };
 
     if (variant === 'compact') {
         return (
@@ -50,7 +65,7 @@ export function LanguageSwitcher({
                     <DropdownMenuSeparator />
                     <DropdownMenuRadioGroup
                         value={locale}
-                        onValueChange={(value) => setLocale(value as 'ru' | 'uz' | 'en')}
+                        onValueChange={handleLocaleChange}
                     >
                         <DropdownMenuRadioItem value="ru">{t('language.russian')}</DropdownMenuRadioItem>
                         <DropdownMenuRadioItem value="uz">{t('language.uzbek')}</DropdownMenuRadioItem>
@@ -69,7 +84,7 @@ export function LanguageSwitcher({
                 size="sm"
                 variant={locale === 'ru' ? 'default' : 'ghost'}
                 className="h-7 px-2 text-xs"
-                onClick={() => setLocale('ru')}
+                onClick={() => handleLocaleChange('ru')}
             >
                 {t('language.russian')}
             </Button>
@@ -78,7 +93,7 @@ export function LanguageSwitcher({
                 size="sm"
                 variant={locale === 'uz' ? 'default' : 'ghost'}
                 className="h-7 px-2 text-xs"
-                onClick={() => setLocale('uz')}
+                onClick={() => handleLocaleChange('uz')}
             >
                 {t('language.uzbek')}
             </Button>
@@ -87,7 +102,7 @@ export function LanguageSwitcher({
                 size="sm"
                 variant={locale === 'en' ? 'default' : 'ghost'}
                 className="h-7 px-2 text-xs"
-                onClick={() => setLocale('en')}
+                onClick={() => handleLocaleChange('en')}
             >
                 {t('language.english')}
             </Button>

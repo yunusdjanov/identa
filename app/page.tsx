@@ -789,7 +789,7 @@ export default async function LandingPage() {
                         </nav>
 
                         <div className="flex items-center gap-2 sm:gap-3">
-                            <LanguageSwitcher variant="compact" />
+                            <LanguageSwitcher variant="compact" refreshOnChange />
                             <Button asChild variant="outline" className="hidden rounded-xl sm:inline-flex">
                                 <Link href="/login">{content.nav.signIn}</Link>
                             </Button>
