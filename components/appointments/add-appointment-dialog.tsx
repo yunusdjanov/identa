@@ -636,7 +636,9 @@ export function AddAppointmentDialog({
                     </div>
 
                     <div className="space-y-2">
-                        <Label htmlFor="duration">{t('appointments.dialog.duration')}</Label>
+                        <Label htmlFor="duration">
+                            {t('appointments.dialog.duration')} <span className="text-red-500">*</span>
+                        </Label>
                         <Select
                             value={String(formData.durationMinutes)}
                             onValueChange={(value) => {
@@ -674,7 +676,9 @@ export function AddAppointmentDialog({
 
                     {isEditing ? (
                         <div className="space-y-2">
-                            <Label htmlFor="status">{t('appointments.dialog.status')}</Label>
+                            <Label htmlFor="status">
+                                {t('appointments.dialog.status')} <span className="text-red-500">*</span>
+                            </Label>
                             <Select
                                 value={formData.status}
                                 onValueChange={(value: AppointmentStatus) => {

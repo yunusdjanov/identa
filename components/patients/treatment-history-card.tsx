@@ -1054,13 +1054,17 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                     <div className="min-h-0 space-y-3 overflow-y-auto pr-1">
                         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                             <div className="space-y-2">
-                                <Label htmlFor="historyDate">{t('patientHistory.table.date')}</Label>
-                                <Input id="historyDate" type="date" value={formState.treatmentDate} onChange={(event) => setFormState((current) => ({ ...current, treatmentDate: event.target.value }))} />
+                                <Label htmlFor="historyDate">
+                                    {t('patientHistory.table.date')} <span className="text-red-500">*</span>
+                                </Label>
+                                <Input id="historyDate" type="date" required value={formState.treatmentDate} onChange={(event) => setFormState((current) => ({ ...current, treatmentDate: event.target.value }))} />
                                 {dateError ? <p className="text-xs text-red-600">{dateError}</p> : null}
                             </div>
                             <div className="space-y-2 sm:col-span-2">
-                                <Label htmlFor="historyWorkDone">{t('patientHistory.table.workDone')}</Label>
-                                <Input id="historyWorkDone" value={formState.treatmentType} onChange={(event) => setFormState((current) => ({ ...current, treatmentType: event.target.value }))} placeholder={t('patientHistory.workDonePlaceholder')} />
+                                <Label htmlFor="historyWorkDone">
+                                    {t('patientHistory.table.workDone')} <span className="text-red-500">*</span>
+                                </Label>
+                                <Input id="historyWorkDone" required value={formState.treatmentType} onChange={(event) => setFormState((current) => ({ ...current, treatmentType: event.target.value }))} placeholder={t('patientHistory.workDonePlaceholder')} />
                                 {treatmentTypeError ? <p className="text-xs text-red-600">{treatmentTypeError}</p> : null}
                             </div>
                         </div>

@@ -560,7 +560,9 @@ export default function SettingsPage() {
                             <form onSubmit={handleWorkingHoursUpdate} className="space-y-4">
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                     <div className="space-y-2">
-                                        <Label htmlFor="startTime">{t('settings.startTime')}</Label>
+                                        <Label htmlFor="startTime">
+                                            {t('settings.startTime')} <span className="text-red-500">*</span>
+                                        </Label>
                                         <Input
                                             id="startTime"
                                             type="text"
@@ -585,7 +587,9 @@ export default function SettingsPage() {
                                     </div>
 
                                     <div className="space-y-2">
-                                        <Label htmlFor="endTime">{t('settings.endTime')}</Label>
+                                        <Label htmlFor="endTime">
+                                            {t('settings.endTime')} <span className="text-red-500">*</span>
+                                        </Label>
                                         <Input
                                             id="endTime"
                                             type="text"
@@ -610,7 +614,9 @@ export default function SettingsPage() {
                                     </div>
 
                                     <div className="space-y-2">
-                                        <Label htmlFor="duration">{t('settings.defaultAppointmentDuration')}</Label>
+                                        <Label htmlFor="duration">
+                                            {t('settings.defaultAppointmentDuration')} <span className="text-red-500">*</span>
+                                        </Label>
                                         <Select
                                             value={String(profile.defaultAppointmentDuration)}
                                             onValueChange={(value) =>

@@ -1573,7 +1573,9 @@ export default function AppointmentsPage() {
                                                 <div className="mt-3 border-t border-slate-200 pt-3">
                                                     <div className="grid gap-3 md:grid-cols-3">
                                                         <div className="space-y-2">
-                                                            <Label htmlFor={`week-edit-time-${appointment.id}`}>{t('appointments.dialog.time')}</Label>
+                                                            <Label htmlFor={`week-edit-time-${appointment.id}`}>
+                                                                {t('appointments.dialog.time')} <span className="text-red-500">*</span>
+                                                            </Label>
                                                             <AppointmentTimePicker
                                                                 id={`week-edit-time-${appointment.id}`}
                                                                 value={weekInlineEditFormData.startTime}
@@ -1593,7 +1595,9 @@ export default function AppointmentsPage() {
                                                             ) : null}
                                                         </div>
                                                         <div className="space-y-2">
-                                                            <Label htmlFor={`week-edit-duration-${appointment.id}`}>{t('appointments.dialog.duration')}</Label>
+                                                            <Label htmlFor={`week-edit-duration-${appointment.id}`}>
+                                                                {t('appointments.dialog.duration')} <span className="text-red-500">*</span>
+                                                            </Label>
                                                             <Select
                                                                 value={String(weekInlineEditFormData.durationMinutes)}
                                                                 onValueChange={(value) => {
@@ -1638,7 +1642,9 @@ export default function AppointmentsPage() {
                                                             </Select>
                                                         </div>
                                                         <div className="space-y-2">
-                                                            <Label htmlFor={`week-edit-status-${appointment.id}`}>{t('appointments.dialog.status')}</Label>
+                                                            <Label htmlFor={`week-edit-status-${appointment.id}`}>
+                                                                {t('appointments.dialog.status')} <span className="text-red-500">*</span>
+                                                            </Label>
                                                             <Select
                                                                 value={weekInlineEditFormData.status}
                                                                 onValueChange={(value) => {
