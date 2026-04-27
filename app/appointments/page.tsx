@@ -814,7 +814,7 @@ export default function AppointmentsPage() {
             <div
                 key={descriptor.dayIndex}
                 className={`interactive-card flex flex-col overflow-hidden rounded-2xl border shadow-sm ${
-                    compact ? `${compactCardHeightClass} self-start` : 'h-auto min-h-[18rem] self-start'
+                    compact ? `${compactCardHeightClass} self-start` : 'h-auto self-start'
                 } ${isTodayLane ? 'border-blue-200 bg-blue-50/35 shadow-blue-100/70 ring-1 ring-blue-100' : 'border-slate-200/80 bg-white/95 shadow-slate-200/50'}`}
                 data-testid={includeTestIds ? `week-day-card-${descriptor.dateKey}` : undefined}
             >
@@ -873,13 +873,13 @@ export default function AppointmentsPage() {
                 <div className={`flex flex-1 min-h-0 flex-col ${compact ? 'p-1' : 'gap-2 p-2'}`}>
                     {dayAppointments.length === 0 ? (
                         <div className={`flex flex-1 items-center justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50/70 px-3 text-center text-sm text-slate-500 ${
-                            compact ? 'h-[8.75rem] py-4' : 'min-h-[11rem] py-5'
+                            compact ? 'h-[8.75rem] py-4' : 'min-h-[5rem] py-4'
                         }`}>
                             {t('appointments.noAppointments')}
                         </div>
                     ) : (
                         <>
-                            <div className={compact ? `${compactListHeightClass} rounded-xl border border-slate-100 bg-slate-50/70 p-1.5` : 'space-y-1.5'}>
+                            <div className={compact ? `${compactListHeightClass} rounded-xl border border-slate-100 bg-slate-50/70 p-1.5` : 'space-y-1.5 rounded-xl bg-slate-50/70 p-1.5'}>
                                 <div className={compact ? 'space-y-0.5' : ''}>
                                 {visibleAppointments.map((appointment) => (
                                     <div
@@ -1428,10 +1428,10 @@ export default function AppointmentsPage() {
                             </div>
                         </div>
                         <div className="space-y-3 lg:hidden">
-                            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-4">
+                            <div className="grid grid-cols-1 items-start gap-3 md:grid-cols-2 lg:grid-cols-4">
                                 {weekDateDescriptors.slice(0, 4).map((descriptor) => renderWeekDayCard(descriptor, { includeTestIds: true }))}
                             </div>
-                            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:mx-auto lg:max-w-[calc(((100%-0.75rem*3)/4)*3+0.75rem*2)] lg:grid-cols-3">
+                            <div className="grid grid-cols-1 items-start gap-3 md:grid-cols-2 lg:mx-auto lg:max-w-[calc(((100%-0.75rem*3)/4)*3+0.75rem*2)] lg:grid-cols-3">
                                 {weekDateDescriptors.slice(4).map((descriptor) => renderWeekDayCard(descriptor, { includeTestIds: true }))}
                             </div>
                         </div>
