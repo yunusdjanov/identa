@@ -66,21 +66,21 @@ export function PatientAccountingCard({
             </CardHeader>
             <CardContent className="space-y-6">
                 <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-                    <div className="interactive-card rounded-lg border border-gray-200 p-3">
-                        <p className="text-xs text-gray-500">{t('patientHistory.totalDebt')}</p>
+                    <div className="rounded-2xl border border-red-100/80 bg-white/95 p-3 shadow-sm shadow-red-100/40">
+                        <p className="text-xs font-medium uppercase tracking-wide text-red-600">{t('patientHistory.totalDebt')}</p>
                         <p className="mt-1 text-sm font-semibold text-red-700">
                             {formatCurrency(summary.totalDebt)}
                         </p>
                     </div>
-                    <div className="interactive-card rounded-lg border border-gray-200 p-3">
-                        <p className="text-xs text-gray-500">{t('patientHistory.totalPaid')}</p>
-                        <p className="mt-1 text-sm font-semibold text-green-700">
+                    <div className="rounded-2xl border border-emerald-100/80 bg-white/95 p-3 shadow-sm shadow-emerald-100/40">
+                        <p className="text-xs font-medium uppercase tracking-wide text-emerald-600">{t('patientHistory.totalPaid')}</p>
+                        <p className="mt-1 text-sm font-semibold text-emerald-700">
                             {formatCurrency(summary.totalPaid)}
                         </p>
                     </div>
-                    <div className="interactive-card rounded-lg border border-gray-200 p-3">
-                        <p className="text-xs text-gray-500">{t('patientHistory.netBalance')}</p>
-                        <p className={`mt-1 text-sm font-semibold ${summary.netBalance > 0 ? 'text-red-700' : 'text-green-700'}`}>
+                    <div className="rounded-2xl border border-slate-200/80 bg-white/95 p-3 shadow-sm shadow-slate-200/40">
+                        <p className="text-xs font-medium uppercase tracking-wide text-slate-500">{t('patientHistory.netBalance')}</p>
+                        <p className={`mt-1 text-sm font-semibold ${summary.netBalance > 0 ? 'text-red-700' : summary.netBalance < 0 ? 'text-emerald-700' : 'text-slate-700'}`}>
                             {formatCurrency(summary.netBalance)}
                         </p>
                     </div>

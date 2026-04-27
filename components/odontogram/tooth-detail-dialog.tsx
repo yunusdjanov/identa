@@ -183,23 +183,23 @@ export function ToothDetailDialog({
 
                     <div className="space-y-4">
                         <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-                            <div className="rounded-xl border border-red-100 bg-red-50/60 p-3">
+                            <div className="rounded-2xl border border-red-100/80 bg-white/95 p-3 shadow-sm shadow-red-100/40">
                                 <p className="text-xs font-medium uppercase tracking-wide text-red-600">{t('patientHistory.table.debt')}</p>
                                 <p className="mt-1 whitespace-nowrap text-lg font-semibold tabular-nums text-red-700">{formatCurrency(summary.totalDebt)}</p>
                             </div>
-                            <div className="rounded-xl border border-green-100 bg-green-50/60 p-3">
-                                <p className="text-xs font-medium uppercase tracking-wide text-green-600">{t('patientHistory.table.paid')}</p>
-                                <p className="mt-1 whitespace-nowrap text-lg font-semibold tabular-nums text-green-700">{formatCurrency(summary.totalPaid)}</p>
+                            <div className="rounded-2xl border border-emerald-100/80 bg-white/95 p-3 shadow-sm shadow-emerald-100/40">
+                                <p className="text-xs font-medium uppercase tracking-wide text-emerald-600">{t('patientHistory.table.paid')}</p>
+                                <p className="mt-1 whitespace-nowrap text-lg font-semibold tabular-nums text-emerald-700">{formatCurrency(summary.totalPaid)}</p>
                             </div>
-                            <div className="rounded-xl border border-gray-200 bg-gray-50/80 p-3">
-                                <p className="text-xs font-medium uppercase tracking-wide text-gray-600">{t('patientHistory.table.remaining')}</p>
+                            <div className="rounded-2xl border border-slate-200/80 bg-white/95 p-3 shadow-sm shadow-slate-200/40">
+                                <p className="text-xs font-medium uppercase tracking-wide text-slate-500">{t('patientHistory.table.remaining')}</p>
                                 <p
                                     className={`mt-1 whitespace-nowrap text-lg font-semibold tabular-nums ${
                                         summary.netBalance > 0
                                             ? 'text-red-700'
                                             : summary.netBalance < 0
-                                                ? 'text-green-700'
-                                                : 'text-gray-700'
+                                                ? 'text-emerald-700'
+                                                : 'text-slate-700'
                                     }`}
                                 >
                                     {formatCurrency(summary.netBalance)}
