@@ -429,7 +429,7 @@ export default function DashboardPage() {
                                     return (
                                         <div
                                             key={appointment.id}
-                                            className="interactive-card group rounded-2xl border border-slate-200/70 bg-white/92 p-3 shadow-sm hover:border-blue-100"
+                                            className="interactive-card rounded-2xl border border-slate-200/70 bg-white/92 p-3 shadow-sm"
                                         >
                                             <div className="mb-3 flex items-center justify-between gap-3">
                                                 <div className="flex shrink-0 items-center justify-center rounded-full bg-blue-50 px-2.5 py-1.5 text-blue-700 ring-1 ring-blue-100">

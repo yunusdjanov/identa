@@ -477,7 +477,7 @@ export function AdminLeadRequestsPanel() {
                     leadRequestsQuery.data.data.map((leadRequest) => (
                         <div
                             key={leadRequest.id}
-                            className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4 transition-colors hover:border-blue-200 hover:bg-blue-50/40"
+                            className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4"
                         >
                             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                                 <div>
