@@ -33,7 +33,7 @@ export function AdminHeader({ active, isLoggingOut = false, onLogout }: AdminHea
 
     return (
         <header className="sticky top-0 z-10 border-b border-blue-100/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(248,251,255,0.94)_100%)] shadow-sm shadow-slate-200/40 backdrop-blur-xl">
-            <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+            <div className="mx-auto max-w-[1440px] px-4 sm:px-6 lg:px-8">
                 <div className="flex min-h-16 flex-col gap-3 py-2 lg:flex-row lg:items-center lg:justify-between">
                     <Brand href="/admin" variant="text" priority textClassName="w-36 sm:w-40" />
 

@@ -764,7 +764,7 @@ export default async function LandingPage() {
             ))}
 
             <header className="border-b border-slate-200/80 bg-white/88 backdrop-blur-xl">
-                <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+                <div className="mx-auto max-w-[1440px] px-4 sm:px-6 lg:px-8">
                     <div className="flex items-center justify-between gap-4 py-3">
                         <Brand
                             href="/"
@@ -895,7 +895,7 @@ export default async function LandingPage() {
             </header>
 
             <main>
-                <section id="why" className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+                <section id="why" className="mx-auto max-w-[1440px] px-4 py-10 sm:px-6 lg:px-8">
                     <div className="max-w-3xl">
                         <p className="text-sm font-semibold uppercase tracking-[0.18em] text-blue-600">
                             {content.why.eyebrow}
@@ -928,7 +928,7 @@ export default async function LandingPage() {
                     </div>
                 </section>
 
-                <section id="plans" className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+                <section id="plans" className="mx-auto max-w-[1440px] px-4 py-10 sm:px-6 lg:px-8">
                     <div className="max-w-3xl">
                         <p className="text-sm font-semibold uppercase tracking-[0.18em] text-blue-600">
                             {content.plans.eyebrow}
@@ -1008,7 +1008,7 @@ export default async function LandingPage() {
                     </div>
                 </section>
 
-                <section id="form" className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+                <section id="form" className="mx-auto max-w-[1440px] px-4 py-10 sm:px-6 lg:px-8">
                     <div className="grid gap-5 lg:grid-cols-[0.9fr_1.1fr] lg:items-stretch">
                         <Card className="h-full rounded-[30px] border border-blue-100 bg-[linear-gradient(180deg,#f7fbff_0%,#edf5ff_100%)] text-slate-950 shadow-[0_32px_90px_-46px_rgba(59,130,246,0.22)]">
                             <CardContent className="flex h-full flex-col p-5 sm:p-6">
@@ -1050,7 +1050,7 @@ export default async function LandingPage() {
                     </div>
                 </section>
 
-                <section id="faq" className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+                <section id="faq" className="mx-auto max-w-[1440px] px-4 py-10 sm:px-6 lg:px-8">
                     <div className="max-w-3xl">
                         <p className="text-sm font-semibold uppercase tracking-[0.18em] text-blue-600">
                             {content.faq.eyebrow}
@@ -1075,7 +1075,7 @@ export default async function LandingPage() {
                     </div>
                 </section>
 
-                <section className="mx-auto max-w-7xl px-4 pb-10 sm:px-6 lg:px-8">
+                <section className="mx-auto max-w-[1440px] px-4 pb-10 sm:px-6 lg:px-8">
                     <Card className="overflow-hidden rounded-[30px] border border-blue-100 bg-[linear-gradient(135deg,#f7fbff_0%,#eef5ff_52%,#e4efff_100%)] text-slate-950 shadow-[0_30px_90px_-50px_rgba(59,130,246,0.28)]">
                         <CardContent className="flex flex-col gap-5 p-6 sm:p-8 lg:flex-row lg:items-center lg:justify-between">
                             <div className="max-w-2xl">
@@ -1114,7 +1114,7 @@ export default async function LandingPage() {
             </main>
 
             <footer className="border-t border-slate-200 bg-white/80">
-                <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-3 text-xs text-slate-500 sm:px-6 lg:px-8">
+                <div className="mx-auto flex max-w-[1440px] flex-wrap items-center justify-between gap-3 px-4 py-3 text-xs text-slate-500 sm:px-6 lg:px-8">
                     <div className="flex min-w-0 items-center gap-2">
                         <Brand href="/" variant="text" textClassName="w-24 sm:w-28" />
                         <span className="hidden text-slate-300 sm:inline">•</span>

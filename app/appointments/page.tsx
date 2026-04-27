@@ -754,12 +754,12 @@ export default function AppointmentsPage() {
             <div
                 key={descriptor.dayIndex}
                 className={`interactive-card flex flex-col overflow-hidden rounded-2xl border shadow-sm ${
-                    compact ? 'h-[19.5rem] self-start' : 'h-auto min-h-[18rem] self-start'
+                    compact ? 'h-[19.5rem] self-start 2xl:h-[22rem]' : 'h-auto min-h-[18rem] self-start'
                 } ${isTodayLane ? 'border-blue-200 bg-blue-50/35 shadow-blue-100/70 ring-1 ring-blue-100' : 'border-slate-200/80 bg-white/95 shadow-slate-200/50'}`}
                 data-testid={includeTestIds ? `week-day-card-${descriptor.dateKey}` : undefined}
             >
                 <div className={`w-full border-b text-left ${
-                    compact ? 'px-2.5 py-1.5' : 'px-3 py-2.5'
+                    compact ? 'px-2.5 py-1.5 2xl:px-3 2xl:py-2' : 'px-3 py-2.5'
                 } ${
                     isTodayLane
                         ? 'border-blue-500 bg-blue-600 text-white'
@@ -819,14 +819,14 @@ export default function AppointmentsPage() {
                         </div>
                     ) : (
                         <>
-                            <div className={compact ? 'h-[14.5rem] rounded-xl border border-slate-100 bg-slate-50/70 p-1.5' : 'space-y-1.5'}>
+                            <div className={compact ? 'h-[14.5rem] rounded-xl border border-slate-100 bg-slate-50/70 p-1.5 2xl:h-[16.5rem] 2xl:p-2' : 'space-y-1.5'}>
                                 <div className={compact ? 'space-y-0.5' : ''}>
                                 {visibleAppointments.map((appointment) => (
                                     <div
                                         key={appointment.id}
                                         className={`border-l-4 ${
                                             compact
-                                                ? `${getAppointmentBorderClass(appointment.status)} flex h-[1.35rem] items-center rounded-lg bg-white px-1.5 shadow-xs ring-1 ring-slate-100`
+                                                ? `${getAppointmentBorderClass(appointment.status)} flex h-[1.35rem] items-center rounded-lg bg-white px-1.5 shadow-xs ring-1 ring-slate-100 2xl:h-[1.55rem] 2xl:px-2`
                                                 : 'rounded-lg px-2.5 py-1.5'
                                         } ${
                                             compact ? '' : getAppointmentCardClass(appointment.status)
@@ -835,13 +835,13 @@ export default function AppointmentsPage() {
                                         <div className="flex w-full min-w-0 items-start justify-between gap-2">
                                             <div className="min-w-0 flex-1">
                                                 <div
-                                                    className={`flex w-full min-w-0 items-center gap-1.5 font-semibold text-slate-900 leading-tight ${compact ? 'text-xs' : 'text-[13px]'}`}
+                                                    className={`flex w-full min-w-0 items-center gap-1.5 font-semibold text-slate-900 leading-tight ${compact ? 'text-xs 2xl:text-[13px]' : 'text-[13px]'}`}
                                                     title={`${appointment.startTime} ${appointment.patientName}`}
                                                 >
                                                     <span
                                                         className={`inline-flex shrink-0 items-center rounded-md px-1.5 py-0.5 font-medium ${
                                                             compact
-                                                                ? `text-[9px] ${getCompactAppointmentTimeClass(appointment.status)}`
+                                                                ? `text-[9px] 2xl:text-[10px] ${getCompactAppointmentTimeClass(appointment.status)}`
                                                                 : 'text-xs text-slate-700'
                                                         }`}
                                                     >
@@ -869,7 +869,7 @@ export default function AppointmentsPage() {
                                 <button
                                     type="button"
                                     className={`inline-flex flex-1 items-center justify-center rounded-lg border border-blue-200 bg-blue-50 font-medium text-blue-700 transition-colors hover:bg-blue-100 ${
-                                        compact ? 'h-6 px-1.5 text-[10px]' : 'h-8 px-3 text-xs'
+                                        compact ? 'h-6 px-1.5 text-[10px] 2xl:h-7 2xl:text-[11px]' : 'h-8 px-3 text-xs'
                                     }`}
                                     aria-label={hiddenAppointmentsCount > 0
                                         ? t('appointments.showMoreAria', { count: hiddenAppointmentsCount })
@@ -884,7 +884,7 @@ export default function AppointmentsPage() {
                                 <button
                                     type="button"
                                     className={`inline-flex flex-1 items-center justify-center rounded-lg border border-slate-200 bg-white font-medium text-slate-700 transition-colors hover:bg-slate-50 ${
-                                        compact ? 'h-6 px-1.5 text-[10px]' : 'h-8 px-3 text-xs'
+                                        compact ? 'h-6 px-1.5 text-[10px] 2xl:h-7 2xl:text-[11px]' : 'h-8 px-3 text-xs'
                                     }`}
                                     data-testid={includeTestIds ? `week-day-add-${descriptor.dateKey}` : undefined}
                                     onClick={() => openAddDialog({ date: descriptor.date })}
@@ -899,7 +899,7 @@ export default function AppointmentsPage() {
                             <button
                                 type="button"
                                 className={`inline-flex w-full items-center justify-center rounded-lg border border-blue-200 bg-blue-50 font-medium text-blue-700 transition-colors hover:bg-blue-100 ${
-                                    compact ? 'h-6 px-1.5 text-[10px]' : 'h-8 px-3 text-xs'
+                                    compact ? 'h-6 px-1.5 text-[10px] 2xl:h-7 2xl:text-[11px]' : 'h-8 px-3 text-xs'
                                 }`}
                                 aria-label={t('appointments.addForDay')}
                                 data-testid={includeTestIds ? `week-day-more-${descriptor.dateKey}` : undefined}

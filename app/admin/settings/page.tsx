@@ -19,7 +19,7 @@ function AdminSettingsLoadingSkeleton() {
     return (
         <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(219,234,254,0.55),transparent_34rem),linear-gradient(180deg,#f8fbff_0%,#f8fafc_42%,#f1f5f9_100%)]">
             <div className="border-b border-blue-100/70 bg-white/90 px-4 py-3 sm:px-6 lg:px-8">
-                <div className="mx-auto flex max-w-7xl items-center justify-between">
+                <div className="mx-auto flex max-w-[1440px] items-center justify-between">
                     <Skeleton className="h-10 w-36 rounded-md" />
                     <Skeleton className="h-10 w-80 rounded-2xl" />
                 </div>

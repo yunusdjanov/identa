@@ -144,7 +144,7 @@ function AdminDashboardLoadingSkeleton() {
     return (
         <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(219,234,254,0.55),transparent_34rem),linear-gradient(180deg,#f8fbff_0%,#f8fafc_42%,#f1f5f9_100%)]">
             <header className="border-b border-blue-100/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(248,251,255,0.94)_100%)]">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div className="mx-auto max-w-[1440px] px-4 sm:px-6 lg:px-8">
                     <div className="flex h-16 items-center justify-between">
                         <Skeleton className="h-10 w-36 rounded-md" />
                         <div className="flex items-center gap-3">
@@ -157,7 +157,7 @@ function AdminDashboardLoadingSkeleton() {
             </header>
 
         <div className="p-4 sm:p-5 lg:p-6">
-            <div className="max-w-7xl mx-auto space-y-5 lg:space-y-6">
+            <div className="mx-auto max-w-[1440px] space-y-5 lg:space-y-6">
                     <div className="space-y-2">
                         <Skeleton className="h-9 w-72" />
                         <Skeleton className="h-4 w-80" />
@@ -484,7 +484,7 @@ export default function AdminDashboardPage() {
             />
 
         <div className="p-4 sm:p-5 lg:p-6">
-            <div className="max-w-7xl mx-auto space-y-5 lg:space-y-6">
+            <div className="mx-auto max-w-[1440px] space-y-5 lg:space-y-6">
                     <PageHeader title={t('admin.dashboardTitle')} description={t('admin.dashboardSubtitle')} />
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
