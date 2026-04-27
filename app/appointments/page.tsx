@@ -27,7 +27,7 @@ import {
 } from '@/lib/appointments/messages';
 import { getApiErrorMessage } from '@/lib/api/client';
 import { INPUT_LIMITS } from '@/lib/input-validation';
-import { formatTime, getStatusBadgeColor, isValidTimeInput, toLocalDateKey, truncateForUi } from '@/lib/utils';
+import { formatTime, isValidTimeInput, toLocalDateKey, truncateForUi } from '@/lib/utils';
 import {
     createAppointmentCoveredSlots,
     createAppointmentStartSlots,
@@ -73,6 +73,8 @@ const WEEK_VIEW_COMPACT_LIST_HEIGHT_CLASSES: Record<number, string> = {
     8: 'h-[13rem]',
     9: 'h-[14.5rem]',
 };
+const WEEK_VIEW_STACKED_CARD_HEIGHT_CLASS = 'min-h-[17.5rem] md:min-h-[18rem]';
+const WEEK_VIEW_STACKED_LIST_HEIGHT_CLASS = 'min-h-[11rem]';
 const APPOINTMENT_STATUS_VALUES = ['scheduled', 'completed', 'cancelled', 'no_show'] as const;
 type AppointmentStatus = (typeof APPOINTMENT_STATUS_VALUES)[number];
 
@@ -149,45 +151,60 @@ function getWeekStart(date: Date): Date {
 function getAppointmentCardClass(status: AppointmentRow['status']): string {
     switch (status) {
         case 'scheduled':
-            return 'border-blue-500 bg-blue-50/80';
+            return 'border-slate-200 bg-white border-l-blue-400';
         case 'completed':
-            return 'border-green-500 bg-green-50/80';
+            return 'border-slate-200 bg-white border-l-emerald-400';
         case 'cancelled':
-            return 'border-slate-400 bg-slate-100/80';
+            return 'border-slate-200 bg-white border-l-slate-400';
         case 'no_show':
-            return 'border-red-500 bg-red-50/80';
+            return 'border-slate-200 bg-white border-l-rose-400';
         default:
-            return 'border-blue-500 bg-blue-50/80';
+            return 'border-slate-200 bg-white border-l-blue-400';
     }
 }
 
 function getAppointmentBorderClass(status: AppointmentRow['status']): string {
     switch (status) {
         case 'scheduled':
-            return 'border-blue-500';
+            return 'border-l-blue-400';
         case 'completed':
-            return 'border-green-500';
+            return 'border-l-emerald-400';
         case 'cancelled':
-            return 'border-gray-400';
+            return 'border-l-slate-400';
         case 'no_show':
-            return 'border-red-500';
+            return 'border-l-rose-400';
         default:
-            return 'border-blue-500';
+            return 'border-l-blue-400';
     }
 }
 
 function getCompactAppointmentTimeClass(status: AppointmentRow['status']): string {
     switch (status) {
         case 'scheduled':
-            return 'bg-blue-100 text-blue-700';
+            return 'bg-blue-50 text-blue-700 ring-1 ring-blue-100';
         case 'completed':
-            return 'bg-green-100 text-green-700';
+            return 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100';
         case 'cancelled':
-            return 'bg-slate-200 text-slate-700';
+            return 'bg-slate-100 text-slate-600 ring-1 ring-slate-200';
         case 'no_show':
-            return 'bg-red-100 text-red-700';
+            return 'bg-rose-50 text-rose-700 ring-1 ring-rose-100';
         default:
-            return 'bg-blue-100 text-blue-700';
+            return 'bg-blue-50 text-blue-700 ring-1 ring-blue-100';
+    }
+}
+
+function getAppointmentStatusBadgeClass(status: AppointmentRow['status']): string {
+    switch (status) {
+        case 'scheduled':
+            return 'bg-blue-50 text-blue-700 ring-1 ring-blue-100';
+        case 'completed':
+            return 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100';
+        case 'cancelled':
+            return 'bg-slate-100 text-slate-600 ring-1 ring-slate-200';
+        case 'no_show':
+            return 'bg-rose-50 text-rose-700 ring-1 ring-rose-100';
+        default:
+            return 'bg-blue-50 text-blue-700 ring-1 ring-blue-100';
     }
 }
 
@@ -814,7 +831,7 @@ export default function AppointmentsPage() {
             <div
                 key={descriptor.dayIndex}
                 className={`interactive-card flex flex-col overflow-hidden rounded-2xl border shadow-sm ${
-                    compact ? `${compactCardHeightClass} self-start` : 'h-auto self-start'
+                    compact ? `${compactCardHeightClass} self-start` : `${WEEK_VIEW_STACKED_CARD_HEIGHT_CLASS} self-stretch`
                 } ${isTodayLane ? 'border-blue-200 bg-blue-50/35 shadow-blue-100/70 ring-1 ring-blue-100' : 'border-slate-200/80 bg-white/95 shadow-slate-200/50'}`}
                 data-testid={includeTestIds ? `week-day-card-${descriptor.dateKey}` : undefined}
             >
@@ -873,13 +890,13 @@ export default function AppointmentsPage() {
                 <div className={`flex flex-1 min-h-0 flex-col ${compact ? 'p-1' : 'gap-2 p-2'}`}>
                     {dayAppointments.length === 0 ? (
                         <div className={`flex flex-1 items-center justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50/70 px-3 text-center text-sm text-slate-500 ${
-                            compact ? 'h-[8.75rem] py-4' : 'min-h-[5rem] py-4'
+                            compact ? 'h-[8.75rem] py-4' : `${WEEK_VIEW_STACKED_LIST_HEIGHT_CLASS} py-4`
                         }`}>
                             {t('appointments.noAppointments')}
                         </div>
                     ) : (
                         <>
-                            <div className={compact ? `${compactListHeightClass} rounded-xl border border-slate-100 bg-slate-50/70 p-1.5` : 'space-y-1.5 rounded-xl bg-slate-50/70 p-1.5'}>
+                            <div className={compact ? `${compactListHeightClass} rounded-xl border border-slate-100 bg-slate-50/70 p-1.5` : `${WEEK_VIEW_STACKED_LIST_HEIGHT_CLASS} space-y-1.5 rounded-xl border border-slate-100 bg-slate-50/70 p-1.5`}>
                                 <div className={compact ? 'space-y-0.5' : ''}>
                                 {visibleAppointments.map((appointment) => (
                                     <div
@@ -916,7 +933,7 @@ export default function AppointmentsPage() {
                                                 </div>
                                             </div>
                                             {compact ? null : (
-                                                <Badge className={`${getStatusBadgeColor(appointment.status)} shrink-0`}>
+                                                <Badge className={`${getAppointmentStatusBadgeClass(appointment.status)} shrink-0`}>
                                                     {t(`status.${appointment.status}`)}
                                                 </Badge>
                                             )}
@@ -1346,7 +1363,7 @@ export default function AppointmentsPage() {
                                                                     </p>
                                                                 </div>
                                                                 <div className="flex items-center gap-2" onPointerDown={(event) => event.stopPropagation()}>
-                                                                    <Badge className={getStatusBadgeColor(appointment.status)}>
+                                                                    <Badge className={getAppointmentStatusBadgeClass(appointment.status)}>
                                                                         {t(`status.${appointment.status}`)}
                                                                     </Badge>
                                                                     <Button
@@ -1367,7 +1384,8 @@ export default function AppointmentsPage() {
                                                                     <Button
                                                                         type="button"
                                                                         size="xs"
-                                                                        variant="destructive"
+                                                                        variant="outline"
+                                                                        className="border-rose-100 bg-rose-50 text-rose-600 hover:bg-rose-100 hover:text-rose-700"
                                                                         draggable={false}
                                                                         onClick={() => openDeleteDialog(appointment)}
                                                                         disabled={deleteMutation.isPending}
@@ -1411,27 +1429,27 @@ export default function AppointmentsPage() {
                         </div>
                         <div className="hidden lg:flex lg:items-center lg:justify-center lg:gap-6 lg:pt-1.5">
                             <div className="flex items-center gap-2 text-xs text-slate-500">
-                                <span className="h-2.5 w-2.5 rounded-full bg-blue-500" aria-hidden="true" />
+                                <span className="h-2.5 w-2.5 rounded-full bg-blue-400" aria-hidden="true" />
                                 <span>{t('status.scheduled')}</span>
                             </div>
                             <div className="flex items-center gap-2 text-xs text-slate-500">
-                                <span className="h-2.5 w-2.5 rounded-full bg-green-500" aria-hidden="true" />
+                                <span className="h-2.5 w-2.5 rounded-full bg-emerald-400" aria-hidden="true" />
                                 <span>{t('status.completed')}</span>
                             </div>
                             <div className="flex items-center gap-2 text-xs text-slate-500">
-                                <span className="h-2.5 w-2.5 rounded-full bg-slate-500" aria-hidden="true" />
+                                <span className="h-2.5 w-2.5 rounded-full bg-slate-400" aria-hidden="true" />
                                 <span>{t('status.cancelled')}</span>
                             </div>
                             <div className="flex items-center gap-2 text-xs text-slate-500">
-                                <span className="h-2.5 w-2.5 rounded-full bg-red-500" aria-hidden="true" />
+                                <span className="h-2.5 w-2.5 rounded-full bg-rose-400" aria-hidden="true" />
                                 <span>{t('status.no_show')}</span>
                             </div>
                         </div>
                         <div className="space-y-3 lg:hidden">
-                            <div className="grid grid-cols-1 items-start gap-3 md:grid-cols-2 lg:grid-cols-4">
+                            <div className="grid grid-cols-1 items-stretch gap-3 md:grid-cols-2 lg:grid-cols-4">
                                 {weekDateDescriptors.slice(0, 4).map((descriptor) => renderWeekDayCard(descriptor, { includeTestIds: true }))}
                             </div>
-                            <div className="grid grid-cols-1 items-start gap-3 md:grid-cols-2 lg:mx-auto lg:max-w-[calc(((100%-0.75rem*3)/4)*3+0.75rem*2)] lg:grid-cols-3">
+                            <div className="grid grid-cols-1 items-stretch gap-3 md:grid-cols-2 lg:mx-auto lg:max-w-[calc(((100%-0.75rem*3)/4)*3+0.75rem*2)] lg:grid-cols-3">
                                 {weekDateDescriptors.slice(4).map((descriptor) => renderWeekDayCard(descriptor, { includeTestIds: true }))}
                             </div>
                         </div>
@@ -1517,7 +1535,7 @@ export default function AppointmentsPage() {
                                                     </p>
                                                 </div>
                                                 <div className="flex shrink-0 items-start gap-1.5">
-                                                    <Badge className={`${getStatusBadgeColor(appointment.status)} shrink-0 text-xs px-2 py-0.5`}>
+                                                    <Badge className={`${getAppointmentStatusBadgeClass(appointment.status)} shrink-0 px-2 py-0.5 text-xs`}>
                                                         {t(`status.${appointment.status}`)}
                                                     </Badge>
                                                     <Button
@@ -1535,8 +1553,8 @@ export default function AppointmentsPage() {
                                                     <Button
                                                         type="button"
                                                         size="icon"
-                                                        variant="destructive"
-                                                        className="h-8 w-8 rounded-full shadow-sm shadow-red-100/60"
+                                                        variant="outline"
+                                                        className="h-8 w-8 rounded-full border-rose-100 bg-rose-50 text-rose-600 shadow-sm shadow-rose-100/50 hover:bg-rose-100 hover:text-rose-700"
                                                         onClick={() => openDeleteDialog(appointment)}
                                                         disabled={deleteMutation.isPending}
                                                         aria-label={t('appointments.delete')}
