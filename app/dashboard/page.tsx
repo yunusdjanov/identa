@@ -24,31 +24,31 @@ const statToneClasses: Record<DashboardStatTone, {
     card: string;
     icon: string;
     value: string;
-    glow: string;
+    hover: string;
 }> = {
     blue: {
         card: 'border-blue-100 bg-white/95',
         icon: 'bg-blue-50 text-blue-700 ring-blue-100',
         value: 'text-blue-950',
-        glow: 'bg-blue-500/[0.06]',
+        hover: 'metric-hover-blue',
     },
     green: {
         card: 'border-emerald-100 bg-white/95',
         icon: 'bg-emerald-50 text-emerald-700 ring-emerald-100',
         value: 'text-emerald-950',
-        glow: 'bg-emerald-500/[0.06]',
+        hover: 'metric-hover-emerald',
     },
     red: {
         card: 'border-red-100 bg-white/95',
         icon: 'bg-red-50 text-red-700 ring-red-100',
         value: 'text-red-950',
-        glow: 'bg-red-500/[0.06]',
+        hover: 'metric-hover-red',
     },
     amber: {
         card: 'border-amber-100 bg-white/95',
         icon: 'bg-amber-50 text-amber-700 ring-amber-100',
         value: 'text-amber-950',
-        glow: 'bg-amber-500/[0.06]',
+        hover: 'metric-hover-amber',
     },
 };
 
@@ -143,8 +143,7 @@ function DashboardStatCard({
     const classes = statToneClasses[tone];
 
     return (
-        <Card className={`interactive-card relative overflow-hidden rounded-[1.5rem] shadow-sm ${classes.card}`}>
-            <div className={`absolute -right-8 -top-8 h-24 w-24 rounded-full blur-2xl ${classes.glow}`} />
+        <Card className={`interactive-card metric-hover-card ${classes.hover} rounded-[1.5rem] shadow-sm ${classes.card}`}>
             <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-white to-transparent" />
             <CardContent className="relative flex min-h-[136px] flex-col justify-between p-5">
                 <div className="flex items-start justify-between gap-3">

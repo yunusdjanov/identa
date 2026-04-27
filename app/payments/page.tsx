@@ -349,7 +349,7 @@ export default function PaymentsPage() {
             <PageHeader title={t('payments.title')} description={t('payments.subtitle')} />
 
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-                <div className="interactive-card rounded-2xl border border-red-100 bg-gradient-to-br from-white to-red-50/70 p-4 shadow-sm shadow-red-100/60 md:p-5">
+                <div className="interactive-card metric-hover-card metric-hover-red rounded-2xl border border-red-100 bg-white/95 p-4 shadow-sm shadow-red-100/60 md:p-5">
                     <div className="flex items-center gap-2 text-sm font-medium text-gray-600">
                         <AlertCircle className="h-4 w-4 text-red-500" />
                         {t('payments.summary.totalDebt')}
@@ -360,7 +360,7 @@ export default function PaymentsPage() {
                     <p className="mt-1 text-xs text-gray-500">{t('payments.summary.totalDebtHint')}</p>
                 </div>
 
-                <div className="interactive-card rounded-2xl border border-emerald-100 bg-gradient-to-br from-white to-emerald-50/70 p-4 shadow-sm shadow-emerald-100/60 md:p-5">
+                <div className="interactive-card metric-hover-card metric-hover-emerald rounded-2xl border border-emerald-100 bg-white/95 p-4 shadow-sm shadow-emerald-100/60 md:p-5">
                     <div className="flex items-center gap-2 text-sm font-medium text-gray-600">
                         <Wallet className="h-4 w-4 text-green-600" />
                         {t('payments.summary.totalPaid')}
@@ -371,7 +371,7 @@ export default function PaymentsPage() {
                     <p className="mt-1 text-xs text-gray-500">{t('payments.summary.totalPaidHint')}</p>
                 </div>
 
-                <div className="interactive-card rounded-2xl border border-blue-100 bg-gradient-to-br from-white to-blue-50/70 p-4 shadow-sm shadow-blue-100/60 md:p-5">
+                <div className="interactive-card metric-hover-card metric-hover-blue rounded-2xl border border-blue-100 bg-white/95 p-4 shadow-sm shadow-blue-100/60 md:p-5">
                     <div className="flex items-center gap-2 text-sm font-medium text-gray-600">
                         <History className="h-4 w-4 text-slate-500" />
                         {t('payments.summary.netBalance')}
@@ -390,7 +390,7 @@ export default function PaymentsPage() {
                     <p className="mt-1 text-xs text-gray-500">{t('payments.summary.netBalanceHint')}</p>
                 </div>
 
-                <div className="interactive-card rounded-2xl border border-slate-200 bg-white/95 p-4 shadow-sm shadow-slate-200/60 md:p-5">
+                <div className="interactive-card metric-hover-card metric-hover-slate rounded-2xl border border-slate-200 bg-white/95 p-4 shadow-sm shadow-slate-200/60 md:p-5">
                     <div className="flex items-center gap-2 text-sm font-medium text-gray-600">
                         <Users className="h-4 w-4 text-slate-500" />
                         {t('payments.summary.totalPatients')}

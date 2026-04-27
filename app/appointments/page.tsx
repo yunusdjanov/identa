@@ -835,7 +835,7 @@ export default function AppointmentsPage() {
         return (
             <div
                 key={descriptor.dayIndex}
-                className={`interactive-card flex flex-col overflow-hidden rounded-2xl border shadow-sm ${
+                className={`interactive-card metric-hover-card metric-hover-blue flex flex-col overflow-hidden rounded-2xl border shadow-sm ${
                     compact ? `${compactCardHeightClass} self-start` : `${WEEK_VIEW_STACKED_CARD_HEIGHT_CLASS} self-stretch`
                 } ${isTodayLane ? 'border-blue-200 bg-blue-50/35 shadow-blue-100/70 ring-1 ring-blue-100' : 'border-slate-200/80 bg-white/95 shadow-slate-200/50'}`}
                 data-testid={includeTestIds ? `week-day-card-${descriptor.dateKey}` : undefined}
