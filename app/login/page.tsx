@@ -44,7 +44,7 @@ export default function LoginPage() {
     });
 
     const loginMutation = useMutation({
-        mutationFn: () => loginWithPassword(email.trim(), password, remember),
+        mutationFn: () => loginWithPassword(email.trim(), password, remember, 'app'),
         onSuccess: (user) => {
             resetSessionExpiredNotification();
             login(user.name);

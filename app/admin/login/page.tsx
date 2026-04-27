@@ -42,7 +42,8 @@ export default function AdminLoginPage() {
             const user = await loginWithPassword(
                 credentials.email.trim(),
                 credentials.password,
-                remember
+                remember,
+                'admin'
             );
 
             if (user.role !== 'admin') {

@@ -24,6 +24,7 @@ import type {
 } from '@/lib/api/types';
 
 type FilterValue = string | number | boolean;
+type LoginPortal = 'app' | 'admin';
 
 interface QueryOptions {
     page?: number;
@@ -148,13 +149,15 @@ async function collectAllPages<T>(
 export async function loginWithPassword(
     email: string,
     password: string,
-    remember = false
+    remember = false,
+    portal: LoginPortal = 'app'
 ): Promise<ApiUser> {
     const { data } = await withCsrfRetry(() =>
         apiClient.post<ApiEnvelope<ApiUser>>('/auth/login', {
             email,
             password,
             remember,
+            portal,
         })
     );
     invalidateCsrfCookie();

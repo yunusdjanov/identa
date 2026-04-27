@@ -685,7 +685,7 @@ function buildTelegramHref(message: string, contactUrl?: string | null): string 
 async function loadLandingSettings(): Promise<ApiLandingSettings> {
     try {
         const response = await fetch(`${PUBLIC_API_URL}/v1/public/landing-settings`, {
-            next: { revalidate: 300 },
+            cache: 'no-store',
             headers: {
                 Accept: 'application/json',
             },

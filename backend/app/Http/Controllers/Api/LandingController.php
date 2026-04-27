@@ -13,7 +13,7 @@ use Illuminate\Http\Request;
 class LandingController extends Controller
 {
     public function __construct(
-        private readonly AuditLogger $auditLogger,
+        protected readonly AuditLogger $auditLogger,
     ) {
     }
 

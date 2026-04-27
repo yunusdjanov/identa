@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password as PasswordRule;
 use Illuminate\Validation\ValidationException;
 
@@ -28,10 +29,13 @@ class AuthController extends Controller
             'email' => ['required', 'email'],
             'password' => ['required', 'string'],
             'remember' => ['nullable', 'boolean'],
+            'portal' => ['nullable', 'string', Rule::in(['app', 'admin'])],
         ]);
 
         $remember = (bool) ($credentials['remember'] ?? false);
+        $portal = (string) ($credentials['portal'] ?? 'app');
         unset($credentials['remember']);
+        unset($credentials['portal']);
 
         if (! Auth::guard('web')->attempt($credentials, $remember)) {
             $this->auditLogger->logFromRequest(
@@ -52,6 +56,25 @@ class AuthController extends Controller
         /** @var \App\Models\User $user */
         $user = $request->user();
 
+        if ($this->isLoginPortalMismatch($user, $portal)) {
+            $this->auditLogger->logFromRequest(
+                request: $request,
+                eventType: 'auth.login_portal_rejected',
+                entityType: 'user',
+                entityId: (string) $user->id,
+                metadata: [
+                    'portal' => $portal,
+                    'role' => $user->role,
+                ],
+            );
+
+            $this->logoutCurrentSession($request);
+
+            throw ValidationException::withMessages([
+                'email' => [__('api.auth.invalid_credentials')],
+            ]);
+        }
+
         if (! $user->hasActiveAccount()) {
             $this->auditLogger->logFromRequest(
                 request: $request,
@@ -63,9 +86,7 @@ class AuthController extends Controller
                 ],
             );
 
-            Auth::guard('web')->logout();
-            $request->session()->invalidate();
-            $request->session()->regenerateToken();
+            $this->logoutCurrentSession($request);
 
             throw ValidationException::withMessages([
                 'email' => [__('api.auth.account_inactive')],
@@ -86,9 +107,7 @@ class AuthController extends Controller
                     ],
                 );
 
-                Auth::guard('web')->logout();
-                $request->session()->invalidate();
-                $request->session()->regenerateToken();
+                $this->logoutCurrentSession($request);
 
                 throw ValidationException::withMessages([
                     'email' => [__('api.auth.account_inactive')],
@@ -275,5 +294,20 @@ class AuthController extends Controller
             'must_change_password' => (bool) $user->must_change_password,
             'subscription' => $user->subscriptionOwner()?->subscriptionSummary(),
         ];
+    }
+
+    private function isLoginPortalMismatch(User $user, string $portal): bool
+    {
+        return match ($portal) {
+            'admin' => ! $user->isAdmin(),
+            default => $user->isAdmin(),
+        };
+    }
+
+    private function logoutCurrentSession(Request $request): void
+    {
+        Auth::guard('web')->logout();
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
     }
 }
