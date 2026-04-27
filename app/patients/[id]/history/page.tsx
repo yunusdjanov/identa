@@ -1,5 +1,6 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import { use } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
@@ -11,7 +12,14 @@ import { useI18n } from '@/components/providers/i18n-provider';
 import { Button } from '@/components/ui/button';
 import { PageHeader } from '@/components/ui/page-shell';
 import { Skeleton } from '@/components/ui/skeleton';
-import { TreatmentHistoryCard } from '@/components/patients/treatment-history-card';
+
+const TreatmentHistoryCard = dynamic(
+    () => import('@/components/patients/treatment-history-card').then((module) => module.TreatmentHistoryCard),
+    {
+        ssr: false,
+        loading: () => <Skeleton className="h-[28rem] w-full rounded-[1.75rem]" />,
+    }
+);
 
 export default function PatientHistoryPage({
     params,

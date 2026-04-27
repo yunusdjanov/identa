@@ -223,11 +223,7 @@ export default function DashboardPage() {
         );
     }
 
-    if (dashboardQuery.isLoading) {
-        return <DashboardLoadingSkeleton />;
-    }
-
-    if (dashboardQuery.isError || !dashboardQuery.data) {
+    if (dashboardQuery.isError && !dashboardQuery.data) {
         return (
             <div className="space-y-4">
                 <p className="text-sm text-red-600">
@@ -241,10 +237,11 @@ export default function DashboardPage() {
     }
 
     const stats = dashboardQuery.data;
+    const isDashboardLoading = dashboardQuery.isLoading && !stats;
     const nowTimeKey = isClient
         ? `${String(new Date().getHours()).padStart(2, '0')}:${String(new Date().getMinutes()).padStart(2, '0')}`
         : '00:00';
-    const allTodayAppointments = [...stats.todayAppointments]
+    const allTodayAppointments = [...(stats?.todayAppointments ?? [])]
         .sort((a, b) => a.startTime.localeCompare(b.startTime));
     const scheduledTodayAppointments = allTodayAppointments
         .filter((appointment) => appointment.status === 'scheduled');
@@ -266,7 +263,7 @@ export default function DashboardPage() {
         .replace(' ->', '')
         .replace('->', '')
         .trim();
-    const debtTone: DashboardStatTone = stats.outstandingDebtTotal > 0 ? 'red' : 'green';
+    const debtTone: DashboardStatTone = (stats?.outstandingDebtTotal ?? 0) > 0 ? 'red' : 'green';
     const debtActionClassName = debtTone === 'red'
         ? 'h-8 rounded-full px-2 text-red-700 hover:bg-red-100 hover:text-red-800'
         : 'h-8 rounded-full px-2 text-emerald-700 hover:bg-emerald-100 hover:text-emerald-800';
@@ -325,7 +322,7 @@ export default function DashboardPage() {
 
                         <DashboardStatCard
                             title={t('dashboard.revenueThisMonth')}
-                            value={formatCurrency(stats.revenueThisMonth)}
+                            value={stats ? formatCurrency(stats.revenueThisMonth) : '...'}
                             helper={monthLabel}
                             tone="green"
                             icon={<DollarSign className="h-5 w-5" />}
@@ -333,7 +330,7 @@ export default function DashboardPage() {
 
                         <DashboardStatCard
                             title={t('dashboard.outstandingDebts')}
-                            value={formatCurrency(stats.outstandingDebtTotal)}
+                            value={stats ? formatCurrency(stats.outstandingDebtTotal) : '...'}
                             helper={viewAllDebtsLabel}
                             tone={debtTone}
                             icon={<AlertCircle className="h-5 w-5" />}
@@ -387,7 +384,19 @@ export default function DashboardPage() {
                     </div>
                 </CardHeader>
                 <CardContent className="pb-5 pt-0">
-                    {scheduledTodayAppointments.length === 0 ? (
+                    {isDashboardLoading ? (
+                        <div className="flex flex-col gap-4 rounded-2xl border border-dashed border-blue-200 bg-white/70 px-4 py-6 sm:flex-row sm:items-center sm:justify-between">
+                            <div className="flex items-center gap-3">
+                                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-blue-50">
+                                    <Calendar className="h-5 w-5 text-blue-600" />
+                                </div>
+                                <div>
+                                    <p className="text-sm font-semibold text-slate-900">{t('common.loading')}</p>
+                                    <p className="mt-1 text-sm text-slate-500">{t('dashboard.todayAppointments')}</p>
+                                </div>
+                            </div>
+                        </div>
+                    ) : scheduledTodayAppointments.length === 0 ? (
                         <div className="flex flex-col gap-4 rounded-2xl border border-dashed border-blue-200 bg-white/70 px-4 py-6 sm:flex-row sm:items-center sm:justify-between">
                             <div className="flex items-center gap-3">
                                 <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-blue-50">

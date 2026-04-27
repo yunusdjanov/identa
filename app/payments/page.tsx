@@ -6,7 +6,6 @@ import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Skeleton } from '@/components/ui/skeleton';
 import {
     Table,
     TableBody,
@@ -61,40 +60,6 @@ interface GlobalLedgerRow {
 }
 
 type PaymentsTab = 'patients' | 'history';
-
-function PaymentsLoadingSkeleton() {
-    return (
-        <div className="space-y-5 lg:space-y-6">
-            <div className="space-y-2">
-                <Skeleton className="h-9 w-72" />
-                <Skeleton className="h-4 w-80" />
-            </div>
-            <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white/95 shadow-sm shadow-slate-200/60">
-                <div className="grid grid-cols-1 divide-y divide-gray-100 md:grid-cols-2 md:divide-x md:divide-y xl:grid-cols-4 xl:divide-y-0">
-                    {Array.from({ length: 4 }).map((_, index) => (
-                        <div key={index} className="space-y-2 p-4 md:p-5">
-                            <Skeleton className="h-4 w-28" />
-                            <Skeleton className="h-8 w-36" />
-                            <Skeleton className="h-3 w-24" />
-                        </div>
-                    ))}
-                </div>
-            </div>
-            <Card>
-                <CardContent className="space-y-3 pt-6">
-                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                        <Skeleton className="h-10 w-full" />
-                        <Skeleton className="h-10 w-full" />
-                        <Skeleton className="h-10 w-full" />
-                    </div>
-                    {Array.from({ length: 5 }).map((_, index) => (
-                        <Skeleton key={index} className="h-12 w-full" />
-                    ))}
-                </CardContent>
-            </Card>
-        </div>
-    );
-}
 
 function formatTeeth(teeth: number[]) {
     return teeth.length > 0 ? teeth.join(', ') : '-';
@@ -356,11 +321,7 @@ export default function PaymentsPage() {
         }
     };
 
-    if (accountingQuery.isLoading) {
-        return <PaymentsLoadingSkeleton />;
-    }
-
-    if (accountingQuery.isError) {
+    if (accountingQuery.isError && !accountingQuery.data) {
         return (
             <div className="space-y-6">
                 <PageHeader title={t('payments.title')} description={t('payments.subtitle')} />
@@ -381,6 +342,8 @@ export default function PaymentsPage() {
         );
     }
 
+    const isAccountingLoading = accountingQuery.isLoading && !accountingQuery.data;
+
     return (
         <div className="space-y-5 lg:space-y-6">
             <PageHeader title={t('payments.title')} description={t('payments.subtitle')} />
@@ -392,7 +355,7 @@ export default function PaymentsPage() {
                         {t('payments.summary.totalDebt')}
                     </div>
                     <p className="mt-2 text-2xl font-semibold leading-none tabular-nums text-red-700">
-                        {formatCurrency(overallSummary.totalDebt)}
+                        {isAccountingLoading ? '...' : formatCurrency(overallSummary.totalDebt)}
                     </p>
                     <p className="mt-1 text-xs text-gray-500">{t('payments.summary.totalDebtHint')}</p>
                 </div>
@@ -403,7 +366,7 @@ export default function PaymentsPage() {
                         {t('payments.summary.totalPaid')}
                     </div>
                     <p className="mt-2 text-2xl font-semibold leading-none tabular-nums text-green-700">
-                        {formatCurrency(overallSummary.totalPaid)}
+                        {isAccountingLoading ? '...' : formatCurrency(overallSummary.totalPaid)}
                     </p>
                     <p className="mt-1 text-xs text-gray-500">{t('payments.summary.totalPaidHint')}</p>
                 </div>
@@ -422,7 +385,7 @@ export default function PaymentsPage() {
                                     : 'text-gray-900'
                         }`}
                     >
-                        {formatCurrency(overallSummary.totalBalance)}
+                        {isAccountingLoading ? '...' : formatCurrency(overallSummary.totalBalance)}
                     </p>
                     <p className="mt-1 text-xs text-gray-500">{t('payments.summary.netBalanceHint')}</p>
                 </div>
@@ -433,7 +396,7 @@ export default function PaymentsPage() {
                         {t('payments.summary.totalPatients')}
                     </div>
                     <p className="mt-2 text-2xl font-semibold leading-none tabular-nums text-gray-900">
-                        {overallSummary.totalPatients}
+                        {isAccountingLoading ? '...' : overallSummary.totalPatients}
                     </p>
                     <p className="mt-1 text-xs text-gray-500">
                         {t('payments.summary.entryCount', { count: overallSummary.totalEntries })}

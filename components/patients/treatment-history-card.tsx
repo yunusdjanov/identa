@@ -1,5 +1,6 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import { type ChangeEvent, useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
@@ -21,7 +22,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
-import { PatientPhotoPreviewDialog, type PreviewGalleryImage } from '@/components/patients/patient-photo-preview-dialog';
+import type { PreviewGalleryImage } from '@/components/patients/patient-photo-preview-dialog';
 import { ClinicalSnapshotCard } from '@/components/patients/clinical-snapshot-card';
 import { optimizeImageFilesForUpload } from '@/lib/browser-image';
 import { getProtectedMediaCrossOrigin } from '@/lib/protected-media';
@@ -64,6 +65,11 @@ const HISTORY_IMAGE_UPLOAD_CONCURRENCY = 10;
 const MEDIA_READINESS_POLL_INTERVAL_MS = 1200;
 const MEDIA_READINESS_TIMEOUT_MS = 8000;
 const HISTORY_TABLE_GRID_CLASS = 'grid min-w-[980px] grid-cols-[120px_96px_minmax(220px,1.4fr)_116px_116px_120px_160px_84px] gap-3';
+
+const PatientPhotoPreviewDialog = dynamic(
+    () => import('@/components/patients/patient-photo-preview-dialog').then((module) => module.PatientPhotoPreviewDialog),
+    { ssr: false }
+);
 
 const createEmptyFormState = (): TreatmentFormState => ({
     treatmentDate: toLocalDateKey(),
@@ -1251,16 +1257,18 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                 onConfirm={() => { if (treatmentToDelete) { deleteTreatmentMutation.mutate(treatmentToDelete.id); } }}
             />
 
-            <PatientPhotoPreviewDialog
-                key={previewGallery ? `${previewGallery.startIndex}:${previewGallery.images.map((image) => image.src).join('|')}` : 'closed-history-gallery'}
-                open={previewGallery !== null}
-                onOpenChange={(open) => !open && setPreviewGallery(null)}
-                images={previewGallery?.images ?? []}
-                startIndex={previewGallery?.startIndex ?? 0}
-                src={previewGallery?.images[0]?.src ?? null}
-                alt={previewGallery?.images[0]?.alt ?? ''}
-                title={previewGallery?.images[0]?.title ?? previewGallery?.fallbackTitle ?? patientName}
-            />
+            {previewGallery ? (
+                <PatientPhotoPreviewDialog
+                    key={`${previewGallery.startIndex}:${previewGallery.images.map((image) => image.src).join('|')}`}
+                    open={previewGallery !== null}
+                    onOpenChange={(open) => !open && setPreviewGallery(null)}
+                    images={previewGallery.images}
+                    startIndex={previewGallery.startIndex}
+                    src={previewGallery.images[0]?.src ?? null}
+                    alt={previewGallery.images[0]?.alt ?? ''}
+                    title={previewGallery.images[0]?.title ?? previewGallery.fallbackTitle ?? patientName}
+                />
+            ) : null}
         </>
     );
 }

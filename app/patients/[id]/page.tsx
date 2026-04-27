@@ -1,5 +1,6 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import { use, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
@@ -37,10 +38,14 @@ import {
     Phone,
     Trash2,
 } from 'lucide-react';
-import { EditPatientDialog } from '@/components/patients/edit-patient-dialog';
 import { toast } from 'sonner';
 import { useI18n } from '@/components/providers/i18n-provider';
 import { getProtectedMediaCrossOrigin } from '@/lib/protected-media';
+
+const EditPatientDialog = dynamic(
+    () => import('@/components/patients/edit-patient-dialog').then((module) => module.EditPatientDialog),
+    { ssr: false }
+);
 
 const PATIENT_HEADER_NAME_UI_LIMIT = 25;
 const PATIENT_CATEGORY_CHIP_UI_LIMIT = 20;
@@ -522,12 +527,14 @@ export default function PatientDetailPage({
                 </CardContent>
             </Card>
 
-            <EditPatientDialog
-                key={`${patient.id}-${isEditDialogOpen ? 'open' : 'closed'}`}
-                open={isEditDialogOpen}
-                onOpenChange={setIsEditDialogOpen}
-                patient={patient}
-            />
+            {isEditDialogOpen ? (
+                <EditPatientDialog
+                    key={`${patient.id}-open`}
+                    open={isEditDialogOpen}
+                    onOpenChange={setIsEditDialogOpen}
+                    patient={patient}
+                />
+            ) : null}
 
             <ConfirmActionDialog
                 open={isArchivePatientDialogOpen}

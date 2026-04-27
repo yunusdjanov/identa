@@ -1,5 +1,6 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import { useMemo, useState, useSyncExternalStore } from 'react';
 import { useRouter } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -30,12 +31,19 @@ import { getApiErrorMessage } from '@/lib/api/client';
 import type { ApiPatient } from '@/lib/api/types';
 import { cn, extractPrimaryPhone, formatDate, toLocalDateKey, truncateForUi } from '@/lib/utils';
 import { Plus, Search, Phone, CalendarPlus, ArrowRight, Tags, FileText, FilterX } from 'lucide-react';
-import { AddPatientDialog } from '@/components/patients/add-patient-dialog';
-import { ManageCategoriesDialog } from '@/components/patients/manage-categories-dialog';
 import { useI18n } from '@/components/providers/i18n-provider';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { getProtectedMediaCrossOrigin } from '@/lib/protected-media';
 import { toast } from 'sonner';
+
+const AddPatientDialog = dynamic(
+    () => import('@/components/patients/add-patient-dialog').then((module) => module.AddPatientDialog),
+    { ssr: false }
+);
+const ManageCategoriesDialog = dynamic(
+    () => import('@/components/patients/manage-categories-dialog').then((module) => module.ManageCategoriesDialog),
+    { ssr: false }
+);
 
 const noopSubscribe = () => () => undefined;
 const PAGE_SIZE = 10;
@@ -632,15 +640,19 @@ export default function PatientsPage() {
                 </CardContent>
             </Card>
 
-            <AddPatientDialog
-                open={isDialogOpen}
-                onOpenChange={handleDialogOpenChange}
-            />
+            {isDialogOpen ? (
+                <AddPatientDialog
+                    open={isDialogOpen}
+                    onOpenChange={handleDialogOpenChange}
+                />
+            ) : null}
 
-            <ManageCategoriesDialog
-                open={isManageCategoriesOpen}
-                onOpenChange={setIsManageCategoriesOpen}
-            />
+            {isManageCategoriesOpen ? (
+                <ManageCategoriesDialog
+                    open={isManageCategoriesOpen}
+                    onOpenChange={setIsManageCategoriesOpen}
+                />
+            ) : null}
         </div>
     );
 }

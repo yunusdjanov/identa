@@ -1,5 +1,6 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import { useMemo, useState, useSyncExternalStore } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
@@ -39,7 +40,6 @@ import {
 } from '@/lib/appointments/time-slots';
 import { formatLocalizedDate } from '@/lib/i18n/date';
 import { Plus, Calendar as CalendarIcon, ChevronLeft, ChevronRight, Pencil, Trash2 } from 'lucide-react';
-import { AddAppointmentDialog } from '@/components/appointments/add-appointment-dialog';
 import { AppointmentTimePicker } from '@/components/appointments/appointment-time-picker';
 import { ConfirmActionDialog } from '@/components/ui/confirm-action-dialog';
 import {
@@ -52,6 +52,11 @@ import {
 } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import { useI18n } from '@/components/providers/i18n-provider';
+
+const AddAppointmentDialog = dynamic(
+    () => import('@/components/appointments/add-appointment-dialog').then((module) => module.AddAppointmentDialog),
+    { ssr: false }
+);
 
 const noopSubscribe = () => () => undefined;
 const APPOINTMENT_NAME_UI_LIMIT = 25;
@@ -1751,35 +1756,35 @@ export default function AppointmentsPage() {
                 </DialogContent>
             </Dialog>
 
-            <AddAppointmentDialog
-                key={`add-appointment-${dialogVersion}-${urlPrefillPatientId ?? 'none'}`}
-                open={isDialogOpen}
-                onOpenChange={handleDialogOpenChange}
-                prefillDate={prefillDate}
-                prefillStartTime={prefillStartTime}
-                prefillPatientId={urlPrefillPatientId}
-                workingHours={workingHours}
-            />
-            <AddAppointmentDialog
-                key={`edit-appointment-${editDialogVersion}`}
-                open={isEditDialogOpen}
-                onOpenChange={handleEditDialogOpenChange}
-                editingAppointment={
-                    editingAppointment
-                        ? {
-                            id: editingAppointment.id,
-                            patientId: editingAppointment.patientId,
-                            patientName: editingAppointment.patientName,
-                            appointmentDate: editingAppointment.appointmentDate,
-                            startTime: editingAppointment.startTime,
-                            durationMinutes: editingAppointment.durationMinutes,
-                            status: editingAppointment.status,
-                            reason: editingAppointment.reason,
-                        }
-                        : undefined
-                }
-                workingHours={workingHours}
-            />
+            {isDialogOpen ? (
+                <AddAppointmentDialog
+                    key={`add-appointment-${dialogVersion}-${urlPrefillPatientId ?? 'none'}`}
+                    open={isDialogOpen}
+                    onOpenChange={handleDialogOpenChange}
+                    prefillDate={prefillDate}
+                    prefillStartTime={prefillStartTime}
+                    prefillPatientId={urlPrefillPatientId}
+                    workingHours={workingHours}
+                />
+            ) : null}
+            {isEditDialogOpen && editingAppointment ? (
+                <AddAppointmentDialog
+                    key={`edit-appointment-${editDialogVersion}`}
+                    open={isEditDialogOpen}
+                    onOpenChange={handleEditDialogOpenChange}
+                    editingAppointment={{
+                        id: editingAppointment.id,
+                        patientId: editingAppointment.patientId,
+                        patientName: editingAppointment.patientName,
+                        appointmentDate: editingAppointment.appointmentDate,
+                        startTime: editingAppointment.startTime,
+                        durationMinutes: editingAppointment.durationMinutes,
+                        status: editingAppointment.status,
+                        reason: editingAppointment.reason,
+                    }}
+                    workingHours={workingHours}
+                />
+            ) : null}
             <ConfirmActionDialog
                 open={isDeleteDialogOpen}
                 onOpenChange={handleDeleteDialogOpenChange}

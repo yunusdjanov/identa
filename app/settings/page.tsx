@@ -1,5 +1,6 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -22,7 +23,6 @@ import { getCurrentUser, getProfile, updateProfile } from '@/lib/api/dentist';
 import { getApiErrorMessage } from '@/lib/api/client';
 import { toast } from 'sonner';
 import { User, Building2, Clock, Lock } from 'lucide-react';
-import { PasswordSecurityCard } from '@/components/settings/password-security-card';
 import type { DentistProfile } from '@/lib/types';
 import type { ApiSubscriptionSummary } from '@/lib/api/types';
 import { useI18n } from '@/components/providers/i18n-provider';
@@ -37,6 +37,14 @@ import {
 import { isValidTimeInput, sanitizeTimeInput } from '@/lib/utils';
 import { formatLocalizedDate } from '@/lib/i18n/date';
 import { DEFAULT_APPOINTMENT_WORKING_HOURS } from '@/lib/appointments/time-slots';
+
+const PasswordSecurityCard = dynamic(
+    () => import('@/components/settings/password-security-card').then((module) => module.PasswordSecurityCard),
+    {
+        ssr: false,
+        loading: () => <Skeleton className="h-44 w-full rounded-[1.75rem]" />,
+    }
+);
 
 const defaultProfile: DentistProfile = {
     id: '',
