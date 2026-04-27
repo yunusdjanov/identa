@@ -763,9 +763,9 @@ export default async function LandingPage() {
                 />
             ))}
 
-            <header className="border-b border-slate-200/80 bg-white/88 backdrop-blur-xl">
-                <div className="mx-auto max-w-[1440px] px-4 sm:px-6 lg:px-8">
-                    <div className="flex items-center justify-between gap-4 py-3">
+            <header className="border-b border-slate-200/80 bg-white/88 backdrop-blur-xl lg:min-h-svh">
+                <div className="mx-auto flex max-w-[1440px] flex-col px-4 sm:px-6 lg:min-h-svh lg:px-8">
+                    <div className="flex items-center justify-between gap-4 py-3 lg:h-16 lg:py-0">
                         <Brand
                             href="/"
                             variant="text"
@@ -796,14 +796,14 @@ export default async function LandingPage() {
                         </div>
                     </div>
 
-                    <div className="grid gap-6 py-8 sm:py-10 lg:grid-cols-[1fr_0.96fr] lg:items-center lg:gap-8 lg:py-12 xl:py-14">
+                    <div className="grid flex-1 gap-6 py-8 sm:py-10 lg:grid-cols-[minmax(0,1fr)_minmax(380px,0.92fr)] lg:items-center lg:gap-8 lg:py-8 xl:gap-12">
                         <div className="max-w-3xl">
                             <div className="inline-flex items-center rounded-full border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-medium text-blue-700">
                                 <ShieldCheck className="mr-2 h-4 w-4" />
                                 {content.hero.badge}
                             </div>
 
-                            <h1 className="mt-5 text-4xl font-semibold tracking-tight text-slate-950 sm:text-5xl lg:text-[3.35rem] lg:leading-[1.03] xl:text-6xl">
+                            <h1 className="mt-5 text-4xl font-semibold tracking-tight text-slate-950 sm:text-5xl lg:text-[clamp(3rem,4.2vw,4rem)] lg:leading-[1.03] 2xl:text-[4.35rem]">
                                 {content.hero.title}
                             </h1>
                             <p className="mt-4 max-w-2xl text-base leading-7 text-slate-600 sm:text-lg">
@@ -840,8 +840,8 @@ export default async function LandingPage() {
                             </div>
                         </div>
 
-                        <Card className="rounded-[32px] border border-slate-200/90 bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(245,250,255,0.98)_54%,rgba(255,255,255,0.98)_100%)] shadow-[0_34px_100px_-50px_rgba(15,23,42,0.52)]">
-                            <CardContent className="p-5 sm:p-6">
+                        <Card className="min-w-0 rounded-[32px] border border-slate-200/90 bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(245,250,255,0.98)_54%,rgba(255,255,255,0.98)_100%)] shadow-[0_34px_100px_-50px_rgba(15,23,42,0.52)]">
+                            <CardContent className="p-4 sm:p-5 xl:p-6">
                                 <div className="flex items-start justify-between gap-4">
                                     <div>
                                         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-blue-600">
@@ -863,7 +863,7 @@ export default async function LandingPage() {
                                         return (
                                             <div
                                                 key={metric.label}
-                                                className="rounded-[20px] border border-slate-200 bg-slate-50/90 p-3.5"
+                                                className="min-w-0 rounded-[20px] border border-slate-200 bg-slate-50/90 p-3.5"
                                             >
                                                 <div className="mb-3 flex h-9 w-9 items-center justify-center rounded-2xl bg-white text-blue-700 shadow-sm">
                                                     <Icon className="h-4 w-4" />
@@ -895,7 +895,7 @@ export default async function LandingPage() {
             </header>
 
             <main>
-                <section id="why" className="mx-auto max-w-[1440px] px-4 py-10 sm:px-6 lg:px-8">
+                <section id="why" className="mx-auto flex max-w-[1440px] scroll-mt-20 flex-col justify-center px-4 py-12 sm:px-6 md:min-h-svh lg:px-8 lg:py-8">
                     <div className="max-w-3xl">
                         <p className="text-sm font-semibold uppercase tracking-[0.18em] text-blue-600">
                             {content.why.eyebrow}
@@ -906,7 +906,7 @@ export default async function LandingPage() {
                         <p className="mt-4 text-base leading-7 text-slate-600">{content.why.description}</p>
                     </div>
 
-                    <div className="mt-8 grid gap-4 md:grid-cols-3">
+                    <div className="mt-8 grid gap-4 md:grid-cols-3 lg:mt-7">
                         {content.why.items.map((item, index) => {
                             const Icon = WHY_ICONS[index];
 
@@ -928,7 +928,7 @@ export default async function LandingPage() {
                     </div>
                 </section>
 
-                <section id="plans" className="mx-auto max-w-[1440px] px-4 py-10 sm:px-6 lg:px-8">
+                <section id="plans" className="mx-auto flex max-w-[1440px] scroll-mt-20 flex-col justify-center px-4 py-12 sm:px-6 md:min-h-svh lg:px-8 lg:py-8 xl:py-5 2xl:py-8">
                     <div className="max-w-3xl">
                         <p className="text-sm font-semibold uppercase tracking-[0.18em] text-blue-600">
                             {content.plans.eyebrow}
@@ -939,7 +939,7 @@ export default async function LandingPage() {
                         <p className="mt-4 text-base leading-7 text-slate-600">{content.plans.description}</p>
                     </div>
 
-                    <div className="mt-8 grid gap-4 lg:grid-cols-3">
+                    <div className="mt-8 grid gap-4 md:grid-cols-3 lg:mt-7 xl:mt-5 2xl:mt-7">
                         {content.plans.items.map((plan) => {
                             const amount = getPlanAmount(landingSettings, plan.key);
                             const priceText =
@@ -950,54 +950,54 @@ export default async function LandingPage() {
                             return (
                                 <Card
                                     key={plan.key}
-                                    className="h-full rounded-[30px] border border-slate-200 bg-white shadow-[0_26px_70px_-44px_rgba(15,23,42,0.36)]"
+                                    className="h-full min-w-0 rounded-[30px] border border-slate-200 bg-white shadow-[0_26px_70px_-44px_rgba(15,23,42,0.36)]"
                                 >
-                                    <CardContent className="flex h-full flex-col p-5 sm:p-6">
-                                        <div className="flex min-h-[112px] flex-col">
+                                    <CardContent className="flex h-full min-w-0 flex-col p-5 md:p-3.5 lg:p-4 2xl:p-6">
+                                        <div className="flex min-h-[112px] min-w-0 flex-col md:min-h-[132px] lg:min-h-[104px] 2xl:min-h-[112px]">
                                             <div className="flex items-start justify-between gap-3">
-                                                <h3 className="max-w-[220px] text-[1.55rem] font-semibold leading-[1.05] tracking-tight text-slate-950 sm:text-[1.65rem]">
+                                                <h3 className="min-w-0 max-w-[220px] text-[1.55rem] font-semibold leading-[1.05] tracking-tight text-slate-950 sm:text-[1.65rem] md:max-w-[130px] md:text-[1.12rem] lg:max-w-[220px] lg:text-[1.35rem] 2xl:text-[1.65rem]">
                                                     {plan.title}
                                                 </h3>
-                                                <span className="inline-flex min-h-9 min-w-[96px] items-center justify-center rounded-full bg-slate-950 px-3 py-1.5 text-center text-[10px] font-semibold uppercase leading-tight tracking-[0.14em] text-white">
+                                                <span className="inline-flex min-h-9 min-w-[76px] items-center justify-center rounded-full bg-slate-950 px-2.5 py-1.5 text-center text-[9px] font-semibold uppercase leading-tight tracking-[0.12em] text-white lg:min-w-[82px] lg:px-3 lg:text-[10px] 2xl:min-w-[96px]">
                                                     {plan.badge}
                                                 </span>
                                             </div>
-                                            <p className="mt-3 text-sm leading-6 text-slate-600">{plan.description}</p>
+                                            <p className="mt-3 text-sm leading-6 text-slate-600 md:text-xs md:leading-5 lg:text-sm lg:leading-6">{plan.description}</p>
                                         </div>
 
-                                        <div className="mt-4 rounded-[24px] border border-slate-200 bg-slate-50 p-4">
+                                        <div className="mt-4 min-w-0 rounded-[24px] border border-slate-200 bg-slate-50 p-4 md:p-3 lg:p-3.5 2xl:p-4">
                                             <div className="flex min-h-[42px] items-end gap-2">
-                                                <p className="text-[1.55rem] font-semibold tracking-tight text-slate-950 sm:text-[1.7rem] xl:text-[1.85rem]">
+                                                <p className="min-w-0 text-[1.55rem] font-semibold tracking-tight text-slate-950 sm:text-[1.7rem] md:text-[1.05rem] lg:text-[1.45rem] 2xl:text-[1.85rem]">
                                                     {priceText}
                                                 </p>
                                                 {plan.periodLabel ? (
-                                                    <p className="pb-1 text-[13px] font-medium text-slate-500">{plan.periodLabel}</p>
+                                                    <p className="pb-1 text-[13px] font-medium text-slate-500 md:text-[11px] lg:text-[13px]">{plan.periodLabel}</p>
                                                 ) : null}
                                             </div>
 
-                                            <div className="mt-4 space-y-2.5">
-                                                <div className="rounded-2xl border border-white/80 bg-white px-3.5 py-2.5 shadow-sm">
-                                                    <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                                            <div className="mt-4 space-y-2.5 md:mt-3 md:space-y-2">
+                                                <div className="rounded-2xl border border-white/80 bg-white px-3.5 py-2.5 shadow-sm md:px-3 md:py-2">
+                                                    <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 md:text-[9px] lg:text-[11px]">
                                                         {content.plans.assistantsLabel}
                                                     </p>
-                                                    <p className="mt-2 text-sm font-semibold text-blue-700">{plan.assistants}</p>
+                                                    <p className="mt-2 text-sm font-semibold text-blue-700 md:text-xs lg:text-sm">{plan.assistants}</p>
                                                 </div>
-                                                <div className="rounded-2xl border border-white/80 bg-white px-3.5 py-2.5 shadow-sm">
-                                                    <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                                                <div className="rounded-2xl border border-white/80 bg-white px-3.5 py-2.5 shadow-sm md:px-3 md:py-2">
+                                                    <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 md:text-[9px] lg:text-[11px]">
                                                         {content.plans.renewalLabel}
                                                     </p>
-                                                    <p className="mt-2 text-sm font-semibold leading-6 text-slate-800">
+                                                    <p className="mt-2 text-sm font-semibold leading-6 text-slate-800 md:text-xs md:leading-5 lg:text-sm lg:leading-6">
                                                         {plan.renewal}
                                                     </p>
                                                 </div>
                                             </div>
                                         </div>
 
-                                        <div className="mt-5 flex-1 space-y-2.5">
+                                        <div className="mt-5 flex-1 space-y-2.5 md:mt-4 md:space-y-2 lg:space-y-2.5">
                                             {plan.bullets.map((bullet) => (
                                                 <div key={bullet} className="flex items-start gap-3">
                                                     <CheckCircle2 className="mt-0.5 h-4 w-4 flex-shrink-0 text-emerald-600" />
-                                                    <p className="text-sm leading-6 text-slate-700">{bullet}</p>
+                                                    <p className="text-sm leading-6 text-slate-700 md:text-xs md:leading-5 lg:text-sm lg:leading-6">{bullet}</p>
                                                 </div>
                                             ))}
                                         </div>
@@ -1008,7 +1008,7 @@ export default async function LandingPage() {
                     </div>
                 </section>
 
-                <section id="form" className="mx-auto max-w-[1440px] px-4 py-10 sm:px-6 lg:px-8">
+                <section id="form" className="mx-auto flex max-w-[1440px] scroll-mt-20 flex-col justify-center px-4 py-12 sm:px-6 md:min-h-svh lg:px-8 lg:py-8">
                     <div className="grid gap-5 lg:grid-cols-[0.9fr_1.1fr] lg:items-stretch">
                         <Card className="h-full rounded-[30px] border border-blue-100 bg-[linear-gradient(180deg,#f7fbff_0%,#edf5ff_100%)] text-slate-950 shadow-[0_32px_90px_-46px_rgba(59,130,246,0.22)]">
                             <CardContent className="flex h-full flex-col p-5 sm:p-6">
@@ -1050,7 +1050,7 @@ export default async function LandingPage() {
                     </div>
                 </section>
 
-                <section id="faq" className="mx-auto max-w-[1440px] px-4 py-10 sm:px-6 lg:px-8">
+                <section id="faq" className="mx-auto flex max-w-[1440px] scroll-mt-20 flex-col justify-center px-4 py-12 sm:px-6 md:min-h-svh lg:px-8 lg:py-8">
                     <div className="max-w-3xl">
                         <p className="text-sm font-semibold uppercase tracking-[0.18em] text-blue-600">
                             {content.faq.eyebrow}
@@ -1075,7 +1075,7 @@ export default async function LandingPage() {
                     </div>
                 </section>
 
-                <section className="mx-auto max-w-[1440px] px-4 pb-10 sm:px-6 lg:px-8">
+                <section className="mx-auto flex max-w-[1440px] flex-col justify-center px-4 py-10 sm:px-6 md:min-h-[calc(100svh-4rem)] lg:px-8 lg:py-8">
                     <Card className="overflow-hidden rounded-[30px] border border-blue-100 bg-[linear-gradient(135deg,#f7fbff_0%,#eef5ff_52%,#e4efff_100%)] text-slate-950 shadow-[0_30px_90px_-50px_rgba(59,130,246,0.28)]">
                         <CardContent className="flex flex-col gap-5 p-6 sm:p-8 lg:flex-row lg:items-center lg:justify-between">
                             <div className="max-w-2xl">
