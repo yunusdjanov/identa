@@ -75,7 +75,7 @@ Route::prefix('v1')->group(function (): void {
             Route::patch('/lead-requests/{id}', [LandingSettingsController::class, 'updateLeadRequestStatus']);
         });
 
-    Route::middleware(['auth:sanctum', 'role:dentist,assistant'])->group(function (): void {
+    Route::middleware(['auth:sanctum', 'role:admin,dentist,assistant'])->group(function (): void {
         Route::get('settings/profile', [SettingsProfileController::class, 'show']);
         Route::put('settings/profile', [SettingsProfileController::class, 'update']);
     });

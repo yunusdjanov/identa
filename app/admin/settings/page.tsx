@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
@@ -9,11 +9,23 @@ import { AdminHeader } from '@/components/admin/admin-header';
 import { PasswordSecurityCard } from '@/components/settings/password-security-card';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { PageHeader } from '@/components/ui/page-shell';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useI18n } from '@/components/providers/i18n-provider';
 import { getApiErrorMessage } from '@/lib/api/client';
-import { getCurrentUser, logoutSession } from '@/lib/api/dentist';
+import { getCurrentUser, logoutSession, updateProfile } from '@/lib/api/dentist';
+import {
+    INPUT_LIMITS,
+    getEmailValidationMessage,
+    getTextValidationMessage,
+} from '@/lib/input-validation';
+
+interface AdminAccountDraft {
+    name: string;
+    email: string;
+}
 
 function AdminSettingsLoadingSkeleton() {
     return (
@@ -58,12 +70,29 @@ export default function AdminSettingsPage() {
     const { t } = useI18n();
     const router = useRouter();
     const queryClient = useQueryClient();
+    const [accountDraft, setAccountDraft] = useState<AdminAccountDraft | null>(null);
+    const [accountSubmitAttempted, setAccountSubmitAttempted] = useState(false);
 
     const authQuery = useQuery({
         queryKey: ['auth', 'me'],
         queryFn: getCurrentUser,
         retry: false,
     });
+    const account = accountDraft ?? (authQuery.data ? {
+        name: authQuery.data.name,
+        email: authQuery.data.email,
+    } : {
+        name: '',
+        email: '',
+    });
+    const accountNameError = getTextValidationMessage(account.name, {
+        label: t('settings.fullName'),
+        required: true,
+        min: 3,
+        max: INPUT_LIMITS.personName,
+    });
+    const accountEmailError = getEmailValidationMessage(account.email, { required: true });
+    const accountHasErrors = Boolean(accountNameError || accountEmailError);
 
     const logoutMutation = useMutation({
         mutationFn: logoutSession,
@@ -75,6 +104,34 @@ export default function AdminSettingsPage() {
             toast.error(getApiErrorMessage(error, t('admin.error.logoutFailed')));
         },
     });
+    const accountMutation = useMutation({
+        mutationFn: updateProfile,
+        onSuccess: () => {
+            toast.success(t('settings.profileUpdated'));
+            setAccountDraft(null);
+            setAccountSubmitAttempted(false);
+            void authQuery.refetch();
+            void queryClient.invalidateQueries({ queryKey: ['auth', 'me'] });
+        },
+        onError: (error) => {
+            toast.error(getApiErrorMessage(error, t('settings.profileUpdateFailed')));
+        },
+    });
+
+    const handleAccountUpdate = (event: FormEvent) => {
+        event.preventDefault();
+        setAccountSubmitAttempted(true);
+
+        if (accountHasErrors) {
+            toast.error(t('settings.profileFixErrors'));
+            return;
+        }
+
+        accountMutation.mutate({
+            name: account.name.trim(),
+            email: account.email.trim(),
+        });
+    };
 
     useEffect(() => {
         if (authQuery.isError && !authQuery.isLoading) {
@@ -121,21 +178,74 @@ export default function AdminSettingsPage() {
                                         {t('admin.settings.account')}
                                     </CardTitle>
                                 </CardHeader>
-                                <CardContent className="grid gap-4 sm:grid-cols-3">
-                                    <div>
-                                        <p className="text-xs text-slate-500">{t('settings.fullName')}</p>
-                                        <p className="text-sm font-semibold text-slate-950">{authQuery.data.name}</p>
-                                    </div>
-                                    <div>
-                                        <p className="text-xs text-slate-500">{t('login.email')}</p>
-                                        <p className="text-sm font-semibold text-slate-950">{authQuery.data.email}</p>
-                                    </div>
-                                    <div>
-                                        <p className="text-xs text-slate-500">{t('admin.settings.role')}</p>
-                                        <p className="text-sm font-semibold capitalize text-slate-950">
-                                            {authQuery.data.role}
-                                        </p>
-                                    </div>
+                                <CardContent>
+                                    <form onSubmit={handleAccountUpdate} className="space-y-4">
+                                        <div className="grid gap-4 md:grid-cols-2">
+                                            <div className="space-y-2">
+                                                <Label htmlFor="admin-name">
+                                                    {t('settings.fullName')} <span className="text-red-500">*</span>
+                                                </Label>
+                                                <Input
+                                                    id="admin-name"
+                                                    required
+                                                    value={account.name}
+                                                    onChange={(event) =>
+                                                        setAccountDraft((current) => ({
+                                                            email: current?.email ?? account.email,
+                                                            name: event.target.value,
+                                                        }))
+                                                    }
+                                                    maxLength={INPUT_LIMITS.personName}
+                                                    autoComplete="name"
+                                                    aria-invalid={Boolean(accountSubmitAttempted && accountNameError)}
+                                                />
+                                                {accountSubmitAttempted && accountNameError ? (
+                                                    <p className="text-xs text-red-600">{accountNameError}</p>
+                                                ) : null}
+                                            </div>
+
+                                            <div className="space-y-2">
+                                                <Label htmlFor="admin-email">
+                                                    {t('login.email')} <span className="text-red-500">*</span>
+                                                </Label>
+                                                <Input
+                                                    id="admin-email"
+                                                    type="email"
+                                                    required
+                                                    value={account.email}
+                                                    onChange={(event) =>
+                                                        setAccountDraft((current) => ({
+                                                            name: current?.name ?? account.name,
+                                                            email: event.target.value,
+                                                        }))
+                                                    }
+                                                    maxLength={INPUT_LIMITS.email}
+                                                    autoComplete="email"
+                                                    inputMode="email"
+                                                    aria-invalid={Boolean(accountSubmitAttempted && accountEmailError)}
+                                                />
+                                                {accountSubmitAttempted && accountEmailError ? (
+                                                    <p className="text-xs text-red-600">{accountEmailError}</p>
+                                                ) : null}
+                                            </div>
+                                        </div>
+
+                                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                            <div>
+                                                <p className="text-xs text-slate-500">{t('admin.settings.role')}</p>
+                                                <p className="text-sm font-semibold capitalize text-slate-950">
+                                                    {authQuery.data.role}
+                                                </p>
+                                            </div>
+                                            <Button
+                                                type="submit"
+                                                className="w-full rounded-xl sm:w-auto"
+                                                disabled={accountMutation.isPending}
+                                            >
+                                                {accountMutation.isPending ? t('common.saving') : t('common.saveChanges')}
+                                            </Button>
+                                        </div>
+                                    </form>
                                 </CardContent>
                             </Card>
 

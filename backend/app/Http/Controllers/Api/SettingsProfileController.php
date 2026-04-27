@@ -28,6 +28,10 @@ class SettingsProfileController extends Controller
         $user = $request->user();
         $validated = $request->validated();
 
+        if ($user->isAdmin()) {
+            $validated = Arr::only($validated, ['name', 'email']);
+        }
+
         if ($user->isAssistant()) {
             $validated = Arr::only($validated, ['name', 'email', 'phone']);
         }
