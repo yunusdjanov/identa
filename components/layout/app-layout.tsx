@@ -37,6 +37,7 @@ import { useI18n } from '@/components/providers/i18n-provider';
 import { SubscriptionBanner } from '@/components/layout/subscription-banner';
 import { Brand } from '@/components/branding/brand';
 import { AccountMenu } from '@/components/layout/account-menu';
+import { LogoutOverlay } from '@/components/layout/logout-overlay';
 
 const navigation = [
     { key: 'nav.dashboard', href: '/dashboard', icon: LayoutDashboard },
@@ -332,6 +333,8 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             <main className="mx-auto max-w-[1440px] px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
                 {children}
             </main>
+
+            <LogoutOverlay show={logoutMutation.isPending} />
         </div>
     );
 }

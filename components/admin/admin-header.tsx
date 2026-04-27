@@ -6,6 +6,7 @@ import { BarChart3, ClipboardList, Settings, SlidersHorizontal } from 'lucide-re
 import { Brand } from '@/components/branding/brand';
 import { AccountMenu } from '@/components/layout/account-menu';
 import { LanguageSwitcher } from '@/components/layout/language-switcher';
+import { LogoutOverlay } from '@/components/layout/logout-overlay';
 import { cn } from '@/lib/utils';
 import { useI18n } from '@/components/providers/i18n-provider';
 import { getCurrentUser } from '@/lib/api/dentist';
@@ -106,6 +107,8 @@ export function AdminHeader({ active, isLoggingOut = false, onLogout }: AdminHea
                     })}
                 </nav>
             </div>
+
+            <LogoutOverlay show={isLoggingOut} />
         </header>
     );
 }
