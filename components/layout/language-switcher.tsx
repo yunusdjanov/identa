@@ -36,12 +36,12 @@ export function LanguageSwitcher({
                         variant="ghost"
                         size="sm"
                         className={cn(
-                            'h-8 gap-1.5 rounded-md px-2.5 text-gray-700 hover:bg-gray-100 focus-visible:ring-0 focus-visible:border-transparent focus-visible:outline-none data-[state=open]:bg-gray-100',
+                            'h-9 gap-1.5 rounded-xl px-2.5 text-slate-700 hover:bg-blue-50 hover:text-blue-700 focus-visible:ring-0 focus-visible:border-transparent focus-visible:outline-none data-[state=open]:bg-blue-50 data-[state=open]:text-blue-700',
                             className
                         )}
                         aria-label={t('menu.language')}
                     >
-                        {showIcon ? <Languages className="h-4 w-4 text-gray-500" aria-hidden="true" /> : null}
+                        {showIcon ? <Languages className="h-4 w-4 text-slate-500" aria-hidden="true" /> : null}
                         <span className="text-xs font-semibold uppercase">{locale}</span>
                     </Button>
                 </DropdownMenuTrigger>

@@ -20,17 +20,12 @@ import {
     Users,
     Calendar,
     CreditCard,
-    Settings,
-    LogOut,
-    ChevronDown,
     Languages,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import {
     DropdownMenu,
     DropdownMenuContent,
-    DropdownMenuItem,
     DropdownMenuLabel,
     DropdownMenuRadioGroup,
     DropdownMenuRadioItem,
@@ -41,6 +36,7 @@ import { toast } from 'sonner';
 import { useI18n } from '@/components/providers/i18n-provider';
 import { SubscriptionBanner } from '@/components/layout/subscription-banner';
 import { Brand } from '@/components/branding/brand';
+import { AccountMenu } from '@/components/layout/account-menu';
 
 const navigation = [
     { key: 'nav.dashboard', href: '/dashboard', icon: LayoutDashboard },
@@ -159,13 +155,6 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     };
 
     const displayName = currentUser?.name || dentistName || '';
-    const showDoctorPrefix = currentUser ? currentUser.role === 'dentist' : Boolean(dentistName);
-    const roleLabelKey =
-        currentUser?.role === 'assistant'
-            ? 'role.assistant'
-            : currentUser?.role === 'dentist'
-              ? 'role.dentist'
-              : null;
     const canOpenSettings = currentUser ? currentUser.role === 'dentist' || currentUser.role === 'assistant' : true;
     const assistantPermissions = new Set(currentUser?.assistant_permissions ?? []);
     const canManageTeam = Boolean(currentUser && (currentUser.role === 'dentist' || assistantPermissions.has('team.manage')));
@@ -277,57 +266,14 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                                         </DropdownMenuContent>
                                     </DropdownMenu>
 
-                                    <DropdownMenu>
-                                        <DropdownMenuTrigger asChild>
-                                            <Button
-                                                variant="ghost"
-                                                className="flex h-11 items-center space-x-2 rounded-2xl border border-transparent bg-white/75 px-2.5 shadow-sm shadow-slate-200/50 transition-colors hover:border-transparent hover:bg-blue-50/70 sm:space-x-3 sm:px-3.5 focus:border-transparent focus:outline-none focus:ring-0 focus-visible:border-transparent focus-visible:bg-blue-50/70 focus-visible:ring-0 focus-visible:ring-offset-0 data-[state=open]:border-transparent data-[state=open]:bg-blue-50/80"
-                                            >
-                                                <Avatar className="w-8 h-8">
-                                                    <AvatarFallback className="bg-blue-600 text-white text-sm shadow-sm shadow-blue-200">
-                                                        {(() => {
-                                                            const firstInitial = displayName.split(' ')[0]?.[0] || '?';
-                                                            return `${showDoctorPrefix ? t('common.doctorPrefix') : ''}${firstInitial}`;
-                                                        })()}
-                                                    </AvatarFallback>
-                                                </Avatar>
-                                                <div className="hidden md:block text-left">
-                                                    <p className="text-sm font-medium text-gray-900">
-                                                        {showDoctorPrefix ? `${t('common.doctorPrefix')} ` : ''}
-                                                        {displayName || t('menu.myAccount')}
-                                                    </p>
-                                                    {roleLabelKey ? <p className="text-xs text-gray-500">{t(roleLabelKey)}</p> : null}
-                                                </div>
-                                                <ChevronDown className="w-4 h-4 text-gray-500 hidden sm:block" />
-                                            </Button>
-                                        </DropdownMenuTrigger>
-                                        <DropdownMenuContent align="end" className="w-56">
-                                            <DropdownMenuLabel>{t('menu.myAccount')}</DropdownMenuLabel>
-                                            <DropdownMenuSeparator />
-                                            {canOpenStaff ? (
-                                                <>
-                                                    <DropdownMenuItem onClick={() => router.push('/staff')}>
-                                                        <Users className="w-4 h-4 mr-2" />
-                                                        {t('menu.staff')}
-                                                    </DropdownMenuItem>
-                                                    <DropdownMenuSeparator />
-                                                </>
-                                            ) : null}
-                                            {canOpenSettings ? (
-                                                <>
-                                                    <DropdownMenuItem onClick={() => router.push('/settings')}>
-                                                        <Settings className="w-4 h-4 mr-2" />
-                                                        {t('menu.settings')}
-                                                    </DropdownMenuItem>
-                                                    <DropdownMenuSeparator />
-                                                </>
-                                            ) : null}
-                                            <DropdownMenuItem onClick={handleLogout} disabled={logoutMutation.isPending}>
-                                                <LogOut className="w-4 h-4 mr-2" />
-                                                {logoutMutation.isPending ? t('menu.loggingOut') : t('menu.logout')}
-                                            </DropdownMenuItem>
-                                        </DropdownMenuContent>
-                                    </DropdownMenu>
+                                    <AccountMenu
+                                        user={currentUser}
+                                        fallbackName={displayName}
+                                        isLoggingOut={logoutMutation.isPending}
+                                        onLogout={handleLogout}
+                                        settingsHref={canOpenSettings ? '/settings' : null}
+                                        staffHref={canOpenStaff ? '/staff' : null}
+                                    />
                                 </div>
                             </>
                         )}

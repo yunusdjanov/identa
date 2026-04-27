@@ -1,12 +1,14 @@
 'use client';
 
 import Link from 'next/link';
-import { BarChart3, ClipboardList, LogOut, Settings, SlidersHorizontal } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { BarChart3, ClipboardList, Settings, SlidersHorizontal } from 'lucide-react';
 import { Brand } from '@/components/branding/brand';
+import { AccountMenu } from '@/components/layout/account-menu';
 import { LanguageSwitcher } from '@/components/layout/language-switcher';
-import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useI18n } from '@/components/providers/i18n-provider';
+import { getCurrentUser } from '@/lib/api/dentist';
 
 type AdminHeaderSection = 'dashboard' | 'landing' | 'leads' | 'settings';
 
@@ -30,6 +32,12 @@ const adminNavigation: Array<{
 
 export function AdminHeader({ active, isLoggingOut = false, onLogout }: AdminHeaderProps) {
     const { t } = useI18n();
+    const authQuery = useQuery({
+        queryKey: ['auth', 'me'],
+        queryFn: getCurrentUser,
+        retry: false,
+        staleTime: 5 * 60_000,
+    });
 
     return (
         <header className="sticky top-0 z-10 border-b border-blue-100/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(248,251,255,0.94)_100%)] shadow-sm shadow-slate-200/40 backdrop-blur-xl">
@@ -64,14 +72,12 @@ export function AdminHeader({ active, isLoggingOut = false, onLogout }: AdminHea
 
                     <div className="flex items-center gap-2">
                         <LanguageSwitcher variant="compact" />
-                        <Button
-                            variant="outline"
-                            className="rounded-2xl bg-white/80 shadow-sm shadow-slate-200/60"
-                            onClick={onLogout}
-                        >
-                            <LogOut className="mr-2 h-4 w-4" />
-                            {isLoggingOut ? t('menu.loggingOut') : t('menu.logout')}
-                        </Button>
+                        <AccountMenu
+                            user={authQuery.data}
+                            isLoggingOut={isLoggingOut}
+                            onLogout={onLogout}
+                            settingsHref="/admin/settings"
+                        />
                     </div>
                 </div>
             </div>
