@@ -80,9 +80,21 @@ export function AddPatientDialog({ open, onOpenChange }: AddPatientDialogProps) 
         min: 3,
         max: INPUT_LIMITS.address,
     });
+    const medicalHistoryError = getTextValidationMessage(formData.medicalHistory, {
+        label: t('patientDetail.medicalHistory'),
+        max: INPUT_LIMITS.medicalHistory,
+    });
+    const allergiesError = getTextValidationMessage(formData.allergies, {
+        label: t('patientDetail.allergies'),
+        max: INPUT_LIMITS.medicalAllergies,
+    });
+    const currentMedicationsError = getTextValidationMessage(formData.currentMedications, {
+        label: t('patientDetail.currentMedications'),
+        max: INPUT_LIMITS.medicalMedications,
+    });
     const phoneError = getPhoneValidationMessage(formData.phone, { required: true });
     const secondaryPhoneError = getPhoneValidationMessage(formData.secondaryPhone, { required: false });
-    const hasValidationErrors = Boolean(fullNameError || phoneError || secondaryPhoneError || addressError);
+    const hasValidationErrors = Boolean(fullNameError || phoneError || secondaryPhoneError || addressError || medicalHistoryError || allergiesError || currentMedicationsError);
 
     const handleDialogOpenChange = (nextOpen: boolean) => {
         if (!nextOpen) {
@@ -348,8 +360,12 @@ export function AddPatientDialog({ open, onOpenChange }: AddPatientDialogProps) 
                                 }
                                 placeholder={t('patients.form.medicalHistoryPlaceholder')}
                                 rows={3}
-                                maxLength={INPUT_LIMITS.longText}
+                                maxLength={INPUT_LIMITS.medicalHistory}
+                                aria-invalid={Boolean(isSubmitted && medicalHistoryError)}
                             />
+                            {isSubmitted && medicalHistoryError ? (
+                                <p className="text-xs text-red-600">{medicalHistoryError}</p>
+                            ) : null}
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -362,8 +378,12 @@ export function AddPatientDialog({ open, onOpenChange }: AddPatientDialogProps) 
                                         setFormData({ ...formData, allergies: event.target.value })
                                     }
                                     placeholder={t('patients.form.allergiesPlaceholder')}
-                                    maxLength={INPUT_LIMITS.shortText}
+                                    maxLength={INPUT_LIMITS.medicalAllergies}
+                                    aria-invalid={Boolean(isSubmitted && allergiesError)}
                                 />
+                                {isSubmitted && allergiesError ? (
+                                    <p className="text-xs text-red-600">{allergiesError}</p>
+                                ) : null}
                             </div>
 
                             <div className="space-y-2">
@@ -378,8 +398,12 @@ export function AddPatientDialog({ open, onOpenChange }: AddPatientDialogProps) 
                                         })
                                     }
                                     placeholder={t('patients.form.currentMedicationsPlaceholder')}
-                                    maxLength={INPUT_LIMITS.shortText}
+                                    maxLength={INPUT_LIMITS.medicalMedications}
+                                    aria-invalid={Boolean(isSubmitted && currentMedicationsError)}
                                 />
+                                {isSubmitted && currentMedicationsError ? (
+                                    <p className="text-xs text-red-600">{currentMedicationsError}</p>
+                                ) : null}
                             </div>
                         </div>
                     </div>

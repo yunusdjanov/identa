@@ -113,9 +113,9 @@ class PatientApiTest extends TestCase
                 'phone' => '12345',
                 'secondary_phone' => '+12',
                 'address' => 'ab',
-                'medical_history' => str_repeat('a', 2001),
-                'allergies' => str_repeat('b', 256),
-                'current_medications' => str_repeat('c', 256),
+                'medical_history' => str_repeat('a', 301),
+                'allergies' => str_repeat('b', 41),
+                'current_medications' => str_repeat('c', 121),
             ])
             ->assertUnprocessable()
             ->assertJsonValidationErrors([

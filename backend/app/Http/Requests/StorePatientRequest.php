@@ -32,9 +32,9 @@ class StorePatientRequest extends FormRequest
             'address' => ['nullable', 'string', 'min:3', 'max:255'],
             'date_of_birth' => ['nullable', 'date', 'before_or_equal:today'],
             'gender' => ['nullable', Rule::in(['male', 'female'])],
-            'medical_history' => ['nullable', 'string', 'max:2000'],
-            'allergies' => ['nullable', 'string', 'max:255'],
-            'current_medications' => ['nullable', 'string', 'max:255'],
+            'medical_history' => ['nullable', 'string', 'max:300'],
+            'allergies' => ['nullable', 'string', 'max:40'],
+            'current_medications' => ['nullable', 'string', 'max:120'],
         ];
     }
 }

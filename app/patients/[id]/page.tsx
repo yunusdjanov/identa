@@ -41,6 +41,7 @@ import {
 import { toast } from 'sonner';
 import { useI18n } from '@/components/providers/i18n-provider';
 import { getProtectedMediaCrossOrigin } from '@/lib/protected-media';
+import { INPUT_LIMITS } from '@/lib/input-validation';
 
 const EditPatientDialog = dynamic(
     () => import('@/components/patients/edit-patient-dialog').then((module) => module.EditPatientDialog),
@@ -49,7 +50,9 @@ const EditPatientDialog = dynamic(
 
 const PATIENT_HEADER_NAME_UI_LIMIT = 25;
 const PATIENT_CATEGORY_CHIP_UI_LIMIT = 20;
-const PATIENT_ALLERGIES_UI_LIMIT = 40;
+const PATIENT_ALLERGIES_UI_LIMIT = INPUT_LIMITS.medicalAllergies;
+const PATIENT_MEDICATIONS_UI_LIMIT = INPUT_LIMITS.medicalMedications;
+const PATIENT_MEDICAL_HISTORY_UI_LIMIT = INPUT_LIMITS.medicalHistory;
 
 function getPatientInitials(fullName: string): string {
     const parts = fullName.trim().split(/\s+/).filter(Boolean);
@@ -418,16 +421,16 @@ export default function PatientDetailPage({
                         {patient.current_medications ? (
                             <div>
                                 <p className="mb-1 text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">{t('patientDetail.currentMedications')}</p>
-                                <p className="text-sm whitespace-pre-wrap [overflow-wrap:anywhere] break-words">
-                                    {patient.current_medications}
+                                <p className="text-sm whitespace-pre-wrap [overflow-wrap:anywhere] break-words" title={patient.current_medications}>
+                                    {truncateForUi(patient.current_medications, PATIENT_MEDICATIONS_UI_LIMIT)}
                                 </p>
                             </div>
                         ) : null}
                         {patient.medical_history ? (
                             <div>
                                 <p className="mb-1 text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">{t('patientDetail.medicalHistory')}</p>
-                                <p className="text-sm whitespace-pre-wrap [overflow-wrap:anywhere] break-words">
-                                    {patient.medical_history}
+                                <p className="text-sm whitespace-pre-wrap [overflow-wrap:anywhere] break-words" title={patient.medical_history}>
+                                    {truncateForUi(patient.medical_history, PATIENT_MEDICAL_HISTORY_UI_LIMIT)}
                                 </p>
                             </div>
                         ) : null}
