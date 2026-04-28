@@ -1,7 +1,7 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { use, useMemo, useState } from 'react';
+import { use, useMemo, useState, type ReactNode } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -53,6 +53,39 @@ const PATIENT_CATEGORY_CHIP_UI_LIMIT = 20;
 const PATIENT_ALLERGIES_UI_LIMIT = INPUT_LIMITS.medicalAllergies;
 const PATIENT_MEDICATIONS_UI_LIMIT = INPUT_LIMITS.medicalMedications;
 const PATIENT_MEDICAL_HISTORY_UI_LIMIT = INPUT_LIMITS.medicalHistory;
+
+function ContactInfoItem({
+    icon,
+    label,
+    value,
+    marker,
+}: {
+    icon: ReactNode;
+    label: string;
+    value: ReactNode;
+    marker?: string;
+}) {
+    return (
+        <div className="flex items-center gap-3 rounded-2xl border border-slate-100 bg-white/80 px-3 py-2.5 shadow-xs">
+            <span className="relative inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+                {icon}
+                {marker ? (
+                    <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full border border-white bg-blue-600 px-1 text-[10px] font-bold leading-none text-white">
+                        {marker}
+                    </span>
+                ) : null}
+            </span>
+            <span className="min-w-0">
+                <span className="mb-0.5 block text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">
+                    {label}
+                </span>
+                <span className="block text-sm font-medium text-slate-900 [overflow-wrap:anywhere]">
+                    {value}
+                </span>
+            </span>
+        </div>
+    );
+}
 
 function getPatientInitials(fullName: string): string {
     const parts = fullName.trim().split(/\s+/).filter(Boolean);
@@ -368,27 +401,33 @@ export default function PatientDetailPage({
                         </div>
                     </CardHeader>
                     <CardContent className="space-y-2.5">
-                        <div className="flex items-center rounded-2xl border border-slate-100 bg-white/80 px-3 py-2.5 text-sm shadow-xs">
-                            <Phone className="mr-2 h-4 w-4 text-blue-500" />
-                            <span className="[overflow-wrap:anywhere]">{patient.phone}</span>
-                        </div>
+                        <ContactInfoItem
+                            icon={<Phone className="h-4 w-4" />}
+                            label={t('patientDetail.phone1')}
+                            marker="1"
+                            value={patient.phone}
+                        />
                         {patient.secondary_phone ? (
-                            <div className="flex items-center rounded-2xl border border-slate-100 bg-white/80 px-3 py-2.5 text-sm shadow-xs">
-                                <Phone className="mr-2 h-4 w-4 text-blue-500" />
-                                <span className="[overflow-wrap:anywhere]">{patient.secondary_phone}</span>
-                            </div>
+                            <ContactInfoItem
+                                icon={<Phone className="h-4 w-4" />}
+                                label={t('patientDetail.phone2')}
+                                marker="2"
+                                value={patient.secondary_phone}
+                            />
                         ) : null}
                         {patient.address ? (
-                            <div className="flex items-start rounded-2xl border border-slate-100 bg-white/80 px-3 py-2.5 text-sm shadow-xs">
-                                <MapPin className="mr-2 mt-0.5 h-4 w-4 text-blue-500" />
-                                <span className="[overflow-wrap:anywhere]">{patient.address}</span>
-                            </div>
+                            <ContactInfoItem
+                                icon={<MapPin className="h-4 w-4" />}
+                                label={t('patientDetail.address')}
+                                value={patient.address}
+                            />
                         ) : null}
                         {patient.date_of_birth ? (
-                            <div className="flex items-center rounded-2xl border border-slate-100 bg-white/80 px-3 py-2.5 text-sm shadow-xs">
-                                <Calendar className="mr-2 h-4 w-4 text-blue-500" />
-                                <span>{t('patientDetail.born', { date: formatDate(patient.date_of_birth) })}</span>
-                            </div>
+                            <ContactInfoItem
+                                icon={<Calendar className="h-4 w-4" />}
+                                label={t('patientDetail.birthDate')}
+                                value={formatDate(patient.date_of_birth)}
+                            />
                         ) : null}
                     </CardContent>
                 </Card>
