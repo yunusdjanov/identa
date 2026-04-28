@@ -221,13 +221,7 @@ export default function AdminSettingsPage() {
                                             </div>
                                         </div>
 
-                                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                                            <div>
-                                                <p className="text-xs text-slate-500">{t('admin.settings.role')}</p>
-                                                <p className="text-sm font-semibold capitalize text-slate-950">
-                                                    {authQuery.data.role}
-                                                </p>
-                                            </div>
+                                        <div className="flex justify-end">
                                             <Button
                                                 type="submit"
                                                 className="w-full rounded-xl sm:w-auto"

@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
-import { BarChart3, ClipboardList, Settings, SlidersHorizontal } from 'lucide-react';
+import { BarChart3, ClipboardList, SlidersHorizontal } from 'lucide-react';
 import { Brand } from '@/components/branding/brand';
 import { AccountMenu } from '@/components/layout/account-menu';
 import { LanguageSwitcher } from '@/components/layout/language-switcher';
@@ -27,7 +27,6 @@ const adminNavigation: Array<{
     { key: 'admin.nav.dashboard', href: '/admin', section: 'dashboard', icon: BarChart3 },
     { key: 'admin.nav.landing', href: '/admin/landing', section: 'landing', icon: SlidersHorizontal },
     { key: 'admin.nav.requests', href: '/admin/leads', section: 'leads', icon: ClipboardList },
-    { key: 'admin.nav.settings', href: '/admin/settings', section: 'settings', icon: Settings },
 ];
 
 export function AdminHeader({ active, isLoggingOut = false, onLogout }: AdminHeaderProps) {
