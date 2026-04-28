@@ -78,6 +78,7 @@ import { truncateForUi } from '@/lib/utils';
 import { useI18n } from '@/components/providers/i18n-provider';
 import { formatLocalizedDate } from '@/lib/i18n/date';
 import { AdminHeader } from '@/components/admin/admin-header';
+import { AppErrorState } from '@/components/error/app-error-state';
 
 interface CreateDentistForm {
     name: string;
@@ -492,13 +493,21 @@ export default function AdminDashboardPage() {
 
     if (accountsQuery.isError) {
         return (
-            <div className="space-y-4 p-5 lg:p-6">
-                <p className="text-sm text-red-600">
-                    {getApiErrorMessage(accountsQuery.error, t('admin.error.loadAccountsFailed'))}
-                </p>
-                <Button variant="outline" onClick={() => accountsQuery.refetch()}>
-                    {t('common.retry')}
-                </Button>
+            <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(219,234,254,0.55),transparent_34rem),linear-gradient(180deg,#f8fbff_0%,#f8fafc_42%,#f1f5f9_100%)]">
+                <AdminHeader
+                    active="dashboard"
+                    isLoggingOut={logoutMutation.isPending}
+                    onLogout={() => logoutMutation.mutate()}
+                />
+                <main className="p-4 sm:p-5 lg:p-6">
+                    <AppErrorState
+                        title={t('common.loadErrorTitle')}
+                        description={getApiErrorMessage(accountsQuery.error, t('admin.error.loadAccountsFailed'))}
+                        retryLabel={t('common.retry')}
+                        onRetry={() => accountsQuery.refetch()}
+                        className="min-h-[24rem] px-0 py-0"
+                    />
+                </main>
             </div>
         );
     }
@@ -891,15 +900,16 @@ export default function AdminDashboardPage() {
                                 ))}
                             </div>
                         ) : staffQuery.isError ? (
-                            <div className="rounded-2xl border border-red-100 bg-red-50 p-4">
-                                <p className="text-sm text-red-700">
+                            <div className="rounded-2xl border border-blue-100 bg-blue-50/70 p-4">
+                                <p className="text-sm font-semibold text-slate-950">{t('common.loadErrorTitle')}</p>
+                                <p className="mt-1 text-sm leading-6 text-slate-600">
                                     {getApiErrorMessage(staffQuery.error, t('admin.staffDialog.loadFailed'))}
                                 </p>
                                 <Button
                                     type="button"
                                     variant="outline"
                                     size="sm"
-                                    className="mt-3"
+                                    className="mt-3 rounded-xl bg-white"
                                     onClick={() => staffQuery.refetch()}
                                 >
                                     {t('common.retry')}

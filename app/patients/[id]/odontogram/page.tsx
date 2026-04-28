@@ -16,6 +16,7 @@ import type { ApiTreatment } from '@/lib/api/types';
 import { ArrowLeft } from 'lucide-react';
 import { ToothDetailDialog } from '@/components/odontogram/tooth-detail-dialog';
 import { useI18n } from '@/components/providers/i18n-provider';
+import { AppErrorState } from '@/components/error/app-error-state';
 
 function OdontogramLoadingSkeleton() {
     return (
@@ -125,23 +126,20 @@ export default function OdontogramPage({
 
     if (patientQuery.isError || treatmentsQuery.isError || !patientQuery.data) {
         return (
-            <div className="space-y-4">
-                <p className="text-sm text-red-600">
-                    {getApiErrorMessage(
-                        patientQuery.error || treatmentsQuery.error,
-                        t('odontogram.loadFailed')
-                    )}
-                </p>
-                <Button
-                    variant="outline"
-                    onClick={() => {
-                        patientQuery.refetch();
-                        treatmentsQuery.refetch();
-                    }}
-                >
-                    {t('common.retry')}
-                </Button>
-            </div>
+            <AppErrorState
+                title={t('common.loadErrorTitle')}
+                description={getApiErrorMessage(
+                    patientQuery.error || treatmentsQuery.error,
+                    t('odontogram.loadFailed')
+                )}
+                retryLabel={t('common.retry')}
+                onRetry={() => {
+                    patientQuery.refetch();
+                    treatmentsQuery.refetch();
+                }}
+                backHref="/patients"
+                backLabel={t('patientDetail.backToPatients')}
+            />
         );
     }
 

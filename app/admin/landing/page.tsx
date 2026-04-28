@@ -7,7 +7,7 @@ import { toast } from 'sonner';
 import { AdminHeader } from '@/components/admin/admin-header';
 import { AdminLandingSettingsPanel } from '@/components/admin/landing-admin-panels';
 import { PageHeader } from '@/components/ui/page-shell';
-import { Button } from '@/components/ui/button';
+import { AppErrorState } from '@/components/error/app-error-state';
 import { getApiErrorMessage } from '@/lib/api/client';
 import { getCurrentUser, logoutSession } from '@/lib/api/dentist';
 import { useI18n } from '@/components/providers/i18n-provider';
@@ -58,14 +58,13 @@ export default function AdminLandingPage() {
                     <PageHeader title={t('admin.landing.title')} description={t('admin.landing.subtitle')} />
 
                     {authQuery.isError ? (
-                        <div className="space-y-4">
-                            <p className="text-sm text-red-600">
-                                {getApiErrorMessage(authQuery.error, t('admin.settings.loadFailed'))}
-                            </p>
-                            <Button variant="outline" onClick={() => authQuery.refetch()}>
-                                {t('common.retry')}
-                            </Button>
-                        </div>
+                        <AppErrorState
+                            title={t('common.loadErrorTitle')}
+                            description={getApiErrorMessage(authQuery.error, t('admin.settings.loadFailed'))}
+                            retryLabel={t('common.retry')}
+                            onRetry={() => authQuery.refetch()}
+                            className="min-h-[20rem] px-0 py-0"
+                        />
                     ) : authQuery.data?.role === 'admin' ? (
                         <AdminLandingSettingsPanel />
                     ) : null}

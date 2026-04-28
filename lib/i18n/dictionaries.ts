@@ -9,6 +9,7 @@ const ru: TranslationDictionary = {
     'common.saveChanges': 'Сохранить изменения',
     'common.saving': '\u0421\u043e\u0445\u0440\u0430\u043d\u0435\u043d\u0438\u0435...',
     'common.clear': '\u041e\u0447\u0438\u0441\u0442\u0438\u0442\u044c',
+    'common.loadErrorTitle': 'Не удалось загрузить данные',
 
     'language.russian': 'Русский',
     'language.uzbek': 'O‘zbekcha',
@@ -391,6 +392,7 @@ const uz: TranslationDictionary = {
     'common.saveChanges': "O'zgarishlarni saqlash",
     'common.saving': 'Saqlanmoqda...',
     'common.clear': 'Tozalash',
+    'common.loadErrorTitle': "Ma'lumotlarni yuklab bo'lmadi",
 
     'language.russian': 'Русский',
     'language.uzbek': 'O‘zbekcha',
@@ -773,6 +775,7 @@ const en: TranslationDictionary = {
     'common.saveChanges': 'Save Changes',
     'common.saving': 'Saving...',
     'common.clear': 'Clear',
+    'common.loadErrorTitle': 'Could not load data',
 
     'language.russian': 'Russian',
     'language.uzbek': 'Uzbek',

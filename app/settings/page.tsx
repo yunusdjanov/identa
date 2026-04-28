@@ -37,6 +37,7 @@ import {
 import { isValidTimeInput, sanitizeTimeInput } from '@/lib/utils';
 import { formatLocalizedDate } from '@/lib/i18n/date';
 import { DEFAULT_APPOINTMENT_WORKING_HOURS } from '@/lib/appointments/time-slots';
+import { AppErrorState } from '@/components/error/app-error-state';
 
 const PasswordSecurityCard = dynamic(
     () => import('@/components/settings/password-security-card').then((module) => module.PasswordSecurityCard),
@@ -297,14 +298,12 @@ export default function SettingsPage() {
 
     if (currentUserQuery.isError) {
         return (
-            <div className="space-y-4">
-                <p className="text-sm text-red-600">
-                    {getApiErrorMessage(currentUserQuery.error, t('settings.loadFailed'))}
-                </p>
-                <Button variant="outline" onClick={() => currentUserQuery.refetch()}>
-                    {t('common.retry')}
-                </Button>
-            </div>
+            <AppErrorState
+                title={t('common.loadErrorTitle')}
+                description={getApiErrorMessage(currentUserQuery.error, t('settings.loadFailed'))}
+                retryLabel={t('common.retry')}
+                onRetry={() => currentUserQuery.refetch()}
+            />
         );
     }
 
@@ -323,14 +322,12 @@ export default function SettingsPage() {
 
     if (profileQuery.isError) {
         return (
-            <div className="space-y-4">
-                <p className="text-sm text-red-600">
-                    {getApiErrorMessage(profileQuery.error, t('settings.loadFailed'))}
-                </p>
-                <Button variant="outline" onClick={() => profileQuery.refetch()}>
-                    {t('common.retry')}
-                </Button>
-            </div>
+            <AppErrorState
+                title={t('common.loadErrorTitle')}
+                description={getApiErrorMessage(profileQuery.error, t('settings.loadFailed'))}
+                retryLabel={t('common.retry')}
+                onRetry={() => profileQuery.refetch()}
+            />
         );
     }
 

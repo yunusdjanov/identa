@@ -23,6 +23,7 @@ import { useI18n } from '@/components/providers/i18n-provider';
 import { formatLocalizedDate } from '@/lib/i18n/date';
 import { extractPrimaryPhone, formatCurrency } from '@/lib/utils';
 import { AlertCircle, History, Phone, Search, Users, Wallet } from 'lucide-react';
+import { AppErrorState } from '@/components/error/app-error-state';
 
 const PAGE_SIZE = 10;
 const noopSubscribe = () => () => undefined;
@@ -325,19 +326,13 @@ export default function PaymentsPage() {
         return (
             <div className="space-y-6">
                 <PageHeader title={t('payments.title')} description={t('payments.subtitle')} />
-                <Card className="border-red-100 bg-red-50">
-                    <CardContent className="flex flex-col gap-4 pt-6">
-                        <div className="flex items-start gap-3">
-                            <AlertCircle className="mt-0.5 h-5 w-5 text-red-500" />
-                            <p className="text-sm text-red-700">
-                                {getApiErrorMessage(accountingQuery.error, t('payments.error.loadFailed'))}
-                            </p>
-                        </div>
-                        <Button variant="outline" className="w-fit" onClick={() => accountingQuery.refetch()}>
-                            {t('common.retry')}
-                        </Button>
-                    </CardContent>
-                </Card>
+                <AppErrorState
+                    title={t('common.loadErrorTitle')}
+                    description={getApiErrorMessage(accountingQuery.error, t('payments.error.loadFailed'))}
+                    retryLabel={t('common.retry')}
+                    onRetry={() => accountingQuery.refetch()}
+                    className="min-h-[20rem] px-0 py-0"
+                />
             </div>
         );
     }

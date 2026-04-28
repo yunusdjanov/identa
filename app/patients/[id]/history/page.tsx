@@ -12,6 +12,7 @@ import { useI18n } from '@/components/providers/i18n-provider';
 import { Button } from '@/components/ui/button';
 import { PageHeader } from '@/components/ui/page-shell';
 import { Skeleton } from '@/components/ui/skeleton';
+import { AppErrorState } from '@/components/error/app-error-state';
 
 const TreatmentHistoryCard = dynamic(
     () => import('@/components/patients/treatment-history-card').then((module) => module.TreatmentHistoryCard),
@@ -57,22 +58,14 @@ export default function PatientHistoryPage({
 
     if (patientQuery.isError || !patientQuery.data) {
         return (
-            <div className="space-y-4">
-                <p className="text-sm text-red-600">
-                    {getApiErrorMessage(patientQuery.error, t('patientDetail.error.loadFailed'))}
-                </p>
-                <div className="flex items-center gap-2">
-                    <Button variant="outline" onClick={() => patientQuery.refetch()}>
-                        {t('common.retry')}
-                    </Button>
-                    <Link href={backHref}>
-                        <Button variant="outline">
-                            <ArrowLeft className="mr-2 h-4 w-4" />
-                            {backLabel}
-                        </Button>
-                    </Link>
-                </div>
-            </div>
+            <AppErrorState
+                title={t('common.loadErrorTitle')}
+                description={getApiErrorMessage(patientQuery.error, t('patientDetail.error.loadFailed'))}
+                retryLabel={t('common.retry')}
+                onRetry={() => patientQuery.refetch()}
+                backHref={backHref}
+                backLabel={backLabel}
+            />
         );
     }
 

@@ -42,6 +42,7 @@ import { formatLocalizedDate } from '@/lib/i18n/date';
 import { Plus, Calendar as CalendarIcon, ChevronLeft, ChevronRight, Pencil, Trash2 } from 'lucide-react';
 import { AppointmentTimePicker } from '@/components/appointments/appointment-time-picker';
 import { ConfirmActionDialog } from '@/components/ui/confirm-action-dialog';
+import { AppErrorState } from '@/components/error/app-error-state';
 import {
     Dialog,
     DialogContent,
@@ -1136,19 +1137,14 @@ export default function AppointmentsPage() {
 
     if (appointmentsQuery.isError) {
         return (
-            <div className="space-y-4">
-                <p className="text-sm text-red-600">
-                    {getApiErrorMessage(appointmentsQuery.error, t('appointments.error.loadFailed'))}
-                </p>
-                <Button
-                    variant="outline"
-                    onClick={() => {
-                        appointmentsQuery.refetch();
-                    }}
-                >
-                    {t('common.retry')}
-                </Button>
-            </div>
+            <AppErrorState
+                title={t('common.loadErrorTitle')}
+                description={getApiErrorMessage(appointmentsQuery.error, t('appointments.error.loadFailed'))}
+                retryLabel={t('common.retry')}
+                onRetry={() => {
+                    appointmentsQuery.refetch();
+                }}
+            />
         );
     }
 

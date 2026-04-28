@@ -13,6 +13,7 @@ import { formatLocalizedDate } from '@/lib/i18n/date';
 import { AlertCircle, ArrowRight, Calendar, CheckCircle2, Clock3, DollarSign, Plus } from 'lucide-react';
 import Link from 'next/link';
 import { useI18n } from '@/components/providers/i18n-provider';
+import { AppErrorState } from '@/components/error/app-error-state';
 
 const noopSubscribe = () => () => undefined;
 const DASHBOARD_NAME_UI_LIMIT = 25;
@@ -211,27 +212,23 @@ export default function DashboardPage() {
 
     if (currentUserQuery.isError || !currentUser) {
         return (
-            <div className="space-y-4">
-                <p className="text-sm text-red-600">
-                    {getApiErrorMessage(currentUserQuery.error, t('dashboard.error'))}
-                </p>
-                <Button variant="outline" onClick={() => currentUserQuery.refetch()}>
-                    {t('common.retry')}
-                </Button>
-            </div>
+            <AppErrorState
+                title={t('common.loadErrorTitle')}
+                description={getApiErrorMessage(currentUserQuery.error, t('dashboard.error'))}
+                retryLabel={t('common.retry')}
+                onRetry={() => currentUserQuery.refetch()}
+            />
         );
     }
 
     if (dashboardQuery.isError && !dashboardQuery.data) {
         return (
-            <div className="space-y-4">
-                <p className="text-sm text-red-600">
-                    {getApiErrorMessage(dashboardQuery.error, t('dashboard.error'))}
-                </p>
-                <Button variant="outline" onClick={() => dashboardQuery.refetch()}>
-                    {t('common.retry')}
-                </Button>
-            </div>
+            <AppErrorState
+                title={t('common.loadErrorTitle')}
+                description={getApiErrorMessage(dashboardQuery.error, t('dashboard.error'))}
+                retryLabel={t('common.retry')}
+                onRetry={() => dashboardQuery.refetch()}
+            />
         );
     }
 

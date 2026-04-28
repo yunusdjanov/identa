@@ -13,6 +13,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { PageHeader } from '@/components/ui/page-shell';
 import { Skeleton } from '@/components/ui/skeleton';
+import { AppErrorState } from '@/components/error/app-error-state';
 import { useI18n } from '@/components/providers/i18n-provider';
 import { getApiErrorMessage } from '@/lib/api/client';
 import { getCurrentUser, logoutSession, updateProfile } from '@/lib/api/dentist';
@@ -161,14 +162,13 @@ export default function AdminSettingsPage() {
                     <PageHeader title={t('admin.settings.title')} description={t('admin.settings.subtitle')} />
 
                     {authQuery.isError || !authQuery.data ? (
-                        <div className="space-y-4">
-                            <p className="text-sm text-red-600">
-                                {getApiErrorMessage(authQuery.error, t('admin.settings.loadFailed'))}
-                            </p>
-                            <Button variant="outline" onClick={() => authQuery.refetch()}>
-                                {t('common.retry')}
-                            </Button>
-                        </div>
+                        <AppErrorState
+                            title={t('common.loadErrorTitle')}
+                            description={getApiErrorMessage(authQuery.error, t('admin.settings.loadFailed'))}
+                            retryLabel={t('common.retry')}
+                            onRetry={() => authQuery.refetch()}
+                            className="min-h-[20rem] px-0 py-0"
+                        />
                     ) : authQuery.data.role === 'admin' ? (
                         <>
                             <Card className="interactive-card rounded-[1.5rem] bg-white/95">

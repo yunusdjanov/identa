@@ -35,6 +35,7 @@ import { useI18n } from '@/components/providers/i18n-provider';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { getProtectedMediaCrossOrigin } from '@/lib/protected-media';
 import { toast } from 'sonner';
+import { AppErrorState } from '@/components/error/app-error-state';
 
 const AddPatientDialog = dynamic(
     () => import('@/components/patients/add-patient-dialog').then((module) => module.AddPatientDialog),
@@ -271,20 +272,15 @@ export default function PatientsPage() {
 
     if (patientsQuery.isError || categoriesQuery.isError) {
         return (
-            <div className="space-y-4">
-                <p className="text-sm text-red-600">
-                    {getApiErrorMessage(patientsQuery.error || categoriesQuery.error, t('patients.loadFailed'))}
-                </p>
-                <Button
-                    variant="outline"
-                    onClick={() => {
-                        patientsQuery.refetch();
-                        categoriesQuery.refetch();
-                    }}
-                >
-                    {t('common.retry')}
-                </Button>
-            </div>
+            <AppErrorState
+                title={t('common.loadErrorTitle')}
+                description={getApiErrorMessage(patientsQuery.error || categoriesQuery.error, t('patients.loadFailed'))}
+                retryLabel={t('common.retry')}
+                onRetry={() => {
+                    patientsQuery.refetch();
+                    categoriesQuery.refetch();
+                }}
+            />
         );
     }
 

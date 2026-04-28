@@ -4,7 +4,6 @@ import { useSyncExternalStore } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Users, History } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { PageHeader } from '@/components/ui/page-shell';
@@ -14,6 +13,7 @@ import { getApiErrorMessage } from '@/lib/api/client';
 import { TeamAccessTab } from '@/components/settings/team-access-tab';
 import { AuditLogsTab } from '@/components/settings/audit-logs-tab';
 import { useI18n } from '@/components/providers/i18n-provider';
+import { AppErrorState } from '@/components/error/app-error-state';
 
 type TeamTab = 'access' | 'logs';
 
@@ -115,14 +115,12 @@ export default function StaffPage() {
 
     if (currentUserQuery.isError) {
         return (
-            <div className="space-y-4">
-                <p className="text-sm text-red-600">
-                    {getApiErrorMessage(currentUserQuery.error, t('settings.loadFailed'))}
-                </p>
-                <Button variant="outline" onClick={() => currentUserQuery.refetch()}>
-                    {t('common.retry')}
-                </Button>
-            </div>
+            <AppErrorState
+                title={t('common.loadErrorTitle')}
+                description={getApiErrorMessage(currentUserQuery.error, t('settings.loadFailed'))}
+                retryLabel={t('common.retry')}
+                onRetry={() => currentUserQuery.refetch()}
+            />
         );
     }
 

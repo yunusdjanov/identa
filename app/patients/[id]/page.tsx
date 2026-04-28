@@ -42,6 +42,7 @@ import { toast } from 'sonner';
 import { useI18n } from '@/components/providers/i18n-provider';
 import { getProtectedMediaCrossOrigin } from '@/lib/protected-media';
 import { INPUT_LIMITS } from '@/lib/input-validation';
+import { AppErrorState } from '@/components/error/app-error-state';
 
 const EditPatientDialog = dynamic(
     () => import('@/components/patients/edit-patient-dialog').then((module) => module.EditPatientDialog),
@@ -250,37 +251,32 @@ export default function PatientDetailPage({
         overviewQuery.isError
     ) {
         return (
-            <div className="space-y-4">
-                <p className="text-sm text-red-600">
-                    {getApiErrorMessage(
-                        patientQuery.error ||
-                            overviewQuery.error,
-                        t('patientDetail.error.loadFailed')
-                    )}
-                </p>
-                <Button
-                    variant="outline"
-                    onClick={() => {
-                        patientQuery.refetch();
-                        overviewQuery.refetch();
-                    }}
-                >
-                    {t('common.retry')}
-                </Button>
-            </div>
+            <AppErrorState
+                title={t('common.loadErrorTitle')}
+                description={getApiErrorMessage(
+                    patientQuery.error ||
+                        overviewQuery.error,
+                    t('patientDetail.error.loadFailed')
+                )}
+                retryLabel={t('common.retry')}
+                onRetry={() => {
+                    patientQuery.refetch();
+                    overviewQuery.refetch();
+                }}
+                backHref="/patients"
+                backLabel={t('patientDetail.backToPatients')}
+            />
         );
     }
 
     if (!patient) {
         return (
-            <div className="py-12 text-center">
-                <p className="text-gray-500">{t('patientDetail.notFound')}</p>
-                <Link href="/patients">
-                    <Button variant="outline" className="mt-4">
-                        {t('patientDetail.backToPatients')}
-                    </Button>
-                </Link>
-            </div>
+            <AppErrorState
+                title={t('patientDetail.notFound')}
+                description={t('patientDetail.error.loadFailed')}
+                backHref="/patients"
+                backLabel={t('patientDetail.backToPatients')}
+            />
         );
     }
 
