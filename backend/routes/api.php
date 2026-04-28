@@ -64,6 +64,7 @@ Route::prefix('v1')->group(function (): void {
         ->group(function (): void {
             Route::get('/dentists', [DentistAccountController::class, 'index']);
             Route::post('/dentists', [DentistAccountController::class, 'store']);
+            Route::get('/dentists/{id}', [DentistAccountController::class, 'show']);
             Route::get('/dentists/{id}/staff', [DentistAccountController::class, 'staff']);
             Route::patch('/dentists/{id}/status', [DentistAccountController::class, 'updateStatus']);
             Route::post('/dentists/{id}/subscription', [DentistAccountController::class, 'manageSubscription']);

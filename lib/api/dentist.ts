@@ -1362,6 +1362,12 @@ export async function listAllAdminDentists(
     );
 }
 
+export async function getAdminDentist(id: string): Promise<ApiAdminDentist> {
+    const { data } = await apiClient.get<ApiEnvelope<ApiAdminDentist>>(`/admin/dentists/${id}`);
+
+    return data.data;
+}
+
 export async function createAdminDentist(payload: {
     name: string;
     email: string;

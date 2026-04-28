@@ -120,6 +120,15 @@ class DentistAccountController extends Controller
         ], 201);
     }
 
+    public function show(string $id): JsonResponse
+    {
+        $dentist = $this->findDentist($id, true)->loadCount(['patients', 'appointments']);
+
+        return response()->json([
+            'data' => $this->transformDentist($dentist),
+        ]);
+    }
+
     public function staff(string $id): JsonResponse
     {
         $dentist = $this->findDentist($id, true);
