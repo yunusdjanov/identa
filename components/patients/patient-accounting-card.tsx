@@ -9,6 +9,7 @@ import { useI18n } from '@/components/providers/i18n-provider';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { getBalanceMetricTone, MetricSummaryCard } from '@/components/ui/metric-summary-card';
 import { formatCurrency, formatDate } from '@/lib/utils';
 
 interface PatientAccountingCardProps {
@@ -66,24 +67,14 @@ export function PatientAccountingCard({
             </CardHeader>
             <CardContent className="space-y-6">
                 <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-                    <div className="rounded-2xl border border-red-100/80 bg-white/95 p-3 shadow-sm shadow-red-100/40">
-                        <p className="text-xs font-medium uppercase tracking-wide text-red-600">{t('patientHistory.totalDebt')}</p>
-                        <p className="mt-1 text-sm font-semibold text-red-700">
-                            {formatCurrency(summary.totalDebt)}
-                        </p>
-                    </div>
-                    <div className="rounded-2xl border border-emerald-100/80 bg-white/95 p-3 shadow-sm shadow-emerald-100/40">
-                        <p className="text-xs font-medium uppercase tracking-wide text-emerald-600">{t('patientHistory.totalPaid')}</p>
-                        <p className="mt-1 text-sm font-semibold text-emerald-700">
-                            {formatCurrency(summary.totalPaid)}
-                        </p>
-                    </div>
-                    <div className="rounded-2xl border border-slate-200/80 bg-white/95 p-3 shadow-sm shadow-slate-200/40">
-                        <p className="text-xs font-medium uppercase tracking-wide text-slate-500">{t('patientHistory.netBalance')}</p>
-                        <p className={`mt-1 text-sm font-semibold ${summary.netBalance > 0 ? 'text-red-700' : summary.netBalance < 0 ? 'text-emerald-700' : 'text-slate-700'}`}>
-                            {formatCurrency(summary.netBalance)}
-                        </p>
-                    </div>
+                    <MetricSummaryCard label={t('patientHistory.totalDebt')} value={formatCurrency(summary.totalDebt)} tone="red" compact />
+                    <MetricSummaryCard label={t('patientHistory.totalPaid')} value={formatCurrency(summary.totalPaid)} tone="emerald" compact />
+                    <MetricSummaryCard
+                        label={t('patientHistory.netBalance')}
+                        value={formatCurrency(summary.netBalance)}
+                        tone={getBalanceMetricTone(summary.netBalance)}
+                        compact
+                    />
                 </div>
 
                 {treatmentsQuery.isLoading ? (

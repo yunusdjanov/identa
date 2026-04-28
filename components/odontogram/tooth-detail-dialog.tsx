@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
+import { getBalanceMetricTone, MetricSummaryCard } from '@/components/ui/metric-summary-card';
 import { getPatientTreatment } from '@/lib/api/dentist';
 import { getApiErrorMessage } from '@/lib/api/client';
 import type { ApiTreatment, ApiTreatmentImage } from '@/lib/api/types';
@@ -183,28 +184,14 @@ export function ToothDetailDialog({
 
                     <div className="space-y-4">
                         <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-                            <div className="rounded-2xl border border-red-100/80 bg-white/95 p-3 shadow-sm shadow-red-100/40">
-                                <p className="text-xs font-medium uppercase tracking-wide text-red-600">{t('patientHistory.table.debt')}</p>
-                                <p className="mt-1 whitespace-nowrap text-lg font-semibold tabular-nums text-red-700">{formatCurrency(summary.totalDebt)}</p>
-                            </div>
-                            <div className="rounded-2xl border border-emerald-100/80 bg-white/95 p-3 shadow-sm shadow-emerald-100/40">
-                                <p className="text-xs font-medium uppercase tracking-wide text-emerald-600">{t('patientHistory.table.paid')}</p>
-                                <p className="mt-1 whitespace-nowrap text-lg font-semibold tabular-nums text-emerald-700">{formatCurrency(summary.totalPaid)}</p>
-                            </div>
-                            <div className="rounded-2xl border border-slate-200/80 bg-white/95 p-3 shadow-sm shadow-slate-200/40">
-                                <p className="text-xs font-medium uppercase tracking-wide text-slate-500">{t('patientHistory.table.remaining')}</p>
-                                <p
-                                    className={`mt-1 whitespace-nowrap text-lg font-semibold tabular-nums ${
-                                        summary.netBalance > 0
-                                            ? 'text-red-700'
-                                            : summary.netBalance < 0
-                                                ? 'text-emerald-700'
-                                                : 'text-slate-700'
-                                    }`}
-                                >
-                                    {formatCurrency(summary.netBalance)}
-                                </p>
-                            </div>
+                            <MetricSummaryCard label={t('patientHistory.table.debt')} value={formatCurrency(summary.totalDebt)} tone="red" tabular />
+                            <MetricSummaryCard label={t('patientHistory.table.paid')} value={formatCurrency(summary.totalPaid)} tone="emerald" tabular />
+                            <MetricSummaryCard
+                                label={t('patientHistory.table.remaining')}
+                                value={formatCurrency(summary.netBalance)}
+                                tone={getBalanceMetricTone(summary.netBalance)}
+                                tabular
+                            />
                         </div>
 
                         {treatments.length === 0 ? (
