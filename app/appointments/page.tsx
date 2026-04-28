@@ -103,15 +103,15 @@ function getWeekViewCompactVisibleAppointments(): number {
         return WEEK_VIEW_MIN_VISIBLE_APPOINTMENTS;
     }
 
-    if (window.innerHeight >= 1000) {
+    if (window.innerHeight >= 900) {
         return WEEK_VIEW_MAX_VISIBLE_APPOINTMENTS;
     }
 
-    if (window.innerHeight >= 900) {
+    if (window.innerHeight >= 840) {
         return 8;
     }
 
-    if (window.innerHeight >= 820) {
+    if (window.innerHeight >= 780) {
         return 7;
     }
 
