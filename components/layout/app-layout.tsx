@@ -1,19 +1,19 @@
 'use client';
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useSyncExternalStore } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import axios from 'axios';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/lib/store';
-import { getApiErrorMessage } from '@/lib/api/client';
-import { getCurrentUser, logoutSession } from '@/lib/api/dentist';
+import { getCurrentUser } from '@/lib/api/dentist';
 import {
     AUTH_SESSION_EXPIRED_EVENT,
     markSessionExpiredRedirect,
     resetSessionExpiredNotification,
 } from '@/lib/auth/session-expiry';
+import { useInstantLogout } from '@/lib/auth/use-instant-logout';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
     LayoutDashboard,
@@ -32,12 +32,10 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { toast } from 'sonner';
 import { useI18n } from '@/components/providers/i18n-provider';
 import { SubscriptionBanner } from '@/components/layout/subscription-banner';
 import { Brand } from '@/components/branding/brand';
 import { AccountMenu } from '@/components/layout/account-menu';
-import { LogoutOverlay } from '@/components/layout/logout-overlay';
 
 const navigation = [
     { key: 'nav.dashboard', href: '/dashboard', icon: LayoutDashboard },
@@ -74,6 +72,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     const router = useRouter();
     const queryClient = useQueryClient();
     const { dentistName, logout } = useAuthStore();
+    const handleLogout = useInstantLogout('/login');
     const {
         data: currentUser,
         isLoading: isUserLoading,
@@ -87,18 +86,6 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     });
     const { locale, setLocale, t } = useI18n();
     const isMounted = useIsHydrated();
-
-    const logoutMutation = useMutation({
-        mutationFn: logoutSession,
-        onSettled: () => {
-            queryClient.removeQueries({ queryKey: ['auth'] });
-            logout();
-            router.push('/login');
-        },
-        onError: (error) => {
-            toast.error(getApiErrorMessage(error, t('toast.logoutFailed')));
-        },
-    });
 
     // Check if current path matches navigation item
     const isActiveRoute = (href: string) => {
@@ -150,10 +137,6 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             window.removeEventListener(AUTH_SESSION_EXPIRED_EVENT, handleSessionExpired);
         };
     }, [isMounted, logout, queryClient, router]);
-
-    const handleLogout = () => {
-        logoutMutation.mutate();
-    };
 
     const displayName = currentUser?.name || dentistName || '';
     const canOpenSettings = currentUser ? currentUser.role === 'dentist' || currentUser.role === 'assistant' : true;
@@ -270,7 +253,6 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                                     <AccountMenu
                                         user={currentUser}
                                         fallbackName={displayName}
-                                        isLoggingOut={logoutMutation.isPending}
                                         onLogout={handleLogout}
                                         settingsHref={canOpenSettings ? '/settings' : null}
                                         staffHref={canOpenStaff ? '/staff' : null}
@@ -333,8 +315,6 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             <main className="mx-auto max-w-[1440px] px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
                 {children}
             </main>
-
-            <LogoutOverlay show={logoutMutation.isPending} />
         </div>
     );
 }

@@ -1,37 +1,26 @@
 'use client';
 
 import { useEffect } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
-import { toast } from 'sonner';
 import { AdminHeader } from '@/components/admin/admin-header';
 import { AdminLeadRequestsPanel } from '@/components/admin/landing-admin-panels';
 import { PageHeader } from '@/components/ui/page-shell';
 import { AppErrorState } from '@/components/error/app-error-state';
 import { getApiErrorMessage } from '@/lib/api/client';
-import { getCurrentUser, logoutSession } from '@/lib/api/dentist';
+import { getCurrentUser } from '@/lib/api/dentist';
+import { useInstantLogout } from '@/lib/auth/use-instant-logout';
 import { useI18n } from '@/components/providers/i18n-provider';
 
 export default function AdminLeadsPage() {
     const { t } = useI18n();
     const router = useRouter();
-    const queryClient = useQueryClient();
+    const handleLogout = useInstantLogout('/admin/login');
 
     const authQuery = useQuery({
         queryKey: ['auth', 'me'],
         queryFn: getCurrentUser,
         retry: false,
-    });
-
-    const logoutMutation = useMutation({
-        mutationFn: logoutSession,
-        onSettled: () => {
-            queryClient.removeQueries({ queryKey: ['auth'] });
-            router.push('/admin/login');
-        },
-        onError: (error) => {
-            toast.error(getApiErrorMessage(error, t('admin.error.logoutFailed')));
-        },
     });
 
     useEffect(() => {
@@ -49,8 +38,7 @@ export default function AdminLeadsPage() {
         <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(219,234,254,0.55),transparent_34rem),linear-gradient(180deg,#f8fbff_0%,#f8fafc_42%,#f1f5f9_100%)]">
             <AdminHeader
                 active="leads"
-                isLoggingOut={logoutMutation.isPending}
-                onLogout={() => logoutMutation.mutate()}
+                onLogout={handleLogout}
             />
 
             <main className="p-4 sm:p-5 lg:p-6">

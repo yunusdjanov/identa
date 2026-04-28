@@ -16,7 +16,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { AppErrorState } from '@/components/error/app-error-state';
 import { useI18n } from '@/components/providers/i18n-provider';
 import { getApiErrorMessage } from '@/lib/api/client';
-import { getCurrentUser, logoutSession, updateProfile } from '@/lib/api/dentist';
+import { getCurrentUser, updateProfile } from '@/lib/api/dentist';
+import { useInstantLogout } from '@/lib/auth/use-instant-logout';
 import {
     INPUT_LIMITS,
     getEmailValidationMessage,
@@ -71,6 +72,7 @@ export default function AdminSettingsPage() {
     const { t } = useI18n();
     const router = useRouter();
     const queryClient = useQueryClient();
+    const handleLogout = useInstantLogout('/admin/login');
     const [accountDraft, setAccountDraft] = useState<AdminAccountDraft | null>(null);
     const [accountSubmitAttempted, setAccountSubmitAttempted] = useState(false);
 
@@ -95,16 +97,6 @@ export default function AdminSettingsPage() {
     const accountEmailError = getEmailValidationMessage(account.email, { required: true });
     const accountHasErrors = Boolean(accountNameError || accountEmailError);
 
-    const logoutMutation = useMutation({
-        mutationFn: logoutSession,
-        onSettled: () => {
-            queryClient.removeQueries({ queryKey: ['auth'] });
-            router.push('/admin/login');
-        },
-        onError: (error) => {
-            toast.error(getApiErrorMessage(error, t('admin.error.logoutFailed')));
-        },
-    });
     const accountMutation = useMutation({
         mutationFn: updateProfile,
         onSuccess: () => {
@@ -153,8 +145,7 @@ export default function AdminSettingsPage() {
         <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(219,234,254,0.55),transparent_34rem),linear-gradient(180deg,#f8fbff_0%,#f8fafc_42%,#f1f5f9_100%)]">
             <AdminHeader
                 active="settings"
-                isLoggingOut={logoutMutation.isPending}
-                onLogout={() => logoutMutation.mutate()}
+                onLogout={handleLogout}
             />
 
         <main className="p-4 sm:p-5 lg:p-6">

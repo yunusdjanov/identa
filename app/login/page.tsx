@@ -16,6 +16,11 @@ import {
     isSessionExpiredRedirectReason,
     resetSessionExpiredNotification,
 } from '@/lib/auth/session-expiry';
+import {
+    CLIENT_LOGOUT_FINISHED_EVENT,
+    clearClientLogoutInProgress,
+    isClientLogoutInProgress,
+} from '@/lib/auth/client-logout';
 import { useAuthStore } from '@/lib/store';
 import { toast } from 'sonner';
 import { INPUT_LIMITS, getEmailValidationMessage } from '@/lib/input-validation';
@@ -33,6 +38,7 @@ export default function LoginPage() {
     const [password, setPassword] = useState('');
     const [remember, setRemember] = useState(true);
     const [isSubmitted, setIsSubmitted] = useState(false);
+    const [isLogoutRedirect, setIsLogoutRedirect] = useState(() => isClientLogoutInProgress());
     const emailError = getEmailValidationMessage(email, { required: true });
     const passwordError = password ? null : t('login.passwordRequired');
     const hasValidationErrors = Boolean(emailError || passwordError);
@@ -40,12 +46,15 @@ export default function LoginPage() {
         queryKey: ['auth', 'me'],
         queryFn: getCurrentUser,
         retry: false,
+        enabled: !isLogoutRedirect,
         staleTime: 5 * 60_000,
     });
 
     const loginMutation = useMutation({
         mutationFn: () => loginWithPassword(email.trim(), password, remember, 'app'),
         onSuccess: (user) => {
+            clearClientLogoutInProgress();
+            setIsLogoutRedirect(false);
             resetSessionExpiredNotification();
             login(user.name);
             queryClient.setQueryData(['auth', 'me'], user);
@@ -65,12 +74,30 @@ export default function LoginPage() {
     }, [t]);
 
     useEffect(() => {
+        const updateLogoutRedirectState = () => {
+            setIsLogoutRedirect(isClientLogoutInProgress());
+        };
+
+        window.addEventListener(CLIENT_LOGOUT_FINISHED_EVENT, updateLogoutRedirectState);
+        const timeoutId = window.setTimeout(updateLogoutRedirectState, 1200);
+
+        return () => {
+            window.removeEventListener(CLIENT_LOGOUT_FINISHED_EVENT, updateLogoutRedirectState);
+            window.clearTimeout(timeoutId);
+        };
+    }, []);
+
+    useEffect(() => {
+        if (isLogoutRedirect) {
+            return;
+        }
+
         if (!currentUserQuery.data) {
             return;
         }
 
         router.replace(currentUserQuery.data.role === 'admin' ? '/admin' : '/dashboard');
-    }, [currentUserQuery.data, router]);
+    }, [currentUserQuery.data, isLogoutRedirect, router]);
 
     const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault();
@@ -83,7 +110,7 @@ export default function LoginPage() {
         loginMutation.mutate();
     };
 
-    if (currentUserQuery.isLoading) {
+    if (!isLogoutRedirect && currentUserQuery.isLoading) {
         return (
             <div className="relative min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-50 flex items-center justify-center p-4">
                 <div className="w-full max-w-md">

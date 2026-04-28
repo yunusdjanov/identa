@@ -49,7 +49,6 @@ import {
     listAdminDentistStaff,
     listAdminDentists,
     manageAdminDentistSubscription,
-    logoutSession,
     resetAdminDentistPassword,
     updateAdminDentistStatus,
 } from '@/lib/api/dentist';
@@ -79,6 +78,7 @@ import { useI18n } from '@/components/providers/i18n-provider';
 import { formatLocalizedDate } from '@/lib/i18n/date';
 import { AdminHeader } from '@/components/admin/admin-header';
 import { AppErrorState } from '@/components/error/app-error-state';
+import { useInstantLogout } from '@/lib/auth/use-instant-logout';
 
 interface CreateDentistForm {
     name: string;
@@ -231,6 +231,7 @@ export default function AdminDashboardPage() {
     const { t, locale } = useI18n();
     const router = useRouter();
     const queryClient = useQueryClient();
+    const handleLogout = useInstantLogout('/admin/login');
     const [searchQuery, setSearchQuery] = useState('');
     const [page, setPage] = useState(1);
     const [showCreateModal, setShowCreateModal] = useState(false);
@@ -333,17 +334,6 @@ export default function AdminDashboardPage() {
             router.push('/dashboard');
         }
     }, [authQuery.data, authQuery.isError, authQuery.isLoading, router]);
-
-    const logoutMutation = useMutation({
-        mutationFn: logoutSession,
-        onSettled: () => {
-            queryClient.removeQueries({ queryKey: ['auth'] });
-            router.push('/admin/login');
-        },
-        onError: (error) => {
-            toast.error(getApiErrorMessage(error, t('admin.error.logoutFailed')));
-        },
-    });
 
     const createMutation = useMutation({
         mutationFn: () =>
@@ -496,8 +486,7 @@ export default function AdminDashboardPage() {
             <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(219,234,254,0.55),transparent_34rem),linear-gradient(180deg,#f8fbff_0%,#f8fafc_42%,#f1f5f9_100%)]">
                 <AdminHeader
                     active="dashboard"
-                    isLoggingOut={logoutMutation.isPending}
-                    onLogout={() => logoutMutation.mutate()}
+                    onLogout={handleLogout}
                 />
                 <main className="p-4 sm:p-5 lg:p-6">
                     <AppErrorState
@@ -516,8 +505,7 @@ export default function AdminDashboardPage() {
         <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(219,234,254,0.55),transparent_34rem),linear-gradient(180deg,#f8fbff_0%,#f8fafc_42%,#f1f5f9_100%)]">
             <AdminHeader
                 active="dashboard"
-                isLoggingOut={logoutMutation.isPending}
-                onLogout={() => logoutMutation.mutate()}
+                onLogout={handleLogout}
             />
 
         <div className="p-4 sm:p-5 lg:p-6">
