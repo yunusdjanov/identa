@@ -4,8 +4,7 @@ import { useSyncExternalStore } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Users, History } from 'lucide-react';
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
-import { Skeleton } from '@/components/ui/skeleton';
+import { StaffLoadingState } from '@/components/layout/page-loading-skeletons';
 import { PageHeader } from '@/components/ui/page-shell';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { getCurrentUser } from '@/lib/api/dentist';
@@ -14,6 +13,7 @@ import { TeamAccessTab } from '@/components/settings/team-access-tab';
 import { AuditLogsTab } from '@/components/settings/audit-logs-tab';
 import { useI18n } from '@/components/providers/i18n-provider';
 import { AppErrorState } from '@/components/error/app-error-state';
+import { AccessDeniedState } from '@/components/error/access-denied-state';
 
 type TeamTab = 'access' | 'logs';
 
@@ -48,34 +48,6 @@ function setStoredTeamTab(tab: TeamTab) {
     }
 }
 
-function TeamLoadingSkeleton() {
-    return (
-        <div className="space-y-5 lg:space-y-6">
-            <div className="space-y-2">
-                <Skeleton className="h-9 w-44" />
-                <Skeleton className="h-4 w-72" />
-            </div>
-            <div className="space-y-4 lg:space-y-5">
-                <div className="flex gap-2 overflow-x-auto overflow-y-hidden no-scrollbar">
-                    {Array.from({ length: 2 }).map((_, index) => (
-                        <Skeleton key={index} className="h-10 w-32 shrink-0" />
-                    ))}
-                </div>
-                <Card>
-                    <CardHeader>
-                        <Skeleton className="h-6 w-44" />
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                        <Skeleton className="h-10 w-full" />
-                        <Skeleton className="h-10 w-full" />
-                        <Skeleton className="h-28 w-full" />
-                    </CardContent>
-                </Card>
-            </div>
-        </div>
-    );
-}
-
 export default function StaffPage() {
     const { t } = useI18n();
     const router = useRouter();
@@ -92,11 +64,8 @@ export default function StaffPage() {
 
     const currentUser = currentUserQuery.data;
     const isDentist = currentUser?.role === 'dentist';
-    const assistantPermissions = new Set(currentUser?.assistant_permissions ?? []);
-    const canManageTeam = Boolean(currentUser && (isDentist || assistantPermissions.has('team.manage')));
-    const canViewAuditLogs = Boolean(
-        currentUser && (isDentist || assistantPermissions.has('audit_logs.view'))
-    );
+    const canManageTeam = Boolean(currentUser && isDentist);
+    const canViewAuditLogs = Boolean(currentUser && isDentist);
 
     const activeTab: TeamTab = requestedTab ?? storedTab ?? 'access';
 
@@ -110,7 +79,7 @@ export default function StaffPage() {
     };
 
     if (currentUserQuery.isLoading) {
-        return <TeamLoadingSkeleton />;
+        return <StaffLoadingState />;
     }
 
     if (currentUserQuery.isError) {
@@ -120,6 +89,16 @@ export default function StaffPage() {
                 description={getApiErrorMessage(currentUserQuery.error, t('settings.loadFailed'))}
                 retryLabel={t('common.retry')}
                 onRetry={() => currentUserQuery.refetch()}
+            />
+        );
+    }
+
+    if (!isDentist) {
+        return (
+            <AccessDeniedState
+                title={t('common.forbiddenTitle')}
+                description={t('settings.team.noAccess')}
+                actionLabel={t('dashboard.title')}
             />
         );
     }

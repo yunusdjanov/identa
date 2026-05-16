@@ -9,10 +9,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ConfirmActionDialog } from '@/components/ui/confirm-action-dialog';
-import { Skeleton } from '@/components/ui/skeleton';
+import { PatientDetailLoadingState } from '@/components/layout/page-loading-skeletons';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
     archivePatient,
+    getCurrentUser,
     getPatient,
     getPatientOverview,
     permanentlyDeletePatient,
@@ -40,9 +41,11 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useI18n } from '@/components/providers/i18n-provider';
-import { getProtectedMediaCrossOrigin } from '@/lib/protected-media';
+import { getProtectedMediaCrossOrigin, getProtectedMediaThumbnailUrl } from '@/lib/protected-media';
 import { INPUT_LIMITS } from '@/lib/input-validation';
 import { AppErrorState } from '@/components/error/app-error-state';
+import { AccessDeniedState } from '@/components/error/access-denied-state';
+import { canManage, canView, PERMISSION_DENIED_MESSAGE } from '@/lib/auth/permissions';
 
 const EditPatientDialog = dynamic(
     () => import('@/components/patients/edit-patient-dialog').then((module) => module.EditPatientDialog),
@@ -101,61 +104,6 @@ function getPatientInitials(fullName: string): string {
     return `${parts[0][0] ?? ''}${parts[1][0] ?? ''}`.toUpperCase();
 }
 
-function PatientDetailLoadingSkeleton() {
-    return (
-        <div className="space-y-5 lg:space-y-6">
-            <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-4">
-                    <Skeleton className="h-9 w-9" />
-                    <div className="space-y-2">
-                        <Skeleton className="h-9 w-64" />
-                        <Skeleton className="h-4 w-40" />
-                    </div>
-                </div>
-                <Skeleton className="h-9 w-32" />
-            </div>
-
-            <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
-                {Array.from({ length: 3 }).map((_, index) => (
-                    <Card key={index}>
-                        <CardHeader>
-                            <Skeleton className="h-6 w-36" />
-                        </CardHeader>
-                        <CardContent className="space-y-3">
-                            <Skeleton className="h-4 w-full" />
-                            <Skeleton className="h-4 w-5/6" />
-                            <Skeleton className="h-4 w-2/3" />
-                        </CardContent>
-                    </Card>
-                ))}
-            </div>
-
-            {Array.from({ length: 4 }).map((_, index) => (
-                <Card key={index}>
-                    <CardHeader className="flex flex-row items-center justify-between">
-                        <Skeleton className="h-6 w-48" />
-                        <Skeleton className="h-8 w-36" />
-                    </CardHeader>
-                    <CardContent className="space-y-3">
-                        {Array.from({ length: 3 }).map((__, rowIndex) => (
-                            <div
-                                key={rowIndex}
-                                className="flex items-center justify-between rounded-lg border border-gray-200 p-3"
-                            >
-                                <div className="space-y-2">
-                                    <Skeleton className="h-4 w-48" />
-                                    <Skeleton className="h-3 w-32" />
-                                </div>
-                                <Skeleton className="h-6 w-20" />
-                            </div>
-                        ))}
-                    </CardContent>
-                </Card>
-            ))}
-        </div>
-    );
-}
-
 export default function PatientDetailPage({
     params,
 }: {
@@ -170,10 +118,22 @@ export default function PatientDetailPage({
     const [isRestorePatientDialogOpen, setIsRestorePatientDialogOpen] = useState(false);
     const [isPermanentDeletePatientDialogOpen, setIsPermanentDeletePatientDialogOpen] = useState(false);
     const todayDateKey = toLocalDateKey();
+    const currentUserQuery = useQuery({
+        queryKey: ['auth', 'me'],
+        queryFn: getCurrentUser,
+        staleTime: 5 * 60_000,
+    });
+    const currentUser = currentUserQuery.data;
+    const canViewPatients = canView(currentUser, 'patients');
+    const canManagePatients = canManage(currentUser, 'patients');
+    const canViewAppointments = canView(currentUser, 'appointments');
+    const canManageAppointments = canManage(currentUser, 'appointments');
+    const canViewPayments = canView(currentUser, 'payments');
 
     const patientQuery = useQuery({
         queryKey: ['patients', 'detail', id],
         queryFn: () => getPatient(id),
+        enabled: canViewPatients,
         retry: false,
         staleTime: 30_000,
     });
@@ -181,6 +141,7 @@ export default function PatientDetailPage({
     const overviewQuery = useQuery({
         queryKey: ['patients', 'detail', id, 'overview', todayDateKey],
         queryFn: () => getPatientOverview(id),
+        enabled: canViewPatients,
         staleTime: 30_000,
         gcTime: 300_000,
         refetchOnWindowFocus: false,
@@ -240,13 +201,26 @@ export default function PatientDetailPage({
     const isPatientArchived = Boolean(patient?.is_archived);
 
     if (
+        currentUserQuery.isLoading ||
         patientQuery.isLoading ||
         overviewQuery.isLoading
     ) {
-        return <PatientDetailLoadingSkeleton />;
+        return <PatientDetailLoadingState />;
+    }
+
+    if (!canViewPatients) {
+        return (
+            <AccessDeniedState
+                title={t('common.forbiddenTitle')}
+                description={PERMISSION_DENIED_MESSAGE}
+                actionHref="/patients"
+                actionLabel={t('patientDetail.backToPatients')}
+            />
+        );
     }
 
     if (
+        currentUserQuery.isError ||
         patientQuery.isError ||
         overviewQuery.isError
     ) {
@@ -254,12 +228,14 @@ export default function PatientDetailPage({
             <AppErrorState
                 title={t('common.loadErrorTitle')}
                 description={getApiErrorMessage(
-                    patientQuery.error ||
+                    currentUserQuery.error ||
+                        patientQuery.error ||
                         overviewQuery.error,
                     t('patientDetail.error.loadFailed')
                 )}
                 retryLabel={t('common.retry')}
                 onRetry={() => {
+                    currentUserQuery.refetch();
                     patientQuery.refetch();
                     overviewQuery.refetch();
                 }}
@@ -283,9 +259,14 @@ export default function PatientDetailPage({
     const daysSinceVisit = getDaysSinceLastVisit(latestVisitDate);
     const isInactive = daysSinceVisit > 180;
     const primaryCategory = patient.categories?.[0] ?? null;
-    const patientAvatarUrl = patient.photo_thumbnail_ready === false
-        ? (patient.photo_preview_ready ? patient.photo_preview_url ?? undefined : undefined)
-        : patient.photo_thumbnail_url ?? patient.photo_preview_url ?? undefined;
+    const patientAvatarUrl = getProtectedMediaThumbnailUrl({
+        scanStatus: patient.photo_scan_status,
+        thumbnailUrl: patient.photo_thumbnail_url,
+        thumbnailReady: patient.photo_thumbnail_ready,
+        previewUrl: patient.photo_preview_url,
+        previewReady: patient.photo_preview_ready,
+        url: patient.photo_url,
+    }) ?? undefined;
 
     return (
         <div className="space-y-5 lg:space-y-6">
@@ -351,7 +332,7 @@ export default function PatientDetailPage({
                     <Button
                         variant="outline"
                         onClick={() => setIsEditDialogOpen(true)}
-                        disabled={isPatientArchived}
+                        disabled={isPatientArchived || !canManagePatients}
                     >
                         <Edit className="mr-2 h-4 w-4" />
                         {t('patientDetail.editPatient')}
@@ -360,7 +341,11 @@ export default function PatientDetailPage({
                         <Button
                             variant="outline"
                             onClick={() => setIsRestorePatientDialogOpen(true)}
-                            disabled={restorePatientMutation.isPending || permanentlyDeletePatientMutation.isPending}
+                            disabled={
+                                restorePatientMutation.isPending
+                                || permanentlyDeletePatientMutation.isPending
+                                || !canManagePatients
+                            }
                         >
                             {t('patients.restore')}
                         </Button>
@@ -369,7 +354,7 @@ export default function PatientDetailPage({
                             variant="outline"
                             className="text-amber-700 hover:text-amber-800"
                             onClick={() => setIsArchivePatientDialogOpen(true)}
-                            disabled={archivePatientMutation.isPending}
+                            disabled={archivePatientMutation.isPending || !canManagePatients}
                         >
                             {t('patientDetail.archive')}
                         </Button>
@@ -378,7 +363,12 @@ export default function PatientDetailPage({
                         variant="outline"
                         className="text-red-600 hover:text-red-700"
                         onClick={() => setIsPermanentDeletePatientDialogOpen(true)}
-                        disabled={archivePatientMutation.isPending || restorePatientMutation.isPending || permanentlyDeletePatientMutation.isPending}
+                        disabled={
+                            archivePatientMutation.isPending
+                            || restorePatientMutation.isPending
+                            || permanentlyDeletePatientMutation.isPending
+                            || !canManagePatients
+                        }
                     >
                         <Trash2 className="mr-2 h-4 w-4" />
                         {t('patientDetail.deletePermanently')}
@@ -493,12 +483,16 @@ export default function PatientDetailPage({
                         </div>
                         <div className="rounded-2xl border border-slate-100 bg-white/80 px-3 py-2.5 shadow-xs">
                             <p className="mb-1 text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">{t('patientDetail.totalAppointments')}</p>
-                            <p className="text-sm font-semibold text-slate-950">{patientAppointmentsCount}</p>
+                            <p className="text-sm font-semibold text-slate-950">
+                                {canViewAppointments ? patientAppointmentsCount : PERMISSION_DENIED_MESSAGE}
+                            </p>
                         </div>
                         <div className="rounded-2xl border border-slate-100 bg-white/80 px-3 py-2.5 shadow-xs">
                             <p className="mb-1 text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">{t('patientDetail.openBalance')}</p>
                             <p className="text-sm font-semibold">
-                                {totalBalance > 0 ? (
+                                {!canViewPayments ? (
+                                    <span className="text-slate-400">{PERMISSION_DENIED_MESSAGE}</span>
+                                ) : totalBalance > 0 ? (
                                     <span className="text-red-600">{formatCurrency(totalBalance)}</span>
                                 ) : (
                                     <span className="text-green-600">{t('payments.paid')}</span>
@@ -526,14 +520,20 @@ export default function PatientDetailPage({
                         </span>
                         <CardTitle>{t('appointments.title')}</CardTitle>
                     </div>
-                    <Link href={`/appointments?action=new&patientId=${encodeURIComponent(id)}`}>
-                        <Button variant="outline" size="sm">
-                            {t('dashboard.scheduleAppointment')}
-                        </Button>
-                    </Link>
+                    {canViewAppointments ? (
+                        <Link href={`/appointments?action=new&patientId=${encodeURIComponent(id)}`}>
+                            <Button variant="outline" size="sm" disabled={!canManageAppointments}>
+                                {t('dashboard.scheduleAppointment')}
+                            </Button>
+                        </Link>
+                    ) : null}
                 </CardHeader>
                 <CardContent>
-                    {upcomingAppointments.length === 0 ? (
+                    {!canViewAppointments ? (
+                        <div className="rounded-2xl border border-dashed border-slate-200 bg-white/75 px-4 py-5 text-sm text-slate-500">
+                            {PERMISSION_DENIED_MESSAGE}
+                        </div>
+                    ) : upcomingAppointments.length === 0 ? (
                         <div className="rounded-2xl border border-dashed border-slate-200 bg-white/75 px-4 py-5 text-sm text-slate-500">
                             {t('patientDetail.noUpcomingAppointments')}
                         </div>
@@ -565,12 +565,14 @@ export default function PatientDetailPage({
                 </CardContent>
             </Card>
 
-            {isEditDialogOpen ? (
+            {isEditDialogOpen && canManagePatients ? (
                 <EditPatientDialog
                     key={`${patient.id}-open`}
                     open={isEditDialogOpen}
                     onOpenChange={setIsEditDialogOpen}
                     patient={patient}
+                    uploadMaxMb={currentUser?.subscription?.upload_max_mb}
+                    storedImageMaxMb={currentUser?.subscription?.stored_image_max_mb}
                 />
             ) : null}
 

@@ -25,6 +25,11 @@ const CLIENT_ERROR_MESSAGES: Record<AppLocale, Record<string, string>> = {
         'errors.forbidden': 'You do not have permission to perform this action.',
         'errors.accountInactive': 'Your account is inactive. Please contact support.',
         'errors.unauthorized': 'Unable to complete this action. Please sign in again.',
+        'errors.subscription_read_only': 'Your plan has expired. Renew your plan to make changes.',
+        'errors.plan_staff_limit_reached': 'Your current plan staff limit has been reached.',
+        'errors.plan_entry_image_limit_reached': 'This entry has reached the image limit for your plan.',
+        'errors.plan_upload_size_exceeded': 'This file is larger than your current plan allows.',
+        'errors.plan_feature_not_available': 'This feature is not available on your current plan.',
         'errors.network': 'Connection problem. Check your network and try again.',
         'errors.server': 'Server error. Please try again later.',
     },
@@ -400,7 +405,7 @@ export async function apiMutationRequest<TResponse>(
     });
 
     const responseText = await response.text();
-    let parsedBody: TResponse | { message?: string } | undefined;
+    let parsedBody: TResponse | { message?: string; error?: { message?: string } } | undefined;
 
     if (responseText) {
         try {
@@ -414,7 +419,8 @@ export async function apiMutationRequest<TResponse>(
     if (!response.ok) {
         handleAuthExpiry(response.status, path);
         const message =
-            (parsedBody as { message?: string } | undefined)?.message
+            (parsedBody as { message?: string; error?: { message?: string } } | undefined)?.message
+            ?? (parsedBody as { error?: { message?: string } } | undefined)?.error?.message
             ?? (responseText || undefined)
             ?? `Request failed with status ${response.status}.`;
         throw new Error(message);
@@ -450,6 +456,16 @@ export function getApiErrorMessage(error: unknown, fallback = 'Request failed.')
 
         if (nestedErrorCode === 'unauthorized') {
             return getLocalizedClientMessage('errors.unauthorized', fallback);
+        }
+
+        if (
+            nestedErrorCode === 'subscription_read_only'
+            || nestedErrorCode === 'plan_staff_limit_reached'
+            || nestedErrorCode === 'plan_entry_image_limit_reached'
+            || nestedErrorCode === 'plan_upload_size_exceeded'
+            || nestedErrorCode === 'plan_feature_not_available'
+        ) {
+            return getLocalizedClientMessage(`errors.${nestedErrorCode}`, fallback);
         }
 
         const displayableValidationError = getDisplayableApiMessage(firstValidationError);

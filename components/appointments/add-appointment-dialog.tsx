@@ -21,7 +21,7 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { createAppointment, getPatient, listAppointments, listPatients, updateAppointment } from '@/lib/api/dentist';
+import { createAppointment, listAppointments, lookupPatients, updateAppointment } from '@/lib/api/dentist';
 import {
     getAppointmentApiErrorMessage,
 } from '@/lib/appointments/messages';
@@ -35,7 +35,7 @@ import {
     type AppointmentWorkingHours,
     type NormalizedAppointmentWorkingHours,
 } from '@/lib/appointments/time-slots';
-import type { ApiAppointment, ApiCollectionEnvelope, ApiPatient } from '@/lib/api/types';
+import type { ApiAppointment, ApiCollectionEnvelope, ApiPatientLookup } from '@/lib/api/types';
 import { useI18n } from '@/components/providers/i18n-provider';
 import { AppointmentTimePicker } from '@/components/appointments/appointment-time-picker';
 
@@ -46,7 +46,7 @@ const APPOINTMENT_LOOKUP_NAME_UI_LIMIT = 25;
 const APPOINTMENT_LOOKUP_PHONE_UI_LIMIT = 20;
 const APPOINTMENT_SELECTED_PATIENT_UI_LIMIT = 40;
 
-type PatientLookupOption = Pick<ApiPatient, 'id' | 'patient_id' | 'full_name' | 'phone' | 'secondary_phone'>;
+type PatientLookupOption = ApiPatientLookup;
 
 interface EditableAppointment {
     id: string;
@@ -280,7 +280,7 @@ export function AddAppointmentDialog({
         queryKey: ['patients', 'lookup', debouncedPatientSearch],
         enabled: open && isPatientMenuOpen,
         queryFn: () =>
-            listPatients({
+            lookupPatients({
                 page: 1,
                 perPage: PATIENT_LOOKUP_PAGE_SIZE,
                 sort: 'full_name',
@@ -298,7 +298,17 @@ export function AddAppointmentDialog({
     const selectedPatientQuery = useQuery({
         queryKey: ['patients', 'lookup', 'selected', formData.patientId],
         enabled: open && formData.patientId !== '' && !selectedPatientFromList,
-        queryFn: () => getPatient(formData.patientId),
+        queryFn: async () => {
+            const response = await lookupPatients({
+                page: 1,
+                perPage: 1,
+                filter: {
+                    id: formData.patientId,
+                },
+            });
+
+            return response.data[0] ?? null;
+        },
     });
     const selectedPatient = selectedPatientFromList
         ?? selectedPatientQuery.data
@@ -595,7 +605,7 @@ export function AddAppointmentDialog({
                         ) : null}
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                         <div className="space-y-2">
                             <Label htmlFor="date">
                                 {t('appointments.dialog.date')} <span className="text-red-500">*</span>

@@ -57,7 +57,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/UserResponse"
+                $ref: "#/components/schemas/LoginResponse"
         "401":
           $ref: "#/components/responses/UnauthorizedError"
         "422":
@@ -69,11 +69,34 @@ paths:
       operationId: logout
       security:
         - cookieAuth: []
+        - bearerAuth: []
       responses:
         "204":
           description: Logged out
         "401":
           $ref: "#/components/responses/UnauthorizedError"
+  /api/v1/auth/refresh:
+    post:
+      tags: [Auth]
+      summary: Rotate a mobile refresh token and return a new bearer token pair
+      operationId: refreshMobileToken
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RefreshTokenRequest"
+      responses:
+        "200":
+          description: Token pair refreshed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LoginResponse"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "422":
+          $ref: "#/components/responses/ValidationError"
   /api/v1/auth/forgot-password:
     post:
       tags: [Auth]
@@ -121,6 +144,7 @@ paths:
       operationId: getMe
       security:
         - cookieAuth: []
+        - bearerAuth: []
       responses:
         "200":
           description: Current user
@@ -846,6 +870,9 @@ components:
       type: apiKey
       in: cookie
       name: laravel_session
+    bearerAuth:
+      type: http
+      scheme: bearer
   parameters:
     ResourceId:
       name: id
@@ -1382,6 +1409,15 @@ components:
           format: email
         password:
           type: string
+        remember:
+          type: boolean
+        portal:
+          type: string
+          enum: [app, admin]
+        device_name:
+          type: string
+          description: When provided, login also returns a Sanctum bearer token for native mobile clients.
+          maxLength: 120
     ForgotPasswordRequest:
       type: object
       required: [email]
@@ -1389,6 +1425,12 @@ components:
         email:
           type: string
           format: email
+    RefreshTokenRequest:
+      type: object
+      required: [refresh_token]
+      properties:
+        refresh_token:
+          type: string
     ResetPasswordRequest:
       type: object
       required: [token, email, password, password_confirmation]
@@ -1606,6 +1648,38 @@ components:
       properties:
         data:
           $ref: "#/components/schemas/User"
+        meta:
+          $ref: "#/components/schemas/EnvelopeMeta"
+      required: [data]
+    LoginTokens:
+      type: object
+      properties:
+        access_token:
+          type: string
+        refresh_token:
+          type: string
+        token_type:
+          type: string
+          example: Bearer
+        expires_in:
+          type: integer
+          example: 900
+        refresh_expires_in:
+          type: integer
+          example: 2592000
+      required: [access_token, refresh_token, token_type, expires_in, refresh_expires_in]
+    LoginUser:
+      allOf:
+        - $ref: "#/components/schemas/User"
+        - type: object
+          properties:
+            tokens:
+              $ref: "#/components/schemas/LoginTokens"
+    LoginResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/LoginUser"
         meta:
           $ref: "#/components/schemas/EnvelopeMeta"
       required: [data]

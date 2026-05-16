@@ -2,17 +2,19 @@
 
 namespace App\Models;
 
+use App\Contracts\TenantOwned;
+use App\Models\Concerns\BelongsToTenant;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
-class Treatment extends Model
+class Treatment extends Model implements TenantOwned
 {
     /** @use HasFactory<\Database\Factories\TreatmentFactory> */
-    use HasFactory, HasUuids;
+    use BelongsToTenant, HasFactory, HasUuids;
 
     /**
      * @var bool
@@ -82,7 +84,14 @@ class Treatment extends Model
      */
     public function images(): HasMany
     {
-        return $this->hasMany(TreatmentImage::class)->orderBy('created_at');
+        return $this->hasMany(TreatmentImage::class)
+            ->whereExists(function ($query): void {
+                $query->selectRaw('1')
+                    ->from('treatments')
+                    ->whereColumn('treatments.id', 'treatment_images.treatment_id')
+                    ->whereColumn('treatments.dentist_id', 'treatment_images.dentist_id');
+            })
+            ->orderBy('created_at');
     }
 
     /**
@@ -91,6 +100,12 @@ class Treatment extends Model
     public function primaryImage(): HasOne
     {
         return $this->hasOne(TreatmentImage::class)
+            ->whereExists(function ($query): void {
+                $query->selectRaw('1')
+                    ->from('treatments')
+                    ->whereColumn('treatments.id', 'treatment_images.treatment_id')
+                    ->whereColumn('treatments.dentist_id', 'treatment_images.dentist_id');
+            })
             ->orderBy('created_at')
             ->orderBy('id');
     }

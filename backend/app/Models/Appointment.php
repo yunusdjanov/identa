@@ -2,19 +2,24 @@
 
 namespace App\Models;
 
+use App\Contracts\TenantOwned;
+use App\Models\Concerns\BelongsToTenant;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class Appointment extends Model
+class Appointment extends Model implements TenantOwned
 {
     /** @use HasFactory<\Database\Factories\AppointmentFactory> */
-    use HasFactory, HasUuids;
+    use BelongsToTenant, HasFactory, HasUuids;
 
     public const STATUS_SCHEDULED = 'scheduled';
+
     public const STATUS_COMPLETED = 'completed';
+
     public const STATUS_CANCELLED = 'cancelled';
+
     public const STATUS_NO_SHOW = 'no_show';
 
     /**

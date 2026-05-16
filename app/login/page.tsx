@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { PasswordInput } from '@/components/ui/password-input';
 import { Label } from '@/components/ui/label';
-import { getCurrentUser, loginWithPassword } from '@/lib/api/dentist';
+import { getCurrentUser, loginWithGoogleIdToken, loginWithPassword } from '@/lib/api/dentist';
 import { getApiErrorMessage } from '@/lib/api/client';
 import {
     consumeAuthRedirectReason,
@@ -28,17 +28,53 @@ import { useI18n } from '@/components/providers/i18n-provider';
 import { LanguageSwitcher } from '@/components/layout/language-switcher';
 import { Brand } from '@/components/branding/brand';
 
+interface GoogleCredentialResponse {
+    credential?: string;
+}
+
+interface GoogleAccountsId {
+    initialize: (options: {
+        client_id: string;
+        callback: (response: GoogleCredentialResponse) => void;
+    }) => void;
+    renderButton: (
+        parent: HTMLElement,
+        options: {
+            theme: 'outline';
+            size: 'large';
+            type: 'standard';
+            text: 'continue_with';
+            shape: 'rectangular';
+            width: number;
+        }
+    ) => void;
+}
+
+declare global {
+    interface Window {
+        google?: {
+            accounts?: {
+                id?: GoogleAccountsId;
+            };
+        };
+    }
+}
+
+const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ?? '';
+
 export default function LoginPage() {
     const router = useRouter();
     const queryClient = useQueryClient();
     const { login } = useAuthStore();
     const { t } = useI18n();
+    const googleButtonRef = useRef<HTMLDivElement | null>(null);
 
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [remember, setRemember] = useState(true);
     const [isSubmitted, setIsSubmitted] = useState(false);
     const [isLogoutRedirect, setIsLogoutRedirect] = useState(() => isClientLogoutInProgress());
+    const [googleReady, setGoogleReady] = useState(false);
     const emailError = getEmailValidationMessage(email, { required: true });
     const passwordError = password ? null : t('login.passwordRequired');
     const hasValidationErrors = Boolean(emailError || passwordError);
@@ -63,6 +99,22 @@ export default function LoginPage() {
         },
         onError: (error) => {
             toast.error(getApiErrorMessage(error, t('login.toast.failed')));
+        },
+    });
+
+    const googleMutation = useMutation({
+        mutationFn: (idToken: string) => loginWithGoogleIdToken(idToken),
+        onSuccess: (user) => {
+            clearClientLogoutInProgress();
+            setIsLogoutRedirect(false);
+            resetSessionExpiredNotification();
+            login(user.name);
+            queryClient.setQueryData(['auth', 'me'], user);
+            toast.success(t('register.toast.googleSuccess'));
+            router.push('/dashboard');
+        },
+        onError: (error) => {
+            toast.error(getApiErrorMessage(error, t('register.toast.googleFailed')));
         },
     });
 
@@ -99,6 +151,59 @@ export default function LoginPage() {
         router.replace(currentUserQuery.data.role === 'admin' ? '/admin' : '/dashboard');
     }, [currentUserQuery.data, isLogoutRedirect, router]);
 
+    useEffect(() => {
+        if (!googleClientId || typeof window === 'undefined' || isLogoutRedirect) {
+            return;
+        }
+
+        const existingScript = document.querySelector<HTMLScriptElement>('script[src="https://accounts.google.com/gsi/client"]');
+        const initializeGoogle = () => {
+            const googleId = window.google?.accounts?.id;
+            if (!googleId || !googleButtonRef.current) {
+                return;
+            }
+
+            googleButtonRef.current.innerHTML = '';
+            googleId.initialize({
+                client_id: googleClientId,
+                callback: (response) => {
+                    if (!response.credential) {
+                        toast.error(t('register.toast.googleFailed'));
+                        return;
+                    }
+                    googleMutation.mutate(response.credential);
+                },
+            });
+            googleId.renderButton(googleButtonRef.current, {
+                theme: 'outline',
+                size: 'large',
+                type: 'standard',
+                text: 'continue_with',
+                shape: 'rectangular',
+                width: 360,
+            });
+            setGoogleReady(true);
+        };
+
+        if (existingScript) {
+            initializeGoogle();
+            existingScript.addEventListener('load', initializeGoogle);
+
+            return () => existingScript.removeEventListener('load', initializeGoogle);
+        }
+
+        const script = document.createElement('script');
+        script.src = 'https://accounts.google.com/gsi/client';
+        script.async = true;
+        script.defer = true;
+        script.addEventListener('load', initializeGoogle);
+        document.head.appendChild(script);
+
+        return () => {
+            script.removeEventListener('load', initializeGoogle);
+        };
+    }, [googleMutation, isLogoutRedirect, t]);
+
     const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault();
         setIsSubmitted(true);
@@ -110,41 +215,30 @@ export default function LoginPage() {
         loginMutation.mutate();
     };
 
-    if (!isLogoutRedirect && currentUserQuery.isLoading) {
-        return (
-            <div className="relative min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-50 flex items-center justify-center p-4">
-                <div className="w-full max-w-md">
-                    <Card className="shadow-xl">
-                        <CardContent className="flex items-center justify-center py-10 text-sm text-gray-500">
-                            {t('common.loading')}
-                        </CardContent>
-                    </Card>
-                </div>
-            </div>
-        );
-    }
-
     return (
-        <div className="relative min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-50 flex items-center justify-center p-4">
-            <div className="absolute right-4 top-4 sm:right-6 sm:top-6">
+        <div className="relative flex min-h-screen items-center justify-center overflow-x-hidden bg-[#edf6f8] px-4 py-4 text-slate-950 sm:py-6">
+            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_12%_16%,rgba(13,148,136,0.20),transparent_31%),radial-gradient(circle_at_88%_18%,rgba(37,99,235,0.15),transparent_30%),linear-gradient(135deg,#e5f6f4_0%,#f9fbfc_45%,#e8f2ff_100%)]" />
+            <div className="absolute right-4 top-4 z-10 sm:right-6 sm:top-6">
                 <LanguageSwitcher variant="compact" />
             </div>
-            <div className="w-full max-w-md">
-                <div className="mb-8 text-center">
-                    <div className="mb-3 flex justify-center">
-                        <Brand href="/" variant="text" priority textClassName="w-40 sm:w-44" />
+            <div className="relative w-full max-w-md">
+                <div className="mb-5 text-center sm:mb-6">
+                    <div className="mb-2 flex justify-center">
+                        <Brand href="/" variant="text" priority textClassName="w-36 sm:w-40" />
                     </div>
-                    <p className="text-gray-600">{t('login.subtitle')}</p>
+                    <p className="text-sm text-slate-600 sm:text-base">{t('login.subtitle')}</p>
                 </div>
 
-                <Card className="shadow-xl">
-                    <CardHeader>
-                        <CardTitle className="text-center text-2xl">{t('login.welcomeBack')}</CardTitle>
+                <Card className="border-white/80 bg-white/90 shadow-2xl shadow-slate-950/10 backdrop-blur-md">
+                    <CardHeader className="px-5 pb-3 pt-6 sm:px-7">
+                        <CardTitle className="text-center text-2xl font-black tracking-[-0.035em] text-slate-950">
+                            {t('login.welcomeBack')}
+                        </CardTitle>
                     </CardHeader>
-                    <CardContent>
-                        <form onSubmit={handleSubmit} className="space-y-5">
-                            <div className="space-y-2">
-                                <Label htmlFor="email">
+                    <CardContent className="space-y-4 px-5 pb-5 sm:px-7">
+                        <form onSubmit={handleSubmit} className="space-y-4">
+                            <div className="space-y-1.5">
+                                <Label htmlFor="email" className="text-sm font-semibold text-slate-950">
                                     {t('login.email')} <span className="text-red-500">*</span>
                                 </Label>
                                 <Input
@@ -156,6 +250,7 @@ export default function LoginPage() {
                                     maxLength={INPUT_LIMITS.email}
                                     autoComplete="email"
                                     inputMode="email"
+                                    className="h-11 rounded-2xl bg-white/95 px-4 shadow-sm"
                                     aria-invalid={Boolean(isSubmitted && emailError)}
                                 />
                                 {isSubmitted && emailError ? (
@@ -163,8 +258,8 @@ export default function LoginPage() {
                                 ) : null}
                             </div>
 
-                            <div className="space-y-2">
-                                <Label htmlFor="password">
+                            <div className="space-y-1.5">
+                                <Label htmlFor="password" className="text-sm font-semibold text-slate-950">
                                     {t('login.password')} <span className="text-red-500">*</span>
                                 </Label>
                                 <PasswordInput
@@ -174,6 +269,7 @@ export default function LoginPage() {
                                     required
                                     maxLength={INPUT_LIMITS.password}
                                     autoComplete="current-password"
+                                    className="h-11 rounded-2xl bg-white/95 px-4 shadow-sm"
                                     aria-invalid={Boolean(isSubmitted && passwordError)}
                                     showLabel={t('login.showPassword')}
                                     hideLabel={t('login.hidePassword')}
@@ -183,19 +279,19 @@ export default function LoginPage() {
                                 ) : null}
                             </div>
 
-                            <div className="flex items-center justify-between gap-4">
-                                <label className="flex items-center gap-3 text-sm text-gray-600">
+                            <div className="flex flex-wrap items-center justify-between gap-3">
+                                <label className="flex min-w-0 items-center gap-2 text-sm text-slate-600">
                                     <input
                                         type="checkbox"
                                         checked={remember}
                                         onChange={(event) => setRemember(event.target.checked)}
-                                        className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                        className="h-4 w-4 rounded border-slate-300 text-cyan-700 focus:ring-cyan-600"
                                     />
                                     <span>{t('login.rememberMe')}</span>
                                 </label>
                                 <Link
                                     href="/forgot-password"
-                                    className="text-sm font-medium text-blue-600 transition hover:text-blue-700"
+                                    className="text-sm font-semibold text-cyan-700 transition hover:text-cyan-800"
                                 >
                                     {t('login.forgotPassword')}
                                 </Link>
@@ -203,12 +299,39 @@ export default function LoginPage() {
 
                             <Button
                                 type="submit"
-                                className="w-full"
-                                disabled={loginMutation.isPending}
+                                className="h-11 w-full rounded-2xl bg-slate-950 text-base font-bold text-white shadow-lg shadow-slate-950/15 hover:bg-slate-800"
+                                disabled={loginMutation.isPending || googleMutation.isPending}
                             >
                                 {loginMutation.isPending ? t('login.signingIn') : t('login.signIn')}
                             </Button>
                         </form>
+
+                        <div className="flex items-center gap-3 text-xs uppercase tracking-[0.18em] text-slate-400">
+                            <span className="h-px flex-1 bg-gray-200" />
+                            <span>{t('register.orEmail')}</span>
+                            <span className="h-px flex-1 bg-gray-200" />
+                        </div>
+
+                        <div className="min-h-11 w-full overflow-hidden rounded-md">
+                            {googleClientId ? (
+                                <div
+                                    ref={googleButtonRef}
+                                    className="flex min-h-11 justify-center"
+                                    aria-busy={!googleReady || googleMutation.isPending}
+                                />
+                            ) : (
+                                <Button type="button" variant="outline" className="h-11 w-full rounded-2xl bg-white/80" disabled>
+                                    {t('register.googleNotConfigured')}
+                                </Button>
+                            )}
+                        </div>
+
+                        <p className="text-center text-sm text-slate-600">
+                            {t('login.noAccount')}{' '}
+                            <Link href="/register" className="font-semibold text-cyan-700 transition hover:text-cyan-800">
+                                {t('login.createAccount')}
+                            </Link>
+                        </p>
                     </CardContent>
                 </Card>
             </div>

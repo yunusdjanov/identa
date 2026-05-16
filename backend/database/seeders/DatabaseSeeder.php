@@ -8,6 +8,7 @@ use App\Models\OdontogramEntry;
 use App\Models\Patient;
 use App\Models\PatientCategory;
 use App\Models\Payment;
+use App\Models\Plan;
 use App\Models\Treatment;
 use App\Models\User;
 use Carbon\Carbon;
@@ -33,6 +34,7 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         DB::transaction(function (): void {
+            $this->seedPlans();
             $this->seedAdmin();
             $dentist = $this->seedDentist();
 
@@ -48,6 +50,70 @@ class DatabaseSeeder extends Seeder
             $this->seedTreatments($dentist, $patients);
             $this->seedInvoicesAndPayments($dentist, $patients);
         });
+    }
+
+    private function seedPlans(): void
+    {
+        $plans = [
+            [
+                'code' => Plan::CODE_TRIAL,
+                'name' => 'Trial',
+                'description' => '30 kunlik sinov tarifi',
+                'is_trial' => true,
+                'is_paid' => false,
+                'trial_days' => 30,
+                'monthly_price' => null,
+                'yearly_price' => null,
+                'currency' => 'UZS',
+                'staff_limit' => 1,
+                'entry_image_limit' => 2,
+                'upload_max_mb' => 1,
+                'stored_image_max_mb' => 0.5,
+                'can_export' => false,
+                'is_active' => true,
+                'sort_order' => 10,
+            ],
+            [
+                'code' => Plan::CODE_BASIC,
+                'name' => 'Basic',
+                'description' => 'Kichik klinikalar uchun asosiy tarif',
+                'is_trial' => false,
+                'is_paid' => true,
+                'trial_days' => null,
+                'monthly_price' => 0,
+                'yearly_price' => 0,
+                'currency' => 'UZS',
+                'staff_limit' => 3,
+                'entry_image_limit' => 2,
+                'upload_max_mb' => 3,
+                'stored_image_max_mb' => 0.5,
+                'can_export' => false,
+                'is_active' => true,
+                'sort_order' => 20,
+            ],
+            [
+                'code' => Plan::CODE_PRO,
+                'name' => 'Pro',
+                'description' => 'Kengaytirilgan limitlar va export',
+                'is_trial' => false,
+                'is_paid' => true,
+                'trial_days' => null,
+                'monthly_price' => 0,
+                'yearly_price' => 0,
+                'currency' => 'UZS',
+                'staff_limit' => 5,
+                'entry_image_limit' => 10,
+                'upload_max_mb' => 5,
+                'stored_image_max_mb' => 1,
+                'can_export' => true,
+                'is_active' => true,
+                'sort_order' => 30,
+            ],
+        ];
+
+        foreach ($plans as $plan) {
+            Plan::query()->updateOrCreate(['code' => $plan['code']], $plan);
+        }
     }
 
     private function seedAdmin(): User
@@ -75,7 +141,7 @@ class DatabaseSeeder extends Seeder
 
     private function seedDentist(): User
     {
-        return User::query()->updateOrCreate(
+        $dentist = User::query()->updateOrCreate(
             ['email' => self::DENTIST_EMAIL],
             [
                 'name' => 'Dr Demo Dentist',
@@ -94,6 +160,10 @@ class DatabaseSeeder extends Seeder
                 'default_appointment_duration' => 30,
             ]
         );
+
+        $dentist->startFreeTrial('Demo seed');
+
+        return $dentist;
     }
 
     private function resetDemoDentistData(User $dentist): void

@@ -130,8 +130,8 @@ export function PublicLeadForm({
     };
 
     return (
-        <form className="flex h-full flex-col gap-4" onSubmit={handleLeadRequestSubmit}>
-            <div className="grid gap-4 sm:grid-cols-2">
+        <form className="flex h-full min-w-0 flex-col gap-3.5 sm:gap-4" onSubmit={handleLeadRequestSubmit}>
+            <div className="grid min-w-0 gap-3.5 sm:grid-cols-2 sm:gap-4">
                 <div className="space-y-2">
                     <label className="text-sm font-medium text-slate-800">
                         {content.name} <span className="text-red-500">*</span>
@@ -143,7 +143,7 @@ export function PublicLeadForm({
                         aria-invalid={Boolean(isSubmitted && errors.name)}
                         placeholder={content.name}
                     />
-                    {isSubmitted && errors.name ? <p className="text-xs text-red-600">{errors.name}</p> : null}
+                    {isSubmitted && errors.name ? <p className="break-words text-xs leading-5 text-red-600">{errors.name}</p> : null}
                 </div>
 
                 <div className="space-y-2">
@@ -163,11 +163,11 @@ export function PublicLeadForm({
                         aria-invalid={Boolean(isSubmitted && errors.phone)}
                         placeholder="+998 90 123 45 67"
                     />
-                    {isSubmitted && errors.phone ? <p className="text-xs text-red-600">{errors.phone}</p> : null}
+                    {isSubmitted && errors.phone ? <p className="break-words text-xs leading-5 text-red-600">{errors.phone}</p> : null}
                 </div>
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid min-w-0 gap-3.5 sm:grid-cols-2 sm:gap-4">
                 <div className="space-y-2">
                     <label className="text-sm font-medium text-slate-800">
                         {content.clinic} <span className="text-red-500">*</span>
@@ -180,7 +180,7 @@ export function PublicLeadForm({
                         placeholder={content.clinic}
                     />
                     {isSubmitted && errors.clinicName ? (
-                        <p className="text-xs text-red-600">{errors.clinicName}</p>
+                        <p className="break-words text-xs leading-5 text-red-600">{errors.clinicName}</p>
                     ) : null}
                 </div>
 
@@ -195,7 +195,7 @@ export function PublicLeadForm({
                         aria-invalid={Boolean(isSubmitted && errors.city)}
                         placeholder={content.city}
                     />
-                    {isSubmitted && errors.city ? <p className="text-xs text-red-600">{errors.city}</p> : null}
+                    {isSubmitted && errors.city ? <p className="break-words text-xs leading-5 text-red-600">{errors.city}</p> : null}
                 </div>
             </div>
 
@@ -209,30 +209,30 @@ export function PublicLeadForm({
                     maxLength={INPUT_LIMITS.longText}
                     aria-invalid={Boolean(isSubmitted && errors.note)}
                     placeholder={content.note}
-                    className="min-h-28"
+                    className="min-h-24 sm:min-h-28"
                 />
-                {isSubmitted && errors.note ? <p className="text-xs text-red-600">{errors.note}</p> : null}
+                {isSubmitted && errors.note ? <p className="break-words text-xs leading-5 text-red-600">{errors.note}</p> : null}
             </div>
 
-            <div className="mt-auto flex flex-col gap-3 sm:flex-row">
+            <div className="mt-auto flex min-w-0 flex-col gap-3 sm:flex-row">
                 <Button
                     type="submit"
                     size="lg"
-                    className="h-12 w-full rounded-xl px-4 text-sm sm:flex-1 sm:text-base"
+                    className="h-auto min-h-12 w-full min-w-0 rounded-xl px-4 py-2.5 text-center text-sm leading-tight sm:flex-1 sm:text-base"
                     disabled={leadRequestMutation.isPending}
                 >
-                    {leadRequestMutation.isPending ? content.submitting : content.submit}
-                    <ArrowRight className="h-4 w-4" />
+                    <span className="min-w-0 break-words">{leadRequestMutation.isPending ? content.submitting : content.submit}</span>
+                    <ArrowRight className="h-4 w-4 flex-shrink-0" />
                 </Button>
                 <Button
                     asChild
                     type="button"
                     size="lg"
                     variant="outline"
-                    className="h-12 w-full rounded-xl px-5 text-sm sm:w-auto sm:text-base"
+                    className="h-auto min-h-12 w-full min-w-0 rounded-xl px-5 py-2.5 text-center text-sm leading-tight sm:w-auto sm:text-base"
                 >
                     <a href={telegramHref} target="_blank" rel="noreferrer">
-                        {content.telegram}
+                        <span className="break-words">{content.telegram}</span>
                     </a>
                 </Button>
             </div>

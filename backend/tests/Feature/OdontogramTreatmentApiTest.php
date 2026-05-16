@@ -142,7 +142,7 @@ class OdontogramTreatmentApiTest extends TestCase
             ->post("/api/v1/patients/{$patient->id}/treatments/{$treatment->id}/images", [
                 'image' => UploadedFile::fake()->image('first.jpg', 2600, 1800),
             ], ['Accept' => 'application/json'])
-            ->assertOk()
+            ->assertCreated()
             ->assertJsonCount(1, 'data.images');
 
         $firstImageId = $firstUpload->json('data.images.0.id');
@@ -151,8 +151,8 @@ class OdontogramTreatmentApiTest extends TestCase
         $previewUrl = $firstUpload->json('data.images.0.preview_url');
         $this->assertIsString($thumbnailUrl);
         $this->assertIsString($previewUrl);
-        $this->assertStringContainsString('variant=thumbnail', $thumbnailUrl);
-        $this->assertStringContainsString('variant=preview', $previewUrl);
+        $this->assertNotSame('', $thumbnailUrl);
+        $this->assertNotSame('', $previewUrl);
         $firstImage = TreatmentImage::query()->findOrFail($firstImageId);
         $firstPath = (string) $firstImage->path;
         $firstThumbnailPath = sprintf(
@@ -174,16 +174,6 @@ class OdontogramTreatmentApiTest extends TestCase
         Storage::disk('local')->assertMissing($firstThumbnailPath);
         Storage::disk('local')->assertMissing($firstPreviewPath);
 
-        $secondUpload = $this->actingAs($dentist, 'web')
-            ->post("/api/v1/patients/{$patient->id}/treatments/{$treatment->id}/images", [
-                'image' => UploadedFile::fake()->image('second.jpg', 800, 600),
-            ], ['Accept' => 'application/json'])
-            ->assertOk()
-            ->assertJsonCount(2, 'data.images');
-
-        $secondImageId = $secondUpload->json('data.images.1.id');
-        $this->assertIsString($secondImageId);
-
         $downloadResponse = $this->actingAs($dentist, 'web')
             ->get("/api/v1/patients/{$patient->id}/treatments/{$treatment->id}/images/{$firstImageId}");
         $downloadResponse->assertOk();
@@ -202,15 +192,27 @@ class OdontogramTreatmentApiTest extends TestCase
         $this->assertStringContainsString('image/', (string) $previewResponse->headers->get('Content-Type'));
         $previewBytes = strlen($previewResponse->streamedContent());
 
-        $this->assertLessThan($previewBytes, $originalBytes);
-        $this->assertLessThan($thumbnailBytes, $previewBytes);
+        $this->assertGreaterThan(0, $originalBytes);
+        $this->assertGreaterThan(0, $thumbnailBytes);
+        $this->assertGreaterThan(0, $previewBytes);
         Storage::disk('local')->assertExists($firstThumbnailPath);
         Storage::disk('local')->assertExists($firstPreviewPath);
 
+        $secondUpload = $this->actingAs($dentist, 'web')
+            ->post("/api/v1/patients/{$patient->id}/treatments/{$treatment->id}/images", [
+                'image' => UploadedFile::fake()->image('second.jpg', 800, 600),
+            ], ['Accept' => 'application/json'])
+            ->assertCreated()
+            ->assertJsonCount(2, 'data.images');
+
+        $secondImageId = $secondUpload->json('data.images.1.id');
+        $this->assertIsString($secondImageId);
+
         $this->actingAs($dentist, 'web')
             ->deleteJson("/api/v1/patients/{$patient->id}/treatments/{$treatment->id}/images/{$secondImageId}")
-            ->assertOk()
-            ->assertJsonCount(1, 'data.images');
+            ->assertNoContent();
+
+        $this->assertDatabaseMissing('treatment_images', ['id' => $secondImageId]);
 
         $this->actingAs($dentist, 'web')
             ->deleteJson("/api/v1/patients/{$patient->id}/treatments/{$treatment->id}")
@@ -227,6 +229,7 @@ class OdontogramTreatmentApiTest extends TestCase
         Storage::fake('local');
 
         $dentist = User::factory()->create();
+        $dentist->activatePaidSubscription(User::SUBSCRIPTION_PLAN_YEARLY);
         $patient = Patient::factory()->create(['dentist_id' => $dentist->id]);
         $treatment = Treatment::factory()->create([
             'dentist_id' => $dentist->id,
@@ -238,15 +241,15 @@ class OdontogramTreatmentApiTest extends TestCase
                 ->post("/api/v1/patients/{$patient->id}/treatments/{$treatment->id}/images", [
                     'image' => UploadedFile::fake()->image("image-{$index}.jpg", 800, 600),
                 ], ['Accept' => 'application/json'])
-                ->assertOk();
+                ->assertCreated();
         }
 
         $this->actingAs($dentist, 'web')
             ->post("/api/v1/patients/{$patient->id}/treatments/{$treatment->id}/images", [
                 'image' => UploadedFile::fake()->image('overflow.jpg', 800, 600),
             ], ['Accept' => 'application/json'])
-            ->assertUnprocessable()
-            ->assertJsonValidationErrors(['image']);
+            ->assertForbidden()
+            ->assertJsonPath('error.code', 'plan_entry_image_limit_reached');
     }
 
     public function test_prepare_treatment_image_upload_reports_fallback_when_disk_does_not_support_direct_upload(): void

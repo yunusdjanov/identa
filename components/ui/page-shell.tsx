@@ -14,17 +14,19 @@ export function PageHeader({ title, description, eyebrow, actions, className }: 
     return (
         <section
             className={cn(
-                'rounded-[1.75rem] border border-white/80 bg-gradient-to-br from-white via-blue-50/55 to-white p-5 shadow-sm shadow-slate-200/70 sm:p-6',
+                'overflow-hidden rounded-[1.5rem] border border-white/80 bg-gradient-to-br from-white via-blue-50/55 to-white p-4 shadow-sm shadow-slate-200/70 sm:rounded-[1.75rem] sm:p-6',
                 className
             )}
         >
-            <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex min-w-0 flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
                 <div className="min-w-0 space-y-2">
                     {eyebrow ? (
-                        <p className="text-xs font-bold uppercase tracking-[0.28em] text-blue-600">{eyebrow}</p>
+                        <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-blue-600 sm:text-xs sm:tracking-[0.28em]">
+                            {eyebrow}
+                        </p>
                     ) : null}
                     <div className="space-y-1">
-                        <h1 className="text-3xl font-bold tracking-[-0.04em] text-slate-950 sm:text-4xl">
+                        <h1 className="break-words text-[1.8rem] font-bold leading-tight tracking-[-0.04em] text-slate-950 sm:text-4xl">
                             {title}
                         </h1>
                         {description ? (
@@ -35,7 +37,7 @@ export function PageHeader({ title, description, eyebrow, actions, className }: 
                     </div>
                 </div>
                 {actions ? (
-                    <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center sm:justify-end">
+                    <div className="flex w-full min-w-0 flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
                         {actions}
                     </div>
                 ) : null}
@@ -54,7 +56,7 @@ export function SectionPanel({
     return (
         <section
             className={cn(
-                'rounded-[1.75rem] border border-slate-200/80 bg-white/95 p-5 shadow-sm shadow-slate-200/60 sm:p-6',
+                'min-w-0 overflow-hidden rounded-[1.5rem] border border-slate-200/80 bg-white/95 p-4 shadow-sm shadow-slate-200/60 sm:rounded-[1.75rem] sm:p-6',
                 className
             )}
         >

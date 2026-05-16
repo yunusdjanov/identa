@@ -34,6 +34,14 @@ $env:SESSION_SAME_SITE = "lax"
 Set-Location "$PSScriptRoot\..\backend"
 
 $phpCommand = (& "$PSScriptRoot\resolve-php.ps1" -Quiet).Trim()
+$databasePath = (Resolve-Path ".\database").Path
+$e2eDatabasePath = Join-Path $databasePath "e2e.sqlite"
+if (Test-Path -LiteralPath $e2eDatabasePath) {
+    Remove-Item -LiteralPath $e2eDatabasePath -Force
+}
+New-Item -ItemType File -Path $e2eDatabasePath -Force | Out-Null
+$env:DB_CONNECTION = "sqlite"
+$env:DB_DATABASE = $e2eDatabasePath
 
 & $phpCommand artisan key:generate --force
 & $phpCommand artisan optimize:clear

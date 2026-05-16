@@ -7,10 +7,14 @@ const backendHost = 'localhost';
 
 export default defineConfig({
     testDir: './e2e',
+    timeout: 90_000,
     fullyParallel: false,
     workers: 1,
     retries: process.env.CI ? 2 : 0,
     reporter: [['list']],
+    expect: {
+        timeout: 15_000,
+    },
     use: {
         baseURL: `http://${frontendHost}:${frontendPort}`,
         trace: 'on-first-retry',

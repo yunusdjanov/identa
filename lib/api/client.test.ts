@@ -252,4 +252,23 @@ describe('apiMutationRequest', () => {
         expect(dispatchSpy).toHaveBeenCalledWith(expect.objectContaining({ type: AUTH_SESSION_EXPIRED_EVENT }));
         expect(consumeAuthRedirectReason()).toBe('session-expired');
     });
+
+    it('uses nested API error messages for mutation responses', async () => {
+        global.fetch = vi.fn().mockResolvedValue({
+            ok: false,
+            status: 403,
+            text: async () => JSON.stringify({
+                error: {
+                    code: 'plan_entry_image_limit_reached',
+                    message: 'Image limit reached.',
+                },
+            }),
+        }) as typeof fetch;
+
+        await expect(
+            apiMutationRequest('/protected', {
+                method: 'POST',
+            })
+        ).rejects.toThrow('Image limit reached.');
+    });
 });

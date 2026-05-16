@@ -21,6 +21,7 @@ import { useI18n } from '@/components/providers/i18n-provider';
 import { LanguageSwitcher } from '@/components/layout/language-switcher';
 import Link from 'next/link';
 import { Brand } from '@/components/branding/brand';
+import { AuthFormLoadingState } from '@/components/layout/page-loading-skeletons';
 
 export default function AdminLoginPage() {
     const { t } = useI18n();
@@ -110,17 +111,7 @@ export default function AdminLoginPage() {
     };
 
     if (!isLogoutRedirect && currentUserQuery.isLoading) {
-        return (
-            <div className="relative min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50 flex items-center justify-center p-4">
-                <div className="w-full max-w-md">
-                    <Card className="shadow-xl">
-                        <CardContent className="flex items-center justify-center py-10 text-sm text-slate-500">
-                            {t('common.loading')}
-                        </CardContent>
-                    </Card>
-                </div>
-            </div>
-        );
+        return <AuthFormLoadingState fieldCount={2} />;
     }
 
     return (
@@ -216,6 +207,13 @@ export default function AdminLoginPage() {
                         </form>
                     </CardContent>
                 </Card>
+
+                <p className="mt-6 text-center text-sm text-slate-600">
+                    {t('login.noAccount')}{' '}
+                    <Link href="/register" className="font-semibold text-cyan-700 transition hover:text-cyan-800">
+                        {t('login.createAccount')}
+                    </Link>
+                </p>
 
                 <p className="text-center text-xs text-slate-500 mt-6">
                     {t('admin.login.notice')}

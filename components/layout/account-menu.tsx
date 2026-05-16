@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { ChevronDown, LogOut, Settings, Users } from 'lucide-react';
+import { ChevronDown, CreditCard, LogOut, Settings, Users } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import {
@@ -22,6 +22,7 @@ interface AccountMenuProps {
     onLogout: () => void;
     settingsHref?: string | null;
     staffHref?: string | null;
+    billingHref?: string | null;
 }
 
 function getInitial(name: string): string {
@@ -35,6 +36,7 @@ export function AccountMenu({
     onLogout,
     settingsHref = '/settings',
     staffHref = null,
+    billingHref = '/billing',
 }: AccountMenuProps) {
     const router = useRouter();
     const { t } = useI18n();
@@ -81,6 +83,15 @@ export function AccountMenu({
                         <DropdownMenuItem onClick={() => router.push(staffHref)}>
                             <Users className="mr-2 h-4 w-4" />
                             {t('menu.staff')}
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                    </>
+                ) : null}
+                {billingHref ? (
+                    <>
+                        <DropdownMenuItem onClick={() => router.push(billingHref)}>
+                            <CreditCard className="mr-2 h-4 w-4" />
+                            {t('menu.billing')}
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                     </>

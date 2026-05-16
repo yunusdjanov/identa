@@ -21,7 +21,7 @@ class PrepareTreatmentImageBatchUploadRequest extends FormRequest
             'files.*.client_id' => ['required', 'string', 'max:80'],
             'files.*.filename' => ['required', 'string', 'max:255'],
             'files.*.content_type' => ['required', 'string', 'in:image/jpeg,image/jpg,image/png,image/webp'],
-            'files.*.file_size' => ['required', 'integer', 'min:1', 'max:1048576'],
+            'files.*.file_size' => ['required', 'integer', 'min:1', 'max:5242880'],
         ];
     }
 }

@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Skeleton } from '@/components/ui/skeleton';
+import { SettingsLoadingState } from '@/components/layout/page-loading-skeletons';
 import { PageHeader } from '@/components/ui/page-shell';
 import {
     Select,
@@ -38,6 +39,7 @@ import { isValidTimeInput, sanitizeTimeInput } from '@/lib/utils';
 import { formatLocalizedDate } from '@/lib/i18n/date';
 import { DEFAULT_APPOINTMENT_WORKING_HOURS } from '@/lib/appointments/time-slots';
 import { AppErrorState } from '@/components/error/app-error-state';
+import { AccessDeniedState } from '@/components/error/access-denied-state';
 
 const PasswordSecurityCard = dynamic(
     () => import('@/components/settings/password-security-card').then((module) => module.PasswordSecurityCard),
@@ -110,45 +112,8 @@ function getSubscriptionBadgeClass(status: ApiSubscriptionSummary['status']): st
         active: 'bg-green-100 text-green-800 hover:bg-green-100',
         grace: 'bg-amber-100 text-amber-800 hover:bg-amber-100',
         read_only: 'bg-red-100 text-red-800 hover:bg-red-100',
+        canceled: 'bg-slate-100 text-slate-700 hover:bg-slate-100',
     }[status];
-}
-
-function SettingsLoadingSkeleton() {
-    return (
-        <div className="space-y-5 lg:space-y-6">
-            <div className="space-y-2">
-                <Skeleton className="h-9 w-40" />
-                <Skeleton className="h-4 w-64" />
-            </div>
-
-            <div className="space-y-6">
-                <div className="flex gap-2 overflow-x-auto overflow-y-hidden no-scrollbar">
-                    {Array.from({ length: 4 }).map((_, index) => (
-                        <Skeleton key={index} className="h-10 w-28 shrink-0" />
-                    ))}
-                </div>
-
-                <Card>
-                    <CardHeader>
-                        <Skeleton className="h-6 w-44" />
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {Array.from({ length: 4 }).map((_, index) => (
-                                <div key={index} className="space-y-2">
-                                    <Skeleton className="h-4 w-24" />
-                                    <Skeleton className="h-10 w-full" />
-                                </div>
-                            ))}
-                        </div>
-                        <div className="flex justify-end">
-                            <Skeleton className="h-10 w-32" />
-                        </div>
-                    </CardContent>
-                </Card>
-            </div>
-        </div>
-    );
 }
 
 export default function SettingsPage() {
@@ -161,9 +126,10 @@ export default function SettingsPage() {
     });
     const isDentist = currentUserQuery.data?.role === 'dentist';
     const isAssistant = currentUserQuery.data?.role === 'assistant';
+    const isReadOnly = currentUserQuery.data?.subscription?.is_read_only === true;
     const canViewSettings = Boolean(currentUserQuery.data && (isDentist || isAssistant));
-    const canManagePersonalProfile = Boolean(currentUserQuery.data && (isDentist || isAssistant));
-    const canManagePracticeSettings = Boolean(currentUserQuery.data && isDentist);
+    const canManagePersonalProfile = Boolean(currentUserQuery.data && (isDentist || isAssistant) && !isReadOnly);
+    const canManagePracticeSettings = Boolean(currentUserQuery.data && isDentist && !isReadOnly);
 
     const profileQuery = useQuery({
         queryKey: ['settings', 'profile'],
@@ -293,7 +259,7 @@ export default function SettingsPage() {
     };
 
     if (currentUserQuery.isLoading || (canViewSettings && profileQuery.isLoading)) {
-        return <SettingsLoadingSkeleton />;
+        return <SettingsLoadingState />;
     }
 
     if (currentUserQuery.isError) {
@@ -309,14 +275,11 @@ export default function SettingsPage() {
 
     if (!canViewSettings) {
         return (
-            <Card>
-                <CardHeader>
-                    <CardTitle>{t('settings.title')}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <p className="text-sm text-gray-600">{t('settings.noAccess')}</p>
-                </CardContent>
-            </Card>
+            <AccessDeniedState
+                title={t('common.forbiddenTitle')}
+                description={t('settings.noAccess')}
+                actionLabel={t('dashboard.title')}
+            />
         );
     }
 

@@ -3,7 +3,7 @@ import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import PatientsPage from '@/app/patients/page';
-import { listPatientCategories, listPatients, restorePatient } from '@/lib/api/dentist';
+import { getCurrentUser, listPatientCategories, listPatients, restorePatient } from '@/lib/api/dentist';
 import { I18nProvider } from '@/components/providers/i18n-provider';
 import { DICTIONARIES } from '@/lib/i18n/dictionaries';
 
@@ -16,6 +16,7 @@ vi.mock('next/navigation', () => ({
 }));
 
 vi.mock('@/lib/api/dentist', () => ({
+    getCurrentUser: vi.fn(),
     listPatients: vi.fn(),
     listPatientCategories: vi.fn(),
     restorePatient: vi.fn(),
@@ -61,9 +62,17 @@ describe('PatientsPage', () => {
 
     beforeEach(() => {
         pushMock.mockReset();
+        vi.mocked(getCurrentUser).mockReset();
         vi.mocked(listPatients).mockReset();
         vi.mocked(listPatientCategories).mockReset();
         vi.mocked(restorePatient).mockReset();
+        vi.mocked(getCurrentUser).mockResolvedValue({
+            id: 'user-1',
+            name: 'Dr. Test',
+            email: 'doctor@example.test',
+            role: 'dentist',
+            account_status: 'active',
+        });
         vi.mocked(listPatientCategories).mockResolvedValue([]);
         vi.mocked(restorePatient).mockResolvedValue({
             id: 'restored',
@@ -209,4 +218,3 @@ describe('PatientsPage', () => {
         expect(pushMock).toHaveBeenCalledWith('/patients/patient-followup');
     });
 });
-

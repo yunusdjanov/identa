@@ -1,8 +1,10 @@
 import { apiClient, ensureCsrfCookie, invalidateCsrfCookie, withCsrfRetry } from '@/lib/api/client';
 import type {
     ApiAdminDentist,
+    ApiAdminDentistBilling,
     ApiAdminPasswordResetPayload,
     ApiAppointment,
+    ApiAppointmentLookup,
     ApiAssistantAccount,
     ApiAssistantPasswordResetPayload,
     ApiAuditLogEntry,
@@ -13,9 +15,12 @@ import type {
     ApiLeadRequest,
     ApiOdontogramEntry,
     ApiOdontogramSummary,
+    ApiBillingPayment,
     ApiPatient,
+    ApiPatientLookup,
     ApiPatientOverview,
     ApiPatientCategory,
+    ApiPlan,
     ApiPayment,
     ApiProfile,
     ApiSubscriptionSummary,
@@ -66,6 +71,17 @@ interface ApiDirectUploadBatchCompletion {
 export type AdminDentistSubscriptionAction =
     | 'apply_monthly'
     | 'apply_yearly'
+    | 'activate_monthly'
+    | 'activate_yearly'
+    | 'extend_monthly'
+    | 'extend_yearly'
+    | 'set_trial'
+    | 'set_basic_monthly'
+    | 'set_basic_yearly'
+    | 'set_pro_monthly'
+    | 'set_pro_yearly'
+    | 'mark_read_only'
+    | 'mark_active'
     | 'cancel_at_period_end'
     | 'cancel_now';
 
@@ -165,6 +181,31 @@ export async function loginWithPassword(
     return data.data;
 }
 
+export async function registerWithPassword(payload: {
+    name: string;
+    email: string;
+    password: string;
+    password_confirmation: string;
+}): Promise<ApiUser> {
+    const { data } = await withCsrfRetry(() =>
+        apiClient.post<ApiEnvelope<ApiUser>>('/auth/register', payload)
+    );
+    invalidateCsrfCookie();
+
+    return data.data;
+}
+
+export async function loginWithGoogleIdToken(idToken: string): Promise<ApiUser> {
+    const { data } = await withCsrfRetry(() =>
+        apiClient.post<ApiEnvelope<ApiUser>>('/auth/google', {
+            id_token: idToken,
+        })
+    );
+    invalidateCsrfCookie();
+
+    return data.data;
+}
+
 export async function requestPasswordReset(email: string): Promise<string> {
     const { data } = await withCsrfRetry(() =>
         apiClient.post<{ message?: string }>('/auth/forgot-password', {
@@ -213,6 +254,44 @@ export async function getCurrentUser(): Promise<ApiUser> {
     return data.data;
 }
 
+export async function listBillingPlans(): Promise<ApiPlan[]> {
+    const { data } = await apiClient.get<ApiCollectionEnvelope<ApiPlan>>('/billing/plans');
+
+    return data.data;
+}
+
+export async function getCurrentSubscription(): Promise<ApiSubscriptionSummary | null> {
+    const { data } = await apiClient.get<ApiEnvelope<ApiSubscriptionSummary | null>>('/billing/current-subscription');
+
+    return data.data;
+}
+
+export async function createBillingCheckout(payload: {
+    plan_code: 'basic' | 'pro';
+    billing_period: 'monthly' | 'yearly';
+    selected_active_staff_ids?: number[];
+}): Promise<{ checkout_url: string; payment: ApiBillingPayment }> {
+    const { data } = await withCsrfRetry(() =>
+        apiClient.post<ApiEnvelope<{ checkout_url: string; payment: ApiBillingPayment }>>('/billing/checkout', payload)
+    );
+
+    return data.data;
+}
+
+export async function listBillingPayments(): Promise<ApiBillingPayment[]> {
+    const { data } = await apiClient.get<ApiCollectionEnvelope<ApiBillingPayment>>('/billing/payments');
+
+    return data.data;
+}
+
+export async function cancelCurrentSubscription(): Promise<ApiSubscriptionSummary> {
+    const { data } = await withCsrfRetry(() =>
+        apiClient.post<ApiEnvelope<ApiSubscriptionSummary>>('/billing/cancel')
+    );
+
+    return data.data;
+}
+
 export async function listPatients(options?: QueryOptions): Promise<ApiCollectionEnvelope<ApiPatient>> {
     const { data } = await apiClient.get<ApiCollectionEnvelope<ApiPatient>>('/patients', {
         params: buildQueryParams(options),
@@ -229,6 +308,14 @@ export async function listAllPatients(options?: Omit<QueryOptions, 'page' | 'per
             perPage: MAX_API_PER_PAGE,
         })
     );
+}
+
+export async function lookupPatients(options?: QueryOptions): Promise<ApiCollectionEnvelope<ApiPatientLookup>> {
+    const { data } = await apiClient.get<ApiCollectionEnvelope<ApiPatientLookup>>('/lookups/patients', {
+        params: buildQueryParams(options),
+    });
+
+    return data;
 }
 
 export async function getPatient(id: string): Promise<ApiPatient> {
@@ -1059,6 +1146,14 @@ export async function listAllAppointments(
     );
 }
 
+export async function lookupAppointments(options?: QueryOptions): Promise<ApiCollectionEnvelope<ApiAppointmentLookup>> {
+    const { data } = await apiClient.get<ApiCollectionEnvelope<ApiAppointmentLookup>>('/lookups/appointments', {
+        params: buildQueryParams(options),
+    });
+
+    return data;
+}
+
 export async function createAppointment(payload: {
     patient_id: string;
     appointment_date: string;
@@ -1368,6 +1463,12 @@ export async function getAdminDentist(id: string): Promise<ApiAdminDentist> {
     return data.data;
 }
 
+export async function getAdminDentistBilling(id: string): Promise<ApiAdminDentistBilling> {
+    const { data } = await apiClient.get<ApiEnvelope<ApiAdminDentistBilling>>(`/admin/dentists/${id}/billing`);
+
+    return data.data;
+}
+
 export async function createAdminDentist(payload: {
     name: string;
     email: string;
@@ -1440,9 +1541,9 @@ export async function getAdminLandingSettings(): Promise<ApiLandingSettings> {
 }
 
 export async function updateAdminLandingSettings(payload: {
-    trial_price_amount: number;
-    monthly_price_amount: number;
-    yearly_price_amount: number;
+    trial_price_amount?: number;
+    monthly_price_amount?: number;
+    yearly_price_amount?: number;
     telegram_contact_url?: string | null;
 }): Promise<ApiLandingSettings> {
     await ensureCsrfCookie();
@@ -1478,6 +1579,36 @@ export async function updateAdminLeadRequestStatus(
         `/admin/lead-requests/${id}`,
         { status }
     );
+
+    return data.data;
+}
+
+export async function listAdminPlans(): Promise<ApiPlan[]> {
+    const { data } = await apiClient.get<ApiCollectionEnvelope<ApiPlan>>('/admin/plans');
+
+    return data.data;
+}
+
+export async function updateAdminPlan(
+    code: ApiPlan['code'],
+    payload: {
+        name: string;
+        description?: string | null;
+        trial_days?: number | null;
+        monthly_price?: number | null;
+        yearly_price?: number | null;
+        currency: string;
+        staff_limit: number;
+        entry_image_limit: number;
+        upload_max_mb: number;
+        stored_image_max_mb: number;
+        can_export: boolean;
+        is_active: boolean;
+        sort_order?: number;
+    }
+): Promise<ApiPlan> {
+    await ensureCsrfCookie();
+    const { data } = await apiClient.put<ApiEnvelope<ApiPlan>>(`/admin/plans/${code}`, payload);
 
     return data.data;
 }

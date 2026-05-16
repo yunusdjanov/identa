@@ -26,7 +26,7 @@ class AdminDentistManagementTest extends TestCase
             ->assertJsonPath('data.email', 'managed@example.com')
             ->assertJsonPath('data.status', User::ACCOUNT_STATUS_ACTIVE)
             ->assertJsonPath('data.subscription.plan', User::SUBSCRIPTION_PLAN_TRIAL)
-            ->assertJsonPath('data.subscription.status', User::SUBSCRIPTION_STATUS_TRIALING)
+            ->assertJsonPath('data.subscription.status', User::SUBSCRIPTION_STATUS_ACTIVE)
             ->assertJsonPath('data.subscription.staff_limit', User::STAFF_LIMIT_TRIAL);
 
         $dentistId = $createResponse->json('data.id');
@@ -174,10 +174,11 @@ class AdminDentistManagementTest extends TestCase
                 'note' => 'Cash payment received.',
             ])
             ->assertOk()
-            ->assertJsonPath('data.subscription.plan', User::SUBSCRIPTION_PLAN_MONTHLY)
+            ->assertJsonPath('data.subscription.plan', 'basic')
+            ->assertJsonPath('data.subscription.billing_period', User::SUBSCRIPTION_PLAN_MONTHLY)
             ->assertJsonPath('data.subscription.status', User::SUBSCRIPTION_STATUS_ACTIVE)
             ->assertJsonPath('data.subscription.payment_method', 'cash')
-            ->assertJsonPath('data.subscription.payment_amount', 450000.0);
+            ->assertJsonPath('data.subscription.payment_amount', 450000);
 
         $originalEnd = $dentist->fresh()->subscription_ends_at;
         $this->assertNotNull($originalEnd);
@@ -240,8 +241,8 @@ class AdminDentistManagementTest extends TestCase
                 'password_confirmation' => 'password123',
                 'permissions' => User::defaultAssistantPermissions(),
             ], $this->csrfHeaders())
-            ->assertUnprocessable()
-            ->assertJsonValidationErrors(['staff_limit']);
+            ->assertForbidden()
+            ->assertJsonPath('error.code', 'plan_staff_limit_reached');
     }
 
     public function test_read_only_subscription_blocks_mutations_but_allows_reads(): void

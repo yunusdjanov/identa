@@ -1,13 +1,16 @@
 <?php
 
-namespace App\Support;
+namespace App\Services;
 
 use App\Jobs\DeleteStoredMediaPaths;
 use App\Jobs\GenerateMediaVariantBatch;
 use App\Jobs\GenerateMediaVariants;
+use App\Jobs\ProcessUploadedMedia;
 use App\Models\Treatment;
 use App\Models\TreatmentImage;
+use App\Models\User;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Lang;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -15,13 +18,18 @@ use RuntimeException;
 
 class TreatmentImageDirectUploadService
 {
-    private const MAX_IMAGES_PER_TREATMENT = 10;
     private const DIRECT_UPLOAD_TTL_MINUTES = 15;
+
     private const IMAGE_VARIANT_THUMBNAIL = 'thumbnail';
+
     private const IMAGE_VARIANT_PREVIEW = 'preview';
+
     private const THUMBNAIL_MAX_EDGE = 200;
+
     private const PREVIEW_MAX_EDGE = 1280;
+
     private const JPEG_VARIANT_QUALITY = 82;
+
     private const WEBP_VARIANT_QUALITY = 80;
 
     /**
@@ -32,8 +40,178 @@ class TreatmentImageDirectUploadService
         self::IMAGE_VARIANT_PREVIEW => self::PREVIEW_MAX_EDGE,
     ];
 
+    public function __construct(
+        private readonly ImageCompressionService $imageCompressionService,
+        private readonly PlanLimitService $planLimitService,
+    ) {}
+
     /**
-     * @param list<array{client_id: string, filename: string, content_type: string, file_size: int}> $files
+     * @param  array{filename: string, content_type: string, file_size: int}  $file
+     * @return array<string, mixed>
+     */
+    public function prepare(
+        int $dentistId,
+        string $patientId,
+        Treatment $treatment,
+        User $owner,
+        array $file
+    ): array {
+        $this->planLimitService->ensureEntryImageUploadAllowed($owner, $treatment->images()->count());
+        $this->planLimitService->ensureUploadFileAllowed(
+            $owner,
+            (int) $file['file_size'],
+            (string) $file['content_type']
+        );
+
+        $disk = $this->mediaDisk();
+        if (! $this->mediaDiskSupportsDirectUpload($disk)) {
+            return ['supported' => false];
+        }
+
+        $expiresAt = now()->addMinutes(self::DIRECT_UPLOAD_TTL_MINUTES);
+        $path = $this->buildStoragePath(
+            dentistId: $dentistId,
+            patientId: $patientId,
+            treatmentId: (string) $treatment->id,
+            extension: $this->resolveUploadExtension(
+                (string) $file['filename'],
+                (string) $file['content_type']
+            )
+        );
+        $uploadId = (string) Str::uuid();
+
+        try {
+            $temporaryUpload = Storage::disk($disk)->temporaryUploadUrl(
+                $path,
+                $expiresAt,
+                ['ContentType' => $file['content_type']]
+            );
+        } catch (RuntimeException) {
+            return ['supported' => false];
+        }
+
+        Cache::put(
+            $this->directUploadCacheKey($uploadId),
+            [
+                'dentist_id' => $dentistId,
+                'patient_id' => $patientId,
+                'treatment_id' => (string) $treatment->id,
+                'disk' => $disk,
+                'path' => $path,
+                'mime_type' => (string) $file['content_type'],
+                'file_size' => (int) $file['file_size'],
+            ],
+            $expiresAt
+        );
+
+        return [
+            'supported' => true,
+            'upload_id' => $uploadId,
+            'method' => 'PUT',
+            'url' => $temporaryUpload['url'],
+            'headers' => $this->normalizeTemporaryUploadHeaders($temporaryUpload['headers'] ?? []),
+            'expires_at' => $expiresAt->toIso8601String(),
+        ];
+    }
+
+    public function finalize(
+        Treatment $treatment,
+        int $dentistId,
+        string $patientId,
+        User $owner,
+        string $uploadId
+    ): TreatmentImage {
+        $ticket = Cache::pull($this->directUploadCacheKey($uploadId));
+
+        if (! is_array($ticket)) {
+            throw ValidationException::withMessages([
+                'image' => [$this->treatmentMessage(
+                    'direct_upload_expired',
+                    'The upload session expired. Please try uploading the image again.'
+                )],
+            ]);
+        }
+
+        if (
+            (int) ($ticket['dentist_id'] ?? 0) !== $dentistId
+            || (string) ($ticket['patient_id'] ?? '') !== $patientId
+            || (string) ($ticket['treatment_id'] ?? '') !== (string) $treatment->id
+        ) {
+            throw ValidationException::withMessages([
+                'image' => [$this->treatmentMessage(
+                    'direct_upload_invalid',
+                    'This upload does not belong to the selected treatment entry.'
+                )],
+            ]);
+        }
+
+        $disk = (string) $ticket['disk'];
+        $path = (string) $ticket['path'];
+
+        try {
+            $this->planLimitService->ensureEntryImageUploadAllowed($owner, $treatment->images()->count());
+            $this->planLimitService->ensureUploadFileAllowed(
+                $owner,
+                (int) ($ticket['file_size'] ?? 0),
+                (string) ($ticket['mime_type'] ?? '')
+            );
+        } catch (\Throwable $exception) {
+            $this->deleteDirectUploadObject($disk, $path);
+
+            throw $exception;
+        }
+
+        if (! Storage::disk($disk)->exists($path)) {
+            throw ValidationException::withMessages([
+                'image' => [$this->treatmentMessage(
+                    'direct_upload_missing',
+                    'The uploaded image could not be found in storage. Please retry the upload.'
+                )],
+            ]);
+        }
+
+        $storedSize = $this->resolveUploadedObjectSize($disk, $path, (int) ($ticket['file_size'] ?? 0));
+        if ($storedSize <= 0) {
+            $this->deleteDirectUploadObject($disk, $path);
+
+            throw ValidationException::withMessages([
+                'image' => [$this->treatmentMessage(
+                    'direct_upload_missing',
+                    'The uploaded image could not be found in storage. Please retry the upload.'
+                )],
+            ]);
+        }
+
+        $image = $treatment->images()->create([
+            'dentist_id' => $dentistId,
+            'disk' => $disk,
+            'path' => $path,
+            'mime_type' => (string) ($ticket['mime_type'] ?? 'image/jpeg'),
+            'file_size' => $storedSize,
+            'scan_status' => 'pending',
+            'quarantine_path' => $path,
+        ]);
+
+        ProcessUploadedMedia::dispatch(TreatmentImage::class, (string) $image->id, (int) $owner->id);
+        $image->refresh();
+        if ((string) $image->scan_status === 'rejected') {
+            throw ValidationException::withMessages([
+                'image' => [$this->treatmentMessage(
+                    'direct_upload_rejected',
+                    'The uploaded image failed security checks.'
+                )],
+            ]);
+        }
+
+        if ((string) $image->scan_status === 'approved') {
+            $this->queueVariants((string) $image->disk, (string) $image->path);
+        }
+
+        return $image;
+    }
+
+    /**
+     * @param  list<array{client_id: string, filename: string, content_type: string, file_size: int}>  $files
      * @return array{supported: bool, uploads?: list<array<string, mixed>>, expires_at?: string}
      */
     public function prepareBatch(
@@ -47,17 +225,22 @@ class TreatmentImageDirectUploadService
             return ['supported' => false];
         }
 
-        $existingImagesCount = $treatment->images()->count();
-        if ($existingImagesCount + count($files) > self::MAX_IMAGES_PER_TREATMENT) {
-            throw ValidationException::withMessages([
-                'image' => [__('api.treatments.max_images_reached', ['max' => self::MAX_IMAGES_PER_TREATMENT])],
-            ]);
-        }
+        $owner = User::query()->whereKey($dentistId)->firstOrFail();
+        $this->planLimitService->ensureEntryImageUploadAllowed(
+            $owner,
+            $treatment->images()->count(),
+            count($files)
+        );
 
         $expiresAt = now()->addMinutes(self::DIRECT_UPLOAD_TTL_MINUTES);
         $uploads = [];
 
         foreach ($files as $file) {
+            $this->planLimitService->ensureUploadFileAllowed(
+                $owner,
+                (int) $file['file_size'],
+                (string) $file['content_type']
+            );
             $path = $this->buildStoragePath(
                 dentistId: $dentistId,
                 patientId: $patientId,
@@ -107,7 +290,7 @@ class TreatmentImageDirectUploadService
     }
 
     /**
-     * @param list<string> $uploadIds
+     * @param  list<string>  $uploadIds
      * @return array{completed: list<TreatmentImage>, failed: list<array{upload_id: string, reason: string}>}
      */
     public function finalizeBatch(
@@ -118,10 +301,13 @@ class TreatmentImageDirectUploadService
     ): array {
         $completed = [];
         $failed = [];
-        $rows = [];
         $variantQueue = [];
-        $now = now();
-        $availableSlots = max(0, self::MAX_IMAGES_PER_TREATMENT - $treatment->images()->count());
+        $owner = User::query()->whereKey($dentistId)->firstOrFail();
+        $availableSlots = $this->planLimitService->availableEntryImageSlots(
+            $owner,
+            $treatment->images()->count()
+        );
+        $availableSlots ??= count($uploadIds);
         $cacheKeysByUploadId = [];
 
         foreach ($uploadIds as $uploadId) {
@@ -138,6 +324,7 @@ class TreatmentImageDirectUploadService
             $ticket = $ticketsByCacheKey[$cacheKeysByUploadId[$uploadId]] ?? null;
             if (! is_array($ticket)) {
                 $failed[] = ['upload_id' => $uploadId, 'reason' => 'expired'];
+
                 continue;
             }
 
@@ -151,17 +338,20 @@ class TreatmentImageDirectUploadService
             ) {
                 $this->deleteDirectUploadObject($disk, $path);
                 $failed[] = ['upload_id' => $uploadId, 'reason' => 'invalid'];
+
                 continue;
             }
 
             if (count($completed) >= $availableSlots) {
                 $this->deleteDirectUploadObject($disk, $path);
                 $failed[] = ['upload_id' => $uploadId, 'reason' => 'max_images'];
+
                 continue;
             }
 
             if ($disk === '' || $path === '') {
                 $failed[] = ['upload_id' => $uploadId, 'reason' => 'missing'];
+
                 continue;
             }
 
@@ -169,33 +359,48 @@ class TreatmentImageDirectUploadService
             if ($storedSize <= 0) {
                 $this->deleteDirectUploadObject($disk, $path);
                 $failed[] = ['upload_id' => $uploadId, 'reason' => 'missing'];
+
                 continue;
             }
 
-            $attributes = [
-                'id' => (string) Str::uuid(),
+            try {
+                $this->planLimitService->ensureUploadFileAllowed(
+                    $owner,
+                    (int) ($ticket['file_size'] ?? $storedSize),
+                    (string) ($ticket['mime_type'] ?? '')
+                );
+            } catch (\Throwable $exception) {
+                $this->deleteDirectUploadObject($disk, $path);
+
+                throw $exception;
+            }
+
+            $image = TreatmentImage::query()->create([
                 'dentist_id' => $dentistId,
                 'treatment_id' => (string) $treatment->id,
                 'disk' => $disk,
                 'path' => $path,
-                'mime_type' => (string) ($ticket['mime_type'] ?? 'application/octet-stream'),
+                'mime_type' => (string) ($ticket['mime_type'] ?? 'image/jpeg'),
                 'file_size' => $storedSize,
-                'created_at' => $now,
-                'updated_at' => $now,
-            ];
+                'scan_status' => 'pending',
+                'quarantine_path' => $path,
+            ]);
 
-            $rows[] = $attributes;
-            $variantQueue[] = [$disk, $path];
-            $image = new TreatmentImage();
-            $image->forceFill($attributes);
-            $image->exists = true;
-            $image->wasRecentlyCreated = true;
-            $completed[] = $image;
+            ProcessUploadedMedia::dispatch(TreatmentImage::class, (string) $image->id, $owner->id);
+            $image->refresh();
+            if ((string) $image->scan_status === 'rejected') {
+                $failed[] = ['upload_id' => $uploadId, 'reason' => 'security'];
+
+                continue;
+            }
+
+            if ((string) $image->scan_status === 'approved') {
+                $variantQueue[] = [(string) $image->disk, (string) $image->path];
+                $completed[] = $image;
+            }
         }
 
-        if ($rows !== []) {
-            TreatmentImage::query()->insert($rows);
-
+        if ($variantQueue !== []) {
             $this->queueVariantBatch($variantQueue);
         }
 
@@ -218,7 +423,7 @@ class TreatmentImageDirectUploadService
     }
 
     /**
-     * @param list<array{0: string, 1: string}> $items
+     * @param  list<array{0: string, 1: string}>  $items
      */
     private function queueVariantBatch(array $items): void
     {
@@ -285,7 +490,7 @@ class TreatmentImageDirectUploadService
         string $extension
     ): string {
         return sprintf(
-            'treatments/%d/%s/%s/%s.%s',
+            'quarantine/treatments/%d/%s/%s/%s.%s',
             $dentistId,
             $patientId,
             $treatmentId,
@@ -296,12 +501,9 @@ class TreatmentImageDirectUploadService
 
     private function resolveUploadExtension(string $filename, string $contentType): string
     {
-        $extension = strtolower((string) pathinfo($filename, PATHINFO_EXTENSION));
-        if ($extension !== '') {
-            return $extension;
-        }
+        unset($filename);
 
-        return match (strtolower($contentType)) {
+        return match (strtolower(trim($contentType))) {
             'image/jpeg', 'image/jpg' => 'jpg',
             'image/png' => 'png',
             'image/webp' => 'webp',
@@ -336,7 +538,7 @@ class TreatmentImageDirectUploadService
     }
 
     /**
-     * @param array<string, mixed> $headers
+     * @param  array<string, mixed>  $headers
      * @return array<string, string>
      */
     private function normalizeTemporaryUploadHeaders(array $headers): array
@@ -383,5 +585,12 @@ class TreatmentImageDirectUploadService
         } catch (\Throwable) {
             // Best effort cleanup. The uploaded object is orphaned, not user-facing.
         }
+    }
+
+    private function treatmentMessage(string $key, string $fallback): string
+    {
+        $translationKey = "api.treatments.{$key}";
+
+        return Lang::has($translationKey) ? __($translationKey) : $fallback;
     }
 }

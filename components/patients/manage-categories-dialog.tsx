@@ -271,7 +271,7 @@ export function ManageCategoriesDialog({ open, onOpenChange }: ManageCategoriesD
                                         className="flex items-center justify-between rounded-lg border border-gray-200 p-3"
                                     >
                                         {editingId === category.id ? (
-                                            <div className="flex flex-1 items-end gap-2">
+                                            <div className="flex flex-1 flex-col gap-2 sm:flex-row sm:items-end">
                                                 <div className="flex-1 space-y-1">
                                                     <Label htmlFor={`edit-category-${category.id}`}>
                                                         {t('patients.categories.categoryName')} <span className="text-red-500">*</span>
@@ -327,7 +327,7 @@ export function ManageCategoriesDialog({ open, onOpenChange }: ManageCategoriesD
                                                         {truncateForUi(category.name, CATEGORY_CHIP_UI_LIMIT)}
                                                     </span>
                                                 </div>
-                                                <div className="flex items-center gap-2">
+                                                <div className="flex flex-wrap items-center justify-end gap-2">
                                                     <Button size="sm" variant="outline" onClick={() => startEdit(category)}>
                                                         {t('payments.edit')}
                                                     </Button>

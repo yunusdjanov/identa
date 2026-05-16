@@ -28,6 +28,7 @@ import {
 import {
     Dialog,
     DialogContent,
+    DialogDescription,
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
@@ -45,12 +46,13 @@ import {
     createAdminDentist,
     deleteAdminDentist,
     getCurrentUser,
+    getAdminDentistBilling,
     listAdminDentists,
     manageAdminDentistSubscription,
     resetAdminDentistPassword,
     updateAdminDentistStatus,
 } from '@/lib/api/dentist';
-import type { ApiAdminDentist, ApiSubscriptionSummary } from '@/lib/api/types';
+import type { ApiAdminDentist, ApiBillingPayment, ApiSubscriptionSummary } from '@/lib/api/types';
 import { getApiErrorMessage } from '@/lib/api/client';
 import { toast } from 'sonner';
 import {
@@ -63,6 +65,7 @@ import {
     CheckCircle,
     Key,
     Trash2,
+    CreditCard,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import {
@@ -76,6 +79,7 @@ import { useI18n } from '@/components/providers/i18n-provider';
 import { formatLocalizedDate } from '@/lib/i18n/date';
 import { AdminHeader } from '@/components/admin/admin-header';
 import { AppErrorState } from '@/components/error/app-error-state';
+import { ConfirmActionDialog } from '@/components/ui/confirm-action-dialog';
 import { useInstantLogout } from '@/lib/auth/use-instant-logout';
 
 interface CreateDentistForm {
@@ -107,6 +111,14 @@ const ADMIN_EMAIL_UI_LIMIT = 30;
 const BILLING_SUBSCRIPTION_ACTIONS = new Set<AdminDentistSubscriptionAction>([
     'apply_monthly',
     'apply_yearly',
+    'activate_monthly',
+    'activate_yearly',
+    'extend_monthly',
+    'extend_yearly',
+    'set_basic_monthly',
+    'set_basic_yearly',
+    'set_pro_monthly',
+    'set_pro_yearly',
 ]);
 
 function createEmptySubscriptionForm(): ManageSubscriptionForm {
@@ -146,6 +158,14 @@ function getSubscriptionActionLabel(
     return t(`admin.subscription.action.${action}`);
 }
 
+function formatBillingAmount(payment: ApiBillingPayment, locale: string): string {
+    return new Intl.NumberFormat(locale, {
+        style: 'currency',
+        currency: payment.currency || 'UZS',
+        maximumFractionDigits: 0,
+    }).format(payment.amount);
+}
+
 function AdminDashboardLoadingSkeleton() {
     return (
         <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(219,234,254,0.55),transparent_34rem),linear-gradient(180deg,#f8fbff_0%,#f8fafc_42%,#f1f5f9_100%)]">
@@ -162,7 +182,7 @@ function AdminDashboardLoadingSkeleton() {
                 </div>
             </header>
 
-        <div className="p-4 sm:p-5 lg:p-6">
+        <div className="p-3 sm:p-5 lg:p-6">
             <div className="mx-auto max-w-[1440px] space-y-5 lg:space-y-6">
                     <div className="space-y-2">
                         <Skeleton className="h-9 w-72" />
@@ -224,7 +244,9 @@ export default function AdminDashboardPage() {
     const [resetPasswordTarget, setResetPasswordTarget] = useState<{ id: string; name: string } | null>(
         null
     );
+    const [deleteTarget, setDeleteTarget] = useState<ApiAdminDentist | null>(null);
     const [subscriptionDialog, setSubscriptionDialog] = useState<SubscriptionDialogState | null>(null);
+    const [billingDetailsTarget, setBillingDetailsTarget] = useState<ApiAdminDentist | null>(null);
     const [newDentist, setNewDentist] = useState<CreateDentistForm>({
         name: '',
         email: '',
@@ -302,6 +324,12 @@ export default function AdminDashboardPage() {
         placeholderData: (previousData) => previousData,
     });
 
+    const billingDetailsQuery = useQuery({
+        queryKey: ['admin', 'dentists', billingDetailsTarget?.id, 'billing'],
+        queryFn: () => getAdminDentistBilling(billingDetailsTarget?.id ?? ''),
+        enabled: authQuery.data?.role === 'admin' && billingDetailsTarget !== null,
+    });
+
     useEffect(() => {
         if (authQuery.isError && !authQuery.isLoading) {
             router.push('/admin/login');
@@ -365,6 +393,7 @@ export default function AdminDashboardPage() {
             setSubscriptionDialog(null);
             setSubscriptionForm(createEmptySubscriptionForm());
             queryClient.invalidateQueries({ queryKey: ['admin', 'dentists'] });
+            queryClient.invalidateQueries({ queryKey: ['admin', 'dentists', variables.id, 'billing'] });
         },
         onError: (error) => {
             toast.error(getApiErrorMessage(error, t('admin.error.subscriptionUpdateFailed')));
@@ -399,6 +428,7 @@ export default function AdminDashboardPage() {
         mutationFn: (id: string) => deleteAdminDentist(id),
         onSuccess: () => {
             toast.success(t('admin.toast.accountDeleted'));
+            setDeleteTarget(null);
             queryClient.invalidateQueries({ queryKey: ['admin', 'dentists'] });
         },
         onError: (error) => {
@@ -485,11 +515,11 @@ export default function AdminDashboardPage() {
                 onLogout={handleLogout}
             />
 
-        <div className="p-4 sm:p-5 lg:p-6">
+            <div className="p-3 sm:p-5 lg:p-6">
             <div className="mx-auto max-w-[1440px] space-y-5 lg:space-y-6">
                     <PageHeader title={t('admin.dashboardTitle')} description={t('admin.dashboardSubtitle')} />
 
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-3 lg:gap-6">
                         <Card className="interactive-card metric-hover-card metric-hover-blue rounded-[1.5rem] border-blue-100 bg-white/95 shadow-sm shadow-blue-100/50">
                             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                                 <CardTitle className="text-sm font-medium">{t('admin.stats.totalDentists')}</CardTitle>
@@ -531,7 +561,7 @@ export default function AdminDashboardPage() {
                         <CardHeader className="pb-4">
                             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                                 <CardTitle className="text-base">{t('admin.accountsTitle')}</CardTitle>
-                                <div className="flex items-center gap-3 w-full sm:w-auto">
+                                <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center sm:gap-3">
                                     <div className="relative flex-1 sm:w-64">
                                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                                         <Input
@@ -545,9 +575,9 @@ export default function AdminDashboardPage() {
                                             maxLength={INPUT_LIMITS.shortText}
                                         />
                                     </div>
-                                    <Button className="rounded-xl" onClick={() => setShowCreateModal(true)}>
+                                    <Button className="w-full rounded-xl sm:w-auto" onClick={() => setShowCreateModal(true)}>
                                         <UserPlus className="w-4 h-4 sm:mr-2" />
-                                        <span className="hidden sm:inline">{t('admin.createButton')}</span>
+                                        <span className="sm:inline">{t('admin.createButton')}</span>
                                     </Button>
                                 </div>
                             </div>
@@ -670,6 +700,10 @@ export default function AdminDashboardPage() {
                                                                     <Users className="w-4 h-4 mr-2" />
                                                                     {t('admin.viewStaff')}
                                                                 </DropdownMenuItem>
+                                                                <DropdownMenuItem onClick={() => setBillingDetailsTarget(account)}>
+                                                                    <CreditCard className="w-4 h-4 mr-2" />
+                                                                    {t('admin.billing.viewDetails')}
+                                                                </DropdownMenuItem>
                                                                 <DropdownMenuSeparator />
                                                                 {account.status !== 'deleted' ? (
                                                                     <>
@@ -702,23 +736,56 @@ export default function AdminDashboardPage() {
                                                                             onClick={() =>
                                                                                 openSubscriptionDialog(
                                                                                     account,
-                                                                                    'apply_monthly'
+                                                                                    'set_trial'
                                                                                 )
                                                                             }
                                                                             disabled={subscriptionMutation.isPending}
                                                                         >
-                                                                            {t('admin.subscription.action.apply_monthly')}
+                                                                            {t('admin.subscription.action.set_trial')}
                                                                         </DropdownMenuItem>
                                                                         <DropdownMenuItem
                                                                             onClick={() =>
                                                                                 openSubscriptionDialog(
                                                                                     account,
-                                                                                    'apply_yearly'
+                                                                                    'set_basic_monthly'
                                                                                 )
                                                                             }
                                                                             disabled={subscriptionMutation.isPending}
                                                                         >
-                                                                            {t('admin.subscription.action.apply_yearly')}
+                                                                            {t('admin.subscription.action.set_basic_monthly')}
+                                                                        </DropdownMenuItem>
+                                                                        <DropdownMenuItem
+                                                                            onClick={() =>
+                                                                                openSubscriptionDialog(
+                                                                                    account,
+                                                                                    'set_pro_monthly'
+                                                                                )
+                                                                            }
+                                                                            disabled={subscriptionMutation.isPending}
+                                                                        >
+                                                                            {t('admin.subscription.action.set_pro_monthly')}
+                                                                        </DropdownMenuItem>
+                                                                        <DropdownMenuItem
+                                                                            onClick={() =>
+                                                                                openSubscriptionDialog(
+                                                                                    account,
+                                                                                    'mark_read_only'
+                                                                                )
+                                                                            }
+                                                                            disabled={subscriptionMutation.isPending}
+                                                                        >
+                                                                            {t('admin.subscription.action.mark_read_only')}
+                                                                        </DropdownMenuItem>
+                                                                        <DropdownMenuItem
+                                                                            onClick={() =>
+                                                                                openSubscriptionDialog(
+                                                                                    account,
+                                                                                    'mark_active'
+                                                                                )
+                                                                            }
+                                                                            disabled={subscriptionMutation.isPending}
+                                                                        >
+                                                                            {t('admin.subscription.action.mark_active')}
                                                                         </DropdownMenuItem>
                                                                         <DropdownMenuItem
                                                                             onClick={() =>
@@ -761,7 +828,7 @@ export default function AdminDashboardPage() {
                                                                             {t('admin.resetPassword')}
                                                                         </DropdownMenuItem>
                                                                         <DropdownMenuItem
-                                                                            onClick={() => deleteMutation.mutate(account.id)}
+                                                                            onClick={() => setDeleteTarget(account)}
                                                                             disabled={deleteMutation.isPending}
                                                                             className="text-red-600"
                                                                         >
@@ -836,6 +903,9 @@ export default function AdminDashboardPage() {
                     <DialogContent className="max-h-[calc(100dvh-1.5rem)] overflow-y-auto p-5 sm:p-6">
                         <DialogHeader>
                             <DialogTitle>{t('admin.createAccountTitle')}</DialogTitle>
+                            <DialogDescription className="sr-only">
+                                {t('admin.createAccountTitle')}
+                            </DialogDescription>
                         </DialogHeader>
                         <form
                             onSubmit={(event) => {
@@ -962,6 +1032,203 @@ export default function AdminDashboardPage() {
                 </Dialog>
 
                 <Dialog
+                    open={billingDetailsTarget !== null}
+                    onOpenChange={(open) => {
+                        if (!open) {
+                            setBillingDetailsTarget(null);
+                        }
+                    }}
+                >
+                    <DialogContent className="max-h-[calc(100dvh-1.5rem)] overflow-y-auto p-5 sm:max-w-3xl sm:p-6">
+                        <DialogHeader>
+                            <DialogTitle>
+                                {billingDetailsTarget
+                                    ? t('admin.billing.dialogTitle', { name: billingDetailsTarget.name })
+                                    : t('admin.billing.viewDetails')}
+                            </DialogTitle>
+                            <DialogDescription className="sr-only">
+                                {t('admin.billing.viewDetails')}
+                            </DialogDescription>
+                        </DialogHeader>
+
+                        {billingDetailsQuery.isLoading ? (
+                            <div className="space-y-3">
+                                <Skeleton className="h-24 w-full rounded-xl" />
+                                <Skeleton className="h-32 w-full rounded-xl" />
+                                <Skeleton className="h-40 w-full rounded-xl" />
+                            </div>
+                        ) : billingDetailsQuery.isError ? (
+                            <AppErrorState
+                                title={t('common.loadErrorTitle')}
+                                description={getApiErrorMessage(
+                                    billingDetailsQuery.error,
+                                    t('admin.billing.loadFailed')
+                                )}
+                                retryLabel={t('common.retry')}
+                                onRetry={() => billingDetailsQuery.refetch()}
+                                className="min-h-[16rem] px-0 py-0"
+                            />
+                        ) : billingDetailsQuery.data ? (
+                            <div className="space-y-5">
+                                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                                        <p className="text-xs font-medium uppercase text-slate-500">
+                                            {t('admin.billing.currentPlan')}
+                                        </p>
+                                        <p className="mt-2 text-lg font-semibold text-slate-950">
+                                            {getSubscriptionPlanLabel(billingDetailsQuery.data.subscription, t)}
+                                        </p>
+                                        <p className="text-sm text-slate-600">
+                                            {getSubscriptionStatusLabel(billingDetailsQuery.data.subscription, t)}
+                                        </p>
+                                    </div>
+                                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                                        <p className="text-xs font-medium uppercase text-slate-500">
+                                            {t('admin.billing.endsAt')}
+                                        </p>
+                                        <p className="mt-2 text-lg font-semibold text-slate-950">
+                                            {billingDetailsQuery.data.subscription.ends_at
+                                                ? formatLocalizedDate(
+                                                    billingDetailsQuery.data.subscription.ends_at,
+                                                    locale,
+                                                    { year: 'numeric', month: 'short', day: 'numeric' }
+                                                )
+                                                : t('admin.subscription.notConfigured')}
+                                        </p>
+                                        <p className="text-sm text-slate-600">
+                                            {billingDetailsQuery.data.subscription.billing_period ?? '-'}
+                                        </p>
+                                    </div>
+                                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                                        <p className="text-xs font-medium uppercase text-slate-500">
+                                            {t('admin.billing.staff')}
+                                        </p>
+                                        <p className="mt-2 text-lg font-semibold text-slate-950">
+                                            {t('admin.billing.staffCount', {
+                                                active: billingDetailsQuery.data.staff.active,
+                                                total: billingDetailsQuery.data.staff.total,
+                                            })}
+                                        </p>
+                                        <p className="text-sm text-slate-600">
+                                            {t('admin.billing.usageSummary', {
+                                                patients: billingDetailsQuery.data.usage.patients,
+                                                appointments: billingDetailsQuery.data.usage.appointments,
+                                                payments: billingDetailsQuery.data.usage.payments,
+                                            })}
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div className="rounded-xl border border-slate-200 p-4">
+                                    <p className="mb-3 text-sm font-semibold text-slate-900">
+                                        {t('admin.billing.manualActions')}
+                                    </p>
+                                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                                        {([
+                                            'set_trial',
+                                            'set_basic_monthly',
+                                            'set_basic_yearly',
+                                            'set_pro_monthly',
+                                            'set_pro_yearly',
+                                            'mark_read_only',
+                                            'mark_active',
+                                            'cancel_now',
+                                        ] as AdminDentistSubscriptionAction[]).map((action) => (
+                                            <Button
+                                                key={action}
+                                                type="button"
+                                                variant={action === 'cancel_now' ? 'destructive' : 'outline'}
+                                                className="justify-start"
+                                                disabled={subscriptionMutation.isPending}
+                                                onClick={() => {
+                                                    openSubscriptionDialog(billingDetailsQuery.data.dentist, action);
+                                                    setBillingDetailsTarget(null);
+                                                }}
+                                            >
+                                                {getSubscriptionActionLabel(action, t)}
+                                            </Button>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                <div className="rounded-xl border border-slate-200">
+                                    <div className="border-b border-slate-200 px-4 py-3">
+                                        <p className="text-sm font-semibold text-slate-900">
+                                            {t('admin.billing.paymentHistory')}
+                                        </p>
+                                    </div>
+                                    {billingDetailsQuery.data.payments.length === 0 ? (
+                                        <p className="px-4 py-6 text-sm text-slate-500">
+                                            {t('admin.billing.noPayments')}
+                                        </p>
+                                    ) : (
+                                        <div className="divide-y divide-slate-100">
+                                            {billingDetailsQuery.data.payments.map((payment) => (
+                                                <div
+                                                    key={payment.id}
+                                                    className="grid grid-cols-1 gap-2 px-4 py-3 text-sm sm:grid-cols-[1fr_auto]"
+                                                >
+                                                    <div>
+                                                        <p className="font-medium text-slate-900">
+                                                            {payment.plan_name} · {payment.billing_period}
+                                                        </p>
+                                                        <p className="text-xs text-slate-500">
+                                                            {payment.provider_order_id}
+                                                            {payment.provider_payment_id
+                                                                ? ` · ${payment.provider_payment_id}`
+                                                                : ''}
+                                                        </p>
+                                                    </div>
+                                                    <div className="text-left sm:text-right">
+                                                        <p className="font-semibold text-slate-900">
+                                                            {formatBillingAmount(payment, locale)}
+                                                        </p>
+                                                        <p className="text-xs text-slate-500">
+                                                            {payment.status}
+                                                            {payment.paid_at
+                                                                ? ` · ${formatLocalizedDate(payment.paid_at, locale, {
+                                                                    year: 'numeric',
+                                                                    month: 'short',
+                                                                    day: 'numeric',
+                                                                })}`
+                                                                : ''}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        ) : null}
+                    </DialogContent>
+                </Dialog>
+
+                <ConfirmActionDialog
+                    open={deleteTarget !== null}
+                    onOpenChange={(open) => {
+                        if (!open) {
+                            setDeleteTarget(null);
+                        }
+                    }}
+                    title={t('admin.deleteConfirmTitle')}
+                    description={deleteTarget
+                        ? t('admin.deleteConfirmDescription', { name: deleteTarget.name })
+                        : t('admin.deleteConfirmDescriptionFallback')}
+                    confirmLabel={t('admin.deleteAccount')}
+                    pendingLabel={t('payments.deleting')}
+                    cancelLabel={t('common.cancel')}
+                    isPending={deleteMutation.isPending}
+                    onConfirm={() => {
+                        if (!deleteTarget) {
+                            return;
+                        }
+
+                        deleteMutation.mutate(deleteTarget.id);
+                    }}
+                />
+
+                <Dialog
                     open={subscriptionDialog !== null}
                     onOpenChange={(open) => {
                         if (open) {
@@ -982,6 +1249,9 @@ export default function AdminDashboardPage() {
                                     })
                                     : t('admin.subscription.dialogFallback')}
                             </DialogTitle>
+                            <DialogDescription className="sr-only">
+                                {t('admin.billing.manualActions')}
+                            </DialogDescription>
                         </DialogHeader>
                         <div className="space-y-4">
                             {subscriptionDialog ? (
@@ -1139,6 +1409,9 @@ export default function AdminDashboardPage() {
                                     ? t('admin.resetPasswordFor', { name: resetPasswordTarget.name })
                                     : t('admin.resetPassword')}
                             </DialogTitle>
+                            <DialogDescription className="sr-only">
+                                {t('admin.resetPassword')}
+                            </DialogDescription>
                         </DialogHeader>
                         <form
                             onSubmit={(event) => {

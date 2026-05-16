@@ -2,9 +2,11 @@
 
 use App\Http\Controllers\Api\Admin\DentistAccountController;
 use App\Http\Controllers\Api\Admin\LandingSettingsController;
+use App\Http\Controllers\Api\Admin\PlanController;
 use App\Http\Controllers\Api\AppointmentController;
 use App\Http\Controllers\Api\AuditLogController;
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\BillingController;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\InvoiceController;
 use App\Http\Controllers\Api\LandingController;
@@ -28,7 +30,10 @@ Route::prefix('v1')->group(function (): void {
         ]);
     });
 
-    Route::prefix('auth')->group(function (): void {
+    Route::post('/auth/refresh', [AuthController::class, 'refresh'])
+        ->middleware('throttle:10,1');
+
+    Route::prefix('auth')->middleware('web')->group(function (): void {
         Route::get('/csrf-token', function (Request $request) {
             $request->session()->regenerateToken();
 
@@ -39,6 +44,10 @@ Route::prefix('v1')->group(function (): void {
 
         Route::post('/login', [AuthController::class, 'login'])
             ->middleware('throttle:5,1');
+        Route::post('/register', [AuthController::class, 'register'])
+            ->middleware('throttle:5,1');
+        Route::post('/google', [AuthController::class, 'google'])
+            ->middleware('throttle:10,1');
         Route::post('/forgot-password', [AuthController::class, 'forgotPassword'])
             ->middleware('throttle:5,1');
         Route::post('/reset-password', [AuthController::class, 'resetPassword'])
@@ -66,32 +75,62 @@ Route::prefix('v1')->group(function (): void {
             Route::post('/dentists', [DentistAccountController::class, 'store']);
             Route::get('/dentists/{id}', [DentistAccountController::class, 'show']);
             Route::get('/dentists/{id}/staff', [DentistAccountController::class, 'staff']);
+            Route::get('/dentists/{id}/billing', [DentistAccountController::class, 'billing']);
             Route::patch('/dentists/{id}/status', [DentistAccountController::class, 'updateStatus']);
             Route::post('/dentists/{id}/subscription', [DentistAccountController::class, 'manageSubscription']);
             Route::post('/dentists/{id}/reset-password', [DentistAccountController::class, 'resetPassword']);
             Route::delete('/dentists/{id}', [DentistAccountController::class, 'destroy']);
             Route::get('/landing-settings', [LandingSettingsController::class, 'show']);
             Route::put('/landing-settings', [LandingSettingsController::class, 'update']);
-            Route::get('/lead-requests', [LandingSettingsController::class, 'leadRequests']);
+        Route::get('/lead-requests', [LandingSettingsController::class, 'leadRequests']);
             Route::patch('/lead-requests/{id}', [LandingSettingsController::class, 'updateLeadRequestStatus']);
+            Route::get('/plans', [PlanController::class, 'index']);
+            Route::put('/plans/{code}', [PlanController::class, 'update']);
         });
 
-    Route::middleware(['auth:sanctum', 'role:admin,dentist,assistant'])->group(function (): void {
+    Route::middleware(['auth:sanctum', 'role:dentist,assistant'])->group(function (): void {
         Route::get('settings/profile', [SettingsProfileController::class, 'show']);
         Route::put('settings/profile', [SettingsProfileController::class, 'update']);
     });
+
+    Route::post('webhooks/payx', [BillingController::class, 'payxWebhook'])
+        ->middleware('throttle:120,1');
+
+    Route::prefix('billing')
+        ->middleware(['auth:sanctum', 'role:dentist,assistant'])
+        ->group(function (): void {
+            Route::get('plans', [BillingController::class, 'plans']);
+            Route::get('current-subscription', [BillingController::class, 'currentSubscription']);
+            Route::get('payments', [BillingController::class, 'payments']);
+        });
+
+    Route::prefix('billing')
+        ->middleware(['auth:sanctum', 'role:dentist'])
+        ->group(function (): void {
+            Route::post('checkout', [BillingController::class, 'checkout'])
+                ->middleware('throttle:10,1');
+            Route::post('cancel', [BillingController::class, 'cancel'])
+                ->middleware('throttle:10,1');
+            Route::post('change-plan', [BillingController::class, 'changePlan'])
+                ->middleware('throttle:10,1');
+        });
 
     Route::middleware(['auth:sanctum', 'role:dentist,assistant', 'subscription.access'])->group(function (): void {
         Route::get('dashboard/snapshot', [DashboardController::class, 'show']);
 
         Route::get('patient-categories', [PatientCategoryController::class, 'index'])
-            ->middleware('permission:'.User::PERMISSION_PATIENT_CATEGORIES_VIEW);
+            ->middleware('permission:'.User::PERMISSION_PATIENTS_VIEW);
         Route::post('patient-categories', [PatientCategoryController::class, 'store'])
-            ->middleware('permission:'.User::PERMISSION_PATIENT_CATEGORIES_MANAGE);
+            ->middleware('permission:'.User::PERMISSION_PATIENTS_MANAGE);
         Route::put('patient-categories/{id}', [PatientCategoryController::class, 'update'])
-            ->middleware('permission:'.User::PERMISSION_PATIENT_CATEGORIES_MANAGE);
+            ->middleware('permission:'.User::PERMISSION_PATIENTS_MANAGE);
         Route::delete('patient-categories/{id}', [PatientCategoryController::class, 'destroy'])
-            ->middleware('permission:'.User::PERMISSION_PATIENT_CATEGORIES_MANAGE);
+            ->middleware('permission:'.User::PERMISSION_PATIENTS_MANAGE);
+
+        Route::get('lookups/patients', [PatientController::class, 'lookup'])
+            ->middleware('permission:'.User::PERMISSION_APPOINTMENTS_MANAGE.'|'.User::PERMISSION_PAYMENTS_MANAGE);
+        Route::get('lookups/appointments', [AppointmentController::class, 'lookup'])
+            ->middleware('permission:'.User::PERMISSION_PAYMENTS_MANAGE);
 
         Route::get('patients', [PatientController::class, 'index'])
             ->middleware('permission:'.User::PERMISSION_PATIENTS_VIEW);
@@ -121,52 +160,52 @@ Route::prefix('v1')->group(function (): void {
             ->middleware('permission:'.User::PERMISSION_PATIENTS_MANAGE);
 
         Route::get('patients/{id}/odontogram/summary', [PatientOdontogramController::class, 'summary'])
-            ->middleware('permission:'.User::PERMISSION_ODONTOGRAM_VIEW);
+            ->middleware('permission:'.User::PERMISSION_PATIENTS_VIEW);
         Route::get('patients/{id}/odontogram', [PatientOdontogramController::class, 'index'])
-            ->middleware('permission:'.User::PERMISSION_ODONTOGRAM_VIEW);
+            ->middleware('permission:'.User::PERMISSION_PATIENTS_VIEW);
         Route::post('patients/{id}/odontogram', [PatientOdontogramController::class, 'store'])
-            ->middleware('permission:'.User::PERMISSION_ODONTOGRAM_MANAGE);
+            ->middleware('permission:'.User::PERMISSION_PATIENTS_MANAGE);
         Route::put('patients/{id}/odontogram/{entryId}', [PatientOdontogramController::class, 'update'])
-            ->middleware('permission:'.User::PERMISSION_ODONTOGRAM_MANAGE);
+            ->middleware('permission:'.User::PERMISSION_PATIENTS_MANAGE);
         Route::delete('patients/{id}/odontogram/{entryId}', [PatientOdontogramController::class, 'destroy'])
-            ->middleware('permission:'.User::PERMISSION_ODONTOGRAM_MANAGE);
+            ->middleware('permission:'.User::PERMISSION_PATIENTS_MANAGE);
         Route::post('patients/{id}/odontogram/{entryId}/images/direct-upload', [PatientOdontogramController::class, 'prepareImageUpload'])
-            ->middleware('permission:'.User::PERMISSION_ODONTOGRAM_MANAGE);
+            ->middleware('permission:'.User::PERMISSION_PATIENTS_MANAGE);
         Route::post('patients/{id}/odontogram/{entryId}/images/direct-upload/{uploadId}/complete', [PatientOdontogramController::class, 'finalizeImageUpload'])
-            ->middleware('permission:'.User::PERMISSION_ODONTOGRAM_MANAGE);
+            ->middleware('permission:'.User::PERMISSION_PATIENTS_MANAGE);
         Route::post('patients/{id}/odontogram/{entryId}/images', [PatientOdontogramController::class, 'uploadImage'])
-            ->middleware('permission:'.User::PERMISSION_ODONTOGRAM_MANAGE);
+            ->middleware('permission:'.User::PERMISSION_PATIENTS_MANAGE);
         Route::get('patients/{id}/odontogram/{entryId}/images/{imageId}', [PatientOdontogramController::class, 'downloadImage'])
-            ->middleware('permission:'.User::PERMISSION_ODONTOGRAM_VIEW);
+            ->middleware('permission:'.User::PERMISSION_PATIENTS_VIEW);
         Route::delete('patients/{id}/odontogram/{entryId}/images/{imageId}', [PatientOdontogramController::class, 'deleteImage'])
-            ->middleware('permission:'.User::PERMISSION_ODONTOGRAM_MANAGE);
+            ->middleware('permission:'.User::PERMISSION_PATIENTS_MANAGE);
 
         Route::get('patients/{id}/treatments', [PatientTreatmentController::class, 'index'])
-            ->middleware('permission:'.User::PERMISSION_TREATMENTS_VIEW);
+            ->middleware('permission:'.User::PERMISSION_PATIENTS_VIEW);
         Route::get('treatments', [PatientTreatmentController::class, 'indexAll'])
-            ->middleware('permission:'.User::PERMISSION_TREATMENTS_VIEW);
+            ->middleware('permission:'.User::PERMISSION_PAYMENTS_VIEW);
         Route::get('patients/{id}/treatments/{treatmentId}', [PatientTreatmentController::class, 'show'])
-            ->middleware('permission:'.User::PERMISSION_TREATMENTS_VIEW);
+            ->middleware('permission:'.User::PERMISSION_PATIENTS_VIEW);
         Route::post('patients/{id}/treatments', [PatientTreatmentController::class, 'store'])
-            ->middleware('permission:'.User::PERMISSION_TREATMENTS_MANAGE);
+            ->middleware('permission:'.User::PERMISSION_PATIENTS_MANAGE);
         Route::put('patients/{id}/treatments/{treatmentId}', [PatientTreatmentController::class, 'update'])
-            ->middleware('permission:'.User::PERMISSION_TREATMENTS_MANAGE);
+            ->middleware('permission:'.User::PERMISSION_PATIENTS_MANAGE);
         Route::delete('patients/{id}/treatments/{treatmentId}', [PatientTreatmentController::class, 'destroy'])
-            ->middleware('permission:'.User::PERMISSION_TREATMENTS_MANAGE);
+            ->middleware('permission:'.User::PERMISSION_PATIENTS_MANAGE);
         Route::post('patients/{id}/treatments/{treatmentId}/images/direct-upload', [PatientTreatmentController::class, 'prepareImageUpload'])
-            ->middleware('permission:'.User::PERMISSION_TREATMENTS_MANAGE);
+            ->middleware('permission:'.User::PERMISSION_PATIENTS_MANAGE);
         Route::post('patients/{id}/treatments/{treatmentId}/images/direct-upload/{uploadId}/complete', [PatientTreatmentController::class, 'finalizeImageUpload'])
-            ->middleware('permission:'.User::PERMISSION_TREATMENTS_MANAGE);
+            ->middleware('permission:'.User::PERMISSION_PATIENTS_MANAGE);
         Route::post('patients/{id}/treatments/{treatmentId}/images/direct-upload-batch', [PatientTreatmentController::class, 'prepareImageBatchUpload'])
-            ->middleware('permission:'.User::PERMISSION_TREATMENTS_MANAGE);
+            ->middleware('permission:'.User::PERMISSION_PATIENTS_MANAGE);
         Route::post('patients/{id}/treatments/{treatmentId}/images/direct-upload-batch/complete', [PatientTreatmentController::class, 'finalizeImageBatchUpload'])
-            ->middleware('permission:'.User::PERMISSION_TREATMENTS_MANAGE);
+            ->middleware('permission:'.User::PERMISSION_PATIENTS_MANAGE);
         Route::post('patients/{id}/treatments/{treatmentId}/images', [PatientTreatmentController::class, 'uploadImage'])
-            ->middleware('permission:'.User::PERMISSION_TREATMENTS_MANAGE);
+            ->middleware('permission:'.User::PERMISSION_PATIENTS_MANAGE);
         Route::get('patients/{id}/treatments/{treatmentId}/images/{imageId}', [PatientTreatmentController::class, 'downloadImage'])
-            ->middleware('permission:'.User::PERMISSION_TREATMENTS_VIEW);
+            ->middleware('permission:'.User::PERMISSION_PATIENTS_VIEW);
         Route::delete('patients/{id}/treatments/{treatmentId}/images/{imageId}', [PatientTreatmentController::class, 'deleteImage'])
-            ->middleware('permission:'.User::PERMISSION_TREATMENTS_MANAGE);
+            ->middleware('permission:'.User::PERMISSION_PATIENTS_MANAGE);
 
         Route::get('appointments', [AppointmentController::class, 'index'])
             ->middleware('permission:'.User::PERMISSION_APPOINTMENTS_VIEW);
@@ -180,17 +219,17 @@ Route::prefix('v1')->group(function (): void {
             ->middleware('permission:'.User::PERMISSION_APPOINTMENTS_MANAGE);
 
         Route::get('invoices/{id}/download', [InvoiceController::class, 'download'])
-            ->middleware('permission:'.User::PERMISSION_INVOICES_VIEW);
+            ->middleware(['permission:'.User::PERMISSION_PAYMENTS_VIEW, 'plan.feature:export']);
         Route::get('invoices', [InvoiceController::class, 'index'])
-            ->middleware('permission:'.User::PERMISSION_INVOICES_VIEW);
+            ->middleware('permission:'.User::PERMISSION_PAYMENTS_VIEW);
         Route::post('invoices', [InvoiceController::class, 'store'])
-            ->middleware('permission:'.User::PERMISSION_INVOICES_MANAGE);
+            ->middleware('permission:'.User::PERMISSION_PAYMENTS_MANAGE);
         Route::get('invoices/{id}', [InvoiceController::class, 'show'])
-            ->middleware('permission:'.User::PERMISSION_INVOICES_VIEW);
+            ->middleware('permission:'.User::PERMISSION_PAYMENTS_VIEW);
         Route::put('invoices/{id}', [InvoiceController::class, 'update'])
-            ->middleware('permission:'.User::PERMISSION_INVOICES_MANAGE);
+            ->middleware('permission:'.User::PERMISSION_PAYMENTS_MANAGE);
         Route::delete('invoices/{id}', [InvoiceController::class, 'destroy'])
-            ->middleware('permission:'.User::PERMISSION_INVOICES_MANAGE);
+            ->middleware('permission:'.User::PERMISSION_PAYMENTS_MANAGE);
 
         Route::get('payments', [PaymentController::class, 'index'])
             ->middleware('permission:'.User::PERMISSION_PAYMENTS_VIEW);

@@ -35,4 +35,18 @@ return [
         ],
     ],
 
+    'google' => [
+        'client_id' => env('GOOGLE_CLIENT_ID'),
+    ],
+
+    'payx' => [
+        'merchant_id' => env('PAYX_MERCHANT_ID'),
+        'api_key' => env('PAYX_API_KEY'),
+        'secret_key' => env('PAYX_SECRET_KEY'),
+        'webhook_secret' => env('PAYX_WEBHOOK_SECRET'),
+        'base_url' => env('PAYX_BASE_URL'),
+        'return_url' => env('PAYX_RETURN_URL'),
+        'cancel_url' => env('PAYX_CANCEL_URL'),
+    ],
+
 ];

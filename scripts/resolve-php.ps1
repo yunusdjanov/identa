@@ -53,8 +53,13 @@ function Get-HerdPhpPath {
 
 $resolvedPhp = $null
 
-$phpCommand = Get-Command php -ErrorAction SilentlyContinue
-if ($phpCommand) {
+$localPhp = Resolve-PhpCandidate -CandidatePath (Join-Path $PSScriptRoot "..\.tools\php\php.exe")
+if ($localPhp) {
+    $resolvedPhp = $localPhp
+}
+
+$phpCommand = if ($resolvedPhp) { $null } else { Get-Command php -ErrorAction SilentlyContinue }
+if (-not $resolvedPhp -and $phpCommand) {
     $resolvedPhp = Resolve-PhpCandidate -CandidatePath $phpCommand.Source
 }
 

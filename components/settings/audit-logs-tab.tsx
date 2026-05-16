@@ -54,19 +54,8 @@ const PERMISSION_LABEL_KEY_BY_CODE: Record<string, string> = {
     'patients.manage': 'settings.team.permissionPatientsManage',
     'appointments.view': 'settings.team.permissionAppointmentsView',
     'appointments.manage': 'settings.team.permissionAppointmentsManage',
-    'invoices.view': 'settings.team.permissionInvoicesView',
-    'invoices.manage': 'settings.team.permissionInvoicesManage',
     'payments.view': 'settings.team.permissionPaymentsView',
     'payments.manage': 'settings.team.permissionPaymentsManage',
-    'odontogram.view': 'settings.team.permissionOdontogramView',
-    'odontogram.manage': 'settings.team.permissionOdontogramManage',
-    'treatments.view': 'settings.team.permissionTreatmentsView',
-    'treatments.manage': 'settings.team.permissionTreatmentsManage',
-    'patient_categories.view': 'settings.team.permissionCategoriesView',
-    'patient_categories.manage': 'settings.team.permissionCategoriesManage',
-    'settings.view': 'settings.team.permissionSettingsView',
-    'settings.manage': 'settings.team.permissionSettingsManage',
-    'audit_logs.view': 'settings.team.permissionAuditLogsView',
 };
 
 interface AuditLogsTabProps {
@@ -377,7 +366,7 @@ export function AuditLogsTab({ canViewAuditLogs, t }: AuditLogsTabProps) {
                             <p className="text-sm text-gray-500">{t('settings.logs.empty')}</p>
                         ) : null}
 
-                        <div className="flex items-center justify-end gap-2 pt-2">
+                        <div className="flex flex-wrap items-center justify-end gap-2 pt-2">
                             <Button
                                 type="button"
                                 variant="outline"

@@ -57,9 +57,6 @@ interface AdminLandingCopy {
 }
 
 interface LandingSettingsFormState {
-    trialPriceAmount: string;
-    monthlyPriceAmount: string;
-    yearlyPriceAmount: string;
     telegramContactUrl: string;
 }
 
@@ -190,9 +187,6 @@ function getAdminLocale(locale: string): AdminLocale {
 
 function mapSettingsToForm(settings: ApiLandingSettings): LandingSettingsFormState {
     return {
-        trialPriceAmount: String(settings.trial_price_amount),
-        monthlyPriceAmount: String(settings.monthly_price_amount),
-        yearlyPriceAmount: String(settings.yearly_price_amount),
         telegramContactUrl: settings.telegram_contact_url ?? '',
     };
 }
@@ -251,9 +245,6 @@ export function AdminLandingSettingsPanel() {
             settingsQuery.data
                 ? mapSettingsToForm(settingsQuery.data)
                 : {
-                      trialPriceAmount: '',
-                      monthlyPriceAmount: '',
-                      yearlyPriceAmount: '',
                       telegramContactUrl: '',
                   },
         [settingsQuery.data]
@@ -261,29 +252,12 @@ export function AdminLandingSettingsPanel() {
 
     const settingsForm = useMemo(
         () => ({
-            trialPriceAmount: settingsDraft.trialPriceAmount ?? baseSettingsForm.trialPriceAmount,
-            monthlyPriceAmount: settingsDraft.monthlyPriceAmount ?? baseSettingsForm.monthlyPriceAmount,
-            yearlyPriceAmount: settingsDraft.yearlyPriceAmount ?? baseSettingsForm.yearlyPriceAmount,
             telegramContactUrl: settingsDraft.telegramContactUrl ?? baseSettingsForm.telegramContactUrl,
         }),
         [baseSettingsForm, settingsDraft]
     );
 
     const settingsErrors = useMemo(() => {
-        const validateAmount = (value: string): string | null => {
-            if (value.trim() === '') {
-                return copy.landing.required;
-            }
-
-            const parsed = Number(value);
-
-            if (!Number.isInteger(parsed) || parsed < 0) {
-                return copy.landing.invalidAmount;
-            }
-
-            return null;
-        };
-
         let telegramError: string | null = null;
 
         if (settingsForm.telegramContactUrl.trim() !== '') {
@@ -295,9 +269,6 @@ export function AdminLandingSettingsPanel() {
         }
 
         return {
-            trialPriceAmount: validateAmount(settingsForm.trialPriceAmount),
-            monthlyPriceAmount: validateAmount(settingsForm.monthlyPriceAmount),
-            yearlyPriceAmount: validateAmount(settingsForm.yearlyPriceAmount),
             telegramContactUrl: telegramError,
         };
     }, [copy.landing, settingsForm]);
@@ -311,9 +282,6 @@ export function AdminLandingSettingsPanel() {
         }
 
         landingSettingsMutation.mutate({
-            trial_price_amount: Number(settingsForm.trialPriceAmount),
-            monthly_price_amount: Number(settingsForm.monthlyPriceAmount),
-            yearly_price_amount: Number(settingsForm.yearlyPriceAmount),
             telegram_contact_url: settingsForm.telegramContactUrl.trim() || null,
         });
     };
@@ -331,73 +299,17 @@ export function AdminLandingSettingsPanel() {
                 {settingsQuery.isLoading ? (
                     <div className="space-y-3">
                         <Skeleton className="h-12 w-full" />
-                        <Skeleton className="h-12 w-full" />
-                        <Skeleton className="h-12 w-full" />
-                        <Skeleton className="h-12 w-full" />
                     </div>
                 ) : (
                     <>
+                        <p className="rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+                            {locale === 'uz'
+                                ? 'Tarif narxlari va limitlari Tariflar bo‘limida boshqariladi.'
+                                : locale === 'ru'
+                                    ? 'Цены и лимиты тарифов управляются в разделе Тарифы.'
+                                    : 'Plan prices and limits are managed in the Plans section.'}
+                        </p>
                         <div className="grid gap-4 md:grid-cols-2">
-                            <div className="space-y-2">
-                                <label className="text-sm font-medium text-slate-800">
-                                    {copy.landing.trialPrice} <span className="text-red-500">*</span>
-                                </label>
-                                <Input
-                                    value={settingsForm.trialPriceAmount}
-                                    onChange={(event) =>
-                                        setSettingsDraft((current) => ({
-                                            ...current,
-                                            trialPriceAmount: event.target.value,
-                                        }))
-                                    }
-                                    inputMode="numeric"
-                                    aria-invalid={Boolean(settingsErrors.trialPriceAmount)}
-                                />
-                                {settingsErrors.trialPriceAmount ? (
-                                    <p className="text-xs text-red-600">{settingsErrors.trialPriceAmount}</p>
-                                ) : null}
-                            </div>
-
-                            <div className="space-y-2">
-                                <label className="text-sm font-medium text-slate-800">
-                                    {copy.landing.monthlyPrice} <span className="text-red-500">*</span>
-                                </label>
-                                <Input
-                                    value={settingsForm.monthlyPriceAmount}
-                                    onChange={(event) =>
-                                        setSettingsDraft((current) => ({
-                                            ...current,
-                                            monthlyPriceAmount: event.target.value,
-                                        }))
-                                    }
-                                    inputMode="numeric"
-                                    aria-invalid={Boolean(settingsErrors.monthlyPriceAmount)}
-                                />
-                                {settingsErrors.monthlyPriceAmount ? (
-                                    <p className="text-xs text-red-600">{settingsErrors.monthlyPriceAmount}</p>
-                                ) : null}
-                            </div>
-
-                            <div className="space-y-2">
-                                <label className="text-sm font-medium text-slate-800">
-                                    {copy.landing.yearlyPrice} <span className="text-red-500">*</span>
-                                </label>
-                                <Input
-                                    value={settingsForm.yearlyPriceAmount}
-                                    onChange={(event) =>
-                                        setSettingsDraft((current) => ({
-                                            ...current,
-                                            yearlyPriceAmount: event.target.value,
-                                        }))
-                                    }
-                                    inputMode="numeric"
-                                    aria-invalid={Boolean(settingsErrors.yearlyPriceAmount)}
-                                />
-                                {settingsErrors.yearlyPriceAmount ? (
-                                    <p className="text-xs text-red-600">{settingsErrors.yearlyPriceAmount}</p>
-                                ) : null}
-                            </div>
-
                             <div className="space-y-2">
                                 <label className="text-sm font-medium text-slate-800">
                                     {copy.landing.telegramUrl}{' '}

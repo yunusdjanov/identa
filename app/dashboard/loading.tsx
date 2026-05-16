@@ -1,5 +1,5 @@
-import { RouteLoadingState } from '@/components/layout/route-loading-state';
+import { RouteDashboardLoadingState } from '@/components/layout/page-loading-skeletons';
 
 export default function Loading() {
-    return <RouteLoadingState />;
+    return <RouteDashboardLoadingState />;
 }

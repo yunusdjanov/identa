@@ -1,3 +1,57 @@
+import type { ApiMediaScanStatus } from '@/lib/api/types';
+
+export function isProtectedMediaApproved(scanStatus?: ApiMediaScanStatus | string | null): boolean {
+    return !scanStatus || scanStatus === 'approved';
+}
+
+export function getProtectedMediaThumbnailUrl({
+    scanStatus,
+    thumbnailUrl,
+    thumbnailReady,
+    previewUrl,
+    previewReady,
+    url,
+    allowFullFallback = false,
+}: {
+    scanStatus?: ApiMediaScanStatus | string | null;
+    thumbnailUrl?: string | null;
+    thumbnailReady?: boolean;
+    previewUrl?: string | null;
+    previewReady?: boolean;
+    url?: string | null;
+    allowFullFallback?: boolean;
+}): string | null {
+    if (!isProtectedMediaApproved(scanStatus)) {
+        return null;
+    }
+
+    if (thumbnailReady === false) {
+        if (previewReady === true) {
+            return previewUrl ?? null;
+        }
+
+        return allowFullFallback ? url ?? null : null;
+    }
+
+    return thumbnailUrl ?? previewUrl ?? (allowFullFallback ? url ?? null : null);
+}
+
+export function getProtectedMediaPreviewUrl({
+    scanStatus,
+    previewUrl,
+    url,
+}: {
+    scanStatus?: ApiMediaScanStatus | string | null;
+    previewUrl?: string | null;
+    url?: string | null;
+}): string | null {
+    if (!isProtectedMediaApproved(scanStatus)) {
+        return null;
+    }
+
+    return previewUrl ?? url ?? null;
+}
+
 export function getProtectedMediaCrossOrigin(src?: string | null): 'use-credentials' | undefined {
     if (!src) {
         return undefined;

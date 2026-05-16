@@ -12,6 +12,7 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    "public/identa-handoff/**",
     // Monorepo backend ignores:
     "backend/**",
   ]),

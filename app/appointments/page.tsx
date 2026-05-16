@@ -3,10 +3,10 @@
 import dynamic from 'next/dynamic';
 import { useMemo, useState, useSyncExternalStore } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
+import { AppointmentsLoadingState } from '@/components/layout/page-loading-skeletons';
 import { PageHeader } from '@/components/ui/page-shell';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -19,6 +19,7 @@ import {
 } from '@/components/ui/select';
 import {
     deleteAppointment,
+    getCurrentUser,
     getProfile,
     listAllAppointments,
     updateAppointment,
@@ -43,6 +44,7 @@ import { Plus, Calendar as CalendarIcon, ChevronLeft, ChevronRight, Pencil, Tras
 import { AppointmentTimePicker } from '@/components/appointments/appointment-time-picker';
 import { ConfirmActionDialog } from '@/components/ui/confirm-action-dialog';
 import { AppErrorState } from '@/components/error/app-error-state';
+import { AccessDeniedState } from '@/components/error/access-denied-state';
 import {
     Dialog,
     DialogContent,
@@ -53,6 +55,7 @@ import {
 } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import { useI18n } from '@/components/providers/i18n-provider';
+import { canManage, canView, getManageDeniedMessage, PERMISSION_DENIED_MESSAGE } from '@/lib/auth/permissions';
 
 const AddAppointmentDialog = dynamic(
     () => import('@/components/appointments/add-appointment-dialog').then((module) => module.AddAppointmentDialog),
@@ -312,49 +315,6 @@ function getAvailableAppointmentStartTimes(
     });
 }
 
-function AppointmentsLoadingSkeleton() {
-    return (
-        <div className="space-y-6">
-            <div className="flex justify-between items-center">
-                <div className="space-y-2">
-                    <Skeleton className="h-9 w-48" />
-                    <Skeleton className="h-4 w-64" />
-                </div>
-                <Skeleton className="h-10 w-40" />
-            </div>
-
-            <Card>
-                <CardContent className="pt-6">
-                    <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-                        <div className="flex space-x-2">
-                            <Skeleton className="h-10 w-24" />
-                            <Skeleton className="h-10 w-24" />
-                        </div>
-                        <Skeleton className="h-10 w-64" />
-                        <Skeleton className="h-10 w-20" />
-                    </div>
-                </CardContent>
-            </Card>
-
-            <Card>
-                <CardHeader>
-                    <Skeleton className="h-6 w-44" />
-                </CardHeader>
-                <CardContent className="space-y-2">
-                    {Array.from({ length: 9 }).map((_, index) => (
-                        <div key={index} className="flex items-start gap-3 border-b border-gray-100 py-2">
-                            <Skeleton className="h-4 w-14 mt-1" />
-                            <div className="flex-1">
-                                <Skeleton className="h-9 w-full" />
-                            </div>
-                        </div>
-                    ))}
-                </CardContent>
-            </Card>
-        </div>
-    );
-}
-
 export default function AppointmentsPage() {
     const { t, locale } = useI18n();
     const queryClient = useQueryClient();
@@ -430,10 +390,24 @@ export default function AppointmentsPage() {
         : undefined;
     const urlDialogSignature = `${urlAction ?? ''}|${urlPrefillPatientId ?? ''}`;
     const shouldOpenFromUrl = Boolean(urlAction === 'new' && dismissedUrlDialogSignature !== urlDialogSignature);
-    const isDialogOpen = isAddDialogOpen || shouldOpenFromUrl;
     const hasUrlFilters = urlStatuses.length > 0 || urlWhen === 'upcoming' || urlWindowMinutes !== null;
+    const currentUserQuery = useQuery({
+        queryKey: ['auth', 'me'],
+        queryFn: getCurrentUser,
+        staleTime: 5 * 60_000,
+    });
+    const currentUser = currentUserQuery.data;
+    const canViewAppointments = canView(currentUser, 'appointments');
+    const canManageAppointments = canManage(currentUser, 'appointments');
+    const isDialogOpen = canManageAppointments && (isAddDialogOpen || shouldOpenFromUrl);
+    const denyPermission = () => toast.error(getManageDeniedMessage(currentUser));
 
     const openAddDialog = (options?: { date?: Date; startTime?: string }) => {
+        if (!canManageAppointments) {
+            denyPermission();
+            return;
+        }
+
         const dialogDate = options?.date ?? currentDate;
         setPrefillDate(toLocalDateKey(dialogDate));
         setPrefillStartTime(options?.startTime ?? availabilityTimeSlots[0]);
@@ -442,6 +416,11 @@ export default function AppointmentsPage() {
     };
 
     const handleDialogOpenChange = (open: boolean) => {
+        if (open && !canManageAppointments) {
+            denyPermission();
+            return;
+        }
+
         if (!open && shouldOpenFromUrl) {
             setDismissedUrlDialogSignature(urlDialogSignature);
         }
@@ -450,6 +429,11 @@ export default function AppointmentsPage() {
     };
 
     const openEditDialog = (appointment: AppointmentRow) => {
+        if (!canManageAppointments) {
+            denyPermission();
+            return;
+        }
+
         if (appointment.status !== 'scheduled') {
             toast.error(t('appointments.toast.onlyScheduledEdit'));
             return;
@@ -468,6 +452,11 @@ export default function AppointmentsPage() {
     };
 
     const openDeleteDialog = (appointment: AppointmentRow) => {
+        if (!canManageAppointments) {
+            denyPermission();
+            return;
+        }
+
         setAppointmentToDelete(appointment);
         setIsDeleteDialogOpen(true);
     };
@@ -480,6 +469,11 @@ export default function AppointmentsPage() {
     };
 
     const openWeekInlineEditor = (appointment: AppointmentRow) => {
+        if (!canManageAppointments) {
+            denyPermission();
+            return;
+        }
+
         if (editingWeekAppointmentId === appointment.id) {
             closeWeekInlineEditor();
             return;
@@ -519,6 +513,7 @@ export default function AppointmentsPage() {
 
     const appointmentsQuery = useQuery({
         queryKey: ['appointments', 'list', visibleRange.startDate, visibleRange.endDate],
+        enabled: canViewAppointments,
         queryFn: () =>
             listAllAppointments({
                 sort: 'appointment_date,start_time',
@@ -536,6 +531,7 @@ export default function AppointmentsPage() {
     const profileQuery = useQuery({
         queryKey: ['settings', 'profile'],
         queryFn: getProfile,
+        enabled: canViewAppointments,
         staleTime: 300000,
         gcTime: 900000,
         refetchOnWindowFocus: false,
@@ -696,15 +692,20 @@ export default function AppointmentsPage() {
             nextDate: string;
             nextStartTime: string;
             nextEndTime: string;
-        }) =>
-            updateAppointment(payload.appointment.id, {
+        }) => {
+            if (!canManageAppointments) {
+                throw new Error(getManageDeniedMessage(currentUser));
+            }
+
+            return updateAppointment(payload.appointment.id, {
                 patient_id: payload.appointment.patientId,
                 appointment_date: payload.nextDate,
                 start_time: payload.nextStartTime,
                 end_time: payload.nextEndTime,
                 status: payload.appointment.status,
                 reason: payload.appointment.reason ?? undefined,
-            }),
+            });
+        },
         onSuccess: () => {
             toast.success(t('appointments.toast.moved'));
             queryClient.invalidateQueries({ queryKey: ['appointments'] });
@@ -719,7 +720,13 @@ export default function AppointmentsPage() {
     });
 
     const deleteMutation = useMutation({
-        mutationFn: async (appointmentId: string) => deleteAppointment(appointmentId),
+        mutationFn: async (appointmentId: string) => {
+            if (!canManageAppointments) {
+                throw new Error(getManageDeniedMessage(currentUser));
+            }
+
+            return deleteAppointment(appointmentId);
+        },
         onSuccess: () => {
             toast.success(t('appointments.toast.deleted'));
             queryClient.invalidateQueries({ queryKey: ['appointments'] });
@@ -734,6 +741,10 @@ export default function AppointmentsPage() {
 
     const weekInlineEditMutation = useMutation({
         mutationFn: async (payload: { appointment: AppointmentRow; formData: WeekInlineEditFormData }) => {
+            if (!canManageAppointments) {
+                throw new Error(getManageDeniedMessage(currentUser));
+            }
+
             const endTime = resolveAppointmentEndTime(payload.formData.startTime, payload.formData.durationMinutes);
             if (!endTime) {
                 throw new Error(t('appointments.toast.endOfDay'));
@@ -1131,17 +1142,29 @@ export default function AppointmentsPage() {
         });
     };
 
-    if (!isClient || appointmentsQuery.isLoading) {
-        return <AppointmentsLoadingSkeleton />;
+    if (!isClient || currentUserQuery.isLoading || appointmentsQuery.isLoading) {
+        return <AppointmentsLoadingState />;
     }
 
-    if (appointmentsQuery.isError) {
+    if (!canViewAppointments) {
+        return (
+            <AccessDeniedState
+                title={t('common.forbiddenTitle')}
+                description={PERMISSION_DENIED_MESSAGE}
+                actionLabel={t('dashboard.title')}
+                className="min-h-[20rem]"
+            />
+        );
+    }
+
+    if (currentUserQuery.isError || appointmentsQuery.isError) {
         return (
             <AppErrorState
                 title={t('common.loadErrorTitle')}
-                description={getApiErrorMessage(appointmentsQuery.error, t('appointments.error.loadFailed'))}
+                description={getApiErrorMessage(currentUserQuery.error || appointmentsQuery.error, t('appointments.error.loadFailed'))}
                 retryLabel={t('common.retry')}
                 onRetry={() => {
+                    currentUserQuery.refetch();
                     appointmentsQuery.refetch();
                 }}
             />
@@ -1154,15 +1177,19 @@ export default function AppointmentsPage() {
                 title={t('appointments.title')}
                 description={t('appointments.subtitle')}
                 actions={(
-                    <Button className="w-full sm:w-auto" onClick={() => openAddDialog({ date: currentDate })}>
+                    <Button
+                        className="w-full sm:w-auto"
+                        disabled={!canManageAppointments}
+                        onClick={() => openAddDialog({ date: currentDate })}
+                    >
                         <Plus aria-hidden="true" className="w-4 h-4 mr-2" />
                         {t('appointments.new')}
                     </Button>
                 )}
             />
 
-            <Card className="overflow-hidden rounded-[1.75rem] border-blue-100/80 bg-white/95 shadow-sm shadow-blue-100/50">
-                <CardContent className="p-4 sm:p-5">
+            <Card className="overflow-hidden rounded-[1.5rem] border-blue-100/80 bg-white/95 shadow-sm shadow-blue-100/50 sm:rounded-[1.75rem]">
+                <CardContent className="p-3 sm:p-5">
                     <div className="space-y-4">
                         <div className="flex flex-col gap-3 rounded-2xl border border-blue-100/80 bg-gradient-to-r from-white via-blue-50/30 to-white p-3 shadow-xs md:flex-row md:items-center md:justify-between">
                             <div className="inline-flex w-full items-center gap-1 rounded-xl border border-slate-200/80 bg-slate-100/70 p-1 shadow-xs sm:w-auto">
@@ -1196,7 +1223,7 @@ export default function AppointmentsPage() {
                                 </Button>
                             </div>
 
-                            <div className="flex w-full items-center justify-center gap-2 md:w-auto">
+                            <div className="flex w-full min-w-0 items-center justify-center gap-2 md:w-auto">
                                 <Button
                                     variant="outline"
                                     size="icon"
@@ -1293,7 +1320,7 @@ export default function AppointmentsPage() {
                                             data-testid={`timeslot-dropzone-${time}`}
                                             className="flex-1 space-y-2"
                                             onDragOver={(event) => {
-                                                if (!draggedAppointmentId) {
+                                                if (!canManageAppointments || !draggedAppointmentId) {
                                                     return;
                                                 }
                                                 event.preventDefault();
@@ -1301,6 +1328,11 @@ export default function AppointmentsPage() {
                                             }}
                                             onDrop={(event) => {
                                                 event.preventDefault();
+                                                if (!canManageAppointments) {
+                                                    denyPermission();
+                                                    return;
+                                                }
+
                                                 const dragId = event.dataTransfer.getData('text/plain') || undefined;
                                                 moveAppointmentToSlot(currentDate, time, dragId);
                                             }}
@@ -1333,10 +1365,18 @@ export default function AppointmentsPage() {
                                                                     : 'cursor-not-allowed opacity-90'
                                                             }`}
                                                             draggable={
+                                                                canManageAppointments
+                                                                &&
                                                                 appointment.status === 'scheduled'
                                                                 && !rescheduleMutation.isPending
                                                             }
                                                             onDragStart={(event) => {
+                                                                if (!canManageAppointments) {
+                                                                    event.preventDefault();
+                                                                    denyPermission();
+                                                                    return;
+                                                                }
+
                                                                 if (appointment.status !== 'scheduled') {
                                                                     event.preventDefault();
                                                                     return;
@@ -1348,7 +1388,7 @@ export default function AppointmentsPage() {
                                                             }}
                                                             onDragEnd={() => setDraggedAppointmentId(null)}
                                                         >
-                                                            <div className="flex items-start justify-between gap-3">
+                                                            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                                                                 <div className="min-w-0 flex-1">
                                                                     <p
                                                                         className="font-medium text-sm truncate"
@@ -1363,7 +1403,7 @@ export default function AppointmentsPage() {
                                                                         {appointment.startTime} - {appointment.endTime} ({t('appointments.minutesShort', { count: appointment.durationMinutes })})
                                                                     </p>
                                                                 </div>
-                                                                <div className="flex items-center gap-2" onPointerDown={(event) => event.stopPropagation()}>
+                                                                <div className="flex flex-wrap items-center gap-2 sm:justify-end" onPointerDown={(event) => event.stopPropagation()}>
                                                                     <Badge className={getAppointmentStatusBadgeClass(appointment.status)}>
                                                                         {t(`status.${appointment.status}`)}
                                                                     </Badge>
@@ -1377,6 +1417,7 @@ export default function AppointmentsPage() {
                                                                             rescheduleMutation.isPending
                                                                             || deleteMutation.isPending
                                                                             || appointment.status !== 'scheduled'
+                                                                            || !canManageAppointments
                                                                         }
                                                                     >
                                                                         <Pencil className="w-3 h-3" />
@@ -1389,7 +1430,7 @@ export default function AppointmentsPage() {
                                                                         className="border-rose-100 bg-rose-50 text-rose-600 hover:bg-rose-100 hover:text-rose-700"
                                                                         draggable={false}
                                                                         onClick={() => openDeleteDialog(appointment)}
-                                                                        disabled={deleteMutation.isPending}
+                                                                        disabled={deleteMutation.isPending || !canManageAppointments}
                                                                     >
                                                                         <Trash2 className="w-3 h-3" />
                                                                         {t('appointments.delete')}
@@ -1402,7 +1443,8 @@ export default function AppointmentsPage() {
                                                         <button
                                                             type="button"
                                                             onClick={() => openAddDialog({ date: currentDate, startTime: time })}
-                                                            className="text-xs text-gray-600 hover:text-blue-700 transition-colors"
+                                                            disabled={!canManageAppointments}
+                                                            className="text-xs text-gray-600 transition-colors hover:text-blue-700 disabled:text-gray-400"
                                                         >
                                                             {t('appointments.addSlot')}
                                                         </button>
@@ -1412,7 +1454,8 @@ export default function AppointmentsPage() {
                                                     <button
                                                         type="button"
                                                         onClick={() => openAddDialog({ date: currentDate, startTime: time })}
-                                                        className="text-xs text-gray-600 hover:text-blue-700 transition-colors"
+                                                        disabled={!canManageAppointments}
+                                                        className="text-xs text-gray-600 transition-colors hover:text-blue-700 disabled:text-gray-400"
                                                     >
                                                         {t('appointments.addSlot')}
                                                     </button>
@@ -1521,7 +1564,7 @@ export default function AppointmentsPage() {
                                             className={`interactive-card rounded-2xl border border-l-4 px-3.5 py-3 shadow-sm ${getAppointmentCardClass(appointment.status)}`}
                                         >
                                             <div
-                                                className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-2"
+                                                className="grid grid-cols-1 items-start gap-2 sm:grid-cols-[minmax(0,1fr)_auto]"
                                                 data-testid={`week-modal-appointment-${appointment.id}`}
                                             >
                                                 <div className="min-w-0 flex-1">
@@ -1535,7 +1578,7 @@ export default function AppointmentsPage() {
                                                         {truncateForUi(appointment.reason || t('appointments.general'), APPOINTMENT_MODAL_REASON_UI_LIMIT)}
                                                     </p>
                                                 </div>
-                                                <div className="flex shrink-0 items-start gap-1.5">
+                                                <div className="flex shrink-0 flex-wrap items-start gap-1.5 sm:justify-end">
                                                     <Badge className={`${getAppointmentStatusBadgeClass(appointment.status)} shrink-0 px-2 py-0.5 text-xs`}>
                                                         {t(`status.${appointment.status}`)}
                                                     </Badge>
@@ -1545,7 +1588,7 @@ export default function AppointmentsPage() {
                                                         variant="outline"
                                                         className="h-8 w-8 rounded-full bg-white/90"
                                                         onClick={() => openWeekInlineEditor(appointment)}
-                                                        disabled={appointment.status !== 'scheduled'}
+                                                        disabled={appointment.status !== 'scheduled' || !canManageAppointments}
                                                         aria-label={t('appointments.edit')}
                                                         title={t('appointments.edit')}
                                                     >
@@ -1557,7 +1600,7 @@ export default function AppointmentsPage() {
                                                         variant="outline"
                                                         className="h-8 w-8 rounded-full border-rose-100 bg-rose-50 text-rose-600 shadow-sm shadow-rose-100/50 hover:bg-rose-100 hover:text-rose-700"
                                                         onClick={() => openDeleteDialog(appointment)}
-                                                        disabled={deleteMutation.isPending}
+                                                        disabled={deleteMutation.isPending || !canManageAppointments}
                                                         aria-label={t('appointments.delete')}
                                                         title={t('appointments.delete')}
                                                     >
@@ -1726,7 +1769,12 @@ export default function AppointmentsPage() {
                                                                     formData: weekInlineEditFormData,
                                                                 });
                                                             }}
-                                                            disabled={weekInlineEditMutation.isPending || Boolean(reasonError) || Boolean(timeError)}
+                                                            disabled={
+                                                                weekInlineEditMutation.isPending
+                                                                || Boolean(reasonError)
+                                                                || Boolean(timeError)
+                                                                || !canManageAppointments
+                                                            }
                                                         >
                                                             {weekInlineEditMutation.isPending ? t('common.saving') : t('common.saveChanges')}
                                                         </Button>
@@ -1743,7 +1791,7 @@ export default function AppointmentsPage() {
                         <Button
                             type="button"
                             className="h-10 w-full rounded-xl px-4 shadow-sm sm:w-auto sm:min-w-[10rem]"
-                            disabled={!expandedWeekDescriptor}
+                            disabled={!expandedWeekDescriptor || !canManageAppointments}
                             onClick={() => {
                                 if (expandedWeekDescriptor) {
                                     setExpandedWeekDateKey(null);

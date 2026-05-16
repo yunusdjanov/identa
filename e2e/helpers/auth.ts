@@ -112,7 +112,7 @@ export async function loginDentist(page: Page): Promise<void> {
     ]);
     await page.goto('/login');
     await page.getByLabel('Email').fill('dentist@identa.test');
-    await page.getByLabel('Password').fill('password123');
+    await page.locator('input#password').fill('password123');
     await submitLoginAndAssert(page, /\/dashboard(?:\/)?(?:\?.*)?$/);
 }
 
@@ -122,6 +122,6 @@ export async function loginAdmin(page: Page): Promise<void> {
     ]);
     await page.goto('/admin/login');
     await page.getByLabel('Email').fill('admin@identa.test');
-    await page.getByLabel('Password').fill('password123');
+    await page.locator('input#password').fill('password123');
     await submitLoginAndAssert(page, /\/admin(?:\/)?(?:\?.*)?$/);
 }

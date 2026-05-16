@@ -3,7 +3,7 @@ import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AddAppointmentDialog } from '@/components/appointments/add-appointment-dialog';
-import { createAppointment, getPatient, listAppointments, listPatients } from '@/lib/api/dentist';
+import { createAppointment, listAppointments, lookupPatients } from '@/lib/api/dentist';
 import { toast } from 'sonner';
 import { I18nProvider } from '@/components/providers/i18n-provider';
 import { DICTIONARIES } from '@/lib/i18n/dictionaries';
@@ -111,8 +111,7 @@ vi.mock('@/components/ui/dialog', async () => {
 vi.mock('@/lib/api/dentist', () => ({
     createAppointment: vi.fn(),
     listAppointments: vi.fn(),
-    listPatients: vi.fn(),
-    getPatient: vi.fn(),
+    lookupPatients: vi.fn(),
 }));
 
 vi.mock('sonner', () => ({
@@ -159,28 +158,23 @@ describe('AddAppointmentDialog', () => {
     beforeEach(() => {
         vi.mocked(createAppointment).mockReset();
         vi.mocked(listAppointments).mockReset();
-        vi.mocked(listPatients).mockReset();
-        vi.mocked(getPatient).mockReset();
+        vi.mocked(lookupPatients).mockReset();
         vi.mocked(toast.success).mockReset();
         vi.mocked(toast.error).mockReset();
-        vi.mocked(listPatients).mockResolvedValue(buildPatientsResponse([]));
-        vi.mocked(listAppointments).mockResolvedValue(buildAppointmentsResponse([]));
-        vi.mocked(getPatient).mockResolvedValue({
-            id: 'patient-fallback',
-            patient_id: 'PT-FALLBACK',
-            full_name: 'Fallback Patient',
-            phone: '+10000000999',
-            secondary_phone: null,
-            address: null,
-            date_of_birth: null,
-            gender: null,
-            medical_history: null,
-            allergies: null,
-            current_medications: null,
-            created_at: null,
-            last_visit_at: null,
-            categories: [],
+        vi.mocked(lookupPatients).mockImplementation(async (options) => {
+            if (options?.filter?.id === 'patient-fallback') {
+                return buildPatientsResponse([{
+                    id: 'patient-fallback',
+                    patient_id: 'PT-FALLBACK',
+                    full_name: 'Fallback Patient',
+                    phone: '+10000000999',
+                    secondary_phone: null,
+                }]);
+            }
+
+            return buildPatientsResponse([]);
         });
+        vi.mocked(listAppointments).mockResolvedValue(buildAppointmentsResponse([]));
     });
 
     it('prefills date and time from dialog props', async () => {
@@ -216,22 +210,13 @@ describe('AddAppointmentDialog', () => {
             },
         });
 
-        vi.mocked(getPatient).mockResolvedValueOnce({
+        vi.mocked(lookupPatients).mockResolvedValueOnce(buildPatientsResponse([{
             id: 'patient-prefill',
             patient_id: 'PT-9001',
             full_name: 'Prefilled Patient',
             phone: '+10000000011',
             secondary_phone: null,
-            address: null,
-            date_of_birth: null,
-            gender: null,
-            medical_history: null,
-            allergies: null,
-            current_medications: null,
-            created_at: null,
-            last_visit_at: null,
-            categories: [],
-        });
+        }]));
 
         render(
             <Providers client={queryClient}>
@@ -256,22 +241,17 @@ describe('AddAppointmentDialog', () => {
             },
         });
 
-        vi.mocked(getPatient).mockImplementation(async (id) => ({
-            id,
-            patient_id: id === 'patient-2' ? 'PT-0002' : 'PT-0001',
-            full_name: id === 'patient-2' ? 'Second Patient' : 'First Patient',
-            phone: '+10000000111',
-            secondary_phone: null,
-            address: null,
-            date_of_birth: null,
-            gender: null,
-            medical_history: null,
-            allergies: null,
-            current_medications: null,
-            created_at: null,
-            last_visit_at: null,
-            categories: [],
-        }));
+        vi.mocked(lookupPatients).mockImplementation(async (options) => {
+            const id = String(options?.filter?.id ?? 'patient-1');
+
+            return buildPatientsResponse([{
+                id,
+                patient_id: id === 'patient-2' ? 'PT-0002' : 'PT-0001',
+                full_name: id === 'patient-2' ? 'Second Patient' : 'First Patient',
+                phone: '+10000000111',
+                secondary_phone: null,
+            }]);
+        });
 
         const view = render(
             <Providers client={queryClient}>
@@ -323,23 +303,6 @@ describe('AddAppointmentDialog', () => {
             status: 'scheduled',
             notes: null,
         });
-        vi.mocked(getPatient).mockResolvedValueOnce({
-            id: 'patient-fallback',
-            patient_id: 'PT-FALLBACK',
-            full_name: 'Fallback Patient',
-            phone: '+10000000999',
-            secondary_phone: null,
-            address: null,
-            date_of_birth: null,
-            gender: null,
-            medical_history: null,
-            allergies: null,
-            current_medications: null,
-            created_at: null,
-            last_visit_at: null,
-            categories: [],
-        });
-
         const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000);
         const pastDate = `${yesterday.getFullYear()}-${String(yesterday.getMonth() + 1).padStart(2, '0')}-${String(yesterday.getDate()).padStart(2, '0')}`;
 
@@ -379,22 +342,6 @@ describe('AddAppointmentDialog', () => {
             },
         });
 
-        vi.mocked(getPatient).mockResolvedValueOnce({
-            id: 'patient-fallback',
-            patient_id: 'PT-FALLBACK',
-            full_name: 'Fallback Patient',
-            phone: '+10000000999',
-            secondary_phone: null,
-            address: null,
-            date_of_birth: null,
-            gender: null,
-            medical_history: null,
-            allergies: null,
-            current_medications: null,
-            created_at: null,
-            last_visit_at: null,
-            categories: [],
-        });
         vi.mocked(listAppointments).mockResolvedValueOnce(buildAppointmentsResponse([
             {
                 id: 'existing-appointment',
@@ -456,22 +403,6 @@ describe('AddAppointmentDialog', () => {
             end_time: '09:30',
             status: 'scheduled',
             notes: null,
-        });
-        vi.mocked(getPatient).mockResolvedValueOnce({
-            id: 'patient-fallback',
-            patient_id: 'PT-FALLBACK',
-            full_name: 'Fallback Patient',
-            phone: '+10000000999',
-            secondary_phone: null,
-            address: null,
-            date_of_birth: null,
-            gender: null,
-            medical_history: null,
-            allergies: null,
-            current_medications: null,
-            created_at: null,
-            last_visit_at: null,
-            categories: [],
         });
         vi.mocked(listAppointments).mockResolvedValueOnce(buildAppointmentsResponse([
             {
@@ -550,7 +481,7 @@ describe('AddAppointmentDialog', () => {
             },
         ];
 
-        vi.mocked(listPatients).mockImplementation(async (options) => {
+        vi.mocked(lookupPatients).mockImplementation(async (options) => {
             const search = options?.filter?.search;
             if (search === 'alice') {
                 return buildPatientsResponse([allPatients[0]]);
@@ -588,7 +519,7 @@ describe('AddAppointmentDialog', () => {
         });
 
         await waitFor(() => {
-            expect(vi.mocked(listPatients).mock.calls.some((call) => call[0]?.filter?.search === 'alice')).toBe(true);
+            expect(vi.mocked(lookupPatients).mock.calls.some((call) => call[0]?.filter?.search === 'alice')).toBe(true);
         });
     });
 
@@ -629,7 +560,7 @@ describe('AddAppointmentDialog', () => {
             },
         ];
 
-        vi.mocked(listPatients).mockImplementation(async (options) => {
+        vi.mocked(lookupPatients).mockImplementation(async (options) => {
             const search = options?.filter?.search;
             if (search === '2222') {
                 return buildPatientsResponse([allPatients[1]]);
@@ -667,13 +598,13 @@ describe('AddAppointmentDialog', () => {
         });
 
         await waitFor(() => {
-            expect(vi.mocked(listPatients).mock.calls.some((call) => call[0]?.filter?.search === '2222')).toBe(true);
+            expect(vi.mocked(lookupPatients).mock.calls.some((call) => call[0]?.filter?.search === '2222')).toBe(true);
         });
     });
 
     it('keeps patient options closed until input is clicked', async () => {
         const user = userEvent.setup();
-        vi.mocked(listPatients).mockResolvedValue(buildPatientsResponse([
+        vi.mocked(lookupPatients).mockResolvedValue(buildPatientsResponse([
             {
                 id: 'patient-1',
                 patient_id: 'PT-0001',

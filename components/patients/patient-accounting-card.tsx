@@ -78,16 +78,18 @@ export function PatientAccountingCard({
                 </div>
 
                 {treatmentsQuery.isLoading ? (
-                    <div className="space-y-3">
-                        {Array.from({ length: 3 }).map((_, index) => (
-                            <div key={index} className="grid grid-cols-[120px_1fr_120px_120px_120px] gap-3 rounded-lg border border-gray-200 p-3">
-                                <Skeleton className="h-4 w-20" />
-                                <Skeleton className="h-4 w-full" />
-                                <Skeleton className="h-4 w-20" />
-                                <Skeleton className="h-4 w-20" />
-                                <Skeleton className="h-4 w-20" />
-                            </div>
-                        ))}
+                    <div className="overflow-x-auto pb-1">
+                        <div className="min-w-[680px] space-y-3">
+                            {Array.from({ length: 3 }).map((_, index) => (
+                                <div key={index} className="grid grid-cols-[120px_1fr_120px_120px_120px] gap-3 rounded-lg border border-gray-200 p-3">
+                                    <Skeleton className="h-4 w-20" />
+                                    <Skeleton className="h-4 w-full" />
+                                    <Skeleton className="h-4 w-20" />
+                                    <Skeleton className="h-4 w-20" />
+                                    <Skeleton className="h-4 w-20" />
+                                </div>
+                            ))}
+                        </div>
                     </div>
                 ) : treatmentsQuery.isError ? (
                     <div className="space-y-3 rounded-xl border border-red-100 bg-red-50 p-4">
@@ -103,38 +105,40 @@ export function PatientAccountingCard({
                         <p className="text-sm text-gray-500">{t('patientDetail.noAccountingEntries')}</p>
                     </div>
                 ) : (
-                    <div className="overflow-hidden rounded-xl border border-gray-200">
-                        <div className="grid grid-cols-[110px_1fr_110px_110px_110px] gap-3 border-b border-gray-200 bg-gray-50 px-4 py-3 text-xs font-medium uppercase tracking-wide text-gray-500">
-                            <span>{t('payments.table.date')}</span>
-                            <span>{t('patientHistory.table.workDone')}</span>
-                            <span>{t('patientHistory.table.debt')}</span>
-                            <span>{t('patientHistory.table.paid')}</span>
-                            <span>{t('patientHistory.table.remaining')}</span>
-                        </div>
-                        <div className="divide-y divide-gray-100">
-                            {previewRows.map((treatment) => (
-                                <div
-                                    key={treatment.id}
-                                    className="grid grid-cols-[110px_1fr_110px_110px_110px] gap-3 px-4 py-3 text-sm"
-                                >
-                                    <span className="text-gray-600">{formatDate(treatment.treatment_date)}</span>
-                                    <div className="min-w-0">
-                                        <p className="truncate font-medium text-gray-900">{treatment.treatment_type}</p>
-                                        {treatment.comment ? (
-                                            <p className="truncate text-xs text-gray-500">{treatment.comment}</p>
-                                        ) : null}
+                    <div className="overflow-x-auto rounded-xl border border-gray-200 pb-1">
+                        <div className="min-w-[680px]">
+                            <div className="grid grid-cols-[110px_1fr_110px_110px_110px] gap-3 border-b border-gray-200 bg-gray-50 px-4 py-3 text-xs font-medium uppercase tracking-wide text-gray-500">
+                                <span>{t('payments.table.date')}</span>
+                                <span>{t('patientHistory.table.workDone')}</span>
+                                <span>{t('patientHistory.table.debt')}</span>
+                                <span>{t('patientHistory.table.paid')}</span>
+                                <span>{t('patientHistory.table.remaining')}</span>
+                            </div>
+                            <div className="divide-y divide-gray-100">
+                                {previewRows.map((treatment) => (
+                                    <div
+                                        key={treatment.id}
+                                        className="grid grid-cols-[110px_1fr_110px_110px_110px] gap-3 px-4 py-3 text-sm"
+                                    >
+                                        <span className="text-gray-600">{formatDate(treatment.treatment_date)}</span>
+                                        <div className="min-w-0">
+                                            <p className="truncate font-medium text-gray-900">{treatment.treatment_type}</p>
+                                            {treatment.comment ? (
+                                                <p className="truncate text-xs text-gray-500">{treatment.comment}</p>
+                                            ) : null}
+                                        </div>
+                                        <span className="font-medium text-red-700">
+                                            {formatCurrency(Number(treatment.debt_amount))}
+                                        </span>
+                                        <span className="font-medium text-green-700">
+                                            {formatCurrency(Number(treatment.paid_amount))}
+                                        </span>
+                                        <span className={`font-medium ${Number(treatment.balance) > 0 ? 'text-red-700' : 'text-green-700'}`}>
+                                            {formatCurrency(Number(treatment.balance))}
+                                        </span>
                                     </div>
-                                    <span className="font-medium text-red-700">
-                                        {formatCurrency(Number(treatment.debt_amount))}
-                                    </span>
-                                    <span className="font-medium text-green-700">
-                                        {formatCurrency(Number(treatment.paid_amount))}
-                                    </span>
-                                    <span className={`font-medium ${Number(treatment.balance) > 0 ? 'text-red-700' : 'text-green-700'}`}>
-                                        {formatCurrency(Number(treatment.balance))}
-                                    </span>
-                                </div>
-                            ))}
+                                ))}
+                            </div>
                         </div>
                     </div>
                 )}

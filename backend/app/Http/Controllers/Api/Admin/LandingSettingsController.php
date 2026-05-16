@@ -32,9 +32,15 @@ class LandingSettingsController extends LandingController
         $validated = $request->validated();
 
         $settings->update([
-            'trial_price_amount' => (int) $validated['trial_price_amount'],
-            'monthly_price_amount' => (int) $validated['monthly_price_amount'],
-            'yearly_price_amount' => (int) $validated['yearly_price_amount'],
+            'trial_price_amount' => array_key_exists('trial_price_amount', $validated)
+                ? (int) $validated['trial_price_amount']
+                : $settings->trial_price_amount,
+            'monthly_price_amount' => array_key_exists('monthly_price_amount', $validated)
+                ? (int) $validated['monthly_price_amount']
+                : $settings->monthly_price_amount,
+            'yearly_price_amount' => array_key_exists('yearly_price_amount', $validated)
+                ? (int) $validated['yearly_price_amount']
+                : $settings->yearly_price_amount,
             'telegram_contact_url' => isset($validated['telegram_contact_url'])
                 ? trim((string) $validated['telegram_contact_url']) ?: null
                 : null,

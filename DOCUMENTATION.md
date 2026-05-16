@@ -570,7 +570,6 @@ NEXT_PUBLIC_APP_URL=https://identa.uz
 - [ ] Export reports (PDF)
 - [ ] Multi-language support (Uzbek, Russian, English)
 - [ ] Dark mode
-- [ ] Mobile app (React Native)
 
 ### Performance
 - [ ] Image optimization

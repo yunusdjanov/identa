@@ -2,19 +2,23 @@
 
 namespace App\Models;
 
+use App\Contracts\TenantOwned;
+use App\Models\Concerns\BelongsToTenant;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-class Invoice extends Model
+class Invoice extends Model implements TenantOwned
 {
     /** @use HasFactory<\Database\Factories\InvoiceFactory> */
-    use HasFactory, HasUuids;
+    use BelongsToTenant, HasFactory, HasUuids;
 
     public const STATUS_UNPAID = 'unpaid';
+
     public const STATUS_PARTIALLY_PAID = 'partially_paid';
+
     public const STATUS_PAID = 'paid';
 
     /**
@@ -86,6 +90,12 @@ class Invoice extends Model
      */
     public function payments(): HasMany
     {
-        return $this->hasMany(Payment::class);
+        return $this->hasMany(Payment::class)
+            ->whereExists(function ($query): void {
+                $query->selectRaw('1')
+                    ->from('invoices')
+                    ->whereColumn('invoices.id', 'payments.invoice_id')
+                    ->whereColumn('invoices.dentist_id', 'payments.dentist_id');
+            });
     }
 }

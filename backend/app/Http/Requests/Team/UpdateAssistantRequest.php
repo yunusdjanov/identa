@@ -40,21 +40,6 @@ class UpdateAssistantRequest extends FormRequest
      */
     private function allowedPermissions(): array
     {
-        return [
-            User::PERMISSION_PATIENTS_VIEW,
-            User::PERMISSION_PATIENTS_MANAGE,
-            User::PERMISSION_APPOINTMENTS_VIEW,
-            User::PERMISSION_APPOINTMENTS_MANAGE,
-            User::PERMISSION_INVOICES_VIEW,
-            User::PERMISSION_INVOICES_MANAGE,
-            User::PERMISSION_PAYMENTS_VIEW,
-            User::PERMISSION_PAYMENTS_MANAGE,
-            User::PERMISSION_ODONTOGRAM_VIEW,
-            User::PERMISSION_ODONTOGRAM_MANAGE,
-            User::PERMISSION_TREATMENTS_VIEW,
-            User::PERMISSION_TREATMENTS_MANAGE,
-            User::PERMISSION_PATIENT_CATEGORIES_VIEW,
-            User::PERMISSION_PATIENT_CATEGORIES_MANAGE,
-        ];
+        return User::allowedAssistantPermissions();
     }
 }

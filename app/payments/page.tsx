@@ -15,15 +15,19 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import { DataTableShell, getDataTableClassName } from '@/components/ui/data-table-shell';
+import { PaymentsLoadingState } from '@/components/layout/page-loading-skeletons';
 import { PageHeader } from '@/components/ui/page-shell';
 import { getApiErrorMessage } from '@/lib/api/client';
-import { getPatient, listAllTreatments } from '@/lib/api/dentist';
+import { getCurrentUser, getPatient, listAllTreatments } from '@/lib/api/dentist';
 import type { ApiPatient, ApiTreatment } from '@/lib/api/types';
 import { useI18n } from '@/components/providers/i18n-provider';
 import { formatLocalizedDate } from '@/lib/i18n/date';
 import { extractPrimaryPhone, formatCurrency } from '@/lib/utils';
 import { AlertCircle, History, Phone, Search, Users, Wallet } from 'lucide-react';
 import { AppErrorState } from '@/components/error/app-error-state';
+import { AccessDeniedState } from '@/components/error/access-denied-state';
+import { canView, PERMISSION_DENIED_MESSAGE } from '@/lib/auth/permissions';
+import { toast } from 'sonner';
 
 const PAGE_SIZE = 10;
 const noopSubscribe = () => () => undefined;
@@ -102,6 +106,14 @@ export default function PaymentsPage() {
     const [historyPage, setHistoryPage] = useState(1);
     const [isUrlPatientFilterDismissed, setIsUrlPatientFilterDismissed] = useState(false);
     const patientFilterId = isUrlPatientFilterDismissed ? '' : initialPatientIdFromUrl;
+    const currentUserQuery = useQuery({
+        queryKey: ['auth', 'me'],
+        queryFn: getCurrentUser,
+        staleTime: 5 * 60_000,
+    });
+    const currentUser = currentUserQuery.data;
+    const canViewPayments = canView(currentUser, 'payments');
+    const canViewPatients = canView(currentUser, 'patients');
 
     useEffect(() => {
         setActiveTab(initialTabFromUrl);
@@ -109,6 +121,7 @@ export default function PaymentsPage() {
 
     const accountingQuery = useQuery({
         queryKey: ['payments', 'history-accounting', patientFilterId],
+        enabled: canViewPayments,
         queryFn: async (): Promise<PatientTreatmentGroup[]> => {
             const treatments = await listAllTreatments({
                 sort: '-treatment_date,-created_at',
@@ -140,7 +153,7 @@ export default function PaymentsPage() {
                 });
             });
 
-            if (patientFilterId !== '' && !groups.has(patientFilterId)) {
+            if (patientFilterId !== '' && !groups.has(patientFilterId) && canViewPatients) {
                 try {
                     const patient = await getPatient(patientFilterId);
                     groups.set(patient.id, {
@@ -322,15 +335,36 @@ export default function PaymentsPage() {
         }
     };
 
-    if (accountingQuery.isError && !accountingQuery.data) {
+    if (currentUserQuery.isLoading || (accountingQuery.isLoading && !accountingQuery.data)) {
+        return <PaymentsLoadingState />;
+    }
+
+    if (!canViewPayments) {
+        return (
+            <div className="space-y-6">
+                <PageHeader title={t('payments.title')} description={t('payments.subtitle')} />
+                <AccessDeniedState
+                    title={t('common.forbiddenTitle')}
+                    description={PERMISSION_DENIED_MESSAGE}
+                    actionLabel={t('dashboard.title')}
+                    className="min-h-[20rem] px-0 py-0"
+                />
+            </div>
+        );
+    }
+
+    if ((currentUserQuery.isError || accountingQuery.isError) && !accountingQuery.data) {
         return (
             <div className="space-y-6">
                 <PageHeader title={t('payments.title')} description={t('payments.subtitle')} />
                 <AppErrorState
                     title={t('common.loadErrorTitle')}
-                    description={getApiErrorMessage(accountingQuery.error, t('payments.error.loadFailed'))}
+                    description={getApiErrorMessage(currentUserQuery.error || accountingQuery.error, t('payments.error.loadFailed'))}
                     retryLabel={t('common.retry')}
-                    onRetry={() => accountingQuery.refetch()}
+                    onRetry={() => {
+                        currentUserQuery.refetch();
+                        accountingQuery.refetch();
+                    }}
                     className="min-h-[20rem] px-0 py-0"
                 />
             </div>
@@ -498,11 +532,21 @@ export default function PaymentsPage() {
                                                         <TableCell className="text-green-700">{formatCurrency(row.totalPaid)}</TableCell>
                                                         <TableCell className={row.balance > 0 ? 'text-red-700' : 'text-green-700'}>{formatCurrency(row.balance)}</TableCell>
                                                         <TableCell className="text-right">
-                                                            <Button asChild variant="outline" size="sm">
-                                                                <Link href={`/patients/${row.patientId}/history?from=payments`}>
+                                                            {canViewPatients ? (
+                                                                <Button asChild variant="outline" size="sm">
+                                                                    <Link href={`/patients/${row.patientId}/history?from=payments`}>
+                                                                        {t('payments.openHistory')}
+                                                                    </Link>
+                                                                </Button>
+                                                            ) : (
+                                                                <Button
+                                                                    variant="outline"
+                                                                    size="sm"
+                                                                    onClick={() => toast.error(PERMISSION_DENIED_MESSAGE)}
+                                                                >
                                                                     {t('payments.openHistory')}
-                                                                </Link>
-                                                            </Button>
+                                                                </Button>
+                                                            )}
                                                         </TableCell>
                                                     </TableRow>
                                                 ))}

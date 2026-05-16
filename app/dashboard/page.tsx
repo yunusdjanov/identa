@@ -5,15 +5,17 @@ import { useSyncExternalStore } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
+import { RouteDashboardLoadingState } from '@/components/layout/page-loading-skeletons';
 import { getCurrentUser, getDashboardSnapshot } from '@/lib/api/dentist';
 import { getApiErrorMessage } from '@/lib/api/client';
 import { formatCurrency, toLocalDateKey, truncateForUi } from '@/lib/utils';
 import { formatLocalizedDate } from '@/lib/i18n/date';
-import { AlertCircle, ArrowRight, Calendar, CheckCircle2, Clock3, DollarSign, Plus } from 'lucide-react';
+import { AlertCircle, ArrowRight, Calendar, CheckCircle2, DollarSign, Plus } from 'lucide-react';
 import Link from 'next/link';
 import { useI18n } from '@/components/providers/i18n-provider';
 import { AppErrorState } from '@/components/error/app-error-state';
+import { canManage, canView, getManageDeniedMessage, PERMISSION_DENIED_MESSAGE } from '@/lib/auth/permissions';
+import { toast } from 'sonner';
 
 const noopSubscribe = () => () => undefined;
 const DASHBOARD_NAME_UI_LIMIT = 25;
@@ -76,56 +78,6 @@ function formatAppointmentHourMinute(timeInput: string): string {
     return timeInput.slice(0, 5);
 }
 
-function DashboardLoadingSkeleton() {
-    return (
-        <div className="space-y-4">
-            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                <div className="space-y-2">
-                    <Skeleton className="h-9 w-48" />
-                </div>
-                <div className="flex flex-wrap gap-2">
-                    <Skeleton className="h-9 w-32" />
-                    <Skeleton className="h-9 w-40" />
-                </div>
-            </div>
-
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-                {Array.from({ length: 3 }).map((_, index) => (
-                    <Card key={index}>
-                        <CardHeader className="pb-1 pt-4">
-                            <Skeleton className="h-4 w-32" />
-                        </CardHeader>
-                        <CardContent className="space-y-2 pt-0 pb-4">
-                            <Skeleton className="h-7 w-28" />
-                            <Skeleton className="h-3 w-24" />
-                        </CardContent>
-                    </Card>
-                ))}
-            </div>
-
-            <Card>
-                <CardHeader>
-                    <Skeleton className="h-6 w-48" />
-                </CardHeader>
-                <CardContent className="space-y-4">
-                    {Array.from({ length: 3 }).map((_, index) => (
-                        <div key={index} className="flex items-center justify-between p-4 border rounded-lg">
-                            <div className="flex items-center space-x-4">
-                                <Skeleton className="h-16 w-16 rounded-lg" />
-                                <div className="space-y-2">
-                                    <Skeleton className="h-4 w-40" />
-                                    <Skeleton className="h-3 w-32" />
-                                </div>
-                            </div>
-                            <Skeleton className="h-6 w-20" />
-                        </div>
-                    ))}
-                </CardContent>
-            </Card>
-        </div>
-    );
-}
-
 function DashboardStatCard({
     title,
     value,
@@ -167,6 +119,25 @@ function DashboardStatCard({
     );
 }
 
+function LockedStatCard({ title, icon }: { title: string; icon: ReactNode }) {
+    return (
+        <Card className="rounded-[1.5rem] border-slate-200 bg-white/85 shadow-sm">
+            <CardContent className="relative flex min-h-[136px] flex-col justify-between overflow-hidden p-5">
+                <div className="pointer-events-none absolute inset-0 bg-white/45 backdrop-blur-[2px]" />
+                <div className="relative flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                        <p className="text-sm font-semibold text-slate-500">{title}</p>
+                        <p className="mt-3 text-sm font-semibold text-slate-400">{PERMISSION_DENIED_MESSAGE}</p>
+                    </div>
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-slate-400 ring-1 ring-slate-200">
+                        {icon}
+                    </div>
+                </div>
+            </CardContent>
+        </Card>
+    );
+}
+
 export default function DashboardPage() {
     const { locale, t } = useI18n();
     const isClient = useSyncExternalStore(
@@ -185,16 +156,12 @@ export default function DashboardPage() {
         staleTime: 5 * 60_000,
     });
     const currentUser = currentUserQuery.data;
-    const assistantPermissions = new Set(currentUser?.assistant_permissions ?? []);
-    const canViewFinance = currentUser?.role === 'dentist';
-    const canCreatePatients = Boolean(
-        currentUser
-        && (currentUser.role === 'dentist' || assistantPermissions.has('patients.manage'))
-    );
-    const canManageAppointments = Boolean(
-        currentUser
-        && (currentUser.role === 'dentist' || assistantPermissions.has('appointments.manage'))
-    );
+    const canViewPatients = canView(currentUser, 'patients');
+    const canCreatePatients = canManage(currentUser, 'patients');
+    const canViewAppointments = canView(currentUser, 'appointments');
+    const canManageAppointments = canManage(currentUser, 'appointments');
+    const canViewPayments = canView(currentUser, 'payments');
+    const denyManageAction = () => toast.error(getManageDeniedMessage(currentUser));
 
     const dashboardQuery = useQuery({
         queryKey: ['dashboard', 'snapshot', todayDateKey],
@@ -207,7 +174,7 @@ export default function DashboardPage() {
     });
 
     if (!isClient || currentUserQuery.isLoading) {
-        return <DashboardLoadingSkeleton />;
+        return <RouteDashboardLoadingState />;
     }
 
     if (currentUserQuery.isError || !currentUser) {
@@ -234,6 +201,10 @@ export default function DashboardPage() {
 
     const stats = dashboardQuery.data;
     const isDashboardLoading = dashboardQuery.isLoading && !stats;
+    if (isDashboardLoading) {
+        return <RouteDashboardLoadingState />;
+    }
+
     const nowTimeKey = isClient
         ? `${String(new Date().getHours()).padStart(2, '0')}:${String(new Date().getMinutes()).padStart(2, '0')}`
         : '00:00';
@@ -244,15 +215,6 @@ export default function DashboardPage() {
     const nowMinutes = toMinutesFromTime(nowTimeKey);
     const upcomingTodayAppointments = scheduledTodayAppointments
         .filter((appointment) => toMinutesFromTime(appointment.startTime) > nowMinutes);
-    const startingSoonCount = upcomingTodayAppointments
-        .filter((appointment) => {
-            const appointmentMinutes = toMinutesFromTime(appointment.startTime);
-            return appointmentMinutes < nowMinutes + 120;
-        })
-        .length;
-    const pendingTodayCount = scheduledTodayAppointments.length;
-    const noShowTodayCount = allTodayAppointments.filter((appointment) => appointment.status === 'no_show').length;
-    const cancelledTodayCount = allTodayAppointments.filter((appointment) => appointment.status === 'cancelled').length;
     const visibleUpcomingAppointments = upcomingTodayAppointments.slice(0, 4);
     const showAllTodayHref = '/appointments';
     const viewAllDebtsLabel = t('dashboard.viewAllDebts')
@@ -276,19 +238,44 @@ export default function DashboardPage() {
                         {monthLabel}
                     </p>
                 </div>
-                {(canCreatePatients || canManageAppointments) ? (
+                {(canViewPatients || canViewAppointments) ? (
                     <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 md:flex md:flex-wrap md:justify-end">
-                        {canCreatePatients ? (
-                            <Link href="/patients?action=new">
-                                <Button size="sm" className="h-10 w-full rounded-full px-4 shadow-sm md:w-auto">
+                        {canViewPatients ? (
+                            <Link
+                                href="/patients?action=new"
+                                onClick={(event) => {
+                                    if (!canCreatePatients) {
+                                        event.preventDefault();
+                                        denyManageAction();
+                                    }
+                                }}
+                            >
+                                <Button
+                                    size="sm"
+                                    className="h-10 w-full rounded-full px-4 shadow-sm md:w-auto"
+                                    disabled={!canCreatePatients}
+                                >
                                     <Plus className="w-4 h-4 mr-2" />
                                     {t('dashboard.addPatient')}
                                 </Button>
                             </Link>
                         ) : null}
-                        {canManageAppointments ? (
-                            <Link href="/appointments?action=new">
-                                <Button variant="outline" size="sm" className="h-10 w-full rounded-full border-blue-100 bg-white px-4 shadow-sm hover:bg-blue-50 md:w-auto">
+                        {canViewAppointments ? (
+                            <Link
+                                href="/appointments?action=new"
+                                onClick={(event) => {
+                                    if (!canManageAppointments) {
+                                        event.preventDefault();
+                                        denyManageAction();
+                                    }
+                                }}
+                            >
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-10 w-full rounded-full border-blue-100 bg-white px-4 shadow-sm hover:bg-blue-50 md:w-auto"
+                                    disabled={!canManageAppointments}
+                                >
                                     <Calendar className="w-4 h-4 mr-2" />
                                     {t('dashboard.newAppointment')}
                                 </Button>
@@ -299,8 +286,7 @@ export default function DashboardPage() {
             </div>
 
             <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-                {canViewFinance ? (
-                    <>
+                {canViewAppointments ? (
                         <DashboardStatCard
                             title={t('dashboard.todayAppointments')}
                             value={scheduledTodayAppointments.length}
@@ -315,7 +301,11 @@ export default function DashboardPage() {
                                 </Button>
                             )}
                         />
+                ) : (
+                    <LockedStatCard title={t('dashboard.todayAppointments')} icon={<Calendar className="h-5 w-5" />} />
+                )}
 
+                {canViewPayments ? (
                         <DashboardStatCard
                             title={t('dashboard.revenueThisMonth')}
                             value={stats ? formatCurrency(stats.revenueThisMonth) : '...'}
@@ -323,7 +313,11 @@ export default function DashboardPage() {
                             tone="green"
                             icon={<DollarSign className="h-5 w-5" />}
                         />
+                ) : (
+                    <LockedStatCard title={t('dashboard.revenueThisMonth')} icon={<DollarSign className="h-5 w-5" />} />
+                )}
 
+                {canViewPayments ? (
                         <DashboardStatCard
                             title={t('dashboard.outstandingDebts')}
                             value={stats ? formatCurrency(stats.outstandingDebtTotal) : '...'}
@@ -338,33 +332,8 @@ export default function DashboardPage() {
                                 </Button>
                             )}
                         />
-                    </>
                 ) : (
-                    <>
-                        <DashboardStatCard
-                            title={t('dashboard.pendingToday')}
-                            value={pendingTodayCount}
-                            helper={t('dashboard.scheduled')}
-                            tone="blue"
-                            icon={<Calendar className="h-5 w-5" />}
-                        />
-
-                        <DashboardStatCard
-                            title={t('dashboard.startingSoon')}
-                            value={startingSoonCount}
-                            helper={t('dashboard.nextTwoHours')}
-                            tone="amber"
-                            icon={<Clock3 className="h-5 w-5" />}
-                        />
-
-                        <DashboardStatCard
-                            title={t('dashboard.cancelledNoShowToday')}
-                            value={`${noShowTodayCount} / ${cancelledTodayCount}`}
-                            helper={`${t('dashboard.noShowLabel')} / ${t('dashboard.cancelledLabel')}`}
-                            tone="red"
-                            icon={<AlertCircle className="h-5 w-5" />}
-                        />
-                    </>
+                    <LockedStatCard title={t('dashboard.outstandingDebts')} icon={<AlertCircle className="h-5 w-5" />} />
                 )}
             </div>
 
@@ -380,17 +349,10 @@ export default function DashboardPage() {
                     </div>
                 </CardHeader>
                 <CardContent className="pb-5 pt-0">
-                    {isDashboardLoading ? (
-                        <div className="flex flex-col gap-4 rounded-2xl border border-dashed border-blue-200 bg-white/70 px-4 py-6 sm:flex-row sm:items-center sm:justify-between">
-                            <div className="flex items-center gap-3">
-                                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-blue-50">
-                                    <Calendar className="h-5 w-5 text-blue-600" />
-                                </div>
-                                <div>
-                                    <p className="text-sm font-semibold text-slate-900">{t('common.loading')}</p>
-                                    <p className="mt-1 text-sm text-slate-500">{t('dashboard.todayAppointments')}</p>
-                                </div>
-                            </div>
+                    {!canViewAppointments ? (
+                        <div className="rounded-2xl border border-dashed border-slate-200 bg-white/75 px-4 py-10 text-center">
+                            <Calendar className="mx-auto h-10 w-10 text-slate-300" />
+                            <p className="mt-3 text-sm font-semibold text-slate-500">{PERMISSION_DENIED_MESSAGE}</p>
                         </div>
                     ) : scheduledTodayAppointments.length === 0 ? (
                         <div className="flex flex-col gap-4 rounded-2xl border border-dashed border-blue-200 bg-white/70 px-4 py-6 sm:flex-row sm:items-center sm:justify-between">
@@ -403,8 +365,17 @@ export default function DashboardPage() {
                                     <p className="mt-1 text-sm text-slate-500">{t('dashboard.scheduleAppointment')}</p>
                                 </div>
                             </div>
-                            <Link href="/appointments?action=new" className="sm:shrink-0">
-                                <Button size="sm" className="w-full rounded-full sm:w-auto">
+                            <Link
+                                href="/appointments?action=new"
+                                className="sm:shrink-0"
+                                onClick={(event) => {
+                                    if (!canManageAppointments) {
+                                        event.preventDefault();
+                                        denyManageAction();
+                                    }
+                                }}
+                            >
+                                <Button size="sm" className="w-full rounded-full sm:w-auto" disabled={!canManageAppointments}>
                                     {t('dashboard.scheduleAppointment')}
                                 </Button>
                             </Link>

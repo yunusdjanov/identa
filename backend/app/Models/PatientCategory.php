@@ -2,16 +2,18 @@
 
 namespace App\Models;
 
+use App\Contracts\TenantOwned;
+use App\Models\Concerns\BelongsToTenant;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
-class PatientCategory extends Model
+class PatientCategory extends Model implements TenantOwned
 {
     /** @use HasFactory<\Database\Factories\PatientCategoryFactory> */
-    use HasFactory, HasUuids;
+    use BelongsToTenant, HasFactory, HasUuids;
 
     /**
      * @var bool

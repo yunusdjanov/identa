@@ -2,18 +2,22 @@
 
 namespace App\Models;
 
+use App\Contracts\TenantOwned;
+use App\Models\Concerns\BelongsToTenant;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class Payment extends Model
+class Payment extends Model implements TenantOwned
 {
     /** @use HasFactory<\Database\Factories\PaymentFactory> */
-    use HasFactory, HasUuids;
+    use BelongsToTenant, HasFactory, HasUuids;
 
     public const METHOD_CASH = 'cash';
+
     public const METHOD_CARD = 'card';
+
     public const METHOD_BANK_TRANSFER = 'bank_transfer';
 
     /**

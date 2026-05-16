@@ -3,7 +3,9 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Resources\UserResource;
 use App\Models\User;
+use App\Services\AuthService;
 use App\Support\AuditLogger;
 use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Http\JsonResponse;
@@ -15,12 +17,51 @@ use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password as PasswordRule;
 use Illuminate\Validation\ValidationException;
+use Laravel\Sanctum\PersonalAccessToken;
 
 class AuthController extends Controller
 {
+    private const MOBILE_ACCESS_TTL_MINUTES = 15;
+
+    private const MOBILE_REFRESH_TTL_DAYS = 30;
+
+    private const MOBILE_REFRESH_ABILITY = 'mobile:refresh';
+
     public function __construct(
         private readonly AuditLogger $auditLogger,
-    ) {
+        private readonly AuthService $auth,
+    ) {}
+
+    public function register(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')],
+            'password' => ['required', 'string', 'confirmed', PasswordRule::min(8)->letters()->numbers()],
+        ]);
+
+        return response()->json([
+            'data' => $this->transformUser($this->auth->register($request, $validated)),
+        ], 201);
+    }
+
+    public function google(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'id_token' => ['required', 'string'],
+            'device_name' => ['nullable', 'string', 'max:120'],
+        ]);
+        $deviceName = trim((string) ($validated['device_name'] ?? ''));
+        $user = $this->auth->google($request, (string) $validated['id_token']);
+        $data = $this->transformUser($user);
+
+        if ($deviceName !== '') {
+            $data['tokens'] = $this->issueMobileTokens($user, $deviceName);
+        }
+
+        return response()->json([
+            'data' => $data,
+        ]);
     }
 
     public function login(Request $request): JsonResponse
@@ -30,105 +71,52 @@ class AuthController extends Controller
             'password' => ['required', 'string'],
             'remember' => ['nullable', 'boolean'],
             'portal' => ['nullable', 'string', Rule::in(['app', 'admin'])],
+            'device_name' => ['nullable', 'string', 'max:120'],
         ]);
+        $deviceName = trim((string) ($credentials['device_name'] ?? ''));
+        unset($credentials['device_name']);
+        $user = $this->auth->login($request, $credentials);
+        $data = $this->transformUser($user);
 
-        $remember = (bool) ($credentials['remember'] ?? false);
-        $portal = (string) ($credentials['portal'] ?? 'app');
-        unset($credentials['remember']);
-        unset($credentials['portal']);
-
-        if (! Auth::guard('web')->attempt($credentials, $remember)) {
-            $this->auditLogger->logFromRequest(
-                request: $request,
-                eventType: 'auth.login_failed',
-                metadata: [
-                    'email' => $credentials['email'],
-                ],
-            );
-
-            throw ValidationException::withMessages([
-                'email' => [__('api.auth.invalid_credentials')],
-            ]);
+        if ($deviceName !== '') {
+            $data['tokens'] = $this->issueMobileTokens($user, $deviceName);
         }
-
-        $request->session()->regenerate();
-
-        /** @var \App\Models\User $user */
-        $user = $request->user();
-
-        if ($this->isLoginPortalMismatch($user, $portal)) {
-            $this->auditLogger->logFromRequest(
-                request: $request,
-                eventType: 'auth.login_portal_rejected',
-                entityType: 'user',
-                entityId: (string) $user->id,
-                metadata: [
-                    'portal' => $portal,
-                    'role' => $user->role,
-                ],
-            );
-
-            $this->logoutCurrentSession($request);
-
-            throw ValidationException::withMessages([
-                'email' => [__('api.auth.invalid_credentials')],
-            ]);
-        }
-
-        if (! $user->hasActiveAccount()) {
-            $this->auditLogger->logFromRequest(
-                request: $request,
-                eventType: 'auth.login_blocked',
-                entityType: 'user',
-                entityId: (string) $user->id,
-                metadata: [
-                    'account_status' => $user->account_status,
-                ],
-            );
-
-            $this->logoutCurrentSession($request);
-
-            throw ValidationException::withMessages([
-                'email' => [__('api.auth.account_inactive')],
-            ]);
-        }
-
-        if ($user->isAssistant()) {
-            $ownerDentist = $user->ownerDentist;
-            if ($ownerDentist === null || ! $ownerDentist->hasActiveAccount()) {
-                $this->auditLogger->logFromRequest(
-                    request: $request,
-                    eventType: 'auth.login_blocked',
-                    entityType: 'user',
-                    entityId: (string) $user->id,
-                    metadata: [
-                        'reason' => 'assistant_owner_inactive',
-                        'owner_id' => $user->dentist_owner_id,
-                    ],
-                );
-
-                $this->logoutCurrentSession($request);
-
-                throw ValidationException::withMessages([
-                    'email' => [__('api.auth.account_inactive')],
-                ]);
-            }
-        }
-
-        $user->update(['last_login_at' => now()]);
-
-        $this->auditLogger->logFromRequest(
-            request: $request,
-            eventType: 'auth.login',
-            entityType: 'user',
-            entityId: (string) $user->id,
-            metadata: [
-                'remember' => $remember,
-            ],
-        );
 
         return response()->json([
-            'data' => $this->transformUser($user),
+            'data' => $data,
+        ]);
+    }
+
+    public function refresh(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'refresh_token' => ['required_without:refreshToken', 'string'],
+            'refreshToken' => ['nullable', 'string'],
+        ]);
+        $plainRefreshToken = (string) ($validated['refresh_token'] ?? $validated['refreshToken'] ?? '');
+        $refreshToken = PersonalAccessToken::findToken($plainRefreshToken);
+
+        if (
+            $refreshToken === null
+            || ! $refreshToken->can(self::MOBILE_REFRESH_ABILITY)
+            || ($refreshToken->expires_at !== null && $refreshToken->expires_at->isPast())
+            || ! $refreshToken->tokenable instanceof User
+            || ! $refreshToken->tokenable->hasActiveAccount()
+        ) {
+            return response()->json([
+                'message' => __('auth.failed'),
+            ], 401);
+        }
+
+        /** @var User $user */
+        $user = $refreshToken->tokenable;
+        $deviceName = trim((string) $refreshToken->name) ?: 'Identa Mobile';
+        $this->deleteMobileTokensForDevice($user, $deviceName);
+        $data = $this->transformUser($user);
+        $data['tokens'] = $this->issueMobileTokens($user, $deviceName, deleteExisting: false);
+
+        return response()->json([
+            'data' => $data,
         ]);
     }
 
@@ -143,6 +131,19 @@ class AuthController extends Controller
                 entityType: 'user',
                 entityId: (string) $user->id,
             );
+
+            $currentToken = $user->currentAccessToken();
+            if ($currentToken !== null && method_exists($currentToken, 'delete')) {
+                $this->deleteMobileTokensForDevice($user, (string) $currentToken->name);
+            }
+
+            $bearerToken = $request->bearerToken();
+            if ($bearerToken !== null) {
+                $token = PersonalAccessToken::findToken($bearerToken);
+                if ($token !== null && $token->tokenable instanceof User) {
+                    $this->deleteMobileTokensForDevice($token->tokenable, (string) $token->name);
+                }
+            }
         }
 
         Auth::guard('web')->logout();
@@ -154,50 +155,31 @@ class AuthController extends Controller
 
     public function changePassword(Request $request): JsonResponse
     {
-        /** @var \App\Models\User $user */
+        /** @var User $user */
         $user = $request->user();
 
         $rules = [
             'new_password' => ['required', 'string', 'confirmed', PasswordRule::min(8)->letters()->numbers()],
         ];
 
-        if (! $user->must_change_password) {
+        $requiresCurrentPassword = ! $user->must_change_password && $user->password !== null;
+
+        if ($requiresCurrentPassword) {
             $rules['current_password'] = ['required', 'string'];
         }
 
         $validated = $request->validate($rules);
 
-        if (
-            ! $user->must_change_password
-            && ! Hash::check((string) $validated['current_password'], (string) $user->password)
-        ) {
-            throw ValidationException::withMessages([
-                'current_password' => [__('api.auth.current_password_incorrect')],
-            ]);
-        }
-
-        $user->update([
-            'password' => Hash::make((string) $validated['new_password']),
-            'must_change_password' => false,
-            'remember_token' => null,
-        ]);
-        $user->refresh();
-
-        $this->auditLogger->logFromRequest(
-            request: $request,
-            eventType: 'auth.password_changed',
-            entityType: 'user',
-            entityId: (string) $user->id,
-        );
-
         return response()->json([
-            'data' => $this->transformUser($user),
+            'data' => $this->transformUser(
+                $this->auth->changePassword($request, $user, $validated, $requiresCurrentPassword)
+            ),
         ]);
     }
 
     public function me(Request $request): JsonResponse
     {
-        /** @var \App\Models\User $user */
+        /** @var User $user */
         $user = $request->user();
 
         return response()->json([
@@ -283,31 +265,42 @@ class AuthController extends Controller
      */
     private function transformUser(User $user): array
     {
+        return (new UserResource($user))->resolve(request());
+    }
+
+    /**
+     * @return array{access_token: string, refresh_token: string, token_type: string, expires_in: int, refresh_expires_in: int}
+     */
+    private function issueMobileTokens(User $user, string $deviceName, bool $deleteExisting = true): array
+    {
+        $normalizedDeviceName = trim($deviceName) ?: 'Identa Mobile';
+        if ($deleteExisting) {
+            $this->deleteMobileTokensForDevice($user, $normalizedDeviceName);
+        }
+
+        $accessExpiresAt = now()->addMinutes(self::MOBILE_ACCESS_TTL_MINUTES);
+        $refreshExpiresAt = now()->addDays(self::MOBILE_REFRESH_TTL_DAYS);
+
         return [
-            'id' => (string) $user->id,
-            'name' => $user->name,
-            'email' => $user->email,
-            'role' => $user->role,
-            'account_status' => $user->account_status,
-            'dentist_owner_id' => $user->dentist_owner_id !== null ? (string) $user->dentist_owner_id : null,
-            'assistant_permissions' => $user->assistant_permissions ?? [],
-            'must_change_password' => (bool) $user->must_change_password,
-            'subscription' => $user->subscriptionOwner()?->subscriptionSummary(),
+            'access_token' => $user->createToken($normalizedDeviceName, ['*'], $accessExpiresAt)->plainTextToken,
+            'refresh_token' => $user->createToken(
+                $normalizedDeviceName,
+                [self::MOBILE_REFRESH_ABILITY],
+                $refreshExpiresAt
+            )->plainTextToken,
+            'token_type' => 'Bearer',
+            'expires_in' => self::MOBILE_ACCESS_TTL_MINUTES * 60,
+            'refresh_expires_in' => self::MOBILE_REFRESH_TTL_DAYS * 24 * 60 * 60,
         ];
     }
 
-    private function isLoginPortalMismatch(User $user, string $portal): bool
+    private function deleteMobileTokensForDevice(User $user, string $deviceName): void
     {
-        return match ($portal) {
-            'admin' => ! $user->isAdmin(),
-            default => $user->isAdmin(),
-        };
-    }
+        $normalizedDeviceName = trim($deviceName);
+        if ($normalizedDeviceName === '') {
+            return;
+        }
 
-    private function logoutCurrentSession(Request $request): void
-    {
-        Auth::guard('web')->logout();
-        $request->session()->invalidate();
-        $request->session()->regenerateToken();
+        $user->tokens()->where('name', $normalizedDeviceName)->delete();
     }
 }

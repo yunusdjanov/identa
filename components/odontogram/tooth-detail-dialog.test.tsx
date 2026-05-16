@@ -104,6 +104,8 @@ describe('ToothDetailDialog (history-first mode)', () => {
                     file_size: 1234,
                     created_at: '2026-03-29T10:00:00Z',
                     url: 'https://example.com/before.jpg',
+                    thumbnail_url: 'https://example.com/before-thumb.jpg',
+                    preview_url: 'https://example.com/before-preview.jpg',
                 },
                 images: [
                     {
@@ -112,6 +114,8 @@ describe('ToothDetailDialog (history-first mode)', () => {
                         file_size: 1234,
                         created_at: '2026-03-29T10:00:00Z',
                         url: 'https://example.com/before.jpg',
+                        thumbnail_url: 'https://example.com/before-thumb.jpg',
+                        preview_url: 'https://example.com/before-preview.jpg',
                     },
                     {
                         id: 'img-2',
@@ -119,6 +123,8 @@ describe('ToothDetailDialog (history-first mode)', () => {
                         file_size: 2234,
                         created_at: '2026-03-29T10:05:00Z',
                         url: 'https://example.com/after.jpg',
+                        thumbnail_url: 'https://example.com/after-thumb.jpg',
+                        preview_url: 'https://example.com/after-preview.jpg',
                     },
                 ],
             }),
@@ -129,5 +135,36 @@ describe('ToothDetailDialog (history-first mode)', () => {
 
         await user.click(screen.getByRole('button', { name: /next image/i }));
         expect(screen.getByRole('heading', { name: /Image 2 -/i })).toBeInTheDocument();
+    });
+
+    it('does not request or preview pending scanned images', () => {
+        renderDialog([
+            buildTreatment({
+                id: 't-4',
+                image_count: 1,
+                primary_image: {
+                    id: 'img-pending',
+                    mime_type: 'image/jpeg',
+                    file_size: 1234,
+                    created_at: '2026-03-29T10:00:00Z',
+                    url: null,
+                    scan_status: 'pending',
+                },
+                images: [
+                    {
+                        id: 'img-pending',
+                        mime_type: 'image/jpeg',
+                        file_size: 1234,
+                        created_at: '2026-03-29T10:00:00Z',
+                        url: null,
+                        scan_status: 'pending',
+                    },
+                ],
+            }),
+        ]);
+
+        expect(screen.getByTitle('Images processing')).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Images (1)' })).not.toBeInTheDocument();
+        expect(document.querySelector('img[src]')).not.toBeInTheDocument();
     });
 });

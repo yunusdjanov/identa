@@ -1,5 +1,5 @@
-import { RouteLoadingState } from '@/components/layout/route-loading-state';
+import { AppointmentsLoadingState } from '@/components/layout/page-loading-skeletons';
 
 export default function Loading() {
-    return <RouteLoadingState />;
+    return <AppointmentsLoadingState />;
 }

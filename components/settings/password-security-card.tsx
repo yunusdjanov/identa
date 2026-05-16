@@ -26,7 +26,7 @@ export function PasswordSecurityCard({ user, className }: PasswordSecurityCardPr
     const [newPassword, setNewPassword] = useState('');
     const [newPasswordConfirmation, setNewPasswordConfirmation] = useState('');
     const [isSubmitted, setIsSubmitted] = useState(false);
-    const requiresCurrentPassword = !user.must_change_password;
+    const requiresCurrentPassword = !user.must_change_password && user.has_password !== false;
 
     const currentPasswordError = requiresCurrentPassword && !currentPassword.trim()
         ? t('settings.currentPasswordRequired')

@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
 import { cookies } from "next/headers";
 import "./globals.css";
 import { I18nProvider } from "@/components/providers/i18n-provider";
@@ -7,7 +6,6 @@ import { ClientRuntime } from "@/components/providers/client-runtime";
 import { LOCALE_COOKIE_NAME, resolveLocale } from "@/lib/i18n/config";
 import { DICTIONARIES } from "@/lib/i18n/dictionaries";
 
-const inter = Inter({ subsets: ["latin"], display: "swap" });
 const apiOrigin = new URL(process.env.NEXT_PUBLIC_API_URL ?? "https://api.identa.uz/api").origin;
 
 export const metadata: Metadata = {
@@ -96,7 +94,7 @@ export default async function RootLayout({
         <link rel="preconnect" href={apiOrigin} crossOrigin="anonymous" />
         <link rel="dns-prefetch" href={apiOrigin} />
       </head>
-      <body className={inter.className}>
+      <body>
         <I18nProvider initialLocale={locale} initialDictionary={DICTIONARIES[locale]}>
           {children}
           <ClientRuntime />

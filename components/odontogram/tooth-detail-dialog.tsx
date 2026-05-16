@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
@@ -8,11 +8,12 @@ import { getBalanceMetricTone, MetricSummaryCard } from '@/components/ui/metric-
 import { getPatientTreatment } from '@/lib/api/dentist';
 import { getApiErrorMessage } from '@/lib/api/client';
 import type { ApiTreatment, ApiTreatmentImage } from '@/lib/api/types';
-import { getProtectedMediaCrossOrigin } from '@/lib/protected-media';
+import { getProtectedMediaCrossOrigin, getProtectedMediaPreviewUrl, getProtectedMediaThumbnailUrl, isProtectedMediaApproved } from '@/lib/protected-media';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { useI18n } from '@/components/providers/i18n-provider';
 import { PatientPhotoPreviewDialog, type PreviewGalleryImage } from '@/components/patients/patient-photo-preview-dialog';
 import { toast } from 'sonner';
+import { Loader2 } from 'lucide-react';
 
 interface ToothDetailDialogProps {
     open: boolean;
@@ -23,11 +24,22 @@ interface ToothDetailDialogProps {
 }
 
 function getTreatmentImageThumbnailUrl(image: ApiTreatmentImage) {
-    return image.thumbnail_url ?? image.preview_url ?? image.url;
+    return getProtectedMediaThumbnailUrl({
+        scanStatus: image.scan_status,
+        thumbnailUrl: image.thumbnail_url,
+        thumbnailReady: image.thumbnail_ready,
+        previewUrl: image.preview_url,
+        previewReady: image.preview_ready,
+        url: image.url,
+    });
 }
 
 function getTreatmentImagePreviewUrl(image: ApiTreatmentImage) {
-    return image.preview_url ?? image.url;
+    return getProtectedMediaPreviewUrl({
+        scanStatus: image.scan_status,
+        previewUrl: image.preview_url,
+        url: image.url,
+    });
 }
 
 function getTreatmentImageCount(treatment: ApiTreatment) {
@@ -105,53 +117,12 @@ export function ToothDetailDialog({
         });
     };
 
-    useEffect(() => {
-        if (!open) {
-            return;
-        }
-
-        const candidates = treatments.filter(
-            (treatment) => getTreatmentImageCount(treatment) > 0 && (treatment.images?.length ?? 0) === 0
-        );
-
-        if (candidates.length === 0) {
-            return;
-        }
-
-        let cancelled = false;
-        const timer = window.setTimeout(() => {
-            void (async () => {
-                for (const treatment of candidates) {
-                    if (cancelled) {
-                        return;
-                    }
-
-                    try {
-                        await queryClient.prefetchQuery({
-                            queryKey: ['patients', 'detail', patientId, 'treatments', treatment.id],
-                            queryFn: () => getPatientTreatment(patientId, treatment.id),
-                            staleTime: 300_000,
-                            gcTime: 300_000,
-                        });
-                    } catch {
-                        return;
-                    }
-                }
-            })();
-        }, 150);
-
-        return () => {
-            cancelled = true;
-            window.clearTimeout(timer);
-        };
-    }, [open, patientId, queryClient, treatments]);
-
     const openTreatmentImageGallery = async (treatment: ApiTreatment, startIndex = 0) => {
         setDetailLoadingTreatmentId(treatment.id);
 
         try {
             const detailedTreatment = await loadTreatmentDetail(treatment);
-            const images = detailedTreatment.images ?? [];
+            const images = (detailedTreatment.images ?? []).filter((image) => getTreatmentImagePreviewUrl(image));
 
             if (images.length === 0) {
                 return;
@@ -159,8 +130,8 @@ export function ToothDetailDialog({
 
             setPreviewGallery({
                 images: images.map((image, index) => ({
-                    src: getTreatmentImagePreviewUrl(image),
-                    thumbnailSrc: getTreatmentImageThumbnailUrl(image),
+                    src: getTreatmentImagePreviewUrl(image) ?? '',
+                    thumbnailSrc: getTreatmentImageThumbnailUrl(image) ?? undefined,
                     alt: `${t('patientHistory.image')} ${index + 1} ${formatDate(detailedTreatment.treatment_date)}`,
                     title: `${t('patientHistory.image')} ${index + 1} - ${formatDate(detailedTreatment.treatment_date)}`,
                 })),
@@ -205,6 +176,8 @@ export function ToothDetailDialog({
                                     const treatmentImageCount = getTreatmentImageCount(treatment);
                                     const primaryImage = getTreatmentPrimaryImage(treatment);
                                     const isDetailLoading = detailLoadingTreatmentId === treatment.id;
+                                    const primaryImageThumbnailUrl = primaryImage ? getTreatmentImageThumbnailUrl(primaryImage) : null;
+                                    const hasApprovedPrimaryImage = primaryImage ? isProtectedMediaApproved(primaryImage.scan_status) : false;
 
                                     return (
                                         <div key={treatment.id} className="overflow-hidden rounded-xl border border-gray-200 bg-white px-3 py-3">
@@ -254,7 +227,15 @@ export function ToothDetailDialog({
                                                         +{linkedTeeth.length - 1}
                                                     </Badge>
                                                 ) : null}
-                                                {treatmentImageCount === 0 || !primaryImage ? (
+                                                {treatmentImageCount > 0 && primaryImage && (!hasApprovedPrimaryImage || !primaryImageThumbnailUrl) ? (
+                                                    <span
+                                                        className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-blue-200 bg-blue-50 text-blue-700"
+                                                        title={t('patientHistory.imagesProcessing')}
+                                                        aria-label={t('patientHistory.imagesProcessing')}
+                                                    >
+                                                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                                    </span>
+                                                ) : treatmentImageCount === 0 || !primaryImage ? (
                                                     <span className="inline-flex h-8 min-w-[74px] items-center justify-center rounded-md border border-dashed border-gray-300 px-2 text-xs font-medium text-gray-400">
                                                         -
                                                     </span>
@@ -272,9 +253,9 @@ export function ToothDetailDialog({
                                                         <span className="inline-flex h-5 w-5 items-center justify-center overflow-hidden rounded-[6px] border border-gray-200 bg-gray-100">
                                                             {/* eslint-disable-next-line @next/next/no-img-element */}
                                                             <img
-                                                                src={getTreatmentImageThumbnailUrl(primaryImage)}
+                                                                src={primaryImageThumbnailUrl ?? ''}
                                                                 alt={`${t('patientHistory.image')} 1`}
-                                                                crossOrigin={getProtectedMediaCrossOrigin(getTreatmentImageThumbnailUrl(primaryImage))}
+                                                                crossOrigin={getProtectedMediaCrossOrigin(primaryImageThumbnailUrl)}
                                                                 className="h-full w-full object-cover"
                                                                 loading="lazy"
                                                             />

@@ -1,13 +1,14 @@
 'use client';
 
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useSyncExternalStore } from 'react';
+import { useEffect, useSyncExternalStore, type MouseEvent } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import axios from 'axios';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/lib/store';
 import { getCurrentUser } from '@/lib/api/dentist';
+import { canView, getModuleForPath, PERMISSION_DENIED_MESSAGE } from '@/lib/auth/permissions';
 import {
     AUTH_SESSION_EXPIRED_EVENT,
     markSessionExpiredRedirect,
@@ -36,6 +37,7 @@ import { useI18n } from '@/components/providers/i18n-provider';
 import { SubscriptionBanner } from '@/components/layout/subscription-banner';
 import { Brand } from '@/components/branding/brand';
 import { AccountMenu } from '@/components/layout/account-menu';
+import { toast } from 'sonner';
 
 const navigation = [
     { key: 'nav.dashboard', href: '/dashboard', icon: LayoutDashboard },
@@ -43,19 +45,16 @@ const navigation = [
         key: 'nav.patients',
         href: '/patients',
         icon: Users,
-        assistantPermissions: ['patients.view', 'patients.manage'],
     },
     {
         key: 'nav.appointments',
         href: '/appointments',
         icon: Calendar,
-        assistantPermissions: ['appointments.view', 'appointments.manage'],
     },
     {
         key: 'nav.payments',
         href: '/payments',
         icon: CreditCard,
-        assistantPermissions: ['treatments.view', 'treatments.manage'],
     },
 ];
 
@@ -140,32 +139,24 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
     const displayName = currentUser?.name || dentistName || '';
     const canOpenSettings = currentUser ? currentUser.role === 'dentist' || currentUser.role === 'assistant' : true;
-    const assistantPermissions = new Set(currentUser?.assistant_permissions ?? []);
-    const canManageTeam = Boolean(currentUser && (currentUser.role === 'dentist' || assistantPermissions.has('team.manage')));
-    const canViewAuditLogs = Boolean(
-        currentUser && (currentUser.role === 'dentist' || assistantPermissions.has('audit_logs.view'))
-    );
-    const canOpenStaff = Boolean(currentUser && (canManageTeam || canViewAuditLogs));
-    const visibleNavigation = navigation.filter((item) => {
-        if (!currentUser || currentUser.role === 'dentist') {
-            return true;
-        }
-
-        if (currentUser.role !== 'assistant') {
-            return false;
-        }
-
-        return !item.assistantPermissions
-            || item.assistantPermissions.some((permission) => assistantPermissions.has(permission));
-    });
+    const canOpenStaff = Boolean(currentUser && currentUser.role === 'dentist');
     const showHeaderSkeleton = !isMounted || isUserLoading;
+    const handleNavigationClick = (event: MouseEvent<HTMLAnchorElement>, href: string) => {
+        const permissionModule = getModuleForPath(href);
+        if (!permissionModule || canView(currentUser, permissionModule)) {
+            return;
+        }
+
+        event.preventDefault();
+        toast.error(PERMISSION_DENIED_MESSAGE);
+    };
 
     return (
         <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(219,234,254,0.55),transparent_34rem),linear-gradient(180deg,#f8fbff_0%,#f8fafc_42%,#f1f5f9_100%)]">
             {/* Header */}
             <header className="sticky top-0 z-10 border-b border-blue-100/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(248,251,255,0.94)_100%)] shadow-sm shadow-slate-200/40 backdrop-blur-xl">
-                <div className="mx-auto max-w-[1440px] px-4 sm:px-6 lg:px-8">
-                    <div className="flex h-16 items-center justify-between gap-4">
+                <div className="mx-auto max-w-[1440px] px-3 sm:px-6 lg:px-8">
+                    <div className="flex h-14 items-center justify-between gap-3 sm:h-16 sm:gap-4">
                         {showHeaderSkeleton ? (
                             <>
                                 <Skeleton className="h-9 w-32 rounded-md" />
@@ -189,24 +180,30 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                                         href="/dashboard"
                                         variant="text"
                                         priority
-                                        textClassName="w-32 sm:w-36"
+                                        textClassName="w-28 sm:w-36"
                                     />
                                 </div>
 
                                 {/* Navigation */}
                                 <nav className="hidden items-center gap-1 rounded-2xl border border-slate-200/75 bg-white/75 p-1 shadow-sm shadow-slate-200/60 md:flex">
-                                    {visibleNavigation.map((item) => {
+                                    {navigation.map((item) => {
                                         const isActive = isActiveRoute(item.href);
                                         const Icon = item.icon;
+                                        const permissionModule = getModuleForPath(item.href);
+                                        const isLocked = Boolean(permissionModule && !canView(currentUser, permissionModule));
                                         return (
                                             <Link
                                                 key={item.key}
                                                 href={item.href}
+                                                onClick={(event) => handleNavigationClick(event, item.href)}
+                                                aria-disabled={isLocked}
                                                 className={cn(
                                                     'flex h-9 items-center rounded-xl border px-3.5 text-sm font-semibold transition-colors',
                                                     isActive
                                                         ? 'border-blue-600 bg-blue-600 text-white shadow-sm shadow-blue-200/70'
-                                                        : 'border-transparent text-slate-600 hover:bg-blue-50/80 hover:text-blue-700'
+                                                        : isLocked
+                                                            ? 'border-transparent text-slate-400 hover:bg-slate-50 hover:text-slate-500'
+                                                            : 'border-transparent text-slate-600 hover:bg-blue-50/80 hover:text-blue-700'
                                                 )}
                                             >
                                                 <Icon className="mr-2 h-4 w-4" />
@@ -275,17 +272,25 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                     </div>
                 ) : (
                     <div className="md:hidden border-t border-slate-200/70 bg-white/80">
-                        <nav className="flex justify-around py-2">
-                            {visibleNavigation.map((item) => {
+                        <nav className="flex gap-1 overflow-x-auto overflow-y-hidden px-2 py-2 no-scrollbar">
+                            {navigation.map((item) => {
                                 const isActive = isActiveRoute(item.href);
                                 const Icon = item.icon;
+                                const permissionModule = getModuleForPath(item.href);
+                                const isLocked = Boolean(permissionModule && !canView(currentUser, permissionModule));
                                 return (
                                     <Link
                                         key={item.key}
                                         href={item.href}
+                                        onClick={(event) => handleNavigationClick(event, item.href)}
+                                        aria-disabled={isLocked}
                                         className={cn(
-                                            'flex flex-col items-center px-3 py-2 text-xs font-medium',
-                                            isActive ? 'text-blue-700' : 'text-slate-600'
+                                            'flex min-w-[72px] shrink-0 flex-col items-center rounded-xl px-2 py-2 text-[11px] font-semibold transition-colors',
+                                            isActive
+                                                ? 'bg-blue-50/85 text-blue-700'
+                                                : isLocked
+                                                    ? 'text-slate-400 hover:bg-slate-50'
+                                                    : 'text-slate-600 hover:bg-blue-50/70 hover:text-blue-700'
                                         )}
                                     >
                                         <span
@@ -296,7 +301,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                                         >
                                             <Icon className="h-4 w-4" />
                                         </span>
-                                        {t(item.key)}
+                                        <span className="max-w-[4.4rem] truncate">{t(item.key)}</span>
                                     </Link>
                                 );
                             })}
@@ -312,11 +317,9 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             />
 
             {/* Main Content */}
-            <main className="mx-auto max-w-[1440px] px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
+            <main className="mx-auto max-w-[1440px] px-3 py-4 sm:px-6 sm:py-8 lg:px-8">
                 {children}
             </main>
         </div>
     );
 }
-
-

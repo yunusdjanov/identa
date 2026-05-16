@@ -43,8 +43,17 @@ class EnsurePermission
             ], Response::HTTP_FORBIDDEN);
         }
 
-        foreach ($permissions as $permission) {
-            if ($user->hasPermission($permission)) {
+        foreach ($permissions as $permissionGroup) {
+            $alternatives = array_filter(
+                array_map('trim', explode('|', $permissionGroup)),
+                static fn (string $permission): bool => $permission !== ''
+            );
+
+            if ($alternatives === []) {
+                continue;
+            }
+
+            if ($this->hasAnyPermission($user, $alternatives)) {
                 continue;
             }
 
@@ -54,7 +63,7 @@ class EnsurePermission
                 entityType: 'route',
                 entityId: $request->path(),
                 metadata: [
-                    'required_permission' => $permission,
+                    'required_permission' => $permissionGroup,
                     'method' => $request->method(),
                 ],
             );
@@ -69,5 +78,18 @@ class EnsurePermission
 
         return $next($request);
     }
-}
 
+    /**
+     * @param  array<int, string>  $permissions
+     */
+    private function hasAnyPermission(User $user, array $permissions): bool
+    {
+        foreach ($permissions as $permission) {
+            if ($user->hasPermission($permission)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+}

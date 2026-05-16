@@ -25,6 +25,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
     Dialog,
     DialogContent,
+    DialogDescription,
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
@@ -41,31 +42,35 @@ import {
     normalizePhoneForApi,
 } from '@/lib/input-validation';
 import { cn } from '@/lib/utils';
+import { normalizeAssistantPermissions } from '@/lib/auth/permissions';
 
 const PERMISSION_OPTIONS = [
     { code: 'patients.view', labelKey: 'settings.team.permissionPatientsView' },
     { code: 'patients.manage', labelKey: 'settings.team.permissionPatientsManage' },
     { code: 'appointments.view', labelKey: 'settings.team.permissionAppointmentsView' },
     { code: 'appointments.manage', labelKey: 'settings.team.permissionAppointmentsManage' },
-    { code: 'odontogram.view', labelKey: 'settings.team.permissionOdontogramView' },
-    { code: 'odontogram.manage', labelKey: 'settings.team.permissionOdontogramManage' },
-    { code: 'treatments.view', labelKey: 'settings.team.permissionTreatmentsView' },
-    { code: 'treatments.manage', labelKey: 'settings.team.permissionTreatmentsManage' },
-    { code: 'patient_categories.view', labelKey: 'settings.team.permissionCategoriesView' },
-    { code: 'patient_categories.manage', labelKey: 'settings.team.permissionCategoriesManage' },
+    { code: 'payments.view', labelKey: 'settings.team.permissionPaymentsView' },
+    { code: 'payments.manage', labelKey: 'settings.team.permissionPaymentsManage' },
 ] as const;
 const PERMISSION_CODES = new Set(PERMISSION_OPTIONS.map((item) => item.code));
+const MANAGE_TO_VIEW_PERMISSION: Record<string, string> = {
+    'patients.manage': 'patients.view',
+    'appointments.manage': 'appointments.view',
+    'payments.manage': 'payments.view',
+};
+const VIEW_TO_MANAGE_PERMISSION: Record<string, string> = {
+    'patients.view': 'patients.manage',
+    'appointments.view': 'appointments.manage',
+    'payments.view': 'payments.manage',
+};
 
 const DEFAULT_ASSISTANT_PERMISSIONS = [
     'patients.view',
     'patients.manage',
     'appointments.view',
     'appointments.manage',
-    'odontogram.view',
-    'odontogram.manage',
-    'treatments.view',
-    'treatments.manage',
-    'patient_categories.view',
+    'payments.view',
+    'payments.manage',
 ];
 
 type StaffStatusFilter = 'active' | 'blocked' | 'deleted';
@@ -106,7 +111,7 @@ function createEmptyAssistantForm(): AssistantFormState {
         phone: '',
         password: '',
         passwordConfirmation: '',
-        permissions: [...DEFAULT_ASSISTANT_PERMISSIONS],
+        permissions: normalizeAssistantPermissions(DEFAULT_ASSISTANT_PERMISSIONS),
     };
 }
 
@@ -497,8 +502,10 @@ export function TeamAccessTab({ canManageTeam, subscription, t }: TeamAccessTabP
             phone: formatPhoneInputValue(assistant.phone ?? ''),
             password: '',
             passwordConfirmation: '',
-            permissions: assistant.assistant_permissions.filter((permission) =>
-                PERMISSION_CODES.has(permission as (typeof PERMISSION_OPTIONS)[number]['code'])
+            permissions: normalizeAssistantPermissions(
+                assistant.assistant_permissions.filter((permission) =>
+                    PERMISSION_CODES.has(permission as (typeof PERMISSION_OPTIONS)[number]['code'])
+                )
             ),
         });
         setFormSubmitAttempted(false);
@@ -508,12 +515,28 @@ export function TeamAccessTab({ canManageTeam, subscription, t }: TeamAccessTabP
     };
 
     const togglePermission = (permission: string, checked: boolean) => {
-        setFormState((prev) => ({
-            ...prev,
-            permissions: checked
-                ? Array.from(new Set([...prev.permissions, permission]))
-                : prev.permissions.filter((item) => item !== permission),
-        }));
+        setFormState((prev) => {
+            const nextPermissions = new Set(prev.permissions);
+
+            if (checked) {
+                nextPermissions.add(permission);
+                const viewPermission = MANAGE_TO_VIEW_PERMISSION[permission];
+                if (viewPermission) {
+                    nextPermissions.add(viewPermission);
+                }
+            } else {
+                nextPermissions.delete(permission);
+                const managePermission = VIEW_TO_MANAGE_PERMISSION[permission];
+                if (managePermission) {
+                    nextPermissions.delete(managePermission);
+                }
+            }
+
+            return {
+                ...prev,
+                permissions: normalizeAssistantPermissions(Array.from(nextPermissions)),
+            };
+        });
     };
 
     const submitAssistantForm = (event: React.FormEvent<HTMLFormElement>) => {
@@ -789,7 +812,7 @@ export function TeamAccessTab({ canManageTeam, subscription, t }: TeamAccessTabP
                                 <p className="text-sm text-gray-500">{t('settings.team.empty')}</p>
                             ) : null}
 
-                            <div className="flex items-center justify-end gap-2 pt-2">
+                            <div className="flex flex-wrap items-center justify-end gap-2 pt-2">
                                 <Button
                                     type="button"
                                     variant="outline"
@@ -835,6 +858,11 @@ export function TeamAccessTab({ canManageTeam, subscription, t }: TeamAccessTabP
                                 ? t('settings.team.addAssistant')
                                 : t('settings.team.editAssistant')}
                         </DialogTitle>
+                        <DialogDescription className="sr-only">
+                            {isCreateMode
+                                ? t('settings.team.addAssistant')
+                                : t('settings.team.editAssistant')}
+                        </DialogDescription>
                     </DialogHeader>
                     <form onSubmit={submitAssistantForm} className="space-y-4">
                         {formSubmitAttempted && formGeneralError ? (
@@ -968,14 +996,23 @@ export function TeamAccessTab({ canManageTeam, subscription, t }: TeamAccessTabP
                             <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
                                 {PERMISSION_OPTIONS.map((item) => {
                                     const checked = formState.permissions.includes(item.code);
+                                    const requiredViewPermission = MANAGE_TO_VIEW_PERMISSION[item.code];
+                                    const disabled = Boolean(
+                                        requiredViewPermission
+                                        && !formState.permissions.includes(requiredViewPermission)
+                                    );
                                     return (
                                         <label
                                             key={item.code}
-                                            className="flex items-center gap-2 rounded-md border border-gray-200 px-3 py-2 text-sm"
+                                            className={cn(
+                                                'flex items-center gap-2 rounded-md border border-gray-200 px-3 py-2 text-sm',
+                                                disabled && 'bg-slate-50 text-slate-400'
+                                            )}
                                         >
                                             <input
                                                 type="checkbox"
                                                 checked={checked}
+                                                disabled={disabled}
                                                 onChange={(event) =>
                                                     togglePermission(item.code, event.target.checked)
                                                 }
@@ -989,10 +1026,11 @@ export function TeamAccessTab({ canManageTeam, subscription, t }: TeamAccessTabP
                                 <p className="text-xs text-red-600">{resolvedPermissionsError}</p>
                             ) : null}
                         </div>
-                        <div className="flex justify-end gap-2">
+                        <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
                             <Button
                                 type="button"
                                 variant="outline"
+                                className="w-full sm:w-auto"
                                 onClick={() => setDialogOpen(false)}
                                 disabled={isDialogSubmitting}
                             >
@@ -1000,6 +1038,7 @@ export function TeamAccessTab({ canManageTeam, subscription, t }: TeamAccessTabP
                             </Button>
                             <Button
                                 type="submit"
+                                className="w-full sm:w-auto"
                                 disabled={isDialogSubmitting || isReadOnly || (isCreateMode && isAtStaffLimit)}
                             >
                                 {isDialogSubmitting
@@ -1028,6 +1067,9 @@ export function TeamAccessTab({ canManageTeam, subscription, t }: TeamAccessTabP
                 <DialogContent className="max-h-[calc(100dvh-1.5rem)] max-w-md overflow-y-auto p-5 sm:p-6">
                     <DialogHeader>
                         <DialogTitle>{t('settings.team.resetPassword')}</DialogTitle>
+                        <DialogDescription className="sr-only">
+                            {t('settings.team.resetPassword')}
+                        </DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4">
                         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">

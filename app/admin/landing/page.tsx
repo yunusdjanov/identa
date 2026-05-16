@@ -7,6 +7,7 @@ import { AdminHeader } from '@/components/admin/admin-header';
 import { AdminLandingSettingsPanel } from '@/components/admin/landing-admin-panels';
 import { PageHeader } from '@/components/ui/page-shell';
 import { AppErrorState } from '@/components/error/app-error-state';
+import { AdminLandingPanelSkeleton } from '@/components/layout/page-loading-skeletons';
 import { getApiErrorMessage } from '@/lib/api/client';
 import { getCurrentUser } from '@/lib/api/dentist';
 import { useInstantLogout } from '@/lib/auth/use-instant-logout';
@@ -45,7 +46,9 @@ export default function AdminLandingPage() {
                 <div className="mx-auto max-w-5xl space-y-5 lg:space-y-6">
                     <PageHeader title={t('admin.landing.title')} description={t('admin.landing.subtitle')} />
 
-                    {authQuery.isError ? (
+                    {authQuery.isLoading ? (
+                        <AdminLandingPanelSkeleton />
+                    ) : authQuery.isError ? (
                         <AppErrorState
                             title={t('common.loadErrorTitle')}
                             description={getApiErrorMessage(authQuery.error, t('admin.settings.loadFailed'))}

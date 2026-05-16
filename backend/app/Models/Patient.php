@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Contracts\TenantOwned;
+use App\Models\Concerns\BelongsToTenant;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -10,10 +12,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-class Patient extends Model
+class Patient extends Model implements TenantOwned
 {
     /** @use HasFactory<\Database\Factories\PatientFactory> */
-    use HasFactory, HasUuids, SoftDeletes;
+    use BelongsToTenant, HasFactory, HasUuids, SoftDeletes;
 
     /**
      * @var bool
@@ -42,6 +44,13 @@ class Patient extends Model
         'current_medications',
         'photo_disk',
         'photo_path',
+        'scan_status',
+        'scan_result',
+        'scan_provider',
+        'quarantine_path',
+        'approved_at',
+        'scanned_at',
+        'rejected_at',
     ];
 
     /**
@@ -51,6 +60,9 @@ class Patient extends Model
     {
         return [
             'date_of_birth' => 'date',
+            'approved_at' => 'datetime',
+            'scanned_at' => 'datetime',
+            'rejected_at' => 'datetime',
         ];
     }
 
@@ -67,7 +79,13 @@ class Patient extends Model
      */
     public function appointments(): HasMany
     {
-        return $this->hasMany(Appointment::class);
+        return $this->hasMany(Appointment::class)
+            ->whereExists(function ($query): void {
+                $query->selectRaw('1')
+                    ->from('patients')
+                    ->whereColumn('patients.id', 'appointments.patient_id')
+                    ->whereColumn('patients.dentist_id', 'appointments.dentist_id');
+            });
     }
 
     /**
@@ -75,7 +93,13 @@ class Patient extends Model
      */
     public function invoices(): HasMany
     {
-        return $this->hasMany(Invoice::class);
+        return $this->hasMany(Invoice::class)
+            ->whereExists(function ($query): void {
+                $query->selectRaw('1')
+                    ->from('patients')
+                    ->whereColumn('patients.id', 'invoices.patient_id')
+                    ->whereColumn('patients.dentist_id', 'invoices.dentist_id');
+            });
     }
 
     /**
@@ -83,7 +107,13 @@ class Patient extends Model
      */
     public function payments(): HasMany
     {
-        return $this->hasMany(Payment::class);
+        return $this->hasMany(Payment::class)
+            ->whereExists(function ($query): void {
+                $query->selectRaw('1')
+                    ->from('patients')
+                    ->whereColumn('patients.id', 'payments.patient_id')
+                    ->whereColumn('patients.dentist_id', 'payments.dentist_id');
+            });
     }
 
     /**
@@ -91,7 +121,13 @@ class Patient extends Model
      */
     public function odontogramEntries(): HasMany
     {
-        return $this->hasMany(OdontogramEntry::class);
+        return $this->hasMany(OdontogramEntry::class)
+            ->whereExists(function ($query): void {
+                $query->selectRaw('1')
+                    ->from('patients')
+                    ->whereColumn('patients.id', 'odontogram_entries.patient_id')
+                    ->whereColumn('patients.dentist_id', 'odontogram_entries.dentist_id');
+            });
     }
 
     /**
@@ -99,7 +135,13 @@ class Patient extends Model
      */
     public function treatments(): HasMany
     {
-        return $this->hasMany(Treatment::class);
+        return $this->hasMany(Treatment::class)
+            ->whereExists(function ($query): void {
+                $query->selectRaw('1')
+                    ->from('patients')
+                    ->whereColumn('patients.id', 'treatments.patient_id')
+                    ->whereColumn('patients.dentist_id', 'treatments.dentist_id');
+            });
     }
 
     /**
@@ -112,6 +154,13 @@ class Patient extends Model
             'patient_category_patient',
             'patient_id',
             'patient_category_id'
-        )->withTimestamps();
+        )
+            ->whereExists(function ($query): void {
+                $query->selectRaw('1')
+                    ->from('patients')
+                    ->whereColumn('patients.id', 'patient_category_patient.patient_id')
+                    ->whereColumn('patients.dentist_id', 'patient_categories.dentist_id');
+            })
+            ->withTimestamps();
     }
 }

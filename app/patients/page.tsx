@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
+import { PatientsLoadingState } from '@/components/layout/page-loading-skeletons';
 import {
     Select,
     SelectContent,
@@ -26,16 +26,18 @@ import {
 } from '@/components/ui/table';
 import { DataTableShell, getDataTableClassName } from '@/components/ui/data-table-shell';
 import { PageHeader } from '@/components/ui/page-shell';
-import { listPatientCategories, listPatients, restorePatient } from '@/lib/api/dentist';
+import { getCurrentUser, listPatientCategories, listPatients, restorePatient } from '@/lib/api/dentist';
 import { getApiErrorMessage } from '@/lib/api/client';
 import type { ApiPatient } from '@/lib/api/types';
 import { cn, extractPrimaryPhone, formatDate, toLocalDateKey, truncateForUi } from '@/lib/utils';
 import { Plus, Search, Phone, CalendarPlus, ArrowRight, Tags, FileText, FilterX } from 'lucide-react';
 import { useI18n } from '@/components/providers/i18n-provider';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { getProtectedMediaCrossOrigin } from '@/lib/protected-media';
+import { getProtectedMediaCrossOrigin, getProtectedMediaThumbnailUrl } from '@/lib/protected-media';
 import { toast } from 'sonner';
 import { AppErrorState } from '@/components/error/app-error-state';
+import { AccessDeniedState } from '@/components/error/access-denied-state';
+import { canManage, canView, getManageDeniedMessage, PERMISSION_DENIED_MESSAGE } from '@/lib/auth/permissions';
 
 const AddPatientDialog = dynamic(
     () => import('@/components/patients/add-patient-dialog').then((module) => module.AddPatientDialog),
@@ -64,9 +66,14 @@ interface PatientRow {
 }
 
 function mapPatientRow(patient: ApiPatient): PatientRow {
-    const photoThumbnailUrl = patient.photo_thumbnail_ready === false
-        ? (patient.photo_preview_ready ? patient.photo_preview_url ?? undefined : undefined)
-        : patient.photo_thumbnail_url ?? patient.photo_preview_url ?? undefined;
+    const photoThumbnailUrl = getProtectedMediaThumbnailUrl({
+        scanStatus: patient.photo_scan_status,
+        thumbnailUrl: patient.photo_thumbnail_url,
+        thumbnailReady: patient.photo_thumbnail_ready,
+        previewUrl: patient.photo_preview_url,
+        previewReady: patient.photo_preview_ready,
+        url: patient.photo_url,
+    }) ?? undefined;
 
     return {
         id: patient.id,
@@ -96,48 +103,6 @@ function getPatientInitials(fullName: string): string {
     }
 
     return `${parts[0][0] ?? ''}${parts[1][0] ?? ''}`.toUpperCase();
-}
-
-function PatientsLoadingSkeleton() {
-    return (
-        <div className="space-y-5 lg:space-y-6">
-            <div className="flex justify-between items-center">
-                <div className="space-y-2">
-                    <Skeleton className="h-9 w-36" />
-                    <Skeleton className="h-4 w-80" />
-                </div>
-                <Skeleton className="h-10 w-32" />
-            </div>
-
-            <Card>
-                <CardContent className="pt-6">
-                    <Skeleton className="h-10 w-full" />
-                </CardContent>
-            </Card>
-
-            <Card>
-                <CardHeader>
-                    <Skeleton className="h-6 w-32" />
-                </CardHeader>
-                <CardContent className="space-y-3">
-                    {Array.from({ length: 6 }).map((_, index) => (
-                        <div key={index} className="grid grid-cols-[0.5fr_1fr_2.4fr_1.2fr_1.2fr_1.2fr_1fr] gap-4 items-center">
-                            <Skeleton className="h-4 w-4" />
-                            <Skeleton className="h-4 w-20" />
-                            <div className="space-y-2">
-                                <Skeleton className="h-4 w-40" />
-                                <Skeleton className="h-3 w-32" />
-                            </div>
-                            <Skeleton className="h-6 w-20" />
-                            <Skeleton className="h-4 w-24" />
-                            <Skeleton className="h-4 w-24" />
-                            <Skeleton className="h-8 w-24 justify-self-end" />
-                        </div>
-                    ))}
-                </CardContent>
-            </Card>
-        </div>
-    );
 }
 
 export default function PatientsPage() {
@@ -176,9 +141,24 @@ export default function PatientsPage() {
     const [dismissedUrlDialog, setDismissedUrlDialog] = useState(false);
     const shouldOpenFromUrl =
         isClient && new URLSearchParams(urlSearch).get('action') === 'new' && !dismissedUrlDialog;
-    const isDialogOpen = isAddDialogOpen || shouldOpenFromUrl;
+    const currentUserQuery = useQuery({
+        queryKey: ['auth', 'me'],
+        queryFn: getCurrentUser,
+        staleTime: 5 * 60_000,
+    });
+    const currentUser = currentUserQuery.data;
+    const canViewPatients = canView(currentUser, 'patients');
+    const canManagePatients = canManage(currentUser, 'patients');
+    const canManageAppointments = canManage(currentUser, 'appointments');
+    const isDialogOpen = canManagePatients && (isAddDialogOpen || shouldOpenFromUrl);
+    const denyManageAction = () => toast.error(getManageDeniedMessage(currentUser));
 
     const handleDialogOpenChange = (open: boolean) => {
+        if (open && !canManagePatients) {
+            denyManageAction();
+            return;
+        }
+
         if (!open && shouldOpenFromUrl) {
             setDismissedUrlDialog(true);
         }
@@ -198,6 +178,7 @@ export default function PatientsPage() {
                     archivedOnly: showArchivedOnly,
             },
         ],
+        enabled: canViewPatients,
         queryFn: () =>
             listPatients({
                 page: currentPage,
@@ -224,6 +205,7 @@ export default function PatientsPage() {
     const categoriesQuery = useQuery({
         queryKey: ['patient-categories', 'list'],
         queryFn: () => listPatientCategories(),
+        enabled: canViewPatients,
         staleTime: 300000,
         gcTime: 900000,
         refetchOnWindowFocus: false,
@@ -266,17 +248,29 @@ export default function PatientsPage() {
         setCurrentPage(1);
     };
 
-    if (patientsQuery.isLoading) {
-        return <PatientsLoadingSkeleton />;
+    if (currentUserQuery.isLoading || patientsQuery.isLoading) {
+        return <PatientsLoadingState />;
     }
 
-    if (patientsQuery.isError || categoriesQuery.isError) {
+    if (!canViewPatients) {
+        return (
+            <AccessDeniedState
+                title={t('common.forbiddenTitle')}
+                description={PERMISSION_DENIED_MESSAGE}
+                actionLabel={t('dashboard.title')}
+                className="min-h-[20rem]"
+            />
+        );
+    }
+
+    if (currentUserQuery.isError || patientsQuery.isError || categoriesQuery.isError) {
         return (
             <AppErrorState
                 title={t('common.loadErrorTitle')}
-                description={getApiErrorMessage(patientsQuery.error || categoriesQuery.error, t('patients.loadFailed'))}
+                description={getApiErrorMessage(currentUserQuery.error || patientsQuery.error || categoriesQuery.error, t('patients.loadFailed'))}
                 retryLabel={t('common.retry')}
                 onRetry={() => {
+                    currentUserQuery.refetch();
                     patientsQuery.refetch();
                     categoriesQuery.refetch();
                 }}
@@ -294,12 +288,31 @@ export default function PatientsPage() {
                         <Button
                             variant="outline"
                             className="w-full sm:w-auto"
-                            onClick={() => setIsManageCategoriesOpen(true)}
+                            disabled={!canManagePatients}
+                            onClick={() => {
+                                if (!canManagePatients) {
+                                    denyManageAction();
+                                    return;
+                                }
+
+                                setIsManageCategoriesOpen(true);
+                            }}
                         >
                             <Tags className="w-4 h-4 mr-2" />
                             {t('patients.categories')}
                         </Button>
-                        <Button className="w-full sm:w-auto" onClick={() => setIsAddDialogOpen(true)}>
+                        <Button
+                            className="w-full sm:w-auto"
+                            disabled={!canManagePatients}
+                            onClick={() => {
+                                if (!canManagePatients) {
+                                    denyManageAction();
+                                    return;
+                                }
+
+                                setIsAddDialogOpen(true);
+                            }}
+                        >
                             <Plus className="w-4 h-4 mr-2" />
                             {t('patients.addPatient')}
                         </Button>
@@ -549,9 +562,14 @@ export default function PatientsPage() {
                                                             className="h-8 rounded-lg"
                                                             onClick={(event) => {
                                                                 event.stopPropagation();
+                                                                if (!canManagePatients) {
+                                                                    denyManageAction();
+                                                                    return;
+                                                                }
+
                                                                 restoreMutation.mutate(patient.id);
                                                             }}
-                                                            disabled={restoreMutation.isPending}
+                                                            disabled={restoreMutation.isPending || !canManagePatients}
                                                         >
                                                             {t('patients.restore')}
                                                         </Button>
@@ -562,10 +580,16 @@ export default function PatientsPage() {
                                                             className="h-8 rounded-lg"
                                                             onClick={(event) => {
                                                                 event.stopPropagation();
+                                                                if (!canManageAppointments) {
+                                                                    toast.error(getManageDeniedMessage(currentUser));
+                                                                    return;
+                                                                }
+
                                                                 router.push(
                                                                     `/appointments?action=new&patientId=${encodeURIComponent(patient.id)}`
                                                                 );
                                                             }}
+                                                            disabled={!canManageAppointments}
                                                         >
                                                             <CalendarPlus className="w-3 h-3 mr-1" />
                                                             {t('patients.schedule')}
@@ -640,6 +664,8 @@ export default function PatientsPage() {
                 <AddPatientDialog
                     open={isDialogOpen}
                     onOpenChange={handleDialogOpenChange}
+                    uploadMaxMb={currentUser?.subscription?.upload_max_mb}
+                    storedImageMaxMb={currentUser?.subscription?.stored_image_max_mb}
                 />
             ) : null}
 

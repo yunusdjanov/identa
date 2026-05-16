@@ -1,5 +1,5 @@
-import { AuthLoadingState } from '@/components/layout/auth-loading-state';
+import { AuthFormLoadingState } from '@/components/layout/page-loading-skeletons';
 
 export default function Loading() {
-    return <AuthLoadingState />;
+    return <AuthFormLoadingState fieldCount={2} showOAuth />;
 }

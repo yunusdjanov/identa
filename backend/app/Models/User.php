@@ -4,6 +4,7 @@ namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Carbon\CarbonInterface;
+use App\Services\SubscriptionService;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -55,6 +56,19 @@ class User extends Authenticatable
     public const PERMISSION_PATIENT_CATEGORIES_MANAGE = 'patient_categories.manage';
     public const PERMISSION_SETTINGS_VIEW = 'settings.view';
     public const PERMISSION_SETTINGS_MANAGE = 'settings.manage';
+    public const STAFF_PERMISSIONS = [
+        self::PERMISSION_PATIENTS_VIEW,
+        self::PERMISSION_PATIENTS_MANAGE,
+        self::PERMISSION_APPOINTMENTS_VIEW,
+        self::PERMISSION_APPOINTMENTS_MANAGE,
+        self::PERMISSION_PAYMENTS_VIEW,
+        self::PERMISSION_PAYMENTS_MANAGE,
+    ];
+    public const STAFF_MANAGE_VIEW_DEPENDENCIES = [
+        self::PERMISSION_PATIENTS_MANAGE => self::PERMISSION_PATIENTS_VIEW,
+        self::PERMISSION_APPOINTMENTS_MANAGE => self::PERMISSION_APPOINTMENTS_VIEW,
+        self::PERMISSION_PAYMENTS_MANAGE => self::PERMISSION_PAYMENTS_VIEW,
+    ];
 
     /**
      * The attributes that are mass assignable.
@@ -72,6 +86,9 @@ class User extends Authenticatable
         'working_hours_end',
         'default_appointment_duration',
         'password',
+        'provider',
+        'google_id',
+        'avatar_url',
         'role',
         'dentist_owner_id',
         'assistant_permissions',
@@ -97,6 +114,7 @@ class User extends Authenticatable
     protected $hidden = [
         'password',
         'remember_token',
+        'google_id',
     ];
 
     /**
@@ -171,52 +189,22 @@ class User extends Authenticatable
 
     public function hasConfiguredSubscription(): bool
     {
-        return $this->isDentist() && $this->subscription_plan !== null && $this->subscriptionEndsAt() !== null;
+        return $this->isDentist() && app(SubscriptionService::class)->currentForOwner($this) !== null;
     }
 
     public function subscriptionEndsAt(): ?CarbonInterface
     {
-        if ($this->subscription_plan === self::SUBSCRIPTION_PLAN_TRIAL) {
-            return $this->trial_ends_at ?? $this->subscription_ends_at;
-        }
-
-        return $this->subscription_ends_at;
+        return app(SubscriptionService::class)->currentForOwner($this)?->ends_at;
     }
 
     public function subscriptionGraceEndsAt(): ?CarbonInterface
     {
-        $endsAt = $this->subscriptionEndsAt();
-
-        return $endsAt?->copy()->addDays(self::SUBSCRIPTION_GRACE_DAYS);
+        return null;
     }
 
     public function subscriptionStatus(): string
     {
-        if (! $this->hasConfiguredSubscription()) {
-            return self::SUBSCRIPTION_STATUS_NONE;
-        }
-
-        if ($this->subscription_cancelled_at !== null && ! $this->subscription_cancel_at_period_end) {
-            return self::SUBSCRIPTION_STATUS_READ_ONLY;
-        }
-
-        $endsAt = $this->subscriptionEndsAt();
-        if ($endsAt === null) {
-            return self::SUBSCRIPTION_STATUS_NONE;
-        }
-
-        if ($endsAt->greaterThanOrEqualTo(now())) {
-            return $this->subscription_plan === self::SUBSCRIPTION_PLAN_TRIAL
-                ? self::SUBSCRIPTION_STATUS_TRIALING
-                : self::SUBSCRIPTION_STATUS_ACTIVE;
-        }
-
-        $graceEndsAt = $this->subscriptionGraceEndsAt();
-        if ($graceEndsAt !== null && $graceEndsAt->greaterThanOrEqualTo(now())) {
-            return self::SUBSCRIPTION_STATUS_GRACE;
-        }
-
-        return self::SUBSCRIPTION_STATUS_READ_ONLY;
+        return (string) app(SubscriptionService::class)->summary($this)['status'];
     }
 
     public function subscriptionAccessMode(): string
@@ -228,17 +216,12 @@ class User extends Authenticatable
 
     public function usesReadOnlyAccess(): bool
     {
-        return $this->subscriptionAccessMode() === self::SUBSCRIPTION_ACCESS_READ_ONLY;
+        return app(SubscriptionService::class)->isReadOnly($this);
     }
 
     public function subscriptionStaffLimit(): ?int
     {
-        return match ($this->subscription_plan) {
-            self::SUBSCRIPTION_PLAN_TRIAL => self::STAFF_LIMIT_TRIAL,
-            self::SUBSCRIPTION_PLAN_MONTHLY => self::STAFF_LIMIT_MONTHLY,
-            self::SUBSCRIPTION_PLAN_YEARLY => self::STAFF_LIMIT_YEARLY,
-            default => null,
-        };
+        return app(SubscriptionService::class)->staffLimit($this);
     }
 
     public function activeAssistantsCount(): int
@@ -275,48 +258,12 @@ class User extends Authenticatable
      */
     public function subscriptionSummary(): array
     {
-        $endsAt = $this->subscriptionEndsAt();
-        $graceEndsAt = $this->subscriptionGraceEndsAt();
-        $status = $this->subscriptionStatus();
-
-        return [
-            'is_configured' => $this->hasConfiguredSubscription(),
-            'plan' => $this->subscription_plan,
-            'status' => $status,
-            'access_mode' => $this->subscriptionAccessMode(),
-            'starts_at' => $this->subscription_started_at?->toIso8601String(),
-            'ends_at' => $endsAt?->toIso8601String(),
-            'trial_ends_at' => $this->trial_ends_at?->toIso8601String(),
-            'grace_ends_at' => $graceEndsAt?->toIso8601String(),
-            'cancel_at_period_end' => (bool) $this->subscription_cancel_at_period_end,
-            'cancelled_at' => $this->subscription_cancelled_at?->toIso8601String(),
-            'days_remaining' => $this->subscriptionDaysRemaining(),
-            'staff_limit' => $this->subscriptionStaffLimit(),
-            'active_staff_count' => $this->activeAssistantsCount(),
-            'is_read_only' => $status === self::SUBSCRIPTION_STATUS_READ_ONLY,
-            'payment_method' => $this->subscription_payment_method,
-            'payment_amount' => $this->subscription_payment_amount !== null
-                ? (float) $this->subscription_payment_amount
-                : null,
-            'note' => $this->subscription_note,
-        ];
+        return app(SubscriptionService::class)->summary($this);
     }
 
     public function startFreeTrial(?string $note = null): void
     {
-        $startedAt = now();
-
-        $this->forceFill([
-            'subscription_plan' => self::SUBSCRIPTION_PLAN_TRIAL,
-            'subscription_started_at' => $startedAt,
-            'subscription_ends_at' => null,
-            'trial_ends_at' => $startedAt->copy()->addDays(self::SUBSCRIPTION_TRIAL_DAYS),
-            'subscription_cancel_at_period_end' => false,
-            'subscription_cancelled_at' => null,
-            'subscription_payment_method' => null,
-            'subscription_payment_amount' => null,
-            'subscription_note' => $note,
-        ])->save();
+        app(SubscriptionService::class)->ensureTrial($this, $note);
     }
 
     public function activatePaidSubscription(
@@ -325,19 +272,18 @@ class User extends Authenticatable
         ?float $paymentAmount = null,
         ?string $note = null,
     ): void {
-        $startedAt = now();
+        $planModel = Plan::query()
+            ->where('code', $plan === self::SUBSCRIPTION_PLAN_YEARLY ? Plan::CODE_PRO : Plan::CODE_BASIC)
+            ->firstOrFail();
 
-        $this->forceFill([
-            'subscription_plan' => $plan,
-            'subscription_started_at' => $startedAt,
-            'subscription_ends_at' => $this->subscriptionEndForPlan($plan, $startedAt),
-            'trial_ends_at' => null,
-            'subscription_cancel_at_period_end' => false,
-            'subscription_cancelled_at' => null,
-            'subscription_payment_method' => $paymentMethod,
-            'subscription_payment_amount' => $paymentAmount,
-            'subscription_note' => $note,
-        ])->save();
+        app(SubscriptionService::class)->activatePaid(
+            owner: $this,
+            plan: $planModel,
+            billingPeriod: $plan === self::SUBSCRIPTION_PLAN_YEARLY ? Subscription::PERIOD_YEARLY : Subscription::PERIOD_MONTHLY,
+            paymentMethod: $paymentMethod,
+            paymentAmount: $paymentAmount,
+            note: $note,
+        );
     }
 
     public function applyPaidSubscription(
@@ -393,6 +339,9 @@ class User extends Authenticatable
 
     public function cancelSubscriptionAtPeriodEnd(?string $note = null): void
     {
+        $subscription = app(SubscriptionService::class)->currentForOwner($this);
+        $subscription?->forceFill(['cancel_at_period_end' => true])->save();
+
         $this->forceFill([
             'subscription_cancel_at_period_end' => true,
             'subscription_note' => $note,
@@ -402,6 +351,8 @@ class User extends Authenticatable
     public function cancelSubscriptionImmediately(?string $note = null): void
     {
         $cancelledAt = now();
+        $subscription = app(SubscriptionService::class)->currentForOwner($this);
+        $subscription?->forceFill(['status' => Subscription::STATUS_READ_ONLY])->save();
 
         $this->forceFill([
             'subscription_cancel_at_period_end' => false,
@@ -435,8 +386,7 @@ class User extends Authenticatable
             return false;
         }
 
-        /** @var array<int, string> $permissions */
-        $permissions = $this->assistant_permissions ?? [];
+        $permissions = self::normalizeAssistantPermissions($this->assistant_permissions ?? []);
 
         // Staff can edit their own profile through a dedicated route, but not shared settings or audit logs.
         if (
@@ -455,18 +405,50 @@ class User extends Authenticatable
      */
     public static function defaultAssistantPermissions(): array
     {
-        return [
-            self::PERMISSION_PATIENTS_VIEW,
-            self::PERMISSION_PATIENTS_MANAGE,
-            self::PERMISSION_APPOINTMENTS_VIEW,
-            self::PERMISSION_APPOINTMENTS_MANAGE,
-            self::PERMISSION_ODONTOGRAM_VIEW,
-            self::PERMISSION_ODONTOGRAM_MANAGE,
-            self::PERMISSION_TREATMENTS_VIEW,
-            self::PERMISSION_TREATMENTS_MANAGE,
-            self::PERMISSION_PATIENT_CATEGORIES_VIEW,
-            self::PERMISSION_PATIENT_CATEGORIES_MANAGE,
-        ];
+        return self::STAFF_PERMISSIONS;
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    public static function allowedAssistantPermissions(): array
+    {
+        return self::STAFF_PERMISSIONS;
+    }
+
+    /**
+     * @param  array<int, mixed>|null  $permissions
+     * @return array<int, string>
+     */
+    public static function normalizeAssistantPermissions(?array $permissions): array
+    {
+        if ($permissions === null) {
+            return [];
+        }
+
+        $permissionSet = [];
+        foreach ($permissions as $permission) {
+            if (! is_string($permission) || ! in_array($permission, self::STAFF_PERMISSIONS, true)) {
+                continue;
+            }
+
+            $permissionSet[$permission] = true;
+            $viewPermission = self::STAFF_MANAGE_VIEW_DEPENDENCIES[$permission] ?? null;
+            if ($viewPermission !== null) {
+                $permissionSet[$viewPermission] = true;
+            }
+        }
+
+        foreach (self::STAFF_MANAGE_VIEW_DEPENDENCIES as $managePermission => $viewPermission) {
+            if (! isset($permissionSet[$viewPermission])) {
+                unset($permissionSet[$managePermission]);
+            }
+        }
+
+        return array_values(array_filter(
+            self::STAFF_PERMISSIONS,
+            static fn (string $permission): bool => isset($permissionSet[$permission])
+        ));
     }
 
     /**
@@ -548,5 +530,21 @@ class User extends Authenticatable
     public function auditLogs(): HasMany
     {
         return $this->hasMany(AuditLog::class, 'actor_id');
+    }
+
+    /**
+     * @return HasMany<Subscription, User>
+     */
+    public function subscriptions(): HasMany
+    {
+        return $this->hasMany(Subscription::class);
+    }
+
+    /**
+     * @return HasMany<BillingPayment, User>
+     */
+    public function billingPayments(): HasMany
+    {
+        return $this->hasMany(BillingPayment::class);
     }
 }

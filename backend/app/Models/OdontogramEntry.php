@@ -2,23 +2,31 @@
 
 namespace App\Models;
 
+use App\Contracts\TenantOwned;
+use App\Models\Concerns\BelongsToTenant;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-class OdontogramEntry extends Model
+class OdontogramEntry extends Model implements TenantOwned
 {
     /** @use HasFactory<\Database\Factories\OdontogramEntryFactory> */
-    use HasFactory, HasUuids;
+    use BelongsToTenant, HasFactory, HasUuids;
 
     public const TYPE_HEALTHY = 'healthy';
+
     public const TYPE_CAVITY = 'cavity';
+
     public const TYPE_FILLING = 'filling';
+
     public const TYPE_CROWN = 'crown';
+
     public const TYPE_ROOT_CANAL = 'root_canal';
+
     public const TYPE_EXTRACTION = 'extraction';
+
     public const TYPE_IMPLANT = 'implant';
 
     /**
@@ -78,7 +86,14 @@ class OdontogramEntry extends Model
      */
     public function images(): HasMany
     {
-        return $this->hasMany(OdontogramEntryImage::class)->orderBy('created_at');
+        return $this->hasMany(OdontogramEntryImage::class)
+            ->whereExists(function ($query): void {
+                $query->selectRaw('1')
+                    ->from('odontogram_entries')
+                    ->whereColumn('odontogram_entries.id', 'odontogram_entry_images.odontogram_entry_id')
+                    ->whereColumn('odontogram_entries.dentist_id', 'odontogram_entry_images.dentist_id');
+            })
+            ->orderBy('created_at');
     }
 
     /**

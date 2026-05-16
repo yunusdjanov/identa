@@ -7,6 +7,7 @@ import {
     createPatientTreatment,
     deletePatientTreatment,
     deletePatientTreatmentImage,
+    getCurrentUser,
     getPatientTreatment,
     listAllPatientTreatments,
     updatePatientTreatment,
@@ -26,10 +27,11 @@ import { getBalanceMetricTone, MetricSummaryCard } from '@/components/ui/metric-
 import type { PreviewGalleryImage } from '@/components/patients/patient-photo-preview-dialog';
 import { ClinicalSnapshotCard } from '@/components/patients/clinical-snapshot-card';
 import { optimizeImageFilesForUpload } from '@/lib/browser-image';
-import { getProtectedMediaCrossOrigin } from '@/lib/protected-media';
+import { getProtectedMediaCrossOrigin, getProtectedMediaPreviewUrl, getProtectedMediaThumbnailUrl, isProtectedMediaApproved } from '@/lib/protected-media';
 import { formatCurrency, formatDate, toLocalDateKey } from '@/lib/utils';
 import { toast } from 'sonner';
 import { CalendarDays, Loader2, Pencil, Plus, RotateCcw, Trash2, X } from 'lucide-react';
+import { canManage, getManageDeniedMessage } from '@/lib/auth/permissions';
 
 const UPPER_RIGHT_TEETH = [8, 7, 6, 5, 4, 3, 2, 1];
 const UPPER_LEFT_TEETH = [9, 10, 11, 12, 13, 14, 15, 16];
@@ -55,7 +57,8 @@ interface TreatmentFormState {
 }
 
 const MAX_HISTORY_IMAGES_PER_ENTRY = 10;
-const MAX_HISTORY_IMAGE_SIZE_BYTES = 1 * 1024 * 1024;
+const DEFAULT_HISTORY_UPLOAD_MAX_MB = 1;
+const DEFAULT_HISTORY_STORED_MAX_MB = 1;
 const ALLOWED_HISTORY_IMAGE_TYPES = new Set([
     'image/jpeg',
     'image/jpg',
@@ -87,7 +90,12 @@ function formatTeeth(teeth: number[]) {
     return teeth.length > 0 ? teeth.join(', ') : '-';
 }
 
-function validateHistoryImageFile(file: File, t: (key: string, params?: Record<string, string | number>) => string) {
+function validateHistoryImageFile(
+    file: File,
+    t: (key: string, params?: Record<string, string | number>) => string,
+    maxBytes: number,
+    maxMb: number
+) {
     if (!file) {
         return '';
     }
@@ -100,8 +108,8 @@ function validateHistoryImageFile(file: File, t: (key: string, params?: Record<s
         return t('patientHistory.validation.imageType');
     }
 
-    if (file.size > MAX_HISTORY_IMAGE_SIZE_BYTES) {
-        return t('patientHistory.validation.imageSize');
+    if (file.size > maxBytes) {
+        return t('patientHistory.validation.imageSize', { sizeMb: maxMb });
     }
 
     return '';
@@ -112,19 +120,22 @@ function getVisibleTreatmentImages(treatment: ApiTreatment, removeImageIds: stri
 }
 
 function getTreatmentImageThumbnailUrl(image: ApiTreatmentImage) {
-    if (image.thumbnail_ready === false) {
-        if (image.preview_ready === true) {
-            return image.preview_url ?? image.url;
-        }
-
-        return image.url;
-    }
-
-    return image.thumbnail_url ?? image.preview_url ?? image.url;
+    return getProtectedMediaThumbnailUrl({
+        scanStatus: image.scan_status,
+        thumbnailUrl: image.thumbnail_url,
+        thumbnailReady: image.thumbnail_ready,
+        previewUrl: image.preview_url,
+        previewReady: image.preview_ready,
+        url: image.url,
+    });
 }
 
 function getTreatmentImagePreviewUrl(image: ApiTreatmentImage) {
-    return image.preview_url ?? image.url;
+    return getProtectedMediaPreviewUrl({
+        scanStatus: image.scan_status,
+        previewUrl: image.preview_url,
+        url: image.url,
+    });
 }
 
 function delay(ms: number) {
@@ -204,6 +215,7 @@ function HistoryImageTile({
     removeLabel,
     restoreLabel,
     isNew = false,
+    processingLabel,
 }: {
     src?: string | null;
     alt: string;
@@ -213,7 +225,10 @@ function HistoryImageTile({
     removeLabel: string;
     restoreLabel: string;
     isNew?: boolean;
+    processingLabel?: string;
 }) {
+    const canPreview = Boolean(src);
+
     return (
         <div
             className={`group relative h-14 w-14 overflow-hidden rounded-lg border bg-white shadow-sm transition-all ${
@@ -226,9 +241,11 @@ function HistoryImageTile({
         >
             <button
                 type="button"
-                className="block h-full w-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1"
+                className="block h-full w-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1 disabled:cursor-wait"
                 onClick={onPreview}
+                disabled={!canPreview}
                 aria-label={alt}
+                title={canPreview ? alt : processingLabel}
             >
                 {src ? (
                     // eslint-disable-next-line @next/next/no-img-element
@@ -281,6 +298,18 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
     const [submitAttempted, setSubmitAttempted] = useState(false);
     const [detailLoadingTreatmentId, setDetailLoadingTreatmentId] = useState<string | null>(null);
     const [isPreparingImages, setIsPreparingImages] = useState(false);
+
+    const currentUserQuery = useQuery({
+        queryKey: ['auth', 'me'],
+        queryFn: getCurrentUser,
+        staleTime: 5 * 60_000,
+    });
+    const subscription = currentUserQuery.data?.subscription;
+    const maxHistoryImagesPerEntry = subscription?.entry_image_limit ?? MAX_HISTORY_IMAGES_PER_ENTRY;
+    const maxHistoryUploadMb = subscription?.upload_max_mb ?? DEFAULT_HISTORY_UPLOAD_MAX_MB;
+    const maxHistoryStoredMb = subscription?.stored_image_max_mb ?? DEFAULT_HISTORY_STORED_MAX_MB;
+    const maxHistoryUploadBytes = maxHistoryUploadMb * 1024 * 1024;
+    const maxHistoryStoredBytes = maxHistoryStoredMb * 1024 * 1024;
 
     const treatmentsQuery = useQuery({
         queryKey: ['patients', 'detail', patientId, 'treatments'],
@@ -397,7 +426,7 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
             });
 
             const images = detail.images ?? [];
-            const hasExpectedImages = images.length >= expectedImageCount;
+            const hasExpectedImages = images.filter((image) => getTreatmentImagePreviewUrl(image)).length >= expectedImageCount;
             if (hasExpectedImages) {
                 return detail;
             }
@@ -418,43 +447,6 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
 
         return detailedTreatment;
     };
-
-    useEffect(() => {
-        const candidates = treatments
-            .filter((treatment) => getTreatmentImageCount(treatment) > 0 && (treatment.images?.length ?? 0) === 0)
-            .slice(0, 6);
-
-        if (candidates.length === 0) {
-            return;
-        }
-
-        let cancelled = false;
-        const timer = window.setTimeout(() => {
-            void (async () => {
-                for (const treatment of candidates) {
-                    if (cancelled) {
-                        return;
-                    }
-
-                    try {
-                        await queryClient.prefetchQuery({
-                            queryKey: ['patients', 'detail', patientId, 'treatments', treatment.id],
-                            queryFn: () => getPatientTreatment(patientId, treatment.id),
-                            staleTime: 300_000,
-                            gcTime: 300_000,
-                        });
-                    } catch {
-                        return;
-                    }
-                }
-            })();
-        }, 250);
-
-        return () => {
-            cancelled = true;
-            window.clearTimeout(timer);
-        };
-    }, [patientId, queryClient, treatments]);
 
     const saveTreatmentMutation = useMutation({
         mutationFn: async () => {
@@ -587,7 +579,7 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
     const imageValidationError =
         submitAttempted
             ? formState.imageFiles
-                .map((file) => validateHistoryImageFile(file, t))
+                .map((file) => validateHistoryImageFile(file, t, maxHistoryStoredBytes, maxHistoryStoredMb))
                 .find(Boolean) ?? ''
             : '';
     const visibleExistingImagesCount = editingTreatment
@@ -600,8 +592,8 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
         && (editingTreatment.images?.length ?? 0) === 0
     );
     const maxImagesError =
-        submitAttempted && visibleExistingImagesCount + formState.imageFiles.length > MAX_HISTORY_IMAGES_PER_ENTRY
-            ? t('patientHistory.validation.maxImages', { max: MAX_HISTORY_IMAGES_PER_ENTRY })
+        submitAttempted && visibleExistingImagesCount + formState.imageFiles.length > maxHistoryImagesPerEntry
+            ? t('patientHistory.validation.maxImages', { max: maxHistoryImagesPerEntry })
             : '';
 
     const selectedImagePreviews = useMemo(
@@ -622,8 +614,16 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
         };
     }, [selectedImagePreviews]);
 
+    const canManageHistory = canManage(currentUserQuery.data, 'patients');
+    const manageDeniedMessage = getManageDeniedMessage(currentUserQuery.data);
+
     const handleSubmit = () => {
         setSubmitAttempted(true);
+        if (!canManageHistory) {
+            toast.error(manageDeniedMessage);
+            return;
+        }
+
         if (isPreparingImages || treatmentTypeError || dateError || amountError || imageValidationError || maxImagesError) {
             toast.error(t('patientHistory.validation.fixErrors'));
             return;
@@ -642,6 +642,11 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
     };
 
     const openCreateDialog = () => {
+        if (!canManageHistory) {
+            toast.error(manageDeniedMessage);
+            return;
+        }
+
         setEditingTreatment(null);
         setFormState(createEmptyFormState());
         setSubmitAttempted(false);
@@ -649,6 +654,11 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
     };
 
     const openEditDialog = async (treatment: ApiTreatment) => {
+        if (!canManageHistory) {
+            toast.error(manageDeniedMessage);
+            return;
+        }
+
         setEditingTreatment(treatment);
         setFormState(createTreatmentFormState(treatment));
         setSubmitAttempted(false);
@@ -676,23 +686,33 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
         if (selectedFiles.length === 0) {
             return;
         }
+        if (!canManageHistory) {
+            toast.error(manageDeniedMessage);
+            return;
+        }
 
         const existingCount = editingTreatment
             ? getVisibleTreatmentImages(editingTreatment, formState.removeImageIds).length
             : 0;
         const availableSlots = Math.max(
-            MAX_HISTORY_IMAGES_PER_ENTRY - existingCount - formState.imageFiles.length,
+            maxHistoryImagesPerEntry - existingCount - formState.imageFiles.length,
             0
         );
         const filesToAdd = selectedFiles.slice(0, availableSlots);
 
         if (filesToAdd.length === 0) {
-            toast.error(t('patientHistory.validation.maxImages', { max: MAX_HISTORY_IMAGES_PER_ENTRY }));
+            toast.error(t('patientHistory.validation.maxImages', { max: maxHistoryImagesPerEntry }));
             return;
         }
 
         if (filesToAdd.length < selectedFiles.length) {
-            toast.error(t('patientHistory.validation.maxImages', { max: MAX_HISTORY_IMAGES_PER_ENTRY }));
+            toast.error(t('patientHistory.validation.maxImages', { max: maxHistoryImagesPerEntry }));
+        }
+
+        const oversizedOriginal = filesToAdd.find((file) => file.size > maxHistoryUploadBytes);
+        if (oversizedOriginal) {
+            toast.error(t('patientHistory.validation.imageSize', { sizeMb: maxHistoryUploadMb }));
+            return;
         }
 
         setIsPreparingImages(true);
@@ -700,11 +720,16 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
         try {
             const optimizedFiles = await optimizeImageFilesForUpload(filesToAdd, {
                 concurrency: 4,
+                targetMaxBytes: maxHistoryStoredBytes,
             });
+            const uploadableFiles = optimizedFiles.filter((file) => file.size <= maxHistoryStoredBytes);
+            if (uploadableFiles.length < optimizedFiles.length) {
+                toast.error(t('patientHistory.validation.imageSize', { sizeMb: maxHistoryStoredMb }));
+            }
 
             setFormState((current) => ({
                 ...current,
-                imageFiles: [...current.imageFiles, ...optimizedFiles],
+                imageFiles: [...current.imageFiles, ...uploadableFiles],
             }));
         } finally {
             setIsPreparingImages(false);
@@ -712,6 +737,11 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
     };
 
     const removeSelectedImage = (index: number) => {
+        if (!canManageHistory) {
+            toast.error(manageDeniedMessage);
+            return;
+        }
+
         setFormState((current) => ({
             ...current,
             imageFiles: current.imageFiles.filter((_, imageIndex) => imageIndex !== index),
@@ -719,6 +749,11 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
     };
 
     const toggleExistingImageRemoval = (imageId: string) => {
+        if (!canManageHistory) {
+            toast.error(manageDeniedMessage);
+            return;
+        }
+
         setFormState((current) => ({
             ...current,
             removeImageIds: current.removeImageIds.includes(imageId)
@@ -736,20 +771,26 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
         const fallbackDate = treatment.treatment_date;
 
         if (knownImages.length > 0) {
+            const previewableImages = knownImages.filter((image) => getTreatmentImagePreviewUrl(image));
+
+            if (previewableImages.length === 0) {
+                return;
+            }
+
             setPreviewGallery({
-                images: knownImages.map((image, index) => ({
-                    src: getTreatmentImagePreviewUrl(image),
+                images: previewableImages.map((image, index) => ({
+                    src: getTreatmentImagePreviewUrl(image) ?? '',
                     thumbnailSrc: getTreatmentImageThumbnailUrl(image) ?? undefined,
                     alt: `${patientName} ${t('patientHistory.image')} ${index + 1}`,
                     title: `${t('patientHistory.image')} ${index + 1} - ${formatDate(fallbackDate)}`,
                 })),
-                startIndex: Math.min(startIndex, knownImages.length - 1),
+                startIndex: Math.min(startIndex, previewableImages.length - 1),
                 fallbackTitle: patientName,
             });
-        } else if (primaryImage) {
+        } else if (primaryImage && getTreatmentImagePreviewUrl(primaryImage)) {
             setPreviewGallery({
                 images: [{
-                    src: getTreatmentImagePreviewUrl(primaryImage),
+                    src: getTreatmentImagePreviewUrl(primaryImage) ?? '',
                     thumbnailSrc: getTreatmentImageThumbnailUrl(primaryImage) ?? undefined,
                     alt: `${patientName} ${t('patientHistory.image')} 1`,
                     title: `${t('patientHistory.image')} 1 - ${formatDate(fallbackDate)}`,
@@ -767,7 +808,7 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
 
         try {
             const detailedTreatment = await loadTreatmentDetail(treatment);
-            const images = detailedTreatment.images ?? [];
+            const images = (detailedTreatment.images ?? []).filter((image) => getTreatmentImagePreviewUrl(image));
 
             if (!images || images.length === 0) {
                 return;
@@ -777,7 +818,7 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
 
             setPreviewGallery({
                 images: images.map((image, index) => ({
-                    src: getTreatmentImagePreviewUrl(image),
+                    src: getTreatmentImagePreviewUrl(image) ?? '',
                     thumbnailSrc: getTreatmentImageThumbnailUrl(image) ?? undefined,
                     alt: `${patientName} ${t('patientHistory.image')} ${index + 1}`,
                     title: `${t('patientHistory.image')} ${index + 1} - ${formatDate(treatmentDate)}`,
@@ -802,7 +843,7 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                     <div>
                         <CardTitle>{t('patientHistory.title')}</CardTitle>
                     </div>
-                    <Button onClick={openCreateDialog}>
+                    <Button onClick={openCreateDialog} disabled={!canManageHistory}>
                         <Plus className="h-4 w-4" />
                         {t('patientHistory.addEntry')}
                     </Button>
@@ -870,7 +911,7 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                         <div className="rounded-2xl border border-dashed border-gray-200 px-6 py-10 text-center">
                             <CalendarDays className="mx-auto h-10 w-10 text-gray-300" />
                             <p className="mt-4 text-sm text-gray-500">{t('patientHistory.empty')}</p>
-                            <Button variant="outline" className="mt-4" onClick={openCreateDialog}>
+                            <Button variant="outline" className="mt-4" onClick={openCreateDialog} disabled={!canManageHistory}>
                                 <Plus className="h-4 w-4" />
                                 {t('patientHistory.addFirstEntry')}
                             </Button>
@@ -955,12 +996,26 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                                 const primaryImage = getTreatmentPrimaryImage(treatment);
                                                 const isDetailLoading = detailLoadingTreatmentId === treatment.id;
                                                 const isMediaSyncing = mediaSyncingTreatmentIds.includes(treatment.id);
+                                                const primaryImageThumbnailUrl = primaryImage ? getTreatmentImageThumbnailUrl(primaryImage) : null;
+                                                const hasApprovedPrimaryImage = primaryImage ? isProtectedMediaApproved(primaryImage.scan_status) : false;
 
                                                 if (isMediaSyncing) {
                                                     return (
                                                         <span
                                                             className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-blue-200 bg-blue-50 text-blue-700"
                                                             title={t('patientHistory.imagesUploading')}
+                                                        >
+                                                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                                        </span>
+                                                    );
+                                                }
+
+                                                if (treatmentImageCount > 0 && primaryImage && (!hasApprovedPrimaryImage || !primaryImageThumbnailUrl)) {
+                                                    return (
+                                                        <span
+                                                            className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-blue-200 bg-blue-50 text-blue-700"
+                                                            title={t('patientHistory.imagesProcessing')}
+                                                            aria-label={t('patientHistory.imagesProcessing')}
                                                         >
                                                             <Loader2 className="h-3.5 w-3.5 animate-spin" />
                                                         </span>
@@ -975,6 +1030,8 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                                     );
                                                 }
 
+                                                const primaryImageSrc = primaryImageThumbnailUrl ?? '';
+
                                                 return (
                                                     <button
                                                         type="button"
@@ -987,18 +1044,14 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                                         aria-label={`${t('patientHistory.images')} (${treatmentImageCount})`}
                                                     >
                                                         <span className="inline-flex h-5 w-5 items-center justify-center overflow-hidden rounded-[6px] border border-gray-200 bg-gray-100">
-                                                            {getTreatmentImageThumbnailUrl(primaryImage) ? (
-                                                                // eslint-disable-next-line @next/next/no-img-element
-                                                                <img
-                                                                    src={getTreatmentImageThumbnailUrl(primaryImage) ?? ''}
-                                                                    alt={`${patientName} ${t('patientHistory.image')} 1`}
-                                                                    crossOrigin={getProtectedMediaCrossOrigin(getTreatmentImageThumbnailUrl(primaryImage) ?? '')}
-                                                                    className="h-full w-full object-cover"
-                                                                    loading="lazy"
-                                                                />
-                                                            ) : (
-                                                                <Loader2 className="h-3 w-3 animate-spin text-slate-400" />
-                                                            )}
+                                                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                            <img
+                                                                src={primaryImageSrc}
+                                                                alt={`${patientName} ${t('patientHistory.image')} 1`}
+                                                                crossOrigin={getProtectedMediaCrossOrigin(primaryImageSrc)}
+                                                                className="h-full w-full object-cover"
+                                                                loading="lazy"
+                                                            />
                                                         </span>
                                                         <span className="inline-flex h-5 min-w-6 items-center justify-center rounded-[6px] bg-blue-100 px-1.5 text-[11px] font-semibold text-blue-700">
                                                             +{treatmentImageCount}
@@ -1014,7 +1067,7 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                                 size="icon-sm"
                                                 className="border-gray-200 bg-white text-gray-700 shadow-sm hover:bg-gray-100"
                                                 aria-label={t('patientHistory.editEntry')}
-                                                disabled={detailLoadingTreatmentId === treatment.id}
+                                                disabled={detailLoadingTreatmentId === treatment.id || !canManageHistory}
                                                 onClick={() => {
                                                     void openEditDialog(treatment);
                                                 }}
@@ -1027,7 +1080,15 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                                 size="icon-sm"
                                                 className="border-red-200 bg-red-50 text-red-600 shadow-sm hover:bg-red-100 hover:text-red-700"
                                                 aria-label={t('patientHistory.deleteEntry')}
-                                                onClick={() => setTreatmentToDelete(treatment)}
+                                                disabled={!canManageHistory}
+                                                onClick={() => {
+                                                    if (!canManageHistory) {
+                                                        toast.error(manageDeniedMessage);
+                                                        return;
+                                                    }
+
+                                                    setTreatmentToDelete(treatment);
+                                                }}
                                             >
                                                 <Trash2 className="h-4 w-4" />
                                             </Button>
@@ -1145,7 +1206,7 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                 <div className="min-w-0">
                                     <Label htmlFor="historyImages">{t('patientHistory.images')}</Label>
                                     <p className="mt-1 text-xs text-gray-500">
-                                        {visibleExistingImagesCount + selectedImagePreviews.length} / {MAX_HISTORY_IMAGES_PER_ENTRY} - {t('patientHistory.imagesHint', { max: MAX_HISTORY_IMAGES_PER_ENTRY })}
+                                        {visibleExistingImagesCount + selectedImagePreviews.length} / {maxHistoryImagesPerEntry} - {t('patientHistory.imagesHint', { max: maxHistoryImagesPerEntry, sizeMb: maxHistoryUploadMb })}
                                     </p>
                                 </div>
                                 <Input
@@ -1154,11 +1215,17 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                     multiple
                                     accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
                                     onChange={handleImageFilesSelected}
+                                    disabled={!canManageHistory || isPreparingImages}
                                     className="sr-only"
                                 />
                                 <Label
-                                    htmlFor={isPreparingImages ? undefined : 'historyImages'}
-                                    className={`inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-gray-200 bg-white px-3 text-sm font-medium text-gray-900 shadow-sm transition-colors ${isPreparingImages ? 'cursor-not-allowed opacity-70' : 'cursor-pointer hover:bg-gray-50'}`}
+                                    htmlFor={!canManageHistory || isPreparingImages ? undefined : 'historyImages'}
+                                    className={`inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-gray-200 bg-white px-3 text-sm font-medium text-gray-900 shadow-sm transition-colors ${!canManageHistory || isPreparingImages ? 'cursor-not-allowed opacity-70' : 'cursor-pointer hover:bg-gray-50'}`}
+                                    onClick={() => {
+                                        if (!canManageHistory) {
+                                            toast.error(manageDeniedMessage);
+                                        }
+                                    }}
                                 >
                                     <Plus className="h-4 w-4" />
                                     {isPreparingImages ? t('common.loading') : t('odontogram.image.upload')}
@@ -1177,28 +1244,34 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                         return existingImages.map((image, index) => {
                                             const isMarkedForRemoval = formState.removeImageIds.includes(image.id);
                                             const imageLabel = `${t('patientHistory.image')} ${index + 1}`;
+                                            const imageThumbnailUrl = getTreatmentImageThumbnailUrl(image);
 
                                             return (
                                                 <HistoryImageTile
                                                     key={image.id}
-                                                    src={getTreatmentImageThumbnailUrl(image)}
+                                                    src={imageThumbnailUrl}
                                                     alt={imageLabel}
                                                     markedForRemoval={isMarkedForRemoval}
                                                     onPreview={() =>
-                                                        setPreviewGallery({
-                                                            images: existingImages.map((existingImage, imageIndex) => ({
-                                                                src: getTreatmentImagePreviewUrl(existingImage),
-                                                                thumbnailSrc: getTreatmentImageThumbnailUrl(existingImage) ?? undefined,
-                                                                alt: `${patientName} ${t('patientHistory.image')} ${imageIndex + 1}`,
-                                                                title: `${t('patientHistory.image')} ${imageIndex + 1} - ${formatDate(formState.treatmentDate)}`,
-                                                            })),
-                                                            startIndex: index,
-                                                            fallbackTitle: patientName,
-                                                        })
+                                                        {
+                                                            const previewableImages = existingImages.filter((existingImage) => getTreatmentImagePreviewUrl(existingImage));
+
+                                                            setPreviewGallery({
+                                                                images: previewableImages.map((existingImage, imageIndex) => ({
+                                                                    src: getTreatmentImagePreviewUrl(existingImage) ?? '',
+                                                                    thumbnailSrc: getTreatmentImageThumbnailUrl(existingImage) ?? undefined,
+                                                                    alt: `${patientName} ${t('patientHistory.image')} ${imageIndex + 1}`,
+                                                                    title: `${t('patientHistory.image')} ${imageIndex + 1} - ${formatDate(formState.treatmentDate)}`,
+                                                                })),
+                                                                startIndex: Math.min(index, Math.max(previewableImages.length - 1, 0)),
+                                                                fallbackTitle: patientName,
+                                                            });
+                                                        }
                                                     }
                                                     onToggleRemove={() => toggleExistingImageRemoval(image.id)}
                                                     removeLabel={t('patientHistory.removeImage')}
                                                     restoreLabel={t('patients.restore')}
+                                                    processingLabel={t('patientHistory.imageProcessing')}
                                                 />
                                             );
                                         });
@@ -1239,7 +1312,7 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                     </div>
                     <DialogFooter className="border-t border-slate-100 pt-3">
                         <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)} disabled={saveTreatmentMutation.isPending || isPreparingImages}>{t('common.cancel')}</Button>
-                        <Button type="button" onClick={handleSubmit} disabled={saveTreatmentMutation.isPending || isPreparingImages}>{saveTreatmentMutation.isPending ? t('common.saving') : isPreparingImages ? t('common.loading') : t('common.saveChanges')}</Button>
+                        <Button type="button" onClick={handleSubmit} disabled={saveTreatmentMutation.isPending || isPreparingImages || !canManageHistory}>{saveTreatmentMutation.isPending ? t('common.saving') : isPreparingImages ? t('common.loading') : t('common.saveChanges')}</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
@@ -1252,7 +1325,16 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                 confirmLabel={t('payments.confirmDelete')}
                 pendingLabel={t('payments.deleting')}
                 isPending={deleteTreatmentMutation.isPending}
-                onConfirm={() => { if (treatmentToDelete) { deleteTreatmentMutation.mutate(treatmentToDelete.id); } }}
+                onConfirm={() => {
+                    if (!canManageHistory) {
+                        toast.error(manageDeniedMessage);
+                        return;
+                    }
+
+                    if (treatmentToDelete) {
+                        deleteTreatmentMutation.mutate(treatmentToDelete.id);
+                    }
+                }}
             />
 
             {previewGallery ? (
@@ -1270,4 +1352,3 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
         </>
     );
 }
-

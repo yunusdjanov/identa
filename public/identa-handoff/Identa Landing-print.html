@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="ru" data-theme="light" data-density="default">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Identa — система управления для частной стоматологии</title>
+  <meta name="description" content="Identa — облачная система управления для частных стоматологов и небольших клиник в Узбекистане." />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="sections.css" />
+
+  <style>
+    /* Print optimizations */
+    @page { size: A4; margin: 14mm 12mm; }
+
+    html, body { background: #fff !important; }
+
+    /* Hide interactive chrome that doesn't make sense on paper */
+    .nav, .menu-btn, .lang-switch, .toggle-bill, .mobile-menu,
+    [data-tweaks-panel], [data-tweaks-toggle] { display: none !important; }
+
+    /* Reveal: force visible (no IO triggers in print) */
+    .reveal { opacity: 1 !important; transform: none !important; }
+
+    /* Make sure colored backgrounds / shadows actually print */
+    * {
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+      color-adjust: exact !important;
+    }
+
+    /* Disable transitions/animations and sticky positioning */
+    *, *::before, *::after {
+      transition: none !important;
+      animation: none !important;
+    }
+
+    /* Tame section padding for paper */
+    section { padding: 28px 0 !important; }
+    .section-head { margin-bottom: 24px !important; }
+    .hero { padding-top: 12px !important; padding-bottom: 24px !important; }
+
+    /* Faq: open all so content prints */
+    .faq-item { break-inside: avoid; }
+    .faq-item .faq-a { max-height: none !important; padding-top: 12px !important; }
+    .faq-item .faq-q .ic { display: none !important; }
+
+    /* Cards: avoid awkward splits */
+    .why-card, .price, .step, .stat-cell, .cta-card, .dash, .dash-float {
+      break-inside: avoid;
+      page-break-inside: avoid;
+    }
+
+    /* Page breaks between major sections */
+    #why, #pricing, #steps, #faq, #cta {
+      break-before: page;
+      page-break-before: always;
+    }
+
+    /* Drop heavy shadow effects that don't print well */
+    .dash, .cta-card, .why-card:hover, .price.featured {
+      box-shadow: 0 0 0 1px rgba(0,0,0,0.06) !important;
+    }
+    .dash-float { box-shadow: 0 0 0 1px rgba(0,0,0,0.08) !important; }
+
+    /* Fixed-width container for predictable print widths */
+    .container { max-width: 1100px !important; }
+
+    /* Hero: keep two columns visible on A4 landscape-ish flow, but downscale dash */
+    .hero-grid { gap: 32px !important; }
+    .dash { aspect-ratio: 4 / 3.2 !important; }
+    .dash-float { transform: scale(0.92); transform-origin: center; }
+
+    /* Footer */
+    .footer { padding: 32px 0 16px !important; break-before: page; }
+
+    /* Avoid splitting headlines from their lede */
+    h1.h-display, h2.h-section { break-after: avoid; page-break-after: avoid; }
+
+    /* Pricing grid: keep 3 across at print */
+    .pricing-grid { grid-template-columns: repeat(3, 1fr) !important; gap: 12px !important; }
+    .price { padding: 20px !important; }
+    .price-amt { font-size: 38px !important; }
+
+    /* Why grid: 3 across */
+    .why-grid { grid-template-columns: repeat(3, 1fr) !important; gap: 12px !important; }
+    .why-card { padding: 20px !important; min-height: 0 !important; }
+
+    /* Steps grid: 4 across */
+    .steps-grid { grid-template-columns: repeat(4, 1fr) !important; gap: 16px !important; }
+
+    /* Stats: 4 across */
+    .stats-row { grid-template-columns: repeat(4, 1fr) !important; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+  <script type="text/babel" src="tweaks-panel.jsx"></script>
+  <script type="text/babel" src="i18n.jsx"></script>
+  <script type="text/babel" src="components.jsx"></script>
+  <script type="text/babel" src="app.jsx"></script>
+
+  <script type="text/babel">
+    // Auto-print once everything is ready
+    (async () => {
+      // Wait for fonts
+      if (document.fonts && document.fonts.ready) {
+        try { await document.fonts.ready; } catch (e) {}
+      }
+      // Wait for React render + reveal IO + images
+      const waitFrames = (n) => new Promise(r => {
+        const tick = (i) => i <= 0 ? r() : requestAnimationFrame(() => tick(i - 1));
+        tick(n);
+      });
+      await waitFrames(4);
+      // Force all .reveal elements visible (in case IO hasn't fired)
+      document.querySelectorAll(".reveal").forEach(el => el.classList.add("in"));
+      // Open all FAQ items
+      document.querySelectorAll(".faq-item").forEach(el => el.classList.add("open"));
+      // Safety delay
+      await new Promise(r => setTimeout(r, 600));
+      window.print();
+    })();
+  </script>
+</body>
+</html>

@@ -14,9 +14,9 @@ class UpdateLandingSettingsRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'trial_price_amount' => ['required', 'integer', 'min:0'],
-            'monthly_price_amount' => ['required', 'integer', 'min:0'],
-            'yearly_price_amount' => ['required', 'integer', 'min:0'],
+            'trial_price_amount' => ['sometimes', 'integer', 'min:0'],
+            'monthly_price_amount' => ['sometimes', 'integer', 'min:0'],
+            'yearly_price_amount' => ['sometimes', 'integer', 'min:0'],
             'telegram_contact_url' => ['nullable', 'url', 'max:500'],
         ];
     }

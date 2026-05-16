@@ -2,11 +2,12 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import PaymentsPage from '@/app/payments/page';
-import { getPatient, listAllTreatments } from '@/lib/api/dentist';
+import { getCurrentUser, getPatient, listAllTreatments } from '@/lib/api/dentist';
 import { I18nProvider } from '@/components/providers/i18n-provider';
 import { DICTIONARIES } from '@/lib/i18n/dictionaries';
 
 vi.mock('@/lib/api/dentist', () => ({
+    getCurrentUser: vi.fn(),
     listAllTreatments: vi.fn(),
     getPatient: vi.fn(),
 }));
@@ -38,8 +39,16 @@ describe('PaymentsPage', () => {
 
     beforeEach(() => {
         vi.mocked(listAllTreatments).mockReset();
+        vi.mocked(getCurrentUser).mockReset();
         vi.mocked(getPatient).mockReset();
 
+        vi.mocked(getCurrentUser).mockResolvedValue({
+            id: 'user-1',
+            name: 'Dr. Test',
+            email: 'doctor@example.test',
+            role: 'dentist',
+            account_status: 'active',
+        });
         vi.mocked(listAllTreatments).mockResolvedValue([
             {
                 id: 'tr-1',

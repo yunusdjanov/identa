@@ -2,15 +2,17 @@
 
 namespace App\Models;
 
+use App\Contracts\TenantOwned;
+use App\Models\Concerns\BelongsToTenant;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class TreatmentImage extends Model
+class TreatmentImage extends Model implements TenantOwned
 {
     /** @use HasFactory<\Database\Factories\TreatmentImageFactory> */
-    use HasFactory, HasUuids;
+    use BelongsToTenant, HasFactory, HasUuids;
 
     /**
      * @var bool
@@ -32,6 +34,13 @@ class TreatmentImage extends Model
         'path',
         'mime_type',
         'file_size',
+        'scan_status',
+        'scan_result',
+        'scan_provider',
+        'quarantine_path',
+        'approved_at',
+        'scanned_at',
+        'rejected_at',
     ];
 
     /**
@@ -41,6 +50,9 @@ class TreatmentImage extends Model
     {
         return [
             'file_size' => 'integer',
+            'approved_at' => 'datetime',
+            'scanned_at' => 'datetime',
+            'rejected_at' => 'datetime',
         ];
     }
 

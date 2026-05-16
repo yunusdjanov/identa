@@ -343,6 +343,7 @@ class InvoiceApiTest extends TestCase
     public function test_dentist_can_download_owned_invoice_pdf_with_payment_history(): void
     {
         $dentist = User::factory()->create();
+        $dentist->activatePaidSubscription(User::SUBSCRIPTION_PLAN_YEARLY);
         $patient = Patient::factory()->create(['dentist_id' => $dentist->id]);
         $invoice = Invoice::create([
             'dentist_id' => $dentist->id,
@@ -377,6 +378,7 @@ class InvoiceApiTest extends TestCase
     public function test_dentist_cannot_download_other_dentist_invoice_pdf(): void
     {
         $dentist = User::factory()->create();
+        $dentist->activatePaidSubscription(User::SUBSCRIPTION_PLAN_YEARLY);
         $otherDentist = User::factory()->create();
         $otherPatient = Patient::factory()->create(['dentist_id' => $otherDentist->id]);
 
@@ -489,7 +491,7 @@ class InvoiceApiTest extends TestCase
         $html = $this->renderInvoicePdfHtml($invoice, 'uz');
 
         $this->assertStringContainsString('Identa HISOB-FAKTURA', $html);
-        $this->assertStringContainsString('Tolov tarixi', $html);
+        $this->assertStringContainsString('To‘lov tarixi', $html);
         $this->assertStringContainsString('Holat: Qisman tolangan', $html);
         $this->assertStringContainsString('Naqd', $html);
         $this->assertStringContainsString('02.03.2026', $html);
@@ -530,5 +532,3 @@ class InvoiceApiTest extends TestCase
         }
     }
 }
-
-

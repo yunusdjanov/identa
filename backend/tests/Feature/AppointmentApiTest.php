@@ -111,6 +111,36 @@ class AppointmentApiTest extends TestCase
             ->assertJsonPath('errors.start_time.0', __('api.appointments.conflict'));
     }
 
+    public function test_dentist_can_create_back_to_back_appointment_when_existing_times_have_seconds(): void
+    {
+        $dentist = User::factory()->create();
+        $patient = Patient::factory()->create([
+            'dentist_id' => $dentist->id,
+        ]);
+        $appointmentDate = now()->addDays(2)->toDateString();
+
+        Appointment::create([
+            'dentist_id' => $dentist->id,
+            'patient_id' => $patient->id,
+            'appointment_date' => $appointmentDate,
+            'start_time' => '10:00:00',
+            'end_time' => '10:30:00',
+            'status' => Appointment::STATUS_COMPLETED,
+        ]);
+
+        $this->actingAs($dentist, 'web')
+            ->postJson('/api/v1/appointments', [
+                'patient_id' => $patient->id,
+                'appointment_date' => $appointmentDate,
+                'start_time' => '10:30',
+                'end_time' => '11:00',
+                'status' => Appointment::STATUS_SCHEDULED,
+            ])
+            ->assertCreated()
+            ->assertJsonPath('data.start_time', '10:30')
+            ->assertJsonPath('data.end_time', '11:00');
+    }
+
     public function test_dentist_can_create_appointment_in_past_slot(): void
     {
         $dentist = User::factory()->create();

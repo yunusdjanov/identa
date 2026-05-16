@@ -58,7 +58,7 @@ function StaffPageSkeleton() {
     return (
         <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(219,234,254,0.55),transparent_34rem),linear-gradient(180deg,#f8fbff_0%,#f8fafc_42%,#f1f5f9_100%)]">
             <AdminHeader active="dashboard" onLogout={() => undefined} />
-            <main className="p-4 sm:p-5 lg:p-6">
+            <main className="p-3 sm:p-5 lg:p-6">
                 <div className="mx-auto max-w-[1440px] space-y-5 lg:space-y-6">
                     <div className="rounded-[1.75rem] border border-white/80 bg-white/80 p-6">
                         <Skeleton className="h-10 w-72" />
@@ -155,7 +155,7 @@ export default function AdminDentistStaffPage() {
         return (
             <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(219,234,254,0.55),transparent_34rem),linear-gradient(180deg,#f8fbff_0%,#f8fafc_42%,#f1f5f9_100%)]">
                 <AdminHeader active="dashboard" onLogout={handleLogout} />
-                <main className="p-4 sm:p-5 lg:p-6">
+                <main className="p-3 sm:p-5 lg:p-6">
                     <div className="mx-auto max-w-[1440px]">
                         <AppErrorState
                             title={t('common.loadErrorTitle')}
@@ -189,7 +189,7 @@ export default function AdminDentistStaffPage() {
         <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(219,234,254,0.55),transparent_34rem),linear-gradient(180deg,#f8fbff_0%,#f8fafc_42%,#f1f5f9_100%)]">
             <AdminHeader active="dashboard" onLogout={handleLogout} />
 
-            <main className="p-4 sm:p-5 lg:p-6">
+            <main className="p-3 sm:p-5 lg:p-6">
                 <div className="mx-auto max-w-[1440px] space-y-5 lg:space-y-6">
                     <PageHeader
                         title={t('admin.staffPage.title', { name: dentist.name })}
@@ -346,7 +346,7 @@ export default function AdminDentistStaffPage() {
                                             key={staff.id}
                                             className="rounded-[1.35rem] border border-slate-200/80 bg-white/95 p-4 shadow-sm shadow-slate-200/50"
                                         >
-                                            <div className="flex items-start justify-between gap-3">
+                                            <div className="flex min-w-0 items-start justify-between gap-3">
                                                 <div className="min-w-0">
                                                     <h3 className="truncate text-sm font-bold text-slate-950">
                                                         {staff.name}

@@ -6,8 +6,9 @@ import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { PageHeader } from '@/components/ui/page-shell';
-import { Skeleton } from '@/components/ui/skeleton';
+import { OdontogramLoadingState } from '@/components/layout/page-loading-skeletons';
 import {
+    getCurrentUser,
     getPatient,
     listAllPatientTreatments,
 } from '@/lib/api/dentist';
@@ -17,38 +18,8 @@ import { ArrowLeft } from 'lucide-react';
 import { ToothDetailDialog } from '@/components/odontogram/tooth-detail-dialog';
 import { useI18n } from '@/components/providers/i18n-provider';
 import { AppErrorState } from '@/components/error/app-error-state';
-
-function OdontogramLoadingSkeleton() {
-    return (
-        <div className="space-y-5 lg:space-y-6">
-            <div className="flex items-center space-x-4">
-                <Skeleton className="h-9 w-9" />
-                <div className="space-y-2">
-                    <Skeleton className="h-9 w-40" />
-                    <Skeleton className="h-4 w-56" />
-                </div>
-            </div>
-
-            <Card>
-                <CardHeader>
-                    <Skeleton className="h-6 w-64" />
-                </CardHeader>
-                <CardContent className="space-y-6">
-                    {Array.from({ length: 2 }).map((_, sectionIndex) => (
-                        <div key={sectionIndex} className="space-y-3">
-                            <Skeleton className="h-4 w-24 mx-auto" />
-                            <div className="flex justify-center gap-1">
-                                {Array.from({ length: 16 }).map((__, toothIndex) => (
-                                    <Skeleton key={toothIndex} className="h-12 w-8 rounded-lg" />
-                                ))}
-                            </div>
-                        </div>
-                    ))}
-                </CardContent>
-            </Card>
-        </div>
-    );
-}
+import { AccessDeniedState } from '@/components/error/access-denied-state';
+import { canView, PERMISSION_DENIED_MESSAGE } from '@/lib/auth/permissions';
 
 export default function OdontogramPage({
     params,
@@ -59,10 +30,17 @@ export default function OdontogramPage({
     const { t } = useI18n();
     const router = useRouter();
     const [selectedTooth, setSelectedTooth] = useState<number | null>(null);
+    const currentUserQuery = useQuery({
+        queryKey: ['auth', 'me'],
+        queryFn: getCurrentUser,
+        staleTime: 5 * 60_000,
+    });
+    const canViewPatients = canView(currentUserQuery.data, 'patients');
 
     const patientQuery = useQuery({
         queryKey: ['patients', 'detail', id],
         queryFn: () => getPatient(id),
+        enabled: canViewPatients,
         retry: false,
     });
     const treatmentsQuery = useQuery({
@@ -71,6 +49,7 @@ export default function OdontogramPage({
             sort: '-treatment_date,-created_at',
             includeImages: false,
         }),
+        enabled: canViewPatients,
         staleTime: 30_000,
         gcTime: 300_000,
         refetchOnWindowFocus: false,
@@ -120,20 +99,32 @@ export default function OdontogramPage({
         return map;
     }, [treatmentsQuery.data]);
 
-    if (patientQuery.isLoading || treatmentsQuery.isLoading) {
-        return <OdontogramLoadingSkeleton />;
+    if (currentUserQuery.isLoading || patientQuery.isLoading || treatmentsQuery.isLoading) {
+        return <OdontogramLoadingState />;
     }
 
-    if (patientQuery.isError || treatmentsQuery.isError || !patientQuery.data) {
+    if (!canViewPatients) {
+        return (
+            <AccessDeniedState
+                title={t('common.forbiddenTitle')}
+                description={PERMISSION_DENIED_MESSAGE}
+                actionHref="/patients"
+                actionLabel={t('patientDetail.backToPatients')}
+            />
+        );
+    }
+
+    if (currentUserQuery.isError || patientQuery.isError || treatmentsQuery.isError || !patientQuery.data) {
         return (
             <AppErrorState
                 title={t('common.loadErrorTitle')}
                 description={getApiErrorMessage(
-                    patientQuery.error || treatmentsQuery.error,
+                    currentUserQuery.error || patientQuery.error || treatmentsQuery.error,
                     t('odontogram.loadFailed')
                 )}
                 retryLabel={t('common.retry')}
                 onRetry={() => {
+                    currentUserQuery.refetch();
                     patientQuery.refetch();
                     treatmentsQuery.refetch();
                 }}

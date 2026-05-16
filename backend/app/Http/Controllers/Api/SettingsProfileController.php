@@ -4,14 +4,18 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\UpdateProfileRequest;
+use App\Http\Resources\ProfileResource;
 use App\Models\User;
+use App\Services\ProfileSettingsService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Arr;
-use Illuminate\Validation\ValidationException;
 
 class SettingsProfileController extends Controller
 {
+    public function __construct(
+        private readonly ProfileSettingsService $profiles,
+    ) {}
+
     public function show(Request $request): JsonResponse
     {
         /** @var User $user */
@@ -26,30 +30,9 @@ class SettingsProfileController extends Controller
     {
         /** @var User $user */
         $user = $request->user();
-        $validated = $request->validated();
-
-        if ($user->isAdmin()) {
-            $validated = Arr::only($validated, ['name', 'email']);
-        }
-
-        if ($user->isAssistant()) {
-            $validated = Arr::only($validated, ['name', 'email', 'phone']);
-        }
-
-        $start = $validated['working_hours_start'] ?? null;
-        $end = $validated['working_hours_end'] ?? null;
-
-        if ($start !== null && $end !== null && $end <= $start) {
-            throw ValidationException::withMessages([
-                'working_hours_end' => [__('api.settings.working_hours_end_after_start')],
-            ]);
-        }
-
-        $user->update($validated);
-        $user->refresh();
 
         return response()->json([
-            'data' => $this->transformProfile($user),
+            'data' => $this->transformProfile($this->profiles->update($request, $user)),
         ]);
     }
 
@@ -58,19 +41,6 @@ class SettingsProfileController extends Controller
      */
     private function transformProfile(User $user): array
     {
-        return [
-            'id' => (string) $user->id,
-            'name' => $user->name,
-            'email' => $user->email,
-            'phone' => $user->phone,
-            'practice_name' => $user->practice_name,
-            'license_number' => $user->license_number,
-            'address' => $user->address,
-            'working_hours' => [
-                'start' => $user->working_hours_start ? substr($user->working_hours_start, 0, 5) : null,
-                'end' => $user->working_hours_end ? substr($user->working_hours_end, 0, 5) : null,
-            ],
-            'default_appointment_duration' => $user->default_appointment_duration,
-        ];
+        return (new ProfileResource($user))->resolve(request());
     }
 }

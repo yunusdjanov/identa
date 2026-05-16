@@ -101,6 +101,11 @@ return [
     'subscription' => [
         'read_only' => 'Your workspace is in read-only mode until the subscription is renewed.',
         'assistant_limit_reached' => 'The current plan allows up to :limit active staff account(s).',
+        'entry_image_limit_reached' => 'The current plan allows up to :limit image(s) per entry.',
+        'upload_size_exceeded' => 'The image exceeds your current plan limit. Maximum original upload: :limit MB.',
+        'stored_image_size_exceeded' => 'The stored image exceeds your current plan limit. Maximum stored image: :limit MB.',
+        'image_type_not_allowed' => 'Only JPG, PNG, or WebP images are allowed.',
+        'feature_not_available' => 'This feature is not available on your current plan.',
     ],
     'admin' => [
         'cannot_update_deleted_account_status' => 'Cannot update status for a deleted account.',

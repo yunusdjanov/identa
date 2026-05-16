@@ -19,8 +19,10 @@ export interface ApiCollectionEnvelope<T> {
 
 export interface ApiSubscriptionSummary {
     is_configured: boolean;
-    plan: 'trial' | 'monthly' | 'yearly' | null;
-    status: 'none' | 'trialing' | 'active' | 'grace' | 'read_only';
+    plan: 'trial' | 'basic' | 'pro' | 'monthly' | 'yearly' | null;
+    plan_name?: string | null;
+    billing_period?: 'trial' | 'monthly' | 'yearly' | null;
+    status: 'none' | 'trialing' | 'active' | 'grace' | 'read_only' | 'canceled';
     access_mode: 'full' | 'read_only';
     starts_at: string | null;
     ends_at: string | null;
@@ -28,9 +30,16 @@ export interface ApiSubscriptionSummary {
     grace_ends_at: string | null;
     cancel_at_period_end: boolean;
     cancelled_at: string | null;
+    pending_plan_id?: string | null;
+    pending_billing_period?: 'monthly' | 'yearly' | null;
+    pending_change_effective_at?: string | null;
     days_remaining: number | null;
     staff_limit: number | null;
     active_staff_count: number;
+    entry_image_limit?: number | null;
+    upload_max_mb?: number | null;
+    stored_image_max_mb?: number | null;
+    can_export?: boolean;
     is_read_only: boolean;
     payment_method: 'cash' | 'p2p' | 'bank_transfer' | null;
     payment_amount: number | null;
@@ -42,11 +51,51 @@ export interface ApiUser {
     name: string;
     email: string;
     role: 'admin' | 'dentist' | 'assistant';
+    provider?: 'email' | 'google' | string | null;
+    avatar_url?: string | null;
+    email_verified_at?: string | null;
+    has_password?: boolean;
     account_status: 'active' | 'blocked' | 'deleted';
     dentist_owner_id?: string | null;
     assistant_permissions?: string[];
     must_change_password?: boolean;
     subscription?: ApiSubscriptionSummary | null;
+}
+
+export interface ApiPlan {
+    id: string;
+    code: 'trial' | 'basic' | 'pro';
+    name: string;
+    description: string | null;
+    is_trial: boolean;
+    is_paid: boolean;
+    trial_days: number | null;
+    monthly_price: number | null;
+    yearly_price: number | null;
+    currency: string;
+    staff_limit: number;
+    entry_image_limit: number;
+    upload_max_mb: number;
+    stored_image_max_mb: number;
+    can_export: boolean;
+    is_active: boolean;
+    sort_order: number;
+    updated_at?: string | null;
+}
+
+export interface ApiBillingPayment {
+    id: string;
+    plan_code: 'basic' | 'pro';
+    plan_name: string;
+    billing_period: 'monthly' | 'yearly';
+    amount: number;
+    currency: string;
+    status: 'pending' | 'paid' | 'failed' | 'canceled' | 'refunded';
+    provider: 'payx';
+    provider_payment_id: string | null;
+    provider_order_id: string;
+    paid_at: string | null;
+    created_at: string | null;
 }
 
 export interface ApiPatientCategory {
@@ -55,6 +104,8 @@ export interface ApiPatientCategory {
     color: string;
     sort_order: number;
 }
+
+export type ApiMediaScanStatus = 'pending' | 'approved' | 'rejected';
 
 export interface ApiPatient {
     id: string;
@@ -73,11 +124,20 @@ export interface ApiPatient {
     photo_preview_url?: string | null;
     photo_thumbnail_ready?: boolean;
     photo_preview_ready?: boolean;
+    photo_scan_status?: ApiMediaScanStatus | null;
     created_at?: string | null;
     last_visit_at?: string | null;
     is_archived?: boolean;
     archived_at?: string | null;
     categories?: ApiPatientCategory[];
+}
+
+export interface ApiPatientLookup {
+    id: string;
+    patient_id: string;
+    full_name: string;
+    phone: string;
+    secondary_phone?: string | null;
 }
 
 export interface ApiPatientOverview {
@@ -97,6 +157,14 @@ export interface ApiAppointment {
     end_time: string;
     status: 'scheduled' | 'completed' | 'cancelled' | 'no_show';
     notes: string | null;
+}
+
+export interface ApiAppointmentLookup {
+    id: string;
+    appointment_date: string;
+    start_time: string;
+    patient_name?: string | null;
+    status: ApiAppointment['status'];
 }
 
 export interface ApiOdontogramEntry {
@@ -125,6 +193,7 @@ export interface ApiOdontogramEntryImage {
     preview_url?: string | null;
     thumbnail_ready?: boolean;
     preview_ready?: boolean;
+    scan_status?: ApiMediaScanStatus | null;
 }
 
 export interface ApiOdontogramSummaryEntry {
@@ -171,11 +240,12 @@ export interface ApiTreatmentImage {
     mime_type: string;
     file_size: number;
     created_at: string | null;
-    url: string;
+    url?: string | null;
     thumbnail_url?: string | null;
     preview_url?: string | null;
     thumbnail_ready?: boolean;
     preview_ready?: boolean;
+    scan_status?: ApiMediaScanStatus | null;
 }
 
 export interface ApiInvoiceItem {
@@ -239,7 +309,24 @@ export interface ApiAdminDentist {
     last_login: string | null;
     patient_count: number;
     appointment_count: number;
+    active_staff_count?: number;
+    total_staff_count?: number;
     subscription: ApiSubscriptionSummary;
+}
+
+export interface ApiAdminDentistBilling {
+    dentist: ApiAdminDentist;
+    subscription: ApiSubscriptionSummary;
+    payments: ApiBillingPayment[];
+    staff: {
+        active: number;
+        total: number;
+    };
+    usage: {
+        patients: number;
+        appointments: number;
+        payments: number;
+    };
 }
 
 export interface ApiAdminPasswordResetPayload {
@@ -270,6 +357,7 @@ export interface ApiLandingSettings {
     yearly_price_amount: number;
     currency: string;
     telegram_contact_url: string | null;
+    plans?: ApiPlan[];
 }
 
 export interface ApiLeadRequest {

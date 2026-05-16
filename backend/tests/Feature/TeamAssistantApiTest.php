@@ -142,8 +142,8 @@ class TeamAssistantApiTest extends TestCase
             ->patchJson("/api/v1/team/assistants/{$blockedAssistant->id}/status", [
                 'status' => User::ACCOUNT_STATUS_ACTIVE,
             ])
-            ->assertUnprocessable()
-            ->assertJsonValidationErrors('staff_limit');
+            ->assertForbidden()
+            ->assertJsonPath('error.code', 'plan_staff_limit_reached');
 
         $this->assertDatabaseHas('users', [
             'id' => $blockedAssistant->id,

@@ -23,6 +23,7 @@ import {
 } from '@/components/ui/select';
 import { deletePatientPhoto, listPatientCategories, updatePatient, uploadPatientPhoto } from '@/lib/api/dentist';
 import { getApiErrorMessage } from '@/lib/api/client';
+import { optimizeImageFileForUpload } from '@/lib/browser-image';
 import type { ApiPatient } from '@/lib/api/types';
 import { toast } from 'sonner';
 import { useI18n } from '@/components/providers/i18n-provider';
@@ -34,11 +35,14 @@ import {
     normalizePhoneForApi,
 } from '@/lib/input-validation';
 import { PatientPhotoField } from '@/components/patients/patient-photo-field';
+import { getProtectedMediaThumbnailUrl } from '@/lib/protected-media';
 
 interface EditPatientDialogProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     patient: ApiPatient;
+    uploadMaxMb?: number | null;
+    storedImageMaxMb?: number | null;
 }
 
 interface PatientFormState {
@@ -53,8 +57,8 @@ interface PatientFormState {
     currentMedications: string;
 }
 const NO_CATEGORY_VALUE = '__none__';
-const MAX_PATIENT_PHOTO_SIZE_MB = 1;
-const MAX_PATIENT_PHOTO_SIZE_BYTES = MAX_PATIENT_PHOTO_SIZE_MB * 1024 * 1024;
+const DEFAULT_PATIENT_PHOTO_UPLOAD_MAX_MB = 1;
+const DEFAULT_PATIENT_PHOTO_STORED_MAX_MB = 0.5;
 
 function createInitialState(patient: ApiPatient): PatientFormState {
     return {
@@ -70,7 +74,13 @@ function createInitialState(patient: ApiPatient): PatientFormState {
     };
 }
 
-export function EditPatientDialog({ open, onOpenChange, patient }: EditPatientDialogProps) {
+export function EditPatientDialog({
+    open,
+    onOpenChange,
+    patient,
+    uploadMaxMb = DEFAULT_PATIENT_PHOTO_UPLOAD_MAX_MB,
+    storedImageMaxMb = DEFAULT_PATIENT_PHOTO_STORED_MAX_MB,
+}: EditPatientDialogProps) {
     const { t } = useI18n();
     const queryClient = useQueryClient();
     const photoInputRef = useRef<HTMLInputElement | null>(null);
@@ -112,6 +122,10 @@ export function EditPatientDialog({ open, onOpenChange, patient }: EditPatientDi
     const phoneError = getPhoneValidationMessage(formData.phone, { required: true });
     const secondaryPhoneError = getPhoneValidationMessage(formData.secondaryPhone, { required: false });
     const hasValidationErrors = Boolean(fullNameError || phoneError || secondaryPhoneError || addressError || medicalHistoryError || allergiesError || currentMedicationsError);
+    const photoUploadMaxMb = uploadMaxMb ?? DEFAULT_PATIENT_PHOTO_UPLOAD_MAX_MB;
+    const photoStoredMaxMb = storedImageMaxMb ?? DEFAULT_PATIENT_PHOTO_STORED_MAX_MB;
+    const photoUploadMaxBytes = photoUploadMaxMb * 1024 * 1024;
+    const photoStoredMaxBytes = photoStoredMaxMb * 1024 * 1024;
     const handleDialogOpenChange = (nextOpen: boolean) => {
         if (!nextOpen) {
             setIsSubmitted(false);
@@ -181,7 +195,7 @@ export function EditPatientDialog({ open, onOpenChange, patient }: EditPatientDi
         mutation.mutate();
     };
 
-    const handlePhotoSelection = (selectedPhoto: File | null) => {
+    const handlePhotoSelection = async (selectedPhoto: File | null) => {
         if (!selectedPhoto) {
             setPhotoFile(null);
             return;
@@ -193,14 +207,26 @@ export function EditPatientDialog({ open, onOpenChange, patient }: EditPatientDi
             setPhotoInputKey((value) => value + 1);
             return;
         }
-        if (selectedPhoto.size > MAX_PATIENT_PHOTO_SIZE_BYTES) {
-            toast.error(t('patients.toast.photoTooLarge', { sizeMb: MAX_PATIENT_PHOTO_SIZE_MB }));
+        if (selectedPhoto.size > photoUploadMaxBytes) {
+            toast.error(t('patients.toast.photoTooLarge', { sizeMb: photoUploadMaxMb }));
             setPhotoFile(null);
             setPhotoInputKey((value) => value + 1);
             return;
         }
 
-        setPhotoFile(selectedPhoto);
+        const optimizedPhoto = await optimizeImageFileForUpload(selectedPhoto, {
+            maxEdge: 1400,
+            targetMaxBytes: photoStoredMaxBytes,
+        });
+
+        if (optimizedPhoto.size > photoStoredMaxBytes) {
+            toast.error(t('patients.toast.photoTooLarge', { sizeMb: photoStoredMaxMb }));
+            setPhotoFile(null);
+            setPhotoInputKey((value) => value + 1);
+            return;
+        }
+
+        setPhotoFile(optimizedPhoto);
         setRemovePhoto(false);
     };
     return (
@@ -221,7 +247,7 @@ export function EditPatientDialog({ open, onOpenChange, patient }: EditPatientDi
                         <PatientPhotoField
                             id="patientPhoto"
                             label={t('patients.form.photo')}
-                            hint={t('patients.form.photoHint', { sizeMb: MAX_PATIENT_PHOTO_SIZE_MB })}
+                            hint={t('patients.form.photoHint', { sizeMb: photoUploadMaxMb })}
                             replaceLabel={t('patients.form.photoReplace')}
                             changeLabel={t('patients.form.photoChange')}
                             removeLabel={t('patients.form.photoRemove')}
@@ -235,11 +261,14 @@ export function EditPatientDialog({ open, onOpenChange, patient }: EditPatientDi
                             selectedFile={photoFile}
                             currentPhotoUrl={
                                 patient.photo_url && !removePhoto && !photoFile
-                                    ? (
-                                        patient.photo_thumbnail_ready === false
-                                            ? (patient.photo_preview_ready ? patient.photo_preview_url ?? undefined : undefined)
-                                            : patient.photo_thumbnail_url ?? patient.photo_preview_url ?? undefined
-                                    )
+                                    ? getProtectedMediaThumbnailUrl({
+                                        scanStatus: patient.photo_scan_status,
+                                        thumbnailUrl: patient.photo_thumbnail_url,
+                                        thumbnailReady: patient.photo_thumbnail_ready,
+                                        previewUrl: patient.photo_preview_url,
+                                        previewReady: patient.photo_preview_ready,
+                                        url: patient.photo_url,
+                                    }) ?? undefined
                                     : undefined
                             }
                             onPickClick={() => photoInputRef.current?.click()}

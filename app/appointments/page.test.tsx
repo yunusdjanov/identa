@@ -2,7 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import AppointmentsPage from '@/app/appointments/page';
-import { deleteAppointment, getProfile, listAllAppointments, updateAppointment } from '@/lib/api/dentist';
+import { deleteAppointment, getCurrentUser, getProfile, listAllAppointments, updateAppointment } from '@/lib/api/dentist';
 import { toLocalDateKey } from '@/lib/utils';
 import { toast } from 'sonner';
 import { I18nProvider } from '@/components/providers/i18n-provider';
@@ -11,6 +11,7 @@ import { DICTIONARIES } from '@/lib/i18n/dictionaries';
 const addAppointmentDialogSpy = vi.fn();
 
 vi.mock('@/lib/api/dentist', () => ({
+    getCurrentUser: vi.fn(),
     getProfile: vi.fn(),
     listAllAppointments: vi.fn(),
     updateAppointment: vi.fn(),
@@ -97,6 +98,7 @@ describe('AppointmentsPage drag and drop', () => {
 
     beforeEach(() => {
         vi.mocked(listAllAppointments).mockReset();
+        vi.mocked(getCurrentUser).mockReset();
         vi.mocked(getProfile).mockReset();
         vi.mocked(updateAppointment).mockReset();
         vi.mocked(deleteAppointment).mockReset();
@@ -106,6 +108,13 @@ describe('AppointmentsPage drag and drop', () => {
 
         vi.spyOn(Date, 'now').mockReturnValue(new Date(`${today}T00:00:00`).getTime() - 1000);
         vi.mocked(deleteAppointment).mockResolvedValue(undefined);
+        vi.mocked(getCurrentUser).mockResolvedValue({
+            id: 'user-1',
+            name: 'Dr. Test',
+            email: 'doctor@example.test',
+            role: 'dentist',
+            account_status: 'active',
+        });
         vi.mocked(getProfile).mockResolvedValue({
             id: 'profile-1',
             name: 'Dr. Test',
@@ -488,3 +497,10 @@ describe('AppointmentsPage drag and drop', () => {
         expect(addButton).toHaveTextContent('Add');
     });
 });
+        vi.mocked(getCurrentUser).mockResolvedValue({
+            id: 'user-1',
+            name: 'Dr. Test',
+            email: 'doctor@example.test',
+            role: 'dentist',
+            account_status: 'active',
+        });

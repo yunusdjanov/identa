@@ -21,6 +21,7 @@ async function waitForSuccessfulMutation(
 ): Promise<void> {
     const deadline = Date.now() + 20_000;
     const observedStatuses: number[] = [];
+    const observedBodies: string[] = [];
 
     while (Date.now() < deadline) {
         const remaining = deadline - Date.now();
@@ -37,6 +38,9 @@ async function waitForSuccessfulMutation(
             );
 
             observedStatuses.push(response.status());
+            if (response.status() < 200 || response.status() >= 300) {
+                observedBodies.push(`${response.status()}: ${(await response.text()).slice(0, 500)}`);
+            }
 
             if (response.status() >= 200 && response.status() < 300) {
                 return;
@@ -48,6 +52,7 @@ async function waitForSuccessfulMutation(
     }
 
     const observed = observedStatuses.length > 0 ? observedStatuses.join(', ') : 'none';
+    const bodyDump = observedBodies.length > 0 ? observedBodies.join(' | ') : 'none';
     const backendOrigin = `http://${new URL(page.url()).hostname}:8100`;
     const cookies = await page.context().cookies(backendOrigin);
     const cookieNames = cookies.map((cookie) => cookie.name).join(', ') || 'none';
@@ -62,6 +67,7 @@ async function waitForSuccessfulMutation(
 
     throw new Error(
         `No successful ${method} ${endpoint} response. Observed statuses: ${observed}. `
+        + `Bodies: ${bodyDump}. `
         + `Cookies: ${cookieNames}. Auth check: ${authStatus} ${authBody}`
     );
 }
@@ -90,7 +96,7 @@ test.describe('Critical Journeys', () => {
         await searchInput.fill(patientName);
         await expect(page.getByRole('cell', { name: patientName })).toBeVisible({ timeout: 15_000 });
 
-        await page.locator('tr', { hasText: patientName }).getByRole('button', { name: 'View Details' }).click();
+        await page.getByRole('button', { name: `Open details for ${patientName}` }).click();
         await expect(page).toHaveURL(/\/patients\/.+/, { timeout: 15_000 });
         await expect(page.getByText('Loading patient details...')).toHaveCount(0, { timeout: 15_000 });
         await expect(page.getByRole('heading', { name: patientName })).toBeVisible({ timeout: 15_000 });
@@ -98,7 +104,7 @@ test.describe('Critical Journeys', () => {
 
     test('appointment scheduling lifecycle', async ({ page }) => {
         const reason = `E2E Appointment ${Date.now()}`;
-        const appointmentDate = toLocalDateInputValue(addDays(new Date(), 2));
+        const appointmentDate = toLocalDateInputValue(addDays(new Date(), 45));
 
         await loginDentist(page);
         await page.goto('/appointments');
@@ -110,11 +116,16 @@ test.describe('Critical Journeys', () => {
         await dialog.getByRole('combobox').first().click();
         await page.getByRole('option').first().click();
         await dialog.getByLabel('Date').fill(appointmentDate);
-        await dialog.getByLabel('Time').fill('23:00');
+        await dialog.getByLabel('Time').click();
+        const timeMenu = page.getByRole('menu');
+        await expect(timeMenu).toBeVisible();
+        await timeMenu.getByRole('menuitem').filter({ hasText: /^\d{2}:\d{2}$/ }).first().click();
         await dialog.getByLabel('Reason for Visit').fill(reason);
 
+        const scheduleButton = dialog.getByRole('button', { name: 'Schedule Appointment' });
+        await expect(scheduleButton).toBeEnabled();
         const createPromise = waitForSuccessfulMutation(page, '/api/v1/appointments', 'POST');
-        await dialog.getByRole('button', { name: 'Schedule Appointment' }).click();
+        await scheduleButton.click();
         await createPromise;
         await expect(dialog).toBeHidden({ timeout: 15_000 });
     });
@@ -148,12 +159,14 @@ test.describe('Critical Journeys', () => {
         await page.getByLabel(/Dentist Name/i).fill(dentistName);
         await page.getByLabel(/^Email/i).fill(dentistEmail);
         await page.getByLabel('Practice Name').fill('E2E Practice');
-        await page.getByLabel('Initial Password').fill('password123');
-        await page.getByRole('button', { name: 'Create Account' }).click();
+        await page.getByLabel('Initial Password').fill('E2E-StrongPass-123!');
+        const createPromise = waitForSuccessfulMutation(page, '/api/v1/admin/dentists', 'POST');
+        await page.getByRole('dialog').getByRole('button', { name: 'Create Account' }).click();
+        await createPromise;
 
         await page.getByPlaceholder('Search dentists...').fill(dentistEmail);
         const row = page.locator('tr', { hasText: dentistEmail });
-        await expect(row).toBeVisible();
+        await expect(row).toBeVisible({ timeout: 15_000 });
 
         await row.locator('button').last().click();
         await page.getByRole('menuitem', { name: 'Block Account' }).click();

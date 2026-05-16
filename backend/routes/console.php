@@ -2,14 +2,18 @@
 
 use App\Jobs\GenerateMediaVariants;
 use App\Models\Patient;
+use App\Models\Subscription;
 use App\Models\TreatmentImage;
 use App\Support\ProductionSecretsValidator;
 use App\Support\ProductionRuntimePolicyValidator;
 use App\Models\User;
+use App\Services\SubscriptionService;
 use Illuminate\Support\Facades\DB;
 use App\Models\Invoice;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Schedule;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 
@@ -228,6 +232,93 @@ Artisan::command('users:ensure-account {email} {password} {--name=} {--role=dent
     return 0;
 })->purpose('Create or update a user account with a known password for maintenance or demo access');
 
+Artisan::command('subscriptions:process', function () {
+    $now = now();
+    $warningWindowEndsAt = $now->copy()->addDay();
+    $warningsSent = 0;
+    $warningsFailed = 0;
+    $expiredCount = 0;
+    $pendingChangesActivated = 0;
+
+    /** @var SubscriptionService $subscriptionService */
+    $subscriptionService = app(SubscriptionService::class);
+
+    Subscription::query()
+        ->with('user')
+        ->where('status', Subscription::STATUS_ACTIVE)
+        ->whereNotNull('ends_at')
+        ->whereNull('expiration_warning_sent_at')
+        ->whereBetween('ends_at', [$now, $warningWindowEndsAt])
+        ->orderBy('ends_at')
+        ->chunkById(100, function ($subscriptions) use (&$warningsSent, &$warningsFailed): void {
+            foreach ($subscriptions as $subscription) {
+                $user = $subscription->user;
+                if ($user === null || ! filter_var($user->email, FILTER_VALIDATE_EMAIL)) {
+                    continue;
+                }
+
+                try {
+                    Mail::raw(
+                        sprintf(
+                            "Identa tarifingiz %s da tugaydi. Account read-only bo'lmasligi uchun billing sahifasida tarifni yangilang.",
+                            $subscription->ends_at?->format('Y-m-d H:i')
+                        ),
+                        static function ($message) use ($user): void {
+                            $message->to($user->email, $user->name)
+                                ->subject('Identa tarif muddati tugashiga 24 soatdan kam qoldi');
+                        }
+                    );
+
+                    $subscription->forceFill(['expiration_warning_sent_at' => now()])->save();
+                    $warningsSent++;
+                } catch (\Throwable $exception) {
+                    $warningsFailed++;
+                    report($exception);
+                }
+            }
+        });
+
+    Subscription::query()
+        ->with('user')
+        ->where('status', Subscription::STATUS_ACTIVE)
+        ->whereNotNull('ends_at')
+        ->where('ends_at', '<=', $now)
+        ->orderBy('ends_at')
+        ->chunkById(100, function ($subscriptions) use (&$expiredCount, &$pendingChangesActivated, $subscriptionService): void {
+            foreach ($subscriptions as $subscription) {
+                $owner = $subscription->user;
+                if ($owner === null) {
+                    $subscription->forceFill(['status' => Subscription::STATUS_READ_ONLY])->save();
+                    $expiredCount++;
+                    continue;
+                }
+
+                $beforeSubscriptionId = $subscription->id;
+                $processedSubscription = $subscriptionService->processExpiredSubscription($subscription);
+                if ($processedSubscription?->id !== $beforeSubscriptionId) {
+                    $pendingChangesActivated++;
+                    continue;
+                }
+
+                if ($processedSubscription?->status === Subscription::STATUS_READ_ONLY) {
+                    $expiredCount++;
+                }
+            }
+        });
+
+    $this->info(sprintf(
+        'Subscription processing complete. Warnings sent: %d. Warning failures: %d. Pending changes activated: %d. Expired to read-only: %d.',
+        $warningsSent,
+        $warningsFailed,
+        $pendingChangesActivated,
+        $expiredCount
+    ));
+
+    return 0;
+})->purpose('Send subscription expiry warnings and move expired subscriptions to read-only');
+
+Schedule::command('subscriptions:process')->hourly();
+
 Artisan::command(
     'app:reset-test-data {--force : Required to confirm destructive cleanup} {--email=admin@identa.uz : Super admin email} {--password=password123 : Super admin password} {--name=Platform Super Admin : Super admin display name}',
     function () {
@@ -282,7 +373,10 @@ Artisan::command(
             'failed_jobs',
             'job_batches',
             'password_reset_tokens',
+            'billing_payments',
+            'subscriptions',
             'users',
+            'plans',
         ];
 
         $existingTables = array_values(array_filter($tables, static fn (string $table): bool => Schema::hasTable($table)));

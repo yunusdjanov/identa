@@ -6,13 +6,16 @@ import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
-import { getPatient } from '@/lib/api/dentist';
+import { getCurrentUser, getPatient } from '@/lib/api/dentist';
 import { getApiErrorMessage } from '@/lib/api/client';
 import { useI18n } from '@/components/providers/i18n-provider';
 import { Button } from '@/components/ui/button';
 import { PageHeader } from '@/components/ui/page-shell';
 import { Skeleton } from '@/components/ui/skeleton';
+import { PatientHistoryLoadingState } from '@/components/layout/page-loading-skeletons';
 import { AppErrorState } from '@/components/error/app-error-state';
+import { AccessDeniedState } from '@/components/error/access-denied-state';
+import { canView, PERMISSION_DENIED_MESSAGE } from '@/lib/auth/permissions';
 
 const TreatmentHistoryCard = dynamic(
     () => import('@/components/patients/treatment-history-card').then((module) => module.TreatmentHistoryCard),
@@ -33,36 +36,46 @@ export default function PatientHistoryPage({
     const from = searchParams.get('from');
     const backHref = from === 'payments' ? '/payments' : '/patients';
     const backLabel = from === 'payments' ? t('nav.payments') : t('nav.patients');
+    const currentUserQuery = useQuery({
+        queryKey: ['auth', 'me'],
+        queryFn: getCurrentUser,
+        staleTime: 5 * 60_000,
+    });
+    const canViewPatients = canView(currentUserQuery.data, 'patients');
 
     const patientQuery = useQuery({
         queryKey: ['patients', 'detail', id],
         queryFn: () => getPatient(id),
+        enabled: canViewPatients,
         retry: false,
         staleTime: 30_000,
     });
 
-    if (patientQuery.isLoading) {
+    if (currentUserQuery.isLoading || patientQuery.isLoading) {
+        return <PatientHistoryLoadingState />;
+    }
+
+    if (!canViewPatients) {
         return (
-            <div className="space-y-6">
-                <div className="flex items-center justify-between">
-                    <div className="space-y-2">
-                        <Skeleton className="h-9 w-64" />
-                        <Skeleton className="h-4 w-80" />
-                    </div>
-                    <Skeleton className="h-9 w-40" />
-                </div>
-                <Skeleton className="h-[28rem] w-full rounded-xl" />
-            </div>
+            <AccessDeniedState
+                title={t('common.forbiddenTitle')}
+                description={PERMISSION_DENIED_MESSAGE}
+                actionHref={backHref}
+                actionLabel={backLabel}
+            />
         );
     }
 
-    if (patientQuery.isError || !patientQuery.data) {
+    if (currentUserQuery.isError || patientQuery.isError || !patientQuery.data) {
         return (
             <AppErrorState
                 title={t('common.loadErrorTitle')}
-                description={getApiErrorMessage(patientQuery.error, t('patientDetail.error.loadFailed'))}
+                description={getApiErrorMessage(currentUserQuery.error || patientQuery.error, t('patientDetail.error.loadFailed'))}
                 retryLabel={t('common.retry')}
-                onRetry={() => patientQuery.refetch()}
+                onRetry={() => {
+                    currentUserQuery.refetch();
+                    patientQuery.refetch();
+                }}
                 backHref={backHref}
                 backLabel={backLabel}
             />

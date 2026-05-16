@@ -2,15 +2,17 @@
 
 namespace App\Models;
 
+use App\Contracts\TenantOwned;
+use App\Models\Concerns\BelongsToTenant;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class OdontogramEntryImage extends Model
+class OdontogramEntryImage extends Model implements TenantOwned
 {
     /** @use HasFactory<\Database\Factories\OdontogramEntryImageFactory> */
-    use HasFactory, HasUuids;
+    use BelongsToTenant, HasFactory, HasUuids;
 
     /**
      * @var bool
@@ -34,6 +36,13 @@ class OdontogramEntryImage extends Model
         'mime_type',
         'file_size',
         'captured_at',
+        'scan_status',
+        'scan_result',
+        'scan_provider',
+        'quarantine_path',
+        'approved_at',
+        'scanned_at',
+        'rejected_at',
     ];
 
     /**
@@ -44,6 +53,9 @@ class OdontogramEntryImage extends Model
         return [
             'file_size' => 'integer',
             'captured_at' => 'date',
+            'approved_at' => 'datetime',
+            'scanned_at' => 'datetime',
+            'rejected_at' => 'datetime',
         ];
     }
 

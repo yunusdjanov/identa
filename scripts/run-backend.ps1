@@ -41,7 +41,12 @@ Stop-ProcessOnPort -TargetPort $Port
 
 $env:APP_URL = "http://127.0.0.1:$Port"
 $env:FRONTEND_URL = "http://127.0.0.1:3000"
-$env:FRONTEND_URLS = "http://localhost:3000,http://127.0.0.1:3000"
+$defaultFrontendUrls = @("http://localhost:3000", "http://127.0.0.1:3000")
+$configuredFrontendUrls = @()
+if (-not [string]::IsNullOrWhiteSpace($env:FRONTEND_URLS)) {
+    $configuredFrontendUrls = $env:FRONTEND_URLS -split "," | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne "" }
+}
+$env:FRONTEND_URLS = (($defaultFrontendUrls + $configuredFrontendUrls) | Select-Object -Unique) -join ","
 $env:SANCTUM_STATEFUL_DOMAINS = "localhost,localhost:3000,localhost:$Port,127.0.0.1,127.0.0.1:3000,127.0.0.1:$Port"
 $env:SESSION_DRIVER = "file"
 $env:SESSION_SECURE_COOKIE = "false"

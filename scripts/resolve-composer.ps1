@@ -30,10 +30,17 @@ $preferredCandidates = @(
 
 $resolvedComposer = $null
 
-foreach ($candidate in $preferredCandidates) {
-    $resolvedComposer = Resolve-ComposerCandidate -CandidatePath $candidate
-    if ($resolvedComposer) {
-        break
+$localComposer = Resolve-ComposerCandidate -CandidatePath (Join-Path $PSScriptRoot "..\.tools\composer.phar")
+if ($localComposer) {
+    $resolvedComposer = $localComposer
+}
+
+if (-not $resolvedComposer) {
+    foreach ($candidate in $preferredCandidates) {
+        $resolvedComposer = Resolve-ComposerCandidate -CandidatePath $candidate
+        if ($resolvedComposer) {
+            break
+        }
     }
 }
 
@@ -41,6 +48,18 @@ if (-not $resolvedComposer) {
     $composerCommand = Get-Command composer -ErrorAction SilentlyContinue
     if ($composerCommand) {
         $resolvedComposer = Resolve-ComposerCandidate -CandidatePath $composerCommand.Source
+    }
+}
+
+if (-not $resolvedComposer) {
+    try {
+        $phpCommand = (& "$PSScriptRoot\resolve-php.ps1" -Quiet).Trim()
+        $phpDirectory = Split-Path -Parent $phpCommand
+        $runtimeDirectory = Split-Path -Parent $phpDirectory
+        $resolvedComposer = Resolve-ComposerCandidate -CandidatePath (Join-Path $runtimeDirectory "composer.phar")
+    }
+    catch {
+        $resolvedComposer = $null
     }
 }
 
