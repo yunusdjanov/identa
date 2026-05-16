@@ -5,10 +5,10 @@
   "scripts": {
     "dev": "next dev",
     "dev:local": "powershell -ExecutionPolicy Bypass -File .\\scripts\\start-local.ps1",
-    "build": "C:\\Progra~1\\nodejs\\node.exe node_modules/next/dist/bin/next build --webpack",
+    "build": "next build --webpack",
     "start": "next start",
-    "lint": "C:\\Progra~1\\nodejs\\node.exe node_modules/eslint/bin/eslint.js",
-    "test": "C:\\Progra~1\\nodejs\\node.exe node_modules/vitest/vitest.mjs run",
+    "lint": "eslint",
+    "test": "vitest run",
     "test:watch": "vitest",
     "test:backend": "powershell -ExecutionPolicy Bypass -File .\\scripts\\backend-artisan.ps1 test",
     "db:migrate": "powershell -ExecutionPolicy Bypass -File .\\scripts\\sync-backend-db.ps1",
