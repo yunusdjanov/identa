@@ -33,7 +33,6 @@ function Nav({ t, lang, setLang, onMenu }) {
             ))}
           </div>
           <a href={APP_LOGIN_URL} target={TOP_TARGET} className="btn btn-ghost btn-sm hide-mobile">{t.nav.login}</a>
-          <a href={APP_REGISTER_URL} target={TOP_TARGET} className="btn btn-accent btn-sm">{t.nav.cta}</a>
           <button className="menu-btn" onClick={onMenu} aria-label="Open menu">
             <svg width="16" height="16" viewBox="0 0 16 16"><path d="M2 4h12M2 8h12M2 12h12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
           </button>
@@ -61,7 +60,6 @@ function MobileMenu({ open, onClose, t, lang, setLang }) {
         <a href="#pricing" onClick={onClose}>{t.nav.pricing}</a>
         <a href="#steps" onClick={onClose}>{t.nav.howto}</a>
         <a href="#faq" onClick={onClose}>{t.nav.faq}</a>
-        <a href={APP_REGISTER_URL} target={TOP_TARGET} onClick={onClose}>{t.nav.cta}</a>
       </div>
       <div style={{marginTop: 32, display:"flex", gap: 12, alignItems:"center"}}>
         <div className="lang-switch">
@@ -70,7 +68,6 @@ function MobileMenu({ open, onClose, t, lang, setLang }) {
           ))}
         </div>
         <a href={APP_LOGIN_URL} target={TOP_TARGET} className="btn btn-ghost btn-sm">{t.nav.login}</a>
-        <a href={APP_REGISTER_URL} target={TOP_TARGET} className="btn btn-accent btn-sm">{t.nav.cta}</a>
       </div>
     </div>
   );
