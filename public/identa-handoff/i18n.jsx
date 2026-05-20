@@ -8,12 +8,13 @@ const I18N = {
       faq: "Вопросы",
       login: "Войти",
       cta: "Попробовать",
+      mobile: "Мобильное",
     },
     hero: {
       eyebrow: "Пациенты · Приёмы · Оплаты · Снимки",
-      status: "30 дней пробного доступа для новых учётных записей",
+      status: "30 дней бесплатно",
       title: ["Стоматология, ", "собранная", " в ", "одной системе."],
-      lede: "Identa помогает стоматологу вести пациентов, приёмы, оплаты, историю лечения и клинические снимки в одном рабочем кабинете. Зарегистрируйтесь по электронной почте или через Google и получите 30 дней пробного доступа.",
+      lede: "",
       ctaPrimary: "Начать бесплатно",
       ctaSecondary: "Войти",
       stats: [
@@ -76,6 +77,29 @@ const I18N = {
         },
       ],
     },
+    mobile: {
+      eyebrow: "Мобильное приложение",
+      title: ["Рабочий кабинет ", "в телефоне", "."],
+      lede: "Мобильное приложение Identa почти готово к запуску. Оно работает с тем же аккаунтом и данными, что и web-кабинет: врач и команда смогут быстро смотреть расписание, карточки пациентов, платежи и важные обновления прямо с телефона.",
+      points: [
+        { t: "Расписание на смене", d: "Проверяйте сегодняшние приёмы, статус визита и ближайшие записи без ноутбука." },
+        { t: "Пациент под рукой", d: "Открывайте профиль, контакты, историю лечения, снимки и заметки перед приёмом." },
+        { t: "Оплаты и уведомления", d: "Видите статус платежей и получаете важные события по клинике в мобильном интерфейсе." },
+      ],
+      badges: ["iOS и Android", "Единый аккаунт", "Синхронизация с web"],
+      mockupLabel: "Мобильное приложение Identa",
+      status: "почти готово",
+      today: "Сегодня",
+      appointments: "приёмов",
+      timeline: [
+        { time: "09:30", name: "Карина А.", meta: "Осмотр · подтверждено", kind: "navy" },
+        { time: "11:00", name: "Имплант", meta: "Подготовить снимки", kind: "teal" },
+        { time: "14:30", name: "Алишер К.", meta: "Оплата получена", kind: "soft" },
+      ],
+      tabs: ["Обзор", "Пациент", "Оплаты"],
+      floatA: { t: "Push-уведомления", d: "визиты, оплаты и задачи" },
+      floatB: { t: "Web + mobile", d: "данные синхронизируются" },
+    },
     pricing: {
       eyebrow: "Тарифы",
       title: ["Прозрачные цены, ", "без сюрпризов."],
@@ -86,7 +110,7 @@ const I18N = {
       plans: [
         {
           name: "Пробный",
-          desc: "Для знакомства с Identa сразу после регистрации.",
+          desc: "Автоматический пробный доступ сразу после регистрации.",
           price: { m: "30 дней", y: "30 дней" },
           cur: "",
           features: [
@@ -96,6 +120,7 @@ const I18N = {
             "Выгрузка недоступна",
           ],
           cta: "Начать пробный доступ",
+          flag: "Автоматически",
         },
         {
           name: "Базовый",
@@ -170,12 +195,12 @@ const I18N = {
   },
 
   uz: {
-    nav: { features: "Imkoniyatlar", pricing: "Tariflar", howto: "Boshlash", faq: "Savollar", login: "Kirish", cta: "Sinab ko'rish" },
+    nav: { features: "Imkoniyatlar", mobile: "Mobil ilova", pricing: "Tariflar", howto: "Boshlash", faq: "Savollar", login: "Kirish", cta: "Sinab ko'rish" },
     hero: {
       eyebrow: "Bemorlar · Qabullar · To'lovlar · Rasmlar",
-      status: "Yangi hisoblar uchun 30 kunlik sinov",
+      status: "30 kun bepul",
       title: ["Stomatologiya ", "tartibda,", " hammasi ", "bir tizimda."],
-      lede: "Identa stomatologga bemorlar, qabullar, to'lovlar, davolanish tarixi va klinik rasmlarni bitta ish kabinetida yuritishga yordam beradi. Elektron pochta yoki Google orqali ro'yxatdan o'ting va 30 kunlik sinov muddatini boshlang.",
+      lede: "",
       ctaPrimary: "Bepul boshlash",
       ctaSecondary: "Kirish",
       stats: [
@@ -223,6 +248,29 @@ const I18N = {
         { n: "03", t: ["Bemor profili ", "bir joyda"], d: "Bemor profili, davolanish tarixi, izohlar, tish xaritasi va rasmlar kabinetda saqlanadi va faqat ruxsati bor foydalanuvchilarga ko'rinadi.", viz: "list" },
       ],
     },
+    mobile: {
+      eyebrow: "Mobil ilova",
+      title: ["Ish kabineti ", "telefoningizda", "."],
+      lede: "Identa mobil ilovasi deyarli ishga tushishga tayyor. U web-kabinet bilan bir xil akkaunt va ma'lumotlar asosida ishlaydi: shifokor va jamoa jadval, bemor kartasi, to'lovlar va muhim yangilanishlarni telefondan tez ko'ra oladi.",
+      points: [
+        { t: "Smena jadvali", d: "Bugungi qabullar, tashrif holati va yaqin yozuvlarni noutbuksiz tekshiring." },
+        { t: "Bemor kartasi qo'lda", d: "Qabuldan oldin profil, kontaktlar, davolanish tarixi, rasmlar va izohlarni oching." },
+        { t: "To'lovlar va xabarlar", d: "To'lov holatini ko'ring va klinikadagi muhim voqealarni mobil interfeysda oling." },
+      ],
+      badges: ["iOS va Android", "Bitta akkaunt", "Web bilan sinxron"],
+      mockupLabel: "Identa mobil ilovasi",
+      status: "deyarli tayyor",
+      today: "Bugun",
+      appointments: "qabul",
+      timeline: [
+        { time: "09:30", name: "Karina A.", meta: "Ko'rik · tasdiqlandi", kind: "navy" },
+        { time: "11:00", name: "Implant", meta: "Rasmlarni tayyorlash", kind: "teal" },
+        { time: "14:30", name: "Alisher K.", meta: "To'lov olindi", kind: "soft" },
+      ],
+      tabs: ["Boshqaruv", "Bemor", "To'lov"],
+      floatA: { t: "Push xabarlar", d: "qabul, to'lov va vazifalar" },
+      floatB: { t: "Web + mobile", d: "ma'lumotlar sinxron" },
+    },
     pricing: {
       eyebrow: "Tariflar",
       title: ["Shaffof narxlar, ", "yashirin to'lovlarsiz."],
@@ -231,7 +279,7 @@ const I18N = {
       yearly: "Yillik",
       save: "",
       plans: [
-        { name: "Sinov", desc: "Identa bilan tanishish uchun avtomatik sinov tarifi.", price: { m: "30 kun", y: "30 kun" }, cur: "", features: ["Shifokor + 1 xodim", "Har yozuv uchun 2 ta rasm", "Yuklash 1 MB gacha", "Eksport yo'q"], cta: "Sinovni boshlash" },
+        { name: "Sinov", desc: "Ro'yxatdan o'tgach avtomatik ochiladigan sinov tarifi.", price: { m: "30 kun", y: "30 kun" }, cur: "", features: ["Shifokor + 1 xodim", "Har yozuv uchun 2 ta rasm", "Yuklash 1 MB gacha", "Eksport yo'q"], cta: "Sinovni boshlash", flag: "Avtomatik" },
         { name: "Asosiy", desc: "Kichik jamoa uchun asosiy imkoniyatlar.", price: { m: "Narx kabinet ichida", y: "Narx kabinet ichida" }, cur: "", features: ["Shifokor + 3 xodim", "Har yozuv uchun 2 ta rasm", "Yuklash 3 MB gacha", "Eksport yo'q", "Oylik yoki yillik to'lov PayX orqali"], cta: "Asosiy tarifni tanlash", flag: "Asosiy", featured: true },
         { name: "Pro", desc: "Ko'proq rasm, ko'proq xodim va eksport kerak bo'lgan klinikalar uchun.", price: { m: "Narx kabinet ichida", y: "Narx kabinet ichida" }, cur: "", features: ["Shifokor + 5 xodim", "Har yozuv uchun 10 ta rasm", "Yuklash 5 MB gacha", "Eksport bor"], cta: "Pro tarifni tanlash" },
       ],
@@ -278,12 +326,12 @@ const I18N = {
   },
 
   en: {
-    nav: { features: "Features", pricing: "Pricing", howto: "Get started", faq: "FAQ", login: "Sign in", cta: "Try free" },
+    nav: { features: "Features", mobile: "Mobile app", pricing: "Pricing", howto: "Get started", faq: "FAQ", login: "Sign in", cta: "Try free" },
     hero: {
       eyebrow: "Patients · Appointments · Payments · Images",
-      status: "30-day Trial for new accounts",
+      status: "30 days free",
       title: ["Dental work, ", "organized", " in ", "one workspace."],
-      lede: "Identa helps dentists manage patients, appointments, payments, treatment history and clinical images in one workspace. Register with email or Google and start with a 30-day Trial.",
+      lede: "",
       ctaPrimary: "Start free",
       ctaSecondary: "Sign in",
       stats: [
@@ -331,6 +379,29 @@ const I18N = {
         { n: "03", t: ["Patient profiles ", "in one place"], d: "Patient profiles, treatment history, notes, odontogram and images stay in the clinic workspace and are visible only to users with access.", viz: "list" },
       ],
     },
+    mobile: {
+      eyebrow: "Mobile app",
+      title: ["The clinic workspace ", "on your phone", "."],
+      lede: "The Identa mobile app is almost ready for launch. It uses the same account and data as the web workspace, so doctors and staff can quickly review schedules, patient cards, payments and important clinic updates from a phone.",
+      points: [
+        { t: "Schedule during the shift", d: "Check today's appointments, visit status and upcoming bookings without opening a laptop." },
+        { t: "Patient card in hand", d: "Open profile details, contacts, treatment history, images and notes before the visit." },
+        { t: "Payments and alerts", d: "See payment status and receive important clinic events in a focused mobile interface." },
+      ],
+      badges: ["iOS and Android", "One account", "Synced with web"],
+      mockupLabel: "Identa mobile app",
+      status: "almost ready",
+      today: "Today",
+      appointments: "appointments",
+      timeline: [
+        { time: "09:30", name: "Karina A.", meta: "Checkup · confirmed", kind: "navy" },
+        { time: "11:00", name: "Implant", meta: "Prepare images", kind: "teal" },
+        { time: "14:30", name: "Alisher K.", meta: "Payment received", kind: "soft" },
+      ],
+      tabs: ["Home", "Patient", "Pay"],
+      floatA: { t: "Push alerts", d: "visits, payments and tasks" },
+      floatB: { t: "Web + mobile", d: "data stays synced" },
+    },
     pricing: {
       eyebrow: "Pricing",
       title: ["Honest pricing, ", "no surprises."],
@@ -339,7 +410,7 @@ const I18N = {
       yearly: "Yearly",
       save: "",
       plans: [
-        { name: "Trial", desc: "Automatic trial plan for exploring Identa.", price: { m: "30 days", y: "30 days" }, cur: "", features: ["Doctor + 1 staff", "2 images per entry", "Upload up to 1 MB", "No export"], cta: "Start Trial" },
+        { name: "Trial", desc: "Automatic trial access right after registration.", price: { m: "30 days", y: "30 days" }, cur: "", features: ["Doctor + 1 staff", "2 images per entry", "Upload up to 1 MB", "No export"], cta: "Start Trial", flag: "Automatic" },
         { name: "Basic", desc: "Core capabilities for a small team.", price: { m: "Price in app", y: "Price in app" }, cur: "", features: ["Doctor + 3 staff", "2 images per entry", "Upload up to 3 MB", "No export", "Monthly/yearly via PayX"], cta: "Choose Basic", flag: "Core", featured: true },
         { name: "Pro", desc: "More images, more staff and export for active clinics.", price: { m: "Price in app", y: "Price in app" }, cur: "", features: ["Doctor + 5 staff", "10 images per entry", "Upload up to 5 MB", "Export enabled"], cta: "Choose Pro" },
       ],

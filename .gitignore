@@ -46,10 +46,13 @@ next-env.d.ts
 
 # local runtime / temp files
 .tools/
+.superpowers/
+/.next-dev-logs/
 *.out.log
 *.err.log
 tmp-*.js
 composer.phar
+public/identa-handoff/landing.bundle.js
 
 # test artifacts
 /test-results/

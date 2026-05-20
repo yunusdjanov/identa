@@ -5,10 +5,11 @@
   "scripts": {
     "dev": "next dev",
     "dev:local": "powershell -ExecutionPolicy Bypass -File .\\scripts\\start-local.ps1",
-    "build": "next build --webpack",
+    "build": "node scripts/build-landing-handoff.mjs && next build --webpack",
+    "build:landing": "node scripts/build-landing-handoff.mjs",
     "start": "next start",
     "lint": "eslint",
-    "test": "vitest run",
+    "test": "vitest run --maxWorkers=1",
     "test:watch": "vitest",
     "test:backend": "powershell -ExecutionPolicy Bypass -File .\\scripts\\backend-artisan.ps1 test",
     "db:migrate": "powershell -ExecutionPolicy Bypass -File .\\scripts\\sync-backend-db.ps1",

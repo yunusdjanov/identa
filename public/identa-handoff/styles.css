@@ -192,6 +192,9 @@ section {
   padding: var(--section) 0;
   position: relative;
 }
+section[id] {
+  scroll-margin-top: 88px;
+}
 .section-head {
   display: flex;
   flex-direction: column;

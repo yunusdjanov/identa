@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { ArrowRight } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -25,8 +26,16 @@ import { useAuthStore } from '@/lib/store';
 import { toast } from 'sonner';
 import { INPUT_LIMITS, getEmailValidationMessage } from '@/lib/input-validation';
 import { useI18n } from '@/components/providers/i18n-provider';
-import { LanguageSwitcher } from '@/components/layout/language-switcher';
-import { Brand } from '@/components/branding/brand';
+import { GoogleAuthButton } from '@/components/auth/google-auth-button';
+import { AuthPageShell } from '@/components/auth/auth-page-shell';
+import {
+    authCardClassName,
+    authCardContentClassName,
+    authCardHeaderClassName,
+    authInputClassName,
+    authLinkClassName,
+    authSubmitClassName,
+} from '@/components/auth/auth-form-styles';
 
 interface GoogleCredentialResponse {
     credential?: string;
@@ -180,7 +189,7 @@ export default function LoginPage() {
                 type: 'standard',
                 text: 'continue_with',
                 shape: 'rectangular',
-                width: 360,
+                width: Math.max(240, Math.min(360, Math.floor(googleButtonRef.current.getBoundingClientRect().width || 360))),
             });
             setGoogleReady(true);
         };
@@ -216,29 +225,20 @@ export default function LoginPage() {
     };
 
     return (
-        <div className="relative flex min-h-screen items-center justify-center overflow-x-hidden bg-[#edf6f8] px-4 py-4 text-slate-950 sm:py-6">
-            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_12%_16%,rgba(13,148,136,0.20),transparent_31%),radial-gradient(circle_at_88%_18%,rgba(37,99,235,0.15),transparent_30%),linear-gradient(135deg,#e5f6f4_0%,#f9fbfc_45%,#e8f2ff_100%)]" />
-            <div className="absolute right-4 top-4 z-10 sm:right-6 sm:top-6">
-                <LanguageSwitcher variant="compact" />
-            </div>
-            <div className="relative w-full max-w-md">
-                <div className="mb-5 text-center sm:mb-6">
-                    <div className="mb-2 flex justify-center">
-                        <Brand href="/" variant="text" priority textClassName="w-36 sm:w-40" />
-                    </div>
-                    <p className="text-sm text-slate-600 sm:text-base">{t('login.subtitle')}</p>
-                </div>
-
-                <Card className="border-white/80 bg-white/90 shadow-2xl shadow-slate-950/10 backdrop-blur-md">
-                    <CardHeader className="px-5 pb-3 pt-6 sm:px-7">
-                        <CardTitle className="text-center text-2xl font-black tracking-[-0.035em] text-slate-950">
-                            {t('login.welcomeBack')}
+        <AuthPageShell>
+            <Card className={authCardClassName}>
+                <CardHeader className={authCardHeaderClassName}>
+                    <div className="space-y-1">
+                        <CardTitle className="text-[1.45rem] font-black leading-tight tracking-normal text-slate-950 sm:text-[1.55rem]">
+                            {t('login.cardTitle')}
                         </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4 px-5 pb-5 sm:px-7">
-                        <form onSubmit={handleSubmit} className="space-y-4">
+                        <p className="text-sm leading-5 text-slate-600">{t('login.subtitle')}</p>
+                    </div>
+                </CardHeader>
+                <CardContent className={authCardContentClassName}>
+                        <form onSubmit={handleSubmit} className="space-y-3.5">
                             <div className="space-y-1.5">
-                                <Label htmlFor="email" className="text-sm font-semibold text-slate-950">
+                                <Label htmlFor="email" className="text-[13px] font-semibold text-slate-950">
                                     {t('login.email')} <span className="text-red-500">*</span>
                                 </Label>
                                 <Input
@@ -250,7 +250,7 @@ export default function LoginPage() {
                                     maxLength={INPUT_LIMITS.email}
                                     autoComplete="email"
                                     inputMode="email"
-                                    className="h-11 rounded-2xl bg-white/95 px-4 shadow-sm"
+                                    className={authInputClassName}
                                     aria-invalid={Boolean(isSubmitted && emailError)}
                                 />
                                 {isSubmitted && emailError ? (
@@ -259,7 +259,7 @@ export default function LoginPage() {
                             </div>
 
                             <div className="space-y-1.5">
-                                <Label htmlFor="password" className="text-sm font-semibold text-slate-950">
+                                <Label htmlFor="password" className="text-[13px] font-semibold text-slate-950">
                                     {t('login.password')} <span className="text-red-500">*</span>
                                 </Label>
                                 <PasswordInput
@@ -269,7 +269,7 @@ export default function LoginPage() {
                                     required
                                     maxLength={INPUT_LIMITS.password}
                                     autoComplete="current-password"
-                                    className="h-11 rounded-2xl bg-white/95 px-4 shadow-sm"
+                                    className={authInputClassName}
                                     aria-invalid={Boolean(isSubmitted && passwordError)}
                                     showLabel={t('login.showPassword')}
                                     hideLabel={t('login.hidePassword')}
@@ -280,18 +280,18 @@ export default function LoginPage() {
                             </div>
 
                             <div className="flex flex-wrap items-center justify-between gap-3">
-                                <label className="flex min-w-0 items-center gap-2 text-sm text-slate-600">
+                                <label className="flex min-h-8 min-w-0 items-center gap-2 text-sm text-slate-600">
                                     <input
                                         type="checkbox"
                                         checked={remember}
                                         onChange={(event) => setRemember(event.target.checked)}
-                                        className="h-4 w-4 rounded border-slate-300 text-cyan-700 focus:ring-cyan-600"
+                                        className="h-5 w-5 rounded border-slate-300 text-cyan-700 focus:ring-cyan-600"
                                     />
                                     <span>{t('login.rememberMe')}</span>
                                 </label>
                                 <Link
                                     href="/forgot-password"
-                                    className="text-sm font-semibold text-cyan-700 transition hover:text-cyan-800"
+                                    className={`${authLinkClassName} text-sm`}
                                 >
                                     {t('login.forgotPassword')}
                                 </Link>
@@ -299,42 +299,38 @@ export default function LoginPage() {
 
                             <Button
                                 type="submit"
-                                className="h-11 w-full rounded-2xl bg-slate-950 text-base font-bold text-white shadow-lg shadow-slate-950/15 hover:bg-slate-800"
+                                className={`${authSubmitClassName} gap-2`}
                                 disabled={loginMutation.isPending || googleMutation.isPending}
                             >
                                 {loginMutation.isPending ? t('login.signingIn') : t('login.signIn')}
+                                <ArrowRight className="size-4" aria-hidden="true" />
                             </Button>
                         </form>
 
                         <div className="flex items-center gap-3 text-xs uppercase tracking-[0.18em] text-slate-400">
-                            <span className="h-px flex-1 bg-gray-200" />
+                            <span className="h-px flex-1 bg-slate-200/80" />
                             <span>{t('register.orEmail')}</span>
-                            <span className="h-px flex-1 bg-gray-200" />
+                            <span className="h-px flex-1 bg-slate-200/80" />
                         </div>
 
-                        <div className="min-h-11 w-full overflow-hidden rounded-md">
-                            {googleClientId ? (
-                                <div
-                                    ref={googleButtonRef}
-                                    className="flex min-h-11 justify-center"
-                                    aria-busy={!googleReady || googleMutation.isPending}
-                                />
-                            ) : (
-                                <Button type="button" variant="outline" className="h-11 w-full rounded-2xl bg-white/80" disabled>
-                                    {t('register.googleNotConfigured')}
-                                </Button>
-                            )}
-                        </div>
+                        <GoogleAuthButton
+                            mountRef={googleButtonRef}
+                            isConfigured={Boolean(googleClientId) && !isLogoutRedirect}
+                            isReady={googleReady}
+                            isPending={loginMutation.isPending || googleMutation.isPending}
+                            label={t('register.googleContinue')}
+                            unavailableLabel={t('register.googleNotConfigured')}
+                            soonLabel={t('register.googleSoon')}
+                        />
 
-                        <p className="text-center text-sm text-slate-600">
+                        <p className="text-center text-sm leading-6 text-slate-600">
                             {t('login.noAccount')}{' '}
-                            <Link href="/register" className="font-semibold text-cyan-700 transition hover:text-cyan-800">
+                            <Link href="/register" className={authLinkClassName}>
                                 {t('login.createAccount')}
                             </Link>
                         </p>
-                    </CardContent>
-                </Card>
-            </div>
-        </div>
+                </CardContent>
+            </Card>
+        </AuthPageShell>
     );
 }

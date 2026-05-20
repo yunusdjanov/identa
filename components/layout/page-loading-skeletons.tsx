@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 
 import { Brand } from '@/components/branding/brand';
+import { authCardClassName } from '@/components/auth/auth-form-styles';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -565,40 +566,55 @@ export function AuthFormLoadingState({
     return (
         <div
             data-testid="auth-form-loading"
-            className="relative flex min-h-screen items-center justify-center bg-gradient-to-br from-blue-50 via-white to-blue-50 p-4"
+            className="relative min-h-screen overflow-hidden bg-[#e5f5f5] text-slate-950"
         >
-            <Skeleton className="absolute right-4 top-4 h-9 w-24 rounded-xl sm:right-6 sm:top-6" />
-            <div className="w-full max-w-md">
-                <div className="mb-8 flex flex-col items-center gap-3 text-center">
-                    <Brand href="/" variant="text" priority textClassName="w-40 sm:w-44" />
-                    <Skeleton className="h-4 w-56 rounded-xl" />
-                </div>
-                <Card className="shadow-xl">
-                    <CardHeader>
-                        <Skeleton className="mx-auto h-7 w-52 rounded-xl" />
-                    </CardHeader>
-                    <CardContent className="space-y-5">
-                        {Array.from({ length: fieldCount }).map((_, index) => (
-                            <div key={index} data-testid="auth-field-skeleton" className="space-y-2">
-                                <Skeleton className="h-4 w-24 rounded-xl" />
-                                <Skeleton className="h-11 w-full rounded-xl" />
-                            </div>
-                        ))}
-                        <Skeleton className="h-14 w-full rounded-xl" />
-                        <Skeleton className="h-11 w-full rounded-xl" />
-                        {showOAuth ? (
-                            <>
-                                <div className="flex items-center gap-3">
-                                    <Skeleton className="h-px flex-1" />
-                                    <Skeleton className="h-3 w-16 rounded-xl" />
-                                    <Skeleton className="h-px flex-1" />
+            <div className="auth-teal-gradient pointer-events-none absolute inset-0" />
+            <div className="relative mx-auto flex min-h-screen w-full max-w-5xl flex-col px-4 py-4 sm:px-6 lg:px-8">
+                <header className="flex min-h-12 items-center justify-between gap-3">
+                    <Brand href="/" variant="text" priority textClassName="w-36 sm:w-40" />
+                    <div className="flex items-center gap-2">
+                        <Skeleton className="hidden h-9 w-36 rounded-full bg-white/60 sm:block" />
+                        <Skeleton className="h-9 w-20 rounded-full bg-white/70" />
+                    </div>
+                </header>
+
+                <section className="flex flex-1 items-center justify-center py-6 sm:py-8 lg:py-10">
+                    <div className="w-full max-w-[408px]">
+                        <Card className={authCardClassName}>
+                            <CardHeader className="space-y-2 px-5 pb-3 pt-5 text-center sm:px-7 sm:pb-4 sm:pt-7">
+                                <div className="space-y-2">
+                                    <Skeleton className="mx-auto h-6 w-44 rounded-xl" />
+                                    <Skeleton className="mx-auto h-4 w-56 max-w-full rounded-xl" />
                                 </div>
-                                <Skeleton className="h-11 w-full rounded-xl" />
-                            </>
-                        ) : null}
-                        <Skeleton className="mx-auto h-4 w-40 rounded-xl" />
-                    </CardContent>
-                </Card>
+                            </CardHeader>
+                            <CardContent className="space-y-3.5 px-5 pb-5 sm:px-7 sm:pb-7">
+                                {fieldCount > 2 ? (
+                                    <div className="flex justify-center">
+                                        <Skeleton className="h-9 w-40 rounded-full bg-white/80" />
+                                    </div>
+                                ) : null}
+                                {Array.from({ length: fieldCount }).map((_, index) => (
+                                    <div key={index} data-testid="auth-field-skeleton" className="space-y-2">
+                                        <Skeleton className="h-4 w-24 rounded-xl" />
+                                        <Skeleton className="h-10 w-full rounded-[1.1rem]" />
+                                    </div>
+                                ))}
+                                <Skeleton className="h-10 w-full rounded-full" />
+                                {showOAuth ? (
+                                    <>
+                                        <div className="flex items-center gap-3">
+                                            <Skeleton className="h-px flex-1" />
+                                            <Skeleton className="h-3 w-16 rounded-xl" />
+                                            <Skeleton className="h-px flex-1" />
+                                        </div>
+                                        <Skeleton className="h-10 w-full rounded-full" />
+                                    </>
+                                ) : null}
+                                <Skeleton className="mx-auto h-4 w-40 rounded-xl" />
+                            </CardContent>
+                        </Card>
+                    </div>
+                </section>
             </div>
         </div>
     );

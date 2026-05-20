@@ -137,6 +137,30 @@
   }
 }
 
+.auth-teal-gradient {
+  background:
+    linear-gradient(112deg, rgb(255 255 255 / 0.62) 0%, transparent 34%, rgb(255 255 255 / 0.48) 72%, transparent 100%),
+    linear-gradient(135deg, #cdf6f3 0%, #f8fcfc 46%, #e2eff3 100%);
+}
+
+.auth-teal-gradient::before {
+  position: absolute;
+  inset: 0;
+  content: "";
+  background:
+    linear-gradient(90deg, rgb(6 47 53 / 0.035) 1px, transparent 1px),
+    linear-gradient(180deg, rgb(6 47 53 / 0.03) 1px, transparent 1px);
+  background-size: 96px 96px;
+  mask-image: linear-gradient(145deg, rgb(0 0 0 / 0.46), transparent 78%);
+}
+
+.auth-teal-gradient::after {
+  position: absolute;
+  inset: 0;
+  content: "";
+  background: linear-gradient(180deg, rgb(8 150 150 / 0.16) 0%, transparent 48%, rgb(6 47 53 / 0.08) 100%);
+}
+
 @layer utilities {
   .interactive-card {
     transition:

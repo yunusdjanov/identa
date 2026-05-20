@@ -90,7 +90,8 @@ function shouldBroadcastSessionExpiry(path: string | undefined): boolean {
 
     return !path.includes('/auth/login')
         && !path.includes('/auth/forgot-password')
-        && !path.includes('/auth/reset-password');
+        && !path.includes('/auth/reset-password')
+        && !path.includes('/auth/me');
 }
 
 function handleAuthExpiry(status: number | undefined, path?: string): void {
@@ -310,7 +311,7 @@ apiClient.interceptors.response.use(
     (response) => response,
     (error) => {
         if (axios.isAxiosError(error)) {
-            handleAuthExpiry(error.response?.status, error.config?.url);
+            handleAuthExpiry(error.response?.status, error.config?.url ?? error.response?.config?.url);
         }
 
         return Promise.reject(error);

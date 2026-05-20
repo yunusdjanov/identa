@@ -1,6 +1,6 @@
 import { AxiosError } from 'axios';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { apiMutationRequest, getApiErrorMessage } from '@/lib/api/client';
+import { apiClient, apiMutationRequest, getApiErrorMessage } from '@/lib/api/client';
 import {
     AUTH_SESSION_EXPIRED_EVENT,
     consumeAuthRedirectReason,
@@ -10,6 +10,7 @@ import {
 const originalFetch = global.fetch;
 
 afterEach(() => {
+    vi.restoreAllMocks();
     global.fetch = originalFetch;
     window.sessionStorage.clear();
     resetSessionExpiredNotification();
@@ -251,6 +252,33 @@ describe('apiMutationRequest', () => {
 
         expect(dispatchSpy).toHaveBeenCalledWith(expect.objectContaining({ type: AUTH_SESSION_EXPIRED_EVENT }));
         expect(consumeAuthRedirectReason()).toBe('session-expired');
+    });
+
+    it('does not broadcast session expiry when checking the current auth session', async () => {
+        const dispatchSpy = vi.spyOn(window, 'dispatchEvent');
+
+        await expect(
+            apiClient.get('/auth/me', {
+                adapter: async (config) => {
+                    throw new AxiosError(
+                        'Request failed with status code 401',
+                        'ERR_BAD_REQUEST',
+                        config,
+                        undefined,
+                        {
+                            data: { message: 'auth.unauthenticated' },
+                            status: 401,
+                            statusText: 'Unauthorized',
+                            headers: {},
+                            config,
+                        }
+                    );
+                },
+            })
+        ).rejects.toThrow('Request failed with status code 401');
+
+        expect(dispatchSpy).not.toHaveBeenCalledWith(expect.objectContaining({ type: AUTH_SESSION_EXPIRED_EVENT }));
+        expect(consumeAuthRedirectReason()).toBeNull();
     });
 
     it('uses nested API error messages for mutation responses', async () => {

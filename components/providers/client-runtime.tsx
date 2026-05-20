@@ -17,12 +17,18 @@ const RuntimeSpeedInsights = dynamic(
     { ssr: false }
 );
 
+const enableVercelTelemetry = process.env.NEXT_PUBLIC_ENABLE_VERCEL_ANALYTICS === 'true';
+
 export function ClientRuntime() {
     return (
         <>
             <RuntimeToaster />
-            <RuntimeAnalytics />
-            <RuntimeSpeedInsights />
+            {enableVercelTelemetry ? (
+                <>
+                    <RuntimeAnalytics />
+                    <RuntimeSpeedInsights />
+                </>
+            ) : null}
         </>
     );
 }

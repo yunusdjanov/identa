@@ -4,14 +4,22 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { ArrowRight, CheckCircle2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { PasswordInput } from '@/components/ui/password-input';
 import { Label } from '@/components/ui/label';
 import { useI18n } from '@/components/providers/i18n-provider';
-import { LanguageSwitcher } from '@/components/layout/language-switcher';
-import { Brand } from '@/components/branding/brand';
+import { GoogleAuthButton } from '@/components/auth/google-auth-button';
+import { AuthPageShell } from '@/components/auth/auth-page-shell';
+import {
+    authCardClassName,
+    authCardContentClassName,
+    authInputClassName,
+    authLinkClassName,
+    authSubmitClassName,
+} from '@/components/auth/auth-form-styles';
 import { getApiErrorMessage } from '@/lib/api/client';
 import { loginWithGoogleIdToken, registerWithPassword } from '@/lib/api/dentist';
 import { INPUT_LIMITS, getEmailValidationMessage, getPasswordValidationMessage } from '@/lib/input-validation';
@@ -141,7 +149,7 @@ export default function RegisterPage() {
                 type: 'standard',
                 text: 'continue_with',
                 shape: 'rectangular',
-                width: 360,
+                width: Math.max(240, Math.min(360, Math.floor(googleButtonRef.current.getBoundingClientRect().width || 360))),
             });
             setGoogleReady(true);
         };
@@ -178,38 +186,31 @@ export default function RegisterPage() {
     };
 
     return (
-        <div className="relative flex min-h-screen items-center justify-center overflow-x-hidden bg-[#edf6f8] px-4 py-4 text-slate-950 sm:py-5">
-            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_12%_16%,rgba(13,148,136,0.20),transparent_31%),radial-gradient(circle_at_88%_18%,rgba(37,99,235,0.15),transparent_30%),linear-gradient(135deg,#e5f6f4_0%,#f9fbfc_45%,#e8f2ff_100%)]" />
-            <div className="absolute right-4 top-4 z-10 sm:right-6 sm:top-6">
-                <LanguageSwitcher variant="compact" />
-            </div>
-            <div className="relative w-full max-w-md">
-                <div className="mb-4 text-center sm:mb-5">
-                    <div className="mb-2 flex justify-center">
-                        <Brand href="/" variant="text" priority textClassName="w-36 sm:w-40" />
-                    </div>
-                    <p className="text-sm text-slate-600 sm:text-base">{t('register.subtitle')}</p>
-                </div>
-
-                <Card className="border-white/80 bg-white/90 shadow-2xl shadow-slate-950/10 backdrop-blur-md">
-                    <CardHeader className="space-y-2 px-5 pb-3 pt-5 sm:px-7">
-                        <div className="flex justify-center">
-                            <span className="rounded-full bg-cyan-50 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-cyan-700 ring-1 ring-cyan-100">
-                                {t('register.trialBadge')}
-                            </span>
-                        </div>
-                        <CardTitle className="text-center text-2xl font-black tracking-[-0.035em] text-slate-950">
-                            {t('register.getStarted')}
+        <AuthPageShell>
+            <Card className={authCardClassName}>
+                <CardHeader className="space-y-1.5 px-5 pb-2.5 pt-5 text-center sm:px-7 sm:pb-3 sm:pt-6">
+                    <div className="space-y-0.5">
+                        <CardTitle className="text-[1.32rem] font-black leading-tight tracking-normal text-slate-950 sm:text-[1.42rem]">
+                            {t('register.cardTitle')}
                         </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-3 px-5 pb-5 sm:px-7">
-                        <p className="text-sm leading-5 text-slate-600">
-                            {t('register.trialDescription')}
-                        </p>
+                        <p className="text-[13px] leading-5 text-slate-600">{t('register.subtitle')}</p>
+                    </div>
+                </CardHeader>
+                <CardContent className={`${authCardContentClassName} sm:space-y-4`}>
+                        <div className="flex justify-center">
+                            <div className="inline-flex min-h-9 max-w-full items-center gap-2 rounded-full border border-teal-300/80 bg-white/80 px-3.5 text-teal-800 shadow-sm shadow-cyan-950/5 ring-1 ring-white/80 backdrop-blur">
+                                <span className="grid size-5 shrink-0 place-items-center rounded-full bg-teal-100 text-teal-700 ring-1 ring-teal-200/80">
+                                    <CheckCircle2 className="size-3.5" aria-hidden="true" />
+                                </span>
+                                <span className="truncate text-[13px] font-black leading-none tracking-[0.06em]">
+                                    {t('register.trialBadge')}
+                                </span>
+                            </div>
+                        </div>
 
                         <form onSubmit={handleSubmit} className="space-y-3">
                             <div className="space-y-1.5">
-                                <Label htmlFor="name" className="text-sm font-semibold text-slate-950">
+                                <Label htmlFor="name" className="text-[13px] font-semibold text-slate-950">
                                     {t('register.name')} <span className="text-red-500">*</span>
                                 </Label>
                                 <Input
@@ -218,7 +219,7 @@ export default function RegisterPage() {
                                     onChange={(event) => setName(event.target.value)}
                                     maxLength={INPUT_LIMITS.personName}
                                     autoComplete="name"
-                                    className="h-11 rounded-2xl bg-white/95 px-4 shadow-sm"
+                                    className={authInputClassName}
                                     aria-invalid={Boolean(isSubmitted && nameError)}
                                 />
                                 {isSubmitted && nameError ? (
@@ -227,7 +228,7 @@ export default function RegisterPage() {
                             </div>
 
                             <div className="space-y-1.5">
-                                <Label htmlFor="email" className="text-sm font-semibold text-slate-950">
+                                <Label htmlFor="email" className="text-[13px] font-semibold text-slate-950">
                                     {t('register.email')} <span className="text-red-500">*</span>
                                 </Label>
                                 <Input
@@ -238,7 +239,7 @@ export default function RegisterPage() {
                                     maxLength={INPUT_LIMITS.email}
                                     autoComplete="email"
                                     inputMode="email"
-                                    className="h-11 rounded-2xl bg-white/95 px-4 shadow-sm"
+                                    className={authInputClassName}
                                     aria-invalid={Boolean(isSubmitted && emailError)}
                                 />
                                 {isSubmitted && emailError ? (
@@ -247,7 +248,7 @@ export default function RegisterPage() {
                             </div>
 
                             <div className="space-y-1.5">
-                                <Label htmlFor="password" className="text-sm font-semibold text-slate-950">
+                                <Label htmlFor="password" className="text-[13px] font-semibold text-slate-950">
                                     {t('register.password')} <span className="text-red-500">*</span>
                                 </Label>
                                 <PasswordInput
@@ -256,7 +257,7 @@ export default function RegisterPage() {
                                     onChange={(event) => setPassword(event.target.value)}
                                     maxLength={INPUT_LIMITS.password}
                                     autoComplete="new-password"
-                                    className="h-11 rounded-2xl bg-white/95 px-4 shadow-sm"
+                                    className={authInputClassName}
                                     aria-invalid={Boolean(isSubmitted && passwordError)}
                                     showLabel={t('login.showPassword')}
                                     hideLabel={t('login.hidePassword')}
@@ -267,7 +268,7 @@ export default function RegisterPage() {
                             </div>
 
                             <div className="space-y-1.5">
-                                <Label htmlFor="password_confirmation" className="text-sm font-semibold text-slate-950">
+                                <Label htmlFor="password_confirmation" className="text-[13px] font-semibold text-slate-950">
                                     {t('register.confirmPassword')} <span className="text-red-500">*</span>
                                 </Label>
                                 <PasswordInput
@@ -276,7 +277,7 @@ export default function RegisterPage() {
                                     onChange={(event) => setPasswordConfirmation(event.target.value)}
                                     maxLength={INPUT_LIMITS.password}
                                     autoComplete="new-password"
-                                    className="h-11 rounded-2xl bg-white/95 px-4 shadow-sm"
+                                    className={authInputClassName}
                                     aria-invalid={Boolean(isSubmitted && passwordConfirmationError)}
                                     showLabel={t('login.showPassword')}
                                     hideLabel={t('login.hidePassword')}
@@ -288,42 +289,38 @@ export default function RegisterPage() {
 
                             <Button
                                 type="submit"
-                                className="h-11 w-full rounded-2xl bg-slate-950 text-base font-bold text-white shadow-lg shadow-slate-950/15 hover:bg-slate-800"
+                                className={`${authSubmitClassName} gap-2`}
                                 disabled={registerMutation.isPending || googleMutation.isPending}
                             >
                                 {registerMutation.isPending ? t('register.creatingAccount') : t('register.createAccount')}
+                                <ArrowRight className="size-4" aria-hidden="true" />
                             </Button>
                         </form>
 
                         <div className="flex items-center gap-3 text-xs uppercase tracking-[0.18em] text-slate-400">
-                            <span className="h-px flex-1 bg-gray-200" />
+                            <span className="h-px flex-1 bg-slate-200/80" />
                             <span>{t('register.orEmail')}</span>
-                            <span className="h-px flex-1 bg-gray-200" />
+                            <span className="h-px flex-1 bg-slate-200/80" />
                         </div>
 
-                        <div className="min-h-11 w-full overflow-hidden rounded-md">
-                            {googleClientId ? (
-                                <div
-                                    ref={googleButtonRef}
-                                    className="flex min-h-11 justify-center"
-                                    aria-busy={!googleReady || googleMutation.isPending}
-                                />
-                            ) : (
-                                <Button type="button" variant="outline" className="h-11 w-full rounded-2xl bg-white/80" disabled>
-                                    {t('register.googleNotConfigured')}
-                                </Button>
-                            )}
-                        </div>
+                        <GoogleAuthButton
+                            mountRef={googleButtonRef}
+                            isConfigured={Boolean(googleClientId)}
+                            isReady={googleReady}
+                            isPending={registerMutation.isPending || googleMutation.isPending}
+                            label={t('register.googleContinue')}
+                            unavailableLabel={t('register.googleNotConfigured')}
+                            soonLabel={t('register.googleSoon')}
+                        />
 
-                        <p className="text-center text-sm text-slate-600">
+                        <p className="text-center text-sm leading-6 text-slate-600">
                             {t('register.haveAccount')}{' '}
-                            <Link href="/login" className="font-semibold text-cyan-700 transition hover:text-cyan-800">
+                            <Link href="/login" className={authLinkClassName}>
                                 {t('landing.signIn')}
                             </Link>
                         </p>
-                    </CardContent>
-                </Card>
-            </div>
-        </div>
+                </CardContent>
+            </Card>
+        </AuthPageShell>
     );
 }

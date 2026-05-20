@@ -21,6 +21,7 @@ function Nav({ t, lang, setLang, onMenu }) {
         </a>
         <nav className="nav-links">
           <a href="#why">{t.nav.features}</a>
+          {t.nav.mobile ? <a href="#mobile">{t.nav.mobile}</a> : null}
           <a href="#pricing">{t.nav.pricing}</a>
           <a href="#steps">{t.nav.howto}</a>
           <a href="#faq">{t.nav.faq}</a>
@@ -56,6 +57,7 @@ function MobileMenu({ open, onClose, t, lang, setLang }) {
       </div>
       <div className="mobile-links">
         <a href="#why" onClick={onClose}>{t.nav.features}</a>
+        {t.nav.mobile ? <a href="#mobile" onClick={onClose}>{t.nav.mobile}</a> : null}
         <a href="#pricing" onClick={onClose}>{t.nav.pricing}</a>
         <a href="#steps" onClick={onClose}>{t.nav.howto}</a>
         <a href="#faq" onClick={onClose}>{t.nav.faq}</a>
@@ -90,23 +92,13 @@ function Hero({ t }) {
           <h1 className="h-display reveal in">
             {t.hero.title[0]}<em>{t.hero.title[1]}</em>{t.hero.title[2]}<em>{t.hero.title[3]}</em>
           </h1>
-          <p className="lede reveal in">{t.hero.lede}</p>
+          {t.hero.lede ? <p className="lede reveal in">{t.hero.lede}</p> : null}
           <div className="hero-actions reveal in">
             <a href={APP_REGISTER_URL} target={TOP_TARGET} className="btn btn-primary">
               {t.hero.ctaPrimary}
               <svg width="14" height="14" viewBox="0 0 14 14"><path d="M2 7h10M8 3l4 4-4 4" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>
             </a>
             <a href={APP_LOGIN_URL} target={TOP_TARGET} className="btn btn-ghost">{t.hero.ctaSecondary}</a>
-          </div>
-          <div className="hero-meta reveal in">
-            {t.hero.stats.map((s, i) => (
-              <div key={i} className="stat">
-                <strong>{s.v.split(/(\d+)/).map((part, j) =>
-                  isNaN(part) || part === "" ? <em key={j}>{part}</em> : <span key={j}>{part}</span>
-                )}</strong>
-                {s.l}
-              </div>
-            ))}
           </div>
         </div>
 
@@ -291,6 +283,75 @@ function Why({ t }) {
   );
 }
 
+/* ============ MOBILE APP ============ */
+function MobileApp({ t }) {
+  const m = t.mobile;
+  return (
+    <section className="mobile-app" id="mobile">
+      <div className="container mobile-app-grid">
+        <div className="mobile-copy reveal">
+          <div className="eyebrow">{m.eyebrow}</div>
+          <h2 className="h-section">{m.title[0]}<em>{m.title[1]}</em>{m.title[2]}</h2>
+          <p className="lede">{m.lede}</p>
+          <div className="mobile-points">
+            {m.points.map((p, i) => (
+              <div key={i} className="mobile-point">
+                <span>{i + 1}</span>
+                <div>
+                  <strong>{p.t}</strong>
+                  <p>{p.d}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="mobile-badges">
+            {m.badges.map((b, i) => <span key={i}>{b}</span>)}
+          </div>
+        </div>
+
+        <div className="mobile-visual reveal" role="img" aria-label={m.mockupLabel}>
+          <div className="phone-shell">
+            <div className="phone-top">
+              <span></span>
+              <strong>Identa</strong>
+              <em>{m.status}</em>
+            </div>
+            <div className="phone-section">
+              <small>{m.today}</small>
+              <div className="phone-hero-row">
+                <strong>18</strong>
+                <span>{m.appointments}</span>
+              </div>
+            </div>
+            <div className="phone-list">
+              {m.timeline.map((item, i) => (
+                <div key={i} className={"phone-item " + item.kind}>
+                  <span>{item.time}</span>
+                  <div>
+                    <strong>{item.name}</strong>
+                    <em>{item.meta}</em>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="phone-tabs">
+              {m.tabs.map((tab, i) => <span key={i} className={i === 0 ? "active" : ""}>{tab}</span>)}
+            </div>
+          </div>
+          <div className="mobile-float-card card-a">
+            <strong>{m.floatA.t}</strong>
+            <span>{m.floatA.d}</span>
+          </div>
+          <div className="mobile-float-card card-b">
+            <strong>{m.floatB.t}</strong>
+            <span>{m.floatB.d}</span>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 /* ============ PRICING ============ */
 function Pricing({ t }) {
   const [yearly, setYearly] = useState(false);
@@ -424,4 +485,4 @@ function Footer({ t }) {
   );
 }
 
-Object.assign(window, { Nav, MobileMenu, Hero, StatsStrip, Why, Pricing, Steps, Faq, CTA, Footer });
+Object.assign(window, { Nav, MobileMenu, Hero, StatsStrip, Why, MobileApp, Pricing, Steps, Faq, CTA, Footer });
