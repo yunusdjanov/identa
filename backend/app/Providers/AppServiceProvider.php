@@ -50,16 +50,18 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        /** @var ProductionSecretsValidator $secretValidator */
-        $secretValidator = app(ProductionSecretsValidator::class);
-        if ($secretValidator->shouldEnforceAtRuntime()) {
-            $secretValidator->assertProductionSecretsOrFail();
-        }
+        if (! $this->isComposerPackageDiscoveryCommand()) {
+            /** @var ProductionSecretsValidator $secretValidator */
+            $secretValidator = app(ProductionSecretsValidator::class);
+            if ($secretValidator->shouldEnforceAtRuntime()) {
+                $secretValidator->assertProductionSecretsOrFail();
+            }
 
-        /** @var ProductionRuntimePolicyValidator $runtimePolicyValidator */
-        $runtimePolicyValidator = app(ProductionRuntimePolicyValidator::class);
-        if ($runtimePolicyValidator->shouldEnforceAtRuntime()) {
-            $runtimePolicyValidator->assertProductionPolicyOrFail();
+            /** @var ProductionRuntimePolicyValidator $runtimePolicyValidator */
+            $runtimePolicyValidator = app(ProductionRuntimePolicyValidator::class);
+            if ($runtimePolicyValidator->shouldEnforceAtRuntime()) {
+                $runtimePolicyValidator->assertProductionPolicyOrFail();
+            }
         }
 
         ResetPassword::createUrlUsing(function (User $user, string $token): string {
@@ -86,5 +88,14 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(Payment::class, TenantOwnedPolicy::class);
         Gate::policy(Treatment::class, TenantOwnedPolicy::class);
         Gate::policy(TreatmentImage::class, TenantOwnedPolicy::class);
+    }
+
+    private function isComposerPackageDiscoveryCommand(): bool
+    {
+        if (! $this->app->runningInConsole()) {
+            return false;
+        }
+
+        return ($_SERVER['argv'][1] ?? '') === 'package:discover';
     }
 }
