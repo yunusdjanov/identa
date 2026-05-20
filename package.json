@@ -16,7 +16,7 @@
     "check:secrets": "powershell -ExecutionPolicy Bypass -File .\\scripts\\backend-artisan.ps1 security:check-secrets",
     "check:runtime-security": "powershell -ExecutionPolicy Bypass -File .\\scripts\\backend-artisan.ps1 security:check-runtime",
     "audit:frontend": "npm audit --audit-level=high",
-    "audit:backend": "powershell -ExecutionPolicy Bypass -File .\\scripts\\backend-composer-audit.ps1",
+    "audit:backend": "node scripts/backend-composer-audit.mjs",
     "audit:deps": "npm run audit:frontend && npm run audit:backend",
     "check:migrations": "powershell -ExecutionPolicy Bypass -File .\\scripts\\check-backend-migrations.ps1",
     "test:e2e": "powershell -ExecutionPolicy Bypass -File .\\scripts\\run-e2e-cleanup.ps1 && playwright test",

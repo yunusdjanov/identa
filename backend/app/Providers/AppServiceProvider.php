@@ -50,7 +50,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        if (! $this->isComposerPackageDiscoveryCommand()) {
+        if (! $this->shouldSkipProductionGuardsForConsoleCommand()) {
             /** @var ProductionSecretsValidator $secretValidator */
             $secretValidator = app(ProductionSecretsValidator::class);
             if ($secretValidator->shouldEnforceAtRuntime()) {
@@ -90,12 +90,12 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(TreatmentImage::class, TenantOwnedPolicy::class);
     }
 
-    private function isComposerPackageDiscoveryCommand(): bool
+    private function shouldSkipProductionGuardsForConsoleCommand(): bool
     {
         if (! $this->app->runningInConsole()) {
             return false;
         }
 
-        return ($_SERVER['argv'][1] ?? '') === 'package:discover';
+        return in_array($_SERVER['argv'][1] ?? '', ['package:discover', 'test'], true);
     }
 }
