@@ -74,7 +74,7 @@ const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ?? '';
 export default function LoginPage() {
     const router = useRouter();
     const queryClient = useQueryClient();
-    const { login } = useAuthStore();
+    const { isAuthenticated, login } = useAuthStore();
     const { t } = useI18n();
     const googleButtonRef = useRef<HTMLDivElement | null>(null);
 
@@ -91,7 +91,7 @@ export default function LoginPage() {
         queryKey: ['auth', 'me'],
         queryFn: getCurrentUser,
         retry: false,
-        enabled: !isLogoutRedirect,
+        enabled: isAuthenticated && !isLogoutRedirect,
         staleTime: 5 * 60_000,
     });
 
