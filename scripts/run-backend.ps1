@@ -36,6 +36,41 @@ function Stop-ProcessOnPort {
 }
 
 $phpCommand = (& "$PSScriptRoot\resolve-php.ps1").Trim()
+$backendPath = (Resolve-Path "$PSScriptRoot\..\backend").Path
+$localDatabasePath = Join-Path $backendPath "database\local.sqlite"
+$databaseUrlVariables = @(
+    "DB_URL",
+    "DATABASE_URL",
+    "DATABASE_PRIVATE_URL",
+    "POSTGRES_URL",
+    "POSTGRES_PRIVATE_URL",
+    "POSTGRES_PRISMA_URL",
+    "POSTGRES_URL_NON_POOLING",
+    "MYSQL_URL",
+    "MYSQL_PRIVATE_URL"
+)
+$hasDatabaseUrl = $false
+foreach ($variableName in $databaseUrlVariables) {
+    if (-not [string]::IsNullOrWhiteSpace([Environment]::GetEnvironmentVariable($variableName))) {
+        $hasDatabaseUrl = $true
+        break
+    }
+}
+$hasExplicitNonSqliteConnection = -not [string]::IsNullOrWhiteSpace($env:DB_CONNECTION) -and $env:DB_CONNECTION -ne "sqlite"
+$shouldUseManagedSqlite = -not $hasDatabaseUrl `
+    -and -not $hasExplicitNonSqliteConnection `
+    -and ([string]::IsNullOrWhiteSpace($env:DB_DATABASE) -or $env:DB_DATABASE -eq ":memory:")
+
+if ($shouldUseManagedSqlite) {
+    $localDatabaseNeedsSeed = -not (Test-Path -LiteralPath $localDatabasePath) `
+        -or ((Get-Item -LiteralPath $localDatabasePath -ErrorAction SilentlyContinue).Length -eq 0)
+    New-Item -ItemType File -Path $localDatabasePath -Force | Out-Null
+    $env:DB_CONNECTION = "sqlite"
+    $env:DB_DATABASE = $localDatabasePath
+}
+else {
+    $localDatabaseNeedsSeed = $false
+}
 
 Stop-ProcessOnPort -TargetPort $Port
 
@@ -53,6 +88,16 @@ $env:SESSION_SECURE_COOKIE = "false"
 $env:SESSION_SAME_SITE = "lax"
 
 & "$PSScriptRoot\sync-backend-db.ps1"
+
+if ($localDatabaseNeedsSeed) {
+    Set-Location $backendPath
+    Write-Host "Seeding local demo data..."
+    & $phpCommand artisan db:seed --force --no-interaction
+    if ($LASTEXITCODE -ne 0) {
+        Write-Error "Local demo seed failed. Fix seeder errors before starting backend."
+        exit $LASTEXITCODE
+    }
+}
 
 if ($SkipServe) {
     Write-Host "Backend preflight completed. Server start skipped."

@@ -32,7 +32,7 @@ function Stop-ProcessOnPort {
 function Wait-HttpReady {
     param(
         [string]$Url,
-        [int]$TimeoutSeconds = 30
+        [int]$TimeoutSeconds = 120
     )
 
     $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
