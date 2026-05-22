@@ -3362,7 +3362,6 @@ Object.assign(en, {
 Object.assign(ru, {
     'register.nameRequired': 'Имя обязательно.',
     'register.trialBadge': '30 дней пробного доступа',
-    'register.trialDescription': 'Создайте аккаунт и начните пользоваться Identa с бесплатным пробным доступом на 30 дней.',
     'register.googleNotConfigured': 'Вход через Google не настроен',
     'register.toast.googleSuccess': 'Вход через Google выполнен.',
     'register.toast.googleFailed': 'Не удалось войти через Google.',
@@ -3373,7 +3372,6 @@ Object.assign(ru, {
 Object.assign(uz, {
     'register.nameRequired': 'Ism majburiy.',
     'register.trialBadge': '30 kunlik sinov',
-    'register.trialDescription': 'Akkaunt yarating va Identa’dan 30 kunlik bepul sinov muddati bilan foydalanishni boshlang.',
     'register.googleNotConfigured': 'Google kirish sozlanmagan',
     'register.toast.googleSuccess': 'Google orqali muvaffaqiyatli kirildi.',
     'register.toast.googleFailed': 'Google orqali kirib bo‘lmadi.',
@@ -3384,7 +3382,6 @@ Object.assign(uz, {
 Object.assign(en, {
     'register.nameRequired': 'Name is required.',
     'register.trialBadge': '30 day Trial',
-    'register.trialDescription': 'Create your account and start using Identa with a free 30 day Trial plan.',
     'register.googleNotConfigured': 'Google sign-in is not configured',
     'register.toast.googleSuccess': 'Signed in with Google.',
     'register.toast.googleFailed': 'Could not sign in with Google.',
@@ -3697,7 +3694,6 @@ Object.assign(ru, {
     'login.welcomeBack': 'С возвращением',
     'register.email': 'E-mail',
     'register.trialBadge': '30 дней бесплатно',
-    'register.trialDescription': 'Создайте аккаунт и пользуйтесь Identa бесплатно первые 30 дней.',
     'register.googleNotConfigured': 'Вход через Google пока не настроен',
     'register.orEmail': 'или',
     'menu.billing': 'Тариф и оплата',
@@ -3767,7 +3763,6 @@ Object.assign(uz, {
     'login.toast.fixErrors': 'Belgilangan maydonlarni to‘g‘rilang.',
     'register.email': 'E-mail',
     'register.trialBadge': '30 kun bepul',
-    'register.trialDescription': 'Akkaunt yarating va Identa’dan dastlabki 30 kun bepul foydalaning.',
     'register.googleNotConfigured': 'Google orqali kirish hozircha sozlanmagan',
     'register.orEmail': 'yoki',
     'menu.billing': 'Tarif va to‘lov',
@@ -3841,7 +3836,6 @@ Object.assign(uz, {
 Object.assign(en, {
     'login.welcomeBack': 'Welcome back',
     'register.trialBadge': '30 days free',
-    'register.trialDescription': 'Create an account and use Identa free for the first 30 days.',
     'billing.subtitle': 'Review your current plan, renewal date, limits, and payment history.',
     'billing.readOnlyWarning': 'Your plan has expired. You can still view data, but changes require renewing the plan.',
     'billing.feature.stored': 'Compressed image up to {{mb}} MB',
@@ -3876,40 +3870,16 @@ Object.assign(en, {
 Object.assign(ru, {
     'login.cardTitle': 'Войти в Identa',
     'register.cardTitle': 'Начать с Identa',
-    'auth.context.badge': 'Web + mobile',
-    'auth.context.titleLead': 'Стоматология,',
-    'auth.context.titleAccent': 'в одной системе',
-    'auth.context.description': 'Пациенты, приёмы, оплаты и снимки синхронизируются между веб-кабинетом и мобильным приложением.',
-    'auth.context.featurePatients': 'Пациенты',
-    'auth.context.featureAppointments': 'Приёмы',
-    'auth.context.featurePayments': 'Оплаты',
-    'auth.context.featureImages': 'Снимки',
 });
 
 Object.assign(uz, {
     'login.cardTitle': 'Identa’ga kirish',
     'register.cardTitle': 'Identa bilan boshlash',
-    'auth.context.badge': 'Web + mobil',
-    'auth.context.titleLead': 'Stomatologiya,',
-    'auth.context.titleAccent': 'bir tizimda',
-    'auth.context.description': 'Bemorlar, qabullar, to‘lovlar va klinik suratlar web kabinet hamda mobil ilova o‘rtasida sinxron ishlaydi.',
-    'auth.context.featurePatients': 'Bemorlar',
-    'auth.context.featureAppointments': 'Qabullar',
-    'auth.context.featurePayments': 'To‘lovlar',
-    'auth.context.featureImages': 'Suratlar',
 });
 
 Object.assign(en, {
     'login.cardTitle': 'Sign in to Identa',
     'register.cardTitle': 'Start with Identa',
-    'auth.context.badge': 'Web + mobile',
-    'auth.context.titleLead': 'Dentistry,',
-    'auth.context.titleAccent': 'in one workspace',
-    'auth.context.description': 'Patients, appointments, payments, and clinical images stay in sync across the web workspace and mobile app.',
-    'auth.context.featurePatients': 'Patients',
-    'auth.context.featureAppointments': 'Appointments',
-    'auth.context.featurePayments': 'Payments',
-    'auth.context.featureImages': 'Images',
 });
 
 export const DICTIONARIES: Record<AppLocale, TranslationDictionary> = {

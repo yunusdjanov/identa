@@ -111,8 +111,12 @@ export async function loginDentist(page: Page): Promise<void> {
         { name: 'identa_locale', value: 'en', url: 'http://localhost:3100' },
     ]);
     await page.goto('/login');
-    await page.getByLabel('Email').fill('dentist@identa.test');
-    await page.locator('input#password').fill('password123');
+    const emailInput = page.getByLabel('Email');
+    const passwordInput = page.locator('input#password');
+    await emailInput.fill('dentist@identa.test');
+    await passwordInput.fill('password123');
+    await expect(emailInput).toHaveValue('dentist@identa.test');
+    await expect(passwordInput).toHaveValue('password123');
     await submitLoginAndAssert(page, /\/dashboard(?:\/)?(?:\?.*)?$/);
 }
 
@@ -121,7 +125,11 @@ export async function loginAdmin(page: Page): Promise<void> {
         { name: 'identa_locale', value: 'en', url: 'http://localhost:3100' },
     ]);
     await page.goto('/admin/login');
-    await page.getByLabel('Email').fill('admin@identa.test');
-    await page.locator('input#password').fill('password123');
+    const emailInput = page.getByLabel('Email');
+    const passwordInput = page.locator('input#password');
+    await emailInput.fill('admin@identa.test');
+    await passwordInput.fill('password123');
+    await expect(emailInput).toHaveValue('admin@identa.test');
+    await expect(passwordInput).toHaveValue('password123');
     await submitLoginAndAssert(page, /\/admin(?:\/)?(?:\?.*)?$/);
 }

@@ -20,7 +20,7 @@ const I18N = {
       stats: [
         { v: "30 дн.", l: "Пробный доступ после регистрации" },
         { v: "3 модуля", l: "Пациенты, приёмы и оплаты" },
-        { v: "6 прав", l: "Для сотрудников" },
+        { v: "6 прав доступа", l: "Для сотрудников" },
       ],
       dash: {
         title: "Сегодня",
@@ -49,7 +49,7 @@ const I18N = {
         { n: "30 дней", l: "пробного доступа после регистрации" },
         { n: "3 тарифа", l: "пробный, базовый и расширенный" },
         { n: "10 снимков", l: "на запись в расширенном тарифе" },
-        { n: "6 прав", l: "для сотрудников: пациенты, приёмы и оплаты" },
+        { n: "6 прав доступа", l: "для сотрудников: пациенты, приёмы и оплаты" },
       ],
     },
     why: {
@@ -204,8 +204,8 @@ const I18N = {
       ctaSecondary: "Kirish",
       stats: [
         { v: "30 kun", l: "Ro'yxatdan keyin sinov muddati" },
-        { v: "3 ta", l: "Bemorlar, qabullar va to'lovlar" },
-        { v: "6 ta", l: "Xodimlar uchun ruxsat" },
+        { v: "3 modul", l: "Bemorlar, qabullar va to'lovlar" },
+        { v: "6 ruxsat", l: "Xodimlar uchun kirish huquqlari" },
       ],
       dash: {
         title: "Bugun",
@@ -232,9 +232,9 @@ const I18N = {
       eyebrow: "Raqamlarda",
       items: [
         { n: "30 kun", l: "sinov muddati ro'yxatdan o'tgach ochiladi" },
-        { n: "3 ta", l: "tarif: sinov, asosiy va pro" },
-        { n: "10 ta", l: "kengaytirilgan tarifda har yozuv uchun rasm" },
-        { n: "6 ta", l: "xodimlar uchun huquq: bemorlar, qabullar va to'lovlar" },
+        { n: "3 tarif", l: "sinov, asosiy va pro" },
+        { n: "10 rasm", l: "kengaytirilgan tarifda har yozuv uchun" },
+        { n: "6 ruxsat", l: "xodimlar uchun: bemorlar, qabullar va to'lovlar" },
       ],
     },
     why: {
@@ -334,8 +334,8 @@ const I18N = {
       ctaSecondary: "Sign in",
       stats: [
         { v: "30 days", l: "Trial after signup" },
-        { v: "3 core", l: "Patients, appointments and payments" },
-        { v: "6 roles", l: "Staff permissions" },
+        { v: "3 modules", l: "Patients, appointments and payments" },
+        { v: "6 permissions", l: "Staff access controls" },
       ],
       dash: {
         title: "Today",

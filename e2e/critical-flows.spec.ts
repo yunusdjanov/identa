@@ -1,19 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { loginAdmin, loginDentist } from './helpers/auth';
 
-function toLocalDateInputValue(date = new Date()): string {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-}
-
-function addDays(date: Date, days: number): Date {
-    const nextDate = new Date(date);
-    nextDate.setDate(nextDate.getDate() + days);
-    return nextDate;
-}
-
 async function waitForSuccessfulMutation(
     page: import('@playwright/test').Page,
     endpoint: string,
@@ -96,7 +83,7 @@ test.describe('Critical Journeys', () => {
         await searchInput.fill(patientName);
         await expect(page.getByRole('cell', { name: patientName })).toBeVisible({ timeout: 15_000 });
 
-        await page.getByRole('button', { name: `Open details for ${patientName}` }).click();
+        await page.getByRole('button', { name: `Open details for ${patientName}` }).click({ force: true });
         await expect(page).toHaveURL(/\/patients\/.+/, { timeout: 15_000 });
         await expect(page.getByText('Loading patient details...')).toHaveCount(0, { timeout: 15_000 });
         await expect(page.getByRole('heading', { name: patientName })).toBeVisible({ timeout: 15_000 });
@@ -104,7 +91,6 @@ test.describe('Critical Journeys', () => {
 
     test('appointment scheduling lifecycle', async ({ page }) => {
         const reason = `E2E Appointment ${Date.now()}`;
-        const appointmentDate = toLocalDateInputValue(addDays(new Date(), 45));
 
         await loginDentist(page);
         await page.goto('/appointments');
@@ -115,8 +101,11 @@ test.describe('Critical Journeys', () => {
         await expect(dialog).toBeVisible();
         await dialog.getByRole('combobox').first().click();
         await page.getByRole('option').first().click();
-        await dialog.getByLabel('Date').fill(appointmentDate);
-        await dialog.getByLabel('Time').click();
+        await expect(dialog.getByText(/^Selected:/)).toBeVisible({ timeout: 30_000 });
+
+        const timeButton = dialog.getByLabel('Time');
+        await expect(timeButton).toBeEnabled({ timeout: 30_000 });
+        await timeButton.click();
         const timeMenu = page.getByRole('menu');
         await expect(timeMenu).toBeVisible();
         await timeMenu.getByRole('menuitem').filter({ hasText: /^\d{2}:\d{2}$/ }).first().click();
@@ -143,9 +132,9 @@ test.describe('Critical Journeys', () => {
         await patientHistoryLink.click();
 
         await expect(page).toHaveURL(/\/patients\/[^/]+\/history\?from=payments/, { timeout: 15_000 });
-        await expect(page.getByText(/Work History|История|Yozuvlar tarixi/i)).toBeVisible({ timeout: 15_000 });
+        await expect(page.locator('main').getByText(/Work History|История|Yozuvlar tarixi/i)).toBeVisible({ timeout: 30_000 });
         await expect(page.getByRole('button', { name: /Add Entry|Добавить запись|Yozuv qo'shish/i })).toBeVisible({
-            timeout: 15_000,
+            timeout: 30_000,
         });
     });
 

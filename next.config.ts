@@ -10,7 +10,7 @@ const contentSecurityPolicy = [
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   "font-src 'self' https://fonts.gstatic.com data:",
   "img-src 'self' data: blob: https: http://127.0.0.1:8001 http://localhost:8001",
-  "connect-src 'self' https://api.identa.uz http://127.0.0.1:8001 http://localhost:8001 https://vitals.vercel-insights.com https://*.vercel-insights.com",
+  "connect-src 'self' https://api.identa.uz http://127.0.0.1:8001 http://localhost:8001 http://127.0.0.1:8100 http://localhost:8100 https://vitals.vercel-insights.com https://*.vercel-insights.com",
   "frame-src 'self'",
   "media-src 'self' blob: data:",
   "worker-src 'self' blob:",
