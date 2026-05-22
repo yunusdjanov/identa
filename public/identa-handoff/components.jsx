@@ -311,7 +311,6 @@ function MobileApp({ t }) {
             <div className="phone-top">
               <span></span>
               <strong>Identa</strong>
-              <em>{m.status}</em>
             </div>
             <div className="phone-section">
               <small>{m.today}</small>

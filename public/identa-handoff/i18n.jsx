@@ -382,7 +382,7 @@ const I18N = {
     mobile: {
       eyebrow: "Mobile app",
       title: ["The clinic workspace ", "on your phone", "."],
-      lede: "The Identa mobile app is almost ready for launch. It uses the same account and data as the web workspace, so doctors and staff can quickly review schedules, patient cards, payments and important clinic updates from a phone.",
+      lede: "The Identa mobile app uses the same account and data as the web workspace, so doctors and staff can quickly review schedules, patient cards, payments and important clinic updates from a phone.",
       points: [
         { t: "Schedule during the shift", d: "Check today's appointments, visit status and upcoming bookings without opening a laptop." },
         { t: "Patient card in hand", d: "Open profile details, contacts, treatment history, images and notes before the visit." },
@@ -390,7 +390,6 @@ const I18N = {
       ],
       badges: ["iOS and Android", "One account", "Synced with web"],
       mockupLabel: "Identa mobile app",
-      status: "almost ready",
       today: "Today",
       appointments: "appointments",
       timeline: [
