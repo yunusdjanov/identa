@@ -37,7 +37,43 @@ function Stop-ProcessOnPort {
 
 $phpCommand = (& "$PSScriptRoot\resolve-php.ps1").Trim()
 $backendPath = (Resolve-Path "$PSScriptRoot\..\backend").Path
+$envFilePath = Join-Path $backendPath ".env"
 $localDatabasePath = Join-Path $backendPath "database\local.sqlite"
+
+function Get-DotEnvValue {
+    param(
+        [string]$Path,
+        [string]$Name
+    )
+
+    if (-not (Test-Path -LiteralPath $Path)) {
+        return $null
+    }
+
+    $escapedName = [Regex]::Escape($Name)
+    $line = Get-Content -LiteralPath $Path |
+        Where-Object { $_ -match "^\s*$escapedName\s*=" } |
+        Select-Object -First 1
+
+    if ($null -eq $line) {
+        return $null
+    }
+
+    $value = $line -replace "^\s*$escapedName\s*=", ""
+    return $value.Trim().Trim('"').Trim("'")
+}
+
+function Get-DatabaseConfigValue {
+    param([string]$Name)
+
+    $processValue = [Environment]::GetEnvironmentVariable($Name)
+    if (-not [string]::IsNullOrWhiteSpace($processValue)) {
+        return $processValue
+    }
+
+    return Get-DotEnvValue -Path $envFilePath -Name $Name
+}
+
 $databaseUrlVariables = @(
     "DB_URL",
     "DATABASE_URL",
@@ -51,25 +87,22 @@ $databaseUrlVariables = @(
 )
 $hasDatabaseUrl = $false
 foreach ($variableName in $databaseUrlVariables) {
-    if (-not [string]::IsNullOrWhiteSpace([Environment]::GetEnvironmentVariable($variableName))) {
+    if (-not [string]::IsNullOrWhiteSpace((Get-DatabaseConfigValue -Name $variableName))) {
         $hasDatabaseUrl = $true
         break
     }
 }
-$hasExplicitNonSqliteConnection = -not [string]::IsNullOrWhiteSpace($env:DB_CONNECTION) -and $env:DB_CONNECTION -ne "sqlite"
+$configuredConnection = Get-DatabaseConfigValue -Name "DB_CONNECTION"
+$configuredDatabase = Get-DatabaseConfigValue -Name "DB_DATABASE"
+$hasExplicitNonSqliteConnection = -not [string]::IsNullOrWhiteSpace($configuredConnection) -and $configuredConnection -ne "sqlite"
 $shouldUseManagedSqlite = -not $hasDatabaseUrl `
     -and -not $hasExplicitNonSqliteConnection `
-    -and ([string]::IsNullOrWhiteSpace($env:DB_DATABASE) -or $env:DB_DATABASE -eq ":memory:")
+    -and ([string]::IsNullOrWhiteSpace($configuredDatabase) -or $configuredDatabase -eq ":memory:")
 
 if ($shouldUseManagedSqlite) {
-    $localDatabaseNeedsSeed = -not (Test-Path -LiteralPath $localDatabasePath) `
-        -or ((Get-Item -LiteralPath $localDatabasePath -ErrorAction SilentlyContinue).Length -eq 0)
     New-Item -ItemType File -Path $localDatabasePath -Force | Out-Null
     $env:DB_CONNECTION = "sqlite"
     $env:DB_DATABASE = $localDatabasePath
-}
-else {
-    $localDatabaseNeedsSeed = $false
 }
 
 Stop-ProcessOnPort -TargetPort $Port
@@ -89,13 +122,21 @@ $env:SESSION_SAME_SITE = "lax"
 
 & "$PSScriptRoot\sync-backend-db.ps1"
 
-if ($localDatabaseNeedsSeed) {
+if ($shouldUseManagedSqlite) {
     Set-Location $backendPath
-    Write-Host "Seeding local demo data..."
-    & $phpCommand artisan db:seed --force --no-interaction
+    $localUserCountOutput = & $phpCommand artisan tinker --execute="echo \App\Models\User::query()->count();"
     if ($LASTEXITCODE -ne 0) {
-        Write-Error "Local demo seed failed. Fix seeder errors before starting backend."
+        Write-Error "Local demo seed check failed. Fix database errors before starting backend."
         exit $LASTEXITCODE
+    }
+    $localUserCount = [int](($localUserCountOutput -join "").Trim())
+    if ($localUserCount -eq 0) {
+        Write-Host "Seeding local demo data..."
+        & $phpCommand artisan db:seed --force --no-interaction
+        if ($LASTEXITCODE -ne 0) {
+            Write-Error "Local demo seed failed. Fix seeder errors before starting backend."
+            exit $LASTEXITCODE
+        }
     }
 }
 
