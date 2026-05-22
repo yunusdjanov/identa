@@ -479,12 +479,15 @@
   .hero-preview {
     width: min(100%, 370px);
     max-width: 370px;
-    max-height: 330px;
+    max-height: none;
   }
   .dash { aspect-ratio: 1 / 0.9; }
   .dash-side { grid-row: 1; }
   .dash-side .nav-item:nth-of-type(n+5) { display: none; }
   .dash-float { display: none; }
+}
+@media (max-width: 380px) {
+  .dash { aspect-ratio: 1 / 1.08; }
 }
 
 /* ===== STATS STRIP ===== */

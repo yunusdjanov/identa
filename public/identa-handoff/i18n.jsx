@@ -80,15 +80,14 @@ const I18N = {
     mobile: {
       eyebrow: "Мобильное приложение",
       title: ["Рабочий кабинет ", "в телефоне", "."],
-      lede: "Мобильное приложение Identa почти готово к запуску. Оно работает с тем же аккаунтом и данными, что и web-кабинет: врач и команда смогут быстро смотреть расписание, карточки пациентов, платежи и важные обновления прямо с телефона.",
+      lede: "Мобильное приложение Identa работает с тем же аккаунтом и данными, что и веб-кабинет: врач и команда смогут быстро просматривать расписание, карточки пациентов, платежи и важные обновления прямо с телефона.",
       points: [
         { t: "Расписание на смене", d: "Проверяйте сегодняшние приёмы, статус визита и ближайшие записи без ноутбука." },
         { t: "Пациент под рукой", d: "Открывайте профиль, контакты, историю лечения, снимки и заметки перед приёмом." },
-        { t: "Оплаты и уведомления", d: "Видите статус платежей и получаете важные события по клинике в мобильном интерфейсе." },
+        { t: "Оплаты и уведомления", d: "Просматривайте статусы платежей и получайте важные события по клинике в мобильном интерфейсе." },
       ],
-      badges: ["iOS и Android", "Единый аккаунт", "Синхронизация с web"],
+      badges: ["iOS и Android", "Единый аккаунт", "Синхронизация с веб-кабинетом"],
       mockupLabel: "Мобильное приложение Identa",
-      status: "почти готово",
       today: "Сегодня",
       appointments: "приёмов",
       timeline: [
@@ -232,15 +231,15 @@ const I18N = {
     stats: {
       eyebrow: "Raqamlarda",
       items: [
-        { n: "30 kun", l: "sinov muddati ro'yxatdan keyin ochiladi" },
+        { n: "30 kun", l: "sinov muddati ro'yxatdan o'tgach ochiladi" },
         { n: "3 ta", l: "tarif: sinov, asosiy va pro" },
-        { n: "10 ta", l: "rasm har bir yozuv uchun kengaytirilgan tarifda" },
-        { n: "6 ta", l: "xodim ruxsati: bemorlar, qabullar va to'lovlar" },
+        { n: "10 ta", l: "kengaytirilgan tarifda har yozuv uchun rasm" },
+        { n: "6 ta", l: "xodimlar uchun huquq: bemorlar, qabullar va to'lovlar" },
       ],
     },
     why: {
       eyebrow: "Nega Identa",
-      title: ["Bemor qabuliga ", "kerakli hammasi,", " ortiqcha murakkabliksiz."],
+      title: ["Bemor qabuliga ", "kerak bo'lgan hammasi,", " ortiqcha murakkabliksiz."],
       lede: "Har bir funksiya shifokor bilan suhbatdan boshlangan. Ortiqcha tugma, uzun menyu va bemor qabuliga xalaqit beradigan majburiy maydonlar yo'q.",
       cards: [
         { n: "01", t: ["Qabullar ", "nazoratda"], d: "Qabullar kalendarda yaratiladi va yangilanadi, tizim esa vaqt to'qnashuvi va holatlar bo'yicha tartibni saqlashga yordam beradi. Xodim faqat berilgan ko'rish yoki boshqarish huquqi bo'yicha ishlaydi.", viz: "schedule" },
@@ -251,15 +250,14 @@ const I18N = {
     mobile: {
       eyebrow: "Mobil ilova",
       title: ["Ish kabineti ", "telefoningizda", "."],
-      lede: "Identa mobil ilovasi deyarli ishga tushishga tayyor. U web-kabinet bilan bir xil akkaunt va ma'lumotlar asosida ishlaydi: shifokor va jamoa jadval, bemor kartasi, to'lovlar va muhim yangilanishlarni telefondan tez ko'ra oladi.",
+      lede: "Identa mobil ilovasi web-kabinet bilan bir xil akkaunt va ma'lumotlar asosida ishlaydi: shifokor va jamoa jadval, bemor kartasi, to'lovlar va muhim yangilanishlarni telefondan tez ko'ra oladi.",
       points: [
         { t: "Smena jadvali", d: "Bugungi qabullar, tashrif holati va yaqin yozuvlarni noutbuksiz tekshiring." },
-        { t: "Bemor kartasi qo'lda", d: "Qabuldan oldin profil, kontaktlar, davolanish tarixi, rasmlar va izohlarni oching." },
-        { t: "To'lovlar va xabarlar", d: "To'lov holatini ko'ring va klinikadagi muhim voqealarni mobil interfeysda oling." },
+        { t: "Bemor kartasi yoningizda", d: "Qabuldan oldin profil, kontaktlar, davolanish tarixi, rasmlar va izohlarni oching." },
+        { t: "To'lovlar va xabarlar", d: "To'lovlar holatini kuzating va klinikadagi muhim voqealarni mobil interfeysda oling." },
       ],
-      badges: ["iOS va Android", "Bitta akkaunt", "Web bilan sinxron"],
+      badges: ["iOS va Android", "Bitta akkaunt", "Web-kabinet bilan sinxron"],
       mockupLabel: "Identa mobil ilovasi",
-      status: "deyarli tayyor",
       today: "Bugun",
       appointments: "qabul",
       timeline: [
@@ -330,7 +328,7 @@ const I18N = {
     hero: {
       eyebrow: "Patients · Appointments · Payments · Images",
       status: "30 days free",
-      title: ["Dental work, ", "organized", " in ", "one workspace."],
+      title: ["Dentistry, ", "organized", " in ", "one workspace."],
       lede: "",
       ctaPrimary: "Start free",
       ctaSecondary: "Sign in",
@@ -354,7 +352,7 @@ const I18N = {
           { txt: "Cleaning", c: "navy" },
           { txt: "Braces", c: "teal" },
         ],
-        days: ["Mon", "Tue", "Wed", "Thu", "Fri"],
+        days: ["Mo", "Tu", "We", "Th", "Fr"],
         nav: ["Dashboard", "Appointments", "Patients", "Payments", "Billing", "Team"],
         float1: { name: "Alisher K.", meta: "Confirmed visit · 2:30 PM" },
         float2: { name: "Payment received", meta: "1,200,000 UZS · PayX" },
@@ -363,7 +361,7 @@ const I18N = {
     stats: {
       eyebrow: "By the numbers",
       items: [
-        { n: "30 days", l: "of Trial access after registration" },
+        { n: "30 days", l: "of trial access after registration" },
         { n: "3 plans", l: "Trial, Basic and Pro" },
         { n: "10 images", l: "per entry on Pro" },
         { n: "6 permissions", l: "for patients, appointments and payments" },
@@ -409,9 +407,9 @@ const I18N = {
       yearly: "Yearly",
       save: "",
       plans: [
-        { name: "Trial", desc: "Automatic trial access right after registration.", price: { m: "30 days", y: "30 days" }, cur: "", features: ["Doctor + 1 staff", "2 images per entry", "Upload up to 1 MB", "No export"], cta: "Start Trial", flag: "Automatic" },
-        { name: "Basic", desc: "Core capabilities for a small team.", price: { m: "Price in app", y: "Price in app" }, cur: "", features: ["Doctor + 3 staff", "2 images per entry", "Upload up to 3 MB", "No export", "Monthly/yearly via PayX"], cta: "Choose Basic", flag: "Core", featured: true },
-        { name: "Pro", desc: "More images, more staff and export for active clinics.", price: { m: "Price in app", y: "Price in app" }, cur: "", features: ["Doctor + 5 staff", "10 images per entry", "Upload up to 5 MB", "Export enabled"], cta: "Choose Pro" },
+        { name: "Trial", desc: "Automatic trial access right after registration.", price: { m: "30 days", y: "30 days" }, cur: "", features: ["Doctor + 1 staff member", "2 images per entry", "Upload up to 1 MB", "No export"], cta: "Start trial", flag: "Automatic" },
+        { name: "Basic", desc: "Core capabilities for a small team.", price: { m: "Price in app", y: "Price in app" }, cur: "", features: ["Doctor + 3 staff members", "2 images per entry", "Upload up to 3 MB", "No export", "Monthly/yearly via PayX"], cta: "Choose Basic", flag: "Core", featured: true },
+        { name: "Pro", desc: "More images, more staff members and export for active clinics.", price: { m: "Price in app", y: "Price in app" }, cur: "", features: ["Doctor + 5 staff members", "10 images per entry", "Upload up to 5 MB", "Export enabled"], cta: "Choose Pro" },
       ],
     },
     steps: {
@@ -419,7 +417,7 @@ const I18N = {
       title: ["From signup to ", "workspace ", "— without waiting."],
       lede: "Create an account with email/password or Google. Trial is created automatically, and data stays visible in read-only mode if a plan expires.",
       items: [
-        { n: "1", t: "Register", d: "Use email/password or Google. The doctor's workspace immediately receives an active 30-day Trial." },
+        { n: "1", t: "Register", d: "Use email/password or Google. The doctor's workspace immediately receives an active 30-day trial." },
         { n: "2", t: "Fill the workspace", d: "Add patients, appointments, payments, staff members and team permissions." },
         { n: "3", t: "Work by role", d: "Staff can access only permitted modules: patients, appointments and payments with view/manage rules." },
         { n: "4", t: "Upgrade when ready", d: "Basic or Pro is purchased through PayX. If a plan expires, existing data stays readable." },
@@ -430,8 +428,8 @@ const I18N = {
       title: ["What dentists ", "want to know ", "before they start."],
       lede: "The key answers to know before registration and the first working day in Identa.",
       items: [
-        { q: "What happens after registration?", a: "A doctor's workspace is created and a 30-day Trial starts automatically. After sign-in, the clinic can add patients, appointments, payments, images and staff." },
-        { q: "Can users sign in with Google?", a: "Yes. Existing emails log in to the existing workspace; new emails create a new doctor's workspace with Trial." },
+        { q: "What happens after registration?", a: "A doctor's workspace is created and a 30-day trial starts automatically. After sign-in, the clinic can add patients, appointments, payments, images and staff." },
+        { q: "Can users sign in with Google?", a: "Yes. Existing emails log in to the existing workspace; new emails create a new doctor's workspace with a trial." },
         { q: "What happens when a plan expires?", a: "The account is not deleted. Data remains visible, while create, edit, delete, image upload and export actions stay blocked until the plan is renewed." },
         { q: "How do staff and permissions work?", a: "The doctor adds staff and grants view or manage access separately for patients, appointments and payments. Locked sections cannot be opened from the menu or by direct URL." },
         { q: "How are clinical images protected?", a: "Images are checked, sanitized and stored privately. Only the doctor or permitted staff can access them, and uploads follow the limits of the current plan." },
@@ -439,7 +437,7 @@ const I18N = {
     },
     cta: {
       title: ["Ready to put your ", "clinic ", "in order?"],
-      lede: "Create your account and get a 30-day Trial. When ready, connect Basic or Pro from billing.",
+      lede: "Create your account and get a 30-day trial. When ready, connect Basic or Pro from billing.",
       primary: "Start free",
       secondary: "Sign in",
     },
