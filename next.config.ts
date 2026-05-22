@@ -39,6 +39,13 @@ const securityHeaders = [
   },
 ];
 
+const noIndexHeaders = [
+  {
+    key: "X-Robots-Tag",
+    value: "noindex, nofollow, noarchive",
+  },
+];
+
 const nextConfig: NextConfig = {
   experimental: {
     optimizePackageImports: ["lucide-react", "date-fns", "radix-ui"],
@@ -64,6 +71,11 @@ const nextConfig: NextConfig = {
       {
         source: "/:path*",
         headers: securityHeaders,
+      },
+      {
+        source:
+          "/:path(login|register|forgot-password|reset-password|dashboard|patients|appointments|payments|billing|settings|staff|team|admin|api|identa-handoff)(.*)",
+        headers: noIndexHeaders,
       },
     ];
   },
