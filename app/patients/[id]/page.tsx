@@ -72,12 +72,12 @@ function InfoRow({
     valueClassName?: string;
 }) {
     return (
-        <div className="flex items-center justify-between gap-4 border-b border-slate-100 py-2.5 first:pt-2 last:border-0 last:pb-1">
+        <div className="flex items-center gap-4 border-b border-slate-100 py-2.5 first:pt-2 last:border-0 last:pb-1">
             <div className="flex shrink-0 items-center gap-2 text-slate-400">
                 {icon}
                 <span className="text-xs">{label}</span>
             </div>
-            <span className={`min-w-0 truncate text-right text-[13px] font-semibold text-slate-800 ${valueClassName ?? ''}`}>
+            <span className={`min-w-0 flex-1 truncate text-right text-[13px] font-semibold text-slate-800 ${valueClassName ?? ''}`}>
                 {value}
             </span>
         </div>
