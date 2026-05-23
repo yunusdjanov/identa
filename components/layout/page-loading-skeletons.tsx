@@ -358,14 +358,14 @@ export function StaffLoadingState() {
 export function PatientDetailLoadingState() {
     return (
         <div className="space-y-4">
-            {/* Compact header — matches px-4 py-3, h-10 avatar, h-7 action buttons */}
+            {/* Header — matches actual page */}
             <section className="rounded-[1.5rem] border border-white/80 bg-gradient-to-br from-white via-teal-100/55 to-white px-4 py-3 shadow-sm shadow-slate-200/70 sm:px-5">
                 <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
                     <div className="flex items-center gap-3">
                         <Skeleton className="h-8 w-8 shrink-0 rounded-xl" />
                         <Skeleton className="h-10 w-10 shrink-0 rounded-full" />
                         <div className="space-y-1.5">
-                            <Skeleton className="h-6 w-44 rounded-xl" />
+                            <Skeleton className="h-[22px] w-44 rounded-xl" />
                             <div className="flex items-center gap-2">
                                 <Skeleton className="h-4 w-28 rounded-xl" />
                                 <Skeleton className="h-5 w-16 rounded-full" />
@@ -380,54 +380,62 @@ export function PatientDetailLoadingState() {
                 </div>
             </section>
 
-            {/* 3 info cards — Contact / Medical / Visit summary (compact inline layout) */}
-            <div className="grid grid-cols-1 gap-2.5 md:grid-cols-3">
-                {Array.from({ length: 3 }).map((_, cardIndex) => (
-                    <div key={cardIndex} className="overflow-hidden rounded-xl border border-slate-200/80 bg-white shadow-sm">
-                        {/* Compact border-b header */}
-                        <div className="flex items-center gap-2 border-b border-slate-100 px-3 py-2">
-                            <Skeleton className="h-3.5 w-3.5 rounded" />
-                            <Skeleton className="h-3.5 w-28 rounded-xl" />
+            {/* 3 info cards — gap-3, rounded-2xl, solid icon badge, icon+label left / value right */}
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                {[4, 3, 3].map((rowCount, cardIndex) => (
+                    <div key={cardIndex} className="overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm shadow-slate-100/80">
+                        {/* Header: h-8 w-8 rounded-xl badge + title */}
+                        <div className="flex items-center gap-3 border-b border-slate-100 px-4 py-2.5">
+                            <Skeleton className="h-8 w-8 shrink-0 rounded-xl" />
+                            <Skeleton className="h-[14px] w-32 rounded-xl" />
                         </div>
-                        {/* Inline label: value rows */}
-                        <div className="px-3 py-2">
-                            {Array.from({ length: cardIndex === 2 ? 4 : 3 }).map((__, rowIndex) => (
-                                <div key={rowIndex} className="flex items-baseline justify-between gap-3 py-[5px]">
-                                    <Skeleton className="h-3 w-20 rounded-xl" />
-                                    <Skeleton className="h-3 w-24 rounded-xl" />
+                        {/* InfoRows: icon+label group left, value right */}
+                        <div className="px-4 pb-3 pt-0">
+                            {Array.from({ length: rowCount }).map((_, rowIndex) => (
+                                <div
+                                    key={rowIndex}
+                                    className="flex items-center justify-between gap-4 border-b border-slate-100 py-2.5 last:border-0"
+                                >
+                                    <div className="flex items-center gap-2">
+                                        <Skeleton className="h-3.5 w-3.5 shrink-0 rounded" />
+                                        <Skeleton className="h-3 w-16 rounded-xl" />
+                                    </div>
+                                    <Skeleton className="h-3.5 w-24 rounded-xl" />
                                 </div>
                             ))}
+                            {/* Visit card history link */}
+                            {cardIndex === 2 ? (
+                                <div className="border-t border-slate-100 pt-2.5">
+                                    <Skeleton className="h-6 w-28 rounded-lg" />
+                                </div>
+                            ) : null}
                         </div>
-                        {cardIndex === 2 ? (
-                            <div className="border-t border-slate-100 px-3 py-2">
-                                <Skeleton className="h-3.5 w-28 rounded-xl" />
-                            </div>
-                        ) : null}
                     </div>
                 ))}
             </div>
 
-            {/* Appointments card */}
-            <Card className="overflow-hidden rounded-[1.5rem]">
-                <div className="flex items-center justify-between px-4 pb-2 pt-3">
-                    <div className="flex items-center gap-2">
-                        <Skeleton className="h-6 w-6 rounded-md" />
-                        <Skeleton className="h-4 w-24 rounded-xl" />
+            {/* Appointments card — rounded-2xl, border, h-8 w-8 icon badge, time pill rows */}
+            <div className="overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm shadow-slate-100/80">
+                <div className="flex items-center justify-between border-b border-slate-100 px-4 py-2.5">
+                    <div className="flex items-center gap-3">
+                        <Skeleton className="h-8 w-8 shrink-0 rounded-xl" />
+                        <Skeleton className="h-[14px] w-20 rounded-xl" />
                     </div>
                     <Skeleton className="h-7 w-36 rounded-full" />
                 </div>
-                <div className="divide-y divide-slate-100 px-4 pb-4 pt-1">
+                <div className="divide-y divide-slate-100">
                     {Array.from({ length: 3 }).map((_, i) => (
-                        <div key={i} className="flex items-center justify-between gap-3 py-2.5">
-                            <div className="space-y-1.5">
-                                <Skeleton className="h-3.5 w-44 rounded-xl" />
-                                <Skeleton className="h-3 w-28 rounded-xl" />
+                        <div key={i} className="flex items-center gap-3 px-4 py-3">
+                            <Skeleton className="h-8 w-[3.25rem] shrink-0 rounded-lg" />
+                            <div className="flex-1 space-y-1.5">
+                                <Skeleton className="h-3.5 w-40 rounded-xl" />
+                                <Skeleton className="h-3 w-24 rounded-xl" />
                             </div>
                             <Skeleton className="h-5 w-20 shrink-0 rounded-full" />
                         </div>
                     ))}
                 </div>
-            </Card>
+            </div>
         </div>
     );
 }
