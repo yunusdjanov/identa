@@ -379,7 +379,7 @@ export default function PatientDetailPage({
             {/* Info cards */}
             <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
                 {/* Contact Info */}
-                <Card className="interactive-card overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm shadow-slate-100/80">
+                <Card className="interactive-card overflow-hidden rounded-2xl border border-slate-200/80 bg-white">
                     <CardHeader className="flex flex-row items-center gap-2.5 border-b border-slate-100 px-4 py-1.5">
                         <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-teal-500 text-white shadow-sm shadow-teal-400/30">
                             <Phone className="h-3.5 w-3.5" />
@@ -401,7 +401,7 @@ export default function PatientDetailPage({
                 </Card>
 
                 {/* Medical Info */}
-                <Card className="interactive-card overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm shadow-slate-100/80">
+                <Card className="interactive-card overflow-hidden rounded-2xl border border-slate-200/80 bg-white">
                     <CardHeader className="flex flex-row items-center gap-2.5 border-b border-slate-100 px-4 py-1.5">
                         <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-emerald-500 text-white shadow-sm shadow-emerald-400/30">
                             <HeartPulse className="h-3.5 w-3.5" />
@@ -440,7 +440,7 @@ export default function PatientDetailPage({
                 </Card>
 
                 {/* Visit Summary */}
-                <Card className="interactive-card overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm shadow-slate-100/80">
+                <Card className="interactive-card overflow-hidden rounded-2xl border border-slate-200/80 bg-white">
                     <CardHeader className="flex flex-row items-center gap-2.5 border-b border-slate-100 px-4 py-1.5">
                         <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-blue-500 text-white shadow-sm shadow-blue-400/30">
                             <CalendarCheck className="h-3.5 w-3.5" />
@@ -474,7 +474,7 @@ export default function PatientDetailPage({
             </div>
 
             {/* Appointments */}
-            <Card className="interactive-card overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm shadow-slate-100/80">
+            <Card className="interactive-card overflow-hidden rounded-2xl border border-slate-200/80 bg-white">
                 <CardHeader className="flex flex-col gap-2 border-b border-slate-100 px-4 py-2.5 sm:flex-row sm:items-center sm:justify-between">
                     <div className="flex items-center gap-3">
                         <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-teal-500 text-white shadow-sm shadow-teal-400/30">

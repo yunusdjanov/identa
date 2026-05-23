@@ -134,7 +134,7 @@ function AdminShellSkeleton({
     return (
         <div
             data-testid="admin-shell-loading"
-            className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(219,234,254,0.55),transparent_34rem),linear-gradient(180deg,#f8fbff_0%,#f8fafc_42%,#f1f5f9_100%)]"
+            className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(209,228,255,0.7),transparent_34rem),linear-gradient(180deg,#eaf1f8_0%,#e8edf5_45%,#e2e8f0_100%)]"
         >
             <AdminHeaderSkeleton />
             <main className="p-3 sm:p-5 lg:p-6">
