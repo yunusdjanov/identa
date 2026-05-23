@@ -497,12 +497,9 @@ export default function PatientDetailPage({
                                     key={appointment.id}
                                     className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-slate-50"
                                 >
-                                    <div className="flex h-10 w-10 shrink-0 flex-col items-center justify-center rounded-xl bg-teal-50 ring-1 ring-teal-100/80">
-                                        <span className="text-[11px] font-bold leading-none text-teal-700">
+                                    <div className="flex w-[3.25rem] shrink-0 items-center justify-center rounded-lg bg-teal-50 py-1.5 ring-1 ring-teal-100/80">
+                                        <span className="font-mono text-[11px] font-bold tracking-wide text-teal-700">
                                             {appointment.start_time?.slice(0, 5)}
-                                        </span>
-                                        <span className="mt-0.5 text-[9px] font-medium leading-none text-teal-400">
-                                            {formatDate(appointment.appointment_date).slice(0, 6)}
                                         </span>
                                     </div>
                                     <div className="min-w-0 flex-1">
