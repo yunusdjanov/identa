@@ -30,12 +30,10 @@ import {
 import {
     AlertCircle,
     ArrowLeft,
-    Calendar,
     CalendarCheck,
     Clock3,
     Edit,
     HeartPulse,
-    MapPin,
     Phone,
     Trash2,
 } from 'lucide-react';
@@ -58,34 +56,20 @@ const PATIENT_ALLERGIES_UI_LIMIT = INPUT_LIMITS.medicalAllergies;
 const PATIENT_MEDICATIONS_UI_LIMIT = INPUT_LIMITS.medicalMedications;
 const PATIENT_MEDICAL_HISTORY_UI_LIMIT = INPUT_LIMITS.medicalHistory;
 
-function ContactInfoItem({
-    icon,
+function InfoRow({
     label,
     value,
-    marker,
+    valueClassName,
 }: {
-    icon: ReactNode;
     label: string;
     value: ReactNode;
-    marker?: string;
+    valueClassName?: string;
 }) {
     return (
-        <div className="flex items-center gap-2.5 py-2.5">
-            <span className="relative flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-teal-50 text-teal-600">
-                {icon}
-                {marker ? (
-                    <span className="absolute -right-0.5 -top-0.5 flex h-3.5 min-w-3.5 items-center justify-center rounded-full border border-white bg-teal-600 px-0.5 text-[8px] font-bold leading-none text-white">
-                        {marker}
-                    </span>
-                ) : null}
-            </span>
-            <span className="min-w-0 flex-1">
-                <span className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">
-                    {label}
-                </span>
-                <span className="block text-xs font-medium text-slate-800 [overflow-wrap:anywhere]">
-                    {value}
-                </span>
+        <div className="flex items-baseline justify-between gap-3 py-[5px]">
+            <span className="shrink-0 text-[10px] font-medium text-slate-400">{label}</span>
+            <span className={`min-w-0 text-right text-xs font-medium text-slate-800 [overflow-wrap:anywhere] ${valueClassName ?? ''}`}>
+                {value}
             </span>
         </div>
     );
@@ -383,135 +367,108 @@ export default function PatientDetailPage({
                 </div>
             </div>
 
-            {/* Info cards */}
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-                <Card className="interactive-card overflow-hidden bg-gradient-to-br from-white via-white to-teal-100/35">
-                    <CardHeader className="flex flex-row items-center gap-2 px-4 pb-2 pt-3">
-                        <span className="flex h-6 w-6 items-center justify-center rounded-md bg-teal-50 text-teal-600">
-                            <Phone className="h-3.5 w-3.5" />
-                        </span>
-                        <CardTitle className="text-sm font-semibold text-slate-700">{t('patientDetail.contactInfo')}</CardTitle>
-                    </CardHeader>
-                    <CardContent className="divide-y divide-slate-100 px-4 pb-3 pt-0">
-                        <ContactInfoItem
-                            icon={<Phone className="h-3 w-3" />}
-                            label={t('patientDetail.phone1')}
-                            marker="1"
-                            value={patient.phone}
-                        />
+            {/* Info cards — compact inline label:value layout */}
+            <div className="grid grid-cols-1 gap-2.5 md:grid-cols-3">
+                {/* Contact Info */}
+                <div className="interactive-card overflow-hidden rounded-xl border border-slate-200/80 bg-gradient-to-br from-white to-teal-50/40 shadow-sm">
+                    <div className="flex items-center gap-2 border-b border-slate-100 px-3 py-2">
+                        <Phone className="h-3.5 w-3.5 shrink-0 text-teal-500" />
+                        <span className="text-xs font-semibold text-slate-700">{t('patientDetail.contactInfo')}</span>
+                    </div>
+                    <div className="px-3 py-2">
+                        <InfoRow label={t('patientDetail.phone1')} value={patient.phone} />
                         {patient.secondary_phone ? (
-                            <ContactInfoItem
-                                icon={<Phone className="h-3 w-3" />}
-                                label={t('patientDetail.phone2')}
-                                marker="2"
-                                value={patient.secondary_phone}
-                            />
+                            <InfoRow label={t('patientDetail.phone2')} value={patient.secondary_phone} />
                         ) : null}
                         {patient.address ? (
-                            <ContactInfoItem
-                                icon={<MapPin className="h-3 w-3" />}
-                                label={t('patientDetail.address')}
-                                value={patient.address}
-                            />
+                            <InfoRow label={t('patientDetail.address')} value={patient.address} />
                         ) : null}
                         {patient.date_of_birth ? (
-                            <ContactInfoItem
-                                icon={<Calendar className="h-3 w-3" />}
-                                label={t('patientDetail.birthDate')}
-                                value={formatDate(patient.date_of_birth)}
-                            />
+                            <InfoRow label={t('patientDetail.birthDate')} value={formatDate(patient.date_of_birth)} />
                         ) : null}
-                    </CardContent>
-                </Card>
+                    </div>
+                </div>
 
-                <Card className="interactive-card overflow-hidden bg-gradient-to-br from-white via-white to-emerald-50/25">
-                    <CardHeader className="flex flex-row items-center gap-2 px-4 pb-2 pt-3">
-                        <span className="flex h-6 w-6 items-center justify-center rounded-md bg-emerald-50 text-emerald-600">
-                            <HeartPulse className="h-3.5 w-3.5" />
-                        </span>
-                        <CardTitle className="text-sm font-semibold text-slate-700">{t('patientDetail.medicalInfo')}</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-2.5 px-4 pb-3 pt-1">
+                {/* Medical Info */}
+                <div className="interactive-card overflow-hidden rounded-xl border border-slate-200/80 bg-gradient-to-br from-white to-emerald-50/30 shadow-sm">
+                    <div className="flex items-center gap-2 border-b border-slate-100 px-3 py-2">
+                        <HeartPulse className="h-3.5 w-3.5 shrink-0 text-emerald-500" />
+                        <span className="text-xs font-semibold text-slate-700">{t('patientDetail.medicalInfo')}</span>
+                    </div>
+                    <div className="px-3 py-2">
                         {patient.allergies ? (
-                            <div>
-                                <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">{t('patientDetail.allergies')}</p>
-                                <Badge
-                                    variant="secondary"
-                                    className="inline-flex max-w-full items-start justify-start whitespace-normal break-words border border-red-200 bg-red-50 py-1 text-xs text-red-800"
-                                    title={patient.allergies}
-                                >
-                                    <AlertCircle className="mr-1 h-3 w-3 shrink-0 mt-px" />
-                                    <span className="[overflow-wrap:anywhere]">
-                                        {truncateForUi(patient.allergies, PATIENT_ALLERGIES_UI_LIMIT)}
-                                    </span>
-                                </Badge>
+                            <div className="py-[5px]">
+                                <div className="flex items-start gap-1.5">
+                                    <AlertCircle className="mt-px h-3 w-3 shrink-0 text-red-400" />
+                                    <div className="min-w-0">
+                                        <p className="text-[10px] font-medium text-slate-400">{t('patientDetail.allergies')}</p>
+                                        <p className="text-xs font-medium text-red-700 [overflow-wrap:anywhere]" title={patient.allergies}>
+                                            {truncateForUi(patient.allergies, PATIENT_ALLERGIES_UI_LIMIT)}
+                                        </p>
+                                    </div>
+                                </div>
                             </div>
                         ) : null}
                         {patient.current_medications ? (
-                            <div>
-                                <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">{t('patientDetail.currentMedications')}</p>
-                                <p className="text-xs whitespace-pre-wrap [overflow-wrap:anywhere] break-words text-slate-700" title={patient.current_medications}>
+                            <div className="py-[5px]">
+                                <p className="text-[10px] font-medium text-slate-400">{t('patientDetail.currentMedications')}</p>
+                                <p className="text-xs text-slate-700 [overflow-wrap:anywhere]" title={patient.current_medications}>
                                     {truncateForUi(patient.current_medications, PATIENT_MEDICATIONS_UI_LIMIT)}
                                 </p>
                             </div>
                         ) : null}
                         {patient.medical_history ? (
-                            <div>
-                                <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">{t('patientDetail.medicalHistory')}</p>
-                                <p className="text-xs whitespace-pre-wrap [overflow-wrap:anywhere] break-words text-slate-700" title={patient.medical_history}>
+                            <div className="py-[5px]">
+                                <p className="text-[10px] font-medium text-slate-400">{t('patientDetail.medicalHistory')}</p>
+                                <p className="text-xs text-slate-700 [overflow-wrap:anywhere]" title={patient.medical_history}>
                                     {truncateForUi(patient.medical_history, PATIENT_MEDICAL_HISTORY_UI_LIMIT)}
                                 </p>
                             </div>
                         ) : null}
                         {!patient.allergies && !patient.current_medications && !patient.medical_history ? (
-                            <p className="text-xs text-gray-400">{t('patientDetail.noMedicalInfo')}</p>
+                            <p className="py-[5px] text-xs text-slate-400">{t('patientDetail.noMedicalInfo')}</p>
                         ) : null}
-                    </CardContent>
-                </Card>
+                    </div>
+                </div>
 
-                <Card className="interactive-card overflow-hidden bg-gradient-to-br from-white via-white to-slate-50">
-                    <CardHeader className="flex flex-row items-center gap-2 px-4 pb-2 pt-3">
-                        <span className="flex h-6 w-6 items-center justify-center rounded-md bg-slate-100 text-slate-600">
-                            <CalendarCheck className="h-3.5 w-3.5" />
-                        </span>
-                        <CardTitle className="text-sm font-semibold text-slate-700">{t('patientDetail.visitSummary')}</CardTitle>
-                    </CardHeader>
-                    <CardContent className="divide-y divide-slate-100 px-4 pb-3 pt-0">
-                        <div className="py-2.5">
-                            <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">{t('patientDetail.lastVisit')}</p>
-                            <p className="mt-0.5 text-xs font-semibold text-slate-900">
-                                {latestVisitDate ? formatDate(latestVisitDate) : t('patients.never')}
-                            </p>
-                        </div>
-                        <div className="py-2.5">
-                            <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">{t('patientDetail.totalAppointments')}</p>
-                            <p className="mt-0.5 text-xs font-semibold text-slate-900">
-                                {canViewAppointments ? patientAppointmentsCount : PERMISSION_DENIED_MESSAGE}
-                            </p>
-                        </div>
-                        <div className="py-2.5">
-                            <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">{t('patientDetail.openBalance')}</p>
-                            <p className="mt-0.5 text-xs font-semibold">
-                                {!canViewPayments ? (
-                                    <span className="text-slate-400">{PERMISSION_DENIED_MESSAGE}</span>
-                                ) : totalBalance > 0 ? (
-                                    <span className="text-amber-600">{formatCurrency(totalBalance)}</span>
-                                ) : (
-                                    <span className="text-emerald-600">{t('payments.paid')}</span>
-                                )}
-                            </p>
-                        </div>
-                        <div className="pt-2.5">
-                            <Link
-                                href={`/patients/${id}/history?from=patients`}
-                                className="inline-flex items-center rounded-lg bg-teal-50 px-2.5 py-1.5 text-xs font-semibold text-teal-700 transition-colors hover:bg-teal-100"
-                            >
-                                {t('patientHistory.title')}
-                                <span className="ml-1" aria-hidden="true">→</span>
-                            </Link>
-                        </div>
-                    </CardContent>
-                </Card>
+                {/* Visit Summary */}
+                <div className="interactive-card overflow-hidden rounded-xl border border-slate-200/80 bg-gradient-to-br from-white to-slate-50/80 shadow-sm">
+                    <div className="flex items-center gap-2 border-b border-slate-100 px-3 py-2">
+                        <CalendarCheck className="h-3.5 w-3.5 shrink-0 text-slate-500" />
+                        <span className="text-xs font-semibold text-slate-700">{t('patientDetail.visitSummary')}</span>
+                    </div>
+                    <div className="px-3 py-2">
+                        <InfoRow
+                            label={t('patientDetail.lastVisit')}
+                            value={latestVisitDate ? formatDate(latestVisitDate) : t('patients.never')}
+                        />
+                        <InfoRow
+                            label={t('patientDetail.totalAppointments')}
+                            value={canViewAppointments ? patientAppointmentsCount : '—'}
+                        />
+                        <InfoRow
+                            label={t('patientDetail.openBalance')}
+                            value={
+                                !canViewPayments ? '—'
+                                : totalBalance > 0 ? formatCurrency(totalBalance)
+                                : t('payments.paid')
+                            }
+                            valueClassName={
+                                !canViewPayments ? 'text-slate-400'
+                                : totalBalance > 0 ? 'text-amber-600 font-semibold'
+                                : 'text-emerald-600'
+                            }
+                        />
+                    </div>
+                    <div className="border-t border-slate-100 px-3 py-2">
+                        <Link
+                            href={`/patients/${id}/history?from=patients`}
+                            className="text-xs font-medium text-teal-600 hover:text-teal-700 hover:underline"
+                        >
+                            {t('patientHistory.title')} →
+                        </Link>
+                    </div>
+                </div>
             </div>
 
             {/* Appointments */}

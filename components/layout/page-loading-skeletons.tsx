@@ -380,25 +380,30 @@ export function PatientDetailLoadingState() {
                 </div>
             </section>
 
-            {/* 3 info cards — Contact / Medical / Visit summary */}
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+            {/* 3 info cards — Contact / Medical / Visit summary (compact inline layout) */}
+            <div className="grid grid-cols-1 gap-2.5 md:grid-cols-3">
                 {Array.from({ length: 3 }).map((_, cardIndex) => (
-                    <Card key={cardIndex} className="overflow-hidden">
-                        {/* Card header: small icon + title */}
-                        <div className="flex items-center gap-2 px-4 pb-2 pt-3">
-                            <Skeleton className="h-6 w-6 rounded-md" />
-                            <Skeleton className="h-4 w-32 rounded-xl" />
+                    <div key={cardIndex} className="overflow-hidden rounded-xl border border-slate-200/80 bg-white shadow-sm">
+                        {/* Compact border-b header */}
+                        <div className="flex items-center gap-2 border-b border-slate-100 px-3 py-2">
+                            <Skeleton className="h-3.5 w-3.5 rounded" />
+                            <Skeleton className="h-3.5 w-28 rounded-xl" />
                         </div>
-                        {/* Divider rows */}
-                        <div className="divide-y divide-slate-100 px-4 pb-3 pt-0">
-                            {Array.from({ length: 3 }).map((__, rowIndex) => (
-                                <div key={rowIndex} className="py-2.5">
+                        {/* Inline label: value rows */}
+                        <div className="px-3 py-2">
+                            {Array.from({ length: cardIndex === 2 ? 4 : 3 }).map((__, rowIndex) => (
+                                <div key={rowIndex} className="flex items-baseline justify-between gap-3 py-[5px]">
                                     <Skeleton className="h-3 w-20 rounded-xl" />
-                                    <Skeleton className="mt-1 h-4 w-36 rounded-xl" />
+                                    <Skeleton className="h-3 w-24 rounded-xl" />
                                 </div>
                             ))}
                         </div>
-                    </Card>
+                        {cardIndex === 2 ? (
+                            <div className="border-t border-slate-100 px-3 py-2">
+                                <Skeleton className="h-3.5 w-28 rounded-xl" />
+                            </div>
+                        ) : null}
+                    </div>
                 ))}
             </div>
 
