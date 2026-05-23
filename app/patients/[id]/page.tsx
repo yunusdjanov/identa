@@ -67,7 +67,7 @@ function InfoRow({
 }) {
     return (
         <div className="flex items-center justify-between gap-4 border-b border-slate-100 py-2.5 first:pt-1 last:border-0 last:pb-0">
-            <span className="shrink-0 text-xs font-medium text-slate-400">{label}</span>
+            <span className="shrink-0 text-xs font-medium text-slate-500">{label}</span>
             <span className={`min-w-0 text-right text-[13px] font-semibold text-slate-800 [overflow-wrap:anywhere] ${valueClassName ?? ''}`}>
                 {value}
             </span>
@@ -401,13 +401,13 @@ export default function PatientDetailPage({
                     </CardHeader>
                     <CardContent className="px-4 pb-4 pt-0">
                         {!patient.allergies && !patient.current_medications && !patient.medical_history ? (
-                            <div className="flex flex-col items-center gap-2 py-5 text-center">
-                                <HeartPulse className="h-8 w-8 text-slate-200" />
+                            <div className="flex flex-col items-center gap-1.5 py-4 text-center">
+                                <HeartPulse className="h-7 w-7 text-slate-200" />
                                 <p className="text-xs text-slate-400">{t('patientDetail.noMedicalInfo')}</p>
                             </div>
                         ) : null}
                         {patient.allergies ? (
-                            <div className="border-b border-slate-100 py-2 last:border-0 last:pb-0">
+                            <div className="border-b border-slate-100 py-2.5 last:border-0 last:pb-0">
                                 <p className="text-[10px] font-medium uppercase tracking-wide text-slate-400">{t('patientDetail.allergies')}</p>
                                 <p className="mt-0.5 flex items-start gap-1 text-xs font-medium text-red-600">
                                     <AlertCircle className="mt-px h-3 w-3 shrink-0" />
@@ -416,13 +416,13 @@ export default function PatientDetailPage({
                             </div>
                         ) : null}
                         {patient.current_medications ? (
-                            <div className="border-b border-slate-100 py-2 last:border-0 last:pb-0">
+                            <div className="border-b border-slate-100 py-2.5 last:border-0 last:pb-0">
                                 <p className="text-[10px] font-medium uppercase tracking-wide text-slate-400">{t('patientDetail.currentMedications')}</p>
                                 <p className="mt-0.5 text-xs text-slate-700 [overflow-wrap:anywhere]">{truncateForUi(patient.current_medications, PATIENT_MEDICATIONS_UI_LIMIT)}</p>
                             </div>
                         ) : null}
                         {patient.medical_history ? (
-                            <div className="border-b border-slate-100 py-2 last:border-0 last:pb-0">
+                            <div className="border-b border-slate-100 py-2.5 last:border-0 last:pb-0">
                                 <p className="text-[10px] font-medium uppercase tracking-wide text-slate-400">{t('patientDetail.medicalHistory')}</p>
                                 <p className="mt-0.5 text-xs text-slate-700 [overflow-wrap:anywhere]">{truncateForUi(patient.medical_history, PATIENT_MEDICAL_HISTORY_UI_LIMIT)}</p>
                             </div>
@@ -464,13 +464,13 @@ export default function PatientDetailPage({
             </div>
 
             {/* Appointments */}
-            <Card className="interactive-card overflow-hidden rounded-[1.5rem] bg-gradient-to-br from-white via-white to-teal-50/30">
-                <CardHeader className="flex flex-col gap-2 border-b border-slate-100 px-4 pb-3 pt-3.5 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="flex items-center gap-2.5">
-                        <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-teal-50 text-teal-600 shadow-sm shadow-teal-100/60">
-                            <Clock3 className="h-3.5 w-3.5" />
+            <Card className="interactive-card overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm shadow-slate-100/80">
+                <CardHeader className="flex flex-col gap-2 border-b border-slate-100 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex items-center gap-3">
+                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-teal-500 text-white shadow-sm shadow-teal-400/30">
+                            <Clock3 className="h-[15px] w-[15px]" />
                         </span>
-                        <CardTitle className="text-sm font-semibold text-slate-800">{t('appointments.title')}</CardTitle>
+                        <CardTitle className="text-[13px] font-semibold text-slate-700">{t('appointments.title')}</CardTitle>
                     </div>
                     {canViewAppointments ? (
                         <Link href={`/appointments?action=new&patientId=${encodeURIComponent(id)}`}>
@@ -495,27 +495,27 @@ export default function PatientDetailPage({
                             {upcomingAppointments.map((appointment) => (
                                 <div
                                     key={appointment.id}
-                                    className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-slate-50/60"
+                                    className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-slate-50"
                                 >
-                                    <div className="flex h-10 w-10 shrink-0 flex-col items-center justify-center rounded-xl bg-teal-50 text-teal-700">
-                                        <span className="text-[10px] font-bold leading-none">
+                                    <div className="flex h-10 w-10 shrink-0 flex-col items-center justify-center rounded-xl bg-teal-50 ring-1 ring-teal-100/80">
+                                        <span className="text-[11px] font-bold leading-none text-teal-700">
                                             {appointment.start_time?.slice(0, 5)}
                                         </span>
-                                        <span className="mt-0.5 text-[9px] leading-none text-teal-500">
+                                        <span className="mt-0.5 text-[9px] font-medium leading-none text-teal-400">
                                             {formatDate(appointment.appointment_date).slice(0, 6)}
                                         </span>
                                     </div>
                                     <div className="min-w-0 flex-1">
-                                        <p className="truncate text-sm font-medium text-slate-800">
+                                        <p className="truncate text-[13px] font-semibold text-slate-800">
                                             {appointment.notes?.split('|')[0]?.trim() || t('appointments.general')}
                                         </p>
-                                        <p className="text-xs text-slate-400">
+                                        <p className="mt-0.5 text-xs text-slate-400">
                                             {formatDate(appointment.appointment_date)}
                                         </p>
                                     </div>
                                     <Badge
                                         variant="secondary"
-                                        className="shrink-0 rounded-full bg-teal-100/80 px-2.5 text-xs font-medium text-teal-700"
+                                        className="shrink-0 rounded-full bg-teal-50 px-2.5 text-xs font-semibold text-teal-600 ring-1 ring-teal-100/80"
                                     >
                                         {t(`status.${appointment.status}`)}
                                     </Badge>
