@@ -66,7 +66,7 @@ function InfoRow({
     valueClassName?: string;
 }) {
     return (
-        <div className="flex items-center justify-between gap-4 border-b border-slate-100 py-2.5 first:pt-1 last:border-0 last:pb-0">
+        <div className="flex items-center justify-between gap-4 border-b border-slate-100 py-2 first:pt-1 last:border-0 last:pb-0">
             <span className="shrink-0 text-xs font-medium text-slate-500">{label}</span>
             <span className={`min-w-0 text-right text-[13px] font-semibold text-slate-800 [overflow-wrap:anywhere] ${valueClassName ?? ''}`}>
                 {value}
@@ -371,13 +371,13 @@ export default function PatientDetailPage({
             <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
                 {/* Contact Info */}
                 <Card className="interactive-card overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm shadow-slate-100/80">
-                    <CardHeader className="flex flex-row items-center gap-3 border-b border-slate-100 px-4 py-3">
+                    <CardHeader className="flex flex-row items-center gap-3 border-b border-slate-100 px-4 py-2.5">
                         <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-teal-500 text-white shadow-sm shadow-teal-400/30">
                             <Phone className="h-[15px] w-[15px]" />
                         </span>
                         <CardTitle className="text-[13px] font-semibold text-slate-700">{t('patientDetail.contactInfo')}</CardTitle>
                     </CardHeader>
-                    <CardContent className="px-4 pb-4 pt-0">
+                    <CardContent className="px-4 pb-3 pt-0">
                         <InfoRow label={t('patientDetail.phone1')} value={patient.phone} />
                         {patient.secondary_phone ? (
                             <InfoRow label={t('patientDetail.phone2')} value={patient.secondary_phone} />
@@ -393,13 +393,13 @@ export default function PatientDetailPage({
 
                 {/* Medical Info */}
                 <Card className="interactive-card overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm shadow-slate-100/80">
-                    <CardHeader className="flex flex-row items-center gap-3 border-b border-slate-100 px-4 py-3">
+                    <CardHeader className="flex flex-row items-center gap-3 border-b border-slate-100 px-4 py-2.5">
                         <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-emerald-500 text-white shadow-sm shadow-emerald-400/30">
                             <HeartPulse className="h-[15px] w-[15px]" />
                         </span>
                         <CardTitle className="text-[13px] font-semibold text-slate-700">{t('patientDetail.medicalInfo')}</CardTitle>
                     </CardHeader>
-                    <CardContent className="px-4 pb-4 pt-0">
+                    <CardContent className="px-4 pb-3 pt-0">
                         {!patient.allergies && !patient.current_medications && !patient.medical_history ? (
                             <div className="flex flex-col items-center gap-1.5 py-4 text-center">
                                 <HeartPulse className="h-7 w-7 text-slate-200" />
@@ -407,7 +407,7 @@ export default function PatientDetailPage({
                             </div>
                         ) : null}
                         {patient.allergies ? (
-                            <div className="border-b border-slate-100 py-2.5 last:border-0 last:pb-0">
+                            <div className="border-b border-slate-100 py-2 last:border-0 last:pb-0">
                                 <p className="text-[10px] font-medium uppercase tracking-wide text-slate-400">{t('patientDetail.allergies')}</p>
                                 <p className="mt-0.5 flex items-start gap-1 text-xs font-medium text-red-600">
                                     <AlertCircle className="mt-px h-3 w-3 shrink-0" />
@@ -416,13 +416,13 @@ export default function PatientDetailPage({
                             </div>
                         ) : null}
                         {patient.current_medications ? (
-                            <div className="border-b border-slate-100 py-2.5 last:border-0 last:pb-0">
+                            <div className="border-b border-slate-100 py-2 last:border-0 last:pb-0">
                                 <p className="text-[10px] font-medium uppercase tracking-wide text-slate-400">{t('patientDetail.currentMedications')}</p>
                                 <p className="mt-0.5 text-xs text-slate-700 [overflow-wrap:anywhere]">{truncateForUi(patient.current_medications, PATIENT_MEDICATIONS_UI_LIMIT)}</p>
                             </div>
                         ) : null}
                         {patient.medical_history ? (
-                            <div className="border-b border-slate-100 py-2.5 last:border-0 last:pb-0">
+                            <div className="border-b border-slate-100 py-2 last:border-0 last:pb-0">
                                 <p className="text-[10px] font-medium uppercase tracking-wide text-slate-400">{t('patientDetail.medicalHistory')}</p>
                                 <p className="mt-0.5 text-xs text-slate-700 [overflow-wrap:anywhere]">{truncateForUi(patient.medical_history, PATIENT_MEDICAL_HISTORY_UI_LIMIT)}</p>
                             </div>
@@ -432,7 +432,7 @@ export default function PatientDetailPage({
 
                 {/* Visit Summary */}
                 <Card className="interactive-card overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm shadow-slate-100/80">
-                    <CardHeader className="flex flex-row items-center gap-3 border-b border-slate-100 px-4 py-3">
+                    <CardHeader className="flex flex-row items-center gap-3 border-b border-slate-100 px-4 py-2.5">
                         <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-blue-500 text-white shadow-sm shadow-blue-400/30">
                             <CalendarCheck className="h-[15px] w-[15px]" />
                         </span>
@@ -465,7 +465,7 @@ export default function PatientDetailPage({
 
             {/* Appointments */}
             <Card className="interactive-card overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm shadow-slate-100/80">
-                <CardHeader className="flex flex-col gap-2 border-b border-slate-100 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                <CardHeader className="flex flex-col gap-2 border-b border-slate-100 px-4 py-2.5 sm:flex-row sm:items-center sm:justify-between">
                     <div className="flex items-center gap-3">
                         <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-teal-500 text-white shadow-sm shadow-teal-400/30">
                             <Clock3 className="h-[15px] w-[15px]" />
