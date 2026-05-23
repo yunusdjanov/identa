@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
@@ -269,7 +269,7 @@ export function AuditLogsTab({ canViewAuditLogs, t }: AuditLogsTabProps) {
         <Card className="overflow-hidden rounded-[1.5rem] bg-white/95">
             <CardHeader className="space-y-4 pb-4">
                 <CardTitle className="text-base">{t('settings.logs.title')}</CardTitle>
-                <div className="grid grid-cols-1 gap-3 rounded-2xl border border-blue-100/80 bg-gradient-to-r from-white via-blue-50/30 to-white p-3 shadow-xs md:grid-cols-2 lg:grid-cols-4">
+                <div className="grid grid-cols-1 gap-3 rounded-2xl border border-teal-100/80 bg-gradient-to-r from-white via-teal-100/30 to-white p-3 shadow-xs md:grid-cols-2 lg:grid-cols-4">
                     <Input
                         value={search}
                         onChange={(event) => {

@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import dynamic from 'next/dynamic';
 import { useState } from 'react';
@@ -108,7 +108,7 @@ function getSubscriptionSummary(
 function getSubscriptionBadgeClass(status: ApiSubscriptionSummary['status']): string {
     return {
         none: 'border-slate-300 text-slate-700',
-        trialing: 'bg-blue-100 text-blue-800 hover:bg-blue-100',
+        trialing: 'bg-teal-100 text-teal-800 hover:bg-teal-100',
         active: 'bg-green-100 text-green-800 hover:bg-green-100',
         grace: 'bg-amber-100 text-amber-800 hover:bg-amber-100',
         read_only: 'bg-red-100 text-red-800 hover:bg-red-100',
@@ -354,7 +354,7 @@ export default function SettingsPage() {
                 </div>
 
                 <TabsContent value="profile">
-                    <Card className="interactive-card overflow-hidden rounded-[1.75rem] bg-gradient-to-br from-white via-white to-blue-50/25">
+                    <Card className="interactive-card overflow-hidden rounded-[1.75rem] bg-gradient-to-br from-white via-white to-teal-100/25">
                         <CardHeader className="pb-2">
                             <CardTitle>{t('settings.personalInfo')}</CardTitle>
                         </CardHeader>
@@ -460,7 +460,7 @@ export default function SettingsPage() {
 
                 {isDentist ? (
                     <TabsContent value="practice">
-                    <Card className="interactive-card overflow-hidden rounded-[1.75rem] bg-gradient-to-br from-white via-white to-blue-50/25">
+                    <Card className="interactive-card overflow-hidden rounded-[1.75rem] bg-gradient-to-br from-white via-white to-teal-100/25">
                         <CardHeader className="pb-2">
                             <CardTitle>{t('settings.practiceInfo')}</CardTitle>
                         </CardHeader>
@@ -512,7 +512,7 @@ export default function SettingsPage() {
 
                 {isDentist ? (
                     <TabsContent value="hours">
-                    <Card className="interactive-card overflow-hidden rounded-[1.75rem] bg-gradient-to-br from-white via-white to-blue-50/25">
+                    <Card className="interactive-card overflow-hidden rounded-[1.75rem] bg-gradient-to-br from-white via-white to-teal-100/25">
                         <CardHeader className="pb-2">
                             <CardTitle>{t('settings.workingHoursAndAppointments')}</CardTitle>
                         </CardHeader>
@@ -599,11 +599,11 @@ export default function SettingsPage() {
                                     </div>
                                 </div>
 
-                                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                                    <p className="text-sm text-blue-800">
+                                <div className="bg-teal-50 border border-teal-200 rounded-lg p-4">
+                                    <p className="text-sm text-teal-800">
                                         <strong>{t('settings.currentSchedule')}</strong> {profile.workingHours.start} - {profile.workingHours.end}
                                     </p>
-                                    <p className="text-sm text-blue-600 mt-1">
+                                    <p className="text-sm text-teal-600 mt-1">
                                         {t('settings.appointmentsDurationHint', {
                                             count: profile.defaultAppointmentDuration,
                                         })}

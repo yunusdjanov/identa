@@ -169,7 +169,7 @@
   }
 
   .metric-hover-card {
-    --metric-hover-color: 37 99 235;
+    --metric-hover-color: 13 148 136;
     position: relative;
     isolation: isolate;
     overflow: hidden;
@@ -185,10 +185,10 @@
     z-index: 0;
     pointer-events: none;
     background:
-      radial-gradient(circle at 86% 14%, rgb(var(--metric-hover-color) / 0.1), transparent 34%),
-      linear-gradient(135deg, rgb(255 255 255 / 0.98), rgb(var(--metric-hover-color) / 0.045));
-    opacity: 0.72;
-    transition: opacity 180ms ease;
+      radial-gradient(circle at 82% 12%, rgb(var(--metric-hover-color) / 0.14), transparent 42%),
+      linear-gradient(135deg, rgb(255 255 255 / 0.95), rgb(var(--metric-hover-color) / 0.07));
+    opacity: 0.85;
+    transition: opacity 200ms ease;
   }
 
   .metric-hover-card > * {
@@ -199,12 +199,16 @@
   .metric-hover-card:hover,
   .metric-hover-card:focus-within {
     transform: translateY(-1px);
-    box-shadow: 0 20px 44px -34px rgb(var(--metric-hover-color) / 0.58);
+    box-shadow: 0 16px 36px -24px rgb(var(--metric-hover-color) / 0.5);
   }
 
   .metric-hover-card:hover::before,
   .metric-hover-card:focus-within::before {
     opacity: 1;
+  }
+
+  .metric-hover-teal {
+    --metric-hover-color: 13 148 136;
   }
 
   .metric-hover-blue {

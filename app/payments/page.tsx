@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import Link from 'next/link';
 import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
@@ -383,7 +383,7 @@ export default function PaymentsPage() {
                         <AlertCircle className="h-4 w-4 text-red-500" />
                         {t('payments.summary.totalDebt')}
                     </div>
-                    <p className="mt-2 text-2xl font-semibold leading-none tabular-nums text-red-700">
+                    <p className="mt-2 text-lg font-semibold leading-none tabular-nums text-red-700">
                         {isAccountingLoading ? '...' : formatCurrency(overallSummary.totalDebt)}
                     </p>
                     <p className="mt-1 text-xs text-gray-500">{t('payments.summary.totalDebtHint')}</p>
@@ -394,40 +394,40 @@ export default function PaymentsPage() {
                         <Wallet className="h-4 w-4 text-green-600" />
                         {t('payments.summary.totalPaid')}
                     </div>
-                    <p className="mt-2 text-2xl font-semibold leading-none tabular-nums text-green-700">
+                    <p className="mt-2 text-lg font-semibold leading-none tabular-nums text-green-700">
                         {isAccountingLoading ? '...' : formatCurrency(overallSummary.totalPaid)}
                     </p>
                     <p className="mt-1 text-xs text-gray-500">{t('payments.summary.totalPaidHint')}</p>
                 </div>
 
-                <div className="interactive-card metric-hover-card metric-hover-blue rounded-2xl border border-blue-100 bg-white/95 p-4 shadow-sm shadow-blue-100/60 md:p-5">
-                    <div className="flex items-center gap-2 text-sm font-medium text-gray-600">
-                        <History className="h-4 w-4 text-slate-500" />
+                <div className="interactive-card metric-hover-card metric-hover-amber rounded-2xl border border-amber-100 bg-white/95 p-4 shadow-sm shadow-amber-100/60 md:p-5">
+                    <div className="flex items-center gap-2 text-sm font-medium text-amber-600">
+                        <History className="h-4 w-4 text-amber-500" />
                         {t('payments.summary.netBalance')}
                     </div>
                     <p
-                        className={`mt-2 text-2xl font-semibold leading-none tabular-nums ${
+                        className={`mt-2 text-lg font-semibold leading-none tabular-nums ${
                             overallSummary.totalBalance > 0
-                                ? 'text-red-700'
+                                ? 'text-amber-700'
                                 : overallSummary.totalBalance < 0
-                                    ? 'text-green-700'
-                                    : 'text-gray-900'
+                                    ? 'text-emerald-700'
+                                    : 'text-slate-900'
                         }`}
                     >
                         {isAccountingLoading ? '...' : formatCurrency(overallSummary.totalBalance)}
                     </p>
-                    <p className="mt-1 text-xs text-gray-500">{t('payments.summary.netBalanceHint')}</p>
+                    <p className="mt-1 text-xs text-amber-500/80">{t('payments.summary.netBalanceHint')}</p>
                 </div>
 
-                <div className="interactive-card metric-hover-card metric-hover-slate rounded-2xl border border-slate-200 bg-white/95 p-4 shadow-sm shadow-slate-200/60 md:p-5">
-                    <div className="flex items-center gap-2 text-sm font-medium text-gray-600">
-                        <Users className="h-4 w-4 text-slate-500" />
+                <div className="interactive-card metric-hover-card metric-hover-blue rounded-2xl border border-blue-200 bg-gradient-to-br from-blue-50 via-blue-100/70 to-white p-4 shadow-sm shadow-blue-200/60 md:p-5">
+                    <div className="flex items-center gap-2 text-sm font-medium text-blue-600">
+                        <Users className="h-4 w-4 text-blue-500" />
                         {t('payments.summary.totalPatients')}
                     </div>
-                    <p className="mt-2 text-2xl font-semibold leading-none tabular-nums text-gray-900">
+                    <p className="mt-2 text-lg font-semibold leading-none tabular-nums text-blue-900">
                         {isAccountingLoading ? '...' : overallSummary.totalPatients}
                     </p>
-                    <p className="mt-1 text-xs text-gray-500">
+                    <p className="mt-1 text-xs text-blue-500/80">
                         {t('payments.summary.entryCount', { count: overallSummary.totalEntries })}
                     </p>
                 </div>
@@ -435,7 +435,7 @@ export default function PaymentsPage() {
 
             <Card className="overflow-hidden rounded-[1.5rem] bg-white/95">
                 <CardContent className="space-y-5 p-4 sm:p-5">
-                    <div className="flex flex-col gap-4 rounded-2xl border border-blue-100/80 bg-gradient-to-r from-white via-blue-50/30 to-white p-3 shadow-xs lg:flex-row lg:items-center lg:justify-between">
+                    <div className="flex flex-col gap-4 rounded-2xl border border-teal-100/80 bg-gradient-to-r from-white via-teal-100/30 to-white p-3 shadow-xs lg:flex-row lg:items-center lg:justify-between">
                         <div className="inline-flex w-full items-center gap-1 rounded-xl border border-slate-200/80 bg-slate-100/70 p-1 shadow-xs sm:w-auto">
                             <Button type="button" variant={activeTab === 'patients' ? 'default' : 'ghost'} className="flex-1 gap-2 rounded-lg sm:flex-none" onClick={() => handleTabChange('patients')}>
                                 <Users className="h-4 w-4" />
@@ -473,10 +473,10 @@ export default function PaymentsPage() {
                     </div>
 
                     {patientFilterId ? (
-                        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-blue-100 bg-blue-50/80 px-4 py-3">
+                        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-teal-100 bg-teal-50/80 px-4 py-3">
                             <div className="space-y-1">
-                                <p className="text-sm font-medium text-blue-900">{t('payments.patientFilterActive')}</p>
-                                <p className="text-xs text-blue-700">{t('payments.patientFilterDescription')}</p>
+                                <p className="text-sm font-medium text-teal-900">{t('payments.patientFilterActive')}</p>
+                                <p className="text-xs text-teal-700">{t('payments.patientFilterDescription')}</p>
                             </div>
                             <Button variant="outline" size="sm" onClick={clearPatientFilter}>{t('payments.clearFilter')}</Button>
                         </div>
@@ -634,7 +634,7 @@ export default function PaymentsPage() {
                                                                         {row.teeth[0]}
                                                                     </span>
                                                                     {row.teeth.length > 1 ? (
-                                                                        <span className="inline-flex h-7 items-center justify-center rounded-full border border-blue-200 bg-blue-50 px-2.5 text-xs font-semibold text-blue-700">
+                                                                        <span className="inline-flex h-7 items-center justify-center rounded-full border border-teal-200 bg-teal-50 px-2.5 text-xs font-semibold text-teal-700">
                                                                             +{row.teeth.length - 1}
                                                                         </span>
                                                                     ) : null}

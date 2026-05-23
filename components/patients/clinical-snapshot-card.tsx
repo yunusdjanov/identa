@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useEffect, useMemo, useState } from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
@@ -167,7 +167,7 @@ export function ClinicalSnapshotCard({
         const hasHistory = count > 0;
         const className = `relative flex h-10 w-7 items-center justify-center rounded-lg border text-[11px] font-semibold transition-colors sm:h-11 sm:w-8 ${
             hasHistory
-                ? 'border-blue-300 bg-blue-50 text-blue-900 hover:border-blue-400 hover:bg-blue-100'
+                ? 'border-teal-300 bg-teal-50 text-teal-900 hover:border-teal-400 hover:bg-teal-100'
                 : 'border-gray-300 bg-white text-gray-700'
         }`;
 

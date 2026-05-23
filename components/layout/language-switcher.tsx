@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useTransition } from 'react';
 import { useRouter } from 'next/navigation';
@@ -51,7 +51,7 @@ export function LanguageSwitcher({
                         variant="ghost"
                         size="sm"
                         className={cn(
-                            'h-9 gap-1.5 rounded-xl px-2.5 text-slate-700 hover:bg-blue-50 hover:text-blue-700 focus-visible:ring-0 focus-visible:border-transparent focus-visible:outline-none data-[state=open]:bg-blue-50 data-[state=open]:text-blue-700',
+                            'h-9 gap-1.5 rounded-xl px-2.5 text-slate-700 hover:bg-teal-50 hover:text-teal-700 focus-visible:ring-0 focus-visible:border-transparent focus-visible:outline-none data-[state=open]:bg-teal-50 data-[state=open]:text-teal-700',
                             className
                         )}
                         aria-label={t('menu.language')}

@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { Clock3 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -79,7 +79,7 @@ export function AppointmentTimePicker({
                                 className={cn(
                                     'justify-center rounded-lg border border-transparent px-2 py-1.5 text-center text-sm font-semibold tabular-nums text-slate-700 focus:bg-slate-50 focus:text-slate-900',
                                     option === value
-                                        ? 'border-blue-200 bg-blue-50 text-blue-700 focus:border-blue-200 focus:bg-blue-50 focus:text-blue-700'
+                                        ? 'border-teal-200 bg-teal-50 text-teal-700 focus:border-teal-200 focus:bg-teal-50 focus:text-teal-700'
                                         : 'hover:border-slate-200 hover:bg-slate-50'
                                 )}
                             >

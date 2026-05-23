@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import dynamic from 'next/dynamic';
 import { useMemo, useState, useSyncExternalStore } from 'react';
@@ -320,7 +320,7 @@ export default function PatientsPage() {
                 )}
             />
 
-            <Card className="rounded-[1.5rem] border-blue-100/80 bg-gradient-to-br from-white via-blue-50/35 to-white shadow-sm shadow-blue-100/50">
+            <Card className="rounded-[1.5rem] border-teal-100/80 bg-gradient-to-br from-white via-teal-100/35 to-white shadow-sm shadow-teal-100/50">
                 <CardContent className="p-4 sm:p-5">
                     <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
                         <div className="relative flex-1">
@@ -474,7 +474,7 @@ export default function PatientsPage() {
                                         return (
                                         <TableRow
                                             key={patient.id}
-                                            className="cursor-pointer hover:bg-blue-50/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-100"
+                                            className="cursor-pointer hover:bg-teal-50/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-100"
                                             role="button"
                                             tabIndex={0}
                                             aria-label={t('patients.aria.openDetailsFor', { patientName: patient.fullName })}

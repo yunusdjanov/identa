@@ -1,4 +1,4 @@
-import * as React from 'react';
+﻿import * as React from 'react';
 
 import { cn } from '@/lib/utils';
 
@@ -11,9 +11,9 @@ const SHELL_VARIANT_CLASS: Record<DataTableVariant, string> = {
 
 const TABLE_VARIANT_CLASS: Record<DataTableVariant, string> = {
     standard:
-        'w-full min-w-[760px] text-slate-700 [&_tbody_tr]:transition-colors [&_tbody_tr:hover]:bg-blue-50/35 [&_thead]:bg-slate-50/80 [&_th]:h-11 [&_th]:px-3 [&_th]:text-[11px] [&_th]:font-semibold [&_th]:uppercase [&_th]:tracking-[0.08em] [&_th]:text-slate-500 [&_td]:px-3 [&_td]:py-3 sm:[&_th]:px-4 sm:[&_td]:px-4',
+        'w-full min-w-[760px] text-slate-700 [&_tbody_tr]:transition-colors [&_tbody_tr:hover]:bg-teal-50/35 [&_thead]:bg-slate-50/80 [&_th]:h-11 [&_th]:px-3 [&_th]:text-[11px] [&_th]:font-semibold [&_th]:uppercase [&_th]:tracking-[0.08em] [&_th]:text-slate-500 [&_td]:px-3 [&_td]:py-3 sm:[&_th]:px-4 sm:[&_td]:px-4',
     history:
-        'w-full min-w-[820px] text-slate-700 [&_tbody_tr]:transition-colors [&_tbody_tr:hover]:bg-blue-50/35 [&_thead]:bg-slate-50/80 [&_th]:h-11 [&_th]:px-3 [&_th]:text-[11px] [&_th]:font-semibold [&_th]:uppercase [&_th]:tracking-[0.08em] [&_th]:text-slate-500 [&_td]:px-3 [&_td]:py-3.5 sm:[&_th]:px-4 sm:[&_td]:px-4',
+        'w-full min-w-[820px] text-slate-700 [&_tbody_tr]:transition-colors [&_tbody_tr:hover]:bg-teal-50/35 [&_thead]:bg-slate-50/80 [&_th]:h-11 [&_th]:px-3 [&_th]:text-[11px] [&_th]:font-semibold [&_th]:uppercase [&_th]:tracking-[0.08em] [&_th]:text-slate-500 [&_td]:px-3 [&_td]:py-3.5 sm:[&_th]:px-4 sm:[&_td]:px-4',
 };
 
 interface DataTableShellProps extends React.ComponentProps<'div'> {

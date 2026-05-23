@@ -1,4 +1,4 @@
-import { clsx, type ClassValue } from "clsx"
+﻿import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
 
 export function cn(...inputs: ClassValue[]) {
@@ -68,7 +68,7 @@ export function getToothConditionColor(type: string): string {
   const colors: Record<string, string> = {
     healthy: 'bg-gray-100 border-gray-300 text-gray-900',
     cavity: 'bg-red-100 border-red-500 text-gray-900',
-    filling: 'bg-blue-100 border-blue-500 text-gray-900',
+    filling: 'bg-teal-100 border-teal-500 text-gray-900',
     crown: 'bg-yellow-100 border-yellow-600 text-gray-900',
     root_canal: 'bg-purple-100 border-purple-500 text-gray-900',
     extraction: 'bg-gray-300 border-gray-600 text-gray-900',
@@ -79,7 +79,7 @@ export function getToothConditionColor(type: string): string {
 
 export function getStatusBadgeColor(status: string): string {
   const colors: Record<string, string> = {
-    scheduled: 'bg-blue-100 text-blue-800',
+    scheduled: 'bg-teal-100 text-teal-800',
     completed: 'bg-green-100 text-green-800',
     cancelled: 'bg-gray-100 text-gray-800',
     no_show: 'bg-red-100 text-red-800',

@@ -221,7 +221,7 @@ export default function AdminDentistStaffPage() {
                             icon={<Users className="h-4 w-4" />}
                             label={t('admin.staffPage.summary.total')}
                             value={stats.total}
-                            tone="blue"
+                            tone="teal"
                         />
                         <StaffStatCard
                             icon={<UserCheck className="h-4 w-4" />}
@@ -250,15 +250,15 @@ export default function AdminDentistStaffPage() {
                             </div>
                             <Badge
                                 variant="outline"
-                                className="border-blue-100 bg-blue-50/80 px-3 py-1 text-blue-700"
+                                className="border-teal-100 bg-teal-50/80 px-3 py-1 text-teal-700"
                             >
                                 {t('admin.staffPage.summary.limit', { count: staffUsage })}
                             </Badge>
                         </div>
 
                         {staffMembers.length === 0 ? (
-                            <div className="rounded-[1.5rem] border border-dashed border-blue-100 bg-blue-50/50 p-8 text-center">
-                                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-blue-600 shadow-sm shadow-blue-100">
+                            <div className="rounded-[1.5rem] border border-dashed border-teal-100 bg-teal-50/50 p-8 text-center">
+                                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-teal-600 shadow-sm shadow-teal-100">
                                     <Users className="h-5 w-5" />
                                 </div>
                                 <h3 className="mt-4 text-base font-bold text-slate-950">
@@ -312,7 +312,7 @@ export default function AdminDentistStaffPage() {
                                                     </TableCell>
                                                     <TableCell>
                                                         <span className="inline-flex items-center gap-1.5 text-sm text-slate-600">
-                                                            <ShieldCheck className="h-3.5 w-3.5 text-blue-500" />
+                                                            <ShieldCheck className="h-3.5 w-3.5 text-teal-500" />
                                                             {staff.assistant_permissions.length}
                                                         </span>
                                                     </TableCell>
@@ -404,10 +404,10 @@ function StaffStatCard({
     label: string;
     value: number;
     description?: string;
-    tone: 'blue' | 'green' | 'amber';
+    tone: 'teal' | 'green' | 'amber';
 }) {
     const toneClassName = {
-        blue: 'border-blue-100 bg-[linear-gradient(135deg,rgba(255,255,255,0.98)_0%,rgba(239,246,255,0.72)_100%)] text-blue-600',
+        teal: 'border-teal-100 bg-[linear-gradient(135deg,rgba(255,255,255,0.98)_0%,rgba(204,251,241,0.72)_100%)] text-teal-600',
         green: 'border-emerald-100 bg-[linear-gradient(135deg,rgba(255,255,255,0.98)_0%,rgba(236,253,245,0.72)_100%)] text-emerald-600',
         amber: 'border-amber-100 bg-[linear-gradient(135deg,rgba(255,255,255,0.98)_0%,rgba(255,251,235,0.72)_100%)] text-amber-600',
     }[tone];
@@ -417,7 +417,7 @@ function StaffStatCard({
             <CardContent className="flex items-center justify-between gap-4 p-5">
                 <div>
                     <p className="text-sm font-semibold text-slate-600">{label}</p>
-                    <p className="mt-4 text-3xl font-black tracking-[-0.04em] text-slate-950">{value}</p>
+                    <p className="mt-3 text-xl font-bold tracking-[-0.03em] text-slate-950">{value}</p>
                     {description ? <p className="mt-1 text-xs text-slate-500">{description}</p> : null}
                 </div>
                 <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/80 shadow-sm shadow-slate-200/70">

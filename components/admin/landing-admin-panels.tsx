@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -209,7 +209,7 @@ function formatDateTime(value: string | null, locale: AdminLocale): string {
 function getStatusClasses(status: AdminLeadRequestStatus): string {
     switch (status) {
         case 'contacted':
-            return 'bg-blue-50 text-blue-700 border-blue-200';
+            return 'bg-teal-50 text-teal-700 border-teal-200';
         case 'closed':
             return 'bg-slate-100 text-slate-700 border-slate-200';
         default:
@@ -302,7 +302,7 @@ export function AdminLandingSettingsPanel() {
                     </div>
                 ) : (
                     <>
-                        <p className="rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+                        <p className="rounded-2xl border border-teal-100 bg-teal-50 px-4 py-3 text-sm text-teal-800">
                             {locale === 'uz'
                                 ? 'Tarif narxlari va limitlari Tariflar bo‘limida boshqariladi.'
                                 : locale === 'ru'

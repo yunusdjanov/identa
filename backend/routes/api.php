@@ -15,6 +15,7 @@ use App\Http\Controllers\Api\PatientCategoryController;
 use App\Http\Controllers\Api\PatientOdontogramController;
 use App\Http\Controllers\Api\PatientTreatmentController;
 use App\Http\Controllers\Api\PaymentController;
+use App\Http\Controllers\Api\QuickPaymentController;
 use App\Http\Controllers\Api\SettingsProfileController;
 use App\Http\Controllers\Api\TeamAssistantController;
 use App\Models\User;
@@ -238,6 +239,14 @@ Route::prefix('v1')->group(function (): void {
         Route::put('payments/{id}', [PaymentController::class, 'update'])
             ->middleware('permission:'.User::PERMISSION_PAYMENTS_MANAGE);
         Route::delete('payments/{id}', [PaymentController::class, 'destroy'])
+            ->middleware('permission:'.User::PERMISSION_PAYMENTS_MANAGE);
+
+        // Mobile-friendly shortcut: create an Invoice + Payment in one
+        // call. See app/Services/QuickPaymentService.php for the rationale
+        // — mobile UI doesn't model Invoices as a separate concept, so we
+        // synthesize one server-side. Uses the same PERMISSION_PAYMENTS_MANAGE
+        // guard as the canonical /payments POST.
+        Route::post('patients/{id}/quick-payments', [QuickPaymentController::class, 'store'])
             ->middleware('permission:'.User::PERMISSION_PAYMENTS_MANAGE);
 
         Route::get('audit-logs', [AuditLogController::class, 'index'])

@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import dynamic from 'next/dynamic';
 import { type ChangeEvent, useEffect, useMemo, useState } from 'react';
@@ -197,7 +197,7 @@ function ToothCell({
         <div
             className={`flex h-8 w-full items-center justify-center rounded-md border text-xs font-semibold transition-colors ${
                 selected
-                    ? 'border-blue-300 bg-blue-50 text-blue-700'
+                    ? 'border-teal-300 bg-teal-50 text-teal-700'
                     : 'border-gray-200 bg-white text-gray-600'
             }`}
         >
@@ -235,13 +235,13 @@ function HistoryImageTile({
                 markedForRemoval
                     ? 'border-red-200 opacity-70 ring-1 ring-red-100'
                     : isNew
-                        ? 'border-blue-200 hover:border-blue-300 hover:shadow-md'
-                        : 'border-gray-200 hover:border-blue-300 hover:shadow-md'
+                        ? 'border-teal-200 hover:border-teal-300 hover:shadow-md'
+                        : 'border-gray-200 hover:border-teal-300 hover:shadow-md'
             }`}
         >
             <button
                 type="button"
-                className="block h-full w-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1 disabled:cursor-wait"
+                className="block h-full w-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-1 disabled:cursor-wait"
                 onClick={onPreview}
                 disabled={!canPreview}
                 aria-label={alt}
@@ -266,9 +266,9 @@ function HistoryImageTile({
             </button>
             <button
                 type="button"
-                className={`absolute right-1 top-1 inline-flex h-5 w-5 items-center justify-center rounded-full border text-[10px] shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
+                className={`absolute right-1 top-1 inline-flex h-5 w-5 items-center justify-center rounded-full border text-[10px] shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 ${
                     markedForRemoval
-                        ? 'border-blue-200 bg-white text-blue-700 hover:bg-blue-50'
+                        ? 'border-teal-200 bg-white text-teal-700 hover:bg-teal-50'
                         : 'border-white/80 bg-red-600 text-white hover:bg-red-700'
                 }`}
                 onClick={onToggleRemove}
@@ -857,7 +857,7 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                     />
 
                     <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-                        <MetricSummaryCard label={t('patientHistory.totalDebt')} value={formatCurrency(summary.totalDebt)} tone="red" />
+                        <MetricSummaryCard label={t('patientHistory.totalDebt')} value={formatCurrency(summary.totalDebt)} tone="amber" />
                         <MetricSummaryCard label={t('patientHistory.totalPaid')} value={formatCurrency(summary.totalPaid)} tone="emerald" />
                         <MetricSummaryCard
                             label={t('patientHistory.netBalance')}
@@ -958,7 +958,7 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                                             {firstTooth}
                                                         </span>
                                                         {hiddenCount > 0 ? (
-                                                            <span className="inline-flex h-7 items-center justify-center rounded-full border border-blue-200 bg-blue-50 px-2.5 text-xs font-semibold text-blue-700">
+                                                            <span className="inline-flex h-7 items-center justify-center rounded-full border border-teal-200 bg-teal-50 px-2.5 text-xs font-semibold text-teal-700">
                                                                 +{hiddenCount}
                                                             </span>
                                                         ) : null}
@@ -1002,7 +1002,7 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                                 if (isMediaSyncing) {
                                                     return (
                                                         <span
-                                                            className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-blue-200 bg-blue-50 text-blue-700"
+                                                            className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-teal-200 bg-teal-50 text-teal-700"
                                                             title={t('patientHistory.imagesUploading')}
                                                         >
                                                             <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -1013,7 +1013,7 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                                 if (treatmentImageCount > 0 && primaryImage && (!hasApprovedPrimaryImage || !primaryImageThumbnailUrl)) {
                                                     return (
                                                         <span
-                                                            className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-blue-200 bg-blue-50 text-blue-700"
+                                                            className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-teal-200 bg-teal-50 text-teal-700"
                                                             title={t('patientHistory.imagesProcessing')}
                                                             aria-label={t('patientHistory.imagesProcessing')}
                                                         >
@@ -1036,7 +1036,7 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                                     <button
                                                         type="button"
                                                         disabled={isDetailLoading}
-                                                        className="group inline-flex h-8 min-w-[74px] items-center gap-2 rounded-md border border-gray-300 bg-white px-2 text-xs font-semibold text-gray-700 shadow-sm transition-all hover:border-blue-400 hover:bg-blue-50 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1 active:translate-y-px active:shadow-sm"
+                                                        className="group inline-flex h-8 min-w-[74px] items-center gap-2 rounded-md border border-gray-300 bg-white px-2 text-xs font-semibold text-gray-700 shadow-sm transition-all hover:border-teal-400 hover:bg-teal-50 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-1 active:translate-y-px active:shadow-sm"
                                                         onClick={() => {
                                                             void openTreatmentImageGallery(treatment, 0);
                                                         }}
@@ -1053,7 +1053,7 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                                                 loading="lazy"
                                                             />
                                                         </span>
-                                                        <span className="inline-flex h-5 min-w-6 items-center justify-center rounded-[6px] bg-blue-100 px-1.5 text-[11px] font-semibold text-blue-700">
+                                                        <span className="inline-flex h-5 min-w-6 items-center justify-center rounded-[6px] bg-teal-100 px-1.5 text-[11px] font-semibold text-teal-700">
                                                             +{treatmentImageCount}
                                                         </span>
                                                     </button>

@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -169,7 +169,7 @@ function formatBillingAmount(payment: ApiBillingPayment, locale: string): string
 function AdminDashboardLoadingSkeleton() {
     return (
         <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(219,234,254,0.55),transparent_34rem),linear-gradient(180deg,#f8fbff_0%,#f8fafc_42%,#f1f5f9_100%)]">
-            <header className="border-b border-blue-100/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(248,251,255,0.94)_100%)]">
+            <header className="border-b border-teal-100/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(248,251,255,0.94)_100%)]">
                 <div className="mx-auto max-w-[1440px] px-4 sm:px-6 lg:px-8">
                     <div className="flex h-16 items-center justify-between">
                         <Skeleton className="h-10 w-36 rounded-md" />
@@ -520,13 +520,13 @@ export default function AdminDashboardPage() {
                     <PageHeader title={t('admin.dashboardTitle')} description={t('admin.dashboardSubtitle')} />
 
                     <div className="grid grid-cols-1 gap-4 md:grid-cols-3 lg:gap-6">
-                        <Card className="interactive-card metric-hover-card metric-hover-blue rounded-[1.5rem] border-blue-100 bg-white/95 shadow-sm shadow-blue-100/50">
+                        <Card className="interactive-card metric-hover-card metric-hover-teal rounded-[1.5rem] border-teal-100 bg-white/95 shadow-sm shadow-teal-100/50">
                             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                                 <CardTitle className="text-sm font-medium">{t('admin.stats.totalDentists')}</CardTitle>
-                                <Users className="h-4 w-4 text-blue-600" />
+                                <Users className="h-4 w-4 text-teal-600" />
                             </CardHeader>
                             <CardContent>
-                                <div className="text-3xl font-bold tracking-[-0.04em] text-slate-950">{stats.totalDentists}</div>
+                                <div className="text-xl font-bold tracking-[-0.03em] text-slate-950">{stats.totalDentists}</div>
                             </CardContent>
                         </Card>
 
@@ -536,7 +536,7 @@ export default function AdminDashboardPage() {
                                 <UserCheck className="h-4 w-4 text-emerald-600" />
                             </CardHeader>
                             <CardContent>
-                                <div className="text-3xl font-bold tracking-[-0.04em] text-slate-950">{stats.activeDentists}</div>
+                                <div className="text-xl font-bold tracking-[-0.03em] text-slate-950">{stats.activeDentists}</div>
                                 <p className="text-xs text-muted-foreground">
                                     {stats.totalDentists === 0
                                         ? '0'
@@ -546,13 +546,13 @@ export default function AdminDashboardPage() {
                             </CardContent>
                         </Card>
 
-                        <Card className="interactive-card metric-hover-card metric-hover-blue rounded-[1.5rem] border-sky-100 bg-white/95 shadow-sm shadow-sky-100/50">
+                        <Card className="interactive-card metric-hover-card metric-hover-teal rounded-[1.5rem] border-sky-100 bg-white/95 shadow-sm shadow-sky-100/50">
                             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                                 <CardTitle className="text-sm font-medium">{t('admin.stats.newLast7Days')}</CardTitle>
                                 <UserPlus className="h-4 w-4 text-sky-600" />
                             </CardHeader>
                             <CardContent>
-                                <div className="text-3xl font-bold tracking-[-0.04em] text-slate-950">{stats.newRegistrations}</div>
+                                <div className="text-xl font-bold tracking-[-0.03em] text-slate-950">{stats.newRegistrations}</div>
                             </CardContent>
                         </Card>
                     </div>

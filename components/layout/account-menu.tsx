@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useRouter } from 'next/navigation';
 import { ChevronDown, CreditCard, LogOut, Settings, Users } from 'lucide-react';
@@ -57,11 +57,11 @@ export function AccountMenu({
             <DropdownMenuTrigger asChild>
                 <Button
                     variant="ghost"
-                    className="flex h-11 items-center space-x-2 rounded-2xl border border-transparent bg-white/75 px-2.5 shadow-sm shadow-slate-200/50 transition-colors hover:border-transparent hover:bg-blue-50/70 sm:space-x-3 sm:px-3.5 focus:border-transparent focus:outline-none focus:ring-0 focus-visible:border-transparent focus-visible:bg-blue-50/70 focus-visible:ring-0 focus-visible:ring-offset-0 data-[state=open]:border-transparent data-[state=open]:bg-blue-50/80"
+                    className="flex h-11 items-center space-x-2 rounded-2xl border border-transparent bg-white/75 px-2.5 shadow-sm shadow-slate-200/50 transition-colors hover:border-transparent hover:bg-teal-50/70 sm:space-x-3 sm:px-3.5 focus:border-transparent focus:outline-none focus:ring-0 focus-visible:border-transparent focus-visible:bg-teal-50/70 focus-visible:ring-0 focus-visible:ring-offset-0 data-[state=open]:border-transparent data-[state=open]:bg-teal-50/80"
                     aria-label={t('menu.myAccount')}
                 >
                     <Avatar className="h-8 w-8">
-                        <AvatarFallback className="bg-blue-600 text-sm text-white shadow-sm shadow-blue-200">
+                        <AvatarFallback className="bg-teal-600 text-sm text-white shadow-sm shadow-teal-200">
                             {avatarLabel}
                         </AvatarFallback>
                     </Avatar>

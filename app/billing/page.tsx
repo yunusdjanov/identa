@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -162,12 +162,12 @@ export default function BillingPage() {
         <div className="space-y-5 lg:space-y-6">
             <PageHeader title={t('billing.title')} description={t('billing.subtitle')} />
 
-            <Card className="rounded-[1.5rem] border-blue-100 bg-white/95 shadow-sm shadow-blue-100/50">
+            <Card className="rounded-[1.5rem] border-teal-100 bg-white/95 shadow-sm shadow-teal-100/50">
                 <CardContent className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
                     <div>
                         <p className="text-sm font-medium text-slate-500">{t('billing.currentPlan')}</p>
                         <div className="mt-1 flex flex-wrap items-center gap-2">
-                            <h2 className="text-2xl font-semibold text-slate-950">
+                            <h2 className="text-lg font-semibold text-slate-950">
                                 {subscription?.plan_name ?? subscription?.plan ?? '-'}
                             </h2>
                             <Badge variant={subscription?.is_read_only ? 'destructive' : 'secondary'}>
@@ -186,7 +186,7 @@ export default function BillingPage() {
                                 : t('billing.noEndDate')}
                         </p>
                         {subscription?.pending_change_effective_at ? (
-                            <p className="mt-2 text-sm font-medium text-blue-700">
+                            <p className="mt-2 text-sm font-medium text-teal-700">
                                 {t('billing.pendingChange', {
                                     date: formatLocalizedDate(subscription.pending_change_effective_at, locale, {
                                         year: 'numeric',
@@ -217,8 +217,8 @@ export default function BillingPage() {
                         className={[
                             'flex-1 rounded-xl px-4 py-2 text-sm font-semibold transition sm:flex-none',
                             period === value
-                                ? 'bg-blue-600 text-white shadow-sm'
-                                : 'text-slate-600 hover:bg-blue-50 hover:text-blue-700',
+                                ? 'bg-teal-600 text-white shadow-sm'
+                                : 'text-slate-600 hover:bg-teal-50 hover:text-teal-700',
                         ].join(' ')}
                     >
                         {t(`billing.period.${value}`)}
@@ -244,7 +244,7 @@ export default function BillingPage() {
                             </CardHeader>
                             <CardContent className="flex flex-1 flex-col gap-4">
                                 <div>
-                                    <p className="text-3xl font-semibold text-slate-950">
+                                    <p className="text-xl font-semibold text-slate-950">
                                         {plan.is_trial
                                             ? t('billing.free')
                                             : formatMoney(price, plan.currency)}
@@ -263,7 +263,7 @@ export default function BillingPage() {
                                         plan.can_export ? t('billing.feature.export') : t('billing.feature.noExport'),
                                     ].map((feature) => (
                                         <li key={feature} className="flex gap-2">
-                                            <Check className="mt-0.5 h-4 w-4 shrink-0 text-blue-600" />
+                                            <Check className="mt-0.5 h-4 w-4 shrink-0 text-teal-600" />
                                             <span>{feature}</span>
                                         </li>
                                     ))}
@@ -353,9 +353,9 @@ export default function BillingPage() {
                                             className={[
                                                 'flex w-full items-center justify-between rounded-xl border px-4 py-3 text-left transition',
                                                 checked
-                                                    ? 'border-blue-300 bg-blue-50 text-blue-950'
+                                                    ? 'border-teal-300 bg-teal-50 text-teal-950'
                                                     : 'border-slate-200 bg-white text-slate-800',
-                                                disabled ? 'cursor-not-allowed opacity-50' : 'hover:border-blue-200 hover:bg-blue-50/60',
+                                                disabled ? 'cursor-not-allowed opacity-50' : 'hover:border-teal-200 hover:bg-teal-50/60',
                                             ].join(' ')}
                                         >
                                             <span>

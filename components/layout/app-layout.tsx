@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useSyncExternalStore, type MouseEvent } from 'react';
@@ -154,7 +154,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     return (
         <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(219,234,254,0.55),transparent_34rem),linear-gradient(180deg,#f8fbff_0%,#f8fafc_42%,#f1f5f9_100%)]">
             {/* Header */}
-            <header className="sticky top-0 z-10 border-b border-blue-100/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(248,251,255,0.94)_100%)] shadow-sm shadow-slate-200/40 backdrop-blur-xl">
+            <header className="sticky top-0 z-10 border-b border-teal-100/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(248,251,255,0.94)_100%)] shadow-sm shadow-slate-200/40 backdrop-blur-xl">
                 <div className="mx-auto max-w-[1440px] px-3 sm:px-6 lg:px-8">
                     <div className="flex h-14 items-center justify-between gap-3 sm:h-16 sm:gap-4">
                         {showHeaderSkeleton ? (
@@ -200,10 +200,10 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                                                 className={cn(
                                                     'flex h-9 items-center rounded-xl border px-3.5 text-sm font-semibold transition-colors',
                                                     isActive
-                                                        ? 'border-blue-600 bg-blue-600 text-white shadow-sm shadow-blue-200/70'
+                                                        ? 'border-teal-600 bg-teal-600 text-white shadow-sm shadow-teal-200/70'
                                                         : isLocked
                                                             ? 'border-transparent text-slate-400 hover:bg-slate-50 hover:text-slate-500'
-                                                            : 'border-transparent text-slate-600 hover:bg-blue-50/80 hover:text-blue-700'
+                                                            : 'border-transparent text-slate-600 hover:bg-teal-50/80 hover:text-teal-700'
                                                 )}
                                             >
                                                 <Icon className="mr-2 h-4 w-4" />
@@ -220,7 +220,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                                             <Button
                                                 variant="ghost"
                                                 size="sm"
-                                                className="flex h-9 items-center gap-1 rounded-xl px-2 text-slate-700 hover:bg-blue-50 hover:text-blue-700 sm:px-3 focus-visible:ring-0 focus-visible:border-transparent focus-visible:outline-none data-[state=open]:bg-blue-50 data-[state=open]:text-blue-700"
+                                                className="flex h-9 items-center gap-1 rounded-xl px-2 text-slate-700 hover:bg-teal-50 hover:text-teal-700 sm:px-3 focus-visible:ring-0 focus-visible:border-transparent focus-visible:outline-none data-[state=open]:bg-teal-50 data-[state=open]:text-teal-700"
                                                 aria-label={t('menu.language')}
                                             >
                                                 <Languages className="w-4 h-4 mr-1" />
@@ -287,16 +287,16 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                                         className={cn(
                                             'flex min-w-[72px] shrink-0 flex-col items-center rounded-xl px-2 py-2 text-[11px] font-semibold transition-colors',
                                             isActive
-                                                ? 'bg-blue-50/85 text-blue-700'
+                                                ? 'bg-teal-50/85 text-teal-700'
                                                 : isLocked
                                                     ? 'text-slate-400 hover:bg-slate-50'
-                                                    : 'text-slate-600 hover:bg-blue-50/70 hover:text-blue-700'
+                                                    : 'text-slate-600 hover:bg-teal-50/70 hover:text-teal-700'
                                         )}
                                     >
                                         <span
                                             className={cn(
                                                 'mb-1 rounded-xl p-1.5',
-                                                isActive ? 'bg-blue-50 text-blue-700' : 'text-slate-500'
+                                                isActive ? 'bg-teal-50 text-teal-700' : 'text-slate-500'
                                             )}
                                         >
                                             <Icon className="h-4 w-4" />

@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -309,7 +309,7 @@ export default function AdminPlansPage() {
                                         type="checkbox"
                                         checked={form.can_export}
                                         onChange={(event) => setForm({ ...form, can_export: event.target.checked })}
-                                        className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                        className="h-4 w-4 rounded border-gray-300 text-teal-600 focus:ring-teal-500"
                                     />
                                     {t('admin.plans.canExport')}
                                 </label>
@@ -318,7 +318,7 @@ export default function AdminPlansPage() {
                                         type="checkbox"
                                         checked={form.is_active}
                                         onChange={(event) => setForm({ ...form, is_active: event.target.checked })}
-                                        className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                        className="h-4 w-4 rounded border-gray-300 text-teal-600 focus:ring-teal-500"
                                     />
                                     {t('admin.plans.isActive')}
                                 </label>

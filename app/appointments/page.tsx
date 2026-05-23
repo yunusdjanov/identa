@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import dynamic from 'next/dynamic';
 import { useMemo, useState, useSyncExternalStore } from 'react';
@@ -160,7 +160,7 @@ function getWeekStart(date: Date): Date {
 function getAppointmentCardClass(status: AppointmentRow['status']): string {
     switch (status) {
         case 'scheduled':
-            return 'border-slate-200 bg-white border-l-blue-400';
+            return 'border-slate-200 bg-white border-l-teal-400';
         case 'completed':
             return 'border-slate-200 bg-white border-l-emerald-400';
         case 'cancelled':
@@ -168,14 +168,14 @@ function getAppointmentCardClass(status: AppointmentRow['status']): string {
         case 'no_show':
             return 'border-slate-200 bg-white border-l-rose-400';
         default:
-            return 'border-slate-200 bg-white border-l-blue-400';
+            return 'border-slate-200 bg-white border-l-teal-400';
     }
 }
 
 function getAppointmentBorderClass(status: AppointmentRow['status']): string {
     switch (status) {
         case 'scheduled':
-            return 'border-l-blue-400';
+            return 'border-l-teal-400';
         case 'completed':
             return 'border-l-emerald-400';
         case 'cancelled':
@@ -183,14 +183,14 @@ function getAppointmentBorderClass(status: AppointmentRow['status']): string {
         case 'no_show':
             return 'border-l-rose-400';
         default:
-            return 'border-l-blue-400';
+            return 'border-l-teal-400';
     }
 }
 
 function getCompactAppointmentTimeClass(status: AppointmentRow['status']): string {
     switch (status) {
         case 'scheduled':
-            return 'bg-blue-50 text-blue-700 ring-1 ring-blue-100';
+            return 'bg-teal-50 text-teal-700 ring-1 ring-teal-100';
         case 'completed':
             return 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100';
         case 'cancelled':
@@ -198,14 +198,14 @@ function getCompactAppointmentTimeClass(status: AppointmentRow['status']): strin
         case 'no_show':
             return 'bg-rose-50 text-rose-700 ring-1 ring-rose-100';
         default:
-            return 'bg-blue-50 text-blue-700 ring-1 ring-blue-100';
+            return 'bg-teal-50 text-teal-700 ring-1 ring-teal-100';
     }
 }
 
 function getAppointmentStatusBadgeClass(status: AppointmentRow['status']): string {
     switch (status) {
         case 'scheduled':
-            return 'bg-blue-50 text-blue-700 ring-1 ring-blue-100';
+            return 'bg-teal-50 text-teal-700 ring-1 ring-teal-100';
         case 'completed':
             return 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100';
         case 'cancelled':
@@ -213,7 +213,7 @@ function getAppointmentStatusBadgeClass(status: AppointmentRow['status']): strin
         case 'no_show':
             return 'bg-rose-50 text-rose-700 ring-1 ring-rose-100';
         default:
-            return 'bg-blue-50 text-blue-700 ring-1 ring-blue-100';
+            return 'bg-teal-50 text-teal-700 ring-1 ring-teal-100';
     }
 }
 
@@ -847,23 +847,23 @@ export default function AppointmentsPage() {
         return (
             <div
                 key={descriptor.dayIndex}
-                className={`interactive-card metric-hover-card metric-hover-blue flex flex-col overflow-hidden rounded-2xl border shadow-sm ${
+                className={`interactive-card metric-hover-card metric-hover-teal flex flex-col overflow-hidden rounded-2xl border shadow-sm ${
                     compact ? `${compactCardHeightClass} self-start` : `${WEEK_VIEW_STACKED_CARD_HEIGHT_CLASS} self-stretch`
-                } ${isTodayLane ? 'border-blue-200 bg-blue-50/35 shadow-blue-100/70 ring-1 ring-blue-100' : 'border-slate-200/80 bg-white/95 shadow-slate-200/50'}`}
+                } ${isTodayLane ? 'border-teal-200 bg-teal-50/35 shadow-teal-100/70 ring-1 ring-teal-100' : 'border-slate-200/80 bg-white/95 shadow-slate-200/50'}`}
                 data-testid={includeTestIds ? `week-day-card-${descriptor.dateKey}` : undefined}
             >
                 <div className={`w-full border-b text-left ${
                     compact ? 'px-2.5 py-1.5 2xl:px-3 2xl:py-2' : 'px-3 py-2.5'
                 } ${
                     isTodayLane
-                        ? 'border-blue-500 bg-blue-600 text-white'
+                        ? 'border-teal-500 bg-teal-600 text-white'
                         : 'border-slate-100 bg-slate-50/80'
                 }`}>
                     <div className={compact ? 'relative flex min-h-[1.35rem] items-center justify-center' : 'flex items-start justify-between gap-3'}>
                         {compact ? (
                             <>
                                 <span className={`absolute left-0 top-1/2 -translate-y-1/2 text-[11px] font-medium uppercase tracking-[0.12em] ${
-                                    isTodayLane ? 'text-blue-100' : 'text-slate-500'
+                                    isTodayLane ? 'text-teal-100' : 'text-slate-500'
                                 }`}>
                                     {descriptor.weekdayLabel}
                                 </span>
@@ -879,7 +879,7 @@ export default function AppointmentsPage() {
                                     isTodayLane ? 'text-white' : 'text-slate-900'
                                 }`}>
                                     <span className={`text-[12px] font-medium uppercase tracking-[0.12em] ${
-                                        isTodayLane ? 'text-blue-100' : 'text-slate-500'
+                                        isTodayLane ? 'text-teal-100' : 'text-slate-500'
                                     }`}>
                                         {descriptor.weekdayLabel}
                                     </span>
@@ -962,7 +962,7 @@ export default function AppointmentsPage() {
                             <div className={`mt-auto flex gap-1.5 ${compact ? 'pt-1' : 'pt-2'}`}>
                                 <button
                                     type="button"
-                                    className={`inline-flex flex-1 items-center justify-center rounded-lg border border-blue-200 bg-blue-50 font-medium text-blue-700 transition-colors hover:bg-blue-100 ${
+                                    className={`inline-flex flex-1 items-center justify-center rounded-lg border border-teal-200 bg-teal-50 font-medium text-teal-700 transition-colors hover:bg-teal-100 ${
                                         compact ? 'h-6 px-1.5 text-[10px]' : 'h-8 px-3 text-xs'
                                     }`}
                                     aria-label={hiddenAppointmentsCount > 0
@@ -992,7 +992,7 @@ export default function AppointmentsPage() {
                         <div className={compact ? 'mt-auto pt-1.5' : 'mt-auto pt-2'}>
                             <button
                                 type="button"
-                                className={`inline-flex w-full items-center justify-center rounded-lg border border-blue-200 bg-blue-50 font-medium text-blue-700 transition-colors hover:bg-blue-100 ${
+                                className={`inline-flex w-full items-center justify-center rounded-lg border border-teal-200 bg-teal-50 font-medium text-teal-700 transition-colors hover:bg-teal-100 ${
                                     compact ? 'h-6 px-1.5 text-[10px]' : 'h-8 px-3 text-xs'
                                 }`}
                                 aria-label={t('appointments.addForDay')}
@@ -1188,10 +1188,10 @@ export default function AppointmentsPage() {
                 )}
             />
 
-            <Card className="overflow-hidden rounded-[1.5rem] border-blue-100/80 bg-white/95 shadow-sm shadow-blue-100/50 sm:rounded-[1.75rem]">
+            <Card className="overflow-hidden rounded-[1.5rem] border-teal-100/80 bg-white/95 shadow-sm shadow-teal-100/50 sm:rounded-[1.75rem]">
                 <CardContent className="p-3 sm:p-5">
                     <div className="space-y-4">
-                        <div className="flex flex-col gap-3 rounded-2xl border border-blue-100/80 bg-gradient-to-r from-white via-blue-50/30 to-white p-3 shadow-xs md:flex-row md:items-center md:justify-between">
+                        <div className="flex flex-col gap-3 rounded-2xl border border-teal-100/80 bg-gradient-to-r from-white via-teal-100/30 to-white p-3 shadow-xs md:flex-row md:items-center md:justify-between">
                             <div className="inline-flex w-full items-center gap-1 rounded-xl border border-slate-200/80 bg-slate-100/70 p-1 shadow-xs sm:w-auto">
                                 <Button
                                     variant={view === 'week' ? 'default' : 'outline'}
@@ -1277,8 +1277,8 @@ export default function AppointmentsPage() {
                         </div>
 
                         {hasUrlFilters && activeFilterLabel ? (
-                            <div className="flex items-center justify-between rounded-2xl border border-blue-100 bg-blue-50/80 px-4 py-3">
-                                <p className="text-sm text-blue-800">
+                            <div className="flex items-center justify-between rounded-2xl border border-teal-100 bg-teal-50/80 px-4 py-3">
+                                <p className="text-sm text-teal-800">
                                     {t('appointments.filters.active')}: <span className="font-medium">{activeFilterLabel}</span>
                                 </p>
                                 <Button variant="outline" size="sm" onClick={clearUrlFilters}>
@@ -1444,7 +1444,7 @@ export default function AppointmentsPage() {
                                                             type="button"
                                                             onClick={() => openAddDialog({ date: currentDate, startTime: time })}
                                                             disabled={!canManageAppointments}
-                                                            className="text-xs text-gray-600 transition-colors hover:text-blue-700 disabled:text-gray-400"
+                                                            className="text-xs text-gray-600 transition-colors hover:text-teal-700 disabled:text-gray-400"
                                                         >
                                                             {t('appointments.addSlot')}
                                                         </button>
@@ -1455,7 +1455,7 @@ export default function AppointmentsPage() {
                                                         type="button"
                                                         onClick={() => openAddDialog({ date: currentDate, startTime: time })}
                                                         disabled={!canManageAppointments}
-                                                        className="text-xs text-gray-600 transition-colors hover:text-blue-700 disabled:text-gray-400"
+                                                        className="text-xs text-gray-600 transition-colors hover:text-teal-700 disabled:text-gray-400"
                                                     >
                                                         {t('appointments.addSlot')}
                                                     </button>
@@ -1473,7 +1473,7 @@ export default function AppointmentsPage() {
                         </div>
                         <div className="hidden lg:flex lg:items-center lg:justify-center lg:gap-6 lg:pt-1.5">
                             <div className="flex items-center gap-2 text-xs text-slate-500">
-                                <span className="h-2.5 w-2.5 rounded-full bg-blue-400" aria-hidden="true" />
+                                <span className="h-2.5 w-2.5 rounded-full bg-teal-400" aria-hidden="true" />
                                 <span>{t('status.scheduled')}</span>
                             </div>
                             <div className="flex items-center gap-2 text-xs text-slate-500">
@@ -1514,7 +1514,7 @@ export default function AppointmentsPage() {
                 }}
             >
                 <DialogContent className="flex max-h-[calc(100dvh-1.5rem)] flex-col overflow-hidden p-0 sm:max-w-xl">
-                    <div className="border-b border-slate-100 bg-gradient-to-br from-white via-white to-blue-50/45 px-5 pb-4 pt-5 sm:px-6 sm:pt-6">
+                    <div className="border-b border-slate-100 bg-gradient-to-br from-white via-white to-teal-100/45 px-5 pb-4 pt-5 sm:px-6 sm:pt-6">
                         <DialogHeader>
                             <DialogTitle>
                                 {expandedWeekDescriptor
@@ -1528,7 +1528,7 @@ export default function AppointmentsPage() {
                     </div>
                     <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4 sm:px-6" data-testid="week-day-queue-modal">
                         {expandedWeekAppointments.length === 0 ? (
-                            <div className="flex min-h-[12rem] items-center justify-center rounded-2xl border border-dashed border-blue-100 bg-blue-50/40 px-4 py-8 text-center text-sm text-slate-500">
+                            <div className="flex min-h-[12rem] items-center justify-center rounded-2xl border border-dashed border-teal-100 bg-teal-50/40 px-4 py-8 text-center text-sm text-slate-500">
                                 {t('appointments.noAppointments')}
                             </div>
                         ) : (

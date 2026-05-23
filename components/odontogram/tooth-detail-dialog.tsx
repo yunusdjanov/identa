@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useMemo, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
@@ -155,7 +155,7 @@ export function ToothDetailDialog({
 
                     <div className="space-y-4">
                         <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-                            <MetricSummaryCard label={t('patientHistory.table.debt')} value={formatCurrency(summary.totalDebt)} tone="red" tabular />
+                            <MetricSummaryCard label={t('patientHistory.table.debt')} value={formatCurrency(summary.totalDebt)} tone="amber" tabular />
                             <MetricSummaryCard label={t('patientHistory.table.paid')} value={formatCurrency(summary.totalPaid)} tone="emerald" tabular />
                             <MetricSummaryCard
                                 label={t('patientHistory.table.remaining')}
@@ -223,13 +223,13 @@ export function ToothDetailDialog({
                                                     </Badge>
                                                 ))}
                                                 {linkedTeeth.length > 1 ? (
-                                                    <Badge variant="outline" className="border-blue-200 bg-blue-50 text-blue-700">
+                                                    <Badge variant="outline" className="border-teal-200 bg-teal-50 text-teal-700">
                                                         +{linkedTeeth.length - 1}
                                                     </Badge>
                                                 ) : null}
                                                 {treatmentImageCount > 0 && primaryImage && (!hasApprovedPrimaryImage || !primaryImageThumbnailUrl) ? (
                                                     <span
-                                                        className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-blue-200 bg-blue-50 text-blue-700"
+                                                        className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-teal-200 bg-teal-50 text-teal-700"
                                                         title={t('patientHistory.imagesProcessing')}
                                                         aria-label={t('patientHistory.imagesProcessing')}
                                                     >
@@ -243,7 +243,7 @@ export function ToothDetailDialog({
                                                     <button
                                                         type="button"
                                                         disabled={isDetailLoading}
-                                                        className="group inline-flex h-8 min-w-[74px] items-center gap-2 rounded-md border border-gray-300 bg-white px-2 text-xs font-semibold text-gray-700 shadow-sm transition-all hover:border-blue-400 hover:bg-blue-50 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1 active:translate-y-px active:shadow-sm"
+                                                        className="group inline-flex h-8 min-w-[74px] items-center gap-2 rounded-md border border-gray-300 bg-white px-2 text-xs font-semibold text-gray-700 shadow-sm transition-all hover:border-teal-400 hover:bg-teal-50 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-1 active:translate-y-px active:shadow-sm"
                                                         onClick={() => {
                                                             void openTreatmentImageGallery(treatment, 0);
                                                         }}
@@ -260,7 +260,7 @@ export function ToothDetailDialog({
                                                                 loading="lazy"
                                                             />
                                                         </span>
-                                                        <span className="inline-flex h-5 min-w-6 items-center justify-center rounded-[6px] bg-blue-100 px-1.5 text-[11px] font-semibold text-blue-700">
+                                                        <span className="inline-flex h-5 min-w-6 items-center justify-center rounded-[6px] bg-teal-100 px-1.5 text-[11px] font-semibold text-teal-700">
                                                             +{treatmentImageCount}
                                                         </span>
                                                     </button>

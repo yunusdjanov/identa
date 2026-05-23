@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import Link from 'next/link';
 import { AlertTriangle, ArrowLeft, RefreshCw } from 'lucide-react';
@@ -26,17 +26,17 @@ export function AppErrorState({
 }: AppErrorStateProps) {
     return (
         <section className={cn('flex min-h-[24rem] items-center justify-center px-3 py-8', className)}>
-            <div className="relative w-full max-w-3xl overflow-hidden rounded-[2rem] border border-blue-100 bg-gradient-to-br from-white via-white to-blue-50/65 p-6 shadow-xl shadow-blue-950/5 sm:p-8">
-                <div className="pointer-events-none absolute -right-16 -top-16 h-44 w-44 rounded-full bg-blue-100/70 blur-3xl" />
+            <div className="relative w-full max-w-3xl overflow-hidden rounded-[2rem] border border-teal-100 bg-gradient-to-br from-white via-white to-teal-100/65 p-6 shadow-xl shadow-teal-950/5 sm:p-8">
+                <div className="pointer-events-none absolute -right-16 -top-16 h-44 w-44 rounded-full bg-teal-100/70 blur-3xl" />
                 <div className="pointer-events-none absolute -bottom-20 left-10 h-36 w-36 rounded-full bg-cyan-100/50 blur-3xl" />
 
                 <div className="relative flex flex-col gap-5 sm:flex-row sm:items-start">
-                    <span className="inline-flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-blue-100 bg-white text-blue-600 shadow-sm shadow-blue-100">
+                    <span className="inline-flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-teal-100 bg-white text-teal-600 shadow-sm shadow-teal-100">
                         <AlertTriangle className="h-6 w-6" />
                     </span>
 
                     <div className="min-w-0 flex-1">
-                        <p className="text-xs font-black uppercase tracking-[0.24em] text-blue-600">Identa</p>
+                        <p className="text-xs font-black uppercase tracking-[0.24em] text-teal-600">Identa</p>
                         <h2 className="mt-2 text-2xl font-black tracking-[-0.035em] text-slate-950 sm:text-3xl">
                             {title}
                         </h2>

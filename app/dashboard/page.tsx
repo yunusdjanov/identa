@@ -1,9 +1,9 @@
-'use client';
+﻿'use client';
 
 import type { ReactNode } from 'react';
 import { useSyncExternalStore } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { RouteDashboardLoadingState } from '@/components/layout/page-loading-skeletons';
 import { getCurrentUser, getDashboardSnapshot } from '@/lib/api/dentist';
@@ -21,7 +21,7 @@ const noopSubscribe = () => () => undefined;
 const DASHBOARD_NAME_UI_LIMIT = 25;
 const DASHBOARD_REASON_UI_LIMIT = 40;
 
-type DashboardStatTone = 'blue' | 'green' | 'red' | 'amber';
+type DashboardStatTone = 'teal' | 'green' | 'red' | 'amber';
 
 const statToneClasses: Record<DashboardStatTone, {
     card: string;
@@ -29,28 +29,28 @@ const statToneClasses: Record<DashboardStatTone, {
     value: string;
     hover: string;
 }> = {
-    blue: {
-        card: 'border-blue-100 bg-white/95',
-        icon: 'bg-blue-50 text-blue-700 ring-blue-100',
-        value: 'text-blue-950',
+    teal: {
+        card: 'border-blue-200 bg-gradient-to-br from-blue-50 via-blue-100/70 to-white shadow-blue-200/60',
+        icon: 'bg-white/80 text-blue-600 ring-blue-200',
+        value: 'text-blue-900',
         hover: 'metric-hover-blue',
     },
     green: {
-        card: 'border-emerald-100 bg-white/95',
-        icon: 'bg-emerald-50 text-emerald-700 ring-emerald-100',
-        value: 'text-emerald-950',
+        card: 'border-emerald-100 bg-gradient-to-br from-white via-emerald-50/60 to-white shadow-emerald-100/50',
+        icon: 'bg-emerald-50 text-emerald-600 ring-emerald-100',
+        value: 'text-emerald-900',
         hover: 'metric-hover-emerald',
     },
     red: {
-        card: 'border-red-100 bg-white/95',
-        icon: 'bg-red-50 text-red-700 ring-red-100',
-        value: 'text-red-950',
+        card: 'border-red-100 bg-gradient-to-br from-white via-red-50/60 to-white shadow-red-100/50',
+        icon: 'bg-red-50 text-red-600 ring-red-100',
+        value: 'text-red-900',
         hover: 'metric-hover-red',
     },
     amber: {
-        card: 'border-amber-100 bg-white/95',
-        icon: 'bg-amber-50 text-amber-700 ring-amber-100',
-        value: 'text-amber-950',
+        card: 'border-amber-100 bg-gradient-to-br from-white via-amber-50/60 to-white shadow-amber-100/50',
+        icon: 'bg-amber-50 text-amber-600 ring-amber-100',
+        value: 'text-amber-900',
         hover: 'metric-hover-amber',
     },
 };
@@ -65,7 +65,7 @@ function getStatusTone(status: string): { dot: string; text: string } {
             return { dot: 'bg-amber-600', text: 'text-amber-700' };
         case 'scheduled':
         default:
-            return { dot: 'bg-blue-600', text: 'text-blue-700' };
+            return { dot: 'bg-teal-600', text: 'text-teal-700' };
     }
 }
 
@@ -96,22 +96,19 @@ function DashboardStatCard({
     const classes = statToneClasses[tone];
 
     return (
-        <Card className={`interactive-card metric-hover-card ${classes.hover} rounded-[1.5rem] shadow-sm ${classes.card}`}>
-            <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-white to-transparent" />
-            <CardContent className="relative flex min-h-[136px] flex-col justify-between p-5">
-                <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                        <p className="text-sm font-semibold text-slate-600">{title}</p>
-                        <p className={`mt-3 text-[1.7rem] font-bold leading-none tracking-[-0.04em] ${classes.value}`}>
-                            {value}
-                        </p>
-                    </div>
-                    <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl ring-1 ${classes.icon}`}>
+        <Card className={`interactive-card metric-hover-card ${classes.hover} rounded-2xl shadow-sm ${classes.card}`}>
+            <CardContent className="relative px-4 py-3.5">
+                <div className="flex items-center justify-between gap-2">
+                    <p className="truncate text-[11px] font-semibold uppercase tracking-[0.07em] text-slate-400">{title}</p>
+                    <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ring-1 ${classes.icon}`}>
                         {icon}
                     </div>
                 </div>
-                <div className="mt-3 flex min-h-7 items-end justify-between gap-3">
-                    <p className="text-sm font-medium text-slate-500">{helper}</p>
+                <p className={`mt-1.5 truncate text-[1.4rem] font-bold leading-none tracking-tight ${classes.value}`}>
+                    {value}
+                </p>
+                <div className="mt-2 flex items-center justify-between gap-2">
+                    <p className="truncate text-[11px] font-medium text-slate-400">{helper}</p>
                     {action}
                 </div>
             </CardContent>
@@ -121,18 +118,16 @@ function DashboardStatCard({
 
 function LockedStatCard({ title, icon }: { title: string; icon: ReactNode }) {
     return (
-        <Card className="rounded-[1.5rem] border-slate-200 bg-white/85 shadow-sm">
-            <CardContent className="relative flex min-h-[136px] flex-col justify-between overflow-hidden p-5">
-                <div className="pointer-events-none absolute inset-0 bg-white/45 backdrop-blur-[2px]" />
-                <div className="relative flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                        <p className="text-sm font-semibold text-slate-500">{title}</p>
-                        <p className="mt-3 text-sm font-semibold text-slate-400">{PERMISSION_DENIED_MESSAGE}</p>
-                    </div>
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-slate-400 ring-1 ring-slate-200">
+        <Card className="rounded-2xl border-slate-100 bg-gradient-to-br from-white via-slate-50/60 to-white shadow-sm">
+            <CardContent className="relative overflow-hidden px-4 py-3.5">
+                <div className="pointer-events-none absolute inset-0 bg-white/40 backdrop-blur-[1.5px]" />
+                <div className="relative flex items-center justify-between gap-2">
+                    <p className="truncate text-[11px] font-semibold uppercase tracking-[0.07em] text-slate-300">{title}</p>
+                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-slate-50 text-slate-300 ring-1 ring-slate-100">
                         {icon}
                     </div>
                 </div>
+                <p className="relative mt-1.5 text-[1.4rem] font-bold leading-none text-slate-200">{PERMISSION_DENIED_MESSAGE}</p>
             </CardContent>
         </Card>
     );
@@ -223,20 +218,16 @@ export default function DashboardPage() {
         .trim();
     const debtTone: DashboardStatTone = (stats?.outstandingDebtTotal ?? 0) > 0 ? 'red' : 'green';
     const debtActionClassName = debtTone === 'red'
-        ? 'h-8 rounded-full px-2 text-red-700 hover:bg-red-100 hover:text-red-800'
-        : 'h-8 rounded-full px-2 text-emerald-700 hover:bg-emerald-100 hover:text-emerald-800';
+        ? 'h-6 rounded-full px-1.5 text-red-700 hover:bg-red-100 hover:text-red-800'
+        : 'h-6 rounded-full px-1.5 text-emerald-700 hover:bg-emerald-100 hover:text-emerald-800';
 
     return (
-        <div className="space-y-4">
-            <div className="flex flex-col gap-4 rounded-3xl border border-white/70 bg-gradient-to-br from-white via-blue-50/35 to-white p-4 shadow-sm md:flex-row md:items-center md:justify-between md:p-5">
+        <div className="space-y-3">
+            <div className="flex flex-col gap-3 rounded-2xl border border-white/70 bg-gradient-to-br from-white via-teal-100/35 to-white px-4 py-3.5 shadow-sm md:flex-row md:items-center md:justify-between">
                 <div>
-                    <p className="text-xs font-bold uppercase tracking-[0.2em] text-blue-600">
-                        Identa
-                    </p>
-                    <h1 className="mt-1 text-[2rem] font-bold leading-tight text-slate-950 md:text-3xl">{t('dashboard.title')}</h1>
-                    <p className="mt-1 text-sm text-slate-500">
-                        {monthLabel}
-                    </p>
+                    <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-teal-600">Identa</p>
+                    <h1 className="mt-0.5 text-2xl font-bold leading-tight text-slate-950">{t('dashboard.title')}</h1>
+                    <p className="text-xs text-slate-500">{monthLabel}</p>
                 </div>
                 {(canViewPatients || canViewAppointments) ? (
                     <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 md:flex md:flex-wrap md:justify-end">
@@ -252,10 +243,10 @@ export default function DashboardPage() {
                             >
                                 <Button
                                     size="sm"
-                                    className="h-10 w-full rounded-full px-4 shadow-sm md:w-auto"
+                                    className="h-8 w-full rounded-full px-3 shadow-sm md:w-auto"
                                     disabled={!canCreatePatients}
                                 >
-                                    <Plus className="w-4 h-4 mr-2" />
+                                    <Plus className="w-3.5 h-3.5 mr-1.5" />
                                     {t('dashboard.addPatient')}
                                 </Button>
                             </Link>
@@ -273,10 +264,10 @@ export default function DashboardPage() {
                                 <Button
                                     variant="outline"
                                     size="sm"
-                                    className="h-10 w-full rounded-full border-blue-100 bg-white px-4 shadow-sm hover:bg-blue-50 md:w-auto"
+                                    className="h-8 w-full rounded-full border-teal-100 bg-white px-3 shadow-sm hover:bg-teal-50 md:w-auto"
                                     disabled={!canManageAppointments}
                                 >
-                                    <Calendar className="w-4 h-4 mr-2" />
+                                    <Calendar className="w-3.5 h-3.5 mr-1.5" />
                                     {t('dashboard.newAppointment')}
                                 </Button>
                             </Link>
@@ -285,171 +276,148 @@ export default function DashboardPage() {
                 ) : null}
             </div>
 
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+            <div className="grid grid-cols-1 gap-2.5 md:grid-cols-3">
                 {canViewAppointments ? (
-                        <DashboardStatCard
-                            title={t('dashboard.todayAppointments')}
-                            value={scheduledTodayAppointments.length}
-                            helper={scheduledTodayAppointments.length === 0 ? t('dashboard.noAppointments') : t('dashboard.scheduled')}
-                            tone="blue"
-                            icon={<Calendar className="h-5 w-5" />}
-                            action={(
-                                <Button asChild variant="ghost" size="sm" className="h-8 rounded-full px-2 text-blue-700 hover:bg-blue-100 hover:text-blue-800">
-                                    <Link href="/appointments" aria-label={t('dashboard.todayAppointments')}>
-                                        <ArrowRight className="h-4 w-4" />
-                                    </Link>
-                                </Button>
-                            )}
-                        />
+                    <DashboardStatCard
+                        title={t('dashboard.todayAppointments')}
+                        value={scheduledTodayAppointments.length}
+                        helper={scheduledTodayAppointments.length === 0 ? t('dashboard.noAppointments') : t('dashboard.scheduled')}
+                        tone="teal"
+                        icon={<Calendar className="h-3.5 w-3.5" />}
+                        action={(
+                            <Button asChild variant="ghost" size="sm" className="h-6 rounded-full px-1.5 text-teal-700 hover:bg-teal-100 hover:text-teal-800">
+                                <Link href="/appointments" aria-label={t('dashboard.todayAppointments')}>
+                                    <ArrowRight className="h-3.5 w-3.5" />
+                                </Link>
+                            </Button>
+                        )}
+                    />
                 ) : (
-                    <LockedStatCard title={t('dashboard.todayAppointments')} icon={<Calendar className="h-5 w-5" />} />
+                    <LockedStatCard title={t('dashboard.todayAppointments')} icon={<Calendar className="h-3.5 w-3.5" />} />
                 )}
 
                 {canViewPayments ? (
-                        <DashboardStatCard
-                            title={t('dashboard.revenueThisMonth')}
-                            value={stats ? formatCurrency(stats.revenueThisMonth) : '...'}
-                            helper={monthLabel}
-                            tone="green"
-                            icon={<DollarSign className="h-5 w-5" />}
-                        />
+                    <DashboardStatCard
+                        title={t('dashboard.revenueThisMonth')}
+                        value={stats ? formatCurrency(stats.revenueThisMonth) : '...'}
+                        helper={monthLabel}
+                        tone="green"
+                        icon={<DollarSign className="h-3.5 w-3.5" />}
+                    />
                 ) : (
-                    <LockedStatCard title={t('dashboard.revenueThisMonth')} icon={<DollarSign className="h-5 w-5" />} />
+                    <LockedStatCard title={t('dashboard.revenueThisMonth')} icon={<DollarSign className="h-3.5 w-3.5" />} />
                 )}
 
                 {canViewPayments ? (
-                        <DashboardStatCard
-                            title={t('dashboard.outstandingDebts')}
-                            value={stats ? formatCurrency(stats.outstandingDebtTotal) : '...'}
-                            helper={viewAllDebtsLabel}
-                            tone={debtTone}
-                            icon={<AlertCircle className="h-5 w-5" />}
-                            action={(
-                                <Button asChild variant="ghost" size="sm" className={debtActionClassName}>
-                                    <Link href="/payments" aria-label={viewAllDebtsLabel}>
-                                        <ArrowRight className="h-4 w-4" />
-                                    </Link>
-                                </Button>
-                            )}
-                        />
+                    <DashboardStatCard
+                        title={t('dashboard.outstandingDebts')}
+                        value={stats ? formatCurrency(stats.outstandingDebtTotal) : '...'}
+                        helper={viewAllDebtsLabel}
+                        tone={debtTone}
+                        icon={<AlertCircle className="h-3.5 w-3.5" />}
+                        action={(
+                            <Button asChild variant="ghost" size="sm" className={debtActionClassName}>
+                                <Link href="/payments" aria-label={viewAllDebtsLabel}>
+                                    <ArrowRight className="h-3.5 w-3.5" />
+                                </Link>
+                            </Button>
+                        )}
+                    />
                 ) : (
-                    <LockedStatCard title={t('dashboard.outstandingDebts')} icon={<AlertCircle className="h-5 w-5" />} />
+                    <LockedStatCard title={t('dashboard.outstandingDebts')} icon={<AlertCircle className="h-3.5 w-3.5" />} />
                 )}
             </div>
 
-            <Card className="interactive-card overflow-hidden rounded-[1.5rem] border-blue-100 bg-gradient-to-br from-white via-slate-50/70 to-blue-50/45 shadow-sm">
-                <CardHeader className="pb-2 pt-5">
-                    <div>
-                        <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-blue-600">
-                            {t('dashboard.todayAppointments')}
-                        </p>
-                        <CardTitle className="mt-1 text-xl tracking-tight text-slate-950 sm:text-2xl">
-                            {t('dashboard.upcomingToday')}
-                        </CardTitle>
-                    </div>
-                </CardHeader>
-                <CardContent className="pb-5 pt-0">
-                    {!canViewAppointments ? (
-                        <div className="rounded-2xl border border-dashed border-slate-200 bg-white/75 px-4 py-10 text-center">
-                            <Calendar className="mx-auto h-10 w-10 text-slate-300" />
-                            <p className="mt-3 text-sm font-semibold text-slate-500">{PERMISSION_DENIED_MESSAGE}</p>
+            <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm">
+                {/* Header */}
+                <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
+                    <div className="flex items-center gap-2.5">
+                        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-teal-50 text-teal-600 ring-1 ring-teal-100">
+                            <Calendar className="h-3.5 w-3.5" />
                         </div>
-                    ) : scheduledTodayAppointments.length === 0 ? (
-                        <div className="flex flex-col gap-4 rounded-2xl border border-dashed border-blue-200 bg-white/70 px-4 py-6 sm:flex-row sm:items-center sm:justify-between">
-                            <div className="flex items-center gap-3">
-                                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-blue-50">
-                                    <Calendar className="h-5 w-5 text-blue-600" />
-                                </div>
-                                <div>
-                                    <p className="text-sm font-semibold text-slate-900">{t('dashboard.noAppointmentsToday')}</p>
-                                    <p className="mt-1 text-sm text-slate-500">{t('dashboard.scheduleAppointment')}</p>
-                                </div>
+                        <div>
+                            <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-teal-500">{t('dashboard.todayAppointments')}</p>
+                            <p className="text-sm font-bold leading-tight text-slate-900">{t('dashboard.upcomingToday')}</p>
+                        </div>
+                    </div>
+                    {canViewAppointments && scheduledTodayAppointments.length > 0 && (
+                        <Button asChild variant="ghost" size="sm" className="h-7 gap-1 rounded-full px-2.5 text-[11px] font-semibold text-teal-700 hover:bg-teal-50 hover:text-teal-800">
+                            <Link href={showAllTodayHref}>
+                                {t('dashboard.showAllToday', { count: scheduledTodayAppointments.length })}
+                                <ArrowRight className="h-3 w-3" />
+                            </Link>
+                        </Button>
+                    )}
+                </div>
+
+                {/* Body */}
+                {!canViewAppointments ? (
+                    <div className="flex items-center gap-3 px-4 py-4">
+                        <Calendar className="h-4 w-4 shrink-0 text-slate-300" />
+                        <p className="text-sm font-medium text-slate-400">{PERMISSION_DENIED_MESSAGE}</p>
+                    </div>
+                ) : scheduledTodayAppointments.length === 0 ? (
+                    <div className="flex items-center justify-between gap-4 px-4 py-4">
+                        <div className="flex items-center gap-2.5">
+                            <Calendar className="h-4 w-4 shrink-0 text-teal-400" />
+                            <div>
+                                <p className="text-sm font-semibold text-slate-700">{t('dashboard.noAppointmentsToday')}</p>
+                                <p className="text-[11px] text-slate-400">{t('dashboard.scheduleAppointment')}</p>
                             </div>
+                        </div>
+                        <Button
+                            asChild
+                            size="sm"
+                            className="h-7 shrink-0 rounded-full px-3 text-xs"
+                            disabled={!canManageAppointments}
+                        >
                             <Link
                                 href="/appointments?action=new"
-                                className="sm:shrink-0"
                                 onClick={(event) => {
-                                    if (!canManageAppointments) {
-                                        event.preventDefault();
-                                        denyManageAction();
-                                    }
+                                    if (!canManageAppointments) { event.preventDefault(); denyManageAction(); }
                                 }}
                             >
-                                <Button size="sm" className="w-full rounded-full sm:w-auto" disabled={!canManageAppointments}>
-                                    {t('dashboard.scheduleAppointment')}
-                                </Button>
+                                {t('dashboard.scheduleAppointment')}
                             </Link>
-                        </div>
-                    ) : upcomingTodayAppointments.length === 0 ? (
-                        <div className="flex flex-col items-center justify-center rounded-2xl border border-emerald-100 bg-white/75 px-4 py-10 text-center">
-                            <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600">
-                                <CheckCircle2 className="h-6 w-6" />
-                            </div>
-                            <p className="text-sm font-semibold text-slate-900">{t('dashboard.noMoreUpcoming')}</p>
-                            <Link href={showAllTodayHref}>
-                                <Button variant="outline" className="mt-4 rounded-full">
-                                    {t('dashboard.showAllToday', { count: scheduledTodayAppointments.length })}
-                                </Button>
-                            </Link>
-                        </div>
-                    ) : (
-                        <div className="space-y-4">
-                            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                                {visibleUpcomingAppointments.map((appointment) => {
-                                    const translatedStatus = t(`status.${appointment.status}`);
-                                    const statusLabel = translatedStatus.startsWith('status.')
-                                        ? appointment.status
-                                        : translatedStatus;
-                                    const statusTone = getStatusTone(appointment.status);
-
-                                    return (
-                                        <div
-                                            key={appointment.id}
-                                            className="interactive-card rounded-2xl border border-slate-200/70 bg-white/92 p-3 shadow-sm"
-                                        >
-                                            <div className="mb-3 flex items-center justify-between gap-3">
-                                                <div className="flex shrink-0 items-center justify-center rounded-full bg-blue-50 px-2.5 py-1.5 text-blue-700 ring-1 ring-blue-100">
-                                                    <span className="text-[13px] font-bold tabular-nums">
-                                                        {formatAppointmentHourMinute(appointment.startTime)}
-                                                    </span>
-                                                </div>
-                                                <span className={`inline-flex shrink-0 items-center gap-1 rounded-full bg-slate-50 px-2 py-1 text-[11px] font-semibold ${statusTone.text}`}>
-                                                    <span className={`h-1.5 w-1.5 rounded-full ${statusTone.dot}`} />
-                                                    {statusLabel}
-                                                </span>
-                                            </div>
-                                            <div className="min-w-0">
-                                                <p className="truncate text-[15px] font-bold leading-tight text-slate-950" title={appointment.patientName}>
-                                                    {truncateForUi(appointment.patientName, DASHBOARD_NAME_UI_LIMIT)}
-                                                </p>
-                                                <p className="mt-1 truncate text-xs font-medium text-slate-500">
-                                                    {truncateForUi(appointment.reason || t('dashboard.generalAppointment'), DASHBOARD_REASON_UI_LIMIT)}
-                                                </p>
-                                                <p className="mt-2 text-[11px] font-semibold text-slate-400">
-                                                    {t('dashboard.minutesShort', { count: appointment.durationMinutes })}
-                                                </p>
-                                            </div>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                            <div className="flex justify-center border-t border-blue-100/70 pt-4 sm:justify-end">
-                                <Button
-                                    asChild
-                                    variant="outline"
-                                    size="sm"
-                                    className="group h-10 w-full rounded-full border-blue-100 bg-white px-4 text-sm font-semibold text-blue-700 shadow-sm shadow-blue-100/50 transition hover:-translate-y-0.5 hover:border-blue-200 hover:bg-blue-50 hover:text-blue-800 sm:w-auto"
-                                >
-                                    <Link href={showAllTodayHref}>
-                                        {t('dashboard.showAllToday', { count: scheduledTodayAppointments.length })}
-                                        <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
-                                    </Link>
-                                </Button>
-                            </div>
-                        </div>
-                    )}
-                </CardContent>
-            </Card>
+                        </Button>
+                    </div>
+                ) : upcomingTodayAppointments.length === 0 ? (
+                    <div className="flex items-center gap-2.5 px-4 py-4">
+                        <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-500" />
+                        <p className="text-sm font-semibold text-slate-700">{t('dashboard.noMoreUpcoming')}</p>
+                        <Button asChild variant="ghost" size="sm" className="ml-auto h-7 rounded-full px-2.5 text-xs text-teal-700 hover:bg-teal-50">
+                            <Link href={showAllTodayHref}>{t('dashboard.showAllToday', { count: scheduledTodayAppointments.length })}</Link>
+                        </Button>
+                    </div>
+                ) : (
+                    <div className="divide-y divide-slate-100/80">
+                        {visibleUpcomingAppointments.map((appointment) => {
+                            const translatedStatus = t(`status.${appointment.status}`);
+                            const statusLabel = translatedStatus.startsWith('status.') ? appointment.status : translatedStatus;
+                            const statusTone = getStatusTone(appointment.status);
+                            return (
+                                <div key={appointment.id} className="flex items-center gap-3 px-4 py-2.5">
+                                    <time className="flex h-8 w-[3.8rem] shrink-0 items-center justify-center rounded-xl bg-teal-50 text-[13px] font-bold tabular-nums text-teal-700 ring-1 ring-teal-100">
+                                        {formatAppointmentHourMinute(appointment.startTime)}
+                                    </time>
+                                    <div className="min-w-0 flex-1">
+                                        <p className="truncate text-sm font-semibold text-slate-900">{truncateForUi(appointment.patientName, DASHBOARD_NAME_UI_LIMIT)}</p>
+                                        <p className="truncate text-[11px] text-slate-400">
+                                            {truncateForUi(appointment.reason || t('dashboard.generalAppointment'), DASHBOARD_REASON_UI_LIMIT)}
+                                            {' · '}
+                                            {t('dashboard.minutesShort', { count: appointment.durationMinutes })}
+                                        </p>
+                                    </div>
+                                    <span className={`inline-flex shrink-0 items-center gap-1 rounded-full bg-slate-50 px-2 py-0.5 text-[11px] font-semibold ${statusTone.text}`}>
+                                        <span className={`h-1.5 w-1.5 rounded-full ${statusTone.dot}`} />
+                                        {statusLabel}
+                                    </span>
+                                </div>
+                            );
+                        })}
+                    </div>
+                )}
+            </div>
 
         </div>
     );

@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -85,7 +85,7 @@ export function ConfirmActionDialog({
                         disabled={disabled || isPending}
                         className={cn(
                             'h-10 min-w-32 rounded-xl shadow-sm',
-                            isDestructive ? 'shadow-red-200/50' : 'shadow-blue-200/50'
+                            isDestructive ? 'shadow-red-200/50' : 'shadow-teal-200/50'
                         )}
                     >
                         {isPending ? pendingLabel : confirmLabel}

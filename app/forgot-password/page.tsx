@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import Link from 'next/link';
 import { useState } from 'react';
@@ -49,7 +49,7 @@ export default function ForgotPasswordPage() {
     };
 
     return (
-        <div className="relative flex min-h-screen items-center justify-center bg-gradient-to-br from-blue-50 via-white to-blue-50 p-4">
+        <div className="relative flex min-h-screen items-center justify-center bg-gradient-to-br from-teal-50 via-white to-teal-50 p-4">
             <div className="absolute right-4 top-4 sm:right-6 sm:top-6">
                 <LanguageSwitcher variant="compact" />
             </div>
@@ -88,7 +88,7 @@ export default function ForgotPasswordPage() {
                             </div>
 
                             {isSent ? (
-                                <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-700">
+                                <div className="rounded-xl border border-teal-200 bg-teal-50 px-4 py-3 text-sm text-teal-700">
                                     {t('forgotPassword.sentHelp')}
                                 </div>
                             ) : (
@@ -110,7 +110,7 @@ export default function ForgotPasswordPage() {
                             <div className="text-center">
                                 <Link
                                     href={backToLoginHref}
-                                    className="text-sm font-medium text-blue-600 transition hover:text-blue-700"
+                                    className="text-sm font-medium text-teal-600 transition hover:text-teal-700"
                                 >
                                     {t('forgotPassword.backToLogin')}
                                 </Link>

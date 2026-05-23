@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import Link from 'next/link';
 import { ShieldAlert } from 'lucide-react';
@@ -26,7 +26,7 @@ export function AccessDeniedState({
         <section className={cn('flex min-h-[24rem] items-center justify-center px-3 py-8', className)}>
             <div className="relative w-full max-w-3xl overflow-hidden rounded-[2rem] border border-cyan-100 bg-gradient-to-br from-white via-white to-cyan-50/70 p-6 shadow-xl shadow-cyan-950/5 sm:p-8">
                 <div className="pointer-events-none absolute -right-16 -top-16 h-44 w-44 rounded-full bg-cyan-100/80 blur-3xl" />
-                <div className="pointer-events-none absolute -bottom-20 left-10 h-36 w-36 rounded-full bg-blue-100/55 blur-3xl" />
+                <div className="pointer-events-none absolute -bottom-20 left-10 h-36 w-36 rounded-full bg-teal-100/55 blur-3xl" />
 
                 <div className="relative flex flex-col gap-5 sm:flex-row sm:items-start">
                     <span className="inline-flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-cyan-100 bg-white text-cyan-700 shadow-sm shadow-cyan-100">

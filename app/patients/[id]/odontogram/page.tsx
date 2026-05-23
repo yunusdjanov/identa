@@ -146,21 +146,21 @@ export default function OdontogramPage({
                 onClick={() => setSelectedTooth(toothNumber)}
                 className={`
           relative w-8 h-12 sm:w-10 sm:h-14 md:w-12 md:h-16 rounded-lg border-2 transition-all
-          hover:scale-105 hover:shadow-md cursor-pointer
-          ${
-    hasHistory
-        ? 'border-blue-300 bg-blue-50 text-blue-900 hover:border-blue-400 hover:bg-blue-100'
-        : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400 hover:bg-gray-50'
-}
-          ${isSelected ? 'ring-2 ring-blue-500 ring-offset-1 border-blue-500' : ''}
+          hover:scale-105 cursor-pointer
+          ${hasHistory
+              ? 'border-teal-500 bg-gradient-to-b from-teal-100 to-teal-200 shadow-sm shadow-teal-300/60 hover:border-teal-600 hover:from-teal-200 hover:to-teal-300'
+              : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'}
+          ${isSelected
+              ? 'ring-2 ring-teal-600 ring-offset-2 border-teal-600 shadow-md shadow-teal-400/40 scale-105'
+              : ''}
         `}
                 title={t('odontogram.toothTitle', { toothNumber })}
             >
-                <span className="absolute inset-0 flex items-center justify-center text-[10px] sm:text-xs font-bold text-gray-700">
+                <span className={`absolute inset-0 flex items-center justify-center text-[10px] sm:text-xs font-bold ${hasHistory ? 'text-teal-800' : 'text-slate-600'}`}>
                     {toothNumber}
                 </span>
                 {hasHistory ? (
-                    <span className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-sky-600 px-1 text-[9px] font-semibold text-white">
+                    <span className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-teal-600 px-1 text-[9px] font-semibold text-white shadow-sm">
                         {historyCount}
                     </span>
                 ) : null}

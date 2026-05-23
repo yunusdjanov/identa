@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import type { RefObject } from 'react';
 import { useEffect, useMemo, useState } from 'react';
@@ -99,7 +99,7 @@ export function PatientPhotoField({
         <div className="space-y-2">
             {hideLabel ? null : <Label htmlFor={id} className="text-sm text-gray-700">{label}</Label>}
             <div className="flex min-w-0 items-start gap-3">
-                <Avatar key={previewUrl ?? 'photo-placeholder'} className="h-16 w-16 shrink-0 border border-slate-200 bg-blue-50">
+                <Avatar key={previewUrl ?? 'photo-placeholder'} className="h-16 w-16 shrink-0 border border-slate-200 bg-teal-50">
                     {previewUrl ? (
                         <AvatarImage
                             src={previewUrl}
@@ -107,8 +107,8 @@ export function PatientPhotoField({
                             crossOrigin={getProtectedMediaCrossOrigin(previewUrl)}
                         />
                     ) : null}
-                    <AvatarFallback className="bg-blue-50 text-blue-700 text-xl font-semibold">
-                        {initials ? initials : <User className="h-6 w-6 text-blue-400" />}
+                    <AvatarFallback className="bg-teal-50 text-teal-700 text-xl font-semibold">
+                        {initials ? initials : <User className="h-6 w-6 text-teal-400" />}
                     </AvatarFallback>
                 </Avatar>
                 <div className="min-w-0 flex-1 space-y-2 overflow-hidden">
@@ -140,7 +140,7 @@ export function PatientPhotoField({
                         className={cn(
                             'flex h-16 w-full cursor-pointer flex-col items-center justify-center rounded-lg border border-dashed bg-slate-50 px-4 text-center transition-colors',
                             isDragActive
-                                ? 'border-blue-400 bg-blue-50'
+                                ? 'border-teal-400 bg-teal-50'
                                 : 'border-slate-200 hover:border-slate-300 hover:bg-slate-100'
                         )}
                     >

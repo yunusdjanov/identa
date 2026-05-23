@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { AlertTriangle, Clock3, ShieldAlert } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -120,7 +120,7 @@ export function SubscriptionBanner({ locale, subscription, t }: SubscriptionBann
                 'border-t',
                 banner.tone === 'danger' && 'border-red-200 bg-red-50',
                 banner.tone === 'warning' && 'border-amber-200 bg-amber-50',
-                banner.tone === 'info' && 'border-blue-200 bg-blue-50'
+                banner.tone === 'info' && 'border-teal-200 bg-teal-50'
             )}
         >
             <div className="mx-auto max-w-[1440px] px-4 py-3 sm:px-6 lg:px-8">
@@ -130,7 +130,7 @@ export function SubscriptionBanner({ locale, subscription, t }: SubscriptionBann
                             'mt-0.5 h-4 w-4 shrink-0',
                             banner.tone === 'danger' && 'text-red-600',
                             banner.tone === 'warning' && 'text-amber-600',
-                            banner.tone === 'info' && 'text-blue-600'
+                            banner.tone === 'info' && 'text-teal-600'
                         )}
                     />
                     <div className="space-y-1">
@@ -139,7 +139,7 @@ export function SubscriptionBanner({ locale, subscription, t }: SubscriptionBann
                                 'text-sm font-semibold',
                                 banner.tone === 'danger' && 'text-red-900',
                                 banner.tone === 'warning' && 'text-amber-900',
-                                banner.tone === 'info' && 'text-blue-900'
+                                banner.tone === 'info' && 'text-teal-900'
                             )}
                         >
                             {banner.title}
@@ -149,7 +149,7 @@ export function SubscriptionBanner({ locale, subscription, t }: SubscriptionBann
                                 'text-sm',
                                 banner.tone === 'danger' && 'text-red-800',
                                 banner.tone === 'warning' && 'text-amber-800',
-                                banner.tone === 'info' && 'text-blue-800'
+                                banner.tone === 'info' && 'text-teal-800'
                             )}
                         >
                             {banner.description}

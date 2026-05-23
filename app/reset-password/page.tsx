@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
@@ -78,7 +78,7 @@ export default function ResetPasswordPage() {
     };
 
     return (
-        <div className="relative flex min-h-screen items-center justify-center bg-gradient-to-br from-blue-50 via-white to-blue-50 p-4">
+        <div className="relative flex min-h-screen items-center justify-center bg-gradient-to-br from-teal-50 via-white to-teal-50 p-4">
             <div className="absolute right-4 top-4 sm:right-6 sm:top-6">
                 <LanguageSwitcher variant="compact" />
             </div>
@@ -175,7 +175,7 @@ export default function ResetPasswordPage() {
                             <div className="text-center">
                                 <Link
                                     href="/login"
-                                    className="text-sm font-medium text-blue-600 transition hover:text-blue-700"
+                                    className="text-sm font-medium text-teal-600 transition hover:text-teal-700"
                                 >
                                     {t('forgotPassword.backToLogin')}
                                 </Link>
