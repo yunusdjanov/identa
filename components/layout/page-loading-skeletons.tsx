@@ -384,9 +384,9 @@ export function PatientDetailLoadingState() {
             <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
                 {[4, 3, 3].map((rowCount, cardIndex) => (
                     <div key={cardIndex} className="overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm shadow-slate-100/80">
-                        {/* Header: h-8 w-8 rounded-xl badge + title */}
-                        <div className="flex items-center gap-3 border-b border-slate-100 px-4 py-2.5">
-                            <Skeleton className="h-8 w-8 shrink-0 rounded-xl" />
+                        {/* Header: h-7 w-7 rounded-lg badge + title */}
+                        <div className="flex items-center gap-2.5 border-b border-slate-100 px-4 py-1.5">
+                            <Skeleton className="h-7 w-7 shrink-0 rounded-lg" />
                             <Skeleton className="h-[14px] w-32 rounded-xl" />
                         </div>
                         {/* InfoRows: icon+label group left, value right */}
@@ -416,9 +416,9 @@ export function PatientDetailLoadingState() {
 
             {/* Appointments card — rounded-2xl, border, h-8 w-8 icon badge, time pill rows */}
             <div className="overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm shadow-slate-100/80">
-                <div className="flex items-center justify-between border-b border-slate-100 px-4 py-2.5">
-                    <div className="flex items-center gap-3">
-                        <Skeleton className="h-8 w-8 shrink-0 rounded-xl" />
+                <div className="flex items-center justify-between border-b border-slate-100 px-4 py-1.5">
+                    <div className="flex items-center gap-2.5">
+                        <Skeleton className="h-7 w-7 shrink-0 rounded-lg" />
                         <Skeleton className="h-[14px] w-20 rounded-xl" />
                     </div>
                     <Skeleton className="h-7 w-36 rounded-full" />
