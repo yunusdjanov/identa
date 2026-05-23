@@ -68,17 +68,13 @@ const APPOINTMENT_COMPACT_NAME_UI_LIMIT = 14;
 const APPOINTMENT_REASON_UI_LIMIT = 40;
 const APPOINTMENT_MODAL_NAME_UI_LIMIT = 40;
 const APPOINTMENT_MODAL_REASON_UI_LIMIT = 56;
-const WEEK_VIEW_MIN_VISIBLE_APPOINTMENTS = 6;
+const WEEK_VIEW_MIN_VISIBLE_APPOINTMENTS = 8;
 const WEEK_VIEW_MAX_VISIBLE_APPOINTMENTS = 9;
 const WEEK_VIEW_COMPACT_CARD_HEIGHT_CLASSES: Record<number, string> = {
-    6: 'h-[15rem]',
-    7: 'h-[16.5rem]',
     8: 'h-[18rem]',
     9: 'h-[19.5rem]',
 };
 const WEEK_VIEW_COMPACT_LIST_HEIGHT_CLASSES: Record<number, string> = {
-    6: 'h-[10rem]',
-    7: 'h-[11.5rem]',
     8: 'h-[13rem]',
     9: 'h-[14.5rem]',
 };
@@ -108,14 +104,6 @@ function getWeekViewCompactVisibleAppointments(): number {
 
     if (window.innerHeight >= 900) {
         return WEEK_VIEW_MAX_VISIBLE_APPOINTMENTS;
-    }
-
-    if (window.innerHeight >= 840) {
-        return 8;
-    }
-
-    if (window.innerHeight >= 780) {
-        return 7;
     }
 
     return WEEK_VIEW_MIN_VISIBLE_APPOINTMENTS;
