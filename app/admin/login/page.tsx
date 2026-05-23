@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { PasswordInput } from '@/components/ui/password-input';
 import { Label } from '@/components/ui/label';
-import { getApiErrorMessage } from '@/lib/api/client';
+import { ensureCsrfCookie, getApiErrorMessage } from '@/lib/api/client';
 import { getCurrentUser, loginWithPassword, logoutSession } from '@/lib/api/dentist';
 import {
     CLIENT_LOGOUT_FINISHED_EVENT,
@@ -72,6 +72,10 @@ export default function AdminLoginPage() {
             toast.error(getApiErrorMessage(error, t('admin.login.invalidCredentials')));
         },
     });
+
+    useEffect(() => {
+        void ensureCsrfCookie();
+    }, []);
 
     useEffect(() => {
         const updateLogoutRedirectState = () => {

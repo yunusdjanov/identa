@@ -11,7 +11,7 @@ import { Input } from '@/components/ui/input';
 import { PasswordInput } from '@/components/ui/password-input';
 import { Label } from '@/components/ui/label';
 import { getCurrentUser, loginWithGoogleIdToken, loginWithPassword } from '@/lib/api/dentist';
-import { getApiErrorMessage } from '@/lib/api/client';
+import { ensureCsrfCookie, getApiErrorMessage } from '@/lib/api/client';
 import {
     consumeAuthRedirectReason,
     isSessionExpiredRedirectReason,
@@ -126,6 +126,10 @@ export default function LoginPage() {
             toast.error(getApiErrorMessage(error, t('register.toast.googleFailed')));
         },
     });
+
+    useEffect(() => {
+        void ensureCsrfCookie();
+    }, []);
 
     useEffect(() => {
         const redirectReason = consumeAuthRedirectReason();
