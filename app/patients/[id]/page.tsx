@@ -77,7 +77,7 @@ function InfoRow({
                 {icon}
                 <span className="text-xs">{label}</span>
             </div>
-            <span className={`min-w-0 text-right text-[13px] font-semibold text-slate-800 [overflow-wrap:anywhere] ${valueClassName ?? ''}`}>
+            <span className={`min-w-0 truncate text-right text-[13px] font-semibold text-slate-800 ${valueClassName ?? ''}`}>
                 {value}
             </span>
         </div>
@@ -418,22 +418,22 @@ export default function PatientDetailPage({
                         {patient.allergies ? (
                             <div className="border-b border-slate-100 py-2 last:border-0 last:pb-0">
                                 <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">{t('patientDetail.allergies')}</p>
-                                <p className="mt-0.5 flex items-start gap-1 text-xs font-medium text-red-600">
-                                    <AlertCircle className="mt-px h-3 w-3 shrink-0" />
-                                    <span className="[overflow-wrap:anywhere]">{truncateForUi(patient.allergies, PATIENT_ALLERGIES_UI_LIMIT)}</span>
+                                <p className="mt-0.5 flex items-center gap-1 text-xs font-medium text-red-600">
+                                    <AlertCircle className="h-3 w-3 shrink-0" />
+                                    <span className="truncate">{truncateForUi(patient.allergies, PATIENT_ALLERGIES_UI_LIMIT)}</span>
                                 </p>
                             </div>
                         ) : null}
                         {patient.current_medications ? (
                             <div className="border-b border-slate-100 py-2 last:border-0 last:pb-0">
                                 <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">{t('patientDetail.currentMedications')}</p>
-                                <p className="mt-0.5 text-xs text-slate-700 [overflow-wrap:anywhere]">{truncateForUi(patient.current_medications, PATIENT_MEDICATIONS_UI_LIMIT)}</p>
+                                <p className="mt-0.5 truncate text-xs text-slate-700">{truncateForUi(patient.current_medications, PATIENT_MEDICATIONS_UI_LIMIT)}</p>
                             </div>
                         ) : null}
                         {patient.medical_history ? (
                             <div className="border-b border-slate-100 py-2 last:border-0 last:pb-0">
                                 <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">{t('patientDetail.medicalHistory')}</p>
-                                <p className="mt-0.5 text-xs text-slate-700 [overflow-wrap:anywhere]">{truncateForUi(patient.medical_history, PATIENT_MEDICAL_HISTORY_UI_LIMIT)}</p>
+                                <p className="mt-0.5 truncate text-xs text-slate-700">{truncateForUi(patient.medical_history, PATIENT_MEDICAL_HISTORY_UI_LIMIT)}</p>
                             </div>
                         ) : null}
                     </CardContent>
