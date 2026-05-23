@@ -371,7 +371,7 @@ export default function PatientDetailPage({
             <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
                 {/* Contact Info */}
                 <Card className="interactive-card overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm shadow-slate-100/80">
-                    <CardHeader className="flex flex-row items-center gap-3 border-b border-teal-100/60 bg-gradient-to-r from-teal-50/70 to-transparent px-4 py-3">
+                    <CardHeader className="flex flex-row items-center gap-3 border-b border-slate-100 px-4 py-3">
                         <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-teal-500 text-white shadow-sm shadow-teal-400/30">
                             <Phone className="h-[15px] w-[15px]" />
                         </span>
@@ -393,7 +393,7 @@ export default function PatientDetailPage({
 
                 {/* Medical Info */}
                 <Card className="interactive-card overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm shadow-slate-100/80">
-                    <CardHeader className="flex flex-row items-center gap-3 border-b border-emerald-100/60 bg-gradient-to-r from-emerald-50/70 to-transparent px-4 py-3">
+                    <CardHeader className="flex flex-row items-center gap-3 border-b border-slate-100 px-4 py-3">
                         <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-emerald-500 text-white shadow-sm shadow-emerald-400/30">
                             <HeartPulse className="h-[15px] w-[15px]" />
                         </span>
@@ -432,7 +432,7 @@ export default function PatientDetailPage({
 
                 {/* Visit Summary */}
                 <Card className="interactive-card overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm shadow-slate-100/80">
-                    <CardHeader className="flex flex-row items-center gap-3 border-b border-blue-100/60 bg-gradient-to-r from-blue-50/70 to-transparent px-4 py-3">
+                    <CardHeader className="flex flex-row items-center gap-3 border-b border-slate-100 px-4 py-3">
                         <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-blue-500 text-white shadow-sm shadow-blue-400/30">
                             <CalendarCheck className="h-[15px] w-[15px]" />
                         </span>
