@@ -21,6 +21,7 @@
     "check:migrations": "powershell -ExecutionPolicy Bypass -File .\\scripts\\check-backend-migrations.ps1",
     "test:e2e": "powershell -ExecutionPolicy Bypass -File .\\scripts\\run-e2e-cleanup.ps1 && playwright test",
     "test:e2e:headed": "powershell -ExecutionPolicy Bypass -File .\\scripts\\run-e2e-cleanup.ps1 && playwright test --headed",
+    "test:e2e:prod": "playwright test --config playwright.prod.config.ts",
     "perf:seed": "php scripts/perf-seed.php",
     "perf:snapshot": "php scripts/perf-snapshot.php",
     "quality:frontend": "npm run lint && npm run build && npm test",

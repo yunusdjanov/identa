@@ -1,5 +1,11 @@
 import { expect, Page } from '@playwright/test';
 
+const FRONTEND_URL = process.env.E2E_FRONTEND_URL ?? 'http://localhost:3100';
+const DENTIST_EMAIL = process.env.E2E_DENTIST_EMAIL ?? 'dentist@identa.test';
+const DENTIST_PASSWORD = process.env.E2E_DENTIST_PASSWORD ?? 'password123';
+const ADMIN_EMAIL = process.env.E2E_ADMIN_EMAIL ?? 'admin@identa.test';
+const ADMIN_PASSWORD = process.env.E2E_ADMIN_PASSWORD ?? 'password123';
+
 async function submitLoginAndAssert(page: Page, expectedPathPattern: RegExp): Promise<void> {
     const consoleErrors: string[] = [];
     const pageErrors: string[] = [];
@@ -108,28 +114,28 @@ async function submitLoginAndAssert(page: Page, expectedPathPattern: RegExp): Pr
 
 export async function loginDentist(page: Page): Promise<void> {
     await page.context().addCookies([
-        { name: 'identa_locale', value: 'en', url: 'http://localhost:3100' },
+        { name: 'identa_locale', value: 'en', url: FRONTEND_URL },
     ]);
     await page.goto('/login');
     const emailInput = page.getByLabel('Email');
     const passwordInput = page.locator('input#password');
-    await emailInput.fill('dentist@identa.test');
-    await passwordInput.fill('password123');
-    await expect(emailInput).toHaveValue('dentist@identa.test');
-    await expect(passwordInput).toHaveValue('password123');
+    await emailInput.fill(DENTIST_EMAIL);
+    await passwordInput.fill(DENTIST_PASSWORD);
+    await expect(emailInput).toHaveValue(DENTIST_EMAIL);
+    await expect(passwordInput).toHaveValue(DENTIST_PASSWORD);
     await submitLoginAndAssert(page, /\/dashboard(?:\/)?(?:\?.*)?$/);
 }
 
 export async function loginAdmin(page: Page): Promise<void> {
     await page.context().addCookies([
-        { name: 'identa_locale', value: 'en', url: 'http://localhost:3100' },
+        { name: 'identa_locale', value: 'en', url: FRONTEND_URL },
     ]);
     await page.goto('/admin/login');
     const emailInput = page.getByLabel('Email');
     const passwordInput = page.locator('input#password');
-    await emailInput.fill('admin@identa.test');
-    await passwordInput.fill('password123');
-    await expect(emailInput).toHaveValue('admin@identa.test');
-    await expect(passwordInput).toHaveValue('password123');
+    await emailInput.fill(ADMIN_EMAIL);
+    await passwordInput.fill(ADMIN_PASSWORD);
+    await expect(emailInput).toHaveValue(ADMIN_EMAIL);
+    await expect(passwordInput).toHaveValue(ADMIN_PASSWORD);
     await submitLoginAndAssert(page, /\/admin(?:\/)?(?:\?.*)?$/);
 }

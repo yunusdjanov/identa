@@ -17,14 +17,13 @@ interface ApiInvoice {
     balance: number | string;
 }
 
-function getApiBaseUrl(page: Page): string {
-    const host = new URL(page.url()).hostname;
-    return `http://${host}:8100/api/v1`;
+function getApiBaseUrl(_page: Page): string {
+    const backendUrl = process.env.E2E_BACKEND_URL ?? 'http://localhost:8100';
+    return `${backendUrl}/api/v1`;
 }
 
-function getBackendBaseUrl(page: Page): string {
-    const host = new URL(page.url()).hostname;
-    return `http://${host}:8100`;
+function getBackendBaseUrl(_page: Page): string {
+    return process.env.E2E_BACKEND_URL ?? 'http://localhost:8100';
 }
 
 async function apiRequest<T>(
