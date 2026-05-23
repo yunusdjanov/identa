@@ -66,9 +66,9 @@ function InfoRow({
     valueClassName?: string;
 }) {
     return (
-        <div className="flex items-center justify-between gap-4 border-b border-slate-100/80 py-2 last:border-0 last:pb-0 first:pt-0">
-            <span className="shrink-0 text-xs text-slate-500">{label}</span>
-            <span className={`min-w-0 text-right text-xs font-medium text-slate-800 [overflow-wrap:anywhere] ${valueClassName ?? ''}`}>
+        <div className="flex items-center justify-between gap-4 border-b border-slate-100/70 py-2 first:pt-0 last:border-0 last:pb-0">
+            <span className="shrink-0 text-[11px] text-slate-400">{label}</span>
+            <span className={`min-w-0 text-right text-sm font-medium text-slate-900 [overflow-wrap:anywhere] ${valueClassName ?? ''}`}>
                 {value}
             </span>
         </div>
@@ -368,16 +368,16 @@ export default function PatientDetailPage({
             </div>
 
             {/* Info cards */}
-            <div className="grid grid-cols-1 gap-2.5 md:grid-cols-3">
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
                 {/* Contact Info */}
-                <Card className="interactive-card overflow-hidden bg-gradient-to-br from-white via-white to-teal-50/50">
-                    <CardHeader className="flex flex-row items-center gap-2.5 px-4 pb-0 pt-3.5">
+                <Card className="interactive-card overflow-hidden rounded-2xl bg-gradient-to-br from-white via-white to-teal-50/50">
+                    <CardHeader className="flex flex-row items-center gap-2.5 px-4 pb-2 pt-3">
                         <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-teal-50 text-teal-600 shadow-sm shadow-teal-100/60">
                             <Phone className="h-3.5 w-3.5" />
                         </span>
                         <CardTitle className="text-sm font-semibold text-slate-800">{t('patientDetail.contactInfo')}</CardTitle>
                     </CardHeader>
-                    <CardContent className="px-4 pb-4 pt-3">
+                    <CardContent className="px-4 pb-4 pt-0">
                         <InfoRow label={t('patientDetail.phone1')} value={patient.phone} />
                         {patient.secondary_phone ? (
                             <InfoRow label={t('patientDetail.phone2')} value={patient.secondary_phone} />
@@ -392,14 +392,14 @@ export default function PatientDetailPage({
                 </Card>
 
                 {/* Medical Info */}
-                <Card className="interactive-card overflow-hidden bg-gradient-to-br from-white via-white to-emerald-50/40">
-                    <CardHeader className="flex flex-row items-center gap-2.5 px-4 pb-0 pt-3.5">
+                <Card className="interactive-card overflow-hidden rounded-2xl bg-gradient-to-br from-white via-white to-emerald-50/40">
+                    <CardHeader className="flex flex-row items-center gap-2.5 px-4 pb-2 pt-3">
                         <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600 shadow-sm shadow-emerald-100/60">
                             <HeartPulse className="h-3.5 w-3.5" />
                         </span>
                         <CardTitle className="text-sm font-semibold text-slate-800">{t('patientDetail.medicalInfo')}</CardTitle>
                     </CardHeader>
-                    <CardContent className="px-4 pb-4 pt-3">
+                    <CardContent className="px-4 pb-4 pt-0">
                         {!patient.allergies && !patient.current_medications && !patient.medical_history ? (
                             <p className="text-xs text-slate-400">{t('patientDetail.noMedicalInfo')}</p>
                         ) : null}
@@ -428,14 +428,14 @@ export default function PatientDetailPage({
                 </Card>
 
                 {/* Visit Summary */}
-                <Card className="interactive-card overflow-hidden bg-gradient-to-br from-white via-white to-slate-50">
-                    <CardHeader className="flex flex-row items-center gap-2.5 px-4 pb-0 pt-3.5">
+                <Card className="interactive-card overflow-hidden rounded-2xl bg-gradient-to-br from-white via-white to-slate-50">
+                    <CardHeader className="flex flex-row items-center gap-2.5 px-4 pb-2 pt-3">
                         <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-slate-100 text-slate-600 shadow-sm shadow-slate-200/60">
                             <CalendarCheck className="h-3.5 w-3.5" />
                         </span>
                         <CardTitle className="text-sm font-semibold text-slate-800">{t('patientDetail.visitSummary')}</CardTitle>
                     </CardHeader>
-                    <CardContent className="px-4 pb-3 pt-3">
+                    <CardContent className="px-4 pb-3 pt-0">
                         <InfoRow label={t('patientDetail.lastVisit')} value={latestVisitDate ? formatDate(latestVisitDate) : t('patients.never')} />
                         <InfoRow label={t('patientDetail.totalAppointments')} value={canViewAppointments ? patientAppointmentsCount : '—'} />
                         <InfoRow
