@@ -30,12 +30,16 @@ import {
 import {
     AlertCircle,
     ArrowLeft,
+    Calendar,
     CalendarCheck,
     Clock3,
     Edit,
+    Hash,
     HeartPulse,
+    MapPin,
     Phone,
     Trash2,
+    Wallet,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useI18n } from '@/components/providers/i18n-provider';
@@ -57,17 +61,17 @@ const PATIENT_MEDICATIONS_UI_LIMIT = INPUT_LIMITS.medicalMedications;
 const PATIENT_MEDICAL_HISTORY_UI_LIMIT = INPUT_LIMITS.medicalHistory;
 
 function InfoRow({
-    label,
+    icon,
     value,
     valueClassName,
 }: {
-    label: string;
+    icon: ReactNode;
     value: ReactNode;
     valueClassName?: string;
 }) {
     return (
-        <div className="flex items-center justify-between gap-4 border-b border-slate-100 py-2 first:pt-1 last:border-0 last:pb-0">
-            <span className="shrink-0 text-xs font-medium text-slate-500">{label}</span>
+        <div className="flex items-center justify-between gap-3 border-b border-slate-100 py-2 first:pt-1 last:border-0 last:pb-0">
+            <span className="shrink-0 text-slate-300">{icon}</span>
             <span className={`min-w-0 text-right text-[13px] font-semibold text-slate-800 [overflow-wrap:anywhere] ${valueClassName ?? ''}`}>
                 {value}
             </span>
@@ -378,15 +382,15 @@ export default function PatientDetailPage({
                         <CardTitle className="text-[13px] font-semibold text-slate-700">{t('patientDetail.contactInfo')}</CardTitle>
                     </CardHeader>
                     <CardContent className="px-4 pb-3 pt-0">
-                        <InfoRow label={t('patientDetail.phone1')} value={patient.phone} />
+                        <InfoRow icon={<Phone className="h-3.5 w-3.5" />} value={patient.phone} />
                         {patient.secondary_phone ? (
-                            <InfoRow label={t('patientDetail.phone2')} value={patient.secondary_phone} />
+                            <InfoRow icon={<Phone className="h-3.5 w-3.5" />} value={patient.secondary_phone} />
                         ) : null}
                         {patient.address ? (
-                            <InfoRow label={t('patientDetail.address')} value={patient.address} />
+                            <InfoRow icon={<MapPin className="h-3.5 w-3.5" />} value={patient.address} />
                         ) : null}
                         {patient.date_of_birth ? (
-                            <InfoRow label={t('patientDetail.birthDate')} value={formatDate(patient.date_of_birth)} />
+                            <InfoRow icon={<Calendar className="h-3.5 w-3.5" />} value={formatDate(patient.date_of_birth)} />
                         ) : null}
                     </CardContent>
                 </Card>
@@ -439,10 +443,10 @@ export default function PatientDetailPage({
                         <CardTitle className="text-[13px] font-semibold text-slate-700">{t('patientDetail.visitSummary')}</CardTitle>
                     </CardHeader>
                     <CardContent className="px-4 pb-3 pt-0">
-                        <InfoRow label={t('patientDetail.lastVisit')} value={latestVisitDate ? formatDate(latestVisitDate) : t('patients.never')} />
-                        <InfoRow label={t('patientDetail.totalAppointments')} value={canViewAppointments ? patientAppointmentsCount : '—'} />
+                        <InfoRow icon={<CalendarCheck className="h-3.5 w-3.5" />} value={latestVisitDate ? formatDate(latestVisitDate) : t('patients.never')} />
+                        <InfoRow icon={<Hash className="h-3.5 w-3.5" />} value={canViewAppointments ? patientAppointmentsCount : '—'} />
                         <InfoRow
-                            label={t('patientDetail.openBalance')}
+                            icon={<Wallet className="h-3.5 w-3.5" />}
                             value={!canViewPayments ? '—' : totalBalance > 0 ? formatCurrency(totalBalance) : t('payments.paid')}
                             valueClassName={
                                 !canViewPayments ? 'text-slate-400'
