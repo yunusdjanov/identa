@@ -30,7 +30,9 @@ import { optimizeImageFilesForUpload } from '@/lib/browser-image';
 import { getProtectedMediaCrossOrigin, getProtectedMediaPreviewUrl, getProtectedMediaThumbnailUrl, isProtectedMediaApproved } from '@/lib/protected-media';
 import { formatCurrency, formatDate, toLocalDateKey } from '@/lib/utils';
 import { toast } from 'sonner';
-import { CalendarDays, Loader2, Pencil, Plus, RotateCcw, Trash2, X } from 'lucide-react';
+import { CalendarDays, Download, Loader2, Pencil, Plus, RotateCcw, Trash2, X } from 'lucide-react';
+import { buildPdfFilename, exportPatientReportToPdf } from '@/lib/export/pdf';
+import { EmptyState } from '@/components/ui/empty-state';
 import { canManage, getManageDeniedMessage } from '@/lib/auth/permissions';
 
 const UPPER_RIGHT_TEETH = [8, 7, 6, 5, 4, 3, 2, 1];
@@ -68,7 +70,8 @@ const ALLOWED_HISTORY_IMAGE_TYPES = new Set([
 const HISTORY_IMAGE_UPLOAD_CONCURRENCY = 10;
 const MEDIA_READINESS_POLL_INTERVAL_MS = 1200;
 const MEDIA_READINESS_TIMEOUT_MS = 8000;
-const HISTORY_TABLE_GRID_CLASS = 'grid min-w-[980px] grid-cols-[120px_96px_minmax(220px,1.4fr)_116px_116px_120px_160px_84px] gap-3';
+const HISTORY_TABLE_GRID_CLASS = 'hidden lg:grid lg:min-w-[980px] lg:grid-cols-[120px_96px_minmax(220px,1.4fr)_116px_116px_120px_160px_84px] lg:gap-3';
+const HISTORY_HEADER_GRID_CLASS = HISTORY_TABLE_GRID_CLASS;
 
 const PatientPhotoPreviewDialog = dynamic(
     () => import('@/components/patients/patient-photo-preview-dialog').then((module) => module.PatientPhotoPreviewDialog),
@@ -195,10 +198,10 @@ function ToothCell({
 }) {
     return (
         <div
-            className={`flex h-8 w-full items-center justify-center rounded-md border text-xs font-semibold transition-colors ${
+            className={`flex h-full w-full items-center justify-center rounded-md border text-xs font-semibold transition-colors ${
                 selected
-                    ? 'border-teal-300 bg-teal-50 text-teal-700'
-                    : 'border-gray-200 bg-white text-gray-600'
+                    ? 'border-teal-600 bg-teal-500 text-white shadow-sm shadow-teal-200 ring-2 ring-teal-200'
+                    : 'border-gray-200 bg-white text-gray-600 hover:border-teal-300 hover:bg-teal-50'
             }`}
         >
             {label}
@@ -843,10 +846,63 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                     <div>
                         <CardTitle>{t('patientHistory.title')}</CardTitle>
                     </div>
-                    <Button onClick={openCreateDialog} disabled={!canManageHistory}>
-                        <Plus className="h-4 w-4" />
-                        {t('patientHistory.addEntry')}
-                    </Button>
+                    <div className="flex flex-col gap-2 sm:flex-row">
+                        {subscription?.can_export ? (
+                            <Button
+                                variant="outline"
+                                onClick={() => {
+                                    const treatmentRows = treatments.map((tr) => [
+                                        formatDate(tr.treatment_date),
+                                        formatTeeth(tr.teeth ?? []) || '-',
+                                        tr.treatment_type,
+                                        formatCurrency(Number(tr.debt_amount ?? 0)),
+                                        formatCurrency(Number(tr.paid_amount ?? 0)),
+                                        formatCurrency(Number(tr.balance ?? 0)),
+                                    ]);
+                                    exportPatientReportToPdf({
+                                        filename: buildPdfFilename(`patient-${patientName.replace(/\s+/g, '-').toLowerCase()}`),
+                                        title: t('patientHistory.title'),
+                                        patientName,
+                                        patientMeta: [
+                                            t('patientDetail.totalAppointments') + ': ' + treatments.length,
+                                            new Date().toLocaleDateString(),
+                                        ],
+                                        summary: [
+                                            { label: t('patientHistory.totalDebt'), value: formatCurrency(summary.totalDebt), tone: 'red' },
+                                            { label: t('patientHistory.totalPaid'), value: formatCurrency(summary.totalPaid), tone: 'green' },
+                                            { label: t('patientHistory.netBalance'), value: formatCurrency(summary.netBalance), tone: 'yellow' },
+                                        ],
+                                        sections: [
+                                            {
+                                                title: t('patientHistory.title'),
+                                                table: {
+                                                    columns: [
+                                                        t('patientHistory.table.date'),
+                                                        t('patientHistory.teethLabel'),
+                                                        t('patientHistory.table.workDone'),
+                                                        t('patientHistory.table.debt'),
+                                                        t('patientHistory.table.paid'),
+                                                        t('patientHistory.table.remaining'),
+                                                    ],
+                                                    rows: treatmentRows,
+                                                    emptyText: t('patientHistory.empty'),
+                                                },
+                                            },
+                                        ],
+                                        orientation: 'portrait',
+                                    });
+                                    toast.success(t('export.downloaded'));
+                                }}
+                            >
+                                <Download className="h-4 w-4" />
+                                {t('common.export')}
+                            </Button>
+                        ) : null}
+                        <Button onClick={openCreateDialog} disabled={!canManageHistory}>
+                            <Plus className="h-4 w-4" />
+                            {t('patientHistory.addEntry')}
+                        </Button>
+                    </div>
                 </CardHeader>
                 <CardContent className="space-y-6">
                     <ClinicalSnapshotCard
@@ -857,7 +913,7 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                     />
 
                     <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-                        <MetricSummaryCard label={t('patientHistory.totalDebt')} value={formatCurrency(summary.totalDebt)} tone="amber" />
+                        <MetricSummaryCard label={t('patientHistory.totalDebt')} value={formatCurrency(summary.totalDebt)} tone="red" />
                         <MetricSummaryCard label={t('patientHistory.totalPaid')} value={formatCurrency(summary.totalPaid)} tone="emerald" />
                         <MetricSummaryCard
                             label={t('patientHistory.netBalance')}
@@ -868,7 +924,7 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
 
                     {isLoading ? (
                         <div className="overflow-x-auto rounded-2xl border border-gray-200 bg-white pb-1">
-                            <div className={`${HISTORY_TABLE_GRID_CLASS} border-b border-gray-200 bg-gray-50 px-4 py-3 text-xs font-medium uppercase tracking-wide text-gray-500`}>
+                            <div className={`${HISTORY_HEADER_GRID_CLASS} border-b border-gray-200 bg-gray-50 px-4 py-3 text-xs font-medium uppercase tracking-wide text-gray-500`}>
                                 <span>{t('patientHistory.table.date')}</span>
                                 <span>{t('patientHistory.teethLabel')}</span>
                                 <span>{t('patientHistory.table.workDone')}</span>
@@ -908,17 +964,21 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                             <Button variant="outline" onClick={() => treatmentsQuery.refetch()}>{t('common.retry')}</Button>
                         </div>
                     ) : treatments.length === 0 ? (
-                        <div className="rounded-2xl border border-dashed border-gray-200 px-6 py-10 text-center">
-                            <CalendarDays className="mx-auto h-10 w-10 text-gray-300" />
-                            <p className="mt-4 text-sm text-gray-500">{t('patientHistory.empty')}</p>
-                            <Button variant="outline" className="mt-4" onClick={openCreateDialog} disabled={!canManageHistory}>
-                                <Plus className="h-4 w-4" />
-                                {t('patientHistory.addFirstEntry')}
-                            </Button>
+                        <div className="rounded-2xl border border-dashed border-slate-200">
+                            <EmptyState
+                                icon={CalendarDays}
+                                title={t('patientHistory.empty')}
+                                action={(
+                                    <Button variant="outline" onClick={openCreateDialog} disabled={!canManageHistory}>
+                                        <Plus className="h-4 w-4 mr-1.5" />
+                                        {t('patientHistory.addFirstEntry')}
+                                    </Button>
+                                )}
+                            />
                         </div>
                     ) : (
                         <div className="overflow-x-auto rounded-2xl border border-gray-200 bg-white pb-1">
-                            <div className={`${HISTORY_TABLE_GRID_CLASS} border-b border-gray-200 bg-gray-50 px-4 py-3 text-xs font-medium uppercase tracking-wide text-gray-500`}>
+                            <div className={`${HISTORY_HEADER_GRID_CLASS} border-b border-gray-200 bg-gray-50 px-4 py-3 text-xs font-medium uppercase tracking-wide text-gray-500`}>
                                 <span>{t('patientHistory.table.date')}</span>
                                 <span>{t('patientHistory.teethLabel')}</span>
                                 <span>{t('patientHistory.table.workDone')}</span>
@@ -929,14 +989,112 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                 <span className="text-right" />
                             </div>
                             <div className="divide-y divide-gray-100">
-                                {treatments.map((treatment) => (
-                                    <div key={treatment.id} className={`${HISTORY_TABLE_GRID_CLASS} items-start px-4 py-4 transition-colors hover:bg-gray-50/50`}>
+                                {treatments.map((treatment) => {
+                                    const teeth = treatment.teeth ?? [];
+                                    const firstTooth = teeth[0];
+                                    const hiddenToothCount = Math.max(teeth.length - 1, 0);
+                                    const debtAmount = Number(treatment.debt_amount);
+                                    const paidAmount = Number(treatment.paid_amount);
+                                    const balanceAmount = Number(treatment.balance);
+                                    const treatmentImageCount = getTreatmentImageCount(treatment);
+                                    const primaryImage = getTreatmentPrimaryImage(treatment);
+                                    const primaryImageThumbnailUrl = primaryImage ? getTreatmentImageThumbnailUrl(primaryImage) : null;
+
+                                    return (
+                                    <div key={treatment.id}>
+                                        {/* MOBILE COMPACT CARD */}
+                                        <div className="space-y-2.5 px-3 py-3 lg:hidden">
+                                            <div className="flex items-start justify-between gap-2">
+                                                <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+                                                    <span className="text-xs font-semibold tabular-nums text-gray-500">{formatDate(treatment.treatment_date)}</span>
+                                                    {teeth.length === 0 ? null : (
+                                                        <div className="flex flex-wrap items-center gap-1" title={formatTeeth(teeth)}>
+                                                            <span className="inline-flex h-6 min-w-6 items-center justify-center rounded-full border border-gray-200 bg-white px-1.5 text-[11px] font-semibold text-gray-700">
+                                                                {firstTooth}
+                                                            </span>
+                                                            {hiddenToothCount > 0 ? (
+                                                                <span className="inline-flex h-6 items-center justify-center rounded-full border border-teal-200 bg-teal-50 px-1.5 text-[11px] font-semibold text-teal-700">
+                                                                    +{hiddenToothCount}
+                                                                </span>
+                                                            ) : null}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                <div className="flex shrink-0 items-center gap-1.5">
+                                                    <Button
+                                                        type="button"
+                                                        variant="outline"
+                                                        size="icon-sm"
+                                                        className="h-8 w-8 border-gray-200 bg-white text-gray-700 shadow-sm hover:bg-gray-100"
+                                                        aria-label={t('patientHistory.editEntry')}
+                                                        disabled={detailLoadingTreatmentId === treatment.id || !canManageHistory}
+                                                        onClick={() => { void openEditDialog(treatment); }}
+                                                    >
+                                                        <Pencil className="h-3.5 w-3.5" />
+                                                    </Button>
+                                                    <Button
+                                                        type="button"
+                                                        variant="outline"
+                                                        size="icon-sm"
+                                                        className="h-8 w-8 border-red-200 bg-red-50 text-red-600 shadow-sm hover:bg-red-100 hover:text-red-700"
+                                                        aria-label={t('patientHistory.deleteEntry')}
+                                                        disabled={!canManageHistory}
+                                                        onClick={() => {
+                                                            if (!canManageHistory) { toast.error(manageDeniedMessage); return; }
+                                                            setTreatmentToDelete(treatment);
+                                                        }}
+                                                    >
+                                                        <Trash2 className="h-3.5 w-3.5" />
+                                                    </Button>
+                                                </div>
+                                            </div>
+                                            <p className="text-sm font-semibold leading-snug text-gray-900 break-words" title={treatment.treatment_type}>
+                                                {treatment.treatment_type}
+                                            </p>
+                                            <div className="grid grid-cols-3 gap-2 border-t border-gray-100 pt-2">
+                                                <div>
+                                                    <p className="text-[9px] font-semibold uppercase tracking-wider text-gray-400">{t('patientHistory.table.debt')}</p>
+                                                    <p className="mt-0.5 truncate text-xs font-bold tabular-nums text-red-700">{formatCurrency(debtAmount)}</p>
+                                                </div>
+                                                <div>
+                                                    <p className="text-[9px] font-semibold uppercase tracking-wider text-gray-400">{t('patientHistory.table.paid')}</p>
+                                                    <p className="mt-0.5 truncate text-xs font-bold tabular-nums text-green-700">{formatCurrency(paidAmount)}</p>
+                                                </div>
+                                                <div>
+                                                    <p className="text-[9px] font-semibold uppercase tracking-wider text-gray-400">{t('patientHistory.table.remaining')}</p>
+                                                    <p className="mt-0.5 truncate text-xs font-bold tabular-nums text-yellow-800">{formatCurrency(balanceAmount)}</p>
+                                                </div>
+                                            </div>
+                                            {treatmentImageCount > 0 && primaryImageThumbnailUrl ? (
+                                                <button
+                                                    type="button"
+                                                    className="group inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-xs font-semibold text-gray-700 shadow-sm transition-all hover:border-teal-400 hover:bg-teal-50"
+                                                    onClick={() => { void openTreatmentImageGallery(treatment, 0); }}
+                                                    aria-label={`${t('patientHistory.images')} (${treatmentImageCount})`}
+                                                >
+                                                    <span className="inline-flex h-6 w-6 items-center justify-center overflow-hidden rounded-md border border-gray-200 bg-gray-100">
+                                                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                        <img
+                                                            src={primaryImageThumbnailUrl}
+                                                            alt={`${patientName} ${t('patientHistory.image')} 1`}
+                                                            crossOrigin={getProtectedMediaCrossOrigin(primaryImageThumbnailUrl)}
+                                                            className="h-full w-full object-cover"
+                                                            loading="lazy"
+                                                        />
+                                                    </span>
+                                                    <span className="inline-flex h-5 items-center rounded-md bg-teal-100 px-1.5 text-[11px] font-bold text-teal-700">+{treatmentImageCount}</span>
+                                                </button>
+                                            ) : null}
+                                        </div>
+
+                                        {/* DESKTOP GRID ROW */}
+                                        <div className={`${HISTORY_TABLE_GRID_CLASS} items-start px-4 py-4 transition-colors hover:bg-gray-50/50`}>
                                         <div>
-                                            <p className="sr-only">{t('patientHistory.table.date')}</p>
+                                            <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 lg:sr-only">{t('patientHistory.table.date')}</p>
                                             <p className="text-sm text-gray-700">{formatDate(treatment.treatment_date)}</p>
                                         </div>
                                         <div>
-                                            <p className="sr-only">{t('patientHistory.teethLabel')}</p>
+                                            <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 lg:sr-only">{t('patientHistory.teethLabel')}</p>
                                             {(() => {
                                                 const teeth = treatment.teeth ?? [];
                                                 if (teeth.length === 0) {
@@ -967,7 +1125,7 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                             })()}
                                         </div>
                                         <div className="min-w-0">
-                                            <p className="sr-only">{t('patientHistory.table.workDone')}</p>
+                                            <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 lg:sr-only">{t('patientHistory.table.workDone')}</p>
                                             <p
                                                 className="max-w-[220px] truncate text-sm font-semibold text-gray-900 sm:max-w-[260px] lg:max-w-[300px] xl:max-w-[340px]"
                                                 title={treatment.treatment_type}
@@ -976,21 +1134,21 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                             </p>
                                         </div>
                                         <div>
-                                            <p className="sr-only">{t('patientHistory.table.debt')}</p>
+                                            <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 lg:sr-only">{t('patientHistory.table.debt')}</p>
                                             <p className="whitespace-nowrap text-sm font-semibold text-red-700">{formatCurrency(Number(treatment.debt_amount))}</p>
                                         </div>
                                         <div>
-                                            <p className="sr-only">{t('patientHistory.table.paid')}</p>
+                                            <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 lg:sr-only">{t('patientHistory.table.paid')}</p>
                                             <p className="whitespace-nowrap text-sm font-semibold text-green-700">{formatCurrency(Number(treatment.paid_amount))}</p>
                                         </div>
                                         <div>
-                                            <p className="sr-only">{t('patientHistory.table.remaining')}</p>
-                                            <p className={`whitespace-nowrap text-sm font-semibold ${Number(treatment.balance) > 0 ? 'text-red-700' : 'text-green-700'}`}>
+                                            <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 lg:sr-only">{t('patientHistory.table.remaining')}</p>
+                                            <p className="whitespace-nowrap text-sm font-semibold text-yellow-800">
                                                 {formatCurrency(Number(treatment.balance))}
                                             </p>
                                         </div>
                                         <div className="lg:flex lg:items-center">
-                                            <p className="sr-only">{t('patientHistory.images')}</p>
+                                            <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 lg:sr-only">{t('patientHistory.images')}</p>
                                             {(() => {
                                                 const treatmentImageCount = getTreatmentImageCount(treatment);
                                                 const primaryImage = getTreatmentPrimaryImage(treatment);
@@ -1093,8 +1251,10 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                                 <Trash2 className="h-4 w-4" />
                                             </Button>
                                         </div>
+                                        </div>
                                     </div>
-                                ))}
+                                    );
+                                })}
                             </div>
                         </div>
                     )}                </CardContent>
@@ -1125,64 +1285,124 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                         </div>
                         <div className="space-y-2">
                             <Label>{t('patientHistory.teethLabel')}</Label>
-                            <div className="rounded-xl border border-gray-200 bg-gray-50/60 p-2">
-                                <div className="space-y-1.5">
-                                    <div>
-                                        <p className="mb-1.5 text-[11px] font-medium uppercase tracking-wide text-gray-500">{t('odontogram.upperJaw')}</p>
-                                        <div className="pb-1">
-                                            <div className="grid grid-cols-[repeat(16,minmax(0,1fr))] gap-1">
-                                            {UPPER_TEETH.map((toothNumber) => {
-                                                const isSelected = formState.teeth.includes(toothNumber);
-                                                return (
-                                                    <button
-                                                        key={toothNumber}
-                                                        type="button"
-                                                        className="rounded-md border border-transparent p-0 transition-colors hover:border-gray-200"
-                                                        onClick={() =>
-                                                            setFormState((current) => ({
-                                                                ...current,
-                                                                teeth: isSelected
-                                                                    ? current.teeth.filter((value) => value !== toothNumber)
-                                                                    : [...current.teeth, toothNumber].sort((a, b) => a - b),
-                                                            }))
-                                                        }
-                                                        aria-pressed={isSelected}
-                                                        title={t('odontogram.toothTitle', { toothNumber })}
-                                                    >
-                                                        <ToothCell selected={isSelected} label={toothNumber} />
-                                                    </button>
-                                                );
-                                            })}
+                            <div>
+                                <div className="space-y-4">
+                                    <div className="space-y-2">
+                                        <p className="text-center text-sm font-medium text-gray-700">{t('odontogram.upperJaw')}</p>
+                                        <div className="flex justify-center gap-3 md:gap-4 max-md:flex-col max-md:items-center max-md:gap-2">
+                                            <div>
+                                                <p className="mb-0.5 text-center text-xs text-gray-500">{t('odontogram.upperRight')}</p>
+                                                <div className="flex gap-1 md:gap-0.5">
+                                                    {UPPER_RIGHT_TEETH.map((toothNumber) => {
+                                                        const isSelected = formState.teeth.includes(toothNumber);
+                                                        return (
+                                                            <button
+                                                                key={toothNumber}
+                                                                type="button"
+                                                                className="h-9 w-7 rounded-md p-0 transition-colors md:w-6"
+                                                                onClick={() =>
+                                                                    setFormState((current) => ({
+                                                                        ...current,
+                                                                        teeth: isSelected
+                                                                            ? current.teeth.filter((value) => value !== toothNumber)
+                                                                            : [...current.teeth, toothNumber].sort((a, b) => a - b),
+                                                                    }))
+                                                                }
+                                                                aria-pressed={isSelected}
+                                                                title={t('odontogram.toothTitle', { toothNumber })}
+                                                            >
+                                                                <ToothCell selected={isSelected} label={toothNumber} />
+                                                            </button>
+                                                        );
+                                                    })}
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <p className="mb-0.5 text-center text-xs text-gray-500">{t('odontogram.upperLeft')}</p>
+                                                <div className="flex gap-1 md:gap-0.5">
+                                                    {UPPER_LEFT_TEETH.map((toothNumber) => {
+                                                        const isSelected = formState.teeth.includes(toothNumber);
+                                                        return (
+                                                            <button
+                                                                key={toothNumber}
+                                                                type="button"
+                                                                className="h-9 w-7 rounded-md p-0 transition-colors md:w-6"
+                                                                onClick={() =>
+                                                                    setFormState((current) => ({
+                                                                        ...current,
+                                                                        teeth: isSelected
+                                                                            ? current.teeth.filter((value) => value !== toothNumber)
+                                                                            : [...current.teeth, toothNumber].sort((a, b) => a - b),
+                                                                    }))
+                                                                }
+                                                                aria-pressed={isSelected}
+                                                                title={t('odontogram.toothTitle', { toothNumber })}
+                                                            >
+                                                                <ToothCell selected={isSelected} label={toothNumber} />
+                                                            </button>
+                                                        );
+                                                    })}
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
-                                    <div className="border-t border-gray-200" />
-                                    <div>
-                                        <p className="mb-1.5 text-[11px] font-medium uppercase tracking-wide text-gray-500">{t('odontogram.lowerJaw')}</p>
-                                        <div className="pb-1">
-                                            <div className="grid grid-cols-[repeat(16,minmax(0,1fr))] gap-1">
-                                            {LOWER_TEETH.map((toothNumber) => {
-                                                const isSelected = formState.teeth.includes(toothNumber);
-                                                return (
-                                                    <button
-                                                        key={toothNumber}
-                                                        type="button"
-                                                        className="rounded-md border border-transparent p-0 transition-colors hover:border-gray-200"
-                                                        onClick={() =>
-                                                            setFormState((current) => ({
-                                                                ...current,
-                                                                teeth: isSelected
-                                                                    ? current.teeth.filter((value) => value !== toothNumber)
-                                                                    : [...current.teeth, toothNumber].sort((a, b) => a - b),
-                                                            }))
-                                                        }
-                                                        aria-pressed={isSelected}
-                                                        title={t('odontogram.toothTitle', { toothNumber })}
-                                                    >
-                                                        <ToothCell selected={isSelected} label={toothNumber} />
-                                                    </button>
-                                                );
-                                            })}
+
+                                    <div className="space-y-2">
+                                        <p className="text-center text-sm font-medium text-gray-700">{t('odontogram.lowerJaw')}</p>
+                                        <div className="flex justify-center gap-3 md:gap-4 max-md:flex-col max-md:items-center max-md:gap-2">
+                                            <div>
+                                                <p className="mb-0.5 text-center text-xs text-gray-500">{t('odontogram.lowerRight')}</p>
+                                                <div className="flex gap-1 md:gap-0.5">
+                                                    {LOWER_RIGHT_TEETH.map((toothNumber) => {
+                                                        const isSelected = formState.teeth.includes(toothNumber);
+                                                        return (
+                                                            <button
+                                                                key={toothNumber}
+                                                                type="button"
+                                                                className="h-9 w-7 rounded-md p-0 transition-colors md:w-6"
+                                                                onClick={() =>
+                                                                    setFormState((current) => ({
+                                                                        ...current,
+                                                                        teeth: isSelected
+                                                                            ? current.teeth.filter((value) => value !== toothNumber)
+                                                                            : [...current.teeth, toothNumber].sort((a, b) => a - b),
+                                                                    }))
+                                                                }
+                                                                aria-pressed={isSelected}
+                                                                title={t('odontogram.toothTitle', { toothNumber })}
+                                                            >
+                                                                <ToothCell selected={isSelected} label={toothNumber} />
+                                                            </button>
+                                                        );
+                                                    })}
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <p className="mb-0.5 text-center text-xs text-gray-500">{t('odontogram.lowerLeft')}</p>
+                                                <div className="flex gap-1 md:gap-0.5">
+                                                    {LOWER_LEFT_TEETH.map((toothNumber) => {
+                                                        const isSelected = formState.teeth.includes(toothNumber);
+                                                        return (
+                                                            <button
+                                                                key={toothNumber}
+                                                                type="button"
+                                                                className="h-9 w-7 rounded-md p-0 transition-colors md:w-6"
+                                                                onClick={() =>
+                                                                    setFormState((current) => ({
+                                                                        ...current,
+                                                                        teeth: isSelected
+                                                                            ? current.teeth.filter((value) => value !== toothNumber)
+                                                                            : [...current.teeth, toothNumber].sort((a, b) => a - b),
+                                                                    }))
+                                                                }
+                                                                aria-pressed={isSelected}
+                                                                title={t('odontogram.toothTitle', { toothNumber })}
+                                                            >
+                                                                <ToothCell selected={isSelected} label={toothNumber} />
+                                                            </button>
+                                                        );
+                                                    })}
+                                                </div>
                                             </div>
                                         </div>
                                     </div>

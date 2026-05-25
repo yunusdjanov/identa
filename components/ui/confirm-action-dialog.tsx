@@ -61,8 +61,8 @@ export function ConfirmActionDialog({
                             <Icon className="h-5 w-5" />
                         </span>
                         <DialogHeader className="min-w-0 flex-1 pr-8 text-left">
-                            <DialogTitle className="text-[1.25rem]">{title}</DialogTitle>
-                            <DialogDescription className="text-[0.94rem] leading-6 text-slate-600">
+                            <DialogTitle className="text-xl">{title}</DialogTitle>
+                            <DialogDescription className="text-base leading-6 text-slate-600">
                                 {description}
                             </DialogDescription>
                         </DialogHeader>

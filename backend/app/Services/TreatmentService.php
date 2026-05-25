@@ -8,6 +8,7 @@ use App\Models\Patient;
 use App\Models\Treatment;
 use App\Models\User;
 use App\Support\AuditLogger;
+use App\Support\Search;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -98,18 +99,19 @@ class TreatmentService
         $search = $request->input('filter.search');
         if (is_string($search) && trim($search) !== '') {
             $search = trim($search);
+            // Case-insensitive everywhere: Postgres LIKE is case-sensitive
+            // and mobile keyboards default to lowercase, so naive LIKE
+            // misses any row whose text starts with a capital letter.
             $baseQuery->where(function (Builder $builder) use ($search): void {
-                $builder
-                    ->where('treatment_type', 'like', "%{$search}%")
-                    ->orWhere('comment', 'like', "%{$search}%")
-                    ->orWhere('description', 'like', "%{$search}%")
-                    ->orWhereHas('patient', function (Builder $patientBuilder) use ($search): void {
-                        $patientBuilder
-                            ->where('full_name', 'like', "%{$search}%")
-                            ->orWhere('phone', 'like', "%{$search}%")
-                            ->orWhere('secondary_phone', 'like', "%{$search}%")
-                            ->orWhere('patient_id', 'like', "%{$search}%");
-                    });
+                Search::ciLike($builder, 'treatment_type', $search);
+                Search::ciLike($builder, 'comment', $search, 'or');
+                Search::ciLike($builder, 'description', $search, 'or');
+                $builder->orWhereHas('patient', function (Builder $patientBuilder) use ($search): void {
+                    Search::ciLike($patientBuilder, 'full_name', $search);
+                    Search::ciLike($patientBuilder, 'phone', $search, 'or');
+                    Search::ciLike($patientBuilder, 'secondary_phone', $search, 'or');
+                    Search::ciLike($patientBuilder, 'patient_id', $search, 'or');
+                });
             });
         }
 

@@ -127,11 +127,7 @@ function isValidDateInput(value: string | undefined): value is string {
 }
 
 function formatPatientLabel(patient: { full_name: string; patient_id?: string | null }): string {
-    if (!patient.patient_id) {
-        return patient.full_name;
-    }
-
-    return `${patient.full_name} (${patient.patient_id})`;
+    return patient.full_name;
 }
 
 function hasAppointmentConflict(

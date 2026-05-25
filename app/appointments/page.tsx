@@ -40,7 +40,8 @@ import {
     type NormalizedAppointmentWorkingHours,
 } from '@/lib/appointments/time-slots';
 import { formatLocalizedDate } from '@/lib/i18n/date';
-import { Plus, Calendar as CalendarIcon, ChevronLeft, ChevronRight, Pencil, Trash2 } from 'lucide-react';
+import { Plus, Calendar as CalendarIcon, ChevronLeft, ChevronRight, Pencil, Trash2, Download } from 'lucide-react';
+import { buildPdfFilename, exportRowsToPdf } from '@/lib/export/pdf';
 import { AppointmentTimePicker } from '@/components/appointments/appointment-time-picker';
 import { ConfirmActionDialog } from '@/components/ui/confirm-action-dialog';
 import { AppErrorState } from '@/components/error/app-error-state';
@@ -70,16 +71,17 @@ const APPOINTMENT_MODAL_NAME_UI_LIMIT = 40;
 const APPOINTMENT_MODAL_REASON_UI_LIMIT = 56;
 const WEEK_VIEW_MIN_VISIBLE_APPOINTMENTS = 8;
 const WEEK_VIEW_MAX_VISIBLE_APPOINTMENTS = 9;
+const WEEK_VIEW_STACKED_VISIBLE_APPOINTMENTS = 7;
 const WEEK_VIEW_COMPACT_CARD_HEIGHT_CLASSES: Record<number, string> = {
-    8: 'h-[18rem]',
-    9: 'h-[19.5rem]',
+    8: 'h-[20rem]',
+    9: 'h-[21.5rem]',
 };
 const WEEK_VIEW_COMPACT_LIST_HEIGHT_CLASSES: Record<number, string> = {
-    8: 'h-[13rem]',
-    9: 'h-[14.5rem]',
+    8: 'h-[15rem]',
+    9: 'h-[16.5rem]',
 };
-const WEEK_VIEW_STACKED_CARD_HEIGHT_CLASS = 'min-h-[17.5rem] md:min-h-[18rem]';
-const WEEK_VIEW_STACKED_LIST_HEIGHT_CLASS = 'min-h-[11rem]';
+const WEEK_VIEW_STACKED_CARD_HEIGHT_CLASS = 'h-[23.5rem]';
+const WEEK_VIEW_STACKED_LIST_HEIGHT_CLASS = 'h-[16.5rem]';
 const APPOINTMENT_STATUS_VALUES = ['scheduled', 'completed', 'cancelled', 'no_show'] as const;
 type AppointmentStatus = (typeof APPOINTMENT_STATUS_VALUES)[number];
 
@@ -148,60 +150,60 @@ function getWeekStart(date: Date): Date {
 function getAppointmentCardClass(status: AppointmentRow['status']): string {
     switch (status) {
         case 'scheduled':
-            return 'border-slate-200 bg-white border-l-teal-400';
+            return 'border-slate-200 bg-white border-l-blue-500';
         case 'completed':
-            return 'border-slate-200 bg-white border-l-emerald-400';
+            return 'border-slate-200 bg-white border-l-teal-400';
         case 'cancelled':
-            return 'border-slate-200 bg-white border-l-slate-400';
+            return 'border-slate-200 bg-white border-l-slate-700';
         case 'no_show':
             return 'border-slate-200 bg-white border-l-rose-400';
         default:
-            return 'border-slate-200 bg-white border-l-teal-400';
+            return 'border-slate-200 bg-white border-l-blue-500';
     }
 }
 
 function getAppointmentBorderClass(status: AppointmentRow['status']): string {
     switch (status) {
         case 'scheduled':
-            return 'border-l-teal-400';
+            return 'border-l-blue-500';
         case 'completed':
-            return 'border-l-emerald-400';
+            return 'border-l-teal-400';
         case 'cancelled':
-            return 'border-l-slate-400';
+            return 'border-l-slate-700';
         case 'no_show':
             return 'border-l-rose-400';
         default:
-            return 'border-l-teal-400';
+            return 'border-l-blue-500';
     }
 }
 
 function getCompactAppointmentTimeClass(status: AppointmentRow['status']): string {
     switch (status) {
         case 'scheduled':
-            return 'bg-teal-50 text-teal-700 ring-1 ring-teal-100';
+            return 'bg-blue-50 text-blue-700 ring-1 ring-blue-100';
         case 'completed':
-            return 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100';
+            return 'bg-teal-50 text-teal-700 ring-1 ring-teal-100';
         case 'cancelled':
-            return 'bg-slate-100 text-slate-600 ring-1 ring-slate-200';
+            return 'bg-slate-200 text-slate-800 ring-1 ring-slate-300';
         case 'no_show':
             return 'bg-rose-50 text-rose-700 ring-1 ring-rose-100';
         default:
-            return 'bg-teal-50 text-teal-700 ring-1 ring-teal-100';
+            return 'bg-blue-50 text-blue-700 ring-1 ring-blue-100';
     }
 }
 
 function getAppointmentStatusBadgeClass(status: AppointmentRow['status']): string {
     switch (status) {
         case 'scheduled':
-            return 'bg-teal-50 text-teal-700 ring-1 ring-teal-100';
+            return 'bg-blue-50 text-blue-700 ring-1 ring-blue-100';
         case 'completed':
-            return 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100';
+            return 'bg-teal-50 text-teal-700 ring-1 ring-teal-100';
         case 'cancelled':
-            return 'bg-slate-100 text-slate-600 ring-1 ring-slate-200';
+            return 'bg-slate-200 text-slate-800 ring-1 ring-slate-300';
         case 'no_show':
             return 'bg-rose-50 text-rose-700 ring-1 ring-rose-100';
         default:
-            return 'bg-teal-50 text-teal-700 ring-1 ring-teal-100';
+            return 'bg-blue-50 text-blue-700 ring-1 ring-blue-100';
     }
 }
 
@@ -818,7 +820,7 @@ export default function AppointmentsPage() {
         const dayAppointments = appointmentsByDate.get(descriptor.dateKey) ?? [];
         const visibleAppointmentLimit = compact
             ? weekViewCompactVisibleAppointments
-            : WEEK_VIEW_MIN_VISIBLE_APPOINTMENTS;
+            : WEEK_VIEW_STACKED_VISIBLE_APPOINTMENTS;
         const visibleAppointments = dayAppointments.slice(
             0,
             visibleAppointmentLimit
@@ -895,20 +897,20 @@ export default function AppointmentsPage() {
                 <div className={`flex flex-1 min-h-0 flex-col ${compact ? 'p-1' : 'gap-2 p-2'}`}>
                     {dayAppointments.length === 0 ? (
                         <div className={`flex flex-1 items-center justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50/70 px-3 text-center text-sm text-slate-500 ${
-                            compact ? 'h-[8.75rem] py-4' : `${WEEK_VIEW_STACKED_LIST_HEIGHT_CLASS} py-4`
+                            compact ? `${compactListHeightClass} py-4` : `${WEEK_VIEW_STACKED_LIST_HEIGHT_CLASS} py-4`
                         }`}>
                             {t('appointments.noAppointments')}
                         </div>
                     ) : (
                         <>
                             <div className={compact ? `${compactListHeightClass} rounded-xl border border-slate-100 bg-slate-50/70 p-1.5` : `${WEEK_VIEW_STACKED_LIST_HEIGHT_CLASS} space-y-1.5 rounded-xl border border-slate-100 bg-slate-50/70 p-1.5`}>
-                                <div className={compact ? 'space-y-0.5' : ''}>
+                                <div className={compact ? 'space-y-1' : ''}>
                                 {visibleAppointments.map((appointment) => (
                                     <div
                                         key={appointment.id}
                                         className={`border-l-4 ${
                                             compact
-                                                ? `${getAppointmentBorderClass(appointment.status)} flex h-[1.35rem] items-center rounded-lg bg-white px-1.5 shadow-xs ring-1 ring-slate-100`
+                                                ? `${getAppointmentBorderClass(appointment.status)} flex h-6 items-center rounded-lg bg-white px-2 shadow-xs ring-1 ring-slate-100`
                                                 : 'rounded-lg px-2.5 py-1.5'
                                         } ${
                                             compact ? '' : getAppointmentCardClass(appointment.status)
@@ -921,10 +923,8 @@ export default function AppointmentsPage() {
                                                     title={`${appointment.startTime} ${appointment.patientName}`}
                                                 >
                                                     <span
-                                                        className={`inline-flex shrink-0 items-center rounded-md px-1.5 py-0.5 font-medium ${
-                                                            compact
-                                                                ? `text-[9px] ${getCompactAppointmentTimeClass(appointment.status)}`
-                                                                : 'text-xs text-slate-700'
+                                                        className={`shrink-0 font-semibold tabular-nums text-slate-600 ${
+                                                            compact ? 'text-[11px]' : 'text-xs'
                                                         }`}
                                                     >
                                                         {appointment.startTime}
@@ -1165,19 +1165,72 @@ export default function AppointmentsPage() {
                 title={t('appointments.title')}
                 description={t('appointments.subtitle')}
                 actions={(
-                    <Button
-                        className="w-full sm:w-auto"
-                        disabled={!canManageAppointments}
-                        onClick={() => openAddDialog({ date: currentDate })}
-                    >
-                        <Plus aria-hidden="true" className="w-4 h-4 mr-2" />
-                        {t('appointments.new')}
-                    </Button>
+                    <>
+                        {currentUser?.subscription?.can_export ? (
+                            <Button
+                                variant="outline"
+                                className="w-full sm:w-auto"
+                                disabled={appointmentRows.length === 0}
+                                onClick={() => {
+                                    if (appointmentRows.length === 0) {
+                                        toast.error(t('export.empty'));
+                                        return;
+                                    }
+                                    const sortedRows = [...appointmentRows].sort((a, b) => {
+                                        const dateCmp = a.appointmentDate.localeCompare(b.appointmentDate);
+                                        return dateCmp !== 0 ? dateCmp : a.startTime.localeCompare(b.startTime);
+                                    });
+                                    const rows = sortedRows.map((apt) => [
+                                        formatLocalizedDate(apt.appointmentDate, locale, { year: 'numeric', month: 'short', day: 'numeric' }),
+                                        `${apt.startTime} - ${apt.endTime}`,
+                                        apt.patientName,
+                                        apt.reason || '-',
+                                        t(`status.${apt.status}`) ?? apt.status,
+                                    ]);
+                                    const statusCounts = sortedRows.reduce<Record<string, number>>((acc, r) => {
+                                        acc[r.status] = (acc[r.status] ?? 0) + 1;
+                                        return acc;
+                                    }, {});
+                                    exportRowsToPdf({
+                                        filename: buildPdfFilename('appointments'),
+                                        title: t('appointments.title'),
+                                        subtitle: t('appointments.subtitle'),
+                                        columns: [
+                                            t('appointments.table.date') ?? 'Date',
+                                            t('appointments.table.time') ?? 'Time',
+                                            t('appointments.table.patient') ?? 'Patient',
+                                            t('appointments.table.reason') ?? 'Reason',
+                                            t('appointments.table.status') ?? 'Status',
+                                        ],
+                                        rows,
+                                        summary: [
+                                            { label: t('appointments.title'), value: String(sortedRows.length) },
+                                            { label: t('status.scheduled'), value: String(statusCounts.scheduled ?? 0) },
+                                            { label: t('status.completed'), value: String(statusCounts.completed ?? 0) },
+                                        ],
+                                        orientation: 'landscape',
+                                    });
+                                    toast.success(t('export.downloaded'));
+                                }}
+                            >
+                                <Download className="w-4 h-4 mr-2" />
+                                {t('common.export')}
+                            </Button>
+                        ) : null}
+                        <Button
+                            className="w-full sm:w-auto"
+                            disabled={!canManageAppointments}
+                            onClick={() => openAddDialog({ date: currentDate })}
+                        >
+                            <Plus aria-hidden="true" className="w-4 h-4 mr-2" />
+                            {t('appointments.new')}
+                        </Button>
+                    </>
                 )}
             />
 
             <Card className="overflow-hidden rounded-[1.5rem] border-teal-100/80 bg-white/95 shadow-sm shadow-teal-100/50 sm:rounded-[1.75rem]">
-                <CardContent className="p-3 sm:p-5">
+                <CardContent className="p-3 sm:p-5 xl:pb-2.5">
                     <div className="space-y-4">
                         <div className="flex flex-col gap-3 rounded-2xl border border-teal-100/80 bg-gradient-to-r from-white via-teal-100/30 to-white p-3 shadow-xs md:flex-row md:items-center md:justify-between">
                             <div className="inline-flex w-full items-center gap-1 rounded-xl border border-slate-200/80 bg-slate-100/70 p-1 shadow-xs sm:w-auto">
@@ -1455,21 +1508,21 @@ export default function AppointmentsPage() {
                         </div>
                             </div>
             ) : (
-                            <div className="space-y-2.5">
-                        <div className="hidden lg:grid lg:grid-cols-7 lg:gap-2.5">
+                            <div className="space-y-3">
+                        <div className="hidden xl:grid xl:grid-cols-7 xl:gap-2.5">
                             {weekDateDescriptors.map((descriptor) => renderWeekDayCard(descriptor, { compact: true }))}
                         </div>
-                        <div className="hidden lg:flex lg:items-center lg:justify-center lg:gap-6 lg:pt-1.5">
+                        <div className="hidden xl:flex xl:items-center xl:justify-center xl:gap-6 xl:pt-5">
                             <div className="flex items-center gap-2 text-xs text-slate-500">
-                                <span className="h-2.5 w-2.5 rounded-full bg-teal-400" aria-hidden="true" />
+                                <span className="h-2.5 w-2.5 rounded-full bg-blue-500" aria-hidden="true" />
                                 <span>{t('status.scheduled')}</span>
                             </div>
                             <div className="flex items-center gap-2 text-xs text-slate-500">
-                                <span className="h-2.5 w-2.5 rounded-full bg-emerald-400" aria-hidden="true" />
+                                <span className="h-2.5 w-2.5 rounded-full bg-teal-400" aria-hidden="true" />
                                 <span>{t('status.completed')}</span>
                             </div>
                             <div className="flex items-center gap-2 text-xs text-slate-500">
-                                <span className="h-2.5 w-2.5 rounded-full bg-slate-400" aria-hidden="true" />
+                                <span className="h-2.5 w-2.5 rounded-full bg-slate-700" aria-hidden="true" />
                                 <span>{t('status.cancelled')}</span>
                             </div>
                             <div className="flex items-center gap-2 text-xs text-slate-500">
@@ -1477,7 +1530,7 @@ export default function AppointmentsPage() {
                                 <span>{t('status.no_show')}</span>
                             </div>
                         </div>
-                        <div className="space-y-3 lg:hidden">
+                        <div className="space-y-3 xl:hidden">
                             <div className="grid grid-cols-1 items-stretch gap-3 md:grid-cols-2 lg:grid-cols-4">
                                 {weekDateDescriptors.slice(0, 4).map((descriptor) => renderWeekDayCard(descriptor, { includeTestIds: true }))}
                             </div>

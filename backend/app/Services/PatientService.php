@@ -9,6 +9,7 @@ use App\Models\Patient;
 use App\Models\Treatment;
 use App\Models\User;
 use App\Support\AuditLogger;
+use App\Support\Search;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -56,12 +57,10 @@ class PatientService
 
         $search = $request->input('filter.search');
         if (is_string($search) && $search !== '') {
-            $query->where(function (Builder $builder) use ($search): void {
-                $builder
-                    ->where('full_name', 'like', "%{$search}%")
-                    ->orWhere('phone', 'like', "%{$search}%")
-                    ->orWhere('secondary_phone', 'like', "%{$search}%");
-            });
+            // Case-insensitive across Postgres (case-sensitive LIKE) and
+            // MySQL/SQLite so a lowercase keyboard query like "test" matches
+            // a stored "Test". See App\Support\Search for rationale.
+            Search::ciLikeAny($query, ['full_name', 'phone', 'secondary_phone'], $search);
         }
 
         $categoryIds = $this->categoryFilterIds($request);
@@ -109,12 +108,7 @@ class PatientService
 
         $search = $request->input('filter.search');
         if (is_string($search) && $search !== '') {
-            $query->where(function (Builder $builder) use ($search): void {
-                $builder
-                    ->where('full_name', 'like', "%{$search}%")
-                    ->orWhere('phone', 'like', "%{$search}%")
-                    ->orWhere('secondary_phone', 'like', "%{$search}%");
-            });
+            Search::ciLikeAny($query, ['full_name', 'phone', 'secondary_phone'], $search);
         }
 
         return $query->paginate(min($this->perPage($request), 50), [

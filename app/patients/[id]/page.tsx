@@ -1,11 +1,10 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { use, useMemo, useState, type ReactNode } from 'react';
+import { use, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ConfirmActionDialog } from '@/components/ui/confirm-action-dialog';
@@ -28,19 +27,30 @@ import {
     truncateForUi,
 } from '@/lib/utils';
 import {
+    Activity,
     AlertCircle,
     ArrowLeft,
+    ArrowRight,
     Calendar,
     CalendarCheck,
+    CalendarClock,
+    ClipboardList,
     Clock3,
+    Contact,
     Edit,
+    FileText,
     Hash,
     HeartPulse,
+    Lock,
     MapPin,
     Phone,
+    Pill,
+    Plus,
     Trash2,
+    User,
     Wallet,
 } from 'lucide-react';
+import { EmptyState } from '@/components/ui/empty-state';
 import { toast } from 'sonner';
 import { useI18n } from '@/components/providers/i18n-provider';
 import { getProtectedMediaCrossOrigin, getProtectedMediaThumbnailUrl } from '@/lib/protected-media';
@@ -48,6 +58,7 @@ import { INPUT_LIMITS } from '@/lib/input-validation';
 import { AppErrorState } from '@/components/error/app-error-state';
 import { AccessDeniedState } from '@/components/error/access-denied-state';
 import { canManage, canView, PERMISSION_DENIED_MESSAGE } from '@/lib/auth/permissions';
+import { getStatusTone } from '@/lib/appointments/status-tone';
 
 const EditPatientDialog = dynamic(
     () => import('@/components/patients/edit-patient-dialog').then((module) => module.EditPatientDialog),
@@ -59,30 +70,6 @@ const PATIENT_CATEGORY_CHIP_UI_LIMIT = 20;
 const PATIENT_ALLERGIES_UI_LIMIT = INPUT_LIMITS.medicalAllergies;
 const PATIENT_MEDICATIONS_UI_LIMIT = INPUT_LIMITS.medicalMedications;
 const PATIENT_MEDICAL_HISTORY_UI_LIMIT = INPUT_LIMITS.medicalHistory;
-
-function InfoRow({
-    icon,
-    label,
-    value,
-    valueClassName,
-}: {
-    icon: ReactNode;
-    label: string;
-    value: ReactNode;
-    valueClassName?: string;
-}) {
-    return (
-        <div className="flex items-center gap-4 border-b border-slate-100 py-2.5 first:pt-2 last:border-0 last:pb-1">
-            <div className="flex shrink-0 items-center gap-2 text-slate-400">
-                {icon}
-                <span className="text-xs">{label}</span>
-            </div>
-            <span className={`min-w-0 flex-1 truncate text-right text-[13px] font-semibold text-slate-800 ${valueClassName ?? ''}`}>
-                {value}
-            </span>
-        </div>
-    );
-}
 
 function getPatientInitials(fullName: string): string {
     const parts = fullName.trim().split(/\s+/).filter(Boolean);
@@ -97,14 +84,171 @@ function getPatientInitials(fullName: string): string {
     return `${parts[0][0] ?? ''}${parts[1][0] ?? ''}`.toUpperCase();
 }
 
+function computePatientAge(dateOfBirth: string): number {
+    const birth = new Date(dateOfBirth);
+    if (Number.isNaN(birth.getTime())) {
+        return 0;
+    }
+    const today = new Date();
+    let age = today.getFullYear() - birth.getFullYear();
+    const monthDiff = today.getMonth() - birth.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+        age--;
+    }
+    return Math.max(0, age);
+}
+
+/* ============================================================
+   Premium triad helpers — Vitals · Reach · Clinical
+   Inspired by Linear/Vercel/Stripe customer detail layouts:
+   – top-edge accent gradient strip for category color story
+   – icon hexagon with gradient fill + ring
+   – micro-uppercase labels (10px / 0.14em tracking)
+   – tabular numerals everywhere a number lives
+   ============================================================ */
+
+function VitalStatCell({
+    icon: Icon,
+    label,
+    value,
+    valueClassName,
+}: {
+    icon: React.ComponentType<{ className?: string }>;
+    label: string;
+    value: string;
+    valueClassName?: string;
+}) {
+    return (
+        <div className="flex flex-col items-center justify-center gap-1 bg-white px-3 py-4 text-center">
+            <div className="inline-flex items-center gap-1 text-slate-400">
+                <Icon className="h-3 w-3" />
+                <p className="text-[10px] font-semibold uppercase tracking-[0.12em]">{label}</p>
+            </div>
+            <p className={`max-w-full truncate text-[13px] font-semibold tabular-nums text-slate-900 ${valueClassName ?? ''}`} title={value}>
+                {value}
+            </p>
+        </div>
+    );
+}
+
+function ReachRow({
+    icon: Icon,
+    label,
+    value,
+    href,
+    multiline = false,
+}: {
+    icon: React.ComponentType<{ className?: string }>;
+    label: string;
+    value: string;
+    href?: string;
+    multiline?: boolean;
+}) {
+    const valueNode = (
+        <span
+            className={`ml-auto max-w-[62%] text-right text-[13px] font-semibold tabular-nums text-slate-900 ${multiline ? 'whitespace-normal break-words' : 'truncate'}`}
+            title={value}
+        >
+            {value}
+        </span>
+    );
+
+    const inner = (
+        <>
+            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-500 transition-all group-hover/row:bg-teal-100 group-hover/row:text-teal-700">
+                <Icon className="h-3.5 w-3.5" />
+            </span>
+            <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">{label}</span>
+            {valueNode}
+        </>
+    );
+
+    const base = 'group/row flex items-center gap-3 rounded-xl px-3 py-2.5 transition-colors';
+    if (href) {
+        return (
+            <a href={href} className={`${base} hover:bg-teal-50/70`}>
+                {inner}
+            </a>
+        );
+    }
+    return <div className={`${base} hover:bg-slate-50`}>{inner}</div>;
+}
+
+function ClinicalSection({
+    icon: Icon,
+    label,
+    value,
+    tone = 'slate',
+    truncateLimit,
+    emptyLabel,
+}: {
+    icon: React.ComponentType<{ className?: string }>;
+    label: string;
+    value: string | null | undefined;
+    tone?: 'rose' | 'amber' | 'slate';
+    truncateLimit: number;
+    emptyLabel: string;
+}) {
+    const tones = {
+        rose: {
+            box: 'bg-rose-50/70 ring-rose-100',
+            labelText: 'text-rose-700',
+            valueText: 'text-rose-900',
+            icon: 'text-rose-600',
+        },
+        amber: {
+            box: 'bg-amber-50/70 ring-amber-100',
+            labelText: 'text-amber-800',
+            valueText: 'text-amber-950',
+            icon: 'text-amber-600',
+        },
+        slate: {
+            box: 'bg-slate-50 ring-slate-100',
+            labelText: 'text-slate-600',
+            valueText: 'text-slate-800',
+            icon: 'text-slate-500',
+        },
+    } as const;
+    const t = tones[tone];
+    if (!value) {
+        return (
+            <div className="rounded-xl border border-dashed border-slate-200 px-3 py-2.5">
+                <div className="flex items-center gap-1.5">
+                    <Icon className="h-3 w-3 shrink-0 text-slate-400" />
+                    <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">{label}</p>
+                </div>
+                <p className="mt-1 text-[11px] italic text-slate-400">{emptyLabel}</p>
+            </div>
+        );
+    }
+    return (
+        <div className={`rounded-xl px-3 py-2.5 ring-1 ${t.box}`}>
+            <div className="flex items-center gap-1.5">
+                <Icon className={`h-3 w-3 shrink-0 ${t.icon}`} />
+                <p className={`text-[10px] font-bold uppercase tracking-[0.14em] ${t.labelText}`}>{label}</p>
+            </div>
+            <p className={`mt-1 text-[12px] leading-snug ${t.valueText}`}>{truncateForUi(value, truncateLimit)}</p>
+        </div>
+    );
+}
+
 export default function PatientDetailPage({
     params,
 }: {
     params: Promise<{ id: string }>;
 }) {
     const { id } = use(params);
-    const { t } = useI18n();
+    const { t, locale } = useI18n();
     const router = useRouter();
+
+    // Inline triad labels — locale-aware so they render correctly even if the
+    // browser is still holding the previously cached /api/i18n dictionary
+    // (the immutable cache header has been lifted, but legacy entries persist).
+    const triadLabels = {
+        contact: { ru: 'Контакт', uz: 'Aloqa', en: 'Contact' }[locale] ?? 'Contact',
+        clinic: { ru: 'Клиника', uz: 'Klinika', en: 'Clinic' }[locale] ?? 'Clinic',
+        detail: { ru: 'Детали', uz: 'Tafsilot', en: 'Detail' }[locale] ?? 'Detail',
+    };
     const queryClient = useQueryClient();
     const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
     const [isArchivePatientDialogOpen, setIsArchivePatientDialogOpen] = useState(false);
@@ -289,9 +433,6 @@ export default function PatientDetailPage({
                             {truncateForUi(patient.full_name, PATIENT_HEADER_NAME_UI_LIMIT)}
                         </h1>
                         <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
-                            <p className="text-xs text-gray-500 [overflow-wrap:anywhere]">
-                                {t('patientDetail.patientId', { patientId: patient.patient_id })}
-                            </p>
                             {primaryCategory ? (
                                 <Badge
                                     variant="secondary"
@@ -376,162 +517,236 @@ export default function PatientDetailPage({
                 </div>
             </div>
 
-            {/* Info cards */}
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-                {/* Contact Info */}
-                <Card className="interactive-card overflow-hidden rounded-2xl border border-slate-200/80 bg-white">
-                    <CardHeader className="flex flex-row items-center gap-2.5 border-b border-slate-100 px-4 py-1.5">
-                        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-teal-500 text-white shadow-sm shadow-teal-400/30">
-                            <Phone className="h-3.5 w-3.5" />
+            {/* ───────────────────────────────────────────────────────────
+                PREMIUM TRIAD — Contact · Clinic · Detail
+                Three sister cards: shared shape & shadow,
+                each with its own top-edge gradient color story.
+            ─────────────────────────────────────────────────────────── */}
+            <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
+
+                {/* ── CARD 1 · CONTACT — click-to-call essentials ── */}
+                <article className="group/card relative flex flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm shadow-slate-200/40 transition-all hover:-translate-y-0.5 hover:shadow-md hover:shadow-slate-200/70">
+                    <div className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-emerald-400 via-teal-400 to-cyan-400" />
+                    <header className="flex items-center gap-2.5 px-4 pt-4 pb-2">
+                        <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-50 to-teal-50 text-teal-600 ring-1 ring-teal-100/80 shadow-sm shadow-teal-100/40">
+                            <Contact className="h-4 w-4" strokeWidth={2.25} />
                         </span>
-                        <CardTitle className="text-[13px] font-semibold text-slate-700">{t('patientDetail.contactInfo')}</CardTitle>
-                    </CardHeader>
-                    <CardContent className="px-4 pb-3 pt-0">
-                        <InfoRow icon={<Phone className="h-3.5 w-3.5" />} label={t('patientDetail.phone1')} value={patient.phone} />
+                        <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-700">{triadLabels.contact}</p>
+                    </header>
+                    <div className="space-y-0.5 px-2 pb-3">
+                        {patient.phone ? (
+                            <ReachRow
+                                icon={Phone}
+                                label={t('patientDetail.phone')}
+                                value={patient.phone}
+                                href={`tel:${patient.phone.replace(/\s/g, '')}`}
+                            />
+                        ) : null}
                         {patient.secondary_phone ? (
-                            <InfoRow icon={<Phone className="h-3.5 w-3.5" />} label={t('patientDetail.phone2')} value={patient.secondary_phone} />
+                            <ReachRow
+                                icon={Phone}
+                                label={t('patientDetail.phone2')}
+                                value={patient.secondary_phone}
+                                href={`tel:${patient.secondary_phone.replace(/\s/g, '')}`}
+                            />
                         ) : null}
                         {patient.address ? (
-                            <InfoRow icon={<MapPin className="h-3.5 w-3.5" />} label={t('patientDetail.address')} value={patient.address} />
+                            <ReachRow
+                                icon={MapPin}
+                                label={t('patientDetail.address')}
+                                value={patient.address}
+                                multiline
+                            />
                         ) : null}
                         {patient.date_of_birth ? (
-                            <InfoRow icon={<Calendar className="h-3.5 w-3.5" />} label={t('patientDetail.birthDate')} value={formatDate(patient.date_of_birth)} />
+                            <ReachRow
+                                icon={Calendar}
+                                label={t('patientDetail.birthDate')}
+                                value={formatDate(patient.date_of_birth)}
+                            />
                         ) : null}
-                    </CardContent>
-                </Card>
+                    </div>
+                </article>
 
-                {/* Medical Info */}
-                <Card className="interactive-card overflow-hidden rounded-2xl border border-slate-200/80 bg-white">
-                    <CardHeader className="flex flex-row items-center gap-2.5 border-b border-slate-100 px-4 py-1.5">
-                        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-emerald-500 text-white shadow-sm shadow-emerald-400/30">
-                            <HeartPulse className="h-3.5 w-3.5" />
+                {/* ── CARD 2 · CLINIC — medical record (allergy-aware) ── */}
+                <article className={`group/card relative flex flex-col overflow-hidden rounded-2xl border bg-white shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md ${patient.allergies ? 'border-rose-200/70 shadow-rose-100/40 hover:shadow-rose-200/70' : 'border-slate-200/80 shadow-slate-200/40 hover:shadow-slate-200/70'}`}>
+                    <div className={`absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r ${patient.allergies ? 'from-rose-400 via-red-400 to-orange-400' : 'from-violet-400 via-purple-400 to-fuchsia-400'}`} />
+                    <header className="flex items-center gap-2.5 px-4 pt-4 pb-3">
+                        <span className={`flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br ring-1 shadow-sm ${patient.allergies ? 'from-rose-50 to-red-50 text-rose-600 ring-rose-100/80 shadow-rose-100/40' : 'from-violet-50 to-purple-50 text-violet-600 ring-violet-100/80 shadow-violet-100/40'}`}>
+                            <HeartPulse className="h-4 w-4" strokeWidth={2.25} />
                         </span>
-                        <CardTitle className="text-[13px] font-semibold text-slate-700">{t('patientDetail.medicalInfo')}</CardTitle>
-                    </CardHeader>
-                    <CardContent className="px-4 pb-3 pt-0">
+                        <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-700">{triadLabels.clinic}</p>
+                    </header>
+                    <div className="space-y-1.5 px-3 pb-3">
                         {!patient.allergies && !patient.current_medications && !patient.medical_history ? (
-                            <div className="flex flex-col items-center gap-1.5 py-4 text-center">
-                                <HeartPulse className="h-7 w-7 text-slate-200" />
-                                <p className="text-xs text-slate-400">{t('patientDetail.noMedicalInfo')}</p>
-                            </div>
-                        ) : null}
-                        {patient.allergies ? (
-                            <div className="border-b border-slate-100 py-2 last:border-0 last:pb-0">
-                                <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">{t('patientDetail.allergies')}</p>
-                                <p className="mt-0.5 flex items-center gap-1 text-xs font-medium text-red-600">
-                                    <AlertCircle className="h-3 w-3 shrink-0" />
-                                    <span className="truncate">{truncateForUi(patient.allergies, PATIENT_ALLERGIES_UI_LIMIT)}</span>
-                                </p>
-                            </div>
-                        ) : null}
-                        {patient.current_medications ? (
-                            <div className="border-b border-slate-100 py-2 last:border-0 last:pb-0">
-                                <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">{t('patientDetail.currentMedications')}</p>
-                                <p className="mt-0.5 truncate text-xs text-slate-700">{truncateForUi(patient.current_medications, PATIENT_MEDICATIONS_UI_LIMIT)}</p>
-                            </div>
-                        ) : null}
-                        {patient.medical_history ? (
-                            <div className="border-b border-slate-100 py-2 last:border-0 last:pb-0">
-                                <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">{t('patientDetail.medicalHistory')}</p>
-                                <p className="mt-0.5 truncate text-xs text-slate-700">{truncateForUi(patient.medical_history, PATIENT_MEDICAL_HISTORY_UI_LIMIT)}</p>
-                            </div>
-                        ) : null}
-                    </CardContent>
-                </Card>
+                            <EmptyState icon={HeartPulse} title={t('patientDetail.noMedicalInfo')} size="sm" />
+                        ) : (
+                            <>
+                                {patient.allergies ? (
+                                    <ClinicalSection
+                                        icon={AlertCircle}
+                                        label={t('patientDetail.allergies')}
+                                        value={patient.allergies}
+                                        tone="rose"
+                                        truncateLimit={PATIENT_ALLERGIES_UI_LIMIT}
+                                        emptyLabel={t('patientDetail.notSpecified')}
+                                    />
+                                ) : null}
+                                {patient.current_medications ? (
+                                    <ClinicalSection
+                                        icon={Pill}
+                                        label={t('patientDetail.currentMedications')}
+                                        value={patient.current_medications}
+                                        tone="amber"
+                                        truncateLimit={PATIENT_MEDICATIONS_UI_LIMIT}
+                                        emptyLabel={t('patientDetail.notSpecified')}
+                                    />
+                                ) : null}
+                                {patient.medical_history ? (
+                                    <ClinicalSection
+                                        icon={FileText}
+                                        label={t('patientDetail.medicalHistory.label')}
+                                        value={patient.medical_history}
+                                        tone="slate"
+                                        truncateLimit={PATIENT_MEDICAL_HISTORY_UI_LIMIT}
+                                        emptyLabel={t('patientDetail.notSpecified')}
+                                    />
+                                ) : null}
+                            </>
+                        )}
+                    </div>
+                </article>
 
-                {/* Visit Summary */}
-                <Card className="interactive-card overflow-hidden rounded-2xl border border-slate-200/80 bg-white">
-                    <CardHeader className="flex flex-row items-center gap-2.5 border-b border-slate-100 px-4 py-1.5">
-                        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-blue-500 text-white shadow-sm shadow-blue-400/30">
-                            <CalendarCheck className="h-3.5 w-3.5" />
-                        </span>
-                        <CardTitle className="text-[13px] font-semibold text-slate-700">{t('patientDetail.visitSummary')}</CardTitle>
-                    </CardHeader>
-                    <CardContent className="px-4 pb-3 pt-0">
-                        <InfoRow icon={<CalendarCheck className="h-3.5 w-3.5" />} label={t('patientDetail.lastVisit')} value={latestVisitDate ? formatDate(latestVisitDate) : t('patients.never')} />
-                        <InfoRow icon={<Hash className="h-3.5 w-3.5" />} label={t('patientDetail.totalAppointments')} value={canViewAppointments ? patientAppointmentsCount : '—'} />
-                        <InfoRow
-                            icon={<Wallet className="h-3.5 w-3.5" />}
+                {/* ── CARD 3 · DETAIL — activity & balance snapshot ── */}
+                <article className="group/card relative flex flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm shadow-slate-200/40 transition-all hover:-translate-y-0.5 hover:shadow-md hover:shadow-slate-200/70">
+                    <div className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-teal-400 via-sky-400 to-indigo-400" />
+                    <header className="flex items-center justify-between gap-3 px-4 pt-4 pb-3">
+                        <div className="flex items-center gap-2.5">
+                            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-teal-50 to-sky-50 text-teal-600 ring-1 ring-teal-100/80 shadow-sm shadow-teal-100/40">
+                                <Activity className="h-4 w-4" strokeWidth={2.25} />
+                            </span>
+                            <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-700">{triadLabels.detail}</p>
+                        </div>
+                        {isInactive ? (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.1em] text-amber-700 ring-1 ring-amber-100">
+                                <Clock3 className="h-2.5 w-2.5" />
+                                {daysSinceVisit}d
+                            </span>
+                        ) : null}
+                    </header>
+                    <div className="mx-px grid flex-1 grid-cols-2 grid-rows-2 gap-px overflow-hidden rounded-b-2xl bg-slate-100/70">
+                        <VitalStatCell
+                            icon={Wallet}
                             label={t('patientDetail.openBalance')}
                             value={!canViewPayments ? '—' : totalBalance > 0 ? formatCurrency(totalBalance) : t('payments.paid')}
-                            valueClassName={
-                                !canViewPayments ? 'text-slate-400'
-                                : totalBalance > 0 ? 'text-amber-600 font-semibold'
-                                : 'text-emerald-600'
-                            }
+                            valueClassName={!canViewPayments ? 'text-slate-700' : totalBalance > 0 ? 'text-red-700' : 'text-emerald-700'}
                         />
-                        <div className="mt-3 border-t border-slate-100 pt-2.5">
-                            <Link
-                                href={`/patients/${id}/history?from=patients`}
-                                className="inline-flex items-center gap-1.5 rounded-lg bg-teal-50 px-2.5 py-1.5 text-xs font-semibold text-teal-600 transition-colors hover:bg-teal-100 hover:text-teal-700"
-                            >
-                                {t('patientHistory.title')}
-                                <span aria-hidden="true" className="text-teal-400">→</span>
-                            </Link>
-                        </div>
-                    </CardContent>
-                </Card>
+                        <VitalStatCell
+                            icon={Hash}
+                            label={t('patientDetail.totalAppointments')}
+                            value={canViewAppointments ? String(patientAppointmentsCount) : '—'}
+                        />
+                        <VitalStatCell
+                            icon={CalendarCheck}
+                            label={t('patientDetail.lastVisit')}
+                            value={latestVisitDate ? formatDate(latestVisitDate) : t('patients.never')}
+                        />
+                        <VitalStatCell
+                            icon={User}
+                            label={t('patientDetail.age')}
+                            value={patient.date_of_birth ? t('patientDetail.years', { count: computePatientAge(patient.date_of_birth) }) : '—'}
+                        />
+                    </div>
+                </article>
+
             </div>
 
-            {/* Appointments */}
-            <Card className="interactive-card overflow-hidden rounded-2xl border border-slate-200/80 bg-white">
-                <CardHeader className="flex flex-col gap-2 border-b border-slate-100 px-4 py-2.5 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="flex items-center gap-3">
-                        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-teal-500 text-white shadow-sm shadow-teal-400/30">
-                            <Clock3 className="h-3.5 w-3.5" />
+            {/* ───────────────────────────────────────────────────────────
+                APPOINTMENTS — sister card to the triad
+                Same shape language (gradient strip · hexagon icon · hover lift)
+                but with its own indigo→violet color story for "scheduling".
+            ─────────────────────────────────────────────────────────── */}
+            <article className="group/card relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm shadow-slate-200/40 transition-all hover:shadow-md hover:shadow-slate-200/70">
+                <div className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-sky-400 via-indigo-400 to-violet-400" />
+                <header className="flex flex-col gap-3 border-b border-slate-100/80 px-4 pt-4 pb-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex items-center gap-2.5">
+                        <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-sky-50 to-indigo-50 text-indigo-600 ring-1 ring-indigo-100/80 shadow-sm shadow-indigo-100/40">
+                            <CalendarClock className="h-4 w-4" strokeWidth={2.25} />
                         </span>
-                        <CardTitle className="text-[13px] font-semibold text-slate-700">{t('appointments.title')}</CardTitle>
+                        <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-700">{t('appointments.title')}</p>
                     </div>
-                    {canViewAppointments ? (
-                        <Link href={`/appointments?action=new&patientId=${encodeURIComponent(id)}`}>
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                className="h-7 rounded-full px-3 text-xs"
-                                disabled={!canManageAppointments}
-                            >
-                                {t('dashboard.scheduleAppointment')}
-                            </Button>
+                    <div className="flex items-center gap-1.5">
+                        <Link
+                            href={`/patients/${id}/history?from=patients`}
+                            className="group/link inline-flex h-8 items-center gap-1.5 rounded-full border border-slate-200/80 bg-white px-3 text-[11px] font-semibold text-slate-700 transition-all hover:border-slate-300 hover:bg-slate-50 hover:shadow-sm"
+                        >
+                            <ClipboardList className="h-3.5 w-3.5 text-slate-500" />
+                            {t('patientHistory.title')}
+                            <ArrowRight className="h-3.5 w-3.5 text-slate-400 transition-transform group-hover/link:translate-x-0.5" />
                         </Link>
-                    ) : null}
-                </CardHeader>
-                <CardContent className="p-0">
+                        {canViewAppointments ? (
+                            <Link href={`/appointments?action=new&patientId=${encodeURIComponent(id)}`}>
+                                <Button size="sm" className="h-8 rounded-full px-3 text-[11px] font-semibold shadow-sm shadow-slate-900/10" disabled={!canManageAppointments}>
+                                    <Plus className="mr-1 h-3.5 w-3.5" />
+                                    {t('dashboard.scheduleAppointment')}
+                                </Button>
+                            </Link>
+                        ) : null}
+                    </div>
+                </header>
+                <div>
                     {!canViewAppointments ? (
-                        <p className="px-4 py-4 text-xs text-slate-500">{PERMISSION_DENIED_MESSAGE}</p>
+                        <EmptyState icon={Lock} title={PERMISSION_DENIED_MESSAGE} size="sm" />
                     ) : upcomingAppointments.length === 0 ? (
-                        <p className="px-4 py-4 text-xs text-slate-500">{t('patientDetail.noUpcomingAppointments')}</p>
+                        <EmptyState icon={CalendarCheck} title={t('patientDetail.noUpcomingAppointments')} size="sm" />
                     ) : (
-                        <div className="divide-y divide-slate-100">
-                            {upcomingAppointments.map((appointment) => (
-                                <div
-                                    key={appointment.id}
-                                    className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-slate-50"
-                                >
-                                    <div className="flex w-[3.25rem] shrink-0 items-center justify-center rounded-lg bg-teal-50 py-1.5 ring-1 ring-teal-100/80">
-                                        <span className="font-mono text-[11px] font-bold tracking-wide text-teal-700">
-                                            {appointment.start_time?.slice(0, 5)}
-                                        </span>
-                                    </div>
-                                    <div className="min-w-0 flex-1">
-                                        <p className="truncate text-[13px] font-semibold text-slate-800">
-                                            {appointment.notes?.split('|')[0]?.trim() || t('appointments.general')}
-                                        </p>
-                                        <p className="mt-0.5 text-xs text-slate-400">
-                                            {formatDate(appointment.appointment_date)}
-                                        </p>
-                                    </div>
-                                    <Badge
-                                        variant="secondary"
-                                        className="shrink-0 rounded-full bg-teal-50 px-2.5 text-xs font-semibold text-teal-600 ring-1 ring-teal-100/80"
+                        <ul className="divide-y divide-slate-100/70">
+                            {upcomingAppointments.map((appointment) => {
+                                const translatedStatus = t(`status.${appointment.status}`);
+                                const statusLabel = translatedStatus.startsWith('status.') ? appointment.status : translatedStatus;
+                                const statusTone = getStatusTone(appointment.status);
+                                const treatmentTitle = appointment.notes?.split('|')[0]?.trim() || t('appointments.general');
+                                return (
+                                    <li
+                                        key={appointment.id}
+                                        className="group/row relative flex items-center gap-3 px-4 py-3 transition-colors hover:bg-slate-50/60"
                                     >
-                                        {t(`status.${appointment.status}`)}
-                                    </Badge>
-                                </div>
-                            ))}
-                        </div>
+                                        {/* Accent rail — slim status-toned bar on the left edge */}
+                                        <span className={`absolute inset-y-2 left-0 w-[3px] rounded-r-full opacity-0 transition-opacity group-hover/row:opacity-100 ${statusTone.dot}`} />
+
+                                        {/* Time chip — gradient + ring + tabular nums */}
+                                        <time className="flex h-11 w-14 shrink-0 flex-col items-center justify-center rounded-xl bg-gradient-to-br from-sky-50 to-indigo-50 ring-1 ring-indigo-100/80 shadow-sm shadow-indigo-100/30">
+                                            <span className="text-[13px] font-bold tabular-nums leading-none text-indigo-700">
+                                                {appointment.start_time?.slice(0, 5)}
+                                            </span>
+                                            <span className="mt-0.5 text-[9px] font-semibold uppercase tracking-wider text-indigo-400">
+                                                {formatDate(appointment.appointment_date).split(',')[0]}
+                                            </span>
+                                        </time>
+
+                                        {/* Treatment + meta */}
+                                        <div className="min-w-0 flex-1">
+                                            <p className="truncate text-[13px] font-semibold text-slate-900" title={treatmentTitle}>
+                                                {treatmentTitle}
+                                            </p>
+                                            <p className="mt-0.5 flex items-center gap-1.5 text-[10px] font-medium text-slate-400">
+                                                <Calendar className="h-3 w-3" />
+                                                <span className="tabular-nums">{formatDate(appointment.appointment_date)}</span>
+                                            </p>
+                                        </div>
+
+                                        {/* Status pill — dotted, soft */}
+                                        <span className={`inline-flex shrink-0 items-center gap-1.5 rounded-full bg-slate-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.08em] ring-1 ring-slate-100 ${statusTone.text}`}>
+                                            <span className={`h-1.5 w-1.5 rounded-full ${statusTone.dot}`} />
+                                            {statusLabel}
+                                        </span>
+                                    </li>
+                                );
+                            })}
+                        </ul>
                     )}
-                </CardContent>
-            </Card>
+                </div>
+            </article>
 
             {isEditDialogOpen && canManagePatients ? (
                 <EditPatientDialog

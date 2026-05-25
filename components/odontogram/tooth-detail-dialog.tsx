@@ -13,7 +13,8 @@ import { formatCurrency, formatDate } from '@/lib/utils';
 import { useI18n } from '@/components/providers/i18n-provider';
 import { PatientPhotoPreviewDialog, type PreviewGalleryImage } from '@/components/patients/patient-photo-preview-dialog';
 import { toast } from 'sonner';
-import { Loader2 } from 'lucide-react';
+import { CalendarDays, Loader2 } from 'lucide-react';
+import { EmptyState } from '@/components/ui/empty-state';
 
 interface ToothDetailDialogProps {
     open: boolean;
@@ -155,7 +156,7 @@ export function ToothDetailDialog({
 
                     <div className="space-y-4">
                         <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-                            <MetricSummaryCard label={t('patientHistory.table.debt')} value={formatCurrency(summary.totalDebt)} tone="amber" tabular />
+                            <MetricSummaryCard label={t('patientHistory.table.debt')} value={formatCurrency(summary.totalDebt)} tone="red" tabular />
                             <MetricSummaryCard label={t('patientHistory.table.paid')} value={formatCurrency(summary.totalPaid)} tone="emerald" tabular />
                             <MetricSummaryCard
                                 label={t('patientHistory.table.remaining')}
@@ -166,8 +167,8 @@ export function ToothDetailDialog({
                         </div>
 
                         {treatments.length === 0 ? (
-                            <div className="rounded-2xl border border-dashed border-gray-200 px-6 py-10 text-center">
-                                <p className="text-sm text-gray-500">{t('patientHistory.empty')}</p>
+                            <div className="rounded-2xl border border-dashed border-slate-200">
+                                <EmptyState icon={CalendarDays} title={t('patientHistory.empty')} size="sm" />
                             </div>
                         ) : (
                             <div className="max-h-[52vh] space-y-2 overflow-x-hidden overflow-y-auto pr-1">

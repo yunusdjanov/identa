@@ -1623,10 +1623,37 @@ export interface DashboardAppointmentView {
     reason?: string;
 }
 
+export interface DashboardRevenuePoint {
+    month: string;
+    revenue: number;
+    debt: number;
+}
+
+export interface DashboardPatientGrowthPoint {
+    month: string;
+    total: number;
+    new: number;
+}
+
+export interface DashboardAppointmentStatusPoint {
+    status: ApiAppointment['status'];
+    count: number;
+}
+
+export interface DashboardTopTreatment {
+    name: string;
+    count: number;
+    revenue: number;
+}
+
 export interface DashboardSnapshot {
     revenueThisMonth: number;
     outstandingDebtTotal: number;
     todayAppointments: DashboardAppointmentView[];
+    revenueByMonth?: DashboardRevenuePoint[];
+    patientGrowth?: DashboardPatientGrowthPoint[];
+    appointmentStatus?: DashboardAppointmentStatusPoint[];
+    topTreatments?: DashboardTopTreatment[];
 }
 
 interface DashboardSnapshotOptions {

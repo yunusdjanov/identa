@@ -13,6 +13,7 @@ use App\Models\Subscription;
 use App\Models\User;
 use App\Services\SubscriptionService;
 use App\Support\AuditLogger;
+use App\Support\Search;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -47,12 +48,8 @@ class DentistAccountController extends Controller
             ->orderByDesc('created_at');
 
         if (is_string($search) && $search !== '') {
-            $query->where(function (Builder $builder) use ($search): void {
-                $builder
-                    ->where('name', 'like', "%{$search}%")
-                    ->orWhere('email', 'like', "%{$search}%")
-                    ->orWhere('practice_name', 'like', "%{$search}%");
-            });
+            // Postgres LIKE is case-sensitive; use the cross-DB helper.
+            Search::ciLikeAny($query, ['name', 'email', 'practice_name'], $search);
         }
 
         if (is_string($status) && $status !== '') {

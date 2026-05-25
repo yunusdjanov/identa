@@ -298,35 +298,6 @@ export default function SettingsPage() {
         <div className="space-y-5 lg:space-y-6">
             <PageHeader title={t('settings.title')} description={t('settings.subtitle')} />
 
-            {isDentist ? (
-                <Card className="interactive-card">
-                    <CardHeader className="space-y-3">
-                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                            <div>
-                                <CardTitle>{t('settings.subscriptionTitle')}</CardTitle>
-                                <p className="mt-1 text-sm text-gray-500">
-                                    {t('settings.subscriptionDescription')}
-                                </p>
-                            </div>
-                            <Badge
-                                variant="outline"
-                                className={subscription ? getSubscriptionBadgeClass(subscription.status) : getSubscriptionBadgeClass('none')}
-                            >
-                                {subscriptionStatusLabel}
-                            </Badge>
-                        </div>
-                    </CardHeader>
-                    <CardContent className="space-y-2">
-                        <p className="text-base font-medium text-slate-900">{subscriptionSummary}</p>
-                        {subscription?.cancel_at_period_end && subscriptionEndsOn ? (
-                            <p className="text-sm text-amber-700">
-                                {t('subscription.banner.cancelScheduledDescription', { date: subscriptionEndsOn })}
-                            </p>
-                        ) : null}
-                    </CardContent>
-                </Card>
-            ) : null}
-
             <Tabs defaultValue="profile" className="space-y-6">
                 <div className="overflow-x-auto overflow-y-hidden no-scrollbar -mx-4 px-4 sm:mx-0 sm:px-0">
                     <TabsList className="inline-flex w-full sm:w-auto min-w-max">
@@ -354,7 +325,7 @@ export default function SettingsPage() {
                 </div>
 
                 <TabsContent value="profile">
-                    <Card className="interactive-card overflow-hidden rounded-[1.75rem] bg-gradient-to-br from-white via-white to-teal-100/25">
+                    <Card className="interactive-card overflow-hidden rounded-[1.75rem] bg-white">
                         <CardHeader className="pb-2">
                             <CardTitle>{t('settings.personalInfo')}</CardTitle>
                         </CardHeader>
@@ -460,7 +431,7 @@ export default function SettingsPage() {
 
                 {isDentist ? (
                     <TabsContent value="practice">
-                    <Card className="interactive-card overflow-hidden rounded-[1.75rem] bg-gradient-to-br from-white via-white to-teal-100/25">
+                    <Card className="interactive-card overflow-hidden rounded-[1.75rem] bg-white">
                         <CardHeader className="pb-2">
                             <CardTitle>{t('settings.practiceInfo')}</CardTitle>
                         </CardHeader>
@@ -512,7 +483,7 @@ export default function SettingsPage() {
 
                 {isDentist ? (
                     <TabsContent value="hours">
-                    <Card className="interactive-card overflow-hidden rounded-[1.75rem] bg-gradient-to-br from-white via-white to-teal-100/25">
+                    <Card className="interactive-card overflow-hidden rounded-[1.75rem] bg-white">
                         <CardHeader className="pb-2">
                             <CardTitle>{t('settings.workingHoursAndAppointments')}</CardTitle>
                         </CardHeader>

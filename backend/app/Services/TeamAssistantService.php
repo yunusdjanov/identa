@@ -7,6 +7,7 @@ use App\Http\Requests\Team\StoreAssistantRequest;
 use App\Http\Requests\Team\UpdateAssistantRequest;
 use App\Http\Requests\Team\UpdateAssistantStatusRequest;
 use App\Models\User;
+use App\Support\Search;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -40,12 +41,8 @@ class TeamAssistantService
 
         $search = $request->input('filter.search');
         if (is_string($search) && $search !== '') {
-            $query->where(function (Builder $builder) use ($search): void {
-                $builder
-                    ->where('name', 'like', "%{$search}%")
-                    ->orWhere('email', 'like', "%{$search}%")
-                    ->orWhere('phone', 'like', "%{$search}%");
-            });
+            // Postgres LIKE is case-sensitive; use the cross-DB helper.
+            Search::ciLikeAny($query, ['name', 'email', 'phone'], $search);
         }
 
         $status = $request->input('filter.status');

@@ -67,7 +67,7 @@ export function PatientAccountingCard({
             </CardHeader>
             <CardContent className="space-y-6">
                 <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-                    <MetricSummaryCard label={t('patientHistory.totalDebt')} value={formatCurrency(summary.totalDebt)} tone="amber" compact />
+                    <MetricSummaryCard label={t('patientHistory.totalDebt')} value={formatCurrency(summary.totalDebt)} tone="red" compact />
                     <MetricSummaryCard label={t('patientHistory.totalPaid')} value={formatCurrency(summary.totalPaid)} tone="emerald" compact />
                     <MetricSummaryCard
                         label={t('patientHistory.netBalance')}

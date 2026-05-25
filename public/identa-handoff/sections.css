@@ -391,7 +391,7 @@
   border-radius: 10px;
   padding: 9px 10px;
   box-shadow: var(--shadow-lg);
-  font-size: 10px;
+  font-size: 11px;
   display: flex; align-items: center; gap: 8px;
   z-index: 5;
 }
@@ -400,10 +400,10 @@
   background: linear-gradient(135deg, var(--teal-400), var(--teal-600));
   color: var(--navy-900);
   display: grid; place-items: center;
-  font-size: 9px; font-weight: 600;
+  font-size: 10px; font-weight: 600;
 }
-.dash-float strong { color: var(--navy-900); display: block; font-weight: 500; font-size: 10px; }
-.dash-float em { color: var(--ink-mute); font-style: normal; font-size: 8.8px; }
+.dash-float strong { color: var(--navy-900); display: block; font-weight: 500; font-size: 11px; }
+.dash-float em { color: var(--ink-mute); font-style: normal; font-size: 10px; }
 .float-1 { top: 12%; right: -16px; }
 .float-2 { bottom: 8%; left: -20px; }
 @media (max-width: 1020px) {

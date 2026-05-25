@@ -1,6 +1,6 @@
 ﻿import { cn } from '@/lib/utils';
 
-type MetricSummaryTone = 'teal' | 'emerald' | 'amber' | 'red' | 'slate';
+type MetricSummaryTone = 'teal' | 'emerald' | 'amber' | 'yellow' | 'red' | 'slate';
 
 interface MetricSummaryCardProps {
     label: string;
@@ -28,6 +28,11 @@ const toneClasses: Record<MetricSummaryTone, { card: string; label: string; valu
         label: 'text-amber-600',
         value: 'text-amber-700',
     },
+    yellow: {
+        card: 'metric-hover-amber border-yellow-200 shadow-yellow-100/60',
+        label: 'text-yellow-700',
+        value: 'text-yellow-800',
+    },
     red: {
         card: 'metric-hover-red border-red-100 shadow-red-100/60',
         label: 'text-red-600',
@@ -41,15 +46,7 @@ const toneClasses: Record<MetricSummaryTone, { card: string; label: string; valu
 };
 
 export function getBalanceMetricTone(balance: number): MetricSummaryTone {
-    if (balance > 0) {
-        return 'amber';
-    }
-
-    if (balance < 0) {
-        return 'emerald';
-    }
-
-    return 'slate';
+    return 'yellow';
 }
 
 export function MetricSummaryCard({

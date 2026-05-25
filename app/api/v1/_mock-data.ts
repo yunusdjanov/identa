@@ -24,10 +24,21 @@ export const APPOINTMENTS = [
     { id: 'apt-8', patient_id: 'pat-2', patient_name: 'Malika Yusupova', appointment_date: '2026-05-27', start_time: '11:00', end_time: '12:00', status: 'scheduled', notes: 'Oqartirish kursi' },
     { id: 'apt-9', patient_id: 'pat-3', patient_name: 'Bobur Rahimov', appointment_date: '2026-05-28', start_time: '14:30', end_time: '15:30', status: 'scheduled', notes: 'Protez maslahat' },
     { id: 'apt-10', patient_id: 'pat-4', patient_name: 'Nilufar Hasanova', appointment_date: '2026-06-02', start_time: '10:00', end_time: '11:30', status: 'scheduled', notes: 'Implant 1-bosqich' },
+    // 22.05 (Friday) — to'liq ish kuni
+    { id: 'apt-11', patient_id: 'pat-1', patient_name: 'Alisher Karimov', appointment_date: '2026-05-22', start_time: '10:45', end_time: '11:30', status: 'completed', notes: "Plomba qo'yish" },
+    { id: 'apt-12', patient_id: 'pat-2', patient_name: 'Malika Yusupova', appointment_date: '2026-05-22', start_time: '11:45', end_time: '12:30', status: 'completed', notes: 'Konsultatsiya' },
+    { id: 'apt-13', patient_id: 'pat-3', patient_name: 'Bobur Rahimov', appointment_date: '2026-05-22', start_time: '13:00', end_time: '13:45', status: 'completed', notes: "X-ray va ko'rik" },
+    { id: 'apt-14', patient_id: 'pat-6', patient_name: 'Dilnoza Ergasheva', appointment_date: '2026-05-22', start_time: '14:00', end_time: '14:45', status: 'completed', notes: 'Tish tozalash' },
+    { id: 'apt-15', patient_id: 'pat-1', patient_name: 'Alisher Karimov', appointment_date: '2026-05-22', start_time: '16:00', end_time: '16:45', status: 'completed', notes: 'Nazorat ko\'rigi' },
+    { id: 'apt-16', patient_id: 'pat-4', patient_name: 'Nilufar Hasanova', appointment_date: '2026-05-22', start_time: '17:00', end_time: '17:45', status: 'scheduled', notes: 'Qo\'shimcha maslahat' },
 ];
 
 export const TREATMENTS = [
-    { id: 'trt-1', patient_id: 'pat-1', patient_name: 'Alisher Karimov', patient_phone: '+998901001001', patient_code: 'P-001', tooth_number: 21, teeth: [21], treatment_type: "Dolg to'ldirish", description: "Kompozit material", comment: null, treatment_date: '2026-05-19', cost: 350000, debt_amount: 150000, paid_amount: 200000, balance: -150000, notes: null, image_count: 0, images: [], created_at: '2026-05-19T09:30:00Z', updated_at: '2026-05-19T10:00:00Z' },
+    { id: 'trt-1', patient_id: 'pat-1', patient_name: 'Alisher Karimov', patient_phone: '+998901001001', patient_code: 'P-001', tooth_number: 21, teeth: [21], treatment_type: "Dolg to'ldirish", description: "Kompozit material", comment: null, treatment_date: '2026-05-19', cost: 350000, debt_amount: 150000, paid_amount: 200000, balance: -150000, notes: null, image_count: 3, images: [
+        { id: 'img-trt1-1', mime_type: 'image/svg+xml', file_size: 320, created_at: '2026-05-19T09:31:00Z', url: "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 300'><rect width='400' height='300' fill='%23ef4444'/></svg>", thumbnail_url: "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 300'><rect width='400' height='300' fill='%23ef4444'/></svg>", preview_url: "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 300'><rect width='400' height='300' fill='%23ef4444'/></svg>", thumbnail_ready: true, preview_ready: true, scan_status: 'approved' },
+        { id: 'img-trt1-2', mime_type: 'image/svg+xml', file_size: 320, created_at: '2026-05-19T09:32:00Z', url: "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 300'><rect width='400' height='300' fill='%2322c55e'/></svg>", thumbnail_url: "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 300'><rect width='400' height='300' fill='%2322c55e'/></svg>", preview_url: "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 300'><rect width='400' height='300' fill='%2322c55e'/></svg>", thumbnail_ready: true, preview_ready: true, scan_status: 'approved' },
+        { id: 'img-trt1-3', mime_type: 'image/svg+xml', file_size: 320, created_at: '2026-05-19T09:33:00Z', url: "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 300'><rect width='400' height='300' fill='%23eab308'/></svg>", thumbnail_url: "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 300'><rect width='400' height='300' fill='%23eab308'/></svg>", preview_url: "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 300'><rect width='400' height='300' fill='%23eab308'/></svg>", thumbnail_ready: true, preview_ready: true, scan_status: 'approved' },
+    ], created_at: '2026-05-19T09:30:00Z', updated_at: '2026-05-19T10:00:00Z' },
     { id: 'trt-2', patient_id: 'pat-2', patient_name: 'Malika Yusupova', patient_phone: '+998901002002', patient_code: 'P-002', tooth_number: null, teeth: [], treatment_type: 'Tish tozalash (ultratovush)', description: null, comment: null, treatment_date: '2026-05-23', cost: 150000, debt_amount: 0, paid_amount: 150000, balance: 0, notes: null, image_count: 0, images: [], created_at: '2026-05-23T11:30:00Z', updated_at: '2026-05-23T12:30:00Z' },
     { id: 'trt-3', patient_id: 'pat-3', patient_name: 'Bobur Rahimov', patient_phone: '+998901003003', patient_code: 'P-003', tooth_number: 46, teeth: [46], treatment_type: "Tish olib tashlash", description: null, comment: null, treatment_date: '2026-04-15', cost: 200000, debt_amount: 0, paid_amount: 200000, balance: 0, notes: null, image_count: 0, images: [], created_at: '2026-04-15T10:00:00Z', updated_at: '2026-04-15T10:30:00Z' },
     { id: 'trt-4', patient_id: 'pat-4', patient_name: 'Nilufar Hasanova', patient_phone: '+998901004004', patient_code: 'P-004', tooth_number: 16, teeth: [16], treatment_type: 'Metall-keramik toj', description: null, comment: null, treatment_date: '2026-05-22', cost: 1500000, debt_amount: 1500000, paid_amount: 0, balance: -1500000, notes: 'Ikkinchi bosqich', image_count: 0, images: [], created_at: '2026-05-22T09:00:00Z', updated_at: '2026-05-22T10:30:00Z' },
@@ -91,9 +102,9 @@ export const AUDIT_LOGS = [
 ];
 
 export const BILLING_PLANS = [
-    { id: 'plan-1', code: 'trial', name: 'Trial', description: '14 kunlik bepul sinov', is_trial: true, is_paid: false, trial_days: 14, monthly_price: null, yearly_price: null, currency: 'UZS', staff_limit: 1, entry_image_limit: 5, upload_max_mb: 10, stored_image_max_mb: 50, can_export: false, is_active: true, sort_order: 1 },
-    { id: 'plan-2', code: 'basic', name: 'Basic', description: 'Kichik klinikalar uchun', is_trial: false, is_paid: true, trial_days: null, monthly_price: 199000, yearly_price: 1990000, currency: 'UZS', staff_limit: 2, entry_image_limit: 20, upload_max_mb: 25, stored_image_max_mb: 200, can_export: false, is_active: true, sort_order: 2 },
-    { id: 'plan-3', code: 'pro', name: 'Pro', description: "O'rta va katta klinikalar uchun", is_trial: false, is_paid: true, trial_days: null, monthly_price: 499000, yearly_price: 4990000, currency: 'UZS', staff_limit: 10, entry_image_limit: 100, upload_max_mb: 50, stored_image_max_mb: 500, can_export: true, is_active: true, sort_order: 3 },
+    { id: 'plan-1', code: 'trial', name: 'Trial', description: '30 kunlik sinov tarifi', is_trial: true, is_paid: false, trial_days: 30, monthly_price: null, yearly_price: null, currency: 'UZS', staff_limit: 1, entry_image_limit: 2, upload_max_mb: 3, stored_image_max_mb: 6, can_export: false, is_active: true, sort_order: 1 },
+    { id: 'plan-2', code: 'basic', name: 'Basic', description: 'Kichik klinikalar uchun asosiy tarif', is_trial: false, is_paid: true, trial_days: null, monthly_price: 199000, yearly_price: 1990000, currency: 'UZS', staff_limit: 3, entry_image_limit: 5, upload_max_mb: 5, stored_image_max_mb: 25, can_export: false, is_active: true, sort_order: 2 },
+    { id: 'plan-3', code: 'pro', name: 'Pro', description: "Kengaytirilgan limitlar va export", is_trial: false, is_paid: true, trial_days: null, monthly_price: 499000, yearly_price: 4990000, currency: 'UZS', staff_limit: 5, entry_image_limit: 10, upload_max_mb: 8, stored_image_max_mb: 80, can_export: true, is_active: true, sort_order: 3 },
 ];
 
 export const BILLING_SUBSCRIPTION = {
@@ -110,11 +121,11 @@ export const BILLING_SUBSCRIPTION = {
     cancel_at_period_end: false,
     cancelled_at: null,
     days_remaining: 9,
-    staff_limit: 10,
+    staff_limit: 5,
     active_staff_count: 2,
-    entry_image_limit: 100,
-    upload_max_mb: 50,
-    stored_image_max_mb: 500,
+    entry_image_limit: 10,
+    upload_max_mb: 8,
+    stored_image_max_mb: 80,
     can_export: true,
     is_read_only: false,
     payment_method: 'p2p',

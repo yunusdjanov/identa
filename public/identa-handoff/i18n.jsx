@@ -115,7 +115,7 @@ const I18N = {
           features: [
             "Доктор + 1 сотрудник",
             "2 снимка на запись",
-            "Загрузка до 1 МБ",
+            "Загрузка до 3 МБ",
             "Выгрузка недоступна",
           ],
           cta: "Начать пробный доступ",
@@ -128,8 +128,8 @@ const I18N = {
           cur: "",
           features: [
             "Доктор + 3 сотрудника",
-            "2 снимка на запись",
-            "Загрузка до 3 МБ",
+            "5 снимков на запись",
+            "Загрузка до 5 МБ",
             "Выгрузка недоступна",
             "Оплата на месяц или год через PayX",
           ],
@@ -145,7 +145,7 @@ const I18N = {
           features: [
             "Доктор + 5 сотрудников",
             "10 снимков на запись",
-            "Загрузка до 5 МБ",
+            "Загрузка до 8 МБ",
             "Выгрузка доступна",
           ],
           cta: "Выбрать расширенный",
@@ -277,9 +277,9 @@ const I18N = {
       yearly: "Yillik",
       save: "",
       plans: [
-        { name: "Sinov", desc: "Ro'yxatdan o'tgach avtomatik ochiladigan sinov tarifi.", price: { m: "30 kun", y: "30 kun" }, cur: "", features: ["Shifokor + 1 xodim", "Har yozuv uchun 2 ta rasm", "Yuklash 1 MB gacha", "Eksport yo'q"], cta: "Sinovni boshlash", flag: "Avtomatik" },
-        { name: "Asosiy", desc: "Kichik jamoa uchun asosiy imkoniyatlar.", price: { m: "Narx kabinet ichida", y: "Narx kabinet ichida" }, cur: "", features: ["Shifokor + 3 xodim", "Har yozuv uchun 2 ta rasm", "Yuklash 3 MB gacha", "Eksport yo'q", "Oylik yoki yillik to'lov PayX orqali"], cta: "Asosiy tarifni tanlash", flag: "Asosiy", featured: true },
-        { name: "Pro", desc: "Ko'proq rasm, ko'proq xodim va eksport kerak bo'lgan klinikalar uchun.", price: { m: "Narx kabinet ichida", y: "Narx kabinet ichida" }, cur: "", features: ["Shifokor + 5 xodim", "Har yozuv uchun 10 ta rasm", "Yuklash 5 MB gacha", "Eksport bor"], cta: "Pro tarifni tanlash" },
+        { name: "Sinov", desc: "Ro'yxatdan o'tgach avtomatik ochiladigan sinov tarifi.", price: { m: "30 kun", y: "30 kun" }, cur: "", features: ["Shifokor + 1 xodim", "Har yozuv uchun 2 ta rasm", "Yuklash 3 MB gacha", "Eksport yo'q"], cta: "Sinovni boshlash", flag: "Avtomatik" },
+        { name: "Asosiy", desc: "Kichik jamoa uchun asosiy imkoniyatlar.", price: { m: "Narx kabinet ichida", y: "Narx kabinet ichida" }, cur: "", features: ["Shifokor + 3 xodim", "Har yozuv uchun 5 ta rasm", "Yuklash 5 MB gacha", "Eksport yo'q", "Oylik yoki yillik to'lov PayX orqali"], cta: "Asosiy tarifni tanlash", flag: "Asosiy", featured: true },
+        { name: "Pro", desc: "Ko'proq rasm, ko'proq xodim va eksport kerak bo'lgan klinikalar uchun.", price: { m: "Narx kabinet ichida", y: "Narx kabinet ichida" }, cur: "", features: ["Shifokor + 5 xodim", "Har yozuv uchun 10 ta rasm", "Yuklash 8 MB gacha", "Eksport bor"], cta: "Pro tarifni tanlash" },
       ],
     },
     steps: {
@@ -407,9 +407,9 @@ const I18N = {
       yearly: "Yearly",
       save: "",
       plans: [
-        { name: "Trial", desc: "Automatic trial access right after registration.", price: { m: "30 days", y: "30 days" }, cur: "", features: ["Doctor + 1 staff member", "2 images per entry", "Upload up to 1 MB", "No export"], cta: "Start trial", flag: "Automatic" },
-        { name: "Basic", desc: "Core capabilities for a small team.", price: { m: "Price in app", y: "Price in app" }, cur: "", features: ["Doctor + 3 staff members", "2 images per entry", "Upload up to 3 MB", "No export", "Monthly/yearly via PayX"], cta: "Choose Basic", flag: "Core", featured: true },
-        { name: "Pro", desc: "More images, more staff members and export for active clinics.", price: { m: "Price in app", y: "Price in app" }, cur: "", features: ["Doctor + 5 staff members", "10 images per entry", "Upload up to 5 MB", "Export enabled"], cta: "Choose Pro" },
+        { name: "Trial", desc: "Automatic trial access right after registration.", price: { m: "30 days", y: "30 days" }, cur: "", features: ["Doctor + 1 staff member", "2 images per entry", "Upload up to 3 MB", "No export"], cta: "Start trial", flag: "Automatic" },
+        { name: "Basic", desc: "Core capabilities for a small team.", price: { m: "Price in app", y: "Price in app" }, cur: "", features: ["Doctor + 3 staff members", "5 images per entry", "Upload up to 5 MB", "No export", "Monthly/yearly via PayX"], cta: "Choose Basic", flag: "Core", featured: true },
+        { name: "Pro", desc: "More images, more staff members and export for active clinics.", price: { m: "Price in app", y: "Price in app" }, cur: "", features: ["Doctor + 5 staff members", "10 images per entry", "Upload up to 8 MB", "Export enabled"], cta: "Choose Pro" },
       ],
     },
     steps: {

@@ -57,7 +57,7 @@ export function AccountMenu({
             <DropdownMenuTrigger asChild>
                 <Button
                     variant="ghost"
-                    className="flex h-11 items-center space-x-2 rounded-2xl border border-transparent bg-white/75 px-2.5 shadow-sm shadow-slate-200/50 transition-colors hover:border-transparent hover:bg-teal-50/70 sm:space-x-3 sm:px-3.5 focus:border-transparent focus:outline-none focus:ring-0 focus-visible:border-transparent focus-visible:bg-teal-50/70 focus-visible:ring-0 focus-visible:ring-offset-0 data-[state=open]:border-transparent data-[state=open]:bg-teal-50/80"
+                    className="flex h-11 items-center rounded-full border border-transparent bg-transparent px-0 shadow-none ring-0 transition-all hover:bg-transparent lg:space-x-3 lg:rounded-2xl lg:border-slate-200 lg:bg-white lg:px-3.5 lg:shadow-sm lg:shadow-slate-200/80 lg:ring-1 lg:ring-slate-100 lg:hover:border-teal-200 lg:hover:bg-teal-50/70 lg:hover:shadow-md lg:hover:shadow-teal-100/50 focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 lg:focus-visible:border-teal-300 lg:focus-visible:bg-teal-50/70 lg:data-[state=open]:border-teal-300 lg:data-[state=open]:bg-teal-50/80 lg:data-[state=open]:shadow-md"
                     aria-label={t('menu.myAccount')}
                 >
                     <Avatar className="h-8 w-8">
@@ -65,14 +65,14 @@ export function AccountMenu({
                             {avatarLabel}
                         </AvatarFallback>
                     </Avatar>
-                    <div className="hidden text-left md:block">
+                    <div className="hidden text-left lg:block">
                         <p className="text-sm font-medium text-slate-900">
                             {showDoctorPrefix ? `${t('common.doctorPrefix')} ` : ''}
                             {displayName}
                         </p>
                         {roleLabel ? <p className="text-xs text-slate-500">{roleLabel}</p> : null}
                     </div>
-                    <ChevronDown className="hidden h-4 w-4 text-slate-500 sm:block" />
+                    <ChevronDown className="hidden h-4 w-4 text-slate-500 lg:block" />
                 </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">

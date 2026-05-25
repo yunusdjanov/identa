@@ -9,6 +9,6 @@ export const authInputClassName =
     'h-10 rounded-[1.1rem] border-slate-300/85 bg-white/95 px-3.5 shadow-inner shadow-cyan-950/[0.025] transition focus-visible:border-teal-600 focus-visible:ring-teal-600/20';
 
 export const authSubmitClassName =
-    'h-10 w-full rounded-full bg-[#062f35] text-[0.95rem] font-bold text-white shadow-lg shadow-teal-950/20 transition hover:bg-[#07464c]';
+    'h-10 w-full rounded-full bg-[#062f35] text-base font-bold text-white shadow-lg shadow-teal-950/20 transition hover:bg-[#07464c]';
 
 export const authLinkClassName = 'inline-flex min-h-8 items-center font-semibold text-cyan-700 transition hover:text-cyan-900';

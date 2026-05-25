@@ -6,6 +6,7 @@ use App\Http\Requests\StoreAppointmentRequest;
 use App\Http\Requests\UpdateAppointmentRequest;
 use App\Models\Appointment;
 use App\Models\User;
+use App\Support\Search;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -88,7 +89,9 @@ class AppointmentService
         $search = $request->input('filter.search');
         if (is_string($search) && $search !== '') {
             $query->whereHas('patient', function (Builder $builder) use ($search): void {
-                $builder->where('full_name', 'like', "%{$search}%");
+                // Case-insensitive across all DB drivers (Postgres LIKE is
+                // case-sensitive; mobile keyboards default to lowercase).
+                Search::ciLike($builder, 'full_name', $search);
             });
         }
 

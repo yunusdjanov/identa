@@ -167,7 +167,7 @@ export function ClinicalSnapshotCard({
         const hasHistory = count > 0;
         const className = `relative flex h-10 w-7 items-center justify-center rounded-lg border text-[11px] font-semibold transition-colors sm:h-11 sm:w-8 ${
             hasHistory
-                ? 'border-teal-300 bg-teal-50 text-teal-900 hover:border-teal-400 hover:bg-teal-100'
+                ? 'border-teal-500 bg-teal-100 text-teal-900 ring-1 ring-teal-200 hover:border-teal-600 hover:bg-teal-200'
                 : 'border-gray-300 bg-white text-gray-700'
         }`;
 
@@ -188,7 +188,7 @@ export function ClinicalSnapshotCard({
                 onClick={() => setSelectedTooth(toothNumber)}
             >
                 <span>{toothNumber}</span>
-                <span className="absolute -right-1 -top-1 inline-flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-sky-600 px-1 text-[8px] font-semibold text-white">
+                <span className="absolute -right-1 -top-1 inline-flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-sky-600 px-1 text-[11px] font-semibold text-white">
                     {count}
                 </span>
             </button>
@@ -289,7 +289,7 @@ export function ClinicalSnapshotCard({
                             <div className="space-y-5">
                                 <div className="space-y-2">
                                     <p className="text-center text-base font-medium text-gray-700">{t('odontogram.upperJaw')}</p>
-                                    <div className="flex justify-center gap-4 sm:gap-6">
+                                    <div className="flex justify-center gap-4 sm:gap-6 max-sm:flex-col max-sm:items-center">
                                         <div>
                                             <p className="mb-1 text-center text-xs text-gray-500">{t('odontogram.upperRight')}</p>
                                             <div className="flex gap-0.5 sm:gap-1">
@@ -309,7 +309,7 @@ export function ClinicalSnapshotCard({
 
                                 <div className="space-y-2">
                                     <p className="text-center text-base font-medium text-gray-700">{t('odontogram.lowerJaw')}</p>
-                                    <div className="flex justify-center gap-4 sm:gap-6">
+                                    <div className="flex justify-center gap-4 sm:gap-6 max-sm:flex-col max-sm:items-center">
                                         <div>
                                             <p className="mb-1 text-center text-xs text-gray-500">{t('odontogram.lowerRight')}</p>
                                             <div className="flex gap-0.5 sm:gap-1">

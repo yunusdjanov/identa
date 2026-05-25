@@ -143,9 +143,7 @@ export function AddPatientDialog({
             return { createdPatient, photoUploadError };
         },
         onSuccess: ({ createdPatient, photoUploadError }) => {
-            toast.success(t('patients.toast.addSuccess', { patientName: createdPatient.full_name }), {
-                description: t('patients.toast.addSuccessDescription', { patientId: createdPatient.patient_id }),
-            });
+            toast.success(t('patients.toast.addSuccess', { patientName: createdPatient.full_name }));
             if (photoUploadError) {
                 toast.error(photoUploadError);
             }

@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import axios from 'axios';
-import { Clock3, Mail, Phone, ShieldCheck } from 'lucide-react';
+import { Clock3, Mail, Phone, ShieldCheck, Users } from 'lucide-react';
 import {
     createAssistant,
     deleteAssistant,
@@ -582,7 +582,7 @@ export function TeamAccessTab({ canManageTeam, subscription, t }: TeamAccessTabP
 
     if (!canManageTeam) {
         return (
-            <Card className="interactive-card overflow-hidden rounded-[1.75rem] bg-gradient-to-br from-white via-white to-teal-100/25">
+            <Card className="interactive-card overflow-hidden rounded-[1.75rem] bg-white">
                 <CardHeader className="space-y-4 pb-4">
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                         <CardTitle className="text-base">{t('settings.team.title')}</CardTitle>
@@ -608,7 +608,7 @@ export function TeamAccessTab({ canManageTeam, subscription, t }: TeamAccessTabP
 
     return (
         <div className="space-y-4">
-            <Card className="interactive-card overflow-hidden rounded-[1.75rem] bg-gradient-to-br from-white via-white to-teal-100/25">
+            <Card className="interactive-card overflow-hidden rounded-[1.75rem] bg-white">
                 <CardHeader className="space-y-4 pb-4">
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                         <CardTitle className="text-base">{t('settings.team.title')}</CardTitle>
@@ -666,7 +666,7 @@ export function TeamAccessTab({ canManageTeam, subscription, t }: TeamAccessTabP
                             ) : null}
                         </div>
                     ) : null}
-                    <div className="flex flex-col gap-3 rounded-2xl border border-teal-100/80 bg-gradient-to-r from-white via-teal-100/30 to-white p-3 shadow-xs lg:flex-row lg:items-center lg:justify-between">
+                    <div className="flex flex-col gap-3 rounded-2xl border border-teal-100/80 bg-white p-3 shadow-xs lg:flex-row lg:items-center lg:justify-between">
                         <Input
                             value={search}
                             onChange={(event) => {
@@ -809,7 +809,12 @@ export function TeamAccessTab({ canManageTeam, subscription, t }: TeamAccessTabP
                             })}
 
                             {(assistantsQuery.data?.data.length ?? 0) === 0 ? (
-                                <p className="text-sm text-gray-500">{t('settings.team.empty')}</p>
+                                <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-slate-200 bg-slate-50/40 px-6 py-10 text-center">
+                                    <span className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-slate-400">
+                                        <Users className="h-6 w-6" />
+                                    </span>
+                                    <p className="text-sm font-medium text-slate-600">{t('settings.team.empty')}</p>
+                                </div>
                             ) : null}
 
                             <div className="flex flex-wrap items-center justify-end gap-2 pt-2">

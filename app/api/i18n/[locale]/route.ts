@@ -13,7 +13,10 @@ export async function GET(
         { locale: resolvedLocale, dictionary: DICTIONARIES[resolvedLocale] },
         {
             headers: {
-                'Cache-Control': 'public, max-age=31536000, immutable',
+                // Always revalidate so dictionary changes ship immediately.
+                // (Original `immutable, max-age=31536000` made new translation
+                // keys invisible until the browser cache aged out.)
+                'Cache-Control': 'no-cache, must-revalidate',
             },
         }
     );

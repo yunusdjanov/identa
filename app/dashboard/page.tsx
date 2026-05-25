@@ -15,6 +15,7 @@ import Link from 'next/link';
 import { useI18n } from '@/components/providers/i18n-provider';
 import { AppErrorState } from '@/components/error/app-error-state';
 import { canManage, canView, getManageDeniedMessage, PERMISSION_DENIED_MESSAGE } from '@/lib/auth/permissions';
+import { getStatusTone } from '@/lib/appointments/status-tone';
 import { toast } from 'sonner';
 
 const noopSubscribe = () => () => undefined;
@@ -55,19 +56,6 @@ const statToneClasses: Record<DashboardStatTone, {
     },
 };
 
-function getStatusTone(status: string): { dot: string; text: string } {
-    switch (status) {
-        case 'completed':
-            return { dot: 'bg-green-600', text: 'text-green-700' };
-        case 'cancelled':
-            return { dot: 'bg-red-600', text: 'text-red-700' };
-        case 'no_show':
-            return { dot: 'bg-amber-600', text: 'text-amber-700' };
-        case 'scheduled':
-        default:
-            return { dot: 'bg-teal-600', text: 'text-teal-700' };
-    }
-}
 
 function toMinutesFromTime(timeInput: string): number {
     const [hours, minutes] = timeInput.split(':').map(Number);
@@ -104,7 +92,7 @@ function DashboardStatCard({
                         {icon}
                     </div>
                 </div>
-                <p className={`mt-1.5 truncate text-[1.4rem] font-bold leading-none tracking-tight ${classes.value}`}>
+                <p className={`mt-1.5 truncate text-2xl font-bold leading-none tracking-tight ${classes.value}`}>
                     {value}
                 </p>
                 <div className="mt-2 flex items-center justify-between gap-2">
@@ -127,7 +115,7 @@ function LockedStatCard({ title, icon }: { title: string; icon: ReactNode }) {
                         {icon}
                     </div>
                 </div>
-                <p className="relative mt-1.5 text-[1.4rem] font-bold leading-none text-slate-200">{PERMISSION_DENIED_MESSAGE}</p>
+                <p className="relative mt-1.5 text-2xl font-bold leading-none text-slate-200">{PERMISSION_DENIED_MESSAGE}</p>
             </CardContent>
         </Card>
     );
@@ -341,7 +329,7 @@ export default function DashboardPage() {
                         </div>
                     </div>
                     {canViewAppointments && scheduledTodayAppointments.length > 0 && (
-                        <Button asChild variant="ghost" size="sm" className="h-7 gap-1 rounded-full px-2.5 text-[11px] font-semibold text-teal-700 hover:bg-teal-50 hover:text-teal-800">
+                        <Button asChild variant="ghost" size="sm" className="h-7 gap-1 rounded-full bg-teal-50 px-2.5 text-[11px] font-semibold text-teal-700 hover:bg-teal-50 hover:text-teal-700">
                             <Link href={showAllTodayHref}>
                                 {t('dashboard.showAllToday', { count: scheduledTodayAppointments.length })}
                                 <ArrowRight className="h-3 w-3" />
@@ -385,9 +373,6 @@ export default function DashboardPage() {
                     <div className="flex items-center gap-2.5 px-4 py-4">
                         <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-500" />
                         <p className="text-sm font-semibold text-slate-700">{t('dashboard.noMoreUpcoming')}</p>
-                        <Button asChild variant="ghost" size="sm" className="ml-auto h-7 rounded-full px-2.5 text-xs text-teal-700 hover:bg-teal-50">
-                            <Link href={showAllTodayHref}>{t('dashboard.showAllToday', { count: scheduledTodayAppointments.length })}</Link>
-                        </Button>
                     </div>
                 ) : (
                     <div className="divide-y divide-slate-100/80">

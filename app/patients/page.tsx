@@ -30,7 +30,9 @@ import { getCurrentUser, listPatientCategories, listPatients, restorePatient } f
 import { getApiErrorMessage } from '@/lib/api/client';
 import type { ApiPatient } from '@/lib/api/types';
 import { cn, extractPrimaryPhone, formatDate, toLocalDateKey, truncateForUi } from '@/lib/utils';
-import { Plus, Search, Phone, CalendarPlus, ArrowRight, Tags, FileText, FilterX } from 'lucide-react';
+import { Plus, Search, Phone, Users, CalendarPlus, ArrowRight, Tags, FileText, FilterX, Download } from 'lucide-react';
+import { buildPdfFilename, exportRowsToPdf } from '@/lib/export/pdf';
+import { EmptyState } from '@/components/ui/empty-state';
 import { useI18n } from '@/components/providers/i18n-provider';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { getProtectedMediaCrossOrigin, getProtectedMediaThumbnailUrl } from '@/lib/protected-media';
@@ -285,6 +287,50 @@ export default function PatientsPage() {
                 description={t('patients.subtitle')}
                 actions={(
                     <>
+                        {currentUser?.subscription?.can_export ? (
+                            <Button
+                                variant="outline"
+                                className="w-full sm:w-auto"
+                                disabled={patientRows.length === 0}
+                                onClick={() => {
+                                    if (patientRows.length === 0) {
+                                        toast.error(t('export.empty'));
+                                        return;
+                                    }
+                                    const data = patientsQuery.data?.data ?? [];
+                                    const rows = data.map((patient) => [
+                                        patient.full_name,
+                                        extractPrimaryPhone(patient.phone) || '-',
+                                        patient.gender ? t(`gender.${patient.gender}`) ?? patient.gender : '-',
+                                        patient.date_of_birth ? formatDate(patient.date_of_birth) : '-',
+                                        (patient.categories ?? []).map((c) => c.name).join(', ') || '-',
+                                        patient.last_visit_at ? formatDate(patient.last_visit_at) : '-',
+                                    ]);
+                                    exportRowsToPdf({
+                                        filename: buildPdfFilename('patients'),
+                                        title: t('patients.title'),
+                                        subtitle: t('patients.subtitle'),
+                                        columns: [
+                                            t('patients.table.name'),
+                                            t('patients.table.phone'),
+                                            t('patients.table.gender'),
+                                            t('patients.table.dateOfBirth'),
+                                            t('patients.categories'),
+                                            t('patients.table.lastVisit'),
+                                        ],
+                                        rows,
+                                        summary: [
+                                            { label: t('patients.table.name'), value: String(data.length) },
+                                        ],
+                                        orientation: 'landscape',
+                                    });
+                                    toast.success(t('export.downloaded'));
+                                }}
+                            >
+                                <Download className="w-4 h-4 mr-2" />
+                                {t('common.export')}
+                            </Button>
+                        ) : null}
                         <Button
                             variant="outline"
                             className="w-full sm:w-auto"
@@ -424,9 +470,10 @@ export default function PatientsPage() {
                 </CardHeader>
                 <CardContent className="px-4 pb-5 sm:px-5">
                     {patientRows.length === 0 ? (
-                        <div className="text-center py-12">
-                            <p className="text-gray-500">
-                                {inactiveFilter === '6m'
+                        <EmptyState
+                            icon={hasActiveFilters ? FilterX : Users}
+                            title={
+                                inactiveFilter === '6m'
                                     ? t('patients.empty.noVisit6m')
                                     : inactiveFilter === '1y'
                                         ? t('patients.empty.noVisit1y')
@@ -434,18 +481,16 @@ export default function PatientsPage() {
                                         ? t('patients.empty.archived')
                                     : hasActiveFilters
                                         ? t('patients.empty.filtered')
-                                        : t('patients.empty.default')}
-                            </p>
-                            {hasActiveFilters && (
-                                <Button
-                                    variant="outline"
-                                    className="mt-4"
-                                    onClick={resetFilters}
-                                >
+                                        : t('patients.empty.default')
+                            }
+                            description={hasActiveFilters ? undefined : (t('patients.searchPlaceholder') ?? undefined)}
+                            action={hasActiveFilters ? (
+                                <Button variant="outline" onClick={resetFilters}>
+                                    <FilterX className="h-4 w-4 mr-1.5" />
                                     {t('patients.resetFilters')}
                                 </Button>
-                            )}
-                        </div>
+                            ) : null}
+                        />
                     ) : (
                         <>
                         <DataTableShell>

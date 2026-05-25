@@ -68,6 +68,7 @@ import {
     CreditCard,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { EmptyState } from '@/components/ui/empty-state';
 import {
     INPUT_LIMITS,
     getEmailValidationMessage,
@@ -1158,9 +1159,7 @@ export default function AdminDashboardPage() {
                                         </p>
                                     </div>
                                     {billingDetailsQuery.data.payments.length === 0 ? (
-                                        <p className="px-4 py-6 text-sm text-slate-500">
-                                            {t('admin.billing.noPayments')}
-                                        </p>
+                                        <EmptyState icon={CreditCard} title={t('admin.billing.noPayments')} size="sm" />
                                     ) : (
                                         <div className="divide-y divide-slate-100">
                                             {billingDetailsQuery.data.payments.map((payment) => (

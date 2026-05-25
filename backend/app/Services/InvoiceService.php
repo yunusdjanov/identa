@@ -7,6 +7,7 @@ use App\Http\Requests\UpdateInvoiceRequest;
 use App\Models\Invoice;
 use App\Models\OdontogramEntry;
 use App\Models\User;
+use App\Support\Search;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -204,14 +205,16 @@ class InvoiceService
 
     private function applySearch(Builder $query, string $search): void
     {
+        // Case-insensitive on every supported DB. invoice_number is normally
+        // numeric-with-prefix (e.g. "INV-2025-...") so case rarely matters
+        // there, but patient name / patient_id do — and a uniform helper
+        // avoids reasoning about which columns need it.
         $query->where(function (Builder $builder) use ($search): void {
-            $builder
-                ->where('invoice_number', 'like', "%{$search}%")
-                ->orWhereHas('patient', function (Builder $patientQuery) use ($search): void {
-                    $patientQuery
-                        ->where('full_name', 'like', "%{$search}%")
-                        ->orWhere('patient_id', 'like', "%{$search}%");
-                });
+            Search::ciLike($builder, 'invoice_number', $search);
+            $builder->orWhereHas('patient', function (Builder $patientQuery) use ($search): void {
+                Search::ciLike($patientQuery, 'full_name', $search);
+                Search::ciLike($patientQuery, 'patient_id', $search, 'or');
+            });
         });
     }
 

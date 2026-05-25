@@ -23,7 +23,9 @@ import type { ApiPatient, ApiTreatment } from '@/lib/api/types';
 import { useI18n } from '@/components/providers/i18n-provider';
 import { formatLocalizedDate } from '@/lib/i18n/date';
 import { extractPrimaryPhone, formatCurrency } from '@/lib/utils';
-import { AlertCircle, History, Phone, Search, Users, Wallet } from 'lucide-react';
+import { AlertCircle, Download, History, Phone, Search, Users, Wallet } from 'lucide-react';
+import { buildPdfFilename, exportRowsToPdf } from '@/lib/export/pdf';
+import { EmptyState } from '@/components/ui/empty-state';
 import { AppErrorState } from '@/components/error/app-error-state';
 import { AccessDeniedState } from '@/components/error/access-denied-state';
 import { canView, PERMISSION_DENIED_MESSAGE } from '@/lib/auth/permissions';
@@ -41,7 +43,6 @@ interface PatientBalanceRow {
     patientId: string;
     patientName: string;
     patientPhone: string;
-    patientCode: string;
     treatments: ApiTreatment[];
     totalDebt: number;
     totalPaid: number;
@@ -200,7 +201,6 @@ export default function PaymentsPage() {
                     patientId: patient.id,
                     patientName: patient.full_name,
                     patientPhone: extractPrimaryPhone(patient.phone) || '-',
-                    patientCode: patient.patient_id,
                     treatments,
                     totalDebt,
                     totalPaid,
@@ -216,7 +216,7 @@ export default function PaymentsPage() {
                     return true;
                 }
 
-                const searchable = [row.patientName, row.patientPhone, row.patientCode].join(' ').toLowerCase();
+                const searchable = [row.patientName, row.patientPhone].join(' ').toLowerCase();
                 return searchable.includes(normalizedSearch);
             })
             .sort((left, right) => {
@@ -375,7 +375,60 @@ export default function PaymentsPage() {
 
     return (
         <div className="space-y-5 lg:space-y-6">
-            <PageHeader title={t('payments.title')} description={t('payments.subtitle')} />
+            <PageHeader
+                title={t('payments.title')}
+                description={t('payments.subtitle')}
+                actions={currentUser?.subscription?.can_export ? (
+                    <Button
+                        variant="outline"
+                        className="w-full sm:w-auto"
+                        disabled={patientRows.length === 0}
+                        onClick={() => {
+                            if (patientRows.length === 0) {
+                                toast.error(t('export.empty'));
+                                return;
+                            }
+                            const totalDebt = patientRows.reduce((s, r) => s + r.totalDebt, 0);
+                            const totalPaid = patientRows.reduce((s, r) => s + r.totalPaid, 0);
+                            const totalBalance = patientRows.reduce((s, r) => s + r.balance, 0);
+                            const rows = patientRows.map((row) => [
+                                row.patientName,
+                                row.patientPhone,
+                                String(row.entryCount),
+                                formatCurrency(row.totalDebt),
+                                formatCurrency(row.totalPaid),
+                                formatCurrency(row.balance),
+                                row.lastEntryDate ? formatLocalizedDate(row.lastEntryDate, locale, { year: 'numeric', month: 'short', day: 'numeric' }) : '-',
+                            ]);
+                            exportRowsToPdf({
+                                filename: buildPdfFilename('payments'),
+                                title: t('payments.title'),
+                                subtitle: t('payments.subtitle'),
+                                columns: [
+                                    t('payments.table.patient') ?? 'Patient',
+                                    t('patients.table.phone') ?? 'Phone',
+                                    t('payments.table.entries') ?? 'Entries',
+                                    t('payments.table.debt') ?? 'Debt',
+                                    t('payments.table.paid') ?? 'Paid',
+                                    t('payments.table.balance') ?? 'Balance',
+                                    t('payments.table.lastEntry') ?? 'Last entry',
+                                ],
+                                rows,
+                                summary: [
+                                    { label: t('payments.summary.totalDebt') ?? 'Debt', value: formatCurrency(totalDebt) },
+                                    { label: t('payments.summary.totalPaid') ?? 'Paid', value: formatCurrency(totalPaid) },
+                                    { label: t('payments.summary.totalBalance') ?? 'Balance', value: formatCurrency(totalBalance) },
+                                ],
+                                orientation: 'landscape',
+                            });
+                            toast.success(t('export.downloaded'));
+                        }}
+                    >
+                        <Download className="mr-2 h-4 w-4" />
+                        {t('common.export')}
+                    </Button>
+                ) : undefined}
+            />
 
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
                 <div className="interactive-card metric-hover-card metric-hover-red rounded-2xl border border-red-100 bg-white/95 p-4 shadow-sm shadow-red-100/60 md:p-5">
@@ -493,9 +546,11 @@ export default function PaymentsPage() {
                             </div>
 
                             {patientRows.length === 0 ? (
-                                <div className="rounded-xl border border-dashed border-gray-200 px-6 py-10 text-center">
-                                    <Wallet className="mx-auto h-10 w-10 text-gray-300" />
-                                    <p className="mt-4 text-sm text-gray-500">{t('payments.empty.patients')}</p>
+                                <div className="rounded-2xl border border-dashed border-slate-200">
+                                    <EmptyState
+                                        icon={Wallet}
+                                        title={t('payments.empty.patients')}
+                                    />
                                 </div>
                             ) : (
                                 <>

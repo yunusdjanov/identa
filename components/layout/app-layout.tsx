@@ -17,6 +17,7 @@ import {
 import { useInstantLogout } from '@/lib/auth/use-instant-logout';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
+    BarChart3,
     LayoutDashboard,
     Users,
     Calendar,
@@ -55,6 +56,11 @@ const navigation = [
         key: 'nav.payments',
         href: '/payments',
         icon: CreditCard,
+    },
+    {
+        key: 'menu.analytics',
+        href: '/analytics',
+        icon: BarChart3,
     },
 ];
 
@@ -198,7 +204,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                                                 onClick={(event) => handleNavigationClick(event, item.href)}
                                                 aria-disabled={isLocked}
                                                 className={cn(
-                                                    'flex h-9 items-center rounded-xl border px-3.5 text-sm font-semibold transition-colors',
+                                                    'flex h-9 items-center rounded-xl border px-2.5 text-sm font-semibold transition-colors lg:px-3.5',
                                                     isActive
                                                         ? 'border-teal-600 bg-teal-600 text-white shadow-sm shadow-teal-200/70'
                                                         : isLocked
@@ -206,8 +212,8 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                                                             : 'border-transparent text-slate-600 hover:bg-teal-50/80 hover:text-teal-700'
                                                 )}
                                             >
-                                                <Icon className="mr-2 h-4 w-4" />
-                                                {t(item.key)}
+                                                <Icon className="h-4 w-4 lg:mr-2" />
+                                                <span className="hidden lg:inline">{t(item.key)}</span>
                                             </Link>
                                         );
                                     })}
@@ -272,7 +278,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                     </div>
                 ) : (
                     <div className="md:hidden border-t border-slate-200/70 bg-white/80">
-                        <nav className="flex gap-1 overflow-x-auto overflow-y-hidden px-2 py-2 no-scrollbar">
+                        <nav className="flex justify-center gap-1 overflow-x-auto overflow-y-hidden px-2 py-2 no-scrollbar">
                             {navigation.map((item) => {
                                 const isActive = isActiveRoute(item.href);
                                 const Icon = item.icon;
