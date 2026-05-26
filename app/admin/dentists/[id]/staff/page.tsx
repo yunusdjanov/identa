@@ -60,13 +60,13 @@ function StaffPageSkeleton() {
             <AdminHeader active="dashboard" onLogout={() => undefined} />
             <main className="p-3 sm:p-5 lg:p-6">
                 <div className="mx-auto max-w-[1440px] space-y-5 lg:space-y-6">
-                    <div className="rounded-[1.75rem] border border-white/80 bg-white/80 p-6">
+                    <div className="rounded-2xl border border-white/80 bg-white p-6">
                         <Skeleton className="h-10 w-72" />
                         <Skeleton className="mt-3 h-4 w-96 max-w-full" />
                     </div>
                     <div className="grid gap-4 md:grid-cols-3">
                         {Array.from({ length: 3 }).map((_, index) => (
-                            <Card key={index} className="rounded-[1.5rem] border-slate-200/80">
+                            <Card key={index} className="rounded-2xl border-slate-200/80">
                                 <CardContent className="p-5">
                                     <Skeleton className="h-4 w-28" />
                                     <Skeleton className="mt-5 h-8 w-16" />
@@ -207,7 +207,7 @@ export default function AdminDentistStaffPage() {
                             </span>
                         }
                         actions={
-                            <Button asChild variant="outline" className="h-11 rounded-2xl bg-white px-5">
+                            <Button asChild variant="outline" className="h-10 rounded-2xl bg-white px-5">
                                 <Link href="/admin">
                                     <ArrowLeft className="h-4 w-4" />
                                     {t('admin.staffPage.back')}
@@ -257,7 +257,7 @@ export default function AdminDentistStaffPage() {
                         </div>
 
                         {staffMembers.length === 0 ? (
-                            <div className="rounded-[1.5rem] border border-dashed border-teal-100 bg-teal-50/50 p-8 text-center">
+                            <div className="rounded-2xl border border-dashed border-teal-100 bg-teal-50/50 p-8 text-center">
                                 <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-teal-600 shadow-sm shadow-teal-100">
                                     <Users className="h-5 w-5" />
                                 </div>
@@ -344,7 +344,7 @@ export default function AdminDentistStaffPage() {
                                     {staffMembers.map((staff) => (
                                         <article
                                             key={staff.id}
-                                            className="rounded-[1.35rem] border border-slate-200/80 bg-white/95 p-4 shadow-sm shadow-slate-200/50"
+                                            className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm shadow-slate-200/50"
                                         >
                                             <div className="flex min-w-0 items-start justify-between gap-3">
                                                 <div className="min-w-0">
@@ -413,14 +413,14 @@ function StaffStatCard({
     }[tone];
 
     return (
-        <Card className={cn('rounded-[1.5rem] shadow-sm shadow-slate-200/60', toneClassName)}>
+        <Card className={cn('rounded-2xl shadow-sm shadow-slate-200/60', toneClassName)}>
             <CardContent className="flex items-center justify-between gap-4 p-5">
                 <div>
                     <p className="text-sm font-semibold text-slate-600">{label}</p>
                     <p className="mt-3 text-xl font-bold tracking-[-0.03em] text-slate-950">{value}</p>
                     {description ? <p className="mt-1 text-xs text-slate-500">{description}</p> : null}
                 </div>
-                <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/80 shadow-sm shadow-slate-200/70">
+                <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white shadow-sm shadow-slate-200/70">
                     {icon}
                 </span>
             </CardContent>

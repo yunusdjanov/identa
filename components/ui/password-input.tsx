@@ -30,7 +30,7 @@ export function PasswordInput({
             <button
                 type="button"
                 onClick={() => setIsVisible((current) => !current)}
-                className="absolute inset-y-0 right-0 flex w-11 items-center justify-center text-gray-500 hover:text-gray-700 disabled:cursor-not-allowed disabled:opacity-50"
+                className="absolute inset-y-0 right-0 flex w-11 items-center justify-center text-slate-500 hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
                 aria-label={isVisible ? hideLabel : showLabel}
                 disabled={disabled}
             >

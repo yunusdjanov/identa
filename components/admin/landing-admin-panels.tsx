@@ -287,7 +287,7 @@ export function AdminLandingSettingsPanel() {
     };
 
     return (
-        <Card className="interactive-card rounded-[1.5rem] bg-white/95">
+        <Card className="interactive-card rounded-2xl bg-white">
             <CardHeader>
                 <CardTitle className="flex items-center">
                     <Settings2 className="mr-2 h-4 w-4" />
@@ -371,7 +371,7 @@ export function AdminLeadRequestsPanel() {
     });
 
     return (
-        <Card className="interactive-card rounded-[1.5rem] bg-white/95">
+        <Card className="interactive-card rounded-2xl bg-white">
             <CardHeader>
                 <CardTitle className="flex items-center">
                     <MessageSquare className="mr-2 h-4 w-4" />

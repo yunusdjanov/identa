@@ -7,7 +7,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 
 function PageHeaderSkeleton({ actions = 1, eyebrow = false }: { actions?: number; eyebrow?: boolean }) {
     return (
-        <section className="overflow-hidden rounded-[1.5rem] border border-white/80 bg-gradient-to-br from-white via-teal-100/55 to-white px-4 py-3 shadow-sm shadow-slate-200/70 sm:rounded-[1.75rem] sm:px-5 sm:py-4">
+        <section className="overflow-hidden rounded-2xl border border-white/80 bg-white px-4 py-3 shadow-sm shadow-slate-200/70 sm:rounded-2xl sm:px-5 sm:py-4">
             <div className="flex min-w-0 flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                 <div className="min-w-0 space-y-1">
                     {eyebrow ? <Skeleton className="h-3 w-16 rounded-xl" /> : null}
@@ -33,7 +33,7 @@ function MetricCardsSkeleton({ count = 3 }: { count?: number }) {
                 <Card
                     key={index}
                     data-testid="metric-card-skeleton"
-                    className="rounded-[1.5rem] border-slate-200 bg-white/95 shadow-sm"
+                    className="rounded-2xl border-slate-200 bg-white shadow-sm"
                 >
                     <CardContent className="flex min-h-[136px] flex-col justify-between p-5">
                         <div className="flex items-start justify-between gap-3">
@@ -61,7 +61,7 @@ function DataTableSkeleton({
     testId?: string;
 }) {
     return (
-        <Card data-testid={testId} className="rounded-[1.5rem] border-slate-200 bg-white/95 shadow-sm">
+        <Card data-testid={testId} className="rounded-2xl border-slate-200 bg-white shadow-sm">
             <CardHeader>
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <Skeleton className="h-6 w-44 rounded-xl" />
@@ -80,7 +80,7 @@ function DataTableSkeleton({
                 {Array.from({ length: rows }).map((_, rowIndex) => (
                     <div
                         key={rowIndex}
-                        className="grid gap-3 rounded-xl border border-slate-100 bg-white/80 p-3 md:border-0 md:bg-transparent md:p-0"
+                        className="grid gap-3 rounded-xl border border-slate-100 bg-white p-3 md:border-0 md:bg-transparent md:p-0"
                         style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}
                     >
                         {Array.from({ length: columns }).map((__, columnIndex) => (
@@ -150,7 +150,7 @@ export function RouteDashboardLoadingState() {
     return (
         <div data-testid="dashboard-loading" className="space-y-3">
             {/* Header banner */}
-            <section className="overflow-hidden rounded-[1.5rem] border border-white/80 bg-gradient-to-br from-white via-teal-100/55 to-white px-4 py-3 shadow-sm shadow-slate-200/70 sm:px-5 sm:py-4">
+            <section className="overflow-hidden rounded-2xl border border-white/80 bg-white px-4 py-3 shadow-sm shadow-slate-200/70 sm:px-5 sm:py-4">
                 <div className="flex min-w-0 flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                     <div className="space-y-1.5">
                         <Skeleton className="h-3 w-16 rounded-xl" />
@@ -166,7 +166,7 @@ export function RouteDashboardLoadingState() {
             {/* Stat cards — 3 cols, compact */}
             <div className="grid gap-2.5 md:grid-cols-3">
                 {Array.from({ length: 3 }).map((_, i) => (
-                    <div key={i} className="rounded-2xl border bg-white/95 px-4 py-3.5 shadow-sm">
+                    <div key={i} className="rounded-2xl border bg-white px-4 py-3.5 shadow-sm">
                         <div className="flex items-start justify-between gap-3">
                             <Skeleton className="h-3.5 w-28 rounded-xl" />
                             <Skeleton className="h-7 w-7 rounded-lg" />
@@ -205,7 +205,7 @@ export function AppointmentsLoadingState() {
     return (
         <div className="space-y-5 lg:space-y-6">
             <PageHeaderSkeleton actions={1} />
-            <Card className="rounded-[1.5rem] border-teal-100/80 bg-white/95 shadow-sm">
+            <Card className="rounded-2xl border-teal-100/80 bg-white shadow-sm">
                 <CardContent className="space-y-4 p-3 sm:p-5">
                     <div className="flex flex-col gap-3 rounded-2xl border border-teal-100/80 bg-teal-50/30 p-3 md:flex-row md:items-center md:justify-between">
                         <div className="flex gap-2">
@@ -240,7 +240,7 @@ export function PatientsLoadingState() {
     return (
         <div className="space-y-5 lg:space-y-6">
             <PageHeaderSkeleton actions={2} />
-            <Card className="rounded-[1.5rem] border-slate-200 bg-white/95">
+            <Card className="rounded-2xl border-slate-200 bg-white">
                 <CardContent className="p-4">
                     <div className="grid gap-3 md:grid-cols-[1fr_12rem_12rem_10rem]">
                         <Skeleton className="h-10 rounded-xl" />
@@ -264,7 +264,7 @@ export function PaymentsLoadingState() {
                 <Skeleton className="h-10 w-32 rounded-xl" />
                 <Skeleton className="h-10 w-32 rounded-xl" />
             </div>
-            <Card className="rounded-[1.5rem] border-slate-200 bg-white/95 shadow-sm">
+            <Card className="rounded-2xl border-slate-200 bg-white shadow-sm">
                 <CardContent className="p-4">
                     <Skeleton className="h-10 w-full rounded-xl" />
                 </CardContent>
@@ -279,7 +279,7 @@ export function SettingsLoadingState() {
         <div className="space-y-5 lg:space-y-6">
             <PageHeaderSkeleton actions={0} />
             <TabStripSkeleton count={4} />
-            <Card className="rounded-[1.5rem] border-slate-200 bg-white/95">
+            <Card className="rounded-2xl border-slate-200 bg-white">
                 <CardHeader>
                     <Skeleton className="h-6 w-44 rounded-xl" />
                 </CardHeader>
@@ -303,7 +303,7 @@ export function BillingLoadingState() {
     return (
         <div className="space-y-5 lg:space-y-6">
             <PageHeaderSkeleton actions={0} />
-            <Card className="rounded-[1.5rem] border-teal-100 bg-white/95">
+            <Card className="rounded-2xl border-teal-100 bg-white">
                 <CardContent className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
                     <div className="space-y-3">
                         <Skeleton className="h-4 w-28 rounded-xl" />
@@ -313,10 +313,10 @@ export function BillingLoadingState() {
                     <Skeleton className="h-16 w-full rounded-xl sm:w-72" />
                 </CardContent>
             </Card>
-            <Skeleton className="h-11 w-full rounded-2xl sm:w-56" />
+            <Skeleton className="h-10 w-full rounded-2xl sm:w-56" />
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                 {Array.from({ length: 3 }).map((_, index) => (
-                    <Card key={index} className="rounded-[1.5rem] border-slate-200 bg-white/95">
+                    <Card key={index} className="rounded-2xl border-slate-200 bg-white">
                         <CardHeader className="space-y-3">
                             <Skeleton className="h-6 w-36 rounded-xl" />
                             <Skeleton className="h-10 w-full rounded-xl" />
@@ -341,7 +341,7 @@ export function StaffLoadingState() {
         <div className="space-y-5 lg:space-y-6">
             <PageHeaderSkeleton actions={0} />
             <TabStripSkeleton count={2} />
-            <Card className="rounded-[1.5rem] border-slate-200 bg-white/95">
+            <Card className="rounded-2xl border-slate-200 bg-white">
                 <CardHeader>
                     <Skeleton className="h-6 w-44 rounded-xl" />
                 </CardHeader>
@@ -359,7 +359,7 @@ export function PatientDetailLoadingState() {
     return (
         <div className="space-y-4">
             {/* Header — matches actual page */}
-            <section className="rounded-[1.5rem] border border-white/80 bg-gradient-to-br from-white via-teal-100/55 to-white px-4 py-3 shadow-sm shadow-slate-200/70 sm:px-5">
+            <section className="rounded-2xl border border-white/80 bg-white px-4 py-3 shadow-sm shadow-slate-200/70 sm:px-5">
                 <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
                     <div className="flex items-center gap-3">
                         <Skeleton className="h-8 w-8 shrink-0 rounded-xl" />
@@ -444,15 +444,15 @@ export function PatientHistoryLoadingState() {
     return (
         <div className="space-y-5 lg:space-y-6">
             <PageHeaderSkeleton actions={1} />
-            <Card className="rounded-[1.75rem] border-slate-200 bg-white/95">
+            <Card className="rounded-2xl border-slate-200 bg-white">
                 <CardHeader>
                     <Skeleton className="h-6 w-56 rounded-xl" />
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <div className="grid gap-3 md:grid-cols-3">
-                        <Skeleton className="h-11 rounded-xl" />
-                        <Skeleton className="h-11 rounded-xl" />
-                        <Skeleton className="h-11 rounded-xl" />
+                        <Skeleton className="h-10 rounded-xl" />
+                        <Skeleton className="h-10 rounded-xl" />
+                        <Skeleton className="h-10 rounded-xl" />
                     </div>
                     <Skeleton className="h-[22rem] w-full rounded-2xl" />
                 </CardContent>
@@ -473,7 +473,7 @@ export function OdontogramLoadingState() {
     return (
         <div className="space-y-5 lg:space-y-6">
             <PageHeaderSkeleton actions={1} />
-            <Card className="rounded-[1.5rem] border-slate-200 bg-white/95">
+            <Card className="rounded-2xl border-slate-200 bg-white">
                 <CardHeader>
                     <Skeleton className="h-6 w-64 rounded-xl" />
                 </CardHeader>
@@ -492,7 +492,7 @@ export function OdontogramLoadingState() {
                             </div>
                         </div>
                     </div>
-                    <div className="border-t-2 border-gray-300" />
+                    <div className="border-t-2 border-slate-300" />
                     {/* Lower jaw */}
                     <div className="space-y-2">
                         <Skeleton className="mx-auto h-4 w-20 rounded-xl" />
@@ -536,7 +536,7 @@ export function AdminSettingsLoadingState() {
     return (
         <AdminShellSkeleton maxWidth="max-w-5xl">
             <PageHeaderSkeleton actions={0} />
-            <Card className="rounded-[1.5rem] border-slate-200 bg-white/95">
+            <Card className="rounded-2xl border-slate-200 bg-white">
                 <CardHeader>
                     <Skeleton className="h-6 w-36 rounded-xl" />
                 </CardHeader>
@@ -551,7 +551,7 @@ export function AdminSettingsLoadingState() {
                     </div>
                 </CardContent>
             </Card>
-            <Card className="rounded-[1.5rem] border-slate-200 bg-white/95">
+            <Card className="rounded-2xl border-slate-200 bg-white">
                 <CardHeader>
                     <Skeleton className="h-6 w-44 rounded-xl" />
                 </CardHeader>
@@ -567,7 +567,7 @@ export function AdminLandingPanelSkeleton() {
     return (
         <Card
             data-testid="admin-landing-panel-skeleton"
-            className="rounded-[1.5rem] border-slate-200 bg-white/95"
+            className="rounded-2xl border-slate-200 bg-white"
         >
             <CardHeader className="space-y-2">
                 <Skeleton className="h-6 w-64 rounded-xl" />
@@ -600,7 +600,7 @@ export function AdminLandingLoadingState() {
 
 export function AdminLeadsPanelSkeleton() {
     return (
-        <Card className="rounded-[1.5rem] border-slate-200 bg-white/95">
+        <Card className="rounded-2xl border-slate-200 bg-white">
             <CardHeader className="space-y-2">
                 <Skeleton className="h-6 w-48 rounded-xl" />
                 <Skeleton className="h-4 w-80 max-w-full rounded-xl" />
@@ -685,13 +685,13 @@ export function AuthFormLoadingState({
                             <CardContent className="space-y-3.5 px-5 pb-5 sm:px-7 sm:pb-7">
                                 {fieldCount > 2 ? (
                                     <div className="flex justify-center">
-                                        <Skeleton className="h-9 w-40 rounded-full bg-white/80" />
+                                        <Skeleton className="h-9 w-40 rounded-full bg-white" />
                                     </div>
                                 ) : null}
                                 {Array.from({ length: fieldCount }).map((_, index) => (
                                     <div key={index} data-testid="auth-field-skeleton" className="space-y-2">
                                         <Skeleton className="h-4 w-24 rounded-xl" />
-                                        <Skeleton className="h-10 w-full rounded-[1.1rem]" />
+                                        <Skeleton className="h-10 w-full rounded-xl" />
                                     </div>
                                 ))}
                                 <Skeleton className="h-10 w-full rounded-full" />

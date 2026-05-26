@@ -521,7 +521,7 @@ export default function AdminDashboardPage() {
                     <PageHeader title={t('admin.dashboardTitle')} description={t('admin.dashboardSubtitle')} />
 
                     <div className="grid grid-cols-1 gap-4 md:grid-cols-3 lg:gap-6">
-                        <Card className="interactive-card metric-hover-card metric-hover-teal rounded-[1.5rem] border-teal-100 bg-white/95 shadow-sm shadow-teal-100/50">
+                        <Card className="interactive-card metric-hover-card metric-hover-teal rounded-2xl border-teal-100 bg-white shadow-sm shadow-teal-100/50">
                             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                                 <CardTitle className="text-sm font-medium">{t('admin.stats.totalDentists')}</CardTitle>
                                 <Users className="h-4 w-4 text-teal-600" />
@@ -531,7 +531,7 @@ export default function AdminDashboardPage() {
                             </CardContent>
                         </Card>
 
-                        <Card className="interactive-card metric-hover-card metric-hover-emerald rounded-[1.5rem] border-emerald-100 bg-white/95 shadow-sm shadow-emerald-100/50">
+                        <Card className="interactive-card metric-hover-card metric-hover-emerald rounded-2xl border-emerald-100 bg-white shadow-sm shadow-emerald-100/50">
                             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                                 <CardTitle className="text-sm font-medium">{t('admin.stats.activeDentists')}</CardTitle>
                                 <UserCheck className="h-4 w-4 text-emerald-600" />
@@ -547,10 +547,10 @@ export default function AdminDashboardPage() {
                             </CardContent>
                         </Card>
 
-                        <Card className="interactive-card metric-hover-card metric-hover-teal rounded-[1.5rem] border-sky-100 bg-white/95 shadow-sm shadow-sky-100/50">
+                        <Card className="interactive-card metric-hover-card metric-hover-teal rounded-2xl border-teal-100 bg-white shadow-sm shadow-teal-100/50">
                             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                                 <CardTitle className="text-sm font-medium">{t('admin.stats.newLast7Days')}</CardTitle>
-                                <UserPlus className="h-4 w-4 text-sky-600" />
+                                <UserPlus className="h-4 w-4 text-teal-600" />
                             </CardHeader>
                             <CardContent>
                                 <div className="text-xl font-bold tracking-[-0.03em] text-slate-950">{stats.newRegistrations}</div>
@@ -558,13 +558,13 @@ export default function AdminDashboardPage() {
                         </Card>
                     </div>
 
-                    <Card className="overflow-hidden rounded-[1.5rem] bg-white/95">
+                    <Card className="overflow-hidden rounded-2xl bg-white">
                         <CardHeader className="pb-4">
                             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                                 <CardTitle className="text-base">{t('admin.accountsTitle')}</CardTitle>
                                 <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center sm:gap-3">
                                     <div className="relative flex-1 sm:w-64">
-                                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                                         <Input
                                             placeholder={t('admin.searchPlaceholder')}
                                             value={searchQuery}
@@ -572,7 +572,7 @@ export default function AdminDashboardPage() {
                                                 setSearchQuery(event.target.value);
                                                 setPage(1);
                                             }}
-                                            className="h-10 rounded-xl border-slate-200 bg-white/90 pl-10 shadow-xs"
+                                            className="h-9 rounded-xl border-slate-200 bg-white pl-10 shadow-xs"
                                             maxLength={INPUT_LIMITS.shortText}
                                         />
                                     </div>
@@ -600,7 +600,7 @@ export default function AdminDashboardPage() {
                                     <TableBody>
                                         {accounts.length === 0 ? (
                                             <TableRow>
-                                                <TableCell colSpan={7} className="text-center text-gray-500 py-8">
+                                                <TableCell colSpan={7} className="text-center text-slate-500 py-8">
                                                     {t('admin.empty')}
                                                 </TableCell>
                                             </TableRow>
@@ -618,13 +618,13 @@ export default function AdminDashboardPage() {
                                                     </TableCell>
                                                     <TableCell className="min-w-[15rem]">
                                                         <div className="space-y-2">
-                                                            <p className="text-sm font-medium text-gray-900">
+                                                            <p className="text-sm font-medium text-slate-900">
                                                                 {t('admin.subscription.planSummary', {
                                                                     plan: getSubscriptionPlanLabel(account.subscription, t),
                                                                     status: getSubscriptionStatusLabel(account.subscription, t),
                                                                 })}
                                                             </p>
-                                                            <p className="text-xs text-gray-600">
+                                                            <p className="text-xs text-slate-600">
                                                                 {account.subscription.ends_at
                                                                     ? t('admin.subscription.paidUntil', {
                                                                         date: formatLocalizedDate(
@@ -639,7 +639,7 @@ export default function AdminDashboardPage() {
                                                                     })
                                                                     : t('admin.subscription.notConfigured')}
                                                             </p>
-                                                            <p className="text-xs text-gray-500">
+                                                            <p className="text-xs text-slate-500">
                                                                 {account.subscription.staff_limit === null
                                                                     ? t('admin.subscription.staffUnlimited', {
                                                                         count: account.subscription.active_staff_count,
@@ -671,7 +671,7 @@ export default function AdminDashboardPage() {
                                                             <Badge className="bg-red-500">{t('admin.status.blocked')}</Badge>
                                                         ) : null}
                                                         {account.status === 'deleted' ? (
-                                                            <Badge variant="outline" className="text-gray-500">
+                                                            <Badge variant="outline" className="text-slate-500">
                                                                 {t('admin.status.deleted')}
                                                             </Badge>
                                                         ) : null}
@@ -852,7 +852,7 @@ export default function AdminDashboardPage() {
                                 </Table>
                             </DataTableShell>
                             {pagination ? (
-                                <div className="mt-4 flex flex-col gap-3 text-sm text-gray-600 sm:flex-row sm:items-center sm:justify-between">
+                                <div className="mt-4 flex flex-col gap-3 text-sm text-slate-600 sm:flex-row sm:items-center sm:justify-between">
                                     <p>
                                         {t('admin.pagination.showing', {
                                             from:
@@ -927,7 +927,7 @@ export default function AdminDashboardPage() {
                                     {t('admin.form.dentistName')} <span className="text-red-500">*</span>
                                 </Label>
                                 <div className="flex items-center gap-2">
-                                    <span className="text-sm font-medium text-gray-700 bg-gray-100 px-3 py-2 rounded-md border">
+                                    <span className="inline-flex h-9 items-center rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-semibold text-slate-700">
                                         {t('common.doctorPrefix')}
                                     </span>
                                     <Input

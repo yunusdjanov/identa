@@ -80,7 +80,7 @@ export function ErrorScreen({ kind, digest, onRetry }: ErrorScreenProps) {
                     <Brand href="/" variant="text" priority textClassName="w-40 sm:w-44" />
                 </div>
 
-                <div className="rounded-[2rem] border border-white/80 bg-white/82 px-6 py-9 shadow-2xl shadow-slate-950/12 backdrop-blur-md sm:px-12 sm:py-12">
+                <div className="rounded-3xl border border-white/80 bg-white/85 px-6 py-9 shadow-2xl shadow-slate-950/12 backdrop-blur-md sm:px-12 sm:py-12">
                     <div className="mx-auto inline-flex items-center gap-2.5 rounded-full border border-cyan-200 bg-cyan-50/90 px-4 py-2 text-xs font-bold uppercase tracking-[0.18em] text-cyan-700 shadow-sm shadow-cyan-900/5">
                         <span className="rounded-full bg-slate-950 px-3.5 py-1.5 font-mono text-base leading-none text-white shadow-sm shadow-slate-950/15">
                             {copy.code}
@@ -106,7 +106,7 @@ export function ErrorScreen({ kind, digest, onRetry }: ErrorScreenProps) {
                             <Button
                                 type="button"
                                 onClick={onRetry}
-                                className="h-11 rounded-2xl bg-slate-950 px-5 text-white shadow-lg shadow-slate-950/10"
+                                className="h-10 rounded-2xl bg-slate-950 px-5 text-white shadow-lg shadow-slate-950/10"
                             >
                                 <RefreshCw className="h-4 w-4" />
                                 {copy.primaryLabel}
@@ -114,7 +114,7 @@ export function ErrorScreen({ kind, digest, onRetry }: ErrorScreenProps) {
                         ) : (
                             <Button
                                 asChild
-                                className="h-11 rounded-2xl bg-slate-950 px-5 text-white shadow-lg shadow-slate-950/10"
+                                className="h-10 rounded-2xl bg-slate-950 px-5 text-white shadow-lg shadow-slate-950/10"
                             >
                                 <Link href={copy.primaryHref ?? '/'}>
                                     <Home className="h-4 w-4" />
@@ -127,7 +127,7 @@ export function ErrorScreen({ kind, digest, onRetry }: ErrorScreenProps) {
                             <Button
                                 asChild
                                 variant="outline"
-                                className="h-11 rounded-2xl border-slate-200 bg-white px-5 text-slate-900"
+                                className="h-10 rounded-2xl border-slate-200 bg-white px-5 text-slate-900"
                             >
                                 <Link href={copy.secondaryHref}>
                                     <ArrowLeft className="h-4 w-4" />

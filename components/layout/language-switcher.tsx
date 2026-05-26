@@ -111,8 +111,8 @@ export function LanguageSwitcher({
     }
 
     return (
-        <div className={cn('inline-flex items-center gap-1 rounded-md border border-gray-200 bg-white p-1', className)}>
-            {showIcon ? <Languages className="h-4 w-4 text-gray-500 ml-1" aria-hidden="true" /> : null}
+        <div className={cn('inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white p-1', className)}>
+            {showIcon ? <Languages className="h-4 w-4 text-slate-500 ml-1" aria-hidden="true" /> : null}
             <Button
                 type="button"
                 size="sm"

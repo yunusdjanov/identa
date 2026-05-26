@@ -58,7 +58,7 @@ export default function ForgotPasswordPage() {
                     <div className="mb-3 flex justify-center">
                         <Brand href="/" variant="text" priority textClassName="w-40 sm:w-44" />
                     </div>
-                    <p className="text-gray-600">{t('forgotPassword.subtitle')}</p>
+                    <p className="text-slate-600">{t('forgotPassword.subtitle')}</p>
                 </div>
 
                 <Card className="shadow-xl">
@@ -92,7 +92,7 @@ export default function ForgotPasswordPage() {
                                     {t('forgotPassword.sentHelp')}
                                 </div>
                             ) : (
-                                <p className="text-sm leading-6 text-gray-600">
+                                <p className="text-sm leading-6 text-slate-600">
                                     {t('forgotPassword.description')}
                                 </p>
                             )}

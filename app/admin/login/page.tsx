@@ -188,7 +188,7 @@ export default function AdminLoginPage() {
                                         type="checkbox"
                                         checked={remember}
                                         onChange={(event) => setRemember(event.target.checked)}
-                                        className="h-4 w-4 rounded border-gray-300 text-slate-900 focus:ring-slate-500"
+                                        className="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-500"
                                     />
                                     <span>{t('login.rememberMe')}</span>
                                 </label>

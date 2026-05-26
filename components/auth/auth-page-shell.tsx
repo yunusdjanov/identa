@@ -18,13 +18,13 @@ export function AuthPageShell({ children }: { children: ReactNode }) {
                     <div className="flex min-w-0 items-center gap-2">
                         <Link
                             href="/"
-                            className="hidden min-h-9 items-center rounded-full border border-slate-200/80 bg-white/60 px-4 text-sm font-semibold text-slate-700 shadow-sm shadow-cyan-950/5 backdrop-blur transition hover:bg-white/90 hover:text-slate-950 sm:inline-flex"
+                            className="hidden min-h-9 items-center rounded-full border border-slate-200/80 bg-white/60 px-4 text-sm font-semibold text-slate-700 shadow-sm shadow-cyan-950/5 backdrop-blur transition hover:bg-white hover:text-slate-950 sm:inline-flex"
                         >
                             {t('auth.backToHome')}
                         </Link>
                         <LanguageSwitcher
                             variant="compact"
-                            className="bg-white/70 text-slate-800 shadow-sm shadow-cyan-950/5 ring-1 ring-slate-200/80 backdrop-blur hover:bg-white/90 data-[state=open]:bg-white"
+                            className="bg-white/70 text-slate-800 shadow-sm shadow-cyan-950/5 ring-1 ring-slate-200/80 backdrop-blur hover:bg-white data-[state=open]:bg-white"
                         />
                     </div>
                 </header>

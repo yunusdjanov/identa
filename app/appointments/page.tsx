@@ -839,7 +839,7 @@ export default function AppointmentsPage() {
                 key={descriptor.dayIndex}
                 className={`interactive-card metric-hover-card metric-hover-teal flex flex-col overflow-hidden rounded-2xl border shadow-sm ${
                     compact ? `${compactCardHeightClass} self-start` : `${WEEK_VIEW_STACKED_CARD_HEIGHT_CLASS} self-stretch`
-                } ${isTodayLane ? 'border-teal-200 bg-teal-50/35 shadow-teal-100/70 ring-1 ring-teal-100' : 'border-slate-200/80 bg-white/95 shadow-slate-200/50'}`}
+                } ${isTodayLane ? 'border-teal-200 bg-teal-50/35 shadow-teal-100/70 ring-1 ring-teal-100' : 'border-slate-200/80 bg-white shadow-slate-200/50'}`}
                 data-testid={includeTestIds ? `week-day-card-${descriptor.dateKey}` : undefined}
             >
                 <div className={`w-full border-b text-left ${
@@ -1229,10 +1229,10 @@ export default function AppointmentsPage() {
                 )}
             />
 
-            <Card className="overflow-hidden rounded-[1.5rem] border-teal-100/80 bg-white/95 shadow-sm shadow-teal-100/50 sm:rounded-[1.75rem]">
+            <Card className="overflow-hidden rounded-2xl border-teal-100/80 bg-white shadow-sm shadow-teal-100/50 sm:rounded-2xl">
                 <CardContent className="p-3 sm:p-5 xl:pb-2.5">
                     <div className="space-y-4">
-                        <div className="flex flex-col gap-3 rounded-2xl border border-teal-100/80 bg-gradient-to-r from-white via-teal-100/30 to-white p-3 shadow-xs md:flex-row md:items-center md:justify-between">
+                        <div className="flex flex-col gap-3 rounded-2xl border border-teal-100/80 bg-white p-3 shadow-xs md:flex-row md:items-center md:justify-between">
                             <div className="inline-flex w-full items-center gap-1 rounded-xl border border-slate-200/80 bg-slate-100/70 p-1 shadow-xs sm:w-auto">
                                 <Button
                                     variant={view === 'week' ? 'default' : 'outline'}
@@ -1268,15 +1268,15 @@ export default function AppointmentsPage() {
                                 <Button
                                     variant="outline"
                                     size="icon"
-                                    className="rounded-xl bg-white/90 shadow-xs"
+                                    className="rounded-xl bg-white shadow-xs"
                                     onClick={() => navigateDate('prev')}
                                     aria-label={view === 'day' ? t('appointments.aria.previousDay') : t('appointments.aria.previousWeek')}
                                 >
                                     <ChevronLeft aria-hidden="true" className="w-4 h-4" />
                                 </Button>
 
-                                <div className="flex min-h-9 min-w-0 items-center gap-2 rounded-xl border border-slate-200 bg-white/90 px-3 shadow-xs">
-                                    <CalendarIcon aria-hidden="true" className="w-4 h-4 text-gray-500" />
+                                <div className="flex min-h-9 min-w-0 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 shadow-xs">
+                                    <CalendarIcon aria-hidden="true" className="w-4 h-4 text-slate-500" />
                                     <span className="truncate text-sm font-semibold text-slate-800">
                                         {view === 'day'
                                             ? formatLocalizedDate(currentDate, locale, {
@@ -1292,7 +1292,7 @@ export default function AppointmentsPage() {
                                 <Button
                                     variant="outline"
                                     size="icon"
-                                    className="rounded-xl bg-white/90 shadow-xs"
+                                    className="rounded-xl bg-white shadow-xs"
                                     onClick={() => navigateDate('next')}
                                     aria-label={view === 'day' ? t('appointments.aria.nextDay') : t('appointments.aria.nextWeek')}
                                 >
@@ -1302,7 +1302,7 @@ export default function AppointmentsPage() {
 
                             <Button
                                 variant="outline"
-                                className="w-full rounded-xl bg-white/90 shadow-xs md:w-auto"
+                                className="w-full rounded-xl bg-white shadow-xs md:w-auto"
                                 onClick={() => {
                                     const today = new Date();
                                     setCurrentDateOverride(today);
@@ -1350,10 +1350,10 @@ export default function AppointmentsPage() {
                                 return (
                                     <div
                                         key={time}
-                                        className="flex items-start border-b border-gray-100 py-2 hover:bg-gray-50"
+                                        className="flex items-start border-b border-slate-100 py-2 hover:bg-slate-50"
                                     >
                                         <div className="w-20 flex-shrink-0">
-                                            <span className="text-sm font-medium text-gray-600">
+                                            <span className="text-sm font-medium text-slate-600">
                                                 {formatTime(time)}
                                             </span>
                                         </div>
@@ -1391,7 +1391,7 @@ export default function AppointmentsPage() {
                                                             >
                                                                 {truncateForUi(appointment.patientName, APPOINTMENT_NAME_UI_LIMIT)}
                                                             </p>
-                                                            <p className="text-xs text-gray-600">
+                                                            <p className="text-xs text-slate-600">
                                                                 {t('appointments.continuesUntil', { time: appointment.endTime })}
                                                             </p>
                                                         </div>
@@ -1437,10 +1437,10 @@ export default function AppointmentsPage() {
                                                                     >
                                                                         {truncateForUi(appointment.patientName, APPOINTMENT_NAME_UI_LIMIT)}
                                                                     </p>
-                                                                    <p className="text-xs text-gray-600 [overflow-wrap:anywhere] break-words">
+                                                                    <p className="text-xs text-slate-600 [overflow-wrap:anywhere] break-words">
                                                                         {truncateForUi(appointment.reason || t('appointments.general'), APPOINTMENT_REASON_UI_LIMIT)}
                                                                     </p>
-                                                                    <p className="text-xs text-gray-500 mt-1">
+                                                                    <p className="text-xs text-slate-500 mt-1">
                                                                         {appointment.startTime} - {appointment.endTime} ({t('appointments.minutesShort', { count: appointment.durationMinutes })})
                                                                     </p>
                                                                 </div>
@@ -1485,7 +1485,7 @@ export default function AppointmentsPage() {
                                                             type="button"
                                                             onClick={() => openAddDialog({ date: currentDate, startTime: time })}
                                                             disabled={!canManageAppointments}
-                                                            className="text-xs text-gray-600 transition-colors hover:text-teal-700 disabled:text-gray-400"
+                                                            className="text-xs text-slate-600 transition-colors hover:text-teal-700 disabled:text-slate-400"
                                                         >
                                                             {t('appointments.addSlot')}
                                                         </button>
@@ -1496,7 +1496,7 @@ export default function AppointmentsPage() {
                                                         type="button"
                                                         onClick={() => openAddDialog({ date: currentDate, startTime: time })}
                                                         disabled={!canManageAppointments}
-                                                        className="text-xs text-gray-600 transition-colors hover:text-teal-700 disabled:text-gray-400"
+                                                        className="text-xs text-slate-600 transition-colors hover:text-teal-700 disabled:text-slate-400"
                                                     >
                                                         {t('appointments.addSlot')}
                                                     </button>
@@ -1555,7 +1555,7 @@ export default function AppointmentsPage() {
                 }}
             >
                 <DialogContent className="flex max-h-[calc(100dvh-1.5rem)] flex-col overflow-hidden p-0 sm:max-w-xl">
-                    <div className="border-b border-slate-100 bg-gradient-to-br from-white via-white to-teal-100/45 px-5 pb-4 pt-5 sm:px-6 sm:pt-6">
+                    <div className="border-b border-slate-100 bg-white px-5 pb-4 pt-5 sm:px-6 sm:pt-6">
                         <DialogHeader>
                             <DialogTitle>
                                 {expandedWeekDescriptor
@@ -1609,7 +1609,7 @@ export default function AppointmentsPage() {
                                                 data-testid={`week-modal-appointment-${appointment.id}`}
                                             >
                                                 <div className="min-w-0 flex-1">
-                                                    <p className="inline-flex rounded-full bg-white/80 px-2 py-0.5 text-[11px] font-semibold text-slate-700 shadow-xs">
+                                                    <p className="inline-flex rounded-full bg-white px-2 py-0.5 text-[11px] font-semibold text-slate-700 shadow-xs">
                                                         {appointment.startTime} - {appointment.endTime}
                                                     </p>
                                                     <p className="mt-1 truncate text-sm font-bold text-slate-950 leading-tight" title={appointment.patientName}>
@@ -1627,7 +1627,7 @@ export default function AppointmentsPage() {
                                                         type="button"
                                                         size="icon"
                                                         variant="outline"
-                                                        className="h-8 w-8 rounded-full bg-white/90"
+                                                        className="h-8 w-8 rounded-full bg-white"
                                                         onClick={() => openWeekInlineEditor(appointment)}
                                                         disabled={appointment.status !== 'scheduled' || !canManageAppointments}
                                                         aria-label={t('appointments.edit')}

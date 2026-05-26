@@ -45,7 +45,7 @@ const PasswordSecurityCard = dynamic(
     () => import('@/components/settings/password-security-card').then((module) => module.PasswordSecurityCard),
     {
         ssr: false,
-        loading: () => <Skeleton className="h-44 w-full rounded-[1.75rem]" />,
+        loading: () => <Skeleton className="h-44 w-full rounded-2xl" />,
     }
 );
 
@@ -325,7 +325,7 @@ export default function SettingsPage() {
                 </div>
 
                 <TabsContent value="profile">
-                    <Card className="interactive-card overflow-hidden rounded-[1.75rem] bg-white">
+                    <Card className="interactive-card overflow-hidden rounded-2xl bg-white">
                         <CardHeader className="pb-2">
                             <CardTitle>{t('settings.personalInfo')}</CardTitle>
                         </CardHeader>
@@ -338,7 +338,7 @@ export default function SettingsPage() {
                                         </Label>
                                         <div className="flex items-center gap-2">
                                             {isDentist ? (
-                                                <span className="text-sm font-medium text-gray-700 bg-gray-100 px-3 py-2 rounded-md border border-gray-300">
+                                                <span className="inline-flex h-9 items-center rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-semibold text-slate-700">
                                                     {t('common.doctorPrefix')}
                                                 </span>
                                             ) : null}
@@ -431,7 +431,7 @@ export default function SettingsPage() {
 
                 {isDentist ? (
                     <TabsContent value="practice">
-                    <Card className="interactive-card overflow-hidden rounded-[1.75rem] bg-white">
+                    <Card className="interactive-card overflow-hidden rounded-2xl bg-white">
                         <CardHeader className="pb-2">
                             <CardTitle>{t('settings.practiceInfo')}</CardTitle>
                         </CardHeader>
@@ -483,7 +483,7 @@ export default function SettingsPage() {
 
                 {isDentist ? (
                     <TabsContent value="hours">
-                    <Card className="interactive-card overflow-hidden rounded-[1.75rem] bg-white">
+                    <Card className="interactive-card overflow-hidden rounded-2xl bg-white">
                         <CardHeader className="pb-2">
                             <CardTitle>{t('settings.workingHoursAndAppointments')}</CardTitle>
                         </CardHeader>

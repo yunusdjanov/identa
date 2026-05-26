@@ -97,7 +97,7 @@ export function PatientPhotoField({
 
     return (
         <div className="space-y-2">
-            {hideLabel ? null : <Label htmlFor={id} className="text-sm text-gray-700">{label}</Label>}
+            {hideLabel ? null : <Label htmlFor={id} className="text-sm text-slate-700">{label}</Label>}
             <div className="flex min-w-0 items-start gap-3">
                 <Avatar key={previewUrl ?? 'photo-placeholder'} className="h-16 w-16 shrink-0 border border-slate-200 bg-teal-50">
                     {previewUrl ? (

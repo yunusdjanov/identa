@@ -181,12 +181,12 @@ export function ToothDetailDialog({
                                     const hasApprovedPrimaryImage = primaryImage ? isProtectedMediaApproved(primaryImage.scan_status) : false;
 
                                     return (
-                                        <div key={treatment.id} className="overflow-hidden rounded-xl border border-gray-200 bg-white px-3 py-3">
+                                        <div key={treatment.id} className="overflow-hidden rounded-xl border border-slate-200 bg-white px-3 py-3">
                                             <div className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(330px,360px)] sm:items-start sm:gap-4">
                                                 <div className="min-w-0 flex-1">
-                                                    <p className="text-sm font-medium text-gray-700">{formatDate(treatment.treatment_date)}</p>
+                                                    <p className="text-sm font-medium text-slate-700">{formatDate(treatment.treatment_date)}</p>
                                                     <p
-                                                        className="block max-w-[320px] truncate text-sm font-semibold text-gray-900 sm:max-w-[380px] lg:max-w-[460px]"
+                                                        className="block max-w-[320px] truncate text-sm font-semibold text-slate-900 sm:max-w-[380px] lg:max-w-[460px]"
                                                         title={treatment.treatment_type}
                                                     >
                                                         {treatment.treatment_type}
@@ -194,22 +194,22 @@ export function ToothDetailDialog({
                                                 </div>
                                                 <div className="grid grid-cols-3 gap-3 text-right text-xs sm:flex-none">
                                                     <div>
-                                                        <p className="text-xs font-medium uppercase tracking-wide text-gray-400">{t('patientHistory.table.debt')}</p>
+                                                        <p className="text-xs font-medium uppercase tracking-wide text-slate-400">{t('patientHistory.table.debt')}</p>
                                                         <p className="whitespace-nowrap text-sm font-semibold tabular-nums text-red-700">{formatCurrency(Number(treatment.debt_amount ?? 0))}</p>
                                                     </div>
                                                     <div>
-                                                        <p className="text-xs font-medium uppercase tracking-wide text-gray-400">{t('patientHistory.table.paid')}</p>
+                                                        <p className="text-xs font-medium uppercase tracking-wide text-slate-400">{t('patientHistory.table.paid')}</p>
                                                         <p className="whitespace-nowrap text-sm font-semibold tabular-nums text-green-700">{formatCurrency(Number(treatment.paid_amount ?? 0))}</p>
                                                     </div>
                                                     <div>
-                                                        <p className="text-xs font-medium uppercase tracking-wide text-gray-400">{t('patientHistory.table.remaining')}</p>
+                                                        <p className="text-xs font-medium uppercase tracking-wide text-slate-400">{t('patientHistory.table.remaining')}</p>
                                                         <p
                                                             className={`whitespace-nowrap text-sm font-semibold tabular-nums ${
                                                                 Number(treatment.balance ?? 0) > 0
                                                                     ? 'text-red-700'
                                                                     : Number(treatment.balance ?? 0) < 0
                                                                         ? 'text-green-700'
-                                                                        : 'text-gray-700'
+                                                                        : 'text-slate-700'
                                                             }`}
                                                         >
                                                             {formatCurrency(Number(treatment.balance ?? 0))}
@@ -219,7 +219,7 @@ export function ToothDetailDialog({
                                             </div>
                                             <div className="mt-2 flex flex-wrap items-center gap-1.5">
                                                 {linkedTeeth.slice(0, 1).map((tooth) => (
-                                                    <Badge key={`${treatment.id}-${tooth}`} variant="outline" className="border-gray-300 bg-gray-50 text-gray-700">
+                                                    <Badge key={`${treatment.id}-${tooth}`} variant="outline" className="border-slate-300 bg-slate-50 text-slate-700">
                                                         #{tooth}
                                                     </Badge>
                                                 ))}
@@ -237,21 +237,21 @@ export function ToothDetailDialog({
                                                         <Loader2 className="h-3.5 w-3.5 animate-spin" />
                                                     </span>
                                                 ) : treatmentImageCount === 0 || !primaryImage ? (
-                                                    <span className="inline-flex h-8 min-w-[74px] items-center justify-center rounded-md border border-dashed border-gray-300 px-2 text-xs font-medium text-gray-400">
+                                                    <span className="inline-flex h-8 min-w-[74px] items-center justify-center rounded-md border border-dashed border-slate-300 px-2 text-xs font-medium text-slate-400">
                                                         -
                                                     </span>
                                                 ) : (
                                                     <button
                                                         type="button"
                                                         disabled={isDetailLoading}
-                                                        className="group inline-flex h-8 min-w-[74px] items-center gap-2 rounded-md border border-gray-300 bg-white px-2 text-xs font-semibold text-gray-700 shadow-sm transition-all hover:border-teal-400 hover:bg-teal-50 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-1 active:translate-y-px active:shadow-sm"
+                                                        className="group inline-flex h-8 min-w-[74px] items-center gap-2 rounded-md border border-slate-300 bg-white px-2 text-xs font-semibold text-slate-700 shadow-sm transition-all hover:border-teal-400 hover:bg-teal-50 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-1 active:translate-y-px active:shadow-sm"
                                                         onClick={() => {
                                                             void openTreatmentImageGallery(treatment, 0);
                                                         }}
                                                         title={`${t('patientHistory.images')}: ${treatmentImageCount}`}
                                                         aria-label={`${t('patientHistory.images')} (${treatmentImageCount})`}
                                                     >
-                                                        <span className="inline-flex h-5 w-5 items-center justify-center overflow-hidden rounded-[6px] border border-gray-200 bg-gray-100">
+                                                        <span className="inline-flex h-5 w-5 items-center justify-center overflow-hidden rounded-md border border-slate-200 bg-slate-100">
                                                             {/* eslint-disable-next-line @next/next/no-img-element */}
                                                             <img
                                                                 src={primaryImageThumbnailUrl ?? ''}
@@ -261,7 +261,7 @@ export function ToothDetailDialog({
                                                                 loading="lazy"
                                                             />
                                                         </span>
-                                                        <span className="inline-flex h-5 min-w-6 items-center justify-center rounded-[6px] bg-teal-100 px-1.5 text-[11px] font-semibold text-teal-700">
+                                                        <span className="inline-flex h-5 min-w-6 items-center justify-center rounded-md bg-teal-100 px-1.5 text-[11px] font-semibold text-teal-700">
                                                             +{treatmentImageCount}
                                                         </span>
                                                     </button>

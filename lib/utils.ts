@@ -66,13 +66,13 @@ export function getDaysSinceLastVisit(lastVisitDate?: string): number {
 
 export function getToothConditionColor(type: string): string {
   const colors: Record<string, string> = {
-    healthy: 'bg-gray-100 border-gray-300 text-gray-900',
-    cavity: 'bg-red-100 border-red-500 text-gray-900',
-    filling: 'bg-teal-100 border-teal-500 text-gray-900',
-    crown: 'bg-yellow-100 border-yellow-600 text-gray-900',
-    root_canal: 'bg-purple-100 border-purple-500 text-gray-900',
-    extraction: 'bg-gray-300 border-gray-600 text-gray-900',
-    implant: 'bg-green-100 border-green-500 text-gray-900',
+    healthy: 'bg-slate-100 border-slate-300 text-slate-900',
+    cavity: 'bg-red-100 border-red-500 text-slate-900',
+    filling: 'bg-teal-100 border-teal-500 text-slate-900',
+    crown: 'bg-yellow-100 border-yellow-600 text-slate-900',
+    root_canal: 'bg-purple-100 border-purple-500 text-slate-900',
+    extraction: 'bg-slate-300 border-slate-600 text-slate-900',
+    implant: 'bg-green-100 border-green-500 text-slate-900',
   };
   return colors[type] || colors.healthy;
 }
@@ -81,13 +81,13 @@ export function getStatusBadgeColor(status: string): string {
   const colors: Record<string, string> = {
     scheduled: 'bg-teal-100 text-teal-800',
     completed: 'bg-green-100 text-green-800',
-    cancelled: 'bg-gray-100 text-gray-800',
+    cancelled: 'bg-slate-100 text-slate-800',
     no_show: 'bg-red-100 text-red-800',
     paid: 'bg-green-100 text-green-800',
     partially_paid: 'bg-yellow-100 text-yellow-800',
     unpaid: 'bg-red-100 text-red-800',
   };
-  return colors[status] || 'bg-gray-100 text-gray-800';
+  return colors[status] || 'bg-slate-100 text-slate-800';
 }
 
 export function truncateForUi(value: string, maxChars: number): string {

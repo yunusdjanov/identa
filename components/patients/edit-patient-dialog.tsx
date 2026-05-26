@@ -294,7 +294,7 @@ export function EditPatientDialog({
                     </div>
 
                     <div className="space-y-4">
-                        <h3 className="font-medium text-sm text-gray-900">{t('patients.section.basicInfo')}</h3>
+                        <h3 className="font-medium text-sm text-slate-900">{t('patients.section.basicInfo')}</h3>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="space-y-2">
@@ -418,7 +418,7 @@ export function EditPatientDialog({
                     </div>
 
                     <div className="space-y-4">
-                        <h3 className="font-medium text-sm text-gray-900">{t('patients.section.medicalInfo')}</h3>
+                        <h3 className="font-medium text-sm text-slate-900">{t('patients.section.medicalInfo')}</h3>
 
                         <div className="space-y-2">
                             <Label htmlFor="medicalHistory">{t('patientDetail.medicalHistory')}</Label>

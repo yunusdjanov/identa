@@ -164,7 +164,7 @@ export default function AdminPlansPage() {
                             className="min-h-[24rem] px-0 py-0"
                         />
                     ) : (
-                        <Card className="rounded-[1.5rem] border-slate-200 bg-white/95 shadow-sm">
+                        <Card className="rounded-2xl border-slate-200 bg-white shadow-sm">
                             <CardHeader>
                                 <CardTitle>{t('admin.plans.tableTitle')}</CardTitle>
                             </CardHeader>
@@ -309,7 +309,7 @@ export default function AdminPlansPage() {
                                         type="checkbox"
                                         checked={form.can_export}
                                         onChange={(event) => setForm({ ...form, can_export: event.target.checked })}
-                                        className="h-4 w-4 rounded border-gray-300 text-teal-600 focus:ring-teal-500"
+                                        className="h-4 w-4 rounded border-slate-300 text-teal-600 focus:ring-teal-500"
                                     />
                                     {t('admin.plans.canExport')}
                                 </label>
@@ -318,7 +318,7 @@ export default function AdminPlansPage() {
                                         type="checkbox"
                                         checked={form.is_active}
                                         onChange={(event) => setForm({ ...form, is_active: event.target.checked })}
-                                        className="h-4 w-4 rounded border-gray-300 text-teal-600 focus:ring-teal-500"
+                                        className="h-4 w-4 rounded border-slate-300 text-teal-600 focus:ring-teal-500"
                                     />
                                     {t('admin.plans.isActive')}
                                 </label>

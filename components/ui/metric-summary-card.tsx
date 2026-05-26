@@ -63,7 +63,7 @@ export function MetricSummaryCard({
     return (
         <div
             className={cn(
-                'interactive-card metric-hover-card rounded-2xl border bg-white/95 p-3 shadow-sm',
+                'interactive-card metric-hover-card rounded-2xl border bg-white p-3 shadow-sm',
                 toneClasses[tone].card,
                 className
             )}

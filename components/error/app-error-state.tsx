@@ -26,7 +26,7 @@ export function AppErrorState({
 }: AppErrorStateProps) {
     return (
         <section className={cn('flex min-h-[24rem] items-center justify-center px-3 py-8', className)}>
-            <div className="relative w-full max-w-3xl overflow-hidden rounded-[2rem] border border-teal-100 bg-gradient-to-br from-white via-white to-teal-100/65 p-6 shadow-xl shadow-teal-950/5 sm:p-8">
+            <div className="relative w-full max-w-3xl overflow-hidden rounded-3xl border border-teal-100 bg-gradient-to-br from-white via-white to-teal-100/65 p-6 shadow-xl shadow-teal-950/5 sm:p-8">
                 <div className="pointer-events-none absolute -right-16 -top-16 h-44 w-44 rounded-full bg-teal-100/70 blur-3xl" />
                 <div className="pointer-events-none absolute -bottom-20 left-10 h-36 w-36 rounded-full bg-cyan-100/50 blur-3xl" />
 
@@ -46,7 +46,7 @@ export function AppErrorState({
 
                         <div className="mt-6 flex flex-col gap-3 sm:flex-row">
                             {onRetry ? (
-                                <Button onClick={onRetry} className="h-11 rounded-2xl bg-slate-950 px-5 text-white">
+                                <Button onClick={onRetry} className="h-10 rounded-2xl bg-slate-950 px-5 text-white">
                                     <RefreshCw className="h-4 w-4" />
                                     {retryLabel}
                                 </Button>
@@ -56,7 +56,7 @@ export function AppErrorState({
                                 <Button
                                     asChild
                                     variant="outline"
-                                    className="h-11 rounded-2xl border-slate-200 bg-white/90 px-5"
+                                    className="h-10 rounded-2xl border-slate-200 bg-white px-5"
                                 >
                                     <Link href={backHref}>
                                         <ArrowLeft className="h-4 w-4" />

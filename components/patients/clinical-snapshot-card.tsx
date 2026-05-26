@@ -168,7 +168,7 @@ export function ClinicalSnapshotCard({
         const className = `relative flex h-10 w-7 items-center justify-center rounded-lg border text-[11px] font-semibold transition-colors sm:h-11 sm:w-8 ${
             hasHistory
                 ? 'border-teal-500 bg-teal-100 text-teal-900 ring-1 ring-teal-200 hover:border-teal-600 hover:bg-teal-200'
-                : 'border-gray-300 bg-white text-gray-700'
+                : 'border-slate-300 bg-white text-slate-700'
         }`;
 
         if (!hasHistory) {
@@ -197,49 +197,49 @@ export function ClinicalSnapshotCard({
 
     return (
         <>
-            <section className="space-y-3 rounded-2xl border border-gray-200 bg-gray-50/60 p-3 md:p-4">
-                <div className="rounded-xl border border-gray-200 bg-white px-3 py-2">
+            <section className="space-y-3 rounded-2xl border border-slate-200 bg-slate-50/60 p-3 md:p-4">
+                <div className="rounded-xl border border-slate-200 bg-white px-3 py-2">
                     <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
                         <div className="inline-flex items-center gap-2">
-                            <span className="text-gray-500">{t('patientHistory.snapshot.entries')}:</span>
+                            <span className="text-slate-500">{t('patientHistory.snapshot.entries')}:</span>
                             {showTreatmentSkeleton ? (
                                 <Skeleton className="h-4 w-10 rounded" />
                             ) : (
-                                <span className="font-semibold text-gray-900">{showTreatmentFallback ? '-' : treatments.length}</span>
+                                <span className="font-semibold text-slate-900">{showTreatmentFallback ? '-' : treatments.length}</span>
                             )}
                         </div>
                         <div className="inline-flex items-center gap-2">
-                            <span className="text-gray-500">{t('patientHistory.snapshot.linkedTeeth')}:</span>
+                            <span className="text-slate-500">{t('patientHistory.snapshot.linkedTeeth')}:</span>
                             {showTreatmentSkeleton ? (
                                 <Skeleton className="h-4 w-10 rounded" />
                             ) : (
-                                <span className="font-semibold text-gray-900">{showTreatmentFallback ? '-' : linkedTeethCount}</span>
+                                <span className="font-semibold text-slate-900">{showTreatmentFallback ? '-' : linkedTeethCount}</span>
                             )}
                         </div>
                         <div className="inline-flex items-center gap-2">
-                            <span className="text-gray-500">{t('patientHistory.snapshot.lastEntry')}:</span>
+                            <span className="text-slate-500">{t('patientHistory.snapshot.lastEntry')}:</span>
                             {showTreatmentSkeleton ? (
                                 <Skeleton className="h-4 w-20 rounded" />
                             ) : (
-                                <span className="font-semibold text-gray-900">
+                                <span className="font-semibold text-slate-900">
                                     {showTreatmentFallback ? '-' : (lastEntryDate ? formatDate(lastEntryDate) : t('patients.never'))}
                                 </span>
                             )}
                         </div>
                         <div className="inline-flex items-center gap-2">
-                            <span className="text-gray-500">{t('patientHistory.netBalance')}:</span>
+                            <span className="text-slate-500">{t('patientHistory.netBalance')}:</span>
                             {showTreatmentSkeleton ? (
                                 <Skeleton className="h-4 w-24 rounded" />
                             ) : (
                                 <span
                                     className={`font-semibold ${
                                         showTreatmentFallback
-                                            ? 'text-gray-900'
+                                            ? 'text-slate-900'
                                             : netBalance > 0
                                                 ? 'text-red-700'
                                                 : netBalance < 0
                                                     ? 'text-green-700'
-                                                    : 'text-gray-900'
+                                                    : 'text-slate-900'
                                     }`}
                                 >
                                     {showTreatmentFallback ? '-' : formatCurrency(netBalance)}
@@ -271,7 +271,7 @@ export function ClinicalSnapshotCard({
                 </div>
 
                 {isOdontogramOpen ? (
-                    <div className="rounded-xl border border-gray-200 bg-white p-3 md:p-4">
+                    <div className="rounded-xl border border-slate-200 bg-white p-3 md:p-4">
                         {showTreatmentSkeleton ? (
                             <div className="space-y-4">
                                 {Array.from({ length: 2 }).map((_, sectionIndex) => (
@@ -288,16 +288,16 @@ export function ClinicalSnapshotCard({
                         ) : (
                             <div className="space-y-5">
                                 <div className="space-y-2">
-                                    <p className="text-center text-base font-medium text-gray-700">{t('odontogram.upperJaw')}</p>
+                                    <p className="text-center text-base font-medium text-slate-700">{t('odontogram.upperJaw')}</p>
                                     <div className="flex justify-center gap-4 sm:gap-6 max-sm:flex-col max-sm:items-center">
                                         <div>
-                                            <p className="mb-1 text-center text-xs text-gray-500">{t('odontogram.upperRight')}</p>
+                                            <p className="mb-1 text-center text-xs text-slate-500">{t('odontogram.upperRight')}</p>
                                             <div className="flex gap-0.5 sm:gap-1">
                                                 {UPPER_RIGHT_TEETH.map((toothNumber) => renderTooth(toothNumber))}
                                             </div>
                                         </div>
                                         <div>
-                                            <p className="mb-1 text-center text-xs text-gray-500">{t('odontogram.upperLeft')}</p>
+                                            <p className="mb-1 text-center text-xs text-slate-500">{t('odontogram.upperLeft')}</p>
                                             <div className="flex gap-0.5 sm:gap-1">
                                                 {UPPER_LEFT_TEETH.map((toothNumber) => renderTooth(toothNumber))}
                                             </div>
@@ -305,19 +305,19 @@ export function ClinicalSnapshotCard({
                                     </div>
                                 </div>
 
-                                <div className="h-px w-full bg-gray-200" />
+                                <div className="h-px w-full bg-slate-200" />
 
                                 <div className="space-y-2">
-                                    <p className="text-center text-base font-medium text-gray-700">{t('odontogram.lowerJaw')}</p>
+                                    <p className="text-center text-base font-medium text-slate-700">{t('odontogram.lowerJaw')}</p>
                                     <div className="flex justify-center gap-4 sm:gap-6 max-sm:flex-col max-sm:items-center">
                                         <div>
-                                            <p className="mb-1 text-center text-xs text-gray-500">{t('odontogram.lowerRight')}</p>
+                                            <p className="mb-1 text-center text-xs text-slate-500">{t('odontogram.lowerRight')}</p>
                                             <div className="flex gap-0.5 sm:gap-1">
                                                 {LOWER_RIGHT_TEETH.map((toothNumber) => renderTooth(toothNumber))}
                                             </div>
                                         </div>
                                         <div>
-                                            <p className="mb-1 text-center text-xs text-gray-500">{t('odontogram.lowerLeft')}</p>
+                                            <p className="mb-1 text-center text-xs text-slate-500">{t('odontogram.lowerLeft')}</p>
                                             <div className="flex gap-0.5 sm:gap-1">
                                                 {LOWER_LEFT_TEETH.map((toothNumber) => renderTooth(toothNumber))}
                                             </div>

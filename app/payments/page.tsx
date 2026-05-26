@@ -431,29 +431,29 @@ export default function PaymentsPage() {
             />
 
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-                <div className="interactive-card metric-hover-card metric-hover-red rounded-2xl border border-red-100 bg-white/95 p-4 shadow-sm shadow-red-100/60 md:p-5">
-                    <div className="flex items-center gap-2 text-sm font-medium text-gray-600">
+                <div className="interactive-card metric-hover-card metric-hover-red rounded-2xl border border-red-100 bg-white p-4 shadow-sm shadow-red-100/60 md:p-5">
+                    <div className="flex items-center gap-2 text-sm font-medium text-slate-600">
                         <AlertCircle className="h-4 w-4 text-red-500" />
                         {t('payments.summary.totalDebt')}
                     </div>
                     <p className="mt-2 text-lg font-semibold leading-none tabular-nums text-red-700">
                         {isAccountingLoading ? '...' : formatCurrency(overallSummary.totalDebt)}
                     </p>
-                    <p className="mt-1 text-xs text-gray-500">{t('payments.summary.totalDebtHint')}</p>
+                    <p className="mt-1 text-xs text-slate-500">{t('payments.summary.totalDebtHint')}</p>
                 </div>
 
-                <div className="interactive-card metric-hover-card metric-hover-emerald rounded-2xl border border-emerald-100 bg-white/95 p-4 shadow-sm shadow-emerald-100/60 md:p-5">
-                    <div className="flex items-center gap-2 text-sm font-medium text-gray-600">
+                <div className="interactive-card metric-hover-card metric-hover-emerald rounded-2xl border border-emerald-100 bg-white p-4 shadow-sm shadow-emerald-100/60 md:p-5">
+                    <div className="flex items-center gap-2 text-sm font-medium text-slate-600">
                         <Wallet className="h-4 w-4 text-green-600" />
                         {t('payments.summary.totalPaid')}
                     </div>
                     <p className="mt-2 text-lg font-semibold leading-none tabular-nums text-green-700">
                         {isAccountingLoading ? '...' : formatCurrency(overallSummary.totalPaid)}
                     </p>
-                    <p className="mt-1 text-xs text-gray-500">{t('payments.summary.totalPaidHint')}</p>
+                    <p className="mt-1 text-xs text-slate-500">{t('payments.summary.totalPaidHint')}</p>
                 </div>
 
-                <div className="interactive-card metric-hover-card metric-hover-amber rounded-2xl border border-amber-100 bg-white/95 p-4 shadow-sm shadow-amber-100/60 md:p-5">
+                <div className="interactive-card metric-hover-card metric-hover-amber rounded-2xl border border-amber-100 bg-white p-4 shadow-sm shadow-amber-100/60 md:p-5">
                     <div className="flex items-center gap-2 text-sm font-medium text-amber-600">
                         <History className="h-4 w-4 text-amber-500" />
                         {t('payments.summary.netBalance')}
@@ -486,9 +486,9 @@ export default function PaymentsPage() {
                 </div>
             </div>
 
-            <Card className="overflow-hidden rounded-[1.5rem] bg-white/95">
+            <Card className="overflow-hidden rounded-2xl bg-white">
                 <CardContent className="space-y-5 p-4 sm:p-5">
-                    <div className="flex flex-col gap-4 rounded-2xl border border-teal-100/80 bg-gradient-to-r from-white via-teal-100/30 to-white p-3 shadow-xs lg:flex-row lg:items-center lg:justify-between">
+                    <div className="flex flex-col gap-4 rounded-2xl border border-teal-100/80 bg-white p-3 shadow-xs lg:flex-row lg:items-center lg:justify-between">
                         <div className="inline-flex w-full items-center gap-1 rounded-xl border border-slate-200/80 bg-slate-100/70 p-1 shadow-xs sm:w-auto">
                             <Button type="button" variant={activeTab === 'patients' ? 'default' : 'ghost'} className="flex-1 gap-2 rounded-lg sm:flex-none" onClick={() => handleTabChange('patients')}>
                                 <Users className="h-4 w-4" />
@@ -502,7 +502,7 @@ export default function PaymentsPage() {
 
                         <div className="flex flex-col gap-3 sm:flex-row">
                             <div className="relative min-w-0 sm:w-[22rem]">
-                                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                                 <Input
                                     value={activeTab === 'patients' ? patientSearch : historySearch}
                                     onChange={(event) => {
@@ -516,11 +516,11 @@ export default function PaymentsPage() {
                                         setHistoryPage(1);
                                     }}
                                     placeholder={activeTab === 'patients' ? t('payments.search.patientPlaceholder') : t('payments.search.historyPlaceholder')}
-                                    className="h-10 rounded-xl border-slate-200 bg-white/90 pl-9 shadow-xs"
+                                    className="h-9 rounded-xl border-slate-200 bg-white pl-9 shadow-xs"
                                 />
                             </div>
                             {patientFilterId ? (
-                                <Button variant="outline" className="rounded-xl bg-white/90" onClick={clearPatientFilter}>{t('payments.clearFilter')}</Button>
+                                <Button variant="outline" className="rounded-xl bg-white" onClick={clearPatientFilter}>{t('payments.clearFilter')}</Button>
                             ) : null}
                         </div>
                     </div>
@@ -539,8 +539,8 @@ export default function PaymentsPage() {
                         <div className="space-y-4">
                             <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-slate-50/70 p-4">
                                 <div>
-                                    <h2 className="text-lg font-semibold text-gray-900">{t('payments.patientsTitle')}</h2>
-                                    <p className="text-sm text-gray-500">{t('payments.patientsSubtitle')}</p>
+                                    <h2 className="text-lg font-semibold text-slate-900">{t('payments.patientsTitle')}</h2>
+                                    <p className="text-sm text-slate-500">{t('payments.patientsSubtitle')}</p>
                                 </div>
                                 <p className="rounded-full border border-slate-200 bg-white px-3 py-1 text-sm text-slate-500 shadow-xs">{t('payments.summary.filteredPatients', { count: patientRows.length })}</p>
                             </div>
@@ -574,9 +574,9 @@ export default function PaymentsPage() {
                                                         <TableCell>{(patientPage - 1) * PAGE_SIZE + index + 1}</TableCell>
                                                         <TableCell>
                                                             <div className="space-y-1">
-                                                                <p className="font-medium text-gray-900">{row.patientName}</p>
-                                                                <p className="text-xs text-gray-500">
-                                                                    <Phone aria-hidden="true" className="mr-1 inline-block h-3 w-3 text-gray-400" />
+                                                                <p className="font-medium text-slate-900">{row.patientName}</p>
+                                                                <p className="text-xs text-slate-500">
+                                                                    <Phone aria-hidden="true" className="mr-1 inline-block h-3 w-3 text-slate-400" />
                                                                     {row.patientPhone}
                                                                 </p>
                                                             </div>
@@ -610,7 +610,7 @@ export default function PaymentsPage() {
                                     </DataTableShell>
 
                                     <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                                        <p className="text-sm text-gray-500">{t('payments.pagination.pageOf', { page: effectivePatientPage, total: patientTotalPages })}</p>
+                                        <p className="text-sm text-slate-500">{t('payments.pagination.pageOf', { page: effectivePatientPage, total: patientTotalPages })}</p>
                                         <div className="flex flex-wrap items-center gap-2 md:justify-end">
                                             <Button
                                                 variant="outline"
@@ -642,16 +642,16 @@ export default function PaymentsPage() {
                         <div className="space-y-4">
                             <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-slate-50/70 p-4">
                                 <div>
-                                    <h2 className="text-lg font-semibold text-gray-900">{t('payments.historyTitle')}</h2>
-                                    <p className="text-sm text-gray-500">{t('payments.historySubtitle')}</p>
+                                    <h2 className="text-lg font-semibold text-slate-900">{t('payments.historyTitle')}</h2>
+                                    <p className="text-sm text-slate-500">{t('payments.historySubtitle')}</p>
                                 </div>
                                 <p className="rounded-full border border-slate-200 bg-white px-3 py-1 text-sm text-slate-500 shadow-xs">{t('payments.summary.filteredEntries', { count: globalHistoryRows.length })}</p>
                             </div>
 
                             {globalHistoryRows.length === 0 ? (
-                                <div className="rounded-xl border border-dashed border-gray-200 px-6 py-10 text-center">
-                                    <History className="mx-auto h-10 w-10 text-gray-300" />
-                                    <p className="mt-4 text-sm text-gray-500">{t('payments.empty.history')}</p>
+                                <div className="rounded-xl border border-dashed border-slate-200 px-6 py-10 text-center">
+                                    <History className="mx-auto h-10 w-10 text-slate-300" />
+                                    <p className="mt-4 text-sm text-slate-500">{t('payments.empty.history')}</p>
                                 </div>
                             ) : (
                                 <>
@@ -674,18 +674,18 @@ export default function PaymentsPage() {
                                                         <TableCell>{formatDate(row.date)}</TableCell>
                                                         <TableCell>
                                                             <div className="space-y-1">
-                                                                <p className="font-medium text-gray-900">{row.patientName}</p>
-                                                                <p className="text-xs text-gray-500">{row.patientPhone}</p>
+                                                                <p className="font-medium text-slate-900">{row.patientName}</p>
+                                                                <p className="text-xs text-slate-500">{row.patientPhone}</p>
                                                             </div>
                                                         </TableCell>
                                                         <TableCell>
                                                             {row.teeth.length === 0 ? (
-                                                                <span className="inline-flex h-7 items-center rounded-full border border-dashed border-gray-200 px-3 text-xs font-medium text-gray-400">
+                                                                <span className="inline-flex h-7 items-center rounded-full border border-dashed border-slate-200 px-3 text-xs font-medium text-slate-400">
                                                                     -
                                                                 </span>
                                                             ) : (
                                                                 <div className="flex flex-wrap items-center gap-1.5" title={formatTeeth(row.teeth)}>
-                                                                    <span className="inline-flex h-7 min-w-7 items-center justify-center rounded-full border border-gray-200 bg-white px-2 text-xs font-semibold text-gray-700">
+                                                                    <span className="inline-flex h-7 min-w-7 items-center justify-center rounded-full border border-slate-200 bg-white px-2 text-xs font-semibold text-slate-700">
                                                                         {row.teeth[0]}
                                                                     </span>
                                                                     {row.teeth.length > 1 ? (
@@ -699,14 +699,14 @@ export default function PaymentsPage() {
                                                         <TableCell className="max-w-[360px]">
                                                             <div className="min-w-0 space-y-1">
                                                                 <p
-                                                                    className="max-w-[220px] truncate font-medium text-gray-900 sm:max-w-[250px] lg:max-w-[280px]"
+                                                                    className="max-w-[220px] truncate font-medium text-slate-900 sm:max-w-[250px] lg:max-w-[280px]"
                                                                     title={row.workDone}
                                                                 >
                                                                     {row.workDone}
                                                                 </p>
                                                                 {row.comment ? (
                                                                     <p
-                                                                        className="max-w-[220px] truncate text-xs text-gray-500 sm:max-w-[250px] lg:max-w-[280px]"
+                                                                        className="max-w-[220px] truncate text-xs text-slate-500 sm:max-w-[250px] lg:max-w-[280px]"
                                                                         title={row.comment}
                                                                     >
                                                                         {row.comment}
@@ -724,7 +724,7 @@ export default function PaymentsPage() {
                                     </DataTableShell>
 
                                     <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                                        <p className="text-sm text-gray-500">{t('payments.pagination.pageOf', { page: effectiveHistoryPage, total: historyTotalPages })}</p>
+                                        <p className="text-sm text-slate-500">{t('payments.pagination.pageOf', { page: effectiveHistoryPage, total: historyTotalPages })}</p>
                                         <div className="flex flex-wrap items-center gap-2 md:justify-end">
                                             <Button
                                                 variant="outline"

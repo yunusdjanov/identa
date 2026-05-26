@@ -109,7 +109,7 @@ export default function StaffPage() {
 
             <Tabs value={activeTab} onValueChange={(value) => updateActiveTab(value as TeamTab)} className="space-y-4 lg:space-y-5">
                 <div className="-mx-4 overflow-x-auto overflow-y-hidden px-4 no-scrollbar sm:mx-0 sm:px-0">
-                    <TabsList className="inline-flex min-w-max border border-slate-200/80 bg-white/80 shadow-sm shadow-slate-200/50 sm:w-auto">
+                    <TabsList className="inline-flex min-w-max border border-slate-200/80 bg-white shadow-sm shadow-slate-200/50 sm:w-auto">
                         <TabsTrigger value="access" className="flex-shrink-0">
                             <Users className="w-4 h-4 sm:mr-2" />
                             <span className="hidden sm:inline">{t('menu.staffAccess')}</span>

@@ -32,7 +32,7 @@ const statToneClasses: Record<DashboardStatTone, {
 }> = {
     teal: {
         card: 'border-blue-200 bg-gradient-to-br from-blue-50 via-blue-100/70 to-white shadow-blue-200/60',
-        icon: 'bg-white/80 text-blue-600 ring-blue-200',
+        icon: 'bg-white text-blue-600 ring-blue-200',
         value: 'text-blue-900',
         hover: 'metric-hover-blue',
     },
@@ -211,7 +211,7 @@ export default function DashboardPage() {
 
     return (
         <div className="space-y-3">
-            <div className="flex flex-col gap-3 rounded-2xl border border-white/70 bg-gradient-to-br from-white via-teal-100/35 to-white px-4 py-3.5 shadow-sm md:flex-row md:items-center md:justify-between">
+            <div className="flex flex-col gap-3 rounded-2xl border border-white/70 bg-white px-4 py-3.5 shadow-sm md:flex-row md:items-center md:justify-between">
                 <div>
                     <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-teal-600">Identa</p>
                     <h1 className="mt-0.5 text-2xl font-bold leading-tight text-slate-950">{t('dashboard.title')}</h1>

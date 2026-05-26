@@ -408,7 +408,7 @@ export default function PatientDetailPage({
     return (
         <div className="space-y-4">
             {/* Patient header */}
-            <div className="flex flex-col gap-3 rounded-[1.5rem] border border-white/80 bg-gradient-to-br from-white via-teal-100/55 to-white px-4 py-3 shadow-sm shadow-slate-200/70 sm:px-5 xl:flex-row xl:items-center xl:justify-between">
+            <div className="flex flex-col gap-3 rounded-2xl border border-white/80 bg-white px-4 py-3 shadow-sm shadow-slate-200/70 sm:px-5 xl:flex-row xl:items-center xl:justify-between">
                 <div className="flex min-w-0 items-center gap-3">
                     <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => router.push('/patients')}>
                         <ArrowLeft className="h-4 w-4" />
@@ -446,7 +446,7 @@ export default function PatientDetailPage({
                                     {truncateForUi(primaryCategory.name, PATIENT_CATEGORY_CHIP_UI_LIMIT)}
                                 </Badge>
                             ) : (
-                                <Badge variant="secondary" className="bg-gray-100 text-xs text-gray-600">
+                                <Badge variant="secondary" className="bg-slate-100 text-xs text-slate-600">
                                     {t('patients.uncategorized')}
                                 </Badge>
                             )}

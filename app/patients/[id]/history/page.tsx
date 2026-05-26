@@ -21,7 +21,7 @@ const TreatmentHistoryCard = dynamic(
     () => import('@/components/patients/treatment-history-card').then((module) => module.TreatmentHistoryCard),
     {
         ssr: false,
-        loading: () => <Skeleton className="h-[28rem] w-full rounded-[1.75rem]" />,
+        loading: () => <Skeleton className="h-[28rem] w-full rounded-2xl" />,
     }
 );
 

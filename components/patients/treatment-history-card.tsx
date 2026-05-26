@@ -201,7 +201,7 @@ function ToothCell({
             className={`flex h-full w-full items-center justify-center rounded-md border text-xs font-semibold transition-colors ${
                 selected
                     ? 'border-teal-600 bg-teal-500 text-white shadow-sm shadow-teal-200 ring-2 ring-teal-200'
-                    : 'border-gray-200 bg-white text-gray-600 hover:border-teal-300 hover:bg-teal-50'
+                    : 'border-slate-200 bg-white text-slate-600 hover:border-teal-300 hover:bg-teal-50'
             }`}
         >
             {label}
@@ -239,7 +239,7 @@ function HistoryImageTile({
                     ? 'border-red-200 opacity-70 ring-1 ring-red-100'
                     : isNew
                         ? 'border-teal-200 hover:border-teal-300 hover:shadow-md'
-                        : 'border-gray-200 hover:border-teal-300 hover:shadow-md'
+                        : 'border-slate-200 hover:border-teal-300 hover:shadow-md'
             }`}
         >
             <button
@@ -841,7 +841,7 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
 
     return (
         <>
-            <Card className="interactive-card rounded-2xl border-gray-200 shadow-sm">
+            <Card className="interactive-card rounded-2xl border-slate-200 shadow-sm">
                 <CardHeader className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                     <div>
                         <CardTitle>{t('patientHistory.title')}</CardTitle>
@@ -923,8 +923,8 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                     </div>
 
                     {isLoading ? (
-                        <div className="overflow-x-auto rounded-2xl border border-gray-200 bg-white pb-1">
-                            <div className={`${HISTORY_HEADER_GRID_CLASS} border-b border-gray-200 bg-gray-50 px-4 py-3 text-xs font-medium uppercase tracking-wide text-gray-500`}>
+                        <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white pb-1">
+                            <div className={`${HISTORY_HEADER_GRID_CLASS} border-b border-slate-200 bg-slate-50 px-4 py-3 text-xs font-medium uppercase tracking-wide text-slate-500`}>
                                 <span>{t('patientHistory.table.date')}</span>
                                 <span>{t('patientHistory.teethLabel')}</span>
                                 <span>{t('patientHistory.table.workDone')}</span>
@@ -934,7 +934,7 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                 <span>{t('patientHistory.images')}</span>
                                 <span className="text-right" />
                             </div>
-                            <div className="divide-y divide-gray-100">
+                            <div className="divide-y divide-slate-100">
                                 {Array.from({ length: 3 }).map((_, index) => (
                                     <div key={index} className={`${HISTORY_TABLE_GRID_CLASS} items-start px-4 py-4`}>
                                         <Skeleton className="h-4 w-24" />
@@ -977,8 +977,8 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                             />
                         </div>
                     ) : (
-                        <div className="overflow-x-auto rounded-2xl border border-gray-200 bg-white pb-1">
-                            <div className={`${HISTORY_HEADER_GRID_CLASS} border-b border-gray-200 bg-gray-50 px-4 py-3 text-xs font-medium uppercase tracking-wide text-gray-500`}>
+                        <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white pb-1">
+                            <div className={`${HISTORY_HEADER_GRID_CLASS} border-b border-slate-200 bg-slate-50 px-4 py-3 text-xs font-medium uppercase tracking-wide text-slate-500`}>
                                 <span>{t('patientHistory.table.date')}</span>
                                 <span>{t('patientHistory.teethLabel')}</span>
                                 <span>{t('patientHistory.table.workDone')}</span>
@@ -988,7 +988,7 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                 <span>{t('patientHistory.images')}</span>
                                 <span className="text-right" />
                             </div>
-                            <div className="divide-y divide-gray-100">
+                            <div className="divide-y divide-slate-100">
                                 {treatments.map((treatment) => {
                                     const teeth = treatment.teeth ?? [];
                                     const firstTooth = teeth[0];
@@ -1006,10 +1006,10 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                         <div className="space-y-2.5 px-3 py-3 lg:hidden">
                                             <div className="flex items-start justify-between gap-2">
                                                 <div className="flex min-w-0 flex-wrap items-center gap-1.5">
-                                                    <span className="text-xs font-semibold tabular-nums text-gray-500">{formatDate(treatment.treatment_date)}</span>
+                                                    <span className="text-xs font-semibold tabular-nums text-slate-500">{formatDate(treatment.treatment_date)}</span>
                                                     {teeth.length === 0 ? null : (
                                                         <div className="flex flex-wrap items-center gap-1" title={formatTeeth(teeth)}>
-                                                            <span className="inline-flex h-6 min-w-6 items-center justify-center rounded-full border border-gray-200 bg-white px-1.5 text-[11px] font-semibold text-gray-700">
+                                                            <span className="inline-flex h-6 min-w-6 items-center justify-center rounded-full border border-slate-200 bg-white px-1.5 text-[11px] font-semibold text-slate-700">
                                                                 {firstTooth}
                                                             </span>
                                                             {hiddenToothCount > 0 ? (
@@ -1025,7 +1025,7 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                                         type="button"
                                                         variant="outline"
                                                         size="icon-sm"
-                                                        className="h-8 w-8 border-gray-200 bg-white text-gray-700 shadow-sm hover:bg-gray-100"
+                                                        className="h-8 w-8 border-slate-200 bg-white text-slate-700 shadow-sm hover:bg-slate-100"
                                                         aria-label={t('patientHistory.editEntry')}
                                                         disabled={detailLoadingTreatmentId === treatment.id || !canManageHistory}
                                                         onClick={() => { void openEditDialog(treatment); }}
@@ -1048,31 +1048,31 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                                     </Button>
                                                 </div>
                                             </div>
-                                            <p className="text-sm font-semibold leading-snug text-gray-900 break-words" title={treatment.treatment_type}>
+                                            <p className="text-sm font-semibold leading-snug text-slate-900 break-words" title={treatment.treatment_type}>
                                                 {treatment.treatment_type}
                                             </p>
-                                            <div className="grid grid-cols-3 gap-2 border-t border-gray-100 pt-2">
+                                            <div className="grid grid-cols-3 gap-2 border-t border-slate-100 pt-2">
                                                 <div>
-                                                    <p className="text-[9px] font-semibold uppercase tracking-wider text-gray-400">{t('patientHistory.table.debt')}</p>
+                                                    <p className="text-[9px] font-semibold uppercase tracking-wider text-slate-400">{t('patientHistory.table.debt')}</p>
                                                     <p className="mt-0.5 truncate text-xs font-bold tabular-nums text-red-700">{formatCurrency(debtAmount)}</p>
                                                 </div>
                                                 <div>
-                                                    <p className="text-[9px] font-semibold uppercase tracking-wider text-gray-400">{t('patientHistory.table.paid')}</p>
+                                                    <p className="text-[9px] font-semibold uppercase tracking-wider text-slate-400">{t('patientHistory.table.paid')}</p>
                                                     <p className="mt-0.5 truncate text-xs font-bold tabular-nums text-green-700">{formatCurrency(paidAmount)}</p>
                                                 </div>
                                                 <div>
-                                                    <p className="text-[9px] font-semibold uppercase tracking-wider text-gray-400">{t('patientHistory.table.remaining')}</p>
+                                                    <p className="text-[9px] font-semibold uppercase tracking-wider text-slate-400">{t('patientHistory.table.remaining')}</p>
                                                     <p className="mt-0.5 truncate text-xs font-bold tabular-nums text-yellow-800">{formatCurrency(balanceAmount)}</p>
                                                 </div>
                                             </div>
                                             {treatmentImageCount > 0 && primaryImageThumbnailUrl ? (
                                                 <button
                                                     type="button"
-                                                    className="group inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-xs font-semibold text-gray-700 shadow-sm transition-all hover:border-teal-400 hover:bg-teal-50"
+                                                    className="group inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs font-semibold text-slate-700 shadow-sm transition-all hover:border-teal-400 hover:bg-teal-50"
                                                     onClick={() => { void openTreatmentImageGallery(treatment, 0); }}
                                                     aria-label={`${t('patientHistory.images')} (${treatmentImageCount})`}
                                                 >
-                                                    <span className="inline-flex h-6 w-6 items-center justify-center overflow-hidden rounded-md border border-gray-200 bg-gray-100">
+                                                    <span className="inline-flex h-6 w-6 items-center justify-center overflow-hidden rounded-md border border-slate-200 bg-slate-100">
                                                         {/* eslint-disable-next-line @next/next/no-img-element */}
                                                         <img
                                                             src={primaryImageThumbnailUrl}
@@ -1088,18 +1088,18 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                         </div>
 
                                         {/* DESKTOP GRID ROW */}
-                                        <div className={`${HISTORY_TABLE_GRID_CLASS} items-start px-4 py-4 transition-colors hover:bg-gray-50/50`}>
+                                        <div className={`${HISTORY_TABLE_GRID_CLASS} items-start px-4 py-4 transition-colors hover:bg-slate-50/50`}>
                                         <div>
-                                            <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 lg:sr-only">{t('patientHistory.table.date')}</p>
-                                            <p className="text-sm text-gray-700">{formatDate(treatment.treatment_date)}</p>
+                                            <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400 lg:sr-only">{t('patientHistory.table.date')}</p>
+                                            <p className="text-sm text-slate-700">{formatDate(treatment.treatment_date)}</p>
                                         </div>
                                         <div>
-                                            <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 lg:sr-only">{t('patientHistory.teethLabel')}</p>
+                                            <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400 lg:sr-only">{t('patientHistory.teethLabel')}</p>
                                             {(() => {
                                                 const teeth = treatment.teeth ?? [];
                                                 if (teeth.length === 0) {
                                                     return (
-                                                        <span className="inline-flex h-7 items-center rounded-full border border-dashed border-gray-200 px-3 text-xs font-medium text-gray-400">
+                                                        <span className="inline-flex h-7 items-center rounded-full border border-dashed border-slate-200 px-3 text-xs font-medium text-slate-400">
                                                             -
                                                         </span>
                                                     );
@@ -1111,7 +1111,7 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                                 return (
                                                     <div className="flex flex-wrap items-center gap-1.5" title={formatTeeth(teeth)}>
                                                         <span
-                                                            className="inline-flex h-7 min-w-7 items-center justify-center rounded-full border border-gray-200 bg-white px-2 text-xs font-semibold text-gray-700"
+                                                            className="inline-flex h-7 min-w-7 items-center justify-center rounded-full border border-slate-200 bg-white px-2 text-xs font-semibold text-slate-700"
                                                         >
                                                             {firstTooth}
                                                         </span>
@@ -1125,30 +1125,30 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                             })()}
                                         </div>
                                         <div className="min-w-0">
-                                            <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 lg:sr-only">{t('patientHistory.table.workDone')}</p>
+                                            <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400 lg:sr-only">{t('patientHistory.table.workDone')}</p>
                                             <p
-                                                className="max-w-[220px] truncate text-sm font-semibold text-gray-900 sm:max-w-[260px] lg:max-w-[300px] xl:max-w-[340px]"
+                                                className="max-w-[220px] truncate text-sm font-semibold text-slate-900 sm:max-w-[260px] lg:max-w-[300px] xl:max-w-[340px]"
                                                 title={treatment.treatment_type}
                                             >
                                                 {treatment.treatment_type}
                                             </p>
                                         </div>
                                         <div>
-                                            <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 lg:sr-only">{t('patientHistory.table.debt')}</p>
+                                            <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400 lg:sr-only">{t('patientHistory.table.debt')}</p>
                                             <p className="whitespace-nowrap text-sm font-semibold text-red-700">{formatCurrency(Number(treatment.debt_amount))}</p>
                                         </div>
                                         <div>
-                                            <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 lg:sr-only">{t('patientHistory.table.paid')}</p>
+                                            <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400 lg:sr-only">{t('patientHistory.table.paid')}</p>
                                             <p className="whitespace-nowrap text-sm font-semibold text-green-700">{formatCurrency(Number(treatment.paid_amount))}</p>
                                         </div>
                                         <div>
-                                            <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 lg:sr-only">{t('patientHistory.table.remaining')}</p>
+                                            <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400 lg:sr-only">{t('patientHistory.table.remaining')}</p>
                                             <p className="whitespace-nowrap text-sm font-semibold text-yellow-800">
                                                 {formatCurrency(Number(treatment.balance))}
                                             </p>
                                         </div>
                                         <div className="lg:flex lg:items-center">
-                                            <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 lg:sr-only">{t('patientHistory.images')}</p>
+                                            <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400 lg:sr-only">{t('patientHistory.images')}</p>
                                             {(() => {
                                                 const treatmentImageCount = getTreatmentImageCount(treatment);
                                                 const primaryImage = getTreatmentPrimaryImage(treatment);
@@ -1182,7 +1182,7 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
 
                                                 if (treatmentImageCount === 0 || !primaryImage) {
                                                     return (
-                                                        <span className="inline-flex h-8 min-w-[74px] items-center justify-center rounded-md border border-dashed border-gray-300 px-2 text-xs font-medium text-gray-400">
+                                                        <span className="inline-flex h-8 min-w-[74px] items-center justify-center rounded-md border border-dashed border-slate-300 px-2 text-xs font-medium text-slate-400">
                                                             -
                                                         </span>
                                                     );
@@ -1194,14 +1194,14 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                                     <button
                                                         type="button"
                                                         disabled={isDetailLoading}
-                                                        className="group inline-flex h-8 min-w-[74px] items-center gap-2 rounded-md border border-gray-300 bg-white px-2 text-xs font-semibold text-gray-700 shadow-sm transition-all hover:border-teal-400 hover:bg-teal-50 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-1 active:translate-y-px active:shadow-sm"
+                                                        className="group inline-flex h-8 min-w-[74px] items-center gap-2 rounded-md border border-slate-300 bg-white px-2 text-xs font-semibold text-slate-700 shadow-sm transition-all hover:border-teal-400 hover:bg-teal-50 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-1 active:translate-y-px active:shadow-sm"
                                                         onClick={() => {
                                                             void openTreatmentImageGallery(treatment, 0);
                                                         }}
                                                         title={`${t('patientHistory.images')}: ${treatmentImageCount}`}
                                                         aria-label={`${t('patientHistory.images')} (${treatmentImageCount})`}
                                                     >
-                                                        <span className="inline-flex h-5 w-5 items-center justify-center overflow-hidden rounded-[6px] border border-gray-200 bg-gray-100">
+                                                        <span className="inline-flex h-5 w-5 items-center justify-center overflow-hidden rounded-md border border-slate-200 bg-slate-100">
                                                             {/* eslint-disable-next-line @next/next/no-img-element */}
                                                             <img
                                                                 src={primaryImageSrc}
@@ -1211,7 +1211,7 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                                                 loading="lazy"
                                                             />
                                                         </span>
-                                                        <span className="inline-flex h-5 min-w-6 items-center justify-center rounded-[6px] bg-teal-100 px-1.5 text-[11px] font-semibold text-teal-700">
+                                                        <span className="inline-flex h-5 min-w-6 items-center justify-center rounded-md bg-teal-100 px-1.5 text-[11px] font-semibold text-teal-700">
                                                             +{treatmentImageCount}
                                                         </span>
                                                     </button>
@@ -1223,7 +1223,7 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                                 type="button"
                                                 variant="outline"
                                                 size="icon-sm"
-                                                className="border-gray-200 bg-white text-gray-700 shadow-sm hover:bg-gray-100"
+                                                className="border-slate-200 bg-white text-slate-700 shadow-sm hover:bg-slate-100"
                                                 aria-label={t('patientHistory.editEntry')}
                                                 disabled={detailLoadingTreatmentId === treatment.id || !canManageHistory}
                                                 onClick={() => {
@@ -1288,10 +1288,10 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                             <div>
                                 <div className="space-y-4">
                                     <div className="space-y-2">
-                                        <p className="text-center text-sm font-medium text-gray-700">{t('odontogram.upperJaw')}</p>
+                                        <p className="text-center text-sm font-medium text-slate-700">{t('odontogram.upperJaw')}</p>
                                         <div className="flex justify-center gap-3 md:gap-4 max-md:flex-col max-md:items-center max-md:gap-2">
                                             <div>
-                                                <p className="mb-0.5 text-center text-xs text-gray-500">{t('odontogram.upperRight')}</p>
+                                                <p className="mb-0.5 text-center text-xs text-slate-500">{t('odontogram.upperRight')}</p>
                                                 <div className="flex gap-1 md:gap-0.5">
                                                     {UPPER_RIGHT_TEETH.map((toothNumber) => {
                                                         const isSelected = formState.teeth.includes(toothNumber);
@@ -1318,7 +1318,7 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                                 </div>
                                             </div>
                                             <div>
-                                                <p className="mb-0.5 text-center text-xs text-gray-500">{t('odontogram.upperLeft')}</p>
+                                                <p className="mb-0.5 text-center text-xs text-slate-500">{t('odontogram.upperLeft')}</p>
                                                 <div className="flex gap-1 md:gap-0.5">
                                                     {UPPER_LEFT_TEETH.map((toothNumber) => {
                                                         const isSelected = formState.teeth.includes(toothNumber);
@@ -1348,10 +1348,10 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                     </div>
 
                                     <div className="space-y-2">
-                                        <p className="text-center text-sm font-medium text-gray-700">{t('odontogram.lowerJaw')}</p>
+                                        <p className="text-center text-sm font-medium text-slate-700">{t('odontogram.lowerJaw')}</p>
                                         <div className="flex justify-center gap-3 md:gap-4 max-md:flex-col max-md:items-center max-md:gap-2">
                                             <div>
-                                                <p className="mb-0.5 text-center text-xs text-gray-500">{t('odontogram.lowerRight')}</p>
+                                                <p className="mb-0.5 text-center text-xs text-slate-500">{t('odontogram.lowerRight')}</p>
                                                 <div className="flex gap-1 md:gap-0.5">
                                                     {LOWER_RIGHT_TEETH.map((toothNumber) => {
                                                         const isSelected = formState.teeth.includes(toothNumber);
@@ -1378,7 +1378,7 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                                 </div>
                                             </div>
                                             <div>
-                                                <p className="mb-0.5 text-center text-xs text-gray-500">{t('odontogram.lowerLeft')}</p>
+                                                <p className="mb-0.5 text-center text-xs text-slate-500">{t('odontogram.lowerLeft')}</p>
                                                 <div className="flex gap-1 md:gap-0.5">
                                                     {LOWER_LEFT_TEETH.map((toothNumber) => {
                                                         const isSelected = formState.teeth.includes(toothNumber);
@@ -1408,7 +1408,7 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                     </div>
                                 </div>
                             </div>
-                            <p className="text-xs text-gray-500">{t('patientHistory.teethHint')}</p>
+                            <p className="text-xs text-slate-500">{t('patientHistory.teethHint')}</p>
                         </div>
                         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                             <div className="space-y-2">
@@ -1421,11 +1421,11 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                             </div>
                         </div>
                         {amountError ? <p className="text-xs text-red-600">{amountError}</p> : null}
-                        <div className="rounded-xl border border-gray-200 bg-gray-50/40 p-2.5">
+                        <div className="rounded-xl border border-slate-200 bg-slate-50/40 p-2.5">
                             <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
                                 <div className="min-w-0">
                                     <Label htmlFor="historyImages">{t('patientHistory.images')}</Label>
-                                    <p className="mt-1 text-xs text-gray-500">
+                                    <p className="mt-1 text-xs text-slate-500">
                                         {visibleExistingImagesCount + selectedImagePreviews.length} / {maxHistoryImagesPerEntry} - {t('patientHistory.imagesHint', { max: maxHistoryImagesPerEntry, sizeMb: maxHistoryUploadMb })}
                                     </p>
                                 </div>
@@ -1440,7 +1440,7 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                 />
                                 <Label
                                     htmlFor={!canManageHistory || isPreparingImages ? undefined : 'historyImages'}
-                                    className={`inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-gray-200 bg-white px-3 text-sm font-medium text-gray-900 shadow-sm transition-colors ${!canManageHistory || isPreparingImages ? 'cursor-not-allowed opacity-70' : 'cursor-pointer hover:bg-gray-50'}`}
+                                    className={`inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-sm font-medium text-slate-900 shadow-sm transition-colors ${!canManageHistory || isPreparingImages ? 'cursor-not-allowed opacity-70' : 'cursor-pointer hover:bg-slate-50'}`}
                                     onClick={() => {
                                         if (!canManageHistory) {
                                             toast.error(manageDeniedMessage);
@@ -1520,7 +1520,7 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                     />
                                 ))}
                                 {(editingTreatment?.images ?? []).length + selectedImagePreviews.length === 0 ? (
-                                    <span className="inline-flex h-8 items-center rounded-full border border-dashed border-gray-200 bg-white px-3 text-xs text-gray-400">
+                                    <span className="inline-flex h-8 items-center rounded-full border border-dashed border-slate-200 bg-white px-3 text-xs text-slate-400">
                                         {t('patientHistory.imagesEmpty')}
                                     </span>
                                 ) : null}

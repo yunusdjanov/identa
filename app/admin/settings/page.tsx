@@ -32,7 +32,7 @@ interface AdminAccountDraft {
 function AdminSettingsLoadingSkeleton() {
     return (
         <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(219,234,254,0.55),transparent_34rem),linear-gradient(180deg,#f8fbff_0%,#f8fafc_42%,#f1f5f9_100%)]">
-            <div className="border-b border-teal-100/70 bg-white/90 px-4 py-3 sm:px-6 lg:px-8">
+            <div className="border-b border-teal-100/70 bg-white px-4 py-3 sm:px-6 lg:px-8">
                 <div className="mx-auto flex max-w-[1440px] items-center justify-between">
                     <Skeleton className="h-10 w-36 rounded-md" />
                     <Skeleton className="h-10 w-80 rounded-2xl" />
@@ -162,7 +162,7 @@ export default function AdminSettingsPage() {
                         />
                     ) : authQuery.data.role === 'admin' ? (
                         <>
-                            <Card className="interactive-card rounded-[1.5rem] bg-white/95">
+                            <Card className="interactive-card rounded-2xl bg-white">
                                 <CardHeader>
                                     <CardTitle className="flex items-center">
                                         <User className="mr-2 h-4 w-4" />
@@ -234,7 +234,7 @@ export default function AdminSettingsPage() {
                                 </CardContent>
                             </Card>
 
-                            <PasswordSecurityCard user={authQuery.data} className="interactive-card rounded-[1.5rem]" />
+                            <PasswordSecurityCard user={authQuery.data} className="interactive-card rounded-2xl" />
                         </>
                     ) : null}
                 </div>

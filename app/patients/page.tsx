@@ -366,7 +366,7 @@ export default function PatientsPage() {
                 )}
             />
 
-            <Card className="rounded-[1.5rem] border-teal-100/80 bg-gradient-to-br from-white via-teal-100/35 to-white shadow-sm shadow-teal-100/50">
+            <Card className="rounded-2xl border-teal-100/80 bg-white shadow-sm shadow-teal-100/50">
                 <CardContent className="p-4 sm:p-5">
                     <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
                         <div className="relative flex-1">
@@ -379,7 +379,7 @@ export default function PatientsPage() {
                                     setSearchQuery(event.target.value);
                                     setCurrentPage(1);
                                 }}
-                                className="h-10 rounded-xl border-slate-200 bg-white/90 pl-10 shadow-xs"
+                                className="h-9 rounded-xl border-slate-200 bg-white pl-10 shadow-xs"
                             />
                         </div>
                         <div className="flex flex-wrap items-center gap-2.5 lg:justify-end">
@@ -391,7 +391,7 @@ export default function PatientsPage() {
                                 }}
                             >
                                 <SelectTrigger
-                                    className="h-10 w-full min-w-[168px] rounded-xl border-slate-200 bg-white/90 text-left shadow-xs md:w-[168px]"
+                                    className="h-9 w-full min-w-[168px] rounded-xl border-slate-200 bg-white text-left shadow-xs md:w-[168px]"
                                     aria-label={t('patients.filterByCategoryAria')}
                                 >
                                     <SelectValue placeholder={t('patients.allCategories')} />
@@ -414,7 +414,7 @@ export default function PatientsPage() {
                                 }}
                             >
                                 <SelectTrigger
-                                    className="h-10 w-full min-w-[168px] rounded-xl border-slate-200 bg-white/90 text-left shadow-xs md:w-[168px]"
+                                    className="h-9 w-full min-w-[168px] rounded-xl border-slate-200 bg-white text-left shadow-xs md:w-[168px]"
                                     aria-label={t('patients.filterByVisitActivityAria')}
                                 >
                                     <SelectValue placeholder={t('patients.visitFilterLabel')} />
@@ -425,14 +425,14 @@ export default function PatientsPage() {
                                     <SelectItem value="1y">{t('patients.noVisit1y')}</SelectItem>
                                 </SelectContent>
                             </Select>
-                            <div className="relative flex h-10 shrink-0 items-center">
+                            <div className="relative flex h-9 shrink-0 items-center">
                                 <Button
                                     variant="outline"
                                     className={cn(
-                                        'h-10 min-w-[120px] rounded-xl px-4 shadow-xs',
+                                        'h-9 min-w-[120px] rounded-xl px-4 shadow-xs transition-colors',
                                         showArchivedOnly
-                                            ? 'border-slate-900 bg-slate-900 text-white hover:border-slate-900 hover:bg-slate-800 hover:text-white'
-                                            : 'border-slate-200 bg-white/90 text-slate-900 hover:bg-white'
+                                            ? 'border-teal-200 bg-teal-50 text-teal-700 hover:border-teal-300 hover:bg-teal-50 hover:text-teal-700'
+                                            : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
                                     )}
                                     aria-pressed={showArchivedOnly}
                                     onClick={() => {
@@ -446,7 +446,7 @@ export default function PatientsPage() {
                                 {hasActiveFilters ? (
                                     <Button
                                         variant="ghost"
-                                        className="absolute right-0 top-full mt-1 h-6 whitespace-nowrap px-2 text-xs text-slate-500 hover:bg-white/80 hover:text-slate-900"
+                                        className="absolute right-0 top-full mt-1 h-6 whitespace-nowrap px-2 text-xs text-slate-500 hover:bg-white hover:text-slate-900"
                                         onClick={resetFilters}
                                     >
                                         <FilterX className="h-3.5 w-3.5" />
@@ -459,7 +459,7 @@ export default function PatientsPage() {
                 </CardContent>
             </Card>
 
-            <Card className="overflow-hidden rounded-[1.5rem] bg-white/95">
+            <Card className="overflow-hidden rounded-2xl bg-white">
                 <CardHeader className="pb-2">
                     <CardTitle className="text-base">
                         {t('patients.totalCount', { count: totalPatients })}
@@ -531,7 +531,7 @@ export default function PatientsPage() {
                                                 }
                                             }}
                                         >
-                                            <TableCell className="text-gray-500">
+                                            <TableCell className="text-slate-500">
                                                 {rowNumber}
                                             </TableCell>
                                             <TableCell>
@@ -559,12 +559,12 @@ export default function PatientsPage() {
                                                     <p className="font-medium truncate" title={patient.fullName}>
                                                         {truncateForUi(patient.fullName, PATIENT_TABLE_NAME_UI_LIMIT)}
                                                     </p>
-                                                    <p className="text-sm text-gray-500 truncate">
-                                                        <Phone aria-hidden="true" className="mr-1 inline-block h-3 w-3 text-gray-400" />
+                                                    <p className="text-sm text-slate-500 truncate">
+                                                        <Phone aria-hidden="true" className="mr-1 inline-block h-3 w-3 text-slate-400" />
                                                         {patient.phone}
                                                     </p>
                                                     {patient.dateOfBirth && (
-                                                        <p className="text-sm text-gray-500 truncate">
+                                                        <p className="text-sm text-slate-500 truncate">
                                                             {t('patients.born')}: {formatDate(patient.dateOfBirth)}
                                                         </p>
                                                     )}
@@ -581,21 +581,21 @@ export default function PatientsPage() {
                                                         {truncateForUi(categoryToDisplay.name, PATIENT_CATEGORY_UI_LIMIT)}
                                                     </Badge>
                                                 ) : (
-                                                    <span className="text-gray-400 text-sm">{t('patients.uncategorized')}</span>
+                                                    <span className="text-slate-400 text-sm">{t('patients.uncategorized')}</span>
                                                 )}
                                             </TableCell>
                                             <TableCell>
                                                 {patient.createdAt ? (
                                                     formatDate(patient.createdAt)
                                                 ) : (
-                                                    <span className="text-gray-400">-</span>
+                                                    <span className="text-slate-400">-</span>
                                                 )}
                                             </TableCell>
                                             <TableCell>
                                                 {patient.lastVisitDate ? (
                                                     formatDate(patient.lastVisitDate)
                                                 ) : (
-                                                    <span className="text-gray-400">{t('patients.never')}</span>
+                                                    <span className="text-slate-400">{t('patients.never')}</span>
                                                 )}
                                             </TableCell>
                                             <TableCell className="text-right">
@@ -673,7 +673,7 @@ export default function PatientsPage() {
                             </Table>
                         </DataTableShell>
                         <div className="mt-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                                <p className="text-sm text-gray-500">
+                                <p className="text-sm text-slate-500">
                                     {t('patients.showing', { shown: patientRows.length, total: totalPatients })}
                                 </p>
                                 <div className="flex flex-wrap items-center gap-2 md:justify-end">

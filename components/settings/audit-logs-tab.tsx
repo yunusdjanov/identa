@@ -198,7 +198,7 @@ function AuditLogsLoadingSkeleton() {
     return (
         <div className="space-y-3">
             {Array.from({ length: 6 }).map((_, index) => (
-                <div key={`audit-log-skeleton-${index}`} className="rounded-lg border border-gray-200 p-4 space-y-2">
+                <div key={`audit-log-skeleton-${index}`} className="rounded-lg border border-slate-200 p-4 space-y-2">
                     <div className="flex items-center justify-between gap-3">
                         <Skeleton className="h-4 w-44" />
                         <Skeleton className="h-3 w-28" />
@@ -251,12 +251,12 @@ export function AuditLogsTab({ canViewAuditLogs, t }: AuditLogsTabProps) {
 
     if (!canViewAuditLogs) {
         return (
-            <Card className="overflow-hidden rounded-[1.5rem] bg-white/95">
+            <Card className="overflow-hidden rounded-2xl bg-white">
                 <CardHeader className="space-y-2">
                     <CardTitle>{t('settings.logs.title')}</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                    <p className="text-sm text-gray-600">{t('settings.logs.noAccess')}</p>
+                    <p className="text-sm text-slate-600">{t('settings.logs.noAccess')}</p>
                     <div className="pointer-events-none opacity-70">
                         <AuditLogsLoadingSkeleton />
                     </div>
@@ -266,10 +266,10 @@ export function AuditLogsTab({ canViewAuditLogs, t }: AuditLogsTabProps) {
     }
 
     return (
-        <Card className="overflow-hidden rounded-[1.5rem] bg-white/95">
+        <Card className="overflow-hidden rounded-2xl bg-white">
             <CardHeader className="space-y-4 pb-4">
                 <CardTitle className="text-base">{t('settings.logs.title')}</CardTitle>
-                <div className="grid grid-cols-1 gap-3 rounded-2xl border border-teal-100/80 bg-gradient-to-r from-white via-teal-100/30 to-white p-3 shadow-xs md:grid-cols-2 lg:grid-cols-4">
+                <div className="grid grid-cols-1 gap-3 rounded-2xl border border-teal-100/80 bg-white p-3 shadow-xs md:grid-cols-2 lg:grid-cols-4">
                     <Input
                         value={search}
                         onChange={(event) => {
@@ -277,7 +277,7 @@ export function AuditLogsTab({ canViewAuditLogs, t }: AuditLogsTabProps) {
                             setPage(1);
                         }}
                         placeholder={t('settings.logs.searchPlaceholder')}
-                        className="h-10 rounded-xl border-slate-200 bg-white/90 shadow-xs"
+                        className="h-9 rounded-xl border-slate-200 bg-white shadow-xs"
                     />
                     <Select
                         value={eventType}
@@ -286,7 +286,7 @@ export function AuditLogsTab({ canViewAuditLogs, t }: AuditLogsTabProps) {
                             setPage(1);
                         }}
                     >
-                        <SelectTrigger className="h-10 rounded-xl border-slate-200 bg-white/90 shadow-xs">
+                        <SelectTrigger className="h-9 rounded-xl border-slate-200 bg-white shadow-xs">
                             <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -306,7 +306,7 @@ export function AuditLogsTab({ canViewAuditLogs, t }: AuditLogsTabProps) {
                             setDateFrom(event.target.value);
                             setPage(1);
                         }}
-                        className="h-10 rounded-xl border-slate-200 bg-white/90 shadow-xs"
+                        className="h-9 rounded-xl border-slate-200 bg-white shadow-xs"
                     />
                     <Input
                         type="date"
@@ -315,7 +315,7 @@ export function AuditLogsTab({ canViewAuditLogs, t }: AuditLogsTabProps) {
                             setDateTo(event.target.value);
                             setPage(1);
                         }}
-                        className="h-10 rounded-xl border-slate-200 bg-white/90 shadow-xs"
+                        className="h-9 rounded-xl border-slate-200 bg-white shadow-xs"
                     />
                 </div>
             </CardHeader>
@@ -335,27 +335,27 @@ export function AuditLogsTab({ canViewAuditLogs, t }: AuditLogsTabProps) {
                                 : null;
 
                             return (
-                                <div key={entry.id} className="interactive-card rounded-2xl border border-slate-200/80 bg-white/95 p-4 shadow-xs">
+                                <div key={entry.id} className="interactive-card rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs">
                                     <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-                                        <p className="text-sm font-semibold text-gray-900">
+                                        <p className="text-sm font-semibold text-slate-900">
                                             {formatEventTypeLabel(entry.event_type, t)}
                                         </p>
-                                        <p className="text-xs text-gray-500">{formatDateTime(entry.created_at)}</p>
+                                        <p className="text-xs text-slate-500">{formatDateTime(entry.created_at)}</p>
                                     </div>
-                                    <p className="text-xs text-gray-600 mt-1">
+                                    <p className="text-xs text-slate-600 mt-1">
                                         {t('settings.logs.actor')}: {entry.actor?.name || '-'} (
                                         {entry.actor?.role ? t(`role.${entry.actor.role}`) : '-'})
                                     </p>
-                                    <p className="text-xs text-gray-600">
+                                    <p className="text-xs text-slate-600">
                                         {t('settings.logs.entity')}: {formatEntityLabel(entry, t)}
                                     </p>
                                     {requiredPermission ? (
-                                        <p className="text-xs text-gray-600">
+                                        <p className="text-xs text-slate-600">
                                             {t('settings.logs.requiredPermission')}:{' '}
                                             <span className="font-medium">{requiredPermissionLabel}</span>
                                         </p>
                                     ) : null}
-                                    <p className="text-xs text-gray-500">
+                                    <p className="text-xs text-slate-500">
                                         {t('settings.logs.ip')}: {formatIpAddress(entry.ip_address, t)}
                                     </p>
                                 </div>
@@ -363,7 +363,7 @@ export function AuditLogsTab({ canViewAuditLogs, t }: AuditLogsTabProps) {
                         })}
 
                         {visibleEntries.length === 0 ? (
-                            <p className="text-sm text-gray-500">{t('settings.logs.empty')}</p>
+                            <p className="text-sm text-slate-500">{t('settings.logs.empty')}</p>
                         ) : null}
 
                         <div className="flex flex-wrap items-center justify-end gap-2 pt-2">

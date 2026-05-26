@@ -83,7 +83,7 @@ export function AdminHeader({ active, isLoggingOut = false, onLogout }: AdminHea
                 </div>
             </div>
 
-            <div className="border-t border-slate-200/70 bg-white/80 md:hidden">
+            <div className="border-t border-slate-200/70 bg-white md:hidden">
                 <nav className="flex gap-1 overflow-x-auto overflow-y-hidden px-2 py-2 no-scrollbar">
                     {adminNavigation.map((item) => {
                         const Icon = item.icon;

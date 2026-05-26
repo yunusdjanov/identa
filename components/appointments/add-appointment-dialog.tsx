@@ -559,14 +559,14 @@ export function AddAppointmentDialog({
                                 <div
                                     id="patient-options"
                                     role="listbox"
-                                    className="absolute z-50 mt-1 max-h-56 w-full overflow-y-auto rounded-md border border-gray-200 bg-white shadow-md"
+                                    className="absolute z-50 mt-1 max-h-56 w-full overflow-y-auto rounded-md border border-slate-200 bg-white shadow-md"
                                 >
                                     {patientsQuery.isLoading || (patientsQuery.isFetching && patientOptions.length === 0) ? (
-                                        <p className="px-3 py-2 text-sm text-gray-500">{t('appointments.dialog.loadingPatients')}</p>
+                                        <p className="px-3 py-2 text-sm text-slate-500">{t('appointments.dialog.loadingPatients')}</p>
                                     ) : patientsQuery.isError ? (
                                         <p className="px-3 py-2 text-sm text-red-600">{t('appointments.dialog.patientsLoadFailed')}</p>
                                     ) : patientOptions.length === 0 ? (
-                                        <p className="px-3 py-2 text-sm text-gray-500">{t('appointments.dialog.noPatientsFound')}</p>
+                                        <p className="px-3 py-2 text-sm text-slate-500">{t('appointments.dialog.noPatientsFound')}</p>
                                     ) : (
                                         patientOptions.map((patient) => (
                                             <button
@@ -575,12 +575,12 @@ export function AddAppointmentDialog({
                                                 role="option"
                                                 aria-selected={patient.id === formData.patientId}
                                                 onClick={() => handlePatientSelect(patient.id)}
-                                                className="w-full px-3 py-2 text-left hover:bg-gray-50"
+                                                className="w-full px-3 py-2 text-left hover:bg-slate-50"
                                             >
-                                                <p className="text-sm font-medium text-gray-900 truncate" title={patient.full_name}>
+                                                <p className="text-sm font-medium text-slate-900 truncate" title={patient.full_name}>
                                                     {truncateForUi(patient.full_name, APPOINTMENT_LOOKUP_NAME_UI_LIMIT)}
                                                 </p>
-                                                <p className="text-xs text-gray-500 truncate" title={patient.phone}>
+                                                <p className="text-xs text-slate-500 truncate" title={patient.phone}>
                                                     {truncateForUi(patient.phone, APPOINTMENT_LOOKUP_PHONE_UI_LIMIT)}
                                                 </p>
                                             </button>
@@ -591,7 +591,7 @@ export function AddAppointmentDialog({
                         </div>
                         {selectedPatient ? (
                             <p
-                                className="text-xs text-gray-500 [overflow-wrap:anywhere] break-words"
+                                className="text-xs text-slate-500 [overflow-wrap:anywhere] break-words"
                                 title={t('appointments.dialog.selectedPatient', { patient: formatPatientLabel(selectedPatient) })}
                             >
                                 {t('appointments.dialog.selectedPatient', {

@@ -87,7 +87,7 @@ export default function ResetPasswordPage() {
                     <div className="mb-3 flex justify-center">
                         <Brand href="/" variant="text" priority textClassName="w-40 sm:w-44" />
                     </div>
-                    <p className="text-gray-600">{t('resetPassword.subtitle')}</p>
+                    <p className="text-slate-600">{t('resetPassword.subtitle')}</p>
                 </div>
 
                 <Card className="shadow-xl">

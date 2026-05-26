@@ -24,7 +24,7 @@ export function AccessDeniedState({
 }: AccessDeniedStateProps) {
     return (
         <section className={cn('flex min-h-[24rem] items-center justify-center px-3 py-8', className)}>
-            <div className="relative w-full max-w-3xl overflow-hidden rounded-[2rem] border border-cyan-100 bg-gradient-to-br from-white via-white to-cyan-50/70 p-6 shadow-xl shadow-cyan-950/5 sm:p-8">
+            <div className="relative w-full max-w-3xl overflow-hidden rounded-3xl border border-cyan-100 bg-gradient-to-br from-white via-white to-cyan-50/70 p-6 shadow-xl shadow-cyan-950/5 sm:p-8">
                 <div className="pointer-events-none absolute -right-16 -top-16 h-44 w-44 rounded-full bg-cyan-100/80 blur-3xl" />
                 <div className="pointer-events-none absolute -bottom-20 left-10 h-36 w-36 rounded-full bg-teal-100/55 blur-3xl" />
 
@@ -48,7 +48,7 @@ export function AccessDeniedState({
                         </p>
 
                         <div className="mt-6">
-                            <Button asChild className="h-11 rounded-2xl bg-slate-950 px-5 text-white">
+                            <Button asChild className="h-10 rounded-2xl bg-slate-950 px-5 text-white">
                                 <Link href={actionHref}>{actionLabel}</Link>
                             </Button>
                         </div>

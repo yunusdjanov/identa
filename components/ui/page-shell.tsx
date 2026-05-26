@@ -14,7 +14,7 @@ export function PageHeader({ title, description, eyebrow, actions, className }: 
     return (
         <section
             className={cn(
-                'overflow-hidden rounded-[1.5rem] border border-white/80 bg-gradient-to-br from-white via-teal-100/55 to-white px-4 py-3 shadow-sm shadow-slate-200/70 sm:rounded-[1.75rem] sm:px-5 sm:py-4',
+                'overflow-hidden rounded-2xl border border-white/80 bg-white px-4 py-3 shadow-sm shadow-slate-200/70 sm:rounded-2xl sm:px-5 sm:py-4',
                 className
             )}
         >
@@ -56,7 +56,7 @@ export function SectionPanel({
     return (
         <section
             className={cn(
-                'min-w-0 overflow-hidden rounded-[1.5rem] border border-slate-200/80 bg-white/95 p-4 shadow-sm shadow-slate-200/60 sm:rounded-[1.75rem] sm:p-6',
+                'min-w-0 overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm shadow-slate-200/60 sm:rounded-2xl sm:p-6',
                 className
             )}
         >

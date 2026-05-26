@@ -41,7 +41,7 @@ function CategoriesLoadingSkeleton() {
             {Array.from({ length: 6 }).map((_, index) => (
                 <div
                     key={`category-skeleton-${index}`}
-                    className="flex items-center justify-between rounded-lg border border-gray-200 p-3"
+                    className="flex items-center justify-between rounded-lg border border-slate-200 p-3"
                 >
                     <div className="flex items-center gap-3">
                         <Skeleton className="h-3 w-3 rounded-full" />
@@ -218,8 +218,8 @@ export function ManageCategoriesDialog({ open, onOpenChange }: ManageCategoriesD
                     </DialogHeader>
 
                     <div className="mt-2 flex-1 space-y-4 overflow-y-auto pr-1">
-                        <div className="rounded-lg border border-gray-200 p-3">
-                            <p className="mb-3 text-sm font-medium text-gray-900">{t('patients.categories.newCategory')}</p>
+                        <div className="rounded-lg border border-slate-200 p-3">
+                            <p className="mb-3 text-sm font-medium text-slate-900">{t('patients.categories.newCategory')}</p>
                             <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_auto_auto]">
                                 <div className="space-y-2">
                                     <Label htmlFor="newCategoryName">
@@ -263,12 +263,12 @@ export function ManageCategoriesDialog({ open, onOpenChange }: ManageCategoriesD
                             {categoriesQuery.isLoading ? (
                                 <CategoriesLoadingSkeleton />
                             ) : categories.length === 0 ? (
-                                <p className="text-sm text-gray-500">{t('patients.categories.empty')}</p>
+                                <p className="text-sm text-slate-500">{t('patients.categories.empty')}</p>
                             ) : (
                                 categories.map((category) => (
                                     <div
                                         key={category.id}
-                                        className="flex items-center justify-between rounded-lg border border-gray-200 p-3"
+                                        className="flex items-center justify-between rounded-lg border border-slate-200 p-3"
                                     >
                                         {editingId === category.id ? (
                                             <div className="flex flex-1 flex-col gap-2 sm:flex-row sm:items-end">
@@ -320,10 +320,10 @@ export function ManageCategoriesDialog({ open, onOpenChange }: ManageCategoriesD
                                             <>
                                                 <div className="flex items-center gap-3">
                                                     <span
-                                                        className="h-3 w-3 rounded-full border border-gray-300"
+                                                        className="h-3 w-3 rounded-full border border-slate-300"
                                                         style={{ backgroundColor: category.color }}
                                                     />
-                                                    <span className="max-w-[16rem] truncate text-sm font-medium text-gray-900" title={category.name}>
+                                                    <span className="max-w-[16rem] truncate text-sm font-medium text-slate-900" title={category.name}>
                                                         {truncateForUi(category.name, CATEGORY_CHIP_UI_LIMIT)}
                                                     </span>
                                                 </div>

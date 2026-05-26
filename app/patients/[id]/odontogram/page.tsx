@@ -188,16 +188,16 @@ export default function OdontogramPage({
                 <CardContent>
         <div className="space-y-5 lg:space-y-6">
                         <div className="space-y-2">
-                            <p className="text-sm font-medium text-gray-600 text-center">{t('odontogram.upperJaw')}</p>
+                            <p className="text-sm font-medium text-slate-600 text-center">{t('odontogram.upperJaw')}</p>
                             <div className="flex justify-center space-x-4 sm:space-x-6 md:space-x-8">
                                 <div>
-                                    <p className="text-xs text-gray-500 text-center mb-2">{t('odontogram.upperRight')}</p>
+                                    <p className="text-xs text-slate-500 text-center mb-2">{t('odontogram.upperRight')}</p>
                                     <div className="flex gap-0.5 sm:gap-1">
                                         {[8, 7, 6, 5, 4, 3, 2, 1].map((num) => renderTooth(num))}
                                     </div>
                                 </div>
                                 <div>
-                                    <p className="text-xs text-gray-500 text-center mb-2">{t('odontogram.upperLeft')}</p>
+                                    <p className="text-xs text-slate-500 text-center mb-2">{t('odontogram.upperLeft')}</p>
                                     <div className="flex gap-0.5 sm:gap-1">
                                         {[9, 10, 11, 12, 13, 14, 15, 16].map((num) => renderTooth(num))}
                                     </div>
@@ -205,19 +205,19 @@ export default function OdontogramPage({
                             </div>
                         </div>
 
-                        <div className="border-t-2 border-gray-300"></div>
+                        <div className="border-t-2 border-slate-300"></div>
 
                         <div className="space-y-2">
-                            <p className="text-sm font-medium text-gray-600 text-center">{t('odontogram.lowerJaw')}</p>
+                            <p className="text-sm font-medium text-slate-600 text-center">{t('odontogram.lowerJaw')}</p>
                             <div className="flex justify-center space-x-4 sm:space-x-6 md:space-x-8">
                                 <div>
-                                    <p className="text-xs text-gray-500 text-center mb-2">{t('odontogram.lowerRight')}</p>
+                                    <p className="text-xs text-slate-500 text-center mb-2">{t('odontogram.lowerRight')}</p>
                                     <div className="flex gap-0.5 sm:gap-1">
                                         {[32, 31, 30, 29, 28, 27, 26, 25].map((num) => renderTooth(num))}
                                     </div>
                                 </div>
                                 <div>
-                                    <p className="text-xs text-gray-500 text-center mb-2">{t('odontogram.lowerLeft')}</p>
+                                    <p className="text-xs text-slate-500 text-center mb-2">{t('odontogram.lowerLeft')}</p>
                                     <div className="flex gap-0.5 sm:gap-1">
                                         {[17, 18, 19, 20, 21, 22, 23, 24].map((num) => renderTooth(num))}
                                     </div>
@@ -226,7 +226,7 @@ export default function OdontogramPage({
                         </div>
                     </div>
 
-                    <p className="text-xs text-gray-500 text-center mt-6">
+                    <p className="text-xs text-slate-500 text-center mt-6">
                         {t('patientHistory.subtitle')}
                     </p>
                 </CardContent>
