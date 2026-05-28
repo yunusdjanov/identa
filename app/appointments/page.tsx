@@ -1238,7 +1238,7 @@ export default function AppointmentsPage() {
                                     variant="ghost"
                                     className={`flex-1 rounded-lg sm:flex-none ${
                                         view === 'week'
-                                            ? 'bg-teal-50 text-teal-700 shadow-sm !ring-1 !ring-teal-300 focus-visible:!border-transparent hover:bg-teal-50 hover:text-teal-700'
+                                            ? 'bg-teal-50 text-teal-700 shadow-sm ring-1! ring-teal-300! focus-visible:border-transparent! hover:bg-teal-50 hover:text-teal-700'
                                             : 'text-slate-600 hover:bg-white hover:text-slate-900'
                                     }`}
                                     onClick={() => {
@@ -1256,7 +1256,7 @@ export default function AppointmentsPage() {
                                     variant="ghost"
                                     className={`flex-1 rounded-lg sm:flex-none ${
                                         view === 'day'
-                                            ? 'bg-teal-50 text-teal-700 shadow-sm !ring-1 !ring-teal-300 focus-visible:!border-transparent hover:bg-teal-50 hover:text-teal-700'
+                                            ? 'bg-teal-50 text-teal-700 shadow-sm ring-1! ring-teal-300! focus-visible:border-transparent! hover:bg-teal-50 hover:text-teal-700'
                                             : 'text-slate-600 hover:bg-white hover:text-slate-900'
                                     }`}
                                     onClick={() => {

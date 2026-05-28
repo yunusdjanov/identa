@@ -495,7 +495,7 @@ export default function PaymentsPage() {
                                 variant="ghost"
                                 className={`flex-1 gap-2 rounded-lg sm:flex-none ${
                                     activeTab === 'patients'
-                                        ? 'bg-teal-50 text-teal-700 shadow-sm !ring-1 !ring-teal-300 focus-visible:!border-transparent hover:bg-teal-50 hover:text-teal-700'
+                                        ? 'bg-teal-50 text-teal-700 shadow-sm ring-1! ring-teal-300! focus-visible:border-transparent! hover:bg-teal-50 hover:text-teal-700'
                                         : 'text-slate-600 hover:bg-white hover:text-slate-900'
                                 }`}
                                 onClick={() => handleTabChange('patients')}
@@ -508,7 +508,7 @@ export default function PaymentsPage() {
                                 variant="ghost"
                                 className={`flex-1 gap-2 rounded-lg sm:flex-none ${
                                     activeTab === 'history'
-                                        ? 'bg-teal-50 text-teal-700 shadow-sm !ring-1 !ring-teal-300 focus-visible:!border-transparent hover:bg-teal-50 hover:text-teal-700'
+                                        ? 'bg-teal-50 text-teal-700 shadow-sm ring-1! ring-teal-300! focus-visible:border-transparent! hover:bg-teal-50 hover:text-teal-700'
                                         : 'text-slate-600 hover:bg-white hover:text-slate-900'
                                 }`}
                                 onClick={() => handleTabChange('history')}
