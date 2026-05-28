@@ -53,7 +53,7 @@ export function AccountMenu({
     const avatarLabel = `${showDoctorPrefix ? t('common.doctorPrefix') : ''}${getInitial(displayName)}`;
 
     return (
-        <DropdownMenu>
+        <DropdownMenu modal={false}>
             <DropdownMenuTrigger asChild>
                 <Button
                     variant="ghost"

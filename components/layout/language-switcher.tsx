@@ -53,7 +53,7 @@ export function LanguageSwitcher({
         const currentLocaleOption = LOCALE_OPTIONS.find((opt) => opt.code === locale) ?? LOCALE_OPTIONS[0];
 
         return (
-            <DropdownMenu>
+            <DropdownMenu modal={false}>
                 <DropdownMenuTrigger asChild>
                     <Button
                         type="button"
