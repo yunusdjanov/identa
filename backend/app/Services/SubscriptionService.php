@@ -308,12 +308,25 @@ class SubscriptionService
         $endsAt = $subscription?->ends_at;
         $isReadOnly = $subscription?->status === Subscription::STATUS_READ_ONLY;
 
+        // Derived grace state: a paid subscription whose period has ended but is
+        // still inside the grace window keeps full access (status stays ACTIVE
+        // in the DB) while surfacing a "grace" status + deadline to the client.
+        $graceEndsAt = $subscription !== null ? $this->graceDeadline($subscription) : null;
+        $inGrace = $subscription?->status === Subscription::STATUS_ACTIVE
+            && $endsAt !== null
+            && $endsAt->isPast()
+            && $graceEndsAt !== null
+            && $graceEndsAt->isAfter($endsAt)
+            && now()->lt($graceEndsAt);
+
         return [
             'is_configured' => $subscription !== null,
             'plan' => $subscription?->plan_code,
             'plan_name' => $subscription?->plan_name,
             'billing_period' => $subscription?->billing_period,
-            'status' => $subscription?->status ?? User::SUBSCRIPTION_STATUS_NONE,
+            'status' => $inGrace
+                ? User::SUBSCRIPTION_STATUS_GRACE
+                : ($subscription?->status ?? User::SUBSCRIPTION_STATUS_NONE),
             'access_mode' => $isReadOnly
                 ? User::SUBSCRIPTION_ACCESS_READ_ONLY
                 : User::SUBSCRIPTION_ACCESS_FULL,
@@ -322,7 +335,7 @@ class SubscriptionService
             'trial_ends_at' => $subscription?->billing_period === Subscription::PERIOD_TRIAL
                 ? $endsAt?->toIso8601String()
                 : null,
-            'grace_ends_at' => null,
+            'grace_ends_at' => $inGrace ? $graceEndsAt->toIso8601String() : null,
             'cancel_at_period_end' => (bool) ($subscription?->cancel_at_period_end ?? false),
             'cancelled_at' => null,
             'pending_plan_id' => $subscription?->pending_plan_id !== null ? (string) $subscription->pending_plan_id : null,
@@ -356,13 +369,40 @@ class SubscriptionService
             return $subscription;
         }
 
+        // A scheduled plan change (e.g. downgrade) takes effect at period end.
         if ($subscription->pending_plan_id !== null && $subscription->pending_billing_period !== null) {
             return $this->activatePendingChange($subscription);
+        }
+
+        // Paid subscriptions get a short grace window after expiry before being
+        // locked to read-only; free trials lock immediately (no grace).
+        if (now()->lt($this->graceDeadline($subscription))) {
+            // Still within grace — keep full access. Status stays ACTIVE in the
+            // DB; summary() surfaces a derived "grace" status + grace_ends_at.
+            return $subscription;
         }
 
         $subscription->forceFill(['status' => Subscription::STATUS_READ_ONLY])->save();
 
         return $subscription->refresh()->load('plan');
+    }
+
+    /**
+     * The instant an expired subscription should flip to read-only: the paid
+     * period end plus the grace window (no grace for trials).
+     */
+    private function graceDeadline(Subscription $subscription): CarbonInterface
+    {
+        $endsAt = $subscription->ends_at ?? now();
+        $isPaidPeriod = in_array(
+            $subscription->billing_period,
+            [Subscription::PERIOD_MONTHLY, Subscription::PERIOD_YEARLY],
+            true
+        );
+
+        return $isPaidPeriod
+            ? $endsAt->copy()->addDays(User::SUBSCRIPTION_GRACE_DAYS)
+            : $endsAt->copy();
     }
 
     private function activatePendingChange(Subscription $subscription): Subscription
