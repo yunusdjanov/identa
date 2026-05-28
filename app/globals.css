@@ -120,9 +120,12 @@
     @apply border-border outline-ring/50;
   }
 
+  /* Suppress the default focus OUTLINE on mouse focus (keyboard focus still
+     shows focus-visible rings). Do NOT clear box-shadow here — that was
+     wiping intentional indicators like the active tab's teal ring whenever
+     the element held mouse :focus. */
   :focus:not(:focus-visible) {
     outline: none !important;
-    box-shadow: none !important;
   }
 
   /* Hide browser scrollbar arrow buttons that can appear as floating up/down controls on some Windows setups. */
@@ -133,10 +136,9 @@
   }
 
   html {
-    /* Always show the vertical scrollbar (and reserve its gutter) so opening
-       a Radix dropdown/dialog — which can lock body scroll and remove the
-       scrollbar — never widens the viewport and shifts the layout sideways. */
-    overflow-y: scroll;
+    /* Reserve the scrollbar gutter so opening a Radix dropdown/dialog never
+       widens the viewport and shifts the layout sideways. (No forced
+       overflow-y:scroll — that left an always-visible scrollbar bar.) */
     scrollbar-gutter: stable;
   }
 
