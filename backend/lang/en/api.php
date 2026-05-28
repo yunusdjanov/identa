@@ -7,6 +7,9 @@ return [
         'account_inactive' => 'Your account is not active.',
         'invalid_credentials' => 'Invalid credentials provided.',
         'current_password_incorrect' => 'Current password is incorrect.',
+        'email_verification_sent' => 'A verification link has been sent to your email.',
+        'email_already_verified' => 'Email is already verified.',
+        'email_verification_send_failed' => 'Could not send the email. Please try again later.',
     ],
     'appointments' => [
         'conflict' => 'Appointment time conflicts with an existing appointment.',

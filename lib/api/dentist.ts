@@ -206,6 +206,14 @@ export async function loginWithGoogleIdToken(idToken: string): Promise<ApiUser> 
     return data.data;
 }
 
+export async function resendEmailVerification(): Promise<string> {
+    const { data } = await withCsrfRetry(() =>
+        apiClient.post<{ message?: string }>('/auth/email/verification-notification')
+    );
+
+    return data.message ?? '';
+}
+
 export async function requestPasswordReset(email: string): Promise<string> {
     const { data } = await withCsrfRetry(() =>
         apiClient.post<{ message?: string }>('/auth/forgot-password', {

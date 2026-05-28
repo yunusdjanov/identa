@@ -36,6 +36,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useI18n } from '@/components/providers/i18n-provider';
 import { SubscriptionBanner } from '@/components/layout/subscription-banner';
+import { EmailVerificationBanner } from '@/components/layout/email-verification-banner';
 import { Brand } from '@/components/branding/brand';
 import { AccountMenu } from '@/components/layout/account-menu';
 import { toast } from 'sonner';
@@ -315,6 +316,8 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                     </div>
                 )}
             </header>
+
+            <EmailVerificationBanner />
 
             <SubscriptionBanner
                 locale={locale}

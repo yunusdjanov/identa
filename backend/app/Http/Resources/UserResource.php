@@ -29,6 +29,7 @@ class UserResource extends JsonResource
             'provider' => $user->provider,
             'avatar_url' => $user->avatar_url,
             'email_verified_at' => $user->email_verified_at?->toIso8601String(),
+            'email_verified' => $user->hasVerifiedEmail(),
             'has_password' => $user->password !== null,
             'account_status' => $user->account_status,
             'dentist_owner_id' => $user->dentist_owner_id !== null ? (string) $user->dentist_owner_id : null,

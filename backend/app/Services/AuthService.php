@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 
 class AuthService
@@ -43,6 +44,19 @@ class AuthService
         });
 
         $this->loginUser($request, $user, true);
+
+        // Best-effort: send the email-verification link. Registration must
+        // still succeed even if the mailer is down/unconfigured, so failures
+        // are logged rather than thrown. The user is auto-logged-in (soft
+        // gate) and nudged to verify via the in-app banner + resend.
+        try {
+            $user->sendEmailVerificationNotification();
+        } catch (\Throwable $exception) {
+            Log::warning('Failed to send verification email on registration', [
+                'user_id' => $user->id,
+                'error' => $exception->getMessage(),
+            ]);
+        }
 
         $this->auditLogger->logFromRequest(
             request: $request,

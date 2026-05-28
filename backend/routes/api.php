@@ -54,12 +54,20 @@ Route::prefix('v1')->group(function (): void {
         Route::post('/reset-password', [AuthController::class, 'resetPassword'])
             ->middleware('throttle:5,1');
 
+        // Signed link from the verification email (auth is the signature itself).
+        Route::get('/email/verify/{id}/{hash}', [AuthController::class, 'verifyEmail'])
+            ->middleware(['signed', 'throttle:6,1'])
+            ->name('verification.verify');
+
         Route::middleware('auth:sanctum')->group(function (): void {
             Route::get('/me', [AuthController::class, 'me']);
             Route::post('/logout', [AuthController::class, 'logout'])
                 ->middleware('throttle:15,1');
             Route::post('/change-password', [AuthController::class, 'changePassword'])
                 ->middleware('throttle:10,1');
+            Route::post('/email/verification-notification', [AuthController::class, 'resendEmailVerification'])
+                ->middleware('throttle:6,1')
+                ->name('verification.send');
         });
     });
 

@@ -54,6 +54,7 @@ export interface ApiUser {
     provider?: 'email' | 'google' | string | null;
     avatar_url?: string | null;
     email_verified_at?: string | null;
+    email_verified?: boolean;
     has_password?: boolean;
     account_status: 'active' | 'blocked' | 'deleted';
     dentist_owner_id?: string | null;

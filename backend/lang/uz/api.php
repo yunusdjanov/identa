@@ -7,6 +7,9 @@ return [
         'account_inactive' => 'Hisobingiz faol emas.',
         'invalid_credentials' => 'Login yoki parol noto‘g‘ri.',
         'current_password_incorrect' => "Joriy parol noto'g'ri.",
+        'email_verification_sent' => 'Tasdiqlash xati pochtangizga yuborildi.',
+        'email_already_verified' => 'Email allaqachon tasdiqlangan.',
+        'email_verification_send_failed' => 'Xat yuborilmadi. Keyinroq urinib ko‘ring.',
     ],
     'appointments' => [
         'conflict' => 'Qabul vaqti mavjud qabul bilan to‘qnashmoqda.',

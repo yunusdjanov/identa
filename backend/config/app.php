@@ -56,6 +56,19 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Frontend URL
+    |--------------------------------------------------------------------------
+    |
+    | Base URL of the SPA frontend. Used to redirect users back to the app
+    | after server-handled flows such as email verification. Accepts a single
+    | origin; the first entry is used if a comma-separated list is provided.
+    |
+    */
+
+    'frontend_url' => env('FRONTEND_URL', 'http://localhost:3000'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Application Timezone
     |--------------------------------------------------------------------------
     |

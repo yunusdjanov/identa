@@ -13,6 +13,7 @@ export async function GET() {
             name: 'Zohid Yunusjonov',
             email: 'yunusdjanov@gmail.com',
             role: 'dentist',
+            email_verified: false,
             subscription: {
                 status: 'active',
                 plan: 'pro',

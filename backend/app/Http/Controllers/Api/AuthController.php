@@ -8,10 +8,13 @@ use App\Models\User;
 use App\Services\AuthService;
 use App\Support\AuditLogger;
 use Illuminate\Auth\Events\PasswordReset;
+use Illuminate\Auth\Events\Verified;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -184,6 +187,77 @@ class AuthController extends Controller
 
         return response()->json([
             'data' => $this->transformUser($user),
+        ]);
+    }
+
+    /**
+     * Verify an email via the signed link from the verification email, then
+     * bounce the user back to the SPA with a status. Auth is provided by the
+     * signed URL (the `signed` middleware), so no session is required.
+     */
+    public function verifyEmail(Request $request, string $id, string $hash): RedirectResponse
+    {
+        $status = 'invalid';
+
+        /** @var User|null $user */
+        $user = User::query()->find($id);
+
+        if (
+            $user !== null
+            && hash_equals((string) $hash, sha1($user->getEmailForVerification()))
+        ) {
+            if ($user->hasVerifiedEmail()) {
+                $status = 'already';
+            } elseif ($user->markEmailAsVerified()) {
+                event(new Verified($user));
+
+                $this->auditLogger->logFromRequest(
+                    request: $request,
+                    eventType: 'auth.email_verified',
+                    entityType: 'user',
+                    entityId: (string) $user->id,
+                );
+
+                $status = 'success';
+            }
+        }
+
+        $frontend = rtrim(explode(',', (string) config('app.frontend_url'))[0], '/');
+
+        return redirect()->away($frontend.'/verify-email?status='.$status);
+    }
+
+    /**
+     * Resend the email-verification link to the authenticated user.
+     */
+    public function resendEmailVerification(Request $request): JsonResponse
+    {
+        /** @var User $user */
+        $user = $request->user();
+
+        if ($user->hasVerifiedEmail()) {
+            return response()->json([
+                'message' => __('api.auth.email_already_verified'),
+                'email_verified' => true,
+            ]);
+        }
+
+        try {
+            $user->sendEmailVerificationNotification();
+        } catch (\Throwable $exception) {
+            Log::warning('Failed to resend verification email', [
+                'user_id' => $user->id,
+                'error' => $exception->getMessage(),
+            ]);
+
+            throw ValidationException::withMessages([
+                'email' => [__('api.auth.email_verification_send_failed')],
+            ]);
+        }
+
+        return response()->json([
+            'message' => __('api.auth.email_verification_sent'),
+            'email_verified' => false,
         ]);
     }
 

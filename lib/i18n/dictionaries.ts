@@ -3996,6 +3996,51 @@ Object.assign(en, {
     'register.cardTitle': 'Start with Identa',
 });
 
+Object.assign(ru, {
+    'verifyEmail.banner.text': 'Подтвердите свою почту, чтобы защитить аккаунт и восстановление пароля.',
+    'verifyEmail.banner.resend': 'Отправить письмо',
+    'verifyEmail.banner.sending': 'Отправка...',
+    'verifyEmail.toast.sent': 'Письмо для подтверждения отправлено.',
+    'verifyEmail.toast.failed': 'Не удалось отправить письмо. Попробуйте позже.',
+    'verifyEmail.page.successTitle': 'Почта подтверждена',
+    'verifyEmail.page.successText': 'Ваш адрес электронной почты успешно подтвержден.',
+    'verifyEmail.page.alreadyTitle': 'Уже подтверждено',
+    'verifyEmail.page.alreadyText': 'Эта почта уже была подтверждена ранее.',
+    'verifyEmail.page.invalidTitle': 'Ссылка недействительна',
+    'verifyEmail.page.invalidText': 'Ссылка для подтверждения устарела или неверна. Запросите новое письмо.',
+    'verifyEmail.page.goToApp': 'Перейти в приложение',
+});
+
+Object.assign(uz, {
+    'verifyEmail.banner.text': 'Hisobingiz va parol tiklashni himoyalash uchun pochtangizni tasdiqlang.',
+    'verifyEmail.banner.resend': 'Xat yuborish',
+    'verifyEmail.banner.sending': 'Yuborilmoqda...',
+    'verifyEmail.toast.sent': 'Tasdiqlash xati yuborildi.',
+    'verifyEmail.toast.failed': 'Xat yuborilmadi. Keyinroq urinib ko‘ring.',
+    'verifyEmail.page.successTitle': 'Pochta tasdiqlandi',
+    'verifyEmail.page.successText': 'Email manzilingiz muvaffaqiyatli tasdiqlandi.',
+    'verifyEmail.page.alreadyTitle': 'Allaqachon tasdiqlangan',
+    'verifyEmail.page.alreadyText': 'Bu pochta avval tasdiqlangan edi.',
+    'verifyEmail.page.invalidTitle': 'Havola yaroqsiz',
+    'verifyEmail.page.invalidText': 'Tasdiqlash havolasi eskirgan yoki noto‘g‘ri. Yangi xat so‘rang.',
+    'verifyEmail.page.goToApp': 'Ilovaga o‘tish',
+});
+
+Object.assign(en, {
+    'verifyEmail.banner.text': 'Verify your email to secure your account and password recovery.',
+    'verifyEmail.banner.resend': 'Send email',
+    'verifyEmail.banner.sending': 'Sending...',
+    'verifyEmail.toast.sent': 'Verification email sent.',
+    'verifyEmail.toast.failed': 'Could not send the email. Please try again later.',
+    'verifyEmail.page.successTitle': 'Email verified',
+    'verifyEmail.page.successText': 'Your email address has been successfully verified.',
+    'verifyEmail.page.alreadyTitle': 'Already verified',
+    'verifyEmail.page.alreadyText': 'This email was already verified earlier.',
+    'verifyEmail.page.invalidTitle': 'Link invalid',
+    'verifyEmail.page.invalidText': 'The verification link is expired or invalid. Request a new email.',
+    'verifyEmail.page.goToApp': 'Go to app',
+});
+
 export const DICTIONARIES: Record<AppLocale, TranslationDictionary> = {
     ru,
     uz,

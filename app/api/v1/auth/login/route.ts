@@ -7,6 +7,7 @@ export async function POST() {
             name: 'Zohid Yunusjonov',
             email: 'yunusdjanov@gmail.com',
             role: 'dentist',
+            email_verified: false,
             subscription: {
                 status: 'active',
                 plan: 'pro',
