@@ -333,6 +333,21 @@ class OdontogramImageService
         $this->queueDeletion((string) $image->disk, (string) $image->path);
     }
 
+    /**
+     * Storage paths for an image (original + thumbnail/preview variants).
+     * Returns the list without dispatching, so callers can batch deletions.
+     *
+     * @return list<string>
+     */
+    public function deletePaths(string $path): array
+    {
+        return [
+            $path,
+            $this->variantPath($path, self::IMAGE_VARIANT_THUMBNAIL),
+            $this->variantPath($path, self::IMAGE_VARIANT_PREVIEW),
+        ];
+    }
+
     public function stream(OdontogramEntryImage $image, ?string $variant): StreamedResponse
     {
         if ((string) $image->scan_status !== 'approved') {

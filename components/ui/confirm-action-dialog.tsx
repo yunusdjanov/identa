@@ -1,6 +1,9 @@
 ﻿'use client';
 
+import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
     Dialog,
     DialogContent,
@@ -25,6 +28,13 @@ interface ConfirmActionDialogProps {
     disabled?: boolean;
     isPending?: boolean;
     className?: string;
+    /**
+     * When set, the user must type this exact text to enable the confirm
+     * button — used to guard irreversible actions (e.g. permanent deletion).
+     */
+    requireConfirmationText?: string;
+    confirmationLabel?: string;
+    confirmationPlaceholder?: string;
 }
 
 export function ConfirmActionDialog({
@@ -40,9 +50,26 @@ export function ConfirmActionDialog({
     disabled = false,
     isPending = false,
     className = 'max-w-md',
+    requireConfirmationText,
+    confirmationLabel,
+    confirmationPlaceholder,
 }: ConfirmActionDialogProps) {
     const isDestructive = confirmVariant === 'destructive';
     const Icon = isDestructive ? AlertTriangle : CheckCircle2;
+
+    const [typedConfirmation, setTypedConfirmation] = useState('');
+    // Reset the typed text whenever the dialog is toggled so a previous match
+    // never carries over to the next open.
+    useEffect(() => {
+        if (!open) {
+            setTypedConfirmation('');
+        }
+    }, [open]);
+
+    const needsTypedConfirmation = typeof requireConfirmationText === 'string' && requireConfirmationText.trim() !== '';
+    const typedMatches = !needsTypedConfirmation
+        || typedConfirmation.trim() === (requireConfirmationText ?? '').trim();
+    const confirmDisabled = disabled || isPending || !typedMatches;
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
@@ -67,6 +94,23 @@ export function ConfirmActionDialog({
                             </DialogDescription>
                         </DialogHeader>
                     </div>
+                    {needsTypedConfirmation ? (
+                        <div className="mt-4 space-y-1.5">
+                            {confirmationLabel ? (
+                                <Label className="text-xs font-medium text-slate-600">{confirmationLabel}</Label>
+                            ) : null}
+                            <Input
+                                value={typedConfirmation}
+                                onChange={(event) => setTypedConfirmation(event.target.value)}
+                                placeholder={confirmationPlaceholder ?? requireConfirmationText}
+                                disabled={isPending}
+                                autoComplete="off"
+                                autoCorrect="off"
+                                spellCheck={false}
+                                aria-label={confirmationLabel ?? title}
+                            />
+                        </div>
+                    ) : null}
                 </div>
                 <DialogFooter className="border-t border-slate-100 bg-slate-50/80 px-5 py-4 sm:px-6">
                     <Button
@@ -82,7 +126,7 @@ export function ConfirmActionDialog({
                         type="button"
                         variant={confirmVariant}
                         onClick={onConfirm}
-                        disabled={disabled || isPending}
+                        disabled={confirmDisabled}
                         className={cn(
                             'h-10 min-w-32 rounded-xl shadow-sm',
                             isDestructive ? 'shadow-red-200/50' : 'shadow-teal-200/50'

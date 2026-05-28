@@ -1306,7 +1306,8 @@ Object.assign(ru, {
     'patientDetail.restoreConfirm': 'Восстановить',
     'patientDetail.restoring': 'Восстановление...',
     'patientDetail.permanentDeleteTitle': 'Удалить пациента навсегда',
-    'patientDetail.permanentDeleteDescription': 'Удалить {{patientName}} навсегда? Действие нельзя отменить; удаление блокируется при наличии клинических или финансовых записей.',
+    'patientDetail.permanentDeleteDescription': 'Удалить {{patientName}} и ВСЕ связанные данные (приёмы, лечения, платежи, снимки) навсегда? Это действие необратимо.',
+    'patientDetail.permanentDeleteTypeName': 'Для подтверждения введите имя пациента: {{patientName}}',
     'patientDetail.permanentDeleteConfirm': 'Удалить навсегда',
 });
 
@@ -1462,7 +1463,8 @@ Object.assign(uz, {
     'patientDetail.restoreConfirm': 'Tiklash',
     'patientDetail.restoring': 'Tiklanmoqda...',
     'patientDetail.permanentDeleteTitle': 'Bemorni butunlay o‘chirish',
-    'patientDetail.permanentDeleteDescription': '{{patientName}} ni butunlay o‘chirasizmi? Bu amalni bekor qilib bo‘lmaydi; klinik yoki billing yozuvlari bo‘lsa bloklanadi.',
+    'patientDetail.permanentDeleteDescription': '{{patientName}} va uning BARCHA ma‘lumotlarini (qabullar, davolashlar, to‘lovlar, rasmlar) butunlay o‘chirasizmi? Bu amalni qaytarib bo‘lmaydi.',
+    'patientDetail.permanentDeleteTypeName': 'Tasdiqlash uchun bemor ismini kiriting: {{patientName}}',
     'patientDetail.permanentDeleteConfirm': 'Butunlay o‘chirish',
 });
 
@@ -1618,7 +1620,8 @@ Object.assign(en, {
     'patientDetail.restoreConfirm': 'Restore Patient',
     'patientDetail.restoring': 'Restoring...',
     'patientDetail.permanentDeleteTitle': 'Delete Patient Permanently',
-    'patientDetail.permanentDeleteDescription': 'Permanently delete {{patientName}}? This cannot be undone and is blocked if clinical or billing records exist.',
+    'patientDetail.permanentDeleteDescription': 'Permanently delete {{patientName}} and ALL related data (appointments, treatments, payments, images)? This cannot be undone.',
+    'patientDetail.permanentDeleteTypeName': "Type the patient's name to confirm: {{patientName}}",
     'patientDetail.permanentDeleteConfirm': 'Delete Permanently',
 });
 

@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Http\Requests\StorePatientRequest;
 use App\Http\Requests\UpdatePatientRequest;
+use App\Jobs\DeleteStoredMediaPaths;
 use App\Models\Appointment;
 use App\Models\Patient;
 use App\Models\Treatment;
@@ -35,6 +36,8 @@ class PatientService
     public function __construct(
         private readonly AuditLogger $auditLogger,
         private readonly PatientPhotoService $photos,
+        private readonly OdontogramImageService $odontogramImages,
+        private readonly TreatmentImageDirectUploadService $treatmentImages,
     ) {}
 
     public function list(Request $request): LengthAwarePaginator
@@ -312,27 +315,64 @@ class PatientService
             ]);
         }
 
-        if (
-            $patient->appointments()->exists()
-            || $patient->invoices()->exists()
-            || $patient->payments()->exists()
-            || $patient->odontogramEntries()->exists()
-            || $patient->treatments()->exists()
-        ) {
-            throw ValidationException::withMessages([
-                'patient' => [__('api.patients.cannot_permanently_delete_with_records')],
-            ]);
-        }
-
         $patientId = (string) $patient->id;
+
+        // Capture record counts for the audit trail before anything is removed.
+        $counts = [
+            'appointments' => $patient->appointments()->count(),
+            'invoices' => $patient->invoices()->count(),
+            'payments' => $patient->payments()->count(),
+            'odontogram_entries' => $patient->odontogramEntries()->count(),
+            'treatments' => $patient->treatments()->count(),
+        ];
+
+        // Gather every image file path (original + thumbnail/preview variants)
+        // grouped by disk BEFORE deleting. The ON DELETE CASCADE foreign keys
+        // remove the DB rows, but the underlying storage objects must be purged
+        // explicitly — otherwise they orphan.
+        $pathsByDisk = [];
+        $collect = function (?string $disk, array $paths) use (&$pathsByDisk): void {
+            $disk = trim((string) $disk);
+            if ($disk === '' || $paths === []) {
+                return;
+            }
+            $pathsByDisk[$disk] = array_merge($pathsByDisk[$disk] ?? [], $paths);
+        };
+
+        $patient->odontogramEntries()->with('images')->get()->each(
+            fn ($entry) => $entry->images->each(
+                fn ($image) => $collect($image->disk, $this->odontogramImages->deletePaths((string) $image->path))
+            )
+        );
+        $patient->treatments()->with('images')->get()->each(
+            fn ($treatment) => $treatment->images->each(
+                fn ($image) => $collect($image->disk, $this->treatmentImages->deletePaths((string) $image->path))
+            )
+        );
+
+        // Remove the patient (cascades appointments/invoices/payments/odontogram
+        // entries+images/treatments+images/category links) atomically.
+        DB::transaction(static function () use ($patient): void {
+            $patient->forceDelete();
+        });
+
+        // Only purge storage AFTER the DB delete has committed, so a failed
+        // delete never leaves the patient pointing at missing files.
         $this->photos->delete($patient);
-        $patient->forceDelete();
+        foreach ($pathsByDisk as $disk => $paths) {
+            DeleteStoredMediaPaths::dispatch(
+                disk: (string) $disk,
+                paths: array_values(array_unique($paths)),
+                logContext: 'Patient permanent delete'
+            )->afterResponse();
+        }
 
         $this->auditLogger->logFromRequest(
             request: $request,
             eventType: 'patient.permanently_deleted',
             entityType: 'patient',
             entityId: $patientId,
+            metadata: $counts,
         );
     }
 

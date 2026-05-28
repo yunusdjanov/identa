@@ -790,6 +790,9 @@ export default function PatientDetailPage({
                 confirmLabel={t('patientDetail.permanentDeleteConfirm')}
                 pendingLabel={t('payments.deleting')}
                 confirmVariant="destructive"
+                requireConfirmationText={patient.full_name}
+                confirmationLabel={t('patientDetail.permanentDeleteTypeName', { patientName: patient.full_name })}
+                confirmationPlaceholder={patient.full_name}
                 isPending={permanentlyDeletePatientMutation.isPending}
                 onConfirm={() => permanentlyDeletePatientMutation.mutate()}
             />
