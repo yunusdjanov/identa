@@ -221,7 +221,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
                                 {/* User Menu */}
                                 <div className="flex items-center gap-1 sm:gap-2">
-                                    <DropdownMenu>
+                                    <DropdownMenu modal={false}>
                                         <DropdownMenuTrigger asChild>
                                             <Button
                                                 variant="ghost"
