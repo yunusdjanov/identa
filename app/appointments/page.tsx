@@ -1235,8 +1235,12 @@ export default function AppointmentsPage() {
                         <div className="flex flex-col gap-3 rounded-2xl border border-teal-100/80 bg-white p-3 shadow-xs md:flex-row md:items-center md:justify-between">
                             <div className="inline-flex w-full items-center gap-1 rounded-xl border border-slate-200/80 bg-slate-100/70 p-1 shadow-xs sm:w-auto">
                                 <Button
-                                    variant={view === 'week' ? 'default' : 'outline'}
-                                    className="flex-1 rounded-lg sm:flex-none"
+                                    variant="ghost"
+                                    className={`flex-1 rounded-lg sm:flex-none ${
+                                        view === 'week'
+                                            ? 'bg-teal-50 text-teal-700 ring-1 ring-teal-200 shadow-sm hover:bg-teal-50 hover:text-teal-700'
+                                            : 'text-slate-600 hover:bg-white hover:text-slate-900'
+                                    }`}
                                     onClick={() => {
                                         setViewOverride('week');
                                         setExpandedWeekDateKey(null);
@@ -1249,8 +1253,12 @@ export default function AppointmentsPage() {
                                     {t('appointments.weekView')}
                                 </Button>
                                 <Button
-                                    variant={view === 'day' ? 'default' : 'outline'}
-                                    className="flex-1 rounded-lg sm:flex-none"
+                                    variant="ghost"
+                                    className={`flex-1 rounded-lg sm:flex-none ${
+                                        view === 'day'
+                                            ? 'bg-teal-50 text-teal-700 ring-1 ring-teal-200 shadow-sm hover:bg-teal-50 hover:text-teal-700'
+                                            : 'text-slate-600 hover:bg-white hover:text-slate-900'
+                                    }`}
                                     onClick={() => {
                                         setViewOverride('day');
                                         setExpandedWeekDateKey(null);

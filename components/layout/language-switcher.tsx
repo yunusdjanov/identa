@@ -116,8 +116,13 @@ export function LanguageSwitcher({
             <Button
                 type="button"
                 size="sm"
-                variant={locale === 'ru' ? 'default' : 'ghost'}
-                className="h-7 px-2 text-xs"
+                variant="ghost"
+                className={cn(
+                    'h-7 px-2 text-xs',
+                    locale === 'ru'
+                        ? 'bg-teal-50 text-teal-700 ring-1 ring-teal-200 shadow-sm hover:bg-teal-50 hover:text-teal-700'
+                        : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                )}
                 onClick={() => handleLocaleChange('ru')}
             >
                 {t('language.russian')}
@@ -125,8 +130,13 @@ export function LanguageSwitcher({
             <Button
                 type="button"
                 size="sm"
-                variant={locale === 'uz' ? 'default' : 'ghost'}
-                className="h-7 px-2 text-xs"
+                variant="ghost"
+                className={cn(
+                    'h-7 px-2 text-xs',
+                    locale === 'uz'
+                        ? 'bg-teal-50 text-teal-700 ring-1 ring-teal-200 shadow-sm hover:bg-teal-50 hover:text-teal-700'
+                        : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                )}
                 onClick={() => handleLocaleChange('uz')}
             >
                 {t('language.uzbek')}
@@ -134,8 +144,13 @@ export function LanguageSwitcher({
             <Button
                 type="button"
                 size="sm"
-                variant={locale === 'en' ? 'default' : 'ghost'}
-                className="h-7 px-2 text-xs"
+                variant="ghost"
+                className={cn(
+                    'h-7 px-2 text-xs',
+                    locale === 'en'
+                        ? 'bg-teal-50 text-teal-700 ring-1 ring-teal-200 shadow-sm hover:bg-teal-50 hover:text-teal-700'
+                        : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                )}
                 onClick={() => handleLocaleChange('en')}
             >
                 {t('language.english')}

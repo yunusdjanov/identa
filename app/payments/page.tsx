@@ -490,11 +490,29 @@ export default function PaymentsPage() {
                 <CardContent className="space-y-5 p-4 sm:p-5">
                     <div className="flex flex-col gap-4 rounded-2xl border border-teal-100/80 bg-white p-3 shadow-xs lg:flex-row lg:items-center lg:justify-between">
                         <div className="inline-flex w-full items-center gap-1 rounded-xl border border-slate-200/80 bg-slate-100/70 p-1 shadow-xs sm:w-auto">
-                            <Button type="button" variant={activeTab === 'patients' ? 'default' : 'ghost'} className="flex-1 gap-2 rounded-lg sm:flex-none" onClick={() => handleTabChange('patients')}>
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                className={`flex-1 gap-2 rounded-lg sm:flex-none ${
+                                    activeTab === 'patients'
+                                        ? 'bg-teal-50 text-teal-700 ring-1 ring-teal-200 shadow-sm hover:bg-teal-50 hover:text-teal-700'
+                                        : 'text-slate-600 hover:bg-white hover:text-slate-900'
+                                }`}
+                                onClick={() => handleTabChange('patients')}
+                            >
                                 <Users className="h-4 w-4" />
                                 {t('payments.tabs.patients')}
                             </Button>
-                            <Button type="button" variant={activeTab === 'history' ? 'default' : 'ghost'} className="flex-1 gap-2 rounded-lg sm:flex-none" onClick={() => handleTabChange('history')}>
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                className={`flex-1 gap-2 rounded-lg sm:flex-none ${
+                                    activeTab === 'history'
+                                        ? 'bg-teal-50 text-teal-700 ring-1 ring-teal-200 shadow-sm hover:bg-teal-50 hover:text-teal-700'
+                                        : 'text-slate-600 hover:bg-white hover:text-slate-900'
+                                }`}
+                                onClick={() => handleTabChange('history')}
+                            >
                                 <History className="h-4 w-4" />
                                 {t('payments.tabs.history')}
                             </Button>
