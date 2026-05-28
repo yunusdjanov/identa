@@ -1413,11 +1413,11 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                             <div className="space-y-2">
                                 <Label htmlFor="historyDebt">{t('patientHistory.table.debt')}</Label>
-                                <Input id="historyDebt" type="number" min="0" step="0.01" value={formState.debtAmount} onChange={(event) => setFormState((current) => ({ ...current, debtAmount: event.target.value }))} placeholder="0" />
+                                <Input id="historyDebt" type="number" inputMode="decimal" min="0" step="0.01" value={formState.debtAmount} onChange={(event) => setFormState((current) => ({ ...current, debtAmount: event.target.value }))} placeholder="0" />
                             </div>
                             <div className="space-y-2">
                                 <Label htmlFor="historyPaid">{t('patientHistory.table.paid')}</Label>
-                                <Input id="historyPaid" type="number" min="0" step="0.01" value={formState.paidAmount} onChange={(event) => setFormState((current) => ({ ...current, paidAmount: event.target.value }))} placeholder="0" />
+                                <Input id="historyPaid" type="number" inputMode="decimal" min="0" step="0.01" value={formState.paidAmount} onChange={(event) => setFormState((current) => ({ ...current, paidAmount: event.target.value }))} placeholder="0" />
                             </div>
                         </div>
                         {amountError ? <p className="text-xs text-red-600">{amountError}</p> : null}

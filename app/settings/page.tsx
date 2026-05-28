@@ -497,7 +497,7 @@ export default function SettingsPage() {
                                         <Input
                                             id="startTime"
                                             type="text"
-                                            inputMode="text"
+                                            inputMode="numeric"
                                             maxLength={5}
                                             value={profile.workingHours.start}
                                             onChange={(event) =>
@@ -524,7 +524,7 @@ export default function SettingsPage() {
                                         <Input
                                             id="endTime"
                                             type="text"
-                                            inputMode="text"
+                                            inputMode="numeric"
                                             maxLength={5}
                                             value={profile.workingHours.end}
                                             onChange={(event) =>
