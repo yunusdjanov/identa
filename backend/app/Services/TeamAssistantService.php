@@ -87,6 +87,9 @@ class TeamAssistantService
                 'assistant_permissions' => $permissions,
                 'must_change_password' => true,
                 'account_status' => User::ACCOUNT_STATUS_ACTIVE,
+                // Staff accounts are created by a trusted dentist, so the email
+                // is pre-verified — no self-verification banner for assistants.
+                'email_verified_at' => now(),
                 'practice_name' => null,
                 'license_number' => null,
                 'address' => null,

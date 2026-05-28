@@ -123,6 +123,7 @@ class DatabaseSeeder extends Seeder
             [
                 'name' => 'Platform Admin',
                 'password' => self::DEMO_PASSWORD,
+                'email_verified_at' => now(),
                 'role' => User::ROLE_ADMIN,
                 'account_status' => User::ACCOUNT_STATUS_ACTIVE,
                 'dentist_owner_id' => null,
@@ -146,6 +147,7 @@ class DatabaseSeeder extends Seeder
             [
                 'name' => 'Dr Demo Dentist',
                 'password' => self::DEMO_PASSWORD,
+                'email_verified_at' => now(),
                 'role' => User::ROLE_DENTIST,
                 'account_status' => User::ACCOUNT_STATUS_ACTIVE,
                 'dentist_owner_id' => null,
@@ -196,6 +198,7 @@ class DatabaseSeeder extends Seeder
                 [
                     'name' => $name,
                     'password' => self::DEMO_PASSWORD,
+                    'email_verified_at' => now(),
                     'role' => User::ROLE_ASSISTANT,
                     'dentist_owner_id' => $dentist->id,
                     'assistant_permissions' => User::defaultAssistantPermissions(),

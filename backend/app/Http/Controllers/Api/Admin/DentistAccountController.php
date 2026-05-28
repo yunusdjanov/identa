@@ -103,6 +103,10 @@ class DentistAccountController extends Controller
             'default_appointment_duration' => 30,
             'role' => User::ROLE_DENTIST,
             'account_status' => User::ACCOUNT_STATUS_ACTIVE,
+            // Admin-created accounts are trusted (the admin vouches for the
+            // email), so they are pre-verified — only public self-service
+            // registrations need to confirm their own email.
+            'email_verified_at' => now(),
         ]);
         $dentist->startFreeTrial();
 
