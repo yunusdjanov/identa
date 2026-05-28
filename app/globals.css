@@ -133,9 +133,10 @@
   }
 
   html {
-    /* Always reserve the scrollbar gutter so opening a Radix dropdown/dialog
-       (which locks body scroll and removes the scrollbar) doesn't widen the
-       viewport and shift the whole layout sideways. */
+    /* Always show the vertical scrollbar (and reserve its gutter) so opening
+       a Radix dropdown/dialog — which can lock body scroll and remove the
+       scrollbar — never widens the viewport and shifts the layout sideways. */
+    overflow-y: scroll;
     scrollbar-gutter: stable;
   }
 
