@@ -214,7 +214,7 @@ export default function AdminLoginPage() {
 
                 <p className="mt-6 text-center text-sm text-slate-600">
                     {t('login.noAccount')}{' '}
-                    <Link href="/register" className="font-semibold text-cyan-700 transition hover:text-cyan-800">
+                    <Link href="/register" className="font-semibold text-teal-700 transition hover:text-teal-800">
                         {t('login.createAccount')}
                     </Link>
                 </p>

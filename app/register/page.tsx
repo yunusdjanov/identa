@@ -198,7 +198,7 @@ export default function RegisterPage() {
                 </CardHeader>
                 <CardContent className={`${authCardContentClassName} sm:space-y-4`}>
                         <div className="flex justify-center">
-                            <div className="inline-flex min-h-9 max-w-full items-center gap-2 rounded-full border border-teal-300/80 bg-white px-3.5 text-teal-800 shadow-sm shadow-cyan-950/5 ring-1 ring-white/80 backdrop-blur">
+                            <div className="inline-flex min-h-9 max-w-full items-center gap-2 rounded-full border border-teal-300/80 bg-white px-3.5 text-teal-800 shadow-sm shadow-teal-950/5 ring-1 ring-white/80 backdrop-blur">
                                 <span className="grid size-5 shrink-0 place-items-center rounded-full bg-teal-100 text-teal-700 ring-1 ring-teal-200/80">
                                     <CheckCircle2 className="size-3.5" aria-hidden="true" />
                                 </span>

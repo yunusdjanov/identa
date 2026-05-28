@@ -73,7 +73,7 @@ export function ErrorScreen({ kind, digest, onRetry }: ErrorScreenProps) {
         <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#edf6f8] px-4 py-10 text-slate-950">
             <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_11%_18%,rgba(13,148,136,0.26),transparent_31%),radial-gradient(circle_at_88%_20%,rgba(37,99,235,0.21),transparent_30%),linear-gradient(135deg,#dff3f1_0%,#f7fbfc_42%,#e3efff_100%)]" />
             <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,0.38)_0%,rgba(255,255,255,0.12)_48%,rgba(224,242,254,0.22)_100%)]" />
-            <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-cyan-300 to-transparent" />
+            <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-teal-300 to-transparent" />
 
             <section className="relative w-full max-w-2xl text-center">
                 <div className="mx-auto mb-9 flex justify-center">
@@ -81,7 +81,7 @@ export function ErrorScreen({ kind, digest, onRetry }: ErrorScreenProps) {
                 </div>
 
                 <div className="rounded-3xl border border-white/80 bg-white/85 px-6 py-9 shadow-2xl shadow-slate-950/12 backdrop-blur-md sm:px-12 sm:py-12">
-                    <div className="mx-auto inline-flex items-center gap-2.5 rounded-full border border-cyan-200 bg-cyan-50/90 px-4 py-2 text-xs font-bold uppercase tracking-[0.18em] text-cyan-700 shadow-sm shadow-cyan-900/5">
+                    <div className="mx-auto inline-flex items-center gap-2.5 rounded-full border border-teal-200 bg-teal-50/90 px-4 py-2 text-xs font-bold uppercase tracking-[0.18em] text-teal-700 shadow-sm shadow-teal-900/5">
                         <span className="rounded-full bg-slate-950 px-3.5 py-1.5 font-mono text-base leading-none text-white shadow-sm shadow-slate-950/15">
                             {copy.code}
                         </span>

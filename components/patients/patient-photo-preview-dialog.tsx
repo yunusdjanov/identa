@@ -94,7 +94,7 @@ export function PatientPhotoPreviewDialog({
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent
                 showCloseButton={false}
-                className="grid h-[min(88dvh,720px)] max-h-[calc(100dvh-1.5rem)] w-[min(94vw,920px)] max-w-[calc(100vw-1rem)] grid-rows-[auto_minmax(0,1fr)] gap-0 overflow-hidden rounded-2xl border border-slate-200/90 bg-white p-0 text-slate-900 shadow-[0_30px_90px_-42px_rgba(15,23,42,0.58)] sm:max-w-[920px]"
+                className="grid h-[min(88dvh,720px)] max-h-[calc(100dvh-1.5rem)] w-[min(94vw,920px)] max-w-[calc(100vw-1rem)] grid-rows-[auto_minmax(0,1fr)] gap-0 overflow-hidden rounded-2xl border border-slate-200/90 bg-white p-0 text-slate-900 shadow-2xl shadow-slate-900/15 sm:max-w-[920px]"
             >
                 <div className="flex min-w-0 items-center gap-3 border-b border-slate-100 bg-white px-5 py-4">
                     <DialogTitle className="min-w-0 flex-1 truncate text-lg font-semibold tracking-tight text-slate-900">

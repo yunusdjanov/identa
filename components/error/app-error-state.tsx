@@ -28,7 +28,7 @@ export function AppErrorState({
         <section className={cn('flex min-h-[24rem] items-center justify-center px-3 py-8', className)}>
             <div className="relative w-full max-w-3xl overflow-hidden rounded-3xl border border-teal-100 bg-gradient-to-br from-white via-white to-teal-100/65 p-6 shadow-xl shadow-teal-950/5 sm:p-8">
                 <div className="pointer-events-none absolute -right-16 -top-16 h-44 w-44 rounded-full bg-teal-100/70 blur-3xl" />
-                <div className="pointer-events-none absolute -bottom-20 left-10 h-36 w-36 rounded-full bg-cyan-100/50 blur-3xl" />
+                <div className="pointer-events-none absolute -bottom-20 left-10 h-36 w-36 rounded-full bg-teal-100/50 blur-3xl" />
 
                 <div className="relative flex flex-col gap-5 sm:flex-row sm:items-start">
                     <span className="inline-flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-teal-100 bg-white text-teal-600 shadow-sm shadow-teal-100">

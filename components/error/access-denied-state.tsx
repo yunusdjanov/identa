@@ -24,17 +24,17 @@ export function AccessDeniedState({
 }: AccessDeniedStateProps) {
     return (
         <section className={cn('flex min-h-[24rem] items-center justify-center px-3 py-8', className)}>
-            <div className="relative w-full max-w-3xl overflow-hidden rounded-3xl border border-cyan-100 bg-gradient-to-br from-white via-white to-cyan-50/70 p-6 shadow-xl shadow-cyan-950/5 sm:p-8">
-                <div className="pointer-events-none absolute -right-16 -top-16 h-44 w-44 rounded-full bg-cyan-100/80 blur-3xl" />
+            <div className="relative w-full max-w-3xl overflow-hidden rounded-3xl border border-teal-100 bg-gradient-to-br from-white via-white to-teal-50/70 p-6 shadow-xl shadow-teal-950/5 sm:p-8">
+                <div className="pointer-events-none absolute -right-16 -top-16 h-44 w-44 rounded-full bg-teal-100/80 blur-3xl" />
                 <div className="pointer-events-none absolute -bottom-20 left-10 h-36 w-36 rounded-full bg-teal-100/55 blur-3xl" />
 
                 <div className="relative flex flex-col gap-5 sm:flex-row sm:items-start">
-                    <span className="inline-flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-cyan-100 bg-white text-cyan-700 shadow-sm shadow-cyan-100">
+                    <span className="inline-flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-teal-100 bg-white text-teal-700 shadow-sm shadow-teal-100">
                         <ShieldAlert className="h-6 w-6" />
                     </span>
 
                     <div className="min-w-0 flex-1">
-                        <div className="inline-flex items-center gap-2 rounded-full border border-cyan-100 bg-cyan-50 px-3 py-1 text-xs font-black uppercase tracking-[0.18em] text-cyan-700">
+                        <div className="inline-flex items-center gap-2 rounded-full border border-teal-100 bg-teal-50 px-3 py-1 text-xs font-black uppercase tracking-[0.18em] text-teal-700">
                             <span className="rounded-full bg-slate-950 px-2 py-0.5 font-mono text-[11px] text-white">
                                 403
                             </span>

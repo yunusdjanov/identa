@@ -37,7 +37,7 @@ export function GoogleAuthButton({
             <Button
                 type="button"
                 variant="outline"
-                className="h-10 w-full justify-between gap-3 rounded-full border-slate-300/80 bg-white px-4 text-sm font-semibold text-slate-800 shadow-sm shadow-cyan-950/5 backdrop-blur transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-100"
+                className="h-10 w-full justify-between gap-3 rounded-full border-slate-300/80 bg-white px-4 text-sm font-semibold text-slate-800 shadow-sm shadow-teal-950/5 backdrop-blur transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-100"
                 disabled
                 aria-label={`${label}. ${unavailableLabel}. ${soonLabel}`}
                 title={unavailableLabel}
@@ -46,7 +46,7 @@ export function GoogleAuthButton({
                     <GoogleMark />
                     <span className="truncate">{label}</span>
                 </span>
-                <span className="rounded-full border border-cyan-200/80 bg-cyan-50 px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.14em] text-cyan-700">
+                <span className="rounded-full border border-teal-200/80 bg-teal-50 px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.14em] text-teal-700">
                     {soonLabel}
                 </span>
             </Button>
@@ -64,7 +64,7 @@ export function GoogleAuthButton({
                 <Button
                     type="button"
                     variant="outline"
-                    className="absolute inset-0 h-10 w-full justify-center gap-3 rounded-full border-slate-300/80 bg-white px-4 text-sm font-semibold text-slate-800 shadow-sm shadow-cyan-950/5 backdrop-blur disabled:opacity-100"
+                    className="absolute inset-0 h-10 w-full justify-center gap-3 rounded-full border-slate-300/80 bg-white px-4 text-sm font-semibold text-slate-800 shadow-sm shadow-teal-950/5 backdrop-blur disabled:opacity-100"
                     disabled
                 >
                     <GoogleMark />

@@ -655,7 +655,7 @@ export default function PatientsPage() {
                                                     <Button
                                                         variant="outline"
                                                         size="sm"
-                                                        className="h-8 rounded-lg border-slate-300 text-slate-700 hover:bg-slate-100"
+                                                        className="h-8 rounded-lg border-slate-200 text-slate-700 hover:bg-slate-50"
                                                         onClick={(event) => {
                                                             event.stopPropagation();
                                                             openPatientDetails(patient.id);
