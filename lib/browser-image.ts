@@ -26,6 +26,46 @@ function canvasToBlob(canvas: HTMLCanvasElement, type: string, quality: number):
     });
 }
 
+interface DecodedImageSource {
+    source: CanvasImageSource;
+    width: number;
+    height: number;
+    cleanup: () => void;
+}
+
+async function decodeImageSource(file: File): Promise<DecodedImageSource> {
+    // Prefer createImageBitmap: it decodes off the main thread, so optimizing a
+    // large photo/X-ray before upload doesn't freeze the UI. Falls back to the
+    // <img> path if unavailable or it throws.
+    if (typeof createImageBitmap === 'function') {
+        try {
+            const bitmap = await createImageBitmap(file);
+            return {
+                source: bitmap,
+                width: bitmap.width,
+                height: bitmap.height,
+                cleanup: () => bitmap.close(),
+            };
+        } catch {
+            // fall through to the <img> decode path
+        }
+    }
+
+    const objectUrl = URL.createObjectURL(file);
+    try {
+        const image = await loadImageElement(objectUrl);
+        return {
+            source: image,
+            width: image.naturalWidth || image.width,
+            height: image.naturalHeight || image.height,
+            cleanup: () => URL.revokeObjectURL(objectUrl),
+        };
+    } catch (error) {
+        URL.revokeObjectURL(objectUrl);
+        throw error;
+    }
+}
+
 export async function optimizeImageFileForUpload(
     file: File,
     {
@@ -46,12 +86,16 @@ export async function optimizeImageFileForUpload(
         return file;
     }
 
-    const sourceUrl = URL.createObjectURL(file);
+    let decoded: DecodedImageSource;
+    try {
+        decoded = await decodeImageSource(file);
+    } catch {
+        return file;
+    }
 
     try {
-        const image = await loadImageElement(sourceUrl);
-        const sourceWidth = image.naturalWidth || image.width;
-        const sourceHeight = image.naturalHeight || image.height;
+        const sourceWidth = decoded.width;
+        const sourceHeight = decoded.height;
         const largestEdge = Math.max(sourceWidth, sourceHeight);
         const needsResize = largestEdge > maxEdge;
 
@@ -84,7 +128,7 @@ export async function optimizeImageFileForUpload(
                 return file;
             }
 
-            context.drawImage(image, 0, 0, targetWidth, targetHeight);
+            context.drawImage(decoded.source, 0, 0, targetWidth, targetHeight);
 
             for (const candidateQuality of qualityCandidates) {
                 const blob = await canvasToBlob(canvas, targetType, candidateQuality);
@@ -129,7 +173,7 @@ export async function optimizeImageFileForUpload(
     } catch {
         return file;
     } finally {
-        URL.revokeObjectURL(sourceUrl);
+        decoded.cleanup();
     }
 }
 
