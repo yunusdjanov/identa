@@ -34,6 +34,7 @@ import { Plus, Search, Phone, Users, CalendarPlus, ArrowRight, Tags, FileText, F
 import { buildPdfFilename, exportRowsToPdf } from '@/lib/export/pdf';
 import { EmptyState } from '@/components/ui/empty-state';
 import { useI18n } from '@/components/providers/i18n-provider';
+import { useDebouncedValue } from '@/lib/hooks/use-debounced-value';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { getProtectedMediaCrossOrigin, getProtectedMediaThumbnailUrl } from '@/lib/protected-media';
 import { toast } from 'sonner';
@@ -168,13 +169,16 @@ export default function PatientsPage() {
         setIsAddDialogOpen(open);
     };
 
+    // Debounced so a search request fires once the user pauses typing, not on
+    // every keystroke. The input still updates instantly via `searchQuery`.
+    const debouncedSearch = useDebouncedValue(searchQuery, 300);
     const patientsQuery = useQuery({
         queryKey: [
             'patients',
             'list',
             {
                 page: currentPage,
-                search: searchQuery,
+                search: debouncedSearch,
                     categoryId: selectedCategoryId,
                     inactiveFilter,
                     archivedOnly: showArchivedOnly,
@@ -187,7 +191,7 @@ export default function PatientsPage() {
                 perPage: PAGE_SIZE,
                 sort: '-created_at',
                 filter: {
-                    search: searchQuery.trim() || undefined,
+                    search: debouncedSearch.trim() || undefined,
                     category_id: selectedCategoryId !== 'all' ? selectedCategoryId : undefined,
                     inactive_before:
                         inactiveFilter === 'none' || showArchivedOnly

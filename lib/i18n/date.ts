@@ -1,4 +1,17 @@
-import type { AppLocale } from '@/lib/i18n/config';
+import { DEFAULT_LOCALE, type AppLocale } from '@/lib/i18n/config';
+
+// The app's active display locale, kept in sync by the I18nProvider (mirrors
+// setValidationLocale). Lets non-React date helpers (e.g. utils.formatDate)
+// format in the user's chosen language without threading `locale` everywhere.
+let activeDisplayLocale: AppLocale = DEFAULT_LOCALE;
+
+export function setActiveDisplayLocale(locale: AppLocale): void {
+    activeDisplayLocale = locale;
+}
+
+export function getActiveDisplayLocale(): AppLocale {
+    return activeDisplayLocale;
+}
 
 const UZ_WEEKDAYS_LONG = [
     'yakshanba',

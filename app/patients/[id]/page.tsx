@@ -26,6 +26,7 @@ import {
     toLocalDateKey,
     truncateForUi,
 } from '@/lib/utils';
+import { formatLocalizedDate } from '@/lib/i18n/date';
 import {
     Activity,
     AlertCircle,
@@ -723,7 +724,7 @@ export default function PatientDetailPage({
                                                 {appointment.start_time?.slice(0, 5)}
                                             </span>
                                             <span className="mt-0.5 text-[9px] font-semibold uppercase tracking-wider text-indigo-400">
-                                                {formatDate(appointment.appointment_date).split(',')[0]}
+                                                {formatLocalizedDate(appointment.appointment_date, locale, { month: 'short', day: 'numeric' })}
                                             </span>
                                         </time>
 

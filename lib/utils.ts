@@ -1,5 +1,6 @@
 ﻿import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
+import { formatLocalizedDate, getActiveDisplayLocale } from "@/lib/i18n/date"
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -14,7 +15,9 @@ export function formatCurrency(amount: number): string {
 }
 
 export function formatDate(date: string): string {
-  return new Date(date).toLocaleDateString('en-US', {
+  // Formats in the app's active locale (RU/UZ/EN) instead of a hardcoded
+  // en-US, so dates match the chosen language everywhere formatDate is used.
+  return formatLocalizedDate(date, getActiveDisplayLocale(), {
     year: 'numeric',
     month: 'short',
     day: 'numeric',

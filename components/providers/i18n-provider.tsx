@@ -17,6 +17,7 @@ import {
 } from '@/lib/i18n/config';
 import type { TranslationDictionary } from '@/lib/i18n/dictionaries';
 import { setValidationLocale } from '@/lib/input-validation';
+import { setActiveDisplayLocale } from '@/lib/i18n/date';
 
 type TranslationValue = string | number;
 const EMPTY_DICTIONARY: TranslationDictionary = {};
@@ -86,6 +87,7 @@ export function I18nProvider({
 
     useEffect(() => {
         setValidationLocale(locale);
+        setActiveDisplayLocale(locale);
         document.documentElement.lang = locale;
         document.cookie = `${LOCALE_COOKIE_NAME}=${locale}; path=/; max-age=${LOCALE_COOKIE_MAX_AGE_SECONDS}; SameSite=Lax`;
     }, [locale]);
