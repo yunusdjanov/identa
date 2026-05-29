@@ -22,18 +22,9 @@ import {
     Users,
     Calendar,
     CreditCard,
-    Languages,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuLabel,
-    DropdownMenuRadioGroup,
-    DropdownMenuRadioItem,
-    DropdownMenuSeparator,
-    DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+import { LanguageSwitcher } from '@/components/layout/language-switcher';
 import { useI18n } from '@/components/providers/i18n-provider';
 import { SubscriptionBanner } from '@/components/layout/subscription-banner';
 import { EmailVerificationBanner } from '@/components/layout/email-verification-banner';
@@ -90,7 +81,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         retry: false,
         staleTime: 5 * 60_000,
     });
-    const { locale, setLocale, t } = useI18n();
+    const { locale, t } = useI18n();
     const isMounted = useIsHydrated();
 
     // Check if current path matches navigation item
@@ -224,37 +215,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
                                 {/* User Menu */}
                                 <div className="flex items-center gap-1 sm:gap-2">
-                                    <DropdownMenu modal={false}>
-                                        <DropdownMenuTrigger asChild>
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                className="flex h-9 items-center gap-1 rounded-xl px-2 text-slate-700 hover:bg-teal-50 hover:text-teal-700 sm:px-3 focus-visible:ring-0 focus-visible:border-transparent focus-visible:outline-none data-[state=open]:bg-teal-50 data-[state=open]:text-teal-700"
-                                                aria-label={t('menu.language')}
-                                            >
-                                                <Languages className="w-4 h-4 mr-1" />
-                                                <span className="text-xs font-semibold uppercase">{locale}</span>
-                                            </Button>
-                                        </DropdownMenuTrigger>
-                                        <DropdownMenuContent align="end" className="w-48">
-                                            <DropdownMenuLabel>{t('menu.language')}</DropdownMenuLabel>
-                                            <DropdownMenuSeparator />
-                                            <DropdownMenuRadioGroup
-                                                value={locale}
-                                                onValueChange={(value) => setLocale(value as 'ru' | 'uz' | 'en')}
-                                            >
-                                                <DropdownMenuRadioItem value="ru">
-                                                    {t('language.russian')}
-                                                </DropdownMenuRadioItem>
-                                                <DropdownMenuRadioItem value="uz">
-                                                    {t('language.uzbek')}
-                                                </DropdownMenuRadioItem>
-                                                <DropdownMenuRadioItem value="en">
-                                                    {t('language.english')}
-                                                </DropdownMenuRadioItem>
-                                            </DropdownMenuRadioGroup>
-                                        </DropdownMenuContent>
-                                    </DropdownMenu>
+                                    <LanguageSwitcher variant="compact" />
 
                                     <AccountMenu
                                         user={currentUser}
