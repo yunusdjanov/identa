@@ -665,13 +665,13 @@ export default function AdminDashboardPage() {
                                                     </TableCell>
                                                     <TableCell>
                                                         {account.status === 'active' ? (
-                                                            <Badge className="bg-green-500">{t('admin.status.active')}</Badge>
+                                                            <Badge variant="outline" className="border-emerald-100 bg-emerald-50 text-emerald-700">{t('admin.status.active')}</Badge>
                                                         ) : null}
                                                         {account.status === 'blocked' ? (
-                                                            <Badge className="bg-red-500">{t('admin.status.blocked')}</Badge>
+                                                            <Badge variant="outline" className="border-amber-100 bg-amber-50 text-amber-700">{t('admin.status.blocked')}</Badge>
                                                         ) : null}
                                                         {account.status === 'deleted' ? (
-                                                            <Badge variant="outline" className="text-slate-500">
+                                                            <Badge variant="outline" className="border-slate-200 bg-slate-100 text-slate-600">
                                                                 {t('admin.status.deleted')}
                                                             </Badge>
                                                         ) : null}
