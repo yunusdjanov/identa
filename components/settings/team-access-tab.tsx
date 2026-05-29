@@ -269,6 +269,17 @@ export function TeamAccessTab({ canManageTeam, subscription, t }: TeamAccessTabP
     const totalPages = assistantsQuery.data?.meta?.pagination?.total_pages ?? 1;
     const canPrev = page > 1;
     const canNext = page < totalPages;
+    const hasResults = (assistantsQuery.data?.data.length ?? 0) > 0;
+    // Status filters stay enabled (the global standard for segmented filters);
+    // instead the empty state is context-aware so e.g. the "Blocked" tab with no
+    // blocked staff reads clearly rather than like "you have no staff at all".
+    const emptyStateMessage = search.trim()
+        ? t('settings.team.emptySearch')
+        : status === 'blocked'
+            ? t('settings.team.emptyBlocked')
+            : status === 'deleted'
+                ? t('settings.team.emptyDeleted')
+                : t('settings.team.emptyActive');
     const staffLimit = subscription?.staff_limit ?? null;
     const activeStaffCount = subscription?.active_staff_count ?? 0;
     const isAtStaffLimit = staffLimit !== null && activeStaffCount >= staffLimit;
@@ -808,38 +819,38 @@ export function TeamAccessTab({ canManageTeam, subscription, t }: TeamAccessTabP
                                 );
                             })}
 
-                            {(assistantsQuery.data?.data.length ?? 0) === 0 ? (
+                            {hasResults ? (
+                                <div className="flex flex-wrap items-center justify-end gap-2 pt-2">
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        disabled={!canPrev}
+                                        onClick={() => setPage((prev) => Math.max(1, prev - 1))}
+                                    >
+                                        {t('common.previous')}
+                                    </Button>
+                                    <span className="inline-flex min-w-[112px] justify-center rounded-xl border border-slate-200 bg-white px-3 py-1 text-xs text-slate-500 shadow-xs">
+                                        {t('settings.logs.pageOf', { page, total: totalPages })}
+                                    </span>
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        disabled={!canNext}
+                                        onClick={() => setPage((prev) => prev + 1)}
+                                    >
+                                        {t('common.next')}
+                                    </Button>
+                                </div>
+                            ) : (
                                 <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-slate-200 bg-slate-50/40 px-6 py-10 text-center">
                                     <span className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-slate-400">
                                         <Users className="h-6 w-6" />
                                     </span>
-                                    <p className="text-sm font-medium text-slate-600">{t('settings.team.empty')}</p>
+                                    <p className="text-sm font-medium text-slate-600">{emptyStateMessage}</p>
                                 </div>
-                            ) : null}
-
-                            <div className="flex flex-wrap items-center justify-end gap-2 pt-2">
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="sm"
-                                    disabled={!canPrev}
-                                    onClick={() => setPage((prev) => Math.max(1, prev - 1))}
-                                >
-                                    {t('common.previous')}
-                                </Button>
-                                <span className="inline-flex min-w-[112px] justify-center rounded-xl border border-slate-200 bg-white px-3 py-1 text-xs text-slate-500 shadow-xs">
-                                    {t('settings.logs.pageOf', { page, total: totalPages })}
-                                </span>
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="sm"
-                                    disabled={!canNext}
-                                    onClick={() => setPage((prev) => prev + 1)}
-                                >
-                                    {t('common.next')}
-                                </Button>
-                            </div>
+                            )}
                         </div>
                     )}
                 </CardContent>
