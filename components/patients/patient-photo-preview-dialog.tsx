@@ -1,6 +1,6 @@
 ﻿'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
     Dialog,
     DialogClose,
@@ -90,6 +90,27 @@ export function PatientPhotoPreviewDialog({
         updateCurrentIndex((current) => (current === resolvedImages.length - 1 ? 0 : current + 1));
     };
 
+    // Arrow-key navigation, like any standard image viewer (Esc is handled by the Dialog).
+    useEffect(() => {
+        if (!open || !canNavigate) {
+            return;
+        }
+
+        const handleKeyDown = (event: KeyboardEvent) => {
+            if (event.key === 'ArrowLeft') {
+                event.preventDefault();
+                goToPrevious();
+            } else if (event.key === 'ArrowRight') {
+                event.preventDefault();
+                goToNext();
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [open, canNavigate, currentIndex, gallerySignature]);
+
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent
@@ -109,82 +130,82 @@ export function PatientPhotoPreviewDialog({
                     {title}
                 </DialogDescription>
                 {activeImage ? (
-                    <div className="flex min-h-0 flex-col px-5 py-4">
-                        <div className="relative flex min-h-0 min-w-0 flex-1 items-center justify-center overflow-hidden rounded-2xl border border-slate-100 bg-slate-50/80 p-3">
+                    <div className="flex min-h-0 flex-col gap-3 px-5 py-4">
+                        <div className="relative flex min-h-0 min-w-0 flex-1 items-center justify-center overflow-hidden rounded-2xl bg-slate-900 p-3 sm:p-4">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                                key={currentIndex}
+                                src={activeImage.src}
+                                alt={activeImage.alt}
+                                crossOrigin={getProtectedMediaCrossOrigin(activeImage.src)}
+                                className="h-auto max-h-full w-auto max-w-full rounded-lg object-contain shadow-lg shadow-black/40 motion-safe:animate-in motion-safe:fade-in-0 motion-safe:duration-200"
+                                decoding="async"
+                                fetchPriority="high"
+                            />
                             {canNavigate ? (
                                 <>
                                     <button
                                         type="button"
-                                        className="absolute left-4 top-1/2 z-10 inline-flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm transition-colors hover:bg-white hover:text-slate-900"
+                                        className="absolute left-3 top-1/2 z-10 inline-flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/10 text-white shadow-sm ring-1 ring-white/25 backdrop-blur transition hover:scale-105 hover:bg-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
                                         onClick={goToPrevious}
                                         aria-label="Previous image"
                                     >
-                                        <ChevronLeft className="h-4 w-4" />
+                                        <ChevronLeft className="h-5 w-5" />
                                     </button>
                                     <button
                                         type="button"
-                                        className="absolute right-4 top-1/2 z-10 inline-flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm transition-colors hover:bg-white hover:text-slate-900"
+                                        className="absolute right-3 top-1/2 z-10 inline-flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/10 text-white shadow-sm ring-1 ring-white/25 backdrop-blur transition hover:scale-105 hover:bg-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
                                         onClick={goToNext}
                                         aria-label="Next image"
                                     >
-                                        <ChevronRight className="h-4 w-4" />
+                                        <ChevronRight className="h-5 w-5" />
                                     </button>
+                                    <span className="pointer-events-none absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full bg-black/55 px-2.5 py-1 text-[11px] font-semibold tabular-nums text-white backdrop-blur">
+                                        {currentIndex + 1} / {resolvedImages.length}
+                                    </span>
                                 </>
                             ) : null}
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img
-                                src={activeImage.src}
-                                alt={activeImage.alt}
-                                crossOrigin={getProtectedMediaCrossOrigin(activeImage.src)}
-                                className="h-auto max-h-full w-auto max-w-full rounded-lg object-contain"
-                                decoding="async"
-                                fetchPriority="high"
-                            />
                         </div>
                         {canNavigate ? (
-                            <div className="mt-3 min-w-0 shrink-0 space-y-2">
-                                <p className="text-center text-xs font-medium text-slate-500">
-                                    {currentIndex + 1} / {resolvedImages.length}
-                                </p>
-                                <div className="flex max-w-full justify-center overflow-hidden">
-                                    <div
-                                        className="flex w-fit max-w-full items-center justify-start gap-2 overflow-x-auto px-1 pb-1"
-                                        aria-label="Image thumbnails"
-                                    >
-                                        {resolvedImages.map((image, index) => {
-                                            const thumbnailDisplaySrc = image.thumbnailSrc ?? image.src;
+                            <div className="flex max-w-full shrink-0 justify-center overflow-hidden">
+                                <div
+                                    className="flex w-fit max-w-full items-center justify-start gap-2 overflow-x-auto px-1 pb-1"
+                                    aria-label="Image thumbnails"
+                                >
+                                    {resolvedImages.map((image, index) => {
+                                        const thumbnailDisplaySrc = image.thumbnailSrc ?? image.src;
 
-                                            return (
-                                            <button
-                                                key={`${image.src}-${index}`}
-                                                type="button"
-                                                className={`inline-flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-xl border bg-white shadow-xs transition-colors ${
-                                                    index === currentIndex
-                                                        ? 'border-teal-300 ring-2 ring-teal-100'
-                                                        : 'border-slate-200 hover:border-slate-300'
-                                                }`}
-                                                onClick={() => updateCurrentIndex(index)}
-                                                title={image.title ?? `${title} ${index + 1}`}
-                                            >
-                                                {thumbnailDisplaySrc ? (
-                                                    // eslint-disable-next-line @next/next/no-img-element
-                                                    <img
-                                                        src={thumbnailDisplaySrc}
-                                                        alt={image.alt}
-                                                        crossOrigin={getProtectedMediaCrossOrigin(thumbnailDisplaySrc)}
-                                                        className="h-full w-full object-cover"
-                                                        loading="lazy"
-                                                        decoding="async"
-                                                    />
-                                                ) : (
-                                                    <span className="inline-flex h-full w-full items-center justify-center bg-slate-50 text-slate-400">
-                                                        <Loader2 className="h-3.5 w-3.5 animate-spin opacity-60" />
-                                                    </span>
-                                                )}
-                                            </button>
-                                            );
-                                        })}
-                                    </div>
+                                        return (
+                                        <button
+                                            key={`${image.src}-${index}`}
+                                            type="button"
+                                            aria-current={index === currentIndex}
+                                            className={`inline-flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl border bg-white shadow-xs transition-all ${
+                                                index === currentIndex
+                                                    ? 'border-teal-300 ring-2 ring-teal-200'
+                                                    : 'border-slate-200 opacity-65 hover:opacity-100 hover:border-slate-300'
+                                            }`}
+                                            onClick={() => updateCurrentIndex(index)}
+                                            title={image.title ?? `${title} ${index + 1}`}
+                                        >
+                                            {thumbnailDisplaySrc ? (
+                                                // eslint-disable-next-line @next/next/no-img-element
+                                                <img
+                                                    src={thumbnailDisplaySrc}
+                                                    alt={image.alt}
+                                                    crossOrigin={getProtectedMediaCrossOrigin(thumbnailDisplaySrc)}
+                                                    className="h-full w-full object-cover"
+                                                    loading="lazy"
+                                                    decoding="async"
+                                                />
+                                            ) : (
+                                                <span className="inline-flex h-full w-full items-center justify-center bg-slate-50 text-slate-400">
+                                                    <Loader2 className="h-3.5 w-3.5 animate-spin opacity-60" />
+                                                </span>
+                                            )}
+                                        </button>
+                                        );
+                                    })}
                                 </div>
                             </div>
                         ) : null}
