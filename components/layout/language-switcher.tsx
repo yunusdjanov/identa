@@ -17,10 +17,10 @@ import {
 
 type LocaleCode = 'ru' | 'uz' | 'en';
 
-const LOCALE_OPTIONS: Array<{ code: LocaleCode; flag: string; native: string; subLabelKey: string }> = [
-    { code: 'ru', flag: '🇷🇺', native: 'Русский', subLabelKey: 'language.russian' },
-    { code: 'uz', flag: '🇺🇿', native: 'O‘zbekcha', subLabelKey: 'language.uzbek' },
-    { code: 'en', flag: '🇬🇧', native: 'English', subLabelKey: 'language.english' },
+const LOCALE_OPTIONS: Array<{ code: LocaleCode; native: string }> = [
+    { code: 'ru', native: 'Русский' },
+    { code: 'uz', native: 'O‘zbekcha' },
+    { code: 'en', native: 'English' },
 ];
 
 interface LanguageSwitcherProps {
@@ -50,8 +50,6 @@ export function LanguageSwitcher({
     };
 
     if (variant === 'compact') {
-        const currentLocaleOption = LOCALE_OPTIONS.find((opt) => opt.code === locale) ?? LOCALE_OPTIONS[0];
-
         return (
             <DropdownMenu modal={false}>
                 <DropdownMenuTrigger asChild>
@@ -66,7 +64,6 @@ export function LanguageSwitcher({
                         aria-label={t('menu.language')}
                     >
                         {showIcon ? <Languages className="h-4 w-4 text-slate-500" aria-hidden="true" /> : null}
-                        <span className="text-base leading-none" aria-hidden="true">{currentLocaleOption.flag}</span>
                         <span className="text-xs font-semibold uppercase tracking-wide">{locale}</span>
                     </Button>
                 </DropdownMenuTrigger>
@@ -88,17 +85,18 @@ export function LanguageSwitcher({
                                         : 'text-slate-700 focus:bg-slate-50 focus:text-slate-900'
                                 )}
                             >
-                                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-lg leading-none group-data-[active=true]:bg-teal-100" aria-hidden="true">
-                                    {option.flag}
+                                <span
+                                    className={cn(
+                                        'flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-[11px] font-bold uppercase leading-none',
+                                        isActive ? 'bg-teal-100 text-teal-700' : 'bg-slate-100 text-slate-600'
+                                    )}
+                                    aria-hidden="true"
+                                >
+                                    {option.code}
                                 </span>
-                                <div className="flex min-w-0 flex-1 flex-col">
-                                    <span className={cn('truncate text-sm font-semibold leading-tight', isActive ? 'text-teal-900' : 'text-slate-900')}>
-                                        {option.native}
-                                    </span>
-                                    <span className="text-[10px] font-medium uppercase tracking-wider text-slate-400">
-                                        {option.code}
-                                    </span>
-                                </div>
+                                <span className={cn('min-w-0 flex-1 truncate text-sm font-semibold leading-tight', isActive ? 'text-teal-900' : 'text-slate-900')}>
+                                    {option.native}
+                                </span>
                                 {isActive ? (
                                     <Check className="h-4 w-4 shrink-0 text-teal-600" aria-hidden="true" />
                                 ) : null}
