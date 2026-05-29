@@ -18,6 +18,7 @@ import {
 } from '@/lib/api/dentist';
 import type { AdminLeadRequestStatus } from '@/lib/api/dentist';
 import type { ApiLandingSettings } from '@/lib/api/types';
+import { formatLocalizedDate } from '@/lib/i18n/date';
 
 type AdminLocale = 'ru' | 'uz' | 'en';
 
@@ -25,17 +26,12 @@ interface AdminLandingCopy {
     landing: {
         title: string;
         description: string;
-        trialPrice: string;
-        monthlyPrice: string;
-        yearlyPrice: string;
         telegramUrl: string;
         optional: string;
         save: string;
         saving: string;
         saved: string;
         fixErrors: string;
-        required: string;
-        invalidAmount: string;
         invalidUrl: string;
         loadFailed: string;
     };
@@ -68,17 +64,12 @@ const ADMIN_LANDING_COPY: Record<AdminLocale, AdminLandingCopy> = {
         landing: {
             title: 'Тарифы лендинга и контакты',
             description: 'Цены на публичной странице и ссылка на Telegram управляются здесь.',
-            trialPrice: 'Цена пробного периода',
-            monthlyPrice: 'Цена месячного тарифа',
-            yearlyPrice: 'Цена годового тарифа',
             telegramUrl: 'Ссылка Telegram',
             optional: 'необязательно',
             save: 'Сохранить',
             saving: 'Сохранение...',
             saved: 'Настройки лендинга сохранены.',
             fixErrors: 'Проверьте заполнение полей.',
-            required: 'Обязательное поле',
-            invalidAmount: 'Введите целое неотрицательное число.',
             invalidUrl: 'Введите корректный URL.',
             loadFailed: 'Не удалось загрузить настройки.',
         },
@@ -109,17 +100,12 @@ const ADMIN_LANDING_COPY: Record<AdminLocale, AdminLandingCopy> = {
         landing: {
             title: 'Landing tariflari va kontaktlar',
             description: 'Ommaviy sahifadagi narxlar va Telegram havolasi shu yerda boshqariladi.',
-            trialPrice: 'Sinov davri narxi',
-            monthlyPrice: 'Oylik tarif narxi',
-            yearlyPrice: 'Yillik tarif narxi',
             telegramUrl: 'Telegram havolasi',
             optional: 'ixtiyoriy',
             save: 'Saqlash',
             saving: 'Saqlanmoqda...',
             saved: 'Landing sozlamalari saqlandi.',
             fixErrors: "Maydonlarni to'g'ri to'ldiring.",
-            required: 'Majburiy maydon',
-            invalidAmount: "Butun va manfiy bo'lmagan son kiriting.",
             invalidUrl: "To'g'ri URL kiriting.",
             loadFailed: "Sozlamalarni yuklab bo'lmadi.",
         },
@@ -150,17 +136,12 @@ const ADMIN_LANDING_COPY: Record<AdminLocale, AdminLandingCopy> = {
         landing: {
             title: 'Landing pricing and contacts',
             description: 'Manage public page prices and the Telegram contact link here.',
-            trialPrice: 'Trial price',
-            monthlyPrice: 'Monthly plan price',
-            yearlyPrice: 'Yearly plan price',
             telegramUrl: 'Telegram URL',
             optional: 'optional',
             save: 'Save',
             saving: 'Saving...',
             saved: 'Landing settings saved.',
             fixErrors: 'Please review the form fields.',
-            required: 'Required field',
-            invalidAmount: 'Enter a whole non-negative number.',
             invalidUrl: 'Enter a valid URL.',
             loadFailed: 'Could not load settings.',
         },
@@ -208,14 +189,20 @@ function formatDateTime(value: string | null, locale: AdminLocale): string {
         return '-';
     }
 
-    try {
-        return new Intl.DateTimeFormat(locale === 'uz' ? 'uz-UZ' : locale === 'ru' ? 'ru-RU' : 'en-US', {
-            dateStyle: 'medium',
-            timeStyle: 'short',
-        }).format(new Date(value));
-    } catch {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
         return value;
     }
+
+    // Use the app's locale-aware date formatter (custom Uzbek months) + 24h time,
+    // instead of raw Intl('uz-UZ') which renders inconsistent Uzbek month names.
+    const datePart = formatLocalizedDate(date, locale, {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+    });
+    const timePart = `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+    return `${datePart}, ${timePart}`;
 }
 
 function getStatusClasses(status: AdminLeadRequestStatus): string {
