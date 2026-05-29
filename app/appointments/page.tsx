@@ -527,7 +527,10 @@ export default function AppointmentsPage() {
         refetchOnWindowFocus: false,
         refetchOnReconnect: false,
     });
-    const workingHours = normalizeAppointmentWorkingHours(profileQuery.data?.working_hours);
+    const workingHours = useMemo(
+        () => normalizeAppointmentWorkingHours(profileQuery.data?.working_hours),
+        [profileQuery.data?.working_hours]
+    );
 
     const appointmentRows = useMemo<AppointmentRow[]>(() => {
         return (appointmentsQuery.data ?? []).map((appointment) => {
@@ -582,13 +585,22 @@ export default function AppointmentsPage() {
             return true;
         });
     }, [appointmentRows, nowTimeKey, todayDateKey, urlStatuses, urlWhen, urlWindowMinutes]);
-    const availabilityTimeSlots = createAppointmentStartSlots(workingHours);
-    const timeSlots = createAppointmentStartSlots(workingHours, {
-        extraSlots: appointmentRows.flatMap((appointment) =>
-            createAppointmentCoveredSlots(appointment.startTime, appointment.endTime)
-        ),
-    });
-    const slotMinutesByTime = new Map(timeSlots.map((time) => [time, toMinutesFromTime(time)]));
+    const availabilityTimeSlots = useMemo(
+        () => createAppointmentStartSlots(workingHours),
+        [workingHours]
+    );
+    const timeSlots = useMemo(
+        () => createAppointmentStartSlots(workingHours, {
+            extraSlots: appointmentRows.flatMap((appointment) =>
+                createAppointmentCoveredSlots(appointment.startTime, appointment.endTime)
+            ),
+        }),
+        [workingHours, appointmentRows]
+    );
+    const slotMinutesByTime = useMemo(
+        () => new Map(timeSlots.map((time) => [time, toMinutesFromTime(time)])),
+        [timeSlots]
+    );
     const currentDateKey = useMemo(() => toLocalDateKey(currentDate), [currentDate]);
     const appointmentById = useMemo(
         () => new Map(filteredAppointmentRows.map((appointment) => [appointment.id, appointment])),
@@ -645,7 +657,7 @@ export default function AppointmentsPage() {
 
         return grouped;
     }, [appointmentsByDate]);
-    const appointmentsCoveringByDateAndTime = (() => {
+    const appointmentsCoveringByDateAndTime = useMemo(() => {
         const grouped = new Map<string, Map<string, AppointmentRow[]>>();
 
         for (const [date, items] of appointmentsByDate.entries()) {
@@ -674,7 +686,7 @@ export default function AppointmentsPage() {
         }
 
         return grouped;
-    })();
+    }, [appointmentsByDate, timeSlots, slotMinutesByTime]);
 
     const rescheduleMutation = useMutation({
         mutationFn: async (payload: {
