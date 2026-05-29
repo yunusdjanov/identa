@@ -71,7 +71,7 @@ export function RevenueChart({ data }: { data: DashboardRevenuePoint[] }) {
                     <YAxis stroke="#94a3b8" tick={{ fontSize: 10 }} tickLine={false} axisLine={false} tickFormatter={formatShortCurrency} />
                     <Tooltip
                         contentStyle={{ borderRadius: 12, border: '1px solid #e2e8f0', fontSize: 12, padding: '8px 12px' }}
-                        formatter={(value: number) => formatCurrency(value)}
+                        formatter={(value) => formatCurrency(Number(value))}
                         cursor={{ fill: '#f0fdfa', opacity: 0.5 }}
                     />
                     <Bar dataKey="revenue" name={t('payments.summary.totalPaid') ?? 'Revenue'} fill={TONE.teal} radius={[6, 6, 0, 0]} maxBarSize={32} />
@@ -97,7 +97,7 @@ export function AppointmentStatusChart({ data }: { data: DashboardAppointmentSta
                         </Pie>
                         <Tooltip
                             contentStyle={{ borderRadius: 12, border: '1px solid #e2e8f0', fontSize: 12 }}
-                            formatter={(value: number, name: string) => [`${value}`, t(`status.${name}`) ?? name]}
+                            formatter={(value, name) => [`${value}`, t(`status.${name}`) ?? String(name)]}
                         />
                     </PieChart>
                 </ResponsiveContainer>
@@ -130,7 +130,7 @@ export function PatientGrowthChart({ data }: { data: DashboardPatientGrowthPoint
                     <YAxis stroke="#94a3b8" tick={{ fontSize: 10 }} tickLine={false} axisLine={false} />
                     <Tooltip
                         contentStyle={{ borderRadius: 12, border: '1px solid #e2e8f0', fontSize: 12 }}
-                        formatter={(value: number, name: string) => [value, name === 'total' ? (t('dashboard.totalPatients') ?? 'Total') : (t('dashboard.newPatients') ?? 'New')]}
+                        formatter={(value, name) => [value, name === 'total' ? (t('dashboard.totalPatients') ?? 'Total') : (t('dashboard.newPatients') ?? 'New')]}
                     />
                     <Line type="monotone" dataKey="total" stroke={TONE.teal} strokeWidth={2.5} dot={{ fill: TONE.teal, r: 4 }} activeDot={{ r: 6 }} />
                     <Line type="monotone" dataKey="new" stroke={TONE.blue} strokeWidth={2} strokeDasharray="4 4" dot={{ fill: TONE.blue, r: 3 }} />
