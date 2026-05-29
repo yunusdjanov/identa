@@ -1272,7 +1272,7 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                 <Label htmlFor="historyDate">
                                     {t('patientHistory.table.date')} <span className="text-red-500">*</span>
                                 </Label>
-                                <Input id="historyDate" type="date" required value={formState.treatmentDate} onChange={(event) => setFormState((current) => ({ ...current, treatmentDate: event.target.value }))} />
+                                <Input id="historyDate" type="date" required max={toLocalDateKey(new Date())} value={formState.treatmentDate} onChange={(event) => setFormState((current) => ({ ...current, treatmentDate: event.target.value }))} />
                                 {dateError ? <p className="text-xs text-red-600">{dateError}</p> : null}
                             </div>
                             <div className="space-y-2 sm:col-span-2">

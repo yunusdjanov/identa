@@ -23,7 +23,7 @@ class StoreTreatmentRequest extends FormRequest
             'treatment_type' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string', 'max:5000'],
             'comment' => ['nullable', 'string', 'max:5000'],
-            'treatment_date' => ['required', 'date'],
+            'treatment_date' => ['required', 'date', 'before_or_equal:today'],
             'cost' => ['nullable', 'numeric', 'min:0'],
             'debt_amount' => ['nullable', 'numeric', 'min:0'],
             'paid_amount' => ['nullable', 'numeric', 'min:0'],
