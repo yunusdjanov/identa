@@ -175,19 +175,28 @@ export default function AnalyticsPage() {
         <div className="space-y-5 lg:space-y-6">
             <PageHeader title={t('analytics.title')} description={t('analytics.subtitle')} />
 
-            {canViewPayments && canViewAppointments ? (
+            {/* Each chart is gated by the view permission of the data domain it
+                reports on (payments -> revenue/debtors, appointments -> status,
+                patients -> growth), so staff see analytics only for what they
+                can already access. No separate "analytics" permission, and no
+                empty page: anyone who can open this page sees at least one chart. */}
+            {canViewPayments || canViewAppointments ? (
                 <div className="grid grid-cols-1 gap-2.5 lg:grid-cols-3">
-                    <div className="lg:col-span-2">
-                        <RevenueChart data={revenueByMonth} />
-                    </div>
-                    <AppointmentStatusChart data={appointmentStatus} />
+                    {canViewPayments ? (
+                        <div className="lg:col-span-2">
+                            <RevenueChart data={revenueByMonth} />
+                        </div>
+                    ) : null}
+                    {canViewAppointments ? (
+                        <AppointmentStatusChart data={appointmentStatus} />
+                    ) : null}
                 </div>
             ) : null}
 
-            {canViewPatients && canViewPayments ? (
+            {canViewPatients || canViewPayments ? (
                 <div className="grid grid-cols-1 gap-2.5 lg:grid-cols-2">
-                    <PatientGrowthChart data={patientGrowth} />
-                    <TopDebtorsCard data={topDebtors} />
+                    {canViewPatients ? <PatientGrowthChart data={patientGrowth} /> : null}
+                    {canViewPayments ? <TopDebtorsCard data={topDebtors} /> : null}
                 </div>
             ) : null}
         </div>
