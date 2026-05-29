@@ -115,7 +115,7 @@ export function PatientPhotoPreviewDialog({
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent
                 showCloseButton={false}
-                className="grid h-[min(88dvh,720px)] max-h-[calc(100dvh-1.5rem)] w-[min(94vw,920px)] max-w-[calc(100vw-1rem)] grid-rows-[auto_minmax(0,1fr)] gap-0 overflow-hidden rounded-2xl border border-slate-200/90 bg-white p-0 text-slate-900 shadow-2xl shadow-slate-900/15 sm:max-w-[920px]"
+                className="grid h-[min(94dvh,1000px)] max-h-[calc(100dvh-1rem)] w-[min(96vw,1280px)] max-w-[calc(100vw-1rem)] grid-rows-[auto_minmax(0,1fr)] gap-0 overflow-hidden rounded-2xl border border-slate-200/90 bg-white p-0 text-slate-900 shadow-2xl shadow-slate-900/15 sm:max-w-[1280px]"
             >
                 <div className="flex min-w-0 items-center gap-3 border-b border-slate-100 bg-white px-5 py-4">
                     <DialogTitle className="min-w-0 flex-1 truncate text-lg font-semibold tracking-tight text-slate-900">
@@ -131,14 +131,14 @@ export function PatientPhotoPreviewDialog({
                 </DialogDescription>
                 {activeImage ? (
                     <div className="flex min-h-0 flex-col gap-3 px-5 py-4">
-                        <div className="relative flex min-h-0 min-w-0 flex-1 items-center justify-center overflow-hidden rounded-2xl bg-slate-900 p-3 sm:p-4">
+                        <div className="relative flex min-h-0 min-w-0 flex-1 items-center justify-center overflow-hidden rounded-2xl border border-slate-100 bg-slate-50/80 p-3 sm:p-4">
                             {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img
                                 key={currentIndex}
                                 src={activeImage.src}
                                 alt={activeImage.alt}
                                 crossOrigin={getProtectedMediaCrossOrigin(activeImage.src)}
-                                className="h-auto max-h-full w-auto max-w-full rounded-lg object-contain shadow-lg shadow-black/40 motion-safe:animate-in motion-safe:fade-in-0 motion-safe:duration-200"
+                                className="h-auto max-h-full w-auto max-w-full rounded-lg object-contain shadow-sm motion-safe:animate-in motion-safe:fade-in-0 motion-safe:duration-200"
                                 decoding="async"
                                 fetchPriority="high"
                             />
@@ -146,7 +146,7 @@ export function PatientPhotoPreviewDialog({
                                 <>
                                     <button
                                         type="button"
-                                        className="absolute left-3 top-1/2 z-10 inline-flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/10 text-white shadow-sm ring-1 ring-white/25 backdrop-blur transition hover:scale-105 hover:bg-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+                                        className="absolute left-3 top-1/2 z-10 inline-flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:scale-105 hover:bg-white hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-200"
                                         onClick={goToPrevious}
                                         aria-label="Previous image"
                                     >
@@ -154,13 +154,13 @@ export function PatientPhotoPreviewDialog({
                                     </button>
                                     <button
                                         type="button"
-                                        className="absolute right-3 top-1/2 z-10 inline-flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/10 text-white shadow-sm ring-1 ring-white/25 backdrop-blur transition hover:scale-105 hover:bg-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+                                        className="absolute right-3 top-1/2 z-10 inline-flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:scale-105 hover:bg-white hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-200"
                                         onClick={goToNext}
                                         aria-label="Next image"
                                     >
                                         <ChevronRight className="h-5 w-5" />
                                     </button>
-                                    <span className="pointer-events-none absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full bg-black/55 px-2.5 py-1 text-[11px] font-semibold tabular-nums text-white backdrop-blur">
+                                    <span className="pointer-events-none absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full bg-slate-900/70 px-2.5 py-1 text-[11px] font-semibold tabular-nums text-white backdrop-blur">
                                         {currentIndex + 1} / {resolvedImages.length}
                                     </span>
                                 </>
