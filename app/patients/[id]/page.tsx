@@ -475,19 +475,37 @@ export default function PatientDetailPage({
                         {t('patientDetail.editPatient')}
                     </Button>
                     {isPatientArchived ? (
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            className="h-7 rounded-full px-3 text-xs"
-                            onClick={() => setIsRestorePatientDialogOpen(true)}
-                            disabled={
-                                restorePatientMutation.isPending
-                                || permanentlyDeletePatientMutation.isPending
-                                || !canManagePatients
-                            }
-                        >
-                            {t('patients.restore')}
-                        </Button>
+                        <>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-7 rounded-full px-3 text-xs"
+                                onClick={() => setIsRestorePatientDialogOpen(true)}
+                                disabled={
+                                    restorePatientMutation.isPending
+                                    || permanentlyDeletePatientMutation.isPending
+                                    || !canManagePatients
+                                }
+                            >
+                                {t('patients.restore')}
+                            </Button>
+                            {/* Permanent delete is only offered once the patient is
+                                archived — the backend requires archive-first. */}
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-7 rounded-full px-3 text-xs text-red-600 hover:text-red-700"
+                                onClick={() => setIsPermanentDeletePatientDialogOpen(true)}
+                                disabled={
+                                    restorePatientMutation.isPending
+                                    || permanentlyDeletePatientMutation.isPending
+                                    || !canManagePatients
+                                }
+                            >
+                                <Trash2 className="mr-1.5 h-3 w-3" />
+                                {t('patientDetail.deletePermanently')}
+                            </Button>
+                        </>
                     ) : (
                         <Button
                             variant="outline"
@@ -499,21 +517,6 @@ export default function PatientDetailPage({
                             {t('patientDetail.archive')}
                         </Button>
                     )}
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        className="h-7 rounded-full px-3 text-xs text-red-600 hover:text-red-700"
-                        onClick={() => setIsPermanentDeletePatientDialogOpen(true)}
-                        disabled={
-                            archivePatientMutation.isPending
-                            || restorePatientMutation.isPending
-                            || permanentlyDeletePatientMutation.isPending
-                            || !canManagePatients
-                        }
-                    >
-                        <Trash2 className="mr-1.5 h-3 w-3" />
-                        {t('patientDetail.deletePermanently')}
-                    </Button>
                 </div>
             </div>
 
