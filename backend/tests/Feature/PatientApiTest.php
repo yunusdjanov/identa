@@ -229,26 +229,36 @@ class PatientApiTest extends TestCase
         ]);
     }
 
-    public function test_dentist_cannot_force_delete_patient_with_related_records(): void
+    public function test_dentist_can_force_delete_patient_and_cascade_related_records(): void
     {
         $dentist = User::factory()->create();
         $patient = Patient::factory()->create([
             'dentist_id' => $dentist->id,
         ]);
-        Appointment::factory()->create([
+        $appointment = Appointment::factory()->create([
             'dentist_id' => $dentist->id,
             'patient_id' => $patient->id,
             'status' => Appointment::STATUS_SCHEDULED,
         ]);
 
+        // Force-delete requires the patient to be archived (soft-deleted) first.
         $this->actingAs($dentist, 'web')
             ->deleteJson("/api/v1/patients/{$patient->id}")
             ->assertNoContent();
 
+        // Permanent delete cascades: the patient AND all related records (e.g.
+        // appointments) are purged. This is the intended behaviour — the DB
+        // foreign keys cascade and stored files are cleaned up.
         $this->actingAs($dentist, 'web')
             ->deleteJson("/api/v1/patients/{$patient->id}/force")
-            ->assertUnprocessable()
-            ->assertJsonValidationErrors(['patient']);
+            ->assertNoContent();
+
+        $this->assertDatabaseMissing('patients', [
+            'id' => $patient->id,
+        ]);
+        $this->assertDatabaseMissing('appointments', [
+            'id' => $appointment->id,
+        ]);
     }
 
     public function test_dentist_cannot_access_other_dentist_patient_records(): void
