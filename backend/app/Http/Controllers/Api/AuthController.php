@@ -104,7 +104,7 @@ class AuthController extends Controller
             || ! $refreshToken->can(self::MOBILE_REFRESH_ABILITY)
             || ($refreshToken->expires_at !== null && $refreshToken->expires_at->isPast())
             || ! $refreshToken->tokenable instanceof User
-            || ! $refreshToken->tokenable->hasActiveAccount()
+            || ! $refreshToken->tokenable->hasActiveAccessChain()
         ) {
             return response()->json([
                 'message' => __('auth.failed'),
@@ -184,6 +184,18 @@ class AuthController extends Controller
     {
         /** @var User $user */
         $user = $request->user();
+
+        // /me is the SPA's session probe and carries the owner's subscription
+        // summary, so it must honour the same access chain as the data routes:
+        // a blocked/deleted dentist's assistant gets bounced to login cleanly.
+        if (! $user->hasActiveAccessChain()) {
+            return response()->json([
+                'error' => [
+                    'code' => 'account_inactive',
+                    'message' => __('api.auth.account_inactive'),
+                ],
+            ], 403);
+        }
 
         return response()->json([
             'data' => $this->transformUser($user),

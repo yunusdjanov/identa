@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\User;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -15,6 +16,7 @@ class EnsureRole
      */
     public function handle(Request $request, Closure $next, string ...$roles): Response
     {
+        /** @var User|null $user */
         $user = $request->user();
 
         if (! $user) {
@@ -35,7 +37,10 @@ class EnsureRole
             ], Response::HTTP_FORBIDDEN);
         }
 
-        if (! $user->hasActiveAccount()) {
+        // hasActiveAccessChain() also re-checks the owning dentist for assistants,
+        // so blocking/deleting a dentist instantly revokes their staff on the next
+        // request (including remember-me sessions that bypass the login service).
+        if (! $user->hasActiveAccessChain()) {
             return response()->json([
                 'error' => [
                     'code' => 'account_inactive',

@@ -105,17 +105,16 @@ Route::prefix('v1')->group(function (): void {
     Route::post('webhooks/payx', [BillingController::class, 'payxWebhook'])
         ->middleware('throttle:120,1');
 
+    // Subscription billing is the practice owner's concern only. Assistants
+    // never need it (their read-only state is already surfaced via /auth/me),
+    // and exposing the owner's plan + PayX payment history to staff would leak
+    // financial data, so the whole group is dentist-only.
     Route::prefix('billing')
-        ->middleware(['auth:sanctum', 'role:dentist,assistant'])
+        ->middleware(['auth:sanctum', 'role:dentist'])
         ->group(function (): void {
             Route::get('plans', [BillingController::class, 'plans']);
             Route::get('current-subscription', [BillingController::class, 'currentSubscription']);
             Route::get('payments', [BillingController::class, 'payments']);
-        });
-
-    Route::prefix('billing')
-        ->middleware(['auth:sanctum', 'role:dentist'])
-        ->group(function (): void {
             Route::post('checkout', [BillingController::class, 'checkout'])
                 ->middleware('throttle:10,1');
             Route::post('cancel', [BillingController::class, 'cancel'])

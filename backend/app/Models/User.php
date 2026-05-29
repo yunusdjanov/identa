@@ -161,6 +161,29 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->account_status === self::ACCOUNT_STATUS_ACTIVE;
     }
 
+    /**
+     * Whether this account may currently access the app. An assistant inherits
+     * access from its owning dentist, so blocking/deleting a dentist must also
+     * revoke every assistant — including sessions established earlier or
+     * recovered via a "remember me" cookie (which bypasses the login service).
+     * Re-checking the owner here keeps revocation instant and reversible
+     * without mutating each assistant's own status.
+     */
+    public function hasActiveAccessChain(): bool
+    {
+        if (! $this->hasActiveAccount()) {
+            return false;
+        }
+
+        if ($this->isAssistant()) {
+            $owner = $this->ownerDentist;
+
+            return $owner !== null && $owner->hasActiveAccount();
+        }
+
+        return true;
+    }
+
     public function tenantDentistId(): ?int
     {
         if ($this->isDentist()) {

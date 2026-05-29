@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/dialog';
 import { PageHeader } from '@/components/ui/page-shell';
 import { Skeleton } from '@/components/ui/skeleton';
+import { AccessDeniedState } from '@/components/error/access-denied-state';
 import { BillingLoadingState } from '@/components/layout/page-loading-skeletons';
 import {
     Table,
@@ -74,17 +75,22 @@ export default function BillingPage() {
         queryFn: getCurrentUser,
         retry: false,
     });
+    // Billing is owner-only; gate the API calls so assistants never trigger a 403.
+    const isOwner = currentUserQuery.data?.role === 'dentist';
     const subscriptionQuery = useQuery({
         queryKey: ['billing', 'current-subscription'],
         queryFn: getCurrentSubscription,
+        enabled: isOwner,
     });
     const plansQuery = useQuery({
         queryKey: ['billing', 'plans'],
         queryFn: listBillingPlans,
+        enabled: isOwner,
     });
     const paymentsQuery = useQuery({
         queryKey: ['billing', 'payments'],
         queryFn: listBillingPayments,
+        enabled: isOwner,
     });
     const staffQuery = useQuery({
         queryKey: ['team', 'assistants', 'billing-downgrade'],
@@ -112,7 +118,6 @@ export default function BillingPage() {
 
     const plans = useMemo(() => plansQuery.data ?? [], [plansQuery.data]);
     const subscription = subscriptionQuery.data ?? currentUserQuery.data?.subscription ?? null;
-    const isOwner = currentUserQuery.data?.role === 'dentist';
     const isLoading = currentUserQuery.isLoading || subscriptionQuery.isLoading || plansQuery.isLoading;
     const activeStaff = useMemo(
         () => (staffQuery.data?.data ?? []).filter(
@@ -154,6 +159,22 @@ export default function BillingPage() {
             selected_active_staff_ids: effectiveSelectedStaffIds,
         });
     };
+
+    if (currentUserQuery.isLoading) {
+        return <BillingLoadingState />;
+    }
+
+    // Owner-only screen: assistants get a clean access-denied instead of a broken
+    // page (the billing API now rejects them server-side regardless).
+    if (!isOwner) {
+        return (
+            <AccessDeniedState
+                title={t('common.forbiddenTitle')}
+                description={t('settings.team.noAccess')}
+                actionLabel={t('dashboard.title')}
+            />
+        );
+    }
 
     if (isLoading) {
         return <BillingLoadingState />;

@@ -147,6 +147,8 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     const displayName = currentUser?.name || dentistName || '';
     const canOpenSettings = currentUser ? currentUser.role === 'dentist' || currentUser.role === 'assistant' : true;
     const canOpenStaff = Boolean(currentUser && currentUser.role === 'dentist');
+    // Billing is owner-only — assistants must not see the practice's subscription/payments.
+    const canOpenBilling = Boolean(currentUser && currentUser.role === 'dentist');
     const showHeaderSkeleton = !isMounted || isUserLoading;
     const handleNavigationClick = (event: MouseEvent<HTMLAnchorElement>, href: string) => {
         const permissionModule = getModuleForPath(href);
@@ -258,6 +260,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                                         user={currentUser}
                                         fallbackName={displayName}
                                         onLogout={handleLogout}
+                                        billingHref={canOpenBilling ? '/billing' : null}
                                         settingsHref={canOpenSettings ? '/settings' : null}
                                         staffHref={canOpenStaff ? '/staff' : null}
                                     />
