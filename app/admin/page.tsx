@@ -547,10 +547,10 @@ export default function AdminDashboardPage() {
                             </CardContent>
                         </Card>
 
-                        <Card className="interactive-card metric-hover-card metric-hover-teal rounded-2xl border-teal-100 bg-white shadow-sm shadow-teal-100/50">
+                        <Card className="interactive-card metric-hover-card metric-hover-blue rounded-2xl border-blue-100 bg-white shadow-sm shadow-blue-100/50">
                             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                                 <CardTitle className="text-sm font-medium">{t('admin.stats.newLast7Days')}</CardTitle>
-                                <UserPlus className="h-4 w-4 text-teal-600" />
+                                <UserPlus className="h-4 w-4 text-blue-600" />
                             </CardHeader>
                             <CardContent>
                                 <div className="text-xl font-bold tracking-[-0.03em] text-slate-950">{stats.newRegistrations}</div>
