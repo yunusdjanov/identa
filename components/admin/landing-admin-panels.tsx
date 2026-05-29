@@ -37,11 +37,14 @@ interface AdminLandingCopy {
         required: string;
         invalidAmount: string;
         invalidUrl: string;
+        loadFailed: string;
     };
     leads: {
         title: string;
         description: string;
         empty: string;
+        loadFailed: string;
+        retry: string;
         requestedAt: string;
         clinic: string;
         city: string;
@@ -77,11 +80,14 @@ const ADMIN_LANDING_COPY: Record<AdminLocale, AdminLandingCopy> = {
             required: 'Обязательное поле',
             invalidAmount: 'Введите целое неотрицательное число.',
             invalidUrl: 'Введите корректный URL.',
+            loadFailed: 'Не удалось загрузить настройки.',
         },
         leads: {
             title: 'Входящие заявки',
             description: 'Заявки с формы лендинга попадают сюда.',
             empty: 'Пока заявок нет.',
+            loadFailed: 'Не удалось загрузить заявки.',
+            retry: 'Повторить',
             requestedAt: 'Отправлено',
             clinic: 'Клиника',
             city: 'Город',
@@ -115,11 +121,14 @@ const ADMIN_LANDING_COPY: Record<AdminLocale, AdminLandingCopy> = {
             required: 'Majburiy maydon',
             invalidAmount: "Butun va manfiy bo'lmagan son kiriting.",
             invalidUrl: "To'g'ri URL kiriting.",
+            loadFailed: "Sozlamalarni yuklab bo'lmadi.",
         },
         leads: {
             title: "Kelgan so'rovlar",
             description: "Landing formasi orqali yuborilgan so'rovlar shu yerga tushadi.",
             empty: "Hozircha so'rovlar yo'q.",
+            loadFailed: "So'rovlarni yuklab bo'lmadi.",
+            retry: 'Qayta urinish',
             requestedAt: 'Yuborilgan vaqti',
             clinic: 'Klinika',
             city: 'Shahar',
@@ -153,11 +162,14 @@ const ADMIN_LANDING_COPY: Record<AdminLocale, AdminLandingCopy> = {
             required: 'Required field',
             invalidAmount: 'Enter a whole non-negative number.',
             invalidUrl: 'Enter a valid URL.',
+            loadFailed: 'Could not load settings.',
         },
         leads: {
             title: 'Incoming requests',
             description: 'Requests from the landing form appear here.',
             empty: 'No requests yet.',
+            loadFailed: 'Could not load requests.',
+            retry: 'Retry',
             requestedAt: 'Submitted at',
             clinic: 'Clinic',
             city: 'City',
@@ -300,6 +312,10 @@ export function AdminLandingSettingsPanel() {
                     <div className="space-y-3">
                         <Skeleton className="h-12 w-full" />
                     </div>
+                ) : settingsQuery.isError ? (
+                    <p className="rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700">
+                        {getApiErrorMessage(settingsQuery.error, copy.landing.loadFailed)}
+                    </p>
                 ) : (
                     <>
                         <p className="rounded-2xl border border-teal-100 bg-teal-50 px-4 py-3 text-sm text-teal-800">
@@ -384,6 +400,19 @@ export function AdminLeadRequestsPanel() {
                     <div className="space-y-3">
                         <Skeleton className="h-24 w-full" />
                         <Skeleton className="h-24 w-full" />
+                    </div>
+                ) : leadRequestsQuery.isError ? (
+                    <div className="rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700">
+                        <p>{getApiErrorMessage(leadRequestsQuery.error, copy.leads.loadFailed)}</p>
+                        <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            className="mt-2"
+                            onClick={() => leadRequestsQuery.refetch()}
+                        >
+                            {copy.leads.retry}
+                        </Button>
                     </div>
                 ) : leadRequestsQuery.data?.data.length ? (
                     leadRequestsQuery.data.data.map((leadRequest) => (
