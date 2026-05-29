@@ -63,7 +63,7 @@ export default function AnalyticsPage() {
 
     const patientsQuery = useQuery({
         queryKey: ['analytics', 'patients'],
-        queryFn: () => listPatients({ page: 1, perPage: 500, sortBy: '-created_at' }),
+        queryFn: () => listPatients({ page: 1, perPage: 500, sort: '-created_at' }),
         enabled: canViewPatients,
     });
 
@@ -148,7 +148,7 @@ export default function AnalyticsPage() {
     }
 
     if (!canViewPayments && !canViewPatients && !canViewAppointments) {
-        return <AccessDeniedState description={PERMISSION_DENIED_MESSAGE} />;
+        return <AccessDeniedState title={t('common.forbiddenTitle')} description={PERMISSION_DENIED_MESSAGE} />;
     }
 
     if (currentUserQuery.isError) {
