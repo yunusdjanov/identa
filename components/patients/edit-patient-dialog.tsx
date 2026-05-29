@@ -35,6 +35,7 @@ import {
     normalizePhoneForApi,
 } from '@/lib/input-validation';
 import { PatientPhotoField } from '@/components/patients/patient-photo-field';
+import { toLocalDateKey } from '@/lib/utils';
 import { getProtectedMediaThumbnailUrl } from '@/lib/protected-media';
 
 interface EditPatientDialogProps {
@@ -322,6 +323,7 @@ export function EditPatientDialog({
                                 <Input
                                     id="dateOfBirth"
                                     type="date"
+                                    max={toLocalDateKey(new Date())}
                                     value={formData.dateOfBirth}
                                     onChange={(event) =>
                                         setFormData({ ...formData, dateOfBirth: event.target.value })
