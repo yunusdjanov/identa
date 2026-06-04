@@ -26,6 +26,12 @@ class AssistantResource extends JsonResource
             'name' => $assistant->name,
             'email' => $assistant->email,
             'phone' => $assistant->phone,
+            // The owner-facing team UI shows assistant avatars (Stripe-
+            // Linear pattern). Without this field the staff page falls
+            // back to initials for everyone, even when an assistant has
+            // a profile photo set. Mock already returns avatar_url; the
+            // backend was the diverging side.
+            'avatar_url' => $assistant->avatar_url,
             'account_status' => $assistant->account_status,
             'assistant_permissions' => User::normalizeAssistantPermissions($assistant->assistant_permissions ?? []),
             'must_change_password' => (bool) $assistant->must_change_password,

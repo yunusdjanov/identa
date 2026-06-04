@@ -1,6 +1,7 @@
 <?php
 
 use App\Jobs\GenerateMediaVariants;
+use App\Models\BillingPayment;
 use App\Models\Patient;
 use App\Models\Subscription;
 use App\Models\TreatmentImage;
@@ -306,16 +307,28 @@ Artisan::command('subscriptions:process', function () {
             }
         });
 
+    // Stale-pending cleanup: PayX never fires a failure/cancel webhook, so a
+    // dentist who abandons checkout leaves a pending row indefinitely. After
+    // 24 hours we mark it canceled — the dentist's history is still
+    // preserved for audit, and a fresh checkout can proceed without the
+    // createCheckout dedup logic having to soft-cancel a pile of orphans.
+    $staleCutoff = $now->copy()->subDay();
+    $stalePendingCount = BillingPayment::query()
+        ->where('status', BillingPayment::STATUS_PENDING)
+        ->where('created_at', '<', $staleCutoff)
+        ->update(['status' => BillingPayment::STATUS_CANCELED]);
+
     $this->info(sprintf(
-        'Subscription processing complete. Warnings sent: %d. Warning failures: %d. Pending changes activated: %d. Expired to read-only: %d.',
+        'Subscription processing complete. Warnings sent: %d. Warning failures: %d. Pending changes activated: %d. Expired to read-only: %d. Stale pending canceled: %d.',
         $warningsSent,
         $warningsFailed,
         $pendingChangesActivated,
-        $expiredCount
+        $expiredCount,
+        $stalePendingCount
     ));
 
     return 0;
-})->purpose('Send subscription expiry warnings and move expired subscriptions to read-only');
+})->purpose('Send subscription expiry warnings, move expired subscriptions to read-only, and cancel stale pending payments');
 
 Schedule::command('subscriptions:process')->hourly();
 

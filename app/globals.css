@@ -170,6 +170,17 @@
     scrollbar-gutter: stable;
   }
 
+  /* Radix uses react-remove-scroll which adds inline padding/margin to the
+     body when a Select/Dialog opens to compensate for the disappearing
+     scrollbar. But we already reserve the gutter on <html>, so that extra
+     padding causes the visible content to shift left. Neutralize the
+     compensation so the layout stays exactly where it was. */
+  body[data-scroll-locked] {
+    --removed-body-scroll-bar-size: 0px !important;
+    margin-right: 0 !important;
+    padding-right: 0 !important;
+  }
+
   html, body {
     @apply bg-background text-foreground;
     overflow-x: hidden;

@@ -9,8 +9,22 @@ use RuntimeException;
 
 class ImageCompressionService
 {
-    private const MAX_EDGE = 1800;
+    /**
+     * Visual quality strategy: a single pass at high quality. For dental imagery,
+     * MAX_EDGE_AUTO=1800 px is more than enough on any practical screen, WEBP q=82
+     * and JPEG q=85 are visually lossless for both photos and X-rays.
+     *
+     * The legacy iterative degradation (WEBP_QUALITIES / JPEG_QUALITIES) is kept
+     * as a fallback for when an explicit byte ceiling is passed — admin-driven
+     * override path. In auto mode (targetMaxBytes=null) we trust the high-quality
+     * result and skip recompression entirely if the source is already efficient.
+     */
+    private const MAX_EDGE_AUTO = 1800;
     private const MIN_EDGE = 720;
+    private const AUTO_WEBP_QUALITY = 82;
+    private const AUTO_JPEG_QUALITY = 85;
+    /** Output >= 90% of original byte size means recompression is wasted work. */
+    private const SKIP_RECOMPRESSION_THRESHOLD = 0.90;
     private const WEBP_QUALITIES = [82, 76, 70, 64, 58];
     private const JPEG_QUALITIES = [84, 78, 72, 66, 60];
 
@@ -69,6 +83,19 @@ class ImageCompressionService
     }
 
     /**
+     * Optimize image contents.
+     *
+     * Two modes:
+     * - **Auto** (targetMaxBytes=null): single-pass high-quality encode at
+     *   {@see AUTO_WEBP_QUALITY}/{@see AUTO_JPEG_QUALITY}, only resizing when the
+     *   source exceeds {@see MAX_EDGE_AUTO}. If the recompressed output is not
+     *   meaningfully smaller than the source AND no resize happened, the source
+     *   is returned unchanged to avoid pointless quality loss on already-optimized
+     *   files. This is the default path — admins don't have to tune anything.
+     * - **Ceiling** (targetMaxBytes set): the legacy iterative degradation kicks
+     *   in if the auto result still exceeds the explicit byte ceiling. Used when
+     *   a hard cap is required (currently no callers in auto mode).
+     *
      * @return array{contents: string, mime_type: string, extension: string, file_size: int}|null
      */
     public function optimizeContents(string $contents, ?string $fallbackMimeType, ?int $targetMaxBytes): ?array
@@ -89,50 +116,157 @@ class ImageCompressionService
                 return null;
             }
 
-            $largestEdge = max($sourceWidth, $sourceHeight);
-            $candidateEdges = array_values(array_unique(array_filter([
-                min($largestEdge, self::MAX_EDGE),
-                1600,
-                1400,
-                1200,
-                1000,
-                self::MIN_EDGE,
-            ], static fn (int $edge): bool => $edge > 0 && $edge <= $largestEdge)));
+            $autoResult = $this->encodeAuto($source, $contents, $fallbackMimeType, $sourceWidth, $sourceHeight);
 
-            foreach ($candidateEdges as $maxEdge) {
-                $target = $this->resizeImage($source, $sourceWidth, $sourceHeight, $maxEdge);
-                if ($target === null) {
-                    continue;
-                }
-
-                try {
-                    foreach ($this->encodingCandidates() as $candidate) {
-                        foreach ($candidate['qualities'] as $quality) {
-                            $encoded = $this->encodeImage($target, $candidate['mime_type'], $quality);
-                            if ($encoded === null) {
-                                continue;
-                            }
-
-                            $fileSize = strlen($encoded);
-                            if ($targetMaxBytes === null || $fileSize <= $targetMaxBytes) {
-                                return [
-                                    'contents' => $encoded,
-                                    'mime_type' => $candidate['mime_type'],
-                                    'extension' => $candidate['extension'],
-                                    'file_size' => $fileSize,
-                                ];
-                            }
-                        }
-                    }
-                } finally {
-                    imagedestroy($target);
-                }
+            // Auto mode: trust the single-pass high-quality result.
+            if ($targetMaxBytes === null) {
+                return $autoResult;
             }
 
-            return null;
+            // Ceiling mode: if auto already fits under the cap, we're done.
+            if ($autoResult !== null && $autoResult['file_size'] <= $targetMaxBytes) {
+                return $autoResult;
+            }
+
+            // Otherwise degrade iteratively to honor the explicit ceiling.
+            return $this->encodeWithCeiling($source, $sourceWidth, $sourceHeight, $targetMaxBytes);
         } finally {
             imagedestroy($source);
         }
+    }
+
+    /**
+     * Single-pass high-quality encode. Resizes only when source exceeds the
+     * auto ceiling. Skips recompression when it would barely save space.
+     *
+     * @param  resource|object  $source
+     * @return array{contents: string, mime_type: string, extension: string, file_size: int}|null
+     */
+    private function encodeAuto(mixed $source, string $sourceContents, ?string $sourceMimeType, int $sourceWidth, int $sourceHeight): ?array
+    {
+        $largestEdge = max($sourceWidth, $sourceHeight);
+        $needsResize = $largestEdge > self::MAX_EDGE_AUTO;
+        $targetEdge = $needsResize ? self::MAX_EDGE_AUTO : $largestEdge;
+
+        $target = $this->resizeImage($source, $sourceWidth, $sourceHeight, $targetEdge);
+        if ($target === null) {
+            return null;
+        }
+
+        try {
+            $best = null;
+            foreach ($this->autoEncodingCandidates() as $candidate) {
+                $encoded = $this->encodeImage($target, $candidate['mime_type'], $candidate['quality']);
+                if ($encoded === null) {
+                    continue;
+                }
+                $fileSize = strlen($encoded);
+                if ($best === null || $fileSize < $best['file_size']) {
+                    $best = [
+                        'contents' => $encoded,
+                        'mime_type' => $candidate['mime_type'],
+                        'extension' => $candidate['extension'],
+                        'file_size' => $fileSize,
+                    ];
+                }
+            }
+
+            if ($best === null) {
+                return null;
+            }
+
+            // Smart skip: when the source wasn't resized and recompression barely
+            // shrinks the file, prefer the original bytes (no cumulative quality loss).
+            $sourceSize = strlen($sourceContents);
+            if (! $needsResize && $sourceSize > 0 && $best['file_size'] >= (int) round($sourceSize * self::SKIP_RECOMPRESSION_THRESHOLD)) {
+                $normalizedMime = $this->normalizeMimeType($sourceMimeType);
+
+                return [
+                    'contents' => $sourceContents,
+                    'mime_type' => $normalizedMime,
+                    'extension' => $this->extensionForMimeType($normalizedMime),
+                    'file_size' => $sourceSize,
+                ];
+            }
+
+            return $best;
+        } finally {
+            imagedestroy($target);
+        }
+    }
+
+    /**
+     * Legacy iterative degradation used when an explicit byte ceiling is set.
+     *
+     * @param  resource|object  $source
+     * @return array{contents: string, mime_type: string, extension: string, file_size: int}|null
+     */
+    private function encodeWithCeiling(mixed $source, int $sourceWidth, int $sourceHeight, int $targetMaxBytes): ?array
+    {
+        $largestEdge = max($sourceWidth, $sourceHeight);
+        $candidateEdges = array_values(array_unique(array_filter([
+            min($largestEdge, self::MAX_EDGE_AUTO),
+            1600,
+            1400,
+            1200,
+            1000,
+            self::MIN_EDGE,
+        ], static fn (int $edge): bool => $edge > 0 && $edge <= $largestEdge)));
+
+        foreach ($candidateEdges as $maxEdge) {
+            $target = $this->resizeImage($source, $sourceWidth, $sourceHeight, $maxEdge);
+            if ($target === null) {
+                continue;
+            }
+
+            try {
+                foreach ($this->encodingCandidates() as $candidate) {
+                    foreach ($candidate['qualities'] as $quality) {
+                        $encoded = $this->encodeImage($target, $candidate['mime_type'], $quality);
+                        if ($encoded === null) {
+                            continue;
+                        }
+
+                        $fileSize = strlen($encoded);
+                        if ($fileSize <= $targetMaxBytes) {
+                            return [
+                                'contents' => $encoded,
+                                'mime_type' => $candidate['mime_type'],
+                                'extension' => $candidate['extension'],
+                                'file_size' => $fileSize,
+                            ];
+                        }
+                    }
+                }
+            } finally {
+                imagedestroy($target);
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @return list<array{mime_type: string, extension: string, quality: int}>
+     */
+    private function autoEncodingCandidates(): array
+    {
+        $candidates = [];
+        if (function_exists('imagewebp')) {
+            $candidates[] = [
+                'mime_type' => 'image/webp',
+                'extension' => 'webp',
+                'quality' => self::AUTO_WEBP_QUALITY,
+            ];
+        }
+
+        $candidates[] = [
+            'mime_type' => 'image/jpeg',
+            'extension' => 'jpg',
+            'quality' => self::AUTO_JPEG_QUALITY,
+        ];
+
+        return $candidates;
     }
 
     /**

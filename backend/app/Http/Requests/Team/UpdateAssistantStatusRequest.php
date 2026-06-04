@@ -10,7 +10,8 @@ class UpdateAssistantStatusRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return true;
+        // Defense-in-depth — see StoreAssistantRequest::authorize.
+        return $this->user()?->isDentist() === true;
     }
 
     /**

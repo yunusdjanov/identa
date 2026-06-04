@@ -18,9 +18,20 @@ class ProductionSecretsValidatorTest extends TestCase
         ]);
         config()->set('secrets.additional_required', ['SENTRY_LARAVEL_DSN']);
         $_SERVER['SENTRY_LARAVEL_DSN'] = 'https://examplePublicKey@o0.ingest.sentry.io/0';
+        // The validator also requires APP_TIMEZONE to be explicit so billing
+        // period boundaries don't drift across calendar days. The check reads
+        // env() directly, so set it via putenv (config() won't reach it).
+        $previousTimezone = getenv('APP_TIMEZONE');
+        putenv('APP_TIMEZONE=Asia/Tashkent');
 
-        $validator = app(ProductionSecretsValidator::class);
-        $this->assertSame([], $validator->findProductionIssues());
+        try {
+            $validator = app(ProductionSecretsValidator::class);
+            $this->assertSame([], $validator->findProductionIssues());
+        } finally {
+            $previousTimezone === false
+                ? putenv('APP_TIMEZONE')
+                : putenv('APP_TIMEZONE='.$previousTimezone);
+        }
     }
 
     public function test_find_production_issues_flags_weak_app_key_and_db_password(): void

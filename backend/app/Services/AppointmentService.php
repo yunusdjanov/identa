@@ -6,6 +6,7 @@ use App\Http\Requests\StoreAppointmentRequest;
 use App\Http\Requests\UpdateAppointmentRequest;
 use App\Models\Appointment;
 use App\Models\User;
+use App\Support\AuditLogger;
 use App\Support\Search;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
@@ -15,6 +16,10 @@ use Illuminate\Validation\ValidationException;
 
 class AppointmentService
 {
+    public function __construct(
+        private readonly AuditLogger $auditLogger,
+    ) {}
+
     private const DEFAULT_PER_PAGE = 15;
 
     private const MAX_PER_PAGE = 500;
@@ -110,7 +115,7 @@ class AppointmentService
         $dentistId = $this->dentistId($request);
         $status = $validated['status'] ?? Appointment::STATUS_SCHEDULED;
 
-        return DB::transaction(function () use ($validated, $dentistId, $status): Appointment {
+        $appointment = DB::transaction(function () use ($validated, $dentistId, $status): Appointment {
             $this->assertNoConflict(
                 dentistId: $dentistId,
                 appointmentDate: $validated['appointment_date'],
@@ -126,24 +131,48 @@ class AppointmentService
                 'notes' => $validated['reason'] ?? null,
             ])->load('patient:id,full_name');
         });
+
+        $this->auditLogger->logFromRequest(
+            request: $request,
+            eventType: 'appointment.created',
+            entityType: 'appointment',
+            entityId: (string) $appointment->id,
+            metadata: [
+                'patient_id' => (string) $appointment->patient_id,
+                'appointment_date' => $appointment->appointment_date?->toDateString(),
+                'status' => $appointment->status,
+            ],
+        );
+
+        return $appointment;
     }
 
     public function update(UpdateAppointmentRequest $request, string $id): Appointment
     {
-        $appointment = $this->ownedAppointment($request, $id);
-
-        if (in_array($appointment->status, self::IMMUTABLE_STATUSES, true)) {
-            throw ValidationException::withMessages([
-                'status' => [__('api.appointments.finalized_cannot_be_edited')],
-            ]);
-        }
-
         $validated = $request->validated();
         $status = $validated['status'] ?? Appointment::STATUS_SCHEDULED;
+        $dentistId = $this->dentistId($request);
 
-        return DB::transaction(function () use ($request, $appointment, $validated, $status): Appointment {
+        $appointment = DB::transaction(function () use ($id, $dentistId, $validated, $status): Appointment {
+            // Lock the appointment row inside the transaction so the
+            // immutable-status guard below is not TOCTOU vs a concurrent
+            // status transition. Otherwise two clients could both observe
+            // status=scheduled, both pass the guard, and both overwrite
+            // each other's mutation.
+            $appointment = Appointment::query()
+                ->where('id', $id)
+                ->where('dentist_id', $dentistId)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if (in_array($appointment->status, self::IMMUTABLE_STATUSES, true)) {
+                throw ValidationException::withMessages([
+                    'status' => [__('api.appointments.finalized_cannot_be_edited')],
+                ]);
+            }
+
             $this->assertNoConflict(
-                dentistId: $this->dentistId($request),
+                dentistId: $dentistId,
                 appointmentDate: $validated['appointment_date'],
                 startTime: $validated['start_time'],
                 endTime: $validated['end_time'],
@@ -159,11 +188,39 @@ class AppointmentService
 
             return $appointment->fresh()->load('patient:id,full_name');
         });
+
+        $this->auditLogger->logFromRequest(
+            request: $request,
+            eventType: 'appointment.updated',
+            entityType: 'appointment',
+            entityId: (string) $appointment->id,
+            metadata: [
+                'patient_id' => (string) $appointment->patient_id,
+                'appointment_date' => $appointment->appointment_date?->toDateString(),
+                'status' => $appointment->status,
+            ],
+        );
+
+        return $appointment;
     }
 
     public function delete(Request $request, string $id): void
     {
-        $this->ownedAppointment($request, $id)->delete();
+        $appointment = $this->ownedAppointment($request, $id);
+        $metadata = [
+            'patient_id' => (string) $appointment->patient_id,
+            'appointment_date' => $appointment->appointment_date?->toDateString(),
+            'status' => $appointment->status,
+        ];
+        $appointment->delete();
+
+        $this->auditLogger->logFromRequest(
+            request: $request,
+            eventType: 'appointment.deleted',
+            entityType: 'appointment',
+            entityId: (string) $appointment->id,
+            metadata: $metadata,
+        );
     }
 
     public function ownedAppointment(Request $request, string $id): Appointment

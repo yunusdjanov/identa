@@ -10,7 +10,14 @@ class UpdateDentistStatusRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return true;
+        // Defense in depth — route group is already gated by `role:admin`
+        // middleware, but mirroring the StoreDentistRequest /
+        // ManageDentistSubscriptionRequest pattern means a future refactor
+        // that exposes this route through a less-guarded group still
+        // refuses non-admin actors at the FormRequest layer.
+        $user = $this->user();
+
+        return $user !== null && $user->isAdmin();
     }
 
     /**

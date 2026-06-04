@@ -19,7 +19,7 @@ import { ToothDetailDialog } from '@/components/odontogram/tooth-detail-dialog';
 import { useI18n } from '@/components/providers/i18n-provider';
 import { AppErrorState } from '@/components/error/app-error-state';
 import { AccessDeniedState } from '@/components/error/access-denied-state';
-import { canView, PERMISSION_DENIED_MESSAGE } from '@/lib/auth/permissions';
+import { canView } from '@/lib/auth/permissions';
 
 export default function OdontogramPage({
     params,
@@ -107,7 +107,7 @@ export default function OdontogramPage({
         return (
             <AccessDeniedState
                 title={t('common.forbiddenTitle')}
-                description={PERMISSION_DENIED_MESSAGE}
+                description={t('permissions.deniedDescription')}
                 actionHref="/patients"
                 actionLabel={t('patientDetail.backToPatients')}
             />

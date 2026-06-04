@@ -1,41 +1,19 @@
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
+import { resolveMockUser } from '../../_mock-users';
 
-// Local mock only — role is read back from the cookie set at login so the
-// admin session survives page reloads in local dev.
-const DENTIST_USER = {
-    id: 'dentist-1',
-    name: 'Zohid Yunusjonov',
-    email: 'yunusdjanov@gmail.com',
-    role: 'dentist',
-    email_verified: true,
-    subscription: {
-        status: 'active',
-        plan: 'pro',
-        trial_ends_at: null,
-        upload_max_mb: 8,
-        stored_image_max_mb: 80,
-        can_export: true,
-        staff_limit: 5,
-        entry_image_limit: 10,
-    },
-};
-
-const ADMIN_USER = {
-    id: 'admin-1',
-    name: 'Identa Admin',
-    email: 'admin@identa.test',
-    role: 'admin',
-    email_verified: true,
-};
-
+// Local mock only — role + user id are read back from cookies set at
+// login so the session survives page reloads in local dev. Three
+// assistant fixtures are available; see `_mock-users.ts` for the lookup
+// table and the test scenarios each one exercises (full perms, partial
+// perms, forced password change).
 export async function GET() {
     const cookieStore = await cookies();
     if (!cookieStore.get('mock_session')) {
         return NextResponse.json({ message: 'Unauthenticated.' }, { status: 401 });
     }
 
-    const isAdmin = cookieStore.get('mock_role')?.value === 'admin';
-
-    return NextResponse.json({ data: isAdmin ? ADMIN_USER : DENTIST_USER });
+    const role = cookieStore.get('mock_role')?.value;
+    const userId = cookieStore.get('mock_user_id')?.value;
+    return NextResponse.json({ data: resolveMockUser(role, userId) });
 }

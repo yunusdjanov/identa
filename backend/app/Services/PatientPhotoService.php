@@ -389,7 +389,14 @@ class PatientPhotoService
 
     private function mediaDiskSupportsDirectUpload(string $disk): bool
     {
-        return method_exists(Storage::disk($disk), 'temporaryUploadUrl');
+        // Direct-upload is an S3 feature. Other adapters (local, gcs without
+        // signed-url credentials) either silently return a non-functional URL
+        // (Laravel's `Storage::fake('local')` does this) or throw at signing
+        // time — neither is useful to a browser uploader. Match the explicit
+        // `=== 's3'` check used by OdontogramImageService + the treatment
+        // image direct-upload service so this stays consistent across the
+        // codebase and the fallback branch is reachable in tests.
+        return (string) config("filesystems.disks.{$disk}.driver") === 's3';
     }
 
     private function resolveUploadedObjectSize(string $disk, string $path, int $expectedSize): int

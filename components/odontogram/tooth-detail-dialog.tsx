@@ -1,19 +1,20 @@
 ﻿'use client';
 
 import { useMemo, useState } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { getBalanceMetricTone, MetricSummaryCard } from '@/components/ui/metric-summary-card';
-import { getPatientTreatment } from '@/lib/api/dentist';
+import { getCurrentUser, getPatientTreatment } from '@/lib/api/dentist';
 import { getApiErrorMessage } from '@/lib/api/client';
+import { canView } from '@/lib/auth/permissions';
 import type { ApiTreatment, ApiTreatmentImage } from '@/lib/api/types';
 import { getProtectedMediaCrossOrigin, getProtectedMediaPreviewUrl, getProtectedMediaThumbnailUrl, isProtectedMediaApproved } from '@/lib/protected-media';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { useI18n } from '@/components/providers/i18n-provider';
 import { PatientPhotoPreviewDialog, type PreviewGalleryImage } from '@/components/patients/patient-photo-preview-dialog';
 import { toast } from 'sonner';
-import { CalendarDays, Loader2 } from 'lucide-react';
+import { CalendarDays, Loader2, Lock } from 'lucide-react';
 import { EmptyState } from '@/components/ui/empty-state';
 
 interface ToothDetailDialogProps {
@@ -72,6 +73,19 @@ export function ToothDetailDialog({
         startIndex: number;
     } | null>(null);
     const [detailLoadingTreatmentId, setDetailLoadingTreatmentId] = useState<string | null>(null);
+    // The tooth detail dialog mirrors the treatment-history-card's gating:
+    // a viewer without payments.view sees clinical context (date, work,
+    // teeth, images) but no money. The dialog is opened from BOTH the
+    // clinical-snapshot card and the dedicated odontogram page, so we read
+    // permissions here instead of forcing every caller to thread a prop —
+    // the dialog should never expose financials regardless of where it
+    // launches from.
+    const currentUserQuery = useQuery({
+        queryKey: ['auth', 'me'],
+        queryFn: getCurrentUser,
+        staleTime: 30_000,
+    });
+    const canViewFinancials = canView(currentUserQuery.data, 'payments');
 
     const getLinkedTeeth = (treatment: ApiTreatment): number[] => {
         const linkedTeeth = new Set<number>();
@@ -155,14 +169,30 @@ export function ToothDetailDialog({
                     </DialogHeader>
 
                     <div className="space-y-4">
+                        {/* Locked-state preserves the 3-card grid for viewers
+                            without payments.view so the dialog shape stays
+                            consistent — see MetricSummaryCard `locked` prop. */}
                         <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-                            <MetricSummaryCard label={t('patientHistory.table.debt')} value={formatCurrency(summary.totalDebt)} tone="red" tabular />
-                            <MetricSummaryCard label={t('patientHistory.table.paid')} value={formatCurrency(summary.totalPaid)} tone="emerald" tabular />
+                            <MetricSummaryCard
+                                label={t('patientHistory.table.debt')}
+                                value={formatCurrency(summary.totalDebt)}
+                                tone="red"
+                                tabular
+                                locked={!canViewFinancials}
+                            />
+                            <MetricSummaryCard
+                                label={t('patientHistory.table.paid')}
+                                value={formatCurrency(summary.totalPaid)}
+                                tone="emerald"
+                                tabular
+                                locked={!canViewFinancials}
+                            />
                             <MetricSummaryCard
                                 label={t('patientHistory.table.remaining')}
                                 value={formatCurrency(summary.netBalance)}
                                 tone={getBalanceMetricTone(summary.netBalance)}
                                 tabular
+                                locked={!canViewFinancials}
                             />
                         </div>
 
@@ -192,28 +222,53 @@ export function ToothDetailDialog({
                                                         {treatment.treatment_type}
                                                     </p>
                                                 </div>
+                                                {/* Per-row financial trio stays in layout regardless
+                                                    of permission — viewers without payments.view see
+                                                    Lock + "No access" in each cell so the row width
+                                                    stays consistent across permission shapes. */}
                                                 <div className="grid grid-cols-3 gap-3 text-right text-xs sm:flex-none">
                                                     <div>
                                                         <p className="text-xs font-medium uppercase tracking-wide text-slate-400">{t('patientHistory.table.debt')}</p>
-                                                        <p className="whitespace-nowrap text-sm font-semibold tabular-nums text-red-700">{formatCurrency(Number(treatment.debt_amount ?? 0))}</p>
+                                                        {canViewFinancials ? (
+                                                            <p className="whitespace-nowrap text-sm font-semibold tabular-nums text-red-700">{formatCurrency(Number(treatment.debt_amount ?? 0))}</p>
+                                                        ) : (
+                                                            <span className="inline-flex items-center gap-1 text-sm font-semibold text-slate-300" aria-label={t('dashboard.lockedKpi.label')}>
+                                                                <Lock className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                                                                <span className="truncate">{t('dashboard.lockedKpi.label')}</span>
+                                                            </span>
+                                                        )}
                                                     </div>
                                                     <div>
                                                         <p className="text-xs font-medium uppercase tracking-wide text-slate-400">{t('patientHistory.table.paid')}</p>
-                                                        <p className="whitespace-nowrap text-sm font-semibold tabular-nums text-green-700">{formatCurrency(Number(treatment.paid_amount ?? 0))}</p>
+                                                        {canViewFinancials ? (
+                                                            <p className="whitespace-nowrap text-sm font-semibold tabular-nums text-green-700">{formatCurrency(Number(treatment.paid_amount ?? 0))}</p>
+                                                        ) : (
+                                                            <span className="inline-flex items-center gap-1 text-sm font-semibold text-slate-300" aria-label={t('dashboard.lockedKpi.label')}>
+                                                                <Lock className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                                                                <span className="truncate">{t('dashboard.lockedKpi.label')}</span>
+                                                            </span>
+                                                        )}
                                                     </div>
                                                     <div>
                                                         <p className="text-xs font-medium uppercase tracking-wide text-slate-400">{t('patientHistory.table.remaining')}</p>
-                                                        <p
-                                                            className={`whitespace-nowrap text-sm font-semibold tabular-nums ${
-                                                                Number(treatment.balance ?? 0) > 0
-                                                                    ? 'text-red-700'
-                                                                    : Number(treatment.balance ?? 0) < 0
-                                                                        ? 'text-green-700'
-                                                                        : 'text-slate-700'
-                                                            }`}
-                                                        >
-                                                            {formatCurrency(Number(treatment.balance ?? 0))}
-                                                        </p>
+                                                        {canViewFinancials ? (
+                                                            <p
+                                                                className={`whitespace-nowrap text-sm font-semibold tabular-nums ${
+                                                                    Number(treatment.balance ?? 0) > 0
+                                                                        ? 'text-red-700'
+                                                                        : Number(treatment.balance ?? 0) < 0
+                                                                            ? 'text-green-700'
+                                                                            : 'text-slate-700'
+                                                                }`}
+                                                            >
+                                                                {formatCurrency(Number(treatment.balance ?? 0))}
+                                                            </p>
+                                                        ) : (
+                                                            <span className="inline-flex items-center gap-1 text-sm font-semibold text-slate-300" aria-label={t('dashboard.lockedKpi.label')}>
+                                                                <Lock className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                                                                <span className="truncate">{t('dashboard.lockedKpi.label')}</span>
+                                                            </span>
+                                                        )}
                                                     </div>
                                                 </div>
                                             </div>

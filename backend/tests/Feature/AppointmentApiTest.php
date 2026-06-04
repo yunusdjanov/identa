@@ -141,8 +141,16 @@ class AppointmentApiTest extends TestCase
             ->assertJsonPath('data.end_time', '11:00');
     }
 
-    public function test_dentist_can_create_appointment_in_past_slot(): void
+    public function test_dentist_cannot_create_appointment_in_past_slot(): void
     {
+        // Backfilling past appointments was originally allowed (clinics often
+        // log visits after the fact). The UX feedback was the opposite — the
+        // form was being mis-used to record "the patient came in but I forgot
+        // to schedule them," which collided with the no-show / completed status
+        // workflow. FA-X1 closed that door on create by adding
+        // `after_or_equal:today` to StoreAppointmentRequest; UpdateAppointment
+        // still allows past dates so already-created appointments can be moved
+        // (see `test_dentist_can_move_appointment_to_past_slot` for that path).
         $dentist = User::factory()->create();
         $patient = Patient::factory()->create([
             'dentist_id' => $dentist->id,
@@ -158,10 +166,8 @@ class AppointmentApiTest extends TestCase
                 'end_time' => '10:30',
                 'status' => Appointment::STATUS_SCHEDULED,
             ])
-            ->assertCreated()
-            ->assertJsonPath('data.appointment_date', $pastDate)
-            ->assertJsonPath('data.start_time', '10:00')
-            ->assertJsonPath('data.end_time', '10:30');
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['appointment_date']);
     }
 
     public function test_dentist_can_create_appointment_overlapping_no_show_slot(): void

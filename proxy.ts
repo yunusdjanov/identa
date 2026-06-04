@@ -6,6 +6,13 @@ const AUTHENTICATED_LOGIN_PATHS = new Set(['/login', '/admin/login']);
 const SESSION_COOKIE_NAMES = ['identa-session', 'identa_session', 'laravel-session', 'laravel_session'];
 const LARAVEL_REMEMBER_COOKIE_PREFIX = 'remember_web_';
 
+// Mock-mode cookies set by the in-app mock API (`app/api/v1/*`). Production
+// (Laravel + Sanctum) never sets these — there `mockModeActive` is false and
+// the gate becomes a no-op (the client `useEffect` redirect + backend
+// `role:admin` middleware remain the only enforcement, same as before).
+const MOCK_SESSION_COOKIE = 'mock_session';
+const MOCK_ROLE_COOKIE = 'mock_role';
+
 export function normalizeApiRootUrl(): string {
     const configuredApiUrl = process.env.NEXT_PUBLIC_API_URL
         ?? process.env.API_URL
@@ -62,6 +69,49 @@ async function resolveAuthenticatedDestination(request: NextRequest): Promise<st
     }
 }
 
+/**
+ * Server-side guard for the /admin panel in mock mode.
+ *
+ * Without this, the client-only `useEffect` redirect in admin pages runs only
+ * AFTER the full React bundle, every admin React Query call, and the CSRF
+ * cookie roundtrip have executed — none of which is gated by the role. A
+ * non-admin who navigates to /admin/* would still trigger admin endpoint
+ * calls (which the mock + backend reject, but the surface is wider than it
+ * should be).
+ *
+ * In mock mode the role lives on the `mock_role` cookie. In production
+ * (Laravel + Sanctum) the role isn't on the cookie — only a session id —
+ * so this gate is a no-op there and we rely on the client `useEffect` +
+ * backend `role:admin` middleware as defense in depth.
+ */
+function resolveAdminGateRedirect(request: NextRequest): URL | null {
+    const pathname = normalizePathname(request.nextUrl.pathname);
+
+    // Only gate /admin/*. /admin/login must remain reachable so the page can
+    // surface the access-required toast.
+    if (!pathname.startsWith('/admin') || pathname === '/admin/login') {
+        return null;
+    }
+
+    const mockSession = request.cookies.get(MOCK_SESSION_COOKIE);
+    const mockRole = request.cookies.get(MOCK_ROLE_COOKIE)?.value;
+    const mockModeActive = mockSession !== undefined || mockRole !== undefined;
+
+    if (!mockModeActive) {
+        // Production mode — backend + client gate this; nothing to do here.
+        return null;
+    }
+
+    if (!mockSession || mockRole !== 'admin') {
+        const redirectUrl = request.nextUrl.clone();
+        redirectUrl.pathname = '/admin/login';
+        redirectUrl.search = '';
+        return redirectUrl;
+    }
+
+    return null;
+}
+
 export async function proxy(request: NextRequest) {
     const host = request.headers.get('host');
 
@@ -71,6 +121,11 @@ export async function proxy(request: NextRequest) {
         redirectUrl.host = CANONICAL_HOST;
 
         return NextResponse.redirect(redirectUrl, 308);
+    }
+
+    const adminGateRedirect = resolveAdminGateRedirect(request);
+    if (adminGateRedirect !== null) {
+        return NextResponse.redirect(adminGateRedirect, 307);
     }
 
     const pathname = normalizePathname(request.nextUrl.pathname);

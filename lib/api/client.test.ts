@@ -1,6 +1,6 @@
 import { AxiosError } from 'axios';
-import { afterEach, describe, expect, it, vi } from 'vitest';
-import { apiClient, apiMutationRequest, getApiErrorMessage } from '@/lib/api/client';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { apiClient, apiMutationRequest, getApiErrorMessage, invalidateCsrfCookie } from '@/lib/api/client';
 import {
     AUTH_SESSION_EXPIRED_EVENT,
     consumeAuthRedirectReason,
@@ -14,6 +14,10 @@ afterEach(() => {
     global.fetch = originalFetch;
     window.sessionStorage.clear();
     resetSessionExpiredNotification();
+    // Reset the module-level CSRF cache and clear the cookie so no test leaks
+    // CSRF state (or a pending csrf-token fetch) into the next one.
+    invalidateCsrfCookie();
+    document.cookie = 'XSRF-TOKEN=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/';
 });
 
 describe('getApiErrorMessage', () => {
@@ -206,6 +210,15 @@ describe('getApiErrorMessage', () => {
 });
 
 describe('apiMutationRequest', () => {
+    beforeEach(() => {
+        // Prime an XSRF-TOKEN cookie so apiMutationRequest finds a token and
+        // skips ensureCsrfCookie() entirely. Without this, each mutation fires
+        // a real axios GET to /auth/csrf-token that rejects with a network
+        // error in jsdom — an unhandled rejection that vitest non-deterministically
+        // attributes to whichever test is mid-flight, making this suite flaky.
+        document.cookie = 'XSRF-TOKEN=test-csrf-token; path=/';
+    });
+
     it('throws a safe message for non-JSON error responses', async () => {
         global.fetch = vi.fn().mockResolvedValue({
             ok: false,

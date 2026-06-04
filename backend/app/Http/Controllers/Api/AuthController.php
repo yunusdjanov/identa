@@ -135,8 +135,17 @@ class AuthController extends Controller
                 entityId: (string) $user->id,
             );
 
+            // Delete the SPECIFIC current token by id, not by name. Two
+            // simultaneous mobile devices may legitimately share a token
+            // name ("mobile") — deleting by name would log out the
+            // user's other device too. Use `->delete()` on the
+            // PersonalAccessToken record directly when present.
             $currentToken = $user->currentAccessToken();
-            if ($currentToken !== null && method_exists($currentToken, 'delete')) {
+            if ($currentToken instanceof PersonalAccessToken) {
+                $currentToken->delete();
+            } elseif ($currentToken !== null && method_exists($currentToken, 'delete')) {
+                // Fallback for non-Sanctum token instances (transient
+                // session token); falls back to the by-name helper.
                 $this->deleteMobileTokensForDevice($user, (string) $currentToken->name);
             }
 
@@ -279,11 +288,25 @@ class AuthController extends Controller
             'email' => ['required', 'email'],
         ]);
 
-        $this->auditLogger->logFromRequest(
-            request: $request,
+        // Resolve the dentist whose account is being abused so the audit
+        // row lands on their tenant. Without this, password-reset probes
+        // are written with `dentist_id=null` and the victim can never see
+        // the attempt in their own /audit-logs panel. We DO NOT log the
+        // typed email — that's a low-grade enumeration vector — only
+        // the resolved dentist_id (null when the email doesn't match).
+        $email = $request->string('email')->toString();
+        $targetUser = \App\Models\User::query()
+            ->where('email', $email)
+            ->whereNull('deleted_at')
+            ->first();
+        $tenantDentistId = $targetUser?->tenantDentistId();
+
+        $this->auditLogger->log(
+            actor: null,
             eventType: 'auth.password_reset_requested',
+            tenantDentistId: $tenantDentistId,
             metadata: [
-                'email' => $request->string('email')->toString(),
+                'has_match' => $targetUser !== null,
             ],
         );
 
@@ -311,15 +334,34 @@ class AuthController extends Controller
         ]);
 
         $resetUserId = null;
+        /** @var User|null $resetUser */
+        $resetUser = null;
 
         $status = Password::reset(
             $request->only('email', 'password', 'password_confirmation', 'token'),
-            function (User $user, string $password) use (&$resetUserId): void {
+            function (User $user, string $password) use (&$resetUserId, &$resetUser): void {
                 $user->forceFill([
                     'password' => Hash::make($password),
                     'remember_token' => Str::random(60),
                 ])->save();
                 $resetUserId = (string) $user->id;
+                $resetUser = $user;
+
+                // Revoke every Sanctum personal-access token. Without this
+                // an exfiltrated PAT survives the password reset and the
+                // attacker keeps full access — the new password rotation
+                // only matters for credential-based logins. Mirrors the
+                // admin-driven reset path in DentistAccountController.
+                $user->tokens()->delete();
+
+                // If this user is a dentist, cascade to their assistants
+                // too: a tenant password reset shouldn't leave assistant
+                // PATs alive on the previous credential state.
+                if ($user->isDentist()) {
+                    foreach ($user->assistants as $assistant) {
+                        $assistant->tokens()->delete();
+                    }
+                }
 
                 event(new PasswordReset($user));
             }
@@ -331,14 +373,25 @@ class AuthController extends Controller
             ]);
         }
 
-        $this->auditLogger->logFromRequest(
-            request: $request,
+        // Use `log()` (not `logFromRequest()`) so the audit row's
+        // `dentist_id` is populated from the resolved user's tenant. The
+        // public reset flow has no authenticated actor on the request, so
+        // `logFromRequest()` would leave dentist_id null and the event
+        // would be invisible to the dentist owner whose assistant just had
+        // their password reset (or to the dentist themselves on a
+        // self-initiated reset). Threading the resolved user as `actor`
+        // keeps the tenant audit log honest. IP / user-agent are still
+        // captured directly from the request to preserve forensics.
+        $this->auditLogger->log(
+            actor: $resetUser,
             eventType: 'auth.password_reset_completed',
             entityType: $resetUserId !== null ? 'user' : null,
             entityId: $resetUserId,
             metadata: [
                 'email' => $request->string('email')->toString(),
             ],
+            ipAddress: $request->ip(),
+            userAgent: $request->userAgent(),
         );
 
         return response()->json([

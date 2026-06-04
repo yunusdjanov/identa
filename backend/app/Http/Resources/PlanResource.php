@@ -6,6 +6,10 @@ use App\Models\Plan;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
+/**
+ * Single source of truth for plan serialization. Used by both public billing
+ * endpoints and the admin plan editor — keep them in sync.
+ */
 class PlanResource extends JsonResource
 {
     public function __construct(Plan $resource)
@@ -39,6 +43,7 @@ class PlanResource extends JsonResource
             'can_export' => (bool) $plan->can_export,
             'is_active' => (bool) $plan->is_active,
             'sort_order' => (int) $plan->sort_order,
+            'updated_at' => $plan->updated_at?->toIso8601String(),
         ];
     }
 }

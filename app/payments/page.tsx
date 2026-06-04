@@ -28,7 +28,7 @@ import { buildPdfFilename, exportRowsToPdf } from '@/lib/export/pdf';
 import { EmptyState } from '@/components/ui/empty-state';
 import { AppErrorState } from '@/components/error/app-error-state';
 import { AccessDeniedState } from '@/components/error/access-denied-state';
-import { canView, PERMISSION_DENIED_MESSAGE } from '@/lib/auth/permissions';
+import { canView } from '@/lib/auth/permissions';
 import { toast } from 'sonner';
 
 const PAGE_SIZE = 10;
@@ -345,7 +345,7 @@ export default function PaymentsPage() {
                 <PageHeader title={t('payments.title')} description={t('payments.subtitle')} />
                 <AccessDeniedState
                     title={t('common.forbiddenTitle')}
-                    description={PERMISSION_DENIED_MESSAGE}
+                    description={t('permissions.deniedDescription')}
                     actionLabel={t('dashboard.title')}
                     className="min-h-[20rem] px-0 py-0"
                 />
@@ -615,7 +615,7 @@ export default function PaymentsPage() {
                                                                 <Button
                                                                     variant="outline"
                                                                     size="sm"
-                                                                    onClick={() => toast.error(PERMISSION_DENIED_MESSAGE)}
+                                                                    onClick={() => toast.error(t('permissions.deniedDescription'))}
                                                                 >
                                                                     {t('payments.openHistory')}
                                                                 </Button>

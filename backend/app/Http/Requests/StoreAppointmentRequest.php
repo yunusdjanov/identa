@@ -30,17 +30,23 @@ class StoreAppointmentRequest extends FormRequest
                         ->whereNull('deleted_at')
                 ),
             ],
-            'appointment_date' => ['required', 'date'],
+            // Server-side guard against past-date booking. UI already
+            // blocks via the date picker, but the API used to accept any
+            // date — letting a malicious or scripted client backdate
+            // appointments. UpdateAppointmentRequest overrides this rule
+            // because existing past appointments must remain editable
+            // (e.g., marking yesterday's slot as completed). FA-X1.
+            'appointment_date' => ['required', 'date', 'after_or_equal:today'],
             'start_time' => ['required', 'date_format:H:i'],
             'end_time' => ['required', 'date_format:H:i', 'after:start_time'],
+            // On CREATE, restrict status to the only valid initial state.
+            // Allowing `completed/cancelled/no_show` on POST bypasses the
+            // immutability barrier in AppointmentService::update — UI
+            // never sends these on POST anyway. Edits use a separate
+            // path that respects the IMMUTABLE_STATUSES contract.
             'status' => [
                 'nullable',
-                Rule::in([
-                    Appointment::STATUS_SCHEDULED,
-                    Appointment::STATUS_COMPLETED,
-                    Appointment::STATUS_CANCELLED,
-                    Appointment::STATUS_NO_SHOW,
-                ]),
+                Rule::in([Appointment::STATUS_SCHEDULED]),
             ],
             'reason' => ['nullable', 'string', 'max:255'],
         ];

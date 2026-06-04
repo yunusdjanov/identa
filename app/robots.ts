@@ -15,7 +15,6 @@ export default function robots(): MetadataRoute.Robots {
           "/billing/",
           "/dashboard/",
           "/forgot-password",
-          "/identa-handoff/",
           "/login",
           "/patients/",
           "/payments/",

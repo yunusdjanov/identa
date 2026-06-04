@@ -157,14 +157,26 @@ class PatientService
 
     public function update(UpdatePatientRequest $request, string $id): Patient
     {
-        $patient = $this->ownedPatient($request, $id);
-        $this->ensureNotArchived($patient, __('api.patients.archived_restore_before_edit'));
-
         $validated = $request->validated();
         $patientAttributes = collect($validated)
             ->except(['category_id'])
             ->all();
-        $patient = DB::transaction(function () use ($patient, $patientAttributes, $validated): Patient {
+        $dentistId = $this->dentistId($request);
+        $archivedMessage = __('api.patients.archived_restore_before_edit');
+
+        $patient = DB::transaction(function () use ($id, $dentistId, $patientAttributes, $validated, $archivedMessage): Patient {
+            // Lock the patient row inside the transaction so two concurrent
+            // two-tab edits (or admin + assistant) serialise on the row.
+            // Without the lock, syncCategory() can interleave detach/attach
+            // operations and drop a category that another writer just added.
+            $patient = Patient::query()
+                ->withTrashed()
+                ->where('id', $id)
+                ->where('dentist_id', $dentistId)
+                ->lockForUpdate()
+                ->firstOrFail();
+            $this->ensureNotArchived($patient, $archivedMessage);
+
             $patient->update($patientAttributes);
             $this->syncCategory($patient, $validated);
 
@@ -274,9 +286,16 @@ class PatientService
     {
         $patient = $this->ownedPatient($request, $id);
         $patientId = (string) $patient->id;
-        if (! $patient->trashed()) {
-            $patient->delete();
+        // Idempotency: already-archived patient should be a no-op — no
+        // duplicate audit entry. Without this guard, a double-click on
+        // the archive button writes two `patient.archived` events,
+        // which clutters the audit log and confuses downstream
+        // analytics. FA-X4 D1.b.
+        if ($patient->trashed()) {
+            return;
         }
+
+        $patient->delete();
 
         $this->auditLogger->logFromRequest(
             request: $request,
@@ -288,22 +307,37 @@ class PatientService
 
     public function restore(Request $request, string $id): Patient
     {
-        $patient = $this->ownedPatient($request, $id);
-        if (! $patient->trashed()) {
+        // Wrap in DB::transaction + lockForUpdate so two concurrent
+        // restore calls (browser double-click, retried mutation) don't
+        // both proceed through the `trashed()` check at the same time
+        // — without the lock the second call would see the row still
+        // trashed momentarily and queue another restore + audit entry.
+        // FA-X4 D1.
+        return DB::transaction(function () use ($request, $id): Patient {
+            $dentistId = $this->dentistId($request);
+            /** @var Patient $patient */
+            $patient = Patient::query()
+                ->withTrashed()
+                ->where('dentist_id', $dentistId)
+                ->where('id', $id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if (! $patient->trashed()) {
+                return $patient;
+            }
+
+            $patient->restore();
+
+            $this->auditLogger->logFromRequest(
+                request: $request,
+                eventType: 'patient.restored',
+                entityType: 'patient',
+                entityId: (string) $patient->id,
+            );
+
             return $patient;
-        }
-
-        $patient->restore();
-        $restoredPatient = $this->ownedPatient($request, $id);
-
-        $this->auditLogger->logFromRequest(
-            request: $request,
-            eventType: 'patient.restored',
-            entityType: 'patient',
-            entityId: (string) $patient->id,
-        );
-
-        return $restoredPatient;
+        });
     }
 
     public function forceDelete(Request $request, string $id): void

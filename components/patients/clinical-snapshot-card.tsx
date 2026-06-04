@@ -1,12 +1,15 @@
 ﻿'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { ChevronDown, ChevronUp } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { ChevronDown, ChevronUp, Lock } from 'lucide-react';
 import type { ApiTreatment } from '@/lib/api/types';
 import { useI18n } from '@/components/providers/i18n-provider';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatCurrency, formatDate } from '@/lib/utils';
+import { getCurrentUser } from '@/lib/api/dentist';
+import { canView } from '@/lib/auth/permissions';
 import { ToothDetailDialog } from '@/components/odontogram/tooth-detail-dialog';
 
 interface ClinicalSnapshotCardProps {
@@ -32,6 +35,16 @@ export function ClinicalSnapshotCard({
     const [isOdontogramOpen, setIsOdontogramOpen] = useState(false);
     const [isPreferenceLoaded, setIsPreferenceLoaded] = useState(false);
     const [selectedTooth, setSelectedTooth] = useState<number | null>(null);
+    // The net-balance chip leaks the same financial signal as the
+    // treatment-history-card summary trio. Gate on payments.view so an
+    // assistant without that perm doesn't see the patient's outstanding
+    // balance in the snapshot header.
+    const currentUserQuery = useQuery({
+        queryKey: ['auth', 'me'],
+        queryFn: getCurrentUser,
+        staleTime: 30_000,
+    });
+    const canViewFinancials = canView(currentUserQuery.data, 'payments');
 
     useEffect(() => {
         try {
@@ -230,7 +243,7 @@ export function ClinicalSnapshotCard({
                             <span className="text-slate-500">{t('patientHistory.netBalance')}:</span>
                             {showTreatmentSkeleton ? (
                                 <Skeleton className="h-4 w-24 rounded" />
-                            ) : (
+                            ) : canViewFinancials ? (
                                 <span
                                     className={`font-semibold ${
                                         showTreatmentFallback
@@ -243,6 +256,11 @@ export function ClinicalSnapshotCard({
                                     }`}
                                 >
                                     {showTreatmentFallback ? '-' : formatCurrency(netBalance)}
+                                </span>
+                            ) : (
+                                <span className="inline-flex items-center gap-1 font-semibold text-slate-300" aria-label={t('dashboard.lockedKpi.label')}>
+                                    <Lock className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                                    {t('dashboard.lockedKpi.label')}
                                 </span>
                             )}
                         </div>

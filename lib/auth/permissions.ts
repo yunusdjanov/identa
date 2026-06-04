@@ -1,6 +1,6 @@
 import type { ApiUser } from '@/lib/api/types';
 
-export const STAFF_PERMISSIONS = [
+const STAFF_PERMISSIONS = [
     'patients.view',
     'patients.manage',
     'appointments.view',
@@ -9,12 +9,10 @@ export const STAFF_PERMISSIONS = [
     'payments.manage',
 ] as const;
 
-export type StaffPermission = (typeof STAFF_PERMISSIONS)[number];
-export type PermissionModule = 'patients' | 'appointments' | 'payments';
+type StaffPermission = (typeof STAFF_PERMISSIONS)[number];
+type PermissionModule = 'patients' | 'appointments' | 'payments';
 
-export const READ_ONLY_DENIED_MESSAGE = "Tarif muddati tugagan. Ma'lumotlarni o'zgartirish uchun tarifni yangilang.";
-
-export const PERMISSION_DENIED_MESSAGE = 'Sizda bu bo‘limga kirish uchun ruxsat yo‘q.';
+type PermissionsTranslator = (key: string) => string;
 
 const MODULE_PERMISSIONS: Record<PermissionModule, { view: StaffPermission; manage: StaffPermission }> = {
     patients: {
@@ -64,12 +62,23 @@ export function normalizeAssistantPermissions(permissions: string[] | undefined 
     return STAFF_PERMISSIONS.filter((permission) => permissionSet.has(permission));
 }
 
-export function isStaffPermission(permission: string): permission is StaffPermission {
+function isStaffPermission(permission: string): permission is StaffPermission {
     return (STAFF_PERMISSIONS as readonly string[]).includes(permission);
 }
 
 export function hasPermission(user: ApiUser | null | undefined, permission: StaffPermission): boolean {
     if (!user) {
+        return false;
+    }
+
+    // A blocked or soft-deleted assistant whose `/auth/me` still echoes the
+    // legacy session payload (token cascade in flight, or stale cache from
+    // before the dentist owner was blocked) would otherwise pass every
+    // permission check and briefly see protected UI. Backend mutations are
+    // already guarded by EnsureRole/EnsureAccessChain, but the UI should
+    // also degrade gracefully — no "you can edit" affordances should appear
+    // when the underlying account is not in good standing.
+    if (user.account_status && user.account_status !== 'active') {
         return false;
     }
 
@@ -110,10 +119,26 @@ export function getModuleForPath(pathname: string): PermissionModule | null {
     return null;
 }
 
+/**
+ * Is the user allowed to open /analytics? Analytics aggregates payments,
+ * patients, and appointments — granting access if ANY of those view
+ * permissions is granted. Returns `true` for dentist/admin without
+ * checking individual permissions (they always pass).
+ *
+ * Used by the nav-link locked-state and the page-level `AccessDeniedState`
+ * gate to stay in sync. Without it, the analytics nav link was always
+ * unlocked, sending zero-permission assistants to a blank-ish page.
+ */
+export function canViewAnalytics(user: ApiUser | null | undefined): boolean {
+    return canView(user, 'patients')
+        || canView(user, 'appointments')
+        || canView(user, 'payments');
+}
+
 export function isSubscriptionReadOnly(user: ApiUser | null | undefined): boolean {
     return user?.role !== 'admin' && user?.subscription?.is_read_only === true;
 }
 
-export function getManageDeniedMessage(user: ApiUser | null | undefined): string {
-    return isSubscriptionReadOnly(user) ? READ_ONLY_DENIED_MESSAGE : PERMISSION_DENIED_MESSAGE;
+export function getManageDeniedMessage(user: ApiUser | null | undefined, t: PermissionsTranslator): string {
+    return t(isSubscriptionReadOnly(user) ? 'permissions.readOnlyDeniedDescription' : 'permissions.deniedDescription');
 }

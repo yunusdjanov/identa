@@ -16,6 +16,20 @@ Object.defineProperty(globalThis, 'ResizeObserver', {
     writable: true,
 });
 
+class IntersectionObserverMock {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+    takeRecords() {
+        return [];
+    }
+}
+
+Object.defineProperty(globalThis, 'IntersectionObserver', {
+    value: IntersectionObserverMock,
+    writable: true,
+});
+
 Object.defineProperty(window, 'matchMedia', {
     writable: true,
     value: (query: string) => ({

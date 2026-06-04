@@ -10,6 +10,7 @@ return [
         'email_verification_sent' => 'Tasdiqlash xati pochtangizga yuborildi.',
         'email_already_verified' => 'Email allaqachon tasdiqlangan.',
         'email_verification_send_failed' => 'Xat yuborilmadi. Keyinroq urinib ko‘ring.',
+        'password_change_required' => 'Davom etishdan oldin parolingizni almashtiring.',
     ],
     'appointments' => [
         'conflict' => 'Qabul vaqti mavjud qabul bilan to‘qnashmoqda.',
@@ -60,6 +61,9 @@ return [
             'bank_transfer' => 'Bank o‘tkazmasi',
         ],
     ],
+    'errors' => [
+        'server_error' => 'Server xatosi yuz berdi. Iltimos, keyinroq qayta urinib ko‘ring.',
+    ],
     'payments' => [
         'amount_exceeds_balance' => 'To‘lov summasi qarzdorlik qoldig‘idan oshib ketmasligi kerak.',
     ],
@@ -88,6 +92,8 @@ return [
     'treatments' => [
         'archived_restore_before_add' => 'Davolash yozuvini qo‘shishdan oldin arxivdagi bemorni tiklang.',
         'archived_restore_before_edit' => 'Davolash tarixini tahrirlashdan oldin arxivdagi bemorni tiklang.',
+        'paid_exceeds_debt' => 'To‘langan summa qarz summasidan oshib ketmasligi kerak.',
+        'not_found' => 'Davolash topilmadi yoki sizning bemoringizga tegishli emas.',
         'archived_restore_before_delete' => 'Davolash tarixini o‘chirishdan oldin arxivdagi bemorni tiklang.',
         'archived_restore_before_upload_images' => 'Davolash rasmlarini yuklashdan oldin arxivdagi bemorni tiklang.',
         'archived_restore_before_delete_images' => 'Davolash rasmlarini o‘chirishdan oldin arxivdagi bemorni tiklang.',

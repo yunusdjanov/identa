@@ -10,7 +10,12 @@ class StoreAssistantRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return true;
+        // Defense-in-depth — the route is already guarded by
+        // `role:dentist` + `permission:team.manage`, but the FormRequest
+        // must NOT silently allow non-dentists if some future refactor
+        // attaches it to a different group. Mirrors the admin-side
+        // hardening done in F12.
+        return $this->user()?->isDentist() === true;
     }
 
     /**

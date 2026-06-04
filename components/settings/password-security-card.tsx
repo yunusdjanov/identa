@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Lock } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -22,6 +23,9 @@ interface PasswordSecurityCardProps {
 export function PasswordSecurityCard({ user, className }: PasswordSecurityCardProps) {
     const { t } = useI18n();
     const queryClient = useQueryClient();
+    const router = useRouter();
+    const pathname = usePathname();
+    const searchParams = useSearchParams();
     const [currentPassword, setCurrentPassword] = useState('');
     const [newPassword, setNewPassword] = useState('');
     const [newPasswordConfirmation, setNewPasswordConfirmation] = useState('');
@@ -59,6 +63,18 @@ export function PasswordSecurityCard({ user, className }: PasswordSecurityCardPr
             setNewPasswordConfirmation('');
             setIsSubmitted(false);
             toast.success(t('settings.passwordChanged'));
+            // After a forced reset clears, drop the `?forceReset=1` flag
+            // from the URL. Without this the Settings page's tab lock
+            // (driven by either `must_change_password` OR the URL param)
+            // would stay engaged until the user manually navigated away,
+            // leaving profile/practice/hours visibly disabled even though
+            // the user is now fully in good standing.
+            if (searchParams?.get('forceReset')) {
+                const next = new URLSearchParams(searchParams.toString());
+                next.delete('forceReset');
+                const queryString = next.toString();
+                router.replace(queryString ? `${pathname}?${queryString}` : pathname);
+            }
         },
         onError: (error) => {
             toast.error(getApiErrorMessage(error, t('settings.passwordChangeFailed')));

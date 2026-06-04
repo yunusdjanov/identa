@@ -88,7 +88,16 @@ function shouldBroadcastSessionExpiry(path: string | undefined): boolean {
         return true;
     }
 
+    // Skip session-expiry broadcast for paths where a 401 is expected
+    // and self-handled (login / reset flows) OR where the request is
+    // explicitly tearing down the session and the broadcast would
+    // mistakenly fire AFTER a fresh login already completed. The
+    // `/auth/logout` exclusion closes the race documented in Phase 1
+    // M5: rapid logout → re-login could see the in-flight logout's
+    // 401 response notify session-expired AFTER the new login set its
+    // own state, kicking the user back to /login.
     return !path.includes('/auth/login')
+        && !path.includes('/auth/logout')
         && !path.includes('/auth/forgot-password')
         && !path.includes('/auth/reset-password')
         && !path.includes('/auth/me');
@@ -312,11 +321,71 @@ apiClient.interceptors.response.use(
     (error) => {
         if (axios.isAxiosError(error)) {
             handleAuthExpiry(error.response?.status, error.config?.url ?? error.response?.config?.url);
+
+            // When the backend returns 403 with code `subscription_read_only`
+            // (admin revoked, refund cascade, sub expired mid-session), notify
+            // the QueryClient so it can refresh auth/me + billing queries and
+            // the UI flips from "full access" to read-only without a manual
+            // reload. The handler is registered in QueryProvider.
+            if (error.response?.status === 403) {
+                const code = readNestedErrorCode(error.response?.data);
+                if (code === 'subscription_read_only') {
+                    // Dynamic import keeps this file independent of the React
+                    // tree during SSR — the handler list is a module-level Set
+                    // and is harmless to call before the provider mounts.
+                    void import('@/lib/auth/subscription-access').then(({ notifySubscriptionAccessRevoked }) => {
+                        notifySubscriptionAccessRevoked();
+                    });
+                }
+            }
+
+            // Forward 5xx + network failures to Sentry. Backend-side Sentry
+            // sees only Laravel exceptions; if the failure happens at the
+            // CDN / proxy / DNS layer the only signal is on the client. We
+            // skip auth/csrf paths (those throw normally during session
+            // expiry) and 4xx (those are user-error, not infra). Use
+            // dynamic import so SSR/build doesn't pull in the SDK.
+            const status = error.response?.status;
+            const isInfraFailure = status === undefined
+                || status === 0
+                || (status >= 500 && status < 600);
+            const urlPath = error.config?.url ?? '';
+            const isAuthChurn = typeof urlPath === 'string'
+                && (urlPath.includes('/auth/login')
+                    || urlPath.includes('/auth/csrf-token')
+                    || urlPath.includes('/auth/me'));
+            if (isInfraFailure && !isAuthChurn && typeof window !== 'undefined') {
+                void import('@sentry/nextjs').then((Sentry) => {
+                    Sentry.captureException(error, {
+                        tags: {
+                            source: 'axios-interceptor',
+                            status: String(status ?? 'network-error'),
+                        },
+                        extra: {
+                            url: urlPath,
+                            method: error.config?.method,
+                        },
+                    });
+                }).catch(() => {
+                    // Sentry not configured — swallow, no fallback needed.
+                });
+            }
         }
 
         return Promise.reject(error);
     }
 );
+
+function readNestedErrorCode(data: unknown): string | null {
+    if (!data || typeof data !== 'object') return null;
+    const record = data as Record<string, unknown>;
+    const error = record.error;
+    if (error && typeof error === 'object' && 'code' in error) {
+        const code = (error as Record<string, unknown>).code;
+        return typeof code === 'string' ? code : null;
+    }
+    return null;
+}
 
 let csrfCookiePromise: Promise<void> | null = null;
 let csrfCookieEnsured = false;
@@ -368,7 +437,16 @@ export async function withCsrfRetry<T>(operation: () => Promise<T>): Promise<T> 
             invalidateCsrfCookie();
             await ensureCsrfCookie({ force: true });
             try {
-                return await operation();
+                const result = await operation();
+                // The first attempt's 401/419 already triggered the
+                // response interceptor's `handleAuthExpiry` which set the
+                // session-expired notification flag. Now that the retry
+                // succeeded, the session is actually fine — reset the
+                // flag so the next route navigation doesn't redirect
+                // the user to /login (Phase 1 H4 fix).
+                const { resetSessionExpiredNotification } = await import('@/lib/auth/session-expiry');
+                resetSessionExpiredNotification();
+                return result;
             }
             catch (retryError) {
                 if (axios.isAxiosError(retryError)) {
@@ -390,7 +468,26 @@ export async function apiMutationRequest<TResponse>(
         body?: unknown;
     }
 ): Promise<TResponse> {
-    const token = csrfToken ?? getXsrfTokenFromCookie();
+    // Refresh CSRF cookie ONLY when no token is available. The common
+    // case (token cached in memory or in cookie) skips the extra HTTP
+    // round-trip. Phase 1 M4: logout + long-idle sessions sometimes
+    // hit this path with both the in-memory `csrfToken` cache cleared
+    // AND the XSRF-TOKEN cookie expired — without the fetch the POST
+    // goes without `X-CSRF-TOKEN`, backend 419s, and the flow gets
+    // bumped to /login awkwardly. Swallow CSRF-cookie fetch failures
+    // (network errors during tests or offline) so the mutation can
+    // still proceed and receive the real backend response.
+    let token = csrfToken ?? getXsrfTokenFromCookie();
+    if (token === null) {
+        try {
+            await ensureCsrfCookie();
+        } catch {
+            // Best-effort refresh — let the request go without CSRF if
+            // the cookie endpoint is unreachable. Real backend will
+            // 419 and the caller / interceptor handles it.
+        }
+        token = csrfToken ?? getXsrfTokenFromCookie();
+    }
     const locale = resolveApiLocale();
     const response = await fetch(`${resolveApiRootUrl()}/v1${path}`, {
         method: options.method,

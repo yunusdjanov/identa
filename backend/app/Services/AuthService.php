@@ -151,11 +151,17 @@ class AuthService
         unset($credentials['portal']);
 
         if (! Auth::guard('web')->attempt($credentials, $remember)) {
+            // Don't store the typo'd email in audit metadata — anyone with
+            // audit-log access (in future expansions) could enumerate
+            // attempted addresses, which is a low-grade PII leak. The
+            // request-context middleware (AttachRequestContext) already
+            // captures the IP + UA in the audit row's actor envelope,
+            // which is enough for rate/abuse forensics.
             $this->auditLogger->logFromRequest(
                 request: $request,
                 eventType: 'auth.login_failed',
                 metadata: [
-                    'email' => $credentials['email'],
+                    'portal' => $portal,
                 ],
             );
 
@@ -263,6 +269,21 @@ class AuthService
             'remember_token' => null,
         ]);
         $user->refresh();
+
+        // Revoke every Sanctum personal-access token EXCEPT the one
+        // currently in use (so the active session keeps working). This
+        // covers the threat model where a stolen mobile token survives
+        // a self-initiated password change because credential-based
+        // flows don't touch PATs by default — matches the cascade in
+        // AuthController::resetPassword (public reset) and the
+        // dentist-block path.
+        $currentToken = $user->currentAccessToken();
+        $currentTokenId = $currentToken !== null && method_exists($currentToken, 'getKey')
+            ? $currentToken->getKey()
+            : null;
+        $user->tokens()
+            ->when($currentTokenId !== null, fn ($query) => $query->where('id', '!=', $currentTokenId))
+            ->delete();
 
         $this->auditLogger->logFromRequest(
             request: $request,

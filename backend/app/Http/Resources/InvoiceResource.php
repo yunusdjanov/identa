@@ -34,8 +34,13 @@ class InvoiceResource extends JsonResource
             'balance' => (float) $invoice->balance,
             'status' => $invoice->status,
             'invoice_date' => $invoice->invoice_date?->toDateString(),
-            'due_date' => null,
-            'notes' => null,
+            // due_date and notes are persisted as real columns on
+            // invoices; the resource was hardcoding null which meant the
+            // mock returned values the production API silently dropped.
+            // Surface them so frontend due-date highlighting and notes
+            // display work consistently across mock and prod.
+            'due_date' => $invoice->due_date?->toDateString(),
+            'notes' => $invoice->notes,
         ];
 
         if ($this->includeItems) {

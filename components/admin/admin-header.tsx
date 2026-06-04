@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
-import { BarChart3, ClipboardList, CreditCard, SlidersHorizontal } from 'lucide-react';
+import { BarChart3, CreditCard, LineChart, Receipt } from 'lucide-react';
 import { Brand } from '@/components/branding/brand';
 import { AccountMenu } from '@/components/layout/account-menu';
 import { LanguageSwitcher } from '@/components/layout/language-switcher';
@@ -10,7 +10,7 @@ import { cn } from '@/lib/utils';
 import { useI18n } from '@/components/providers/i18n-provider';
 import { getCurrentUser } from '@/lib/api/dentist';
 
-type AdminHeaderSection = 'dashboard' | 'landing' | 'leads' | 'plans' | 'settings';
+type AdminHeaderSection = 'dashboard' | 'analytics' | 'plans' | 'payments' | 'settings';
 
 interface AdminHeaderProps {
     active: AdminHeaderSection;
@@ -25,9 +25,13 @@ const adminNavigation: Array<{
     icon: typeof BarChart3;
 }> = [
     { key: 'admin.nav.dashboard', href: '/admin', section: 'dashboard', icon: BarChart3 },
-    { key: 'admin.nav.landing', href: '/admin/landing', section: 'landing', icon: SlidersHorizontal },
-    { key: 'admin.nav.requests', href: '/admin/leads', section: 'leads', icon: ClipboardList },
+    // Analytics sits between Dashboard (Accounts) and Plans because it summarises
+    // dentist sign-up + plan-mix data — a natural drilldown for an admin who's
+    // just scanned the accounts list and wants to see the macro picture before
+    // diving into per-plan or per-payment screens.
+    { key: 'admin.nav.analytics', href: '/admin/analytics', section: 'analytics', icon: LineChart },
     { key: 'admin.nav.plans', href: '/admin/plans', section: 'plans', icon: CreditCard },
+    { key: 'admin.nav.payments', href: '/admin/payments', section: 'payments', icon: Receipt },
 ];
 
 export function AdminHeader({ active, isLoggingOut = false, onLogout }: AdminHeaderProps) {

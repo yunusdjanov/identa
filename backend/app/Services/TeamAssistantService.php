@@ -99,22 +99,29 @@ class TeamAssistantService
 
     public function update(UpdateAssistantRequest $request, string $id): User
     {
-        $assistant = $this->ownedAssistant($id, $this->dentistId($request), true);
+        $dentistId = $this->dentistId($request);
         $validated = $request->validated();
 
-        $permissions = $assistant->assistant_permissions ?? [];
-        if (array_key_exists('permissions', $validated)) {
-            $permissions = $this->sanitizePermissions($validated['permissions'] ?? []);
-        }
+        // Lock the assistant row so two concurrent admin edits (or admin
+        // rename + assistant self-edit when those paths share a model)
+        // serialise. Otherwise the permissions snapshot can stale.
+        return DB::transaction(function () use ($id, $dentistId, $validated): User {
+            $assistant = $this->ownedAssistant($id, $dentistId, true, true);
 
-        $assistant->update([
-            'name' => trim((string) $validated['name']),
-            'email' => trim((string) $validated['email']),
-            'phone' => $validated['phone'] ?? null,
-            'assistant_permissions' => $permissions,
-        ]);
+            $permissions = $assistant->assistant_permissions ?? [];
+            if (array_key_exists('permissions', $validated)) {
+                $permissions = $this->sanitizePermissions($validated['permissions'] ?? []);
+            }
 
-        return $assistant->fresh();
+            $assistant->update([
+                'name' => trim((string) $validated['name']),
+                'email' => trim((string) $validated['email']),
+                'phone' => $validated['phone'] ?? null,
+                'assistant_permissions' => $permissions,
+            ]);
+
+            return $assistant->fresh();
+        });
     }
 
     public function updateStatus(UpdateAssistantStatusRequest $request, string $id): User
@@ -143,26 +150,66 @@ class TeamAssistantService
 
     public function resetPassword(ResetAssistantPasswordRequest $request, string $id): User
     {
-        $assistant = $this->ownedAssistant($id, $this->dentistId($request), false);
+        $dentistId = $this->dentistId($request);
+        $newPassword = (string) $request->validated('new_password');
 
-        $assistant->update([
-            'password' => Hash::make((string) $request->validated('new_password')),
-            'must_change_password' => true,
-            'remember_token' => null,
-        ]);
+        return DB::transaction(function () use ($id, $dentistId, $newPassword): User {
+            $assistant = $this->ownedAssistant($id, $dentistId, false, true);
 
-        return $assistant;
+            $assistant->update([
+                'password' => Hash::make($newPassword),
+                'must_change_password' => true,
+                'remember_token' => null,
+            ]);
+
+            // Kill any active Sanctum tokens so the assistant's existing app
+            // sessions are forced to re-authenticate with the new password.
+            // Without this, a stolen/active token outlives the reset.
+            $assistant->tokens()->delete();
+
+            return $assistant;
+        });
     }
 
     public function delete(Request $request, string $id): User
     {
-        $assistant = $this->ownedAssistant($id, $this->dentistId($request), true);
+        $dentistId = $this->dentistId($request);
 
+        // Wrap in transaction + lock so two concurrent delete clicks (or
+        // delete + status update racing) can't both pass the
+        // ACCOUNT_STATUS_DELETED check below — the loser would otherwise
+        // overwrite the email rotation done by the winner and re-expose
+        // the original address.
+        return DB::transaction(function () use ($id, $dentistId, $request): User {
+            $assistant = $this->ownedAssistant($id, $dentistId, true, true);
+
+            return $this->performDelete($assistant);
+        });
+    }
+
+    private function performDelete(User $assistant): User
+    {
         if ($assistant->account_status !== User::ACCOUNT_STATUS_DELETED) {
+            // Null out the email + phone on delete so the dentist can
+            // re-invite the same person (or a different person at the
+            // same address) without hitting the hard UNIQUE constraint
+            // on users.email. The original values are preserved via the
+            // controller-level audit log (which reads them BEFORE
+            // calling this service) and the `deleted-{id}@deleted.invalid`
+            // suffix remains scannable for support / forensic recovery.
+            // FA-X2: previously a soft-deleted assistant blocked re-
+            // invite forever because StoreAssistantRequest's
+            // Rule::unique('users','email') checks every row.
             $assistant->update([
                 'account_status' => User::ACCOUNT_STATUS_DELETED,
                 'remember_token' => null,
+                'email' => sprintf('deleted-%s@deleted.invalid', $assistant->id),
+                'phone' => null,
             ]);
+            // Revoke Sanctum tokens — the email rotation makes future
+            // /auth/me fail for stale clients, but tokens-in-flight
+            // would still pass `auth:sanctum` until the next request.
+            $assistant->tokens()->delete();
         }
 
         return $assistant;
@@ -178,12 +225,16 @@ class TeamAssistantService
         return $dentistId;
     }
 
-    public function ownedAssistant(string $id, int $dentistId, bool $allowDeleted): User
+    public function ownedAssistant(string $id, int $dentistId, bool $allowDeleted, bool $lockForUpdate = false): User
     {
         $query = User::query()
             ->where('id', $id)
             ->where('role', User::ROLE_ASSISTANT)
             ->where('dentist_owner_id', $dentistId);
+
+        if ($lockForUpdate) {
+            $query->lockForUpdate();
+        }
 
         if (! $allowDeleted) {
             $query->where('account_status', '!=', User::ACCOUNT_STATUS_DELETED);

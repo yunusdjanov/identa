@@ -40,7 +40,6 @@ interface AddPatientDialogProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     uploadMaxMb?: number | null;
-    storedImageMaxMb?: number | null;
 }
 
 const initialFormData = {
@@ -56,13 +55,11 @@ const initialFormData = {
 };
 const NO_CATEGORY_VALUE = '__none__';
 const DEFAULT_PATIENT_PHOTO_UPLOAD_MAX_MB = 1;
-const DEFAULT_PATIENT_PHOTO_STORED_MAX_MB = 0.5;
 
 export function AddPatientDialog({
     open,
     onOpenChange,
     uploadMaxMb = DEFAULT_PATIENT_PHOTO_UPLOAD_MAX_MB,
-    storedImageMaxMb = DEFAULT_PATIENT_PHOTO_STORED_MAX_MB,
 }: AddPatientDialogProps) {
     const { t } = useI18n();
     const queryClient = useQueryClient();
@@ -105,9 +102,7 @@ export function AddPatientDialog({
     const secondaryPhoneError = getPhoneValidationMessage(formData.secondaryPhone, { required: false });
     const hasValidationErrors = Boolean(fullNameError || phoneError || secondaryPhoneError || addressError || medicalHistoryError || allergiesError || currentMedicationsError);
     const photoUploadMaxMb = uploadMaxMb ?? DEFAULT_PATIENT_PHOTO_UPLOAD_MAX_MB;
-    const photoStoredMaxMb = storedImageMaxMb ?? DEFAULT_PATIENT_PHOTO_STORED_MAX_MB;
     const photoUploadMaxBytes = photoUploadMaxMb * 1024 * 1024;
-    const photoStoredMaxBytes = photoStoredMaxMb * 1024 * 1024;
 
     const handleDialogOpenChange = (nextOpen: boolean) => {
         if (!nextOpen) {
@@ -192,17 +187,14 @@ export function AddPatientDialog({
             return;
         }
 
+        // Client-side optimization is a bandwidth helper only — the backend
+        // image pipeline auto-compresses with quality-preserving heuristics
+        // and no longer enforces a per-file stored cap. We trust the backend
+        // to fit storage, so we don't reject the optimized result here.
         const optimizedPhoto = await optimizeImageFileForUpload(selectedPhoto, {
             maxEdge: 1400,
-            targetMaxBytes: photoStoredMaxBytes,
+            targetMaxBytes: null,
         });
-
-        if (optimizedPhoto.size > photoStoredMaxBytes) {
-            toast.error(t('patients.toast.photoTooLarge', { sizeMb: photoStoredMaxMb }));
-            setPhotoFile(null);
-            setPhotoInputKey((value) => value + 1);
-            return;
-        }
 
         setPhotoFile(optimizedPhoto);
     };

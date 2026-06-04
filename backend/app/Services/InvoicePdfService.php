@@ -158,7 +158,15 @@ class InvoicePdfService
 
     private function formatMoney(mixed $value): string
     {
-        return number_format((float) $value, 2, '.', ',');
+        // ru/uz use space-thousands + comma-decimal (`1 234 567,89`); en uses
+        // comma-thousands + dot-decimal (`1,234,567.89`). Match the frontend
+        // F-M5 fix so the PDF reads the same as the tenant's screen.
+        $locale = strtolower((string) app()->getLocale());
+        $useEuropeanFormat = $locale === 'ru' || $locale === 'uz';
+        $decimal = $useEuropeanFormat ? ',' : '.';
+        $thousands = $useEuropeanFormat ? "\xC2\xA0" /* NBSP */ : ',';
+
+        return number_format((float) $value, 2, $decimal, $thousands);
     }
 
     private function humanizeValue(string $value): string

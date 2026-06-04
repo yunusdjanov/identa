@@ -5,7 +5,6 @@ import type {
     DashboardAppointmentStatusPoint,
     DashboardPatientGrowthPoint,
     DashboardRevenuePoint,
-    DashboardTopTreatment,
 } from '@/lib/api/dentist';
 
 export interface TopDebtorPoint {
@@ -60,10 +59,26 @@ function ChartCard({ title, subtitle, action, children }: { title: string; subti
     );
 }
 
-export function RevenueChart({ data }: { data: DashboardRevenuePoint[] }) {
+export function RevenueChart({
+    data,
+    rangeLabel,
+}: {
+    data: DashboardRevenuePoint[];
+    /**
+     * Optional subtitle that overrides the hardcoded "6 months" default.
+     * Pass the active range label (e.g. "7 days", "12 months") so the
+     * chart honors the selector above it. Falls back to the legacy
+     * `dashboard.revenueChart.subtitle` for the home-dashboard widget
+     * which doesn't have a selector.
+     */
+    rangeLabel?: string;
+}) {
     const { t } = useI18n();
     return (
-        <ChartCard title={t('dashboard.revenueChart.title') ?? 'Daromad va qarz dinamikasi'} subtitle={t('dashboard.revenueChart.subtitle') ?? '6 oy'}>
+        <ChartCard
+            title={t('dashboard.revenueChart.title') ?? 'Daromad va qarz dinamikasi'}
+            subtitle={rangeLabel ?? t('dashboard.revenueChart.subtitle') ?? '6 oy'}
+        >
             <ResponsiveContainer width="100%" height={220}>
                 <BarChart data={data} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
@@ -74,8 +89,12 @@ export function RevenueChart({ data }: { data: DashboardRevenuePoint[] }) {
                         formatter={(value) => formatCurrency(Number(value))}
                         cursor={{ fill: '#f0fdfa', opacity: 0.5 }}
                     />
-                    <Bar dataKey="revenue" name={t('payments.summary.totalPaid') ?? 'Revenue'} fill={TONE.teal} radius={[6, 6, 0, 0]} maxBarSize={32} />
-                    <Bar dataKey="debt" name={t('payments.summary.totalDebt') ?? 'Debt'} fill={TONE.yellow} radius={[6, 6, 0, 0]} maxBarSize={32} />
+                    {/* Use the same vocabulary as the analytics KPI cards
+                        (revenue / debt) so a viewer reading both the cards and
+                        the chart legend doesn't see two different terms for
+                        the same number. */}
+                    <Bar dataKey="revenue" name={t('analytics.kpi.revenue') ?? 'Revenue'} fill={TONE.teal} radius={[6, 6, 0, 0]} maxBarSize={32} />
+                    <Bar dataKey="debt" name={t('analytics.kpi.debt') ?? 'Debt'} fill={TONE.yellow} radius={[6, 6, 0, 0]} maxBarSize={32} />
                 </BarChart>
             </ResponsiveContainer>
         </ChartCard>
@@ -119,10 +138,20 @@ export function AppointmentStatusChart({ data }: { data: DashboardAppointmentSta
     );
 }
 
-export function PatientGrowthChart({ data }: { data: DashboardPatientGrowthPoint[] }) {
+export function PatientGrowthChart({
+    data,
+    rangeLabel,
+}: {
+    data: DashboardPatientGrowthPoint[];
+    /** Same role as `RevenueChart.rangeLabel` — override the legacy "6 oy". */
+    rangeLabel?: string;
+}) {
     const { t } = useI18n();
     return (
-        <ChartCard title={t('dashboard.growthChart.title') ?? "Bemorlar bazasining o'sishi"} subtitle={t('dashboard.growthChart.subtitle') ?? '6 oy'}>
+        <ChartCard
+            title={t('dashboard.growthChart.title') ?? "Bemorlar bazasining o'sishi"}
+            subtitle={rangeLabel ?? t('dashboard.growthChart.subtitle') ?? '6 oy'}
+        >
             <ResponsiveContainer width="100%" height={200}>
                 <LineChart data={data} margin={{ top: 8, right: 16, left: -16, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
@@ -136,39 +165,6 @@ export function PatientGrowthChart({ data }: { data: DashboardPatientGrowthPoint
                     <Line type="monotone" dataKey="new" stroke={TONE.blue} strokeWidth={2} strokeDasharray="4 4" dot={{ fill: TONE.blue, r: 3 }} />
                 </LineChart>
             </ResponsiveContainer>
-        </ChartCard>
-    );
-}
-
-export function TopTreatmentsCard({ data }: { data: DashboardTopTreatment[] }) {
-    const { t } = useI18n();
-    const maxRevenue = data.length > 0 ? Math.max(...data.map((d) => d.revenue)) : 1;
-    return (
-        <ChartCard title={t('dashboard.topTreatments.title') ?? "Ko'p uchraydigan davolanishlar"} subtitle={t('dashboard.topTreatments.subtitle') ?? 'TOP 5'}>
-            <div className="space-y-3">
-                {data.map((item, idx) => {
-                    const pct = (item.revenue / maxRevenue) * 100;
-                    return (
-                        <div key={item.name} className="space-y-1.5">
-                            <div className="flex items-center justify-between gap-2 text-xs">
-                                <div className="flex min-w-0 items-center gap-2">
-                                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-teal-50 text-[10px] font-bold text-teal-700">
-                                        {idx + 1}
-                                    </span>
-                                    <span className="truncate font-medium text-slate-700">{item.name}</span>
-                                </div>
-                                <div className="flex shrink-0 items-center gap-2 text-[10px] text-slate-500">
-                                    <span className="rounded-md bg-slate-100 px-1.5 py-0.5 font-semibold tabular-nums text-slate-700">×{item.count}</span>
-                                    <span className="font-bold tabular-nums text-slate-900">{formatCurrency(item.revenue)}</span>
-                                </div>
-                            </div>
-                            <div className="h-1.5 overflow-hidden rounded-full bg-slate-100">
-                                <div className="h-full rounded-full bg-gradient-to-r from-teal-400 to-teal-600 transition-all" style={{ width: `${pct}%` }} />
-                            </div>
-                        </div>
-                    );
-                })}
-            </div>
         </ChartCard>
     );
 }

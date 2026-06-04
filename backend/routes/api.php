@@ -1,7 +1,7 @@
 <?php
 
+use App\Http\Controllers\Api\Admin\AdminPaymentController;
 use App\Http\Controllers\Api\Admin\DentistAccountController;
-use App\Http\Controllers\Api\Admin\LandingSettingsController;
 use App\Http\Controllers\Api\Admin\PlanController;
 use App\Http\Controllers\Api\AppointmentController;
 use App\Http\Controllers\Api\AuditLogController;
@@ -30,6 +30,11 @@ Route::prefix('v1')->group(function (): void {
             'timestamp' => now()->toIso8601String(),
         ]);
     });
+
+    // Public marketing-landing data (no auth) — keeps the landing pricing in
+    // sync with the DB plans configured in /admin/plans.
+    Route::get('/landing/plans', [LandingController::class, 'plans'])
+        ->middleware('throttle:60,1');
 
     Route::post('/auth/refresh', [AuthController::class, 'refresh'])
         ->middleware('throttle:10,1');
@@ -60,25 +65,38 @@ Route::prefix('v1')->group(function (): void {
             ->name('verification.verify');
 
         Route::middleware('auth:sanctum')->group(function (): void {
-            Route::get('/me', [AuthController::class, 'me']);
+            // /auth/me is the most-polled endpoint (every focus refetch,
+            // every tab open, every BroadcastChannel sync). Per-user
+            // throttle keeps a runaway client / session-enumeration loop
+            // from amplifying load. 120 req/min is well above the natural
+            // refresh cadence (every 30s = 2 req/min).
+            Route::get('/me', [AuthController::class, 'me'])
+                ->middleware('throttle:120,1');
+            // Named routes so EnsurePasswordRotated can match by name
+            // instead of hardcoded paths — if the URI is ever changed
+            // (api prefix bump, route rename) the middleware's
+            // allow-list keeps working.
             Route::post('/logout', [AuthController::class, 'logout'])
-                ->middleware('throttle:15,1');
+                ->middleware('throttle:15,1')
+                ->name('auth.logout');
             Route::post('/change-password', [AuthController::class, 'changePassword'])
-                ->middleware('throttle:10,1');
+                ->middleware('throttle:10,1')
+                ->name('auth.change-password');
             Route::post('/email/verification-notification', [AuthController::class, 'resendEmailVerification'])
                 ->middleware('throttle:6,1')
                 ->name('verification.send');
         });
     });
 
-    Route::prefix('public')->group(function (): void {
-        Route::get('/landing-settings', [LandingController::class, 'showSettings']);
-        Route::post('/lead-requests', [LandingController::class, 'storeLeadRequest'])
-            ->middleware('throttle:10,1');
-    });
-
     Route::prefix('admin')
-        ->middleware(['auth:sanctum', 'role:admin'])
+        // 120 admin requests/min is generous for normal browsing (a dashboard
+        // refresh hits ~5–8 endpoints) but caps the burst that an unauthed
+        // search-injection or a compromised admin session could throw at the
+        // expensive `LIKE '%...%'` query path.
+        // `password.fresh` mirrors the dentist/assistant groups below — an
+        // admin whose own password was force-reset must rotate it before
+        // they can issue further admin mutations. Reads are unaffected.
+        ->middleware(['auth:sanctum', 'role:admin', 'password.fresh', 'throttle:120,1'])
         ->group(function (): void {
             Route::get('/dentists', [DentistAccountController::class, 'index']);
             Route::post('/dentists', [DentistAccountController::class, 'store']);
@@ -88,18 +106,30 @@ Route::prefix('v1')->group(function (): void {
             Route::patch('/dentists/{id}/status', [DentistAccountController::class, 'updateStatus']);
             Route::post('/dentists/{id}/subscription', [DentistAccountController::class, 'manageSubscription']);
             Route::post('/dentists/{id}/reset-password', [DentistAccountController::class, 'resetPassword']);
+            Route::post('/dentists/{id}/verify-email', [DentistAccountController::class, 'verifyEmail']);
+            Route::post('/dentists/{id}/restore', [DentistAccountController::class, 'restore']);
             Route::delete('/dentists/{id}', [DentistAccountController::class, 'destroy']);
-            Route::get('/landing-settings', [LandingSettingsController::class, 'show']);
-            Route::put('/landing-settings', [LandingSettingsController::class, 'update']);
-        Route::get('/lead-requests', [LandingSettingsController::class, 'leadRequests']);
-            Route::patch('/lead-requests/{id}', [LandingSettingsController::class, 'updateLeadRequestStatus']);
+            Route::get('/payments', [AdminPaymentController::class, 'index']);
+            Route::post('/payments/{id}/refund', [AdminPaymentController::class, 'refund']);
             Route::get('/plans', [PlanController::class, 'index']);
             Route::put('/plans/{code}', [PlanController::class, 'update']);
         });
 
-    Route::middleware(['auth:sanctum', 'role:dentist,assistant'])->group(function (): void {
+    // settings/profile is the single endpoint that backs the dentist, assistant
+    // AND admin "Settings → Account" form. ProfileSettingsService::update()
+    // role-filters the validated payload internally (admin gets name+email only,
+    // assistant gets name+email+phone, dentist keeps everything) so this route
+    // can safely accept all three roles — and the admin settings page was
+    // already calling it. Without 'admin' here, admins silently 403 on save.
+    Route::middleware(['auth:sanctum', 'role:dentist,assistant,admin'])->group(function (): void {
         Route::get('settings/profile', [SettingsProfileController::class, 'show']);
-        Route::put('settings/profile', [SettingsProfileController::class, 'update']);
+        // Profile update is throttled to defang brute-forced email enumeration
+        // and to keep the audit log from being spammed by a compromised session.
+        // `password.fresh` blocks profile edits while `must_change_password`
+        // is set — otherwise a forced-reset user could change their email
+        // out from under the admin who reset them.
+        Route::put('settings/profile', [SettingsProfileController::class, 'update'])
+            ->middleware(['password.fresh', 'throttle:30,1']);
     });
 
     Route::post('webhooks/payx', [BillingController::class, 'payxWebhook'])
@@ -110,7 +140,10 @@ Route::prefix('v1')->group(function (): void {
     // and exposing the owner's plan + PayX payment history to staff would leak
     // financial data, so the whole group is dentist-only.
     Route::prefix('billing')
-        ->middleware(['auth:sanctum', 'role:dentist'])
+        // `password.fresh` mirrors the other authenticated groups — a
+        // dentist whose password was force-reset can't checkout / cancel /
+        // change plan until they rotate. Reads still flow through.
+        ->middleware(['auth:sanctum', 'role:dentist', 'password.fresh'])
         ->group(function (): void {
             Route::get('plans', [BillingController::class, 'plans']);
             Route::get('current-subscription', [BillingController::class, 'currentSubscription']);
@@ -123,8 +156,21 @@ Route::prefix('v1')->group(function (): void {
                 ->middleware('throttle:10,1');
         });
 
-    Route::middleware(['auth:sanctum', 'role:dentist,assistant', 'subscription.access'])->group(function (): void {
-        Route::get('dashboard/snapshot', [DashboardController::class, 'show']);
+    // `password.fresh` is the server-side enforcement of the
+    // must_change_password contract: while the flag is true the middleware
+    // returns 403 with `password_change_required` for any mutating verb.
+    // Reads (GET/HEAD/OPTIONS) pass through so the settings page can
+    // still render. Without this, a redirect-bypassed client could
+    // continue to mutate data using the admin-chosen transient credential.
+    // `throttle:300,1` bounds the authenticated CRUD surface (patients,
+    // treatments, appointments, payments, invoices, dashboard, audit-logs)
+    // to 300 requests per minute per user. Higher than the natural UX
+    // ceiling (a fast dentist clicks ~30/min) but low enough that a
+    // runaway client / compromised token can't hammer the DB. Auth/admin/
+    // billing/team groups have their own narrower throttles.
+    Route::middleware(['auth:sanctum', 'role:dentist,assistant', 'password.fresh', 'subscription.access', 'throttle:300,1'])->group(function (): void {
+        Route::get('dashboard/snapshot', [DashboardController::class, 'show'])
+            ->middleware('permission:'.User::PERMISSION_APPOINTMENTS_VIEW.'|'.User::PERMISSION_PAYMENTS_VIEW);
 
         Route::get('patient-categories', [PatientCategoryController::class, 'index'])
             ->middleware('permission:'.User::PERMISSION_PATIENTS_VIEW);
@@ -263,15 +309,20 @@ Route::prefix('v1')->group(function (): void {
     Route::middleware(['auth:sanctum', 'role:dentist', 'subscription.access'])->group(function (): void {
         Route::get('team/assistants', [TeamAssistantController::class, 'index'])
             ->middleware('permission:'.User::PERMISSION_TEAM_MANAGE);
+        // Team mutations are dentist-owner only (permission:team.manage) but
+        // a compromised dentist session could still create/update assistants
+        // rapidly. Per-route throttles match the pattern used by the admin
+        // group. Password reset is the most sensitive — credential rotation
+        // is loud — so it gets a stricter 10/min cap.
         Route::post('team/assistants', [TeamAssistantController::class, 'store'])
-            ->middleware('permission:'.User::PERMISSION_TEAM_MANAGE);
+            ->middleware(['permission:'.User::PERMISSION_TEAM_MANAGE, 'throttle:30,1']);
         Route::put('team/assistants/{id}', [TeamAssistantController::class, 'update'])
-            ->middleware('permission:'.User::PERMISSION_TEAM_MANAGE);
+            ->middleware(['permission:'.User::PERMISSION_TEAM_MANAGE, 'throttle:30,1']);
         Route::patch('team/assistants/{id}/status', [TeamAssistantController::class, 'updateStatus'])
-            ->middleware('permission:'.User::PERMISSION_TEAM_MANAGE);
+            ->middleware(['permission:'.User::PERMISSION_TEAM_MANAGE, 'throttle:30,1']);
         Route::post('team/assistants/{id}/reset-password', [TeamAssistantController::class, 'resetPassword'])
-            ->middleware('permission:'.User::PERMISSION_TEAM_MANAGE);
+            ->middleware(['permission:'.User::PERMISSION_TEAM_MANAGE, 'throttle:10,1']);
         Route::delete('team/assistants/{id}', [TeamAssistantController::class, 'destroy'])
-            ->middleware('permission:'.User::PERMISSION_TEAM_MANAGE);
+            ->middleware(['permission:'.User::PERMISSION_TEAM_MANAGE, 'throttle:30,1']);
     });
 });

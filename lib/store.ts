@@ -1,7 +1,6 @@
 'use client';
 
 import { create } from 'zustand';
-import { Patient } from '@/lib/types';
 
 interface AuthState {
     isAuthenticated: boolean;
@@ -15,14 +14,4 @@ export const useAuthStore = create<AuthState>((set) => ({
     dentistName: '',
     login: (name) => set({ isAuthenticated: true, dentistName: name }),
     logout: () => set({ isAuthenticated: false, dentistName: '' }),
-}));
-
-interface AppState {
-    selectedPatient: Patient | null;
-    setSelectedPatient: (patient: Patient | null) => void;
-}
-
-export const useAppStore = create<AppState>((set) => ({
-    selectedPatient: null,
-    setSelectedPatient: (patient) => set({ selectedPatient: patient }),
 }));

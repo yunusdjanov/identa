@@ -15,7 +15,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { PatientHistoryLoadingState } from '@/components/layout/page-loading-skeletons';
 import { AppErrorState } from '@/components/error/app-error-state';
 import { AccessDeniedState } from '@/components/error/access-denied-state';
-import { canView, PERMISSION_DENIED_MESSAGE } from '@/lib/auth/permissions';
+import { canView } from '@/lib/auth/permissions';
 
 const TreatmentHistoryCard = dynamic(
     () => import('@/components/patients/treatment-history-card').then((module) => module.TreatmentHistoryCard),
@@ -59,7 +59,7 @@ export default function PatientHistoryPage({
         return (
             <AccessDeniedState
                 title={t('common.forbiddenTitle')}
-                description={PERMISSION_DENIED_MESSAGE}
+                description={t('permissions.deniedDescription')}
                 actionHref={backHref}
                 actionLabel={backLabel}
             />

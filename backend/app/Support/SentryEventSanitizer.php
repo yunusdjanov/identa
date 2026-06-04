@@ -11,6 +11,7 @@ class SentryEventSanitizer
     private const REDACTED_VALUE = '[Filtered]';
 
     private const SENSITIVE_KEYS = [
+        // Credentials
         'password',
         'password_confirmation',
         'pass',
@@ -32,6 +33,49 @@ class SentryEventSanitizer
         'x-xsrf-token',
         'csrf_token',
         '_token',
+        // PII (Phase 1 audit M2 + Phase 10 expansion): patient/clinical
+        // data and PayX identifiers leak via exception payloads (audit
+        // metadata, validation errors like "email already taken" with the
+        // email in extras). Strip these so the monitoring service doesn't
+        // accumulate a parallel PII store. `user_agent` is deliberately
+        // NOT here — debugging browser-specific bugs needs the UA, and it
+        // is not personally identifying on its own.
+        'phone',
+        'secondary_phone',
+        'patient_phone',
+        'date_of_birth',
+        'medical_history',
+        'allergies',
+        'current_medications',
+        'iin',
+        'email',
+        'full_name',
+        'name',
+        'notes',
+        'note',
+        'address',
+        'practice_name',
+        'license_number',
+        'patient_id',
+        'ip_address',
+        'ip',
+        'provider',
+        'provider_payment_id',
+        'provider_order_id',
+        'provider_payload',
+        'transaction_id',
+        'payment_method',
+        // Financials (audit-log metadata)
+        'amount',
+        'cost',
+        'debt_amount',
+        'paid_amount',
+        'total_amount',
+        'balance',
+        'refund_amount',
+        'payment_amount',
+        'unit_price',
+        'total_price',
     ];
 
     public static function beforeSend(Event $event, ?EventHint $hint = null): ?Event

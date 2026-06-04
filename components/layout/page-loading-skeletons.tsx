@@ -27,8 +27,17 @@ function PageHeaderSkeleton({ actions = 1, eyebrow = false }: { actions?: number
 }
 
 function MetricCardsSkeleton({ count = 3 }: { count?: number }) {
+    // Grid breakpoints follow the cardinality: 3 cards → md:grid-cols-3
+    // (used by /admin and /admin/dentists/[id]/staff), 4 cards →
+    // md:grid-cols-2 xl:grid-cols-4 (used by /payments). Earlier the
+    // skeleton always added `xl:grid-cols-4` which caused 3 cards to
+    // redistribute across 4 cols on xl viewports, then snap to 3 once
+    // real data rendered — a visible jump on wide displays.
+    const gridCols = count === 4
+        ? 'md:grid-cols-2 xl:grid-cols-4'
+        : 'md:grid-cols-3';
     return (
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-3 xl:grid-cols-4">
+        <div className={`grid grid-cols-1 gap-4 ${gridCols}`}>
             {Array.from({ length: count }).map((_, index) => (
                 <Card
                     key={index}
@@ -440,6 +449,106 @@ export function PatientDetailLoadingState() {
     );
 }
 
+export function AdminAnalyticsLoadingState() {
+    // Mirrors the real /admin/analytics layout:
+    // - admin shell background + header
+    // - PageHeader with 1 action (Export PDF)
+    // - Time range pill group
+    // - 4 KPI cards (sm:grid-cols-2, xl:grid-cols-4)
+    // - Single chart row: subscription health donut (1 col) + signup growth
+    //   line (2 col) on lg+
+    // The previous skeleton (AdminDashboardLoadingState) drew 3 metric cards
+    // + table, which caused a visible relayout when data landed and the page
+    // switched to the 4-KPI + 2-chart shape.
+    return (
+        <AdminShellSkeleton>
+            <PageHeaderSkeleton actions={1} />
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+                <Skeleton className="h-3 w-16 rounded-xl" />
+                <div className="flex gap-1 rounded-xl border border-slate-200 bg-white p-1">
+                    {Array.from({ length: 6 }).map((_, index) => (
+                        <Skeleton key={index} className="h-7 w-16 rounded-lg" />
+                    ))}
+                </div>
+            </div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                {Array.from({ length: 4 }).map((_, index) => (
+                    <Card key={index} className="rounded-2xl border-slate-200 bg-white shadow-sm">
+                        <CardContent className="space-y-3 p-5">
+                            <div className="flex items-start justify-between gap-3">
+                                <div className="space-y-1.5">
+                                    <Skeleton className="h-3 w-20 rounded-xl" />
+                                    <Skeleton className="h-3 w-32 rounded-xl" />
+                                </div>
+                                <Skeleton className="h-10 w-10 rounded-2xl" />
+                            </div>
+                            <Skeleton className="h-7 w-28 rounded-xl" />
+                            <Skeleton className="h-3 w-24 rounded-xl" />
+                        </CardContent>
+                    </Card>
+                ))}
+            </div>
+            <div className="grid grid-cols-1 gap-2.5 lg:grid-cols-3">
+                <Skeleton className="h-[260px] rounded-2xl" />
+                <Skeleton className="h-[260px] rounded-2xl lg:col-span-2" />
+            </div>
+        </AdminShellSkeleton>
+    );
+}
+
+export function AnalyticsLoadingState() {
+    // Mirrors the real /analytics page:
+    // - PageHeader with 1 action (Export PDF)
+    // - Time range pill group
+    // - 4 KPI cards (md:grid-cols-2, xl:grid-cols-4)
+    // - Top chart row: revenue (col-span-2) + appointment status
+    // - Bottom chart row: patient growth + top debtors
+    // Heights are approximate but close enough that the page doesn't jump
+    // when data arrives.
+    return (
+        <div className="space-y-5 lg:space-y-6">
+            <PageHeaderSkeleton actions={1} />
+            {/* Time range pill group */}
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+                <Skeleton className="h-3 w-16 rounded-xl" />
+                <div className="flex gap-1 rounded-xl border border-slate-200 bg-white p-1">
+                    {Array.from({ length: 6 }).map((_, index) => (
+                        <Skeleton key={index} className="h-7 w-16 rounded-lg" />
+                    ))}
+                </div>
+            </div>
+            {/* KPI cards */}
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                {Array.from({ length: 4 }).map((_, index) => (
+                    <Card key={index} className="rounded-2xl border-slate-200 bg-white shadow-sm">
+                        <CardContent className="space-y-3 p-5">
+                            <div className="flex items-start justify-between gap-3">
+                                <div className="space-y-1.5">
+                                    <Skeleton className="h-3 w-20 rounded-xl" />
+                                    <Skeleton className="h-3 w-32 rounded-xl" />
+                                </div>
+                                <Skeleton className="h-10 w-10 rounded-2xl" />
+                            </div>
+                            <Skeleton className="h-7 w-28 rounded-xl" />
+                            <Skeleton className="h-3 w-24 rounded-xl" />
+                        </CardContent>
+                    </Card>
+                ))}
+            </div>
+            {/* First chart row */}
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+                <Skeleton className="h-[300px] rounded-2xl lg:col-span-2" />
+                <Skeleton className="h-[300px] rounded-2xl" />
+            </div>
+            {/* Second chart row */}
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                <Skeleton className="h-[280px] rounded-2xl" />
+                <Skeleton className="h-[280px] rounded-2xl" />
+            </div>
+        </div>
+    );
+}
+
 export function PatientHistoryLoadingState() {
     return (
         <div className="space-y-5 lg:space-y-6">
@@ -514,11 +623,55 @@ export function OdontogramLoadingState() {
 }
 
 export function AdminDashboardLoadingState() {
+    // Mirrors the real /admin page (`app/admin/page.tsx`):
+    // - Page header banner with no actions in the header itself
+    // - 3 metric cards (Total dentists, Active, Blocked) — md:grid-cols-3
+    // - Dentist table card whose CardHeader contains Tabs (Active/Archive)
+    //   + Search input + "Add dentist" button, then a 7-col table body
+    //   (Name, Email, Subscription, RegDate, Status, LastLogin, Actions).
+    //   The plain DataTableSkeleton only renders "title + search", which
+    //   omits the tabs and button — replicating the real CardHeader here
+    //   keeps the layout stable when data lands.
     return (
         <AdminShellSkeleton>
             <PageHeaderSkeleton actions={0} />
             <MetricCardsSkeleton count={3} />
-            <DataTableSkeleton columns={7} rows={6} />
+            <Card className="rounded-2xl border-slate-200 bg-white shadow-sm">
+                <CardHeader>
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        {/* TabsList: 2 triggers, h-9 to match the real component */}
+                        <div className="flex gap-1 rounded-xl bg-slate-100 p-1">
+                            <Skeleton className="h-8 w-24 rounded-lg" />
+                            <Skeleton className="h-8 w-24 rounded-lg" />
+                        </div>
+                        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center sm:gap-3">
+                            <Skeleton className="h-9 w-full rounded-xl sm:w-64" />
+                            <Skeleton className="h-9 w-full rounded-xl sm:w-36" />
+                        </div>
+                    </div>
+                </CardHeader>
+                <CardContent className="space-y-3 px-4 pb-5 sm:px-5">
+                    <div
+                        className="hidden gap-3 md:grid"
+                        style={{ gridTemplateColumns: 'repeat(7, minmax(0, 1fr))' }}
+                    >
+                        {Array.from({ length: 7 }).map((_, index) => (
+                            <Skeleton key={index} className="h-4 w-full rounded-xl" />
+                        ))}
+                    </div>
+                    {Array.from({ length: 6 }).map((_, rowIndex) => (
+                        <div
+                            key={rowIndex}
+                            className="grid gap-3 rounded-xl border border-slate-100 bg-white p-3 md:border-0 md:bg-transparent md:p-0"
+                            style={{ gridTemplateColumns: 'repeat(7, minmax(0, 1fr))' }}
+                        >
+                            {Array.from({ length: 7 }).map((__, colIndex) => (
+                                <Skeleton key={colIndex} className="h-4 min-w-0 rounded-xl" />
+                            ))}
+                        </div>
+                    ))}
+                </CardContent>
+            </Card>
         </AdminShellSkeleton>
     );
 }
@@ -563,90 +716,196 @@ export function AdminSettingsLoadingState() {
     );
 }
 
-export function AdminLandingPanelSkeleton() {
-    return (
-        <Card
-            data-testid="admin-landing-panel-skeleton"
-            className="rounded-2xl border-slate-200 bg-white"
-        >
-            <CardHeader className="space-y-2">
-                <Skeleton className="h-6 w-64 rounded-xl" />
-                <Skeleton className="h-4 w-80 max-w-full rounded-xl" />
-            </CardHeader>
-            <CardContent className="space-y-5">
-                <Skeleton className="h-12 w-full rounded-2xl" />
-                <div className="grid gap-4 md:grid-cols-2">
-                    <div className="space-y-2">
-                        <Skeleton className="h-4 w-36 rounded-xl" />
-                        <Skeleton className="h-10 w-full rounded-xl" />
-                    </div>
-                </div>
-                <div className="flex justify-end">
-                    <Skeleton className="h-10 w-full rounded-xl sm:w-28" />
-                </div>
-            </CardContent>
-        </Card>
-    );
-}
-
-export function AdminLandingLoadingState() {
-    return (
-        <AdminShellSkeleton maxWidth="max-w-5xl">
-            <PageHeaderSkeleton actions={0} />
-            <AdminLandingPanelSkeleton />
-        </AdminShellSkeleton>
-    );
-}
-
-export function AdminLeadsPanelSkeleton() {
-    return (
-        <Card className="rounded-2xl border-slate-200 bg-white">
-            <CardHeader className="space-y-2">
-                <Skeleton className="h-6 w-48 rounded-xl" />
-                <Skeleton className="h-4 w-80 max-w-full rounded-xl" />
-            </CardHeader>
-            <CardContent className="space-y-3">
-                {Array.from({ length: 3 }).map((_, index) => (
-                    <div key={index} className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
-                        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                            <div className="space-y-2">
-                                <Skeleton className="h-5 w-48 rounded-xl" />
-                                <Skeleton className="h-4 w-36 rounded-xl" />
-                                <Skeleton className="h-4 w-56 rounded-xl" />
-                                <Skeleton className="h-3 w-32 rounded-xl" />
-                            </div>
-                            <div className="flex flex-wrap gap-2">
-                                <Skeleton className="h-9 w-20 rounded-xl" />
-                                <Skeleton className="h-9 w-24 rounded-xl" />
-                                <Skeleton className="h-9 w-20 rounded-xl" />
-                            </div>
-                        </div>
-                    </div>
-                ))}
-            </CardContent>
-        </Card>
-    );
-}
-
-export function AdminLeadsLoadingState() {
-    return (
-        <AdminShellSkeleton maxWidth="max-w-5xl">
-            <PageHeaderSkeleton actions={0} />
-            <AdminLeadsPanelSkeleton />
-        </AdminShellSkeleton>
-    );
-}
-
 export function AdminPlansPanelSkeleton() {
     return <DataTableSkeleton columns={6} rows={4} />;
 }
 
+export function AdminDentistBillingLoadingState() {
+    // Mirrors the real page (`app/admin/dentists/[id]/billing/page.tsx`):
+    // - max-w-[1100px] container, not the default max-w-[1440px], because
+    //   the billing detail page is narrower than the dashboard.
+    // - Back link, dentist identity header with 3 inline metric columns,
+    //   plan picker grid, state-management card, danger zone, and an
+    //   activity card with tabs.
+    // Optional banners (subscription note, pending-change alert) aren't
+    // included — they only render when their data fields are populated and
+    // we can't predict them at skeleton time.
+    return (
+        <AdminShellSkeleton maxWidth="max-w-[1100px]">
+            <Skeleton className="h-5 w-32 rounded-xl" />
+            {/* Dentist header card */}
+            <Card className="rounded-2xl border-slate-200 bg-white shadow-sm shadow-slate-200/60">
+                <CardContent className="p-5">
+                    <div className="flex flex-col gap-5 lg:grid lg:grid-cols-[1.5fr_1fr_1fr_1fr] lg:items-center lg:gap-0">
+                        <div className="flex min-w-0 items-center gap-4 lg:pr-4">
+                            <Skeleton className="h-14 w-14 shrink-0 rounded-full sm:h-16 sm:w-16" />
+                            <div className="min-w-0 space-y-2">
+                                <Skeleton className="h-6 w-44 rounded-xl sm:h-7 sm:w-56" />
+                                <Skeleton className="h-4 w-40 rounded-xl" />
+                                <div className="flex items-center gap-2">
+                                    <Skeleton className="h-5 w-20 rounded-full" />
+                                    <Skeleton className="h-4 w-24 rounded-xl" />
+                                </div>
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-3 divide-x divide-slate-200 lg:col-span-3 lg:grid-cols-subgrid lg:divide-x-0">
+                            {Array.from({ length: 3 }).map((_, index) => (
+                                <div
+                                    key={index}
+                                    className="min-w-0 space-y-2 px-3 sm:px-4 lg:border-l lg:border-slate-200 lg:px-5"
+                                >
+                                    <Skeleton className="h-3 w-20 rounded-xl" />
+                                    <Skeleton className="h-5 w-28 rounded-xl" />
+                                    <Skeleton className="h-3 w-16 rounded-xl" />
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
+            {/* Plan picker grid (3 plan cards) */}
+            <div className="grid gap-4 md:grid-cols-3">
+                {Array.from({ length: 3 }).map((_, index) => (
+                    <Card key={index} className="rounded-2xl border-slate-200 bg-white">
+                        <CardHeader className="space-y-3">
+                            <Skeleton className="h-5 w-24 rounded-xl" />
+                            <Skeleton className="h-8 w-32 rounded-xl" />
+                        </CardHeader>
+                        <CardContent className="space-y-3">
+                            {Array.from({ length: 3 }).map((__, lineIndex) => (
+                                <Skeleton key={lineIndex} className="h-3.5 w-full rounded-xl" />
+                            ))}
+                            <Skeleton className="h-9 w-full rounded-xl" />
+                        </CardContent>
+                    </Card>
+                ))}
+            </div>
+            {/* State management card (4 action buttons) */}
+            <Card className="rounded-2xl border-slate-200 bg-white">
+                <CardHeader>
+                    <Skeleton className="h-5 w-40 rounded-xl" />
+                </CardHeader>
+                <CardContent className="grid gap-3 sm:grid-cols-2">
+                    {Array.from({ length: 4 }).map((_, index) => (
+                        <Skeleton key={index} className="h-10 w-full rounded-xl" />
+                    ))}
+                </CardContent>
+            </Card>
+            {/* Activity card with tab strip + inline 5-col table.
+                DataTableSkeleton wraps itself in a Card, so we render rows
+                inline here rather than nesting Cards. The tabs strip lives
+                above the table to match ActivityTabsCard. */}
+            <Card className="rounded-2xl border-slate-200 bg-white">
+                <CardHeader>
+                    <TabStripSkeleton count={2} />
+                </CardHeader>
+                <CardContent className="space-y-3">
+                    <div
+                        className="hidden gap-3 md:grid"
+                        style={{ gridTemplateColumns: 'repeat(5, minmax(0, 1fr))' }}
+                    >
+                        {Array.from({ length: 5 }).map((_, index) => (
+                            <Skeleton key={index} className="h-4 w-full rounded-xl" />
+                        ))}
+                    </div>
+                    {Array.from({ length: 5 }).map((_, rowIndex) => (
+                        <div
+                            key={rowIndex}
+                            className="grid gap-3 rounded-xl border border-slate-100 bg-white p-3 md:border-0 md:bg-transparent md:p-0"
+                            style={{ gridTemplateColumns: 'repeat(5, minmax(0, 1fr))' }}
+                        >
+                            {Array.from({ length: 5 }).map((__, colIndex) => (
+                                <Skeleton key={colIndex} className="h-4 min-w-0 rounded-xl" />
+                            ))}
+                        </div>
+                    ))}
+                </CardContent>
+            </Card>
+        </AdminShellSkeleton>
+    );
+}
+
+export function AdminPaymentsLoadingState() {
+    // Mirrors the real page (`app/admin/payments/page.tsx`):
+    // - Page header (no actions in header itself; filters live in the table card)
+    // - 3 gradient summary cards (this month, this year, all time) —
+    //   sm:grid-cols-3
+    // - Filter bar inside the table card (date-from, date-to, status select,
+    //   search input) — flex-col → lg:flex-row
+    // - 6-column data table (Date, Dentist, Plan, Amount, Status, Actions)
+    return (
+        <AdminShellSkeleton>
+            <PageHeaderSkeleton actions={0} />
+            {/* Summary cards: real page uses sm:grid-cols-3, not md:grid-cols-3
+                — replicating the same grid breakpoint avoids a relayout flash
+                when the data arrives. */}
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                {Array.from({ length: 3 }).map((_, index) => (
+                    <Card
+                        key={index}
+                        data-testid="metric-card-skeleton"
+                        className="rounded-2xl border-slate-200 bg-white shadow-sm"
+                    >
+                        <CardContent className="flex items-center justify-between gap-3 p-5">
+                            <div className="space-y-3">
+                                <Skeleton className="h-4 w-32 rounded-xl" />
+                                <Skeleton className="h-7 w-28 rounded-xl" />
+                                {index === 2 ? <Skeleton className="h-3 w-20 rounded-xl" /> : null}
+                            </div>
+                            <Skeleton className="h-11 w-11 shrink-0 rounded-2xl" />
+                        </CardContent>
+                    </Card>
+                ))}
+            </div>
+            <Card className="overflow-hidden rounded-2xl bg-white">
+                {/* Filter bar */}
+                <div className="border-b border-slate-200/70 p-5 sm:p-6">
+                    <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:gap-3">
+                        <Skeleton className="h-10 w-full rounded-xl lg:w-40" />
+                        <Skeleton className="h-10 w-full rounded-xl lg:w-40" />
+                        <Skeleton className="h-10 w-full rounded-xl lg:ml-auto lg:w-48" />
+                        <Skeleton className="h-10 w-full rounded-xl lg:w-72" />
+                    </div>
+                </div>
+                {/* Table */}
+                <CardContent className="space-y-3 px-4 pb-5 sm:px-5">
+                    <div
+                        className="hidden gap-3 md:grid"
+                        style={{ gridTemplateColumns: 'repeat(6, minmax(0, 1fr))' }}
+                    >
+                        {Array.from({ length: 6 }).map((_, index) => (
+                            <Skeleton key={index} className="h-4 w-full rounded-xl" />
+                        ))}
+                    </div>
+                    {Array.from({ length: 8 }).map((_, rowIndex) => (
+                        <div
+                            key={rowIndex}
+                            className="grid gap-3 rounded-xl border border-slate-100 bg-white p-3 md:border-0 md:bg-transparent md:p-0"
+                            style={{ gridTemplateColumns: 'repeat(6, minmax(0, 1fr))' }}
+                        >
+                            {Array.from({ length: 6 }).map((__, colIndex) => (
+                                <Skeleton key={colIndex} className="h-4 min-w-0 rounded-xl" />
+                            ))}
+                        </div>
+                    ))}
+                </CardContent>
+            </Card>
+        </AdminShellSkeleton>
+    );
+}
+
 export function AdminDentistStaffLoadingState() {
+    // Mirrors the real page (`app/admin/dentists/[id]/staff/page.tsx`):
+    // - 1 header action (Back to dashboard button)
+    // - 3 stat cards (Total, Active, Blocked) — md:grid-cols-3
+    // - 6 desktop table columns (Member, Phone, Status, Permissions,
+    //   LastLogin, Created). On mobile the page switches to a card list,
+    //   but the desktop column count is what the table-row skeleton mirrors.
     return (
         <AdminShellSkeleton maxWidth="max-w-5xl">
             <PageHeaderSkeleton actions={1} />
-            <MetricCardsSkeleton count={2} />
-            <DataTableSkeleton columns={5} rows={4} />
+            <MetricCardsSkeleton count={3} />
+            <DataTableSkeleton columns={6} rows={4} />
         </AdminShellSkeleton>
     );
 }
@@ -654,9 +913,19 @@ export function AdminDentistStaffLoadingState() {
 export function AuthFormLoadingState({
     fieldCount,
     showOAuth = false,
+    showRememberAndForgot = false,
 }: {
     fieldCount: number;
     showOAuth?: boolean;
+    /**
+     * Login pages (`/login`, `/admin/login`) render a "Remember me" checkbox
+     * on the left and a "Forgot password?" link on the right between the
+     * password field and the submit button. Without representing this row,
+     * the skeleton is ~36px shorter than the real form and the submit button
+     * jumps up by one row when data lands. Defaults to false because the
+     * other auth surfaces (register, reset, forgot) don't have this row.
+     */
+    showRememberAndForgot?: boolean;
 }) {
     return (
         <div
@@ -694,6 +963,15 @@ export function AuthFormLoadingState({
                                         <Skeleton className="h-10 w-full rounded-xl" />
                                     </div>
                                 ))}
+                                {showRememberAndForgot ? (
+                                    <div className="flex items-center justify-between gap-4">
+                                        <div className="flex items-center gap-3">
+                                            <Skeleton className="h-4 w-4 rounded" />
+                                            <Skeleton className="h-3.5 w-24 rounded-xl" />
+                                        </div>
+                                        <Skeleton className="h-3.5 w-28 rounded-xl" />
+                                    </div>
+                                ) : null}
                                 <Skeleton className="h-10 w-full rounded-full" />
                                 {showOAuth ? (
                                     <>

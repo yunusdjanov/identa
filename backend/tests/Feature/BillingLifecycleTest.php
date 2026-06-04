@@ -17,21 +17,21 @@ class BillingLifecycleTest extends TestCase
 
     public function test_payx_paid_webhook_activates_subscription_once(): void
     {
-        config()->set('services.payx.webhook_secret', 'test-webhook-secret');
+        config()->set('services.payx.project_token', 'test-project-token');
 
         $dentist = User::factory()->create();
         $plan = $this->createPlan(Plan::CODE_BASIC, ['monthly_price' => 120000]);
-        $payment = $this->createPendingPayment($dentist, $plan, 'payx-order-paid-once', 120000);
+        $payment = $this->createPendingPayment($dentist, $plan, 'payx-uuid-paid-once', 120000);
 
-        $payload = $this->payxPayload($payment, 'paid');
+        $payload = $this->payxPayload($payment);
 
-        $this->postSignedPayxWebhook($payload)->assertOk();
-        $this->postSignedPayxWebhook($payload)->assertOk();
+        $this->postPayxWebhook($payload)->assertOk();
+        $this->postPayxWebhook($payload)->assertOk();
 
         $this->assertDatabaseHas('billing_payments', [
             'id' => $payment->id,
             'status' => BillingPayment::STATUS_PAID,
-            'provider_payment_id' => 'payx-payment-payx-order-paid-once',
+            'provider_payment_id' => 'payx-uuid-paid-once',
         ]);
 
         $this->assertSame(1, Subscription::query()
@@ -43,15 +43,15 @@ class BillingLifecycleTest extends TestCase
 
     public function test_payx_paid_webhook_rejects_amount_mismatch(): void
     {
-        config()->set('services.payx.webhook_secret', 'test-webhook-secret');
+        config()->set('services.payx.project_token', 'test-project-token');
 
         $dentist = User::factory()->create();
         $plan = $this->createPlan(Plan::CODE_BASIC, ['monthly_price' => 120000]);
-        $payment = $this->createPendingPayment($dentist, $plan, 'payx-order-bad-amount', 120000);
+        $payment = $this->createPendingPayment($dentist, $plan, 'payx-uuid-bad-amount', 120000);
 
-        $payload = $this->payxPayload($payment, 'paid', ['amount' => 1]);
+        $payload = $this->payxPayload($payment, ['amount' => 1]);
 
-        $this->postSignedPayxWebhook($payload)->assertUnprocessable();
+        $this->postPayxWebhook($payload)->assertUnprocessable();
 
         $this->assertDatabaseHas('billing_payments', [
             'id' => $payment->id,
@@ -67,14 +67,18 @@ class BillingLifecycleTest extends TestCase
 
     public function test_terminal_payx_payment_cannot_later_activate_subscription(): void
     {
-        config()->set('services.payx.webhook_secret', 'test-webhook-secret');
+        // PayX only fires the webhook for successful payments; there is no
+        // failed-status webhook. We simulate a terminal payment by marking
+        // it failed directly (e.g. set by the merchant after a manual review)
+        // and then make sure a late paid webhook cannot resurrect it.
+        config()->set('services.payx.project_token', 'test-project-token');
 
         $dentist = User::factory()->create();
         $plan = $this->createPlan(Plan::CODE_BASIC, ['monthly_price' => 120000]);
-        $payment = $this->createPendingPayment($dentist, $plan, 'payx-order-terminal', 120000);
+        $payment = $this->createPendingPayment($dentist, $plan, 'payx-uuid-terminal', 120000);
+        $payment->forceFill(['status' => BillingPayment::STATUS_FAILED])->save();
 
-        $this->postSignedPayxWebhook($this->payxPayload($payment, 'failed'))->assertOk();
-        $this->postSignedPayxWebhook($this->payxPayload($payment, 'paid'))->assertUnprocessable();
+        $this->postPayxWebhook($this->payxPayload($payment))->assertUnprocessable();
 
         $this->assertDatabaseHas('billing_payments', [
             'id' => $payment->id,
@@ -192,6 +196,344 @@ class BillingLifecycleTest extends TestCase
         $this->assertTrue($firstWarningSentAt->equalTo($subscription->fresh()->expiration_warning_sent_at));
     }
 
+    public function test_renew_or_activate_extends_active_subscription_and_clears_cancel_flag(): void
+    {
+        // A subscription scheduled to cancel at period end must have the
+        // cancel flag cleared when an admin (or PayX webhook) extends it —
+        // otherwise the dentist would be billed/extended but still get
+        // auto-cancelled at the end of the original period.
+        $dentist = User::factory()->create();
+        $plan = $this->createPlan(Plan::CODE_BASIC, ['monthly_price' => 120000]);
+        $endsAt = now()->addDays(10)->startOfSecond();
+        $subscription = $this->createSubscription($dentist, $plan, [
+            'billing_period' => Subscription::PERIOD_MONTHLY,
+            'ends_at' => $endsAt,
+            'cancel_at_period_end' => true,
+        ]);
+
+        /** @var \App\Services\SubscriptionService $service */
+        $service = app(\App\Services\SubscriptionService::class);
+        $result = $service->renewOrActivate(
+            owner: $dentist,
+            plan: $plan,
+            billingPeriod: Subscription::PERIOD_MONTHLY,
+            paymentMethod: 'cash',
+            paymentAmount: 120000.0,
+        );
+
+        $this->assertSame($subscription->id, $result->id);
+        $this->assertSame(Subscription::STATUS_ACTIVE, $result->status);
+        $this->assertFalse((bool) $result->cancel_at_period_end);
+        // Extended by one month on top of the existing ends_at, not from now.
+        $this->assertTrue($result->ends_at->equalTo($endsAt->copy()->addMonthNoOverflow()));
+    }
+
+    public function test_renew_or_activate_creates_new_subscription_when_plan_or_period_differs(): void
+    {
+        // Switching plan (or period within the same plan) must NOT extend the
+        // existing subscription — it has to activate a fresh one. The old one
+        // is left in place as a historical record (we don't delete history).
+        $dentist = User::factory()->create();
+        $basic = $this->createPlan(Plan::CODE_BASIC, ['monthly_price' => 120000]);
+        $pro = $this->createPlan(Plan::CODE_PRO, ['monthly_price' => 300000, 'yearly_price' => 3000000]);
+        $existing = $this->createSubscription($dentist, $basic, [
+            'billing_period' => Subscription::PERIOD_MONTHLY,
+            'ends_at' => now()->addDays(20),
+        ]);
+
+        /** @var \App\Services\SubscriptionService $service */
+        $service = app(\App\Services\SubscriptionService::class);
+        $result = $service->renewOrActivate(
+            owner: $dentist,
+            plan: $pro,
+            billingPeriod: Subscription::PERIOD_YEARLY,
+        );
+
+        $this->assertNotSame($existing->id, $result->id);
+        $this->assertSame(Plan::CODE_PRO, $result->plan_code);
+        $this->assertSame(Subscription::PERIOD_YEARLY, $result->billing_period);
+        $this->assertSame(Subscription::STATUS_ACTIVE, $result->status);
+        // ends_at starts from `now()`, not from the old subscription's ends_at.
+        $this->assertTrue($result->ends_at->greaterThan(now()->addDays(364)));
+        $this->assertTrue($result->ends_at->lessThan(now()->addDays(367)));
+    }
+
+    public function test_renew_or_activate_resurrects_read_only_subscription_after_refund_undo(): void
+    {
+        // When a payment is refunded the subscription is flipped to read_only.
+        // Admin can then re-activate by clicking the same plan + period —
+        // renewOrActivate should not extend (status not in [ACTIVE,GRACE]) but
+        // activate a fresh paid period starting from now.
+        $dentist = User::factory()->create();
+        $plan = $this->createPlan(Plan::CODE_BASIC, ['monthly_price' => 120000]);
+        $expiredEndsAt = now()->subDays(5);
+        $this->createSubscription($dentist, $plan, [
+            'billing_period' => Subscription::PERIOD_MONTHLY,
+            'ends_at' => $expiredEndsAt,
+            'status' => Subscription::STATUS_READ_ONLY,
+        ]);
+
+        /** @var \App\Services\SubscriptionService $service */
+        $service = app(\App\Services\SubscriptionService::class);
+        $result = $service->renewOrActivate(
+            owner: $dentist,
+            plan: $plan,
+            billingPeriod: Subscription::PERIOD_MONTHLY,
+        );
+
+        $this->assertSame(Subscription::STATUS_ACTIVE, $result->status);
+        $this->assertTrue($result->ends_at->greaterThan(now()->addDays(29)));
+        $this->assertTrue($result->ends_at->lessThan(now()->addDays(32)));
+    }
+
+    public function test_cancel_at_period_end_via_service_updates_both_rows_under_lock(): void
+    {
+        $dentist = User::factory()->create();
+        $plan = $this->createPlan(Plan::CODE_BASIC, ['monthly_price' => 120000]);
+        $endsAt = now()->addDays(15)->startOfSecond();
+        $subscription = $this->createSubscription($dentist, $plan, [
+            'billing_period' => Subscription::PERIOD_MONTHLY,
+            'ends_at' => $endsAt,
+            'cancel_at_period_end' => false,
+        ]);
+
+        /** @var \App\Services\SubscriptionService $service */
+        $service = app(\App\Services\SubscriptionService::class);
+        $service->cancelAtPeriodEnd($dentist, 'admin scheduled');
+
+        $subscription->refresh();
+        $dentist->refresh();
+        $this->assertTrue((bool) $subscription->cancel_at_period_end);
+        $this->assertTrue((bool) $dentist->subscription_cancel_at_period_end);
+        // ends_at unchanged — access stays full until period ends.
+        $this->assertTrue($subscription->ends_at->equalTo($endsAt));
+        // Stays ACTIVE — grace handling happens at expiry, not on cancel.
+        $this->assertSame(Subscription::STATUS_ACTIVE, $subscription->status);
+    }
+
+    public function test_cancel_immediately_via_service_flips_to_read_only_atomically(): void
+    {
+        $dentist = User::factory()->create();
+        $plan = $this->createPlan(Plan::CODE_PRO, ['monthly_price' => 300000]);
+        $futureEndsAt = now()->addDays(20);
+        $subscription = $this->createSubscription($dentist, $plan, [
+            'billing_period' => Subscription::PERIOD_MONTHLY,
+            'ends_at' => $futureEndsAt,
+        ]);
+
+        /** @var \App\Services\SubscriptionService $service */
+        $service = app(\App\Services\SubscriptionService::class);
+        $service->cancelImmediately($dentist, 'admin cancel_now');
+
+        $subscription->refresh();
+        $dentist->refresh();
+        $this->assertSame(Subscription::STATUS_READ_ONLY, $subscription->status);
+        // Paid period collapsed to "now" — remaining 20 days forfeited.
+        $this->assertTrue($subscription->ends_at->lessThanOrEqualTo(now()->addSeconds(2)));
+        $this->assertFalse((bool) $subscription->cancel_at_period_end);
+        $this->assertNotNull($dentist->subscription_cancelled_at);
+    }
+
+    public function test_schedule_plan_change_refuses_overwrite_with_different_pending(): void
+    {
+        $dentist = User::factory()->create();
+        $pro = $this->createPlan(Plan::CODE_PRO, ['monthly_price' => 300000]);
+        $basic = $this->createPlan(Plan::CODE_BASIC, ['monthly_price' => 120000]);
+        // Active Pro sub with an existing pending downgrade to Basic monthly.
+        $this->createSubscription($dentist, $pro, [
+            'billing_period' => Subscription::PERIOD_YEARLY,
+            'ends_at' => now()->addDays(30),
+            'pending_plan_id' => $basic->id,
+            'pending_billing_period' => Subscription::PERIOD_MONTHLY,
+            'pending_change_effective_at' => now()->addDays(30),
+        ]);
+
+        /** @var \App\Services\SubscriptionService $service */
+        $service = app(\App\Services\SubscriptionService::class);
+
+        $this->expectException(\Illuminate\Validation\ValidationException::class);
+        // Try to schedule a DIFFERENT pending change (Basic YEARLY this time).
+        $service->schedulePlanChange(
+            owner: $dentist,
+            plan: $basic,
+            billingPeriod: Subscription::PERIOD_YEARLY,
+        );
+    }
+
+    public function test_create_checkout_soft_cancels_stale_pending_payments(): void
+    {
+        config()->set('services.payx.project_token', 'test-project-token');
+        config()->set('services.payx.api_token', 'test-api-token');
+        config()->set('services.payx.base_url', 'https://test.payx.uz');
+
+        \Illuminate\Support\Facades\Http::fake([
+            'test.payx.uz/api/v1/invoice' => \Illuminate\Support\Facades\Http::response([
+                'uuid' => 'payx-uuid-new',
+                'pay_url' => 'https://test.payx.uz/pay/new',
+                'status' => 'pending',
+                'amount' => 120000,
+            ]),
+        ]);
+
+        $dentist = User::factory()->create();
+        $plan = $this->createPlan(Plan::CODE_BASIC, ['monthly_price' => 120000]);
+
+        // Create two stale pending payments for the same plan + period.
+        // status / provider_order_id / provider_payment_id are guarded (B-C2),
+        // so seed via forceFill + save in one shot — `create()` does the INSERT
+        // before any post-create hook gets a chance to populate the NOT NULL
+        // provider_order_id column.
+        $stale1 = (new BillingPayment())->forceFill([
+            'user_id' => $dentist->id,
+            'plan_id' => $plan->id,
+            'plan_code' => $plan->code,
+            'plan_name' => $plan->name,
+            'billing_period' => Subscription::PERIOD_MONTHLY,
+            'amount' => 120000,
+            'currency' => 'UZS',
+            'provider' => BillingPayment::PROVIDER_PAYX,
+            'status' => BillingPayment::STATUS_PENDING,
+            'provider_order_id' => 'ord-stale-1',
+            'provider_payment_id' => 'payx-uuid-stale-1',
+        ]);
+        $stale1->save();
+        $stale2 = (new BillingPayment())->forceFill([
+            'user_id' => $dentist->id,
+            'plan_id' => $plan->id,
+            'plan_code' => $plan->code,
+            'plan_name' => $plan->name,
+            'billing_period' => Subscription::PERIOD_MONTHLY,
+            'amount' => 120000,
+            'currency' => 'UZS',
+            'provider' => BillingPayment::PROVIDER_PAYX,
+            'status' => BillingPayment::STATUS_PENDING,
+            'provider_order_id' => 'ord-stale-2',
+            'provider_payment_id' => 'payx-uuid-stale-2',
+        ]);
+        $stale2->save();
+
+        /** @var \App\Services\BillingService $billing */
+        $billing = app(\App\Services\BillingService::class);
+        $billing->createCheckout($dentist, Plan::CODE_BASIC, Subscription::PERIOD_MONTHLY);
+
+        $staleCount = BillingPayment::query()
+            ->where('user_id', $dentist->id)
+            ->where('status', BillingPayment::STATUS_CANCELED)
+            ->count();
+        $pendingCount = BillingPayment::query()
+            ->where('user_id', $dentist->id)
+            ->where('status', BillingPayment::STATUS_PENDING)
+            ->count();
+
+        // Both stale rows canceled, only the new checkout is pending.
+        $this->assertSame(2, $staleCount, 'Stale pending payments should be canceled.');
+        $this->assertSame(1, $pendingCount, 'Only the newly created checkout should be pending.');
+    }
+
+    public function test_create_checkout_refuses_soft_deleted_account(): void
+    {
+        $deletedDentist = User::factory()->create([
+            'account_status' => User::ACCOUNT_STATUS_DELETED,
+        ]);
+        $this->createPlan(Plan::CODE_BASIC, ['monthly_price' => 120000]);
+
+        /** @var \App\Services\BillingService $billing */
+        $billing = app(\App\Services\BillingService::class);
+
+        $this->expectException(\Illuminate\Validation\ValidationException::class);
+        $billing->createCheckout($deletedDentist, Plan::CODE_BASIC, Subscription::PERIOD_MONTHLY);
+    }
+
+    public function test_summary_returns_derived_read_only_when_grace_expired(): void
+    {
+        // The read path no longer flips status to READ_ONLY (the scheduled
+        // `subscriptions:process` command owns that mutation). Summary must
+        // still surface the read-only state derivedly so the API contract
+        // stays stable in the window between grace expiry and the next cron.
+        $dentist = User::factory()->create();
+        $plan = $this->createPlan(Plan::CODE_BASIC, ['monthly_price' => 120000]);
+        $this->createSubscription($dentist, $plan, [
+            'billing_period' => Subscription::PERIOD_MONTHLY,
+            'status' => Subscription::STATUS_ACTIVE,
+            // Past grace window (paid period + grace days).
+            'ends_at' => now()->subDays(User::SUBSCRIPTION_GRACE_DAYS + 5),
+        ]);
+
+        /** @var \App\Services\SubscriptionService $service */
+        $service = app(\App\Services\SubscriptionService::class);
+        $summary = $service->summary($dentist);
+
+        $this->assertSame('read_only', $summary['status']);
+        $this->assertSame('read_only', $summary['access_mode']);
+        $this->assertTrue((bool) $summary['is_read_only']);
+    }
+
+    public function test_mark_read_only_clears_legacy_payment_fields(): void
+    {
+        $dentist = User::factory()->create([
+            'subscription_payment_method' => 'cash',
+            'subscription_payment_amount' => 150000,
+        ]);
+        $plan = $this->createPlan(Plan::CODE_BASIC, ['monthly_price' => 120000]);
+        $this->createSubscription($dentist, $plan, [
+            'billing_period' => Subscription::PERIOD_MONTHLY,
+            'ends_at' => now()->addDays(15),
+        ]);
+
+        /** @var \App\Services\SubscriptionService $service */
+        $service = app(\App\Services\SubscriptionService::class);
+        $service->markReadOnly($dentist, 'refund cascade');
+
+        $dentist->refresh();
+        $this->assertNull($dentist->subscription_payment_method, 'Legacy payment_method must be cleared.');
+        $this->assertNull($dentist->subscription_payment_amount, 'Legacy payment_amount must be cleared.');
+    }
+
+    public function test_plan_downgrade_auto_blocks_excess_active_staff(): void
+    {
+        // Downgrading from Pro (staff_limit 5) to Basic (staff_limit 3) must
+        // keep the 3 most-recently-active assistants and block the rest. This
+        // is the safety net for the UI warning — even if admin ignores the
+        // warning, the data stays consistent with the new plan limit.
+        $dentist = User::factory()->create();
+        $pro = $this->createPlan(Plan::CODE_PRO, [
+            'monthly_price' => 300000,
+            'staff_limit' => 5,
+        ]);
+        $basic = $this->createPlan(Plan::CODE_BASIC, [
+            'monthly_price' => 120000,
+            'staff_limit' => 3,
+        ]);
+
+        // Existing Pro subscription with 5 active assistants.
+        $this->createSubscription($dentist, $pro, [
+            'billing_period' => Subscription::PERIOD_MONTHLY,
+            'ends_at' => now()->addDays(20),
+        ]);
+        $assistants = User::factory()->count(5)->assistant($dentist)->create([
+            'account_status' => User::ACCOUNT_STATUS_ACTIVE,
+        ]);
+
+        /** @var \App\Services\SubscriptionService $service */
+        $service = app(\App\Services\SubscriptionService::class);
+        $service->renewOrActivate(
+            owner: $dentist,
+            plan: $basic,
+            billingPeriod: Subscription::PERIOD_MONTHLY,
+        );
+
+        $activeCount = $dentist->assistants()
+            ->where('account_status', User::ACCOUNT_STATUS_ACTIVE)
+            ->count();
+        $blockedCount = $dentist->assistants()
+            ->where('account_status', User::ACCOUNT_STATUS_BLOCKED)
+            ->count();
+
+        $this->assertSame(3, $activeCount, 'Basic plan limits to 3 active staff.');
+        $this->assertSame(2, $blockedCount, '2 excess assistants must be auto-blocked.');
+        $this->assertSame(5, $assistants->count(), 'No assistants are deleted.');
+    }
+
     /**
      * @param array<string, mixed> $overrides
      */
@@ -252,14 +594,28 @@ class BillingLifecycleTest extends TestCase
         return $subscription;
     }
 
+    /**
+     * Create a pending BillingPayment that emulates what `createCheckout()`
+     * stores after PayX responds with a uuid. The `$payxUuid` argument is
+     * used as the provider_payment_id so the webhook handler can match it
+     * back to this row via the transaction_id PayX sends.
+     */
     private function createPendingPayment(
         User $dentist,
         Plan $plan,
-        string $orderId,
+        string $payxUuid,
         float $amount,
     ): BillingPayment {
-        /** @var BillingPayment $payment */
-        $payment = BillingPayment::query()->create([
+        // BillingPayment `$fillable` was tightened (B-C2) to only allow user_id,
+        // plan_id, plan_code, plan_name, billing_period, amount, currency,
+        // provider — every provider-side / status field must come through the
+        // service layer, not mass assignment. Tests still need to seed a
+        // pending payment in the same shape `createCheckout()` would, so we
+        // forceFill everything (including the guarded provider_* columns) and
+        // save in one shot — `create()` would do an INSERT before we get a
+        // chance to forceFill, hitting the NOT NULL constraint on
+        // provider_order_id.
+        $payment = (new BillingPayment())->forceFill([
             'user_id' => $dentist->id,
             'plan_id' => $plan->id,
             'plan_code' => $plan->code,
@@ -267,36 +623,45 @@ class BillingLifecycleTest extends TestCase
             'billing_period' => Subscription::PERIOD_MONTHLY,
             'amount' => $amount,
             'currency' => 'UZS',
-            'status' => BillingPayment::STATUS_PENDING,
             'provider' => BillingPayment::PROVIDER_PAYX,
-            'provider_order_id' => $orderId,
+            'status' => BillingPayment::STATUS_PENDING,
+            'provider_order_id' => 'ord-'.$payxUuid,
+            'provider_payment_id' => $payxUuid,
             'provider_payload' => ['metadata' => ['change_type' => 'immediate']],
         ]);
+        $payment->save();
 
         return $payment;
     }
 
     /**
+     * Build a webhook payload that mirrors the example shown in PayX docs:
+     * { user_id, amount, currency, transaction_id, timestamp }.
+     *
      * @param array<string, mixed> $overrides
      * @return array<string, mixed>
      */
-    private function payxPayload(BillingPayment $payment, string $status, array $overrides = []): array
+    private function payxPayload(BillingPayment $payment, array $overrides = []): array
     {
         return array_merge([
-            'order_id' => $payment->provider_order_id,
-            'payment_id' => 'payx-payment-'.$payment->provider_order_id,
-            'status' => $status,
+            'user_id' => $payment->user_id,
             'amount' => (float) $payment->amount,
             'currency' => $payment->currency,
+            'transaction_id' => $payment->provider_payment_id,
+            'timestamp' => now()->timestamp,
         ], $overrides);
     }
 
     /**
+     * Send a PayX webhook authenticated with `Authorization: Bearer
+     * {project_token}` exactly as PayX itself does.
+     *
      * @param array<string, mixed> $payload
      */
-    private function postSignedPayxWebhook(array $payload): \Illuminate\Testing\TestResponse
+    private function postPayxWebhook(array $payload): \Illuminate\Testing\TestResponse
     {
         $content = json_encode($payload, JSON_THROW_ON_ERROR);
+        $token = (string) config('services.payx.project_token');
 
         return $this->call(
             'POST',
@@ -307,11 +672,7 @@ class BillingLifecycleTest extends TestCase
             [
                 'CONTENT_TYPE' => 'application/json',
                 'HTTP_ACCEPT' => 'application/json',
-                'HTTP_X_PAYX_SIGNATURE' => hash_hmac(
-                    'sha256',
-                    $content,
-                    (string) config('services.payx.webhook_secret'),
-                ),
+                'HTTP_AUTHORIZATION' => 'Bearer '.$token,
             ],
             $content,
         );

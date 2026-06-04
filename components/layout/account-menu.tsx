@@ -36,7 +36,13 @@ export function AccountMenu({
     onLogout,
     settingsHref = '/settings',
     staffHref = null,
-    billingHref = '/billing',
+    // Default to null so a caller forgetting to pass billingHref cannot
+    // leak the Billing link to an assistant. Owner-only links must be
+    // opt-in, not opt-out — assistants viewing their own AccountMenu must
+    // never see Billing because the practice subscription is owned by the
+    // dentist, not the assistant. The app-layout passes
+    // `billingHref={canOpenBilling ? '/billing' : null}` explicitly.
+    billingHref = null,
 }: AccountMenuProps) {
     const router = useRouter();
     const { t } = useI18n();

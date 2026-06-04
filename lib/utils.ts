@@ -6,12 +6,30 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-export function formatCurrency(amount: number): string {
+/**
+ * Format a monetary amount with a currency suffix. The `currency` parameter
+ * is optional and defaults to `'UZS'` so existing call sites that don't
+ * know the currency (legacy helpers, generic widgets) keep working — but
+ * any UI that has access to a `plan.currency` / `payment.currency` /
+ * `subscription.currency` field SHOULD pass it explicitly. Without that,
+ * multi-currency tenants see e.g. a Pro plan priced in USD rendered as
+ * "100 UZS" — a real and visible labelling bug.
+ *
+ * Guards against NaN / Infinity (e.g. when a KPI denominator is zero and
+ * the caller forgot to clamp). `Intl.NumberFormat` happily prints "NaN"
+ * which leaks bad math straight to the UI; "0 UZS" is the safer default.
+ */
+export function formatCurrency(amount: number, currency: string = 'UZS'): string {
+  const safe = Number.isFinite(amount) ? amount : 0;
+  // Uppercase to match the ApiPlan.currency / ApiBillingPayment.currency
+  // convention. We don't pass `style: 'currency'` because that injects a
+  // locale-specific symbol (₽, $, etc.) which is wrong for UZS — that's
+  // a 3-letter suffix the user expects, not a symbol.
   return new Intl.NumberFormat('uz-UZ', {
     style: 'decimal',
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
-  }).format(amount) + ' UZS';
+  }).format(safe) + ' ' + currency.toUpperCase();
 }
 
 export function formatDate(date: string): string {

@@ -43,10 +43,14 @@ describe('DashboardPage', () => {
         vi.mocked(getDashboardSnapshot).mockReset();
 
         vi.mocked(getCurrentUser).mockResolvedValue({
-            id: 1,
+            // ApiUser fields the mock needs (id was numeric here previously;
+            // account_status became required when soft-delete landed and the
+            // mock wasn't updated).
+            id: '1',
             name: 'Demo Dentist',
             email: 'dentist@identa.test',
             role: 'dentist',
+            account_status: 'active',
         });
     });
 

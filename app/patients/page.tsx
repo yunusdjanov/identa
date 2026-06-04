@@ -40,7 +40,7 @@ import { getProtectedMediaCrossOrigin, getProtectedMediaThumbnailUrl } from '@/l
 import { toast } from 'sonner';
 import { AppErrorState } from '@/components/error/app-error-state';
 import { AccessDeniedState } from '@/components/error/access-denied-state';
-import { canManage, canView, getManageDeniedMessage, PERMISSION_DENIED_MESSAGE } from '@/lib/auth/permissions';
+import { canManage, canView, getManageDeniedMessage, isSubscriptionReadOnly } from '@/lib/auth/permissions';
 
 const AddPatientDialog = dynamic(
     () => import('@/components/patients/add-patient-dialog').then((module) => module.AddPatientDialog),
@@ -152,9 +152,10 @@ export default function PatientsPage() {
     const currentUser = currentUserQuery.data;
     const canViewPatients = canView(currentUser, 'patients');
     const canManagePatients = canManage(currentUser, 'patients');
+    const canViewAppointments = canView(currentUser, 'appointments');
     const canManageAppointments = canManage(currentUser, 'appointments');
     const isDialogOpen = canManagePatients && (isAddDialogOpen || shouldOpenFromUrl);
-    const denyManageAction = () => toast.error(getManageDeniedMessage(currentUser));
+    const denyManageAction = () => toast.error(getManageDeniedMessage(currentUser, t));
 
     const handleDialogOpenChange = (open: boolean) => {
         if (open && !canManagePatients) {
@@ -262,7 +263,7 @@ export default function PatientsPage() {
         return (
             <AccessDeniedState
                 title={t('common.forbiddenTitle')}
-                description={PERMISSION_DENIED_MESSAGE}
+                description={t('permissions.deniedDescription')}
                 actionLabel={t('dashboard.title')}
                 className="min-h-[20rem]"
             />
@@ -335,37 +336,54 @@ export default function PatientsPage() {
                                 {t('common.export')}
                             </Button>
                         ) : null}
-                        <Button
-                            variant="outline"
-                            className="w-full sm:w-auto"
-                            disabled={!canManagePatients}
-                            onClick={() => {
-                                if (!canManagePatients) {
-                                    denyManageAction();
-                                    return;
-                                }
-
-                                setIsManageCategoriesOpen(true);
-                            }}
-                        >
-                            <Tags className="w-4 h-4 mr-2" />
-                            {t('patients.categories')}
-                        </Button>
-                        <Button
-                            className="w-full sm:w-auto"
-                            disabled={!canManagePatients}
-                            onClick={() => {
-                                if (!canManagePatients) {
-                                    denyManageAction();
-                                    return;
-                                }
-
-                                setIsAddDialogOpen(true);
-                            }}
-                        >
-                            <Plus className="w-4 h-4 mr-2" />
-                            {t('patients.addPatient')}
-                        </Button>
+                        {/* Header CTAs are HIDDEN (not disabled) for
+                            view-only assistants. A dimmed "Add patient"
+                            button next to a working "Export PDF" reads as
+                            broken UI; clean-omit reflects the same truth
+                            ("you can't do this") without a misleading
+                            affordance. Per-row pencil/trash icons stay
+                            disabled to preserve column alignment.
+                            Read-only subscriptions get disabled+toast
+                            instead of hide, so the dentist owner knows
+                            why their button is greyed. */}
+                        {canManagePatients ? (
+                            <Button
+                                variant="outline"
+                                className="w-full sm:w-auto"
+                                onClick={() => setIsManageCategoriesOpen(true)}
+                            >
+                                <Tags className="w-4 h-4 mr-2" />
+                                {t('patients.categories')}
+                            </Button>
+                        ) : isSubscriptionReadOnly(currentUser) ? (
+                            <Button
+                                variant="outline"
+                                className="w-full sm:w-auto"
+                                disabled
+                                onClick={denyManageAction}
+                            >
+                                <Tags className="w-4 h-4 mr-2" />
+                                {t('patients.categories')}
+                            </Button>
+                        ) : null}
+                        {canManagePatients ? (
+                            <Button
+                                className="w-full sm:w-auto"
+                                onClick={() => setIsAddDialogOpen(true)}
+                            >
+                                <Plus className="w-4 h-4 mr-2" />
+                                {t('patients.addPatient')}
+                            </Button>
+                        ) : isSubscriptionReadOnly(currentUser) ? (
+                            <Button
+                                className="w-full sm:w-auto"
+                                disabled
+                                onClick={denyManageAction}
+                            >
+                                <Plus className="w-4 h-4 mr-2" />
+                                {t('patients.addPatient')}
+                            </Button>
+                        ) : null}
                     </>
                 )}
             />
@@ -604,45 +622,69 @@ export default function PatientsPage() {
                                             </TableCell>
                                             <TableCell className="text-right">
                                                 <div className="flex justify-end gap-2">
+                                                    {/* AF5 row-action gating: hide for view-only assistants,
+                                                        keep disabled+toast for subscription read-only so the
+                                                        dentist owner sees what's paused. View Details and
+                                                        History below are read-only actions — always shown. */}
                                                     {showArchivedOnly ? (
-                                                        <Button
-                                                            variant="outline"
-                                                            size="sm"
-                                                            className="h-8 rounded-lg"
-                                                            onClick={(event) => {
-                                                                event.stopPropagation();
-                                                                if (!canManagePatients) {
+                                                        canManagePatients ? (
+                                                            <Button
+                                                                variant="outline"
+                                                                size="sm"
+                                                                className="h-8 rounded-lg"
+                                                                onClick={(event) => {
+                                                                    event.stopPropagation();
+                                                                    restoreMutation.mutate(patient.id);
+                                                                }}
+                                                                disabled={restoreMutation.isPending}
+                                                            >
+                                                                {t('patients.restore')}
+                                                            </Button>
+                                                        ) : isSubscriptionReadOnly(currentUser) ? (
+                                                            <Button
+                                                                variant="outline"
+                                                                size="sm"
+                                                                className="h-8 rounded-lg"
+                                                                onClick={(event) => {
+                                                                    event.stopPropagation();
                                                                     denyManageAction();
-                                                                    return;
-                                                                }
-
-                                                                restoreMutation.mutate(patient.id);
-                                                            }}
-                                                            disabled={restoreMutation.isPending || !canManagePatients}
-                                                        >
-                                                            {t('patients.restore')}
-                                                        </Button>
+                                                                }}
+                                                                disabled
+                                                            >
+                                                                {t('patients.restore')}
+                                                            </Button>
+                                                        ) : null
                                                     ) : inactiveFilter !== 'none' ? (
-                                                        <Button
-                                                            variant="outline"
-                                                            size="sm"
-                                                            className="h-8 rounded-lg"
-                                                            onClick={(event) => {
-                                                                event.stopPropagation();
-                                                                if (!canManageAppointments) {
-                                                                    toast.error(getManageDeniedMessage(currentUser));
-                                                                    return;
-                                                                }
-
-                                                                router.push(
-                                                                    `/appointments?action=new&patientId=${encodeURIComponent(patient.id)}`
-                                                                );
-                                                            }}
-                                                            disabled={!canManageAppointments}
-                                                        >
-                                                            <CalendarPlus className="w-3 h-3 mr-1" />
-                                                            {t('patients.schedule')}
-                                                        </Button>
+                                                        canManageAppointments ? (
+                                                            <Button
+                                                                variant="outline"
+                                                                size="sm"
+                                                                className="h-8 rounded-lg"
+                                                                onClick={(event) => {
+                                                                    event.stopPropagation();
+                                                                    router.push(
+                                                                        `/appointments?action=new&patientId=${encodeURIComponent(patient.id)}`
+                                                                    );
+                                                                }}
+                                                            >
+                                                                <CalendarPlus className="w-3 h-3 mr-1" />
+                                                                {t('patients.schedule')}
+                                                            </Button>
+                                                        ) : isSubscriptionReadOnly(currentUser) && canViewAppointments ? (
+                                                            <Button
+                                                                variant="outline"
+                                                                size="sm"
+                                                                className="h-8 rounded-lg"
+                                                                onClick={(event) => {
+                                                                    event.stopPropagation();
+                                                                    toast.error(getManageDeniedMessage(currentUser, t));
+                                                                }}
+                                                                disabled
+                                                            >
+                                                                <CalendarPlus className="w-3 h-3 mr-1" />
+                                                                {t('patients.schedule')}
+                                                            </Button>
+                                                        ) : null
                                                     ) : null}
                                                     <Button
                                                         variant="outline"
@@ -714,7 +756,6 @@ export default function PatientsPage() {
                     open={isDialogOpen}
                     onOpenChange={handleDialogOpenChange}
                     uploadMaxMb={currentUser?.subscription?.upload_max_mb}
-                    storedImageMaxMb={currentUser?.subscription?.stored_image_max_mb}
                 />
             ) : null}
 

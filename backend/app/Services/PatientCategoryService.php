@@ -6,11 +6,17 @@ use App\Http\Requests\StorePatientCategoryRequest;
 use App\Http\Requests\UpdatePatientCategoryRequest;
 use App\Models\PatientCategory;
 use App\Models\User;
+use App\Support\AuditLogger;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Request;
 
 class PatientCategoryService
 {
+    public function __construct(
+        private readonly AuditLogger $auditLogger,
+    ) {}
+
+
     /**
      * @return Collection<int, PatientCategory>
      */
@@ -27,12 +33,22 @@ class PatientCategoryService
     {
         $validated = $request->validated();
 
-        return PatientCategory::create([
+        $category = PatientCategory::create([
             'dentist_id' => $this->dentistId($request),
             'name' => trim((string) $validated['name']),
             'color' => $validated['color'] ?? '#CBD5E1',
             'sort_order' => $validated['sort_order'] ?? 0,
         ]);
+
+        $this->auditLogger->logFromRequest(
+            request: $request,
+            eventType: 'patient_category.created',
+            entityType: 'patient_category',
+            entityId: (string) $category->id,
+            metadata: ['name' => $category->name],
+        );
+
+        return $category;
     }
 
     public function update(UpdatePatientCategoryRequest $request, string $id): PatientCategory
@@ -46,14 +62,31 @@ class PatientCategoryService
             'sort_order' => $validated['sort_order'] ?? 0,
         ]);
 
+        $this->auditLogger->logFromRequest(
+            request: $request,
+            eventType: 'patient_category.updated',
+            entityType: 'patient_category',
+            entityId: (string) $category->id,
+            metadata: ['name' => $category->name],
+        );
+
         return $category->fresh();
     }
 
     public function delete(Request $request, string $id): void
     {
         $category = $this->ownedCategory($request, $id);
+        $metadata = ['name' => $category->name];
         $category->patients()->detach();
         $category->delete();
+
+        $this->auditLogger->logFromRequest(
+            request: $request,
+            eventType: 'patient_category.deleted',
+            entityType: 'patient_category',
+            entityId: $id,
+            metadata: $metadata,
+        );
     }
 
     private function ownedCategory(Request $request, string $id): PatientCategory

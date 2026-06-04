@@ -2,28 +2,61 @@
 
 namespace App\Services;
 
+use App\Models\BillingPayment;
 use App\Models\Plan;
 use App\Models\Subscription;
 use App\Models\User;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 class SubscriptionService
 {
-    public function currentForOwner(User $owner): ?Subscription
+    public function currentForOwner(User $owner, bool $forUpdate = false): ?Subscription
     {
         if (! $owner->isDentist()) {
             return null;
         }
 
-        /** @var Subscription|null $subscription */
-        $subscription = $owner->subscriptions()
+        // List endpoints (admin dentist index) eager-load `subscriptions.plan`
+        // to batch the otherwise-N+1 subscription fetch. When the relation is
+        // already loaded AND we're on a read path, sort the collection in
+        // PHP instead of issuing another query.
+        if (! $forUpdate && $owner->relationLoaded('subscriptions')) {
+            $subscription = $owner->subscriptions
+                ->sortByDesc('id')
+                ->sortByDesc(fn (Subscription $row): int => $row->starts_at?->getTimestamp() ?? 0)
+                ->first();
+
+            return $subscription instanceof Subscription ? $subscription : null;
+        }
+
+        $query = $owner->subscriptions()
             ->with('plan')
             ->latest('starts_at')
-            ->latest('id')
-            ->first();
+            ->latest('id');
 
-        if ($subscription !== null) {
+        // When used inside a transaction by a writer (e.g. renewOrActivate,
+        // schedulePlanChange), pass `forUpdate: true` to acquire a row lock and
+        // serialize concurrent extensions/activations against the same owner.
+        // Without the lock, two admin clicks (or admin + PayX webhook) firing
+        // back-to-back can both see the same ends_at and double-record payments
+        // while only advancing the period once.
+        if ($forUpdate) {
+            $query->lockForUpdate();
+        }
+
+        /** @var Subscription|null $subscription */
+        $subscription = $query->first();
+
+        // Only mutate state on writer paths. Read paths (summary, isReadOnly,
+        // planForOwner) return the row as-is — the scheduled `subscriptions:
+        // process` command is the canonical place where expired subs are
+        // flipped to read_only. summary() already derives the "grace" state
+        // from `ends_at->isPast()` so the API surface stays accurate without
+        // writes in the GET path.
+        if ($subscription !== null && $forUpdate) {
             $subscription = $this->handleExpiredSubscription($subscription);
         }
 
@@ -94,7 +127,7 @@ class SubscriptionService
             return $this->startTrial($owner, $note);
         }
 
-        return $this->activatePaid(
+        return $this->renewOrActivate(
             owner: $owner,
             plan: $plan,
             billingPeriod: $billingPeriod,
@@ -104,18 +137,193 @@ class SubscriptionService
         );
     }
 
+    /**
+     * Renew an existing matching subscription (preserves remaining time) or
+     * activate a new paid subscription if plan/period differs.
+     *
+     * Matches Stripe-style billing: a renewal of the same plan adds time on
+     * top of the current ends_at; a plan change activates a new subscription
+     * from now.
+     */
+    public function renewOrActivate(
+        User $owner,
+        Plan $plan,
+        string $billingPeriod,
+        ?string $paymentMethod = null,
+        ?float $paymentAmount = null,
+        ?string $note = null,
+        ?CarbonInterface $paidAt = null,
+    ): Subscription {
+        return DB::transaction(function () use (
+            $owner,
+            $plan,
+            $billingPeriod,
+            $paymentMethod,
+            $paymentAmount,
+            $note,
+            $paidAt,
+        ): Subscription {
+            $current = $this->currentForOwner($owner, forUpdate: true);
+            // Note: the DB-level status during the grace window is still ACTIVE
+            // (the "grace" label is derived in summary() from the past ends_at).
+            // After the grace window expires, currentForOwner -> handleExpired-
+            // Subscription flips status to READ_ONLY, which falls through to
+            // activatePaid (fresh period) — which is the desired behaviour.
+            $canExtend = $current !== null
+                && $current->plan_id === $plan->id
+                && $current->billing_period === $billingPeriod
+                && $current->status === Subscription::STATUS_ACTIVE;
+
+            if (! $canExtend) {
+                return $this->activatePaid(
+                    owner: $owner,
+                    plan: $plan,
+                    billingPeriod: $billingPeriod,
+                    paymentMethod: $paymentMethod,
+                    paymentAmount: $paymentAmount,
+                    note: $note,
+                    paidAt: $paidAt,
+                );
+            }
+
+            $baseDate = ($current->ends_at !== null && $current->ends_at->isFuture())
+                ? $current->ends_at->copy()
+                : now();
+            $endsAt = $billingPeriod === Subscription::PERIOD_YEARLY
+                ? $baseDate->copy()->addYearNoOverflow()
+                : $baseDate->copy()->addMonthNoOverflow();
+
+            $current->forceFill([
+                'status' => Subscription::STATUS_ACTIVE,
+                'ends_at' => $endsAt,
+                'cancel_at_period_end' => false,
+                // Clear any pending plan change. Without this, an admin who
+                // manually extends/overrides the plan would still get the
+                // queued downgrade auto-applied at next ends_at by
+                // activatePendingChange — silently reverting their override.
+                'pending_plan_id' => null,
+                'pending_billing_period' => null,
+                'pending_change_effective_at' => null,
+                'pending_active_staff_ids' => null,
+            ])->save();
+
+            $this->syncLegacyUserColumns(
+                owner: $owner,
+                planCode: $billingPeriod === Subscription::PERIOD_YEARLY
+                    ? User::SUBSCRIPTION_PLAN_YEARLY
+                    : User::SUBSCRIPTION_PLAN_MONTHLY,
+                startsAt: $current->starts_at ?? now(),
+                endsAt: $endsAt,
+                trialEndsAt: null,
+                paymentMethod: $paymentMethod,
+                paymentAmount: $paymentAmount,
+                note: $note,
+            );
+            $this->applyStaffLimit($owner, $plan);
+            $this->recordManualAdminReceipt($owner, $current, $plan, $billingPeriod, $paymentMethod, $paymentAmount, $paidAt);
+
+            return $current->refresh()->load('plan');
+        });
+    }
+
     public function markReadOnly(User $owner, ?string $note = null): Subscription
     {
         return DB::transaction(function () use ($owner, $note): Subscription {
-            $subscription = $this->currentForOwner($owner) ?? $this->startTrial($owner, $note);
+            $subscription = $this->currentForOwner($owner, forUpdate: true);
+            if ($subscription === null) {
+                // Refuse to silently create a trial just to flip it to READ_ONLY.
+                // Admin almost certainly intends to flip an existing paid sub,
+                // not invent one — let them choose set_trial explicitly first.
+                throw ValidationException::withMessages([
+                    'action' => ['Cannot mark read-only: no current subscription. Use set_trial first.'],
+                ]);
+            }
             $subscription->forceFill([
                 'status' => Subscription::STATUS_READ_ONLY,
                 'cancel_at_period_end' => false,
             ])->save();
 
+            // Clear the legacy "current payment" mirror so the dentist's
+            // billing card no longer shows the now-revoked payment as if it
+            // were still funding access. The historical payment row stays
+            // intact in billing_payments for the audit trail.
             $owner->forceFill([
                 'subscription_cancel_at_period_end' => false,
                 'subscription_cancelled_at' => now(),
+                'subscription_payment_method' => null,
+                'subscription_payment_amount' => null,
+                'subscription_note' => $note,
+            ])->save();
+
+            return $subscription->refresh()->load('plan');
+        });
+    }
+
+    /**
+     * Schedule a cancellation at the end of the current billing period. The
+     * subscription stays ACTIVE with full access until ends_at, then expires
+     * normally. Idempotent: re-calling on a sub already flagged is a no-op.
+     *
+     * Replaces the legacy User::cancelSubscriptionAtPeriodEnd() which performed
+     * two unlocked writes (subscription + user legacy columns) and was
+     * vulnerable to concurrent webhook race conditions.
+     */
+    public function cancelAtPeriodEnd(User $owner, ?string $note = null): ?Subscription
+    {
+        return DB::transaction(function () use ($owner, $note): ?Subscription {
+            $subscription = $this->currentForOwner($owner, forUpdate: true);
+            if ($subscription === null) {
+                return null;
+            }
+
+            $subscription->forceFill(['cancel_at_period_end' => true])->save();
+
+            $owner->forceFill([
+                'subscription_cancel_at_period_end' => true,
+                'subscription_note' => $note,
+            ])->save();
+
+            return $subscription->refresh()->load('plan');
+        });
+    }
+
+    /**
+     * Cancel the subscription immediately: access drops to read-only and a
+     * cancelled_at timestamp is recorded. For trials the ends_at is moved to
+     * "now" so the dentist sees the trial as expired; for paid subs the
+     * remaining time is discarded.
+     *
+     * Replaces the legacy User::cancelSubscriptionImmediately() which mutated
+     * the subscription and user rows in two separate unlocked writes.
+     */
+    public function cancelImmediately(User $owner, ?string $note = null): ?Subscription
+    {
+        return DB::transaction(function () use ($owner, $note): ?Subscription {
+            $cancelledAt = now();
+            $subscription = $this->currentForOwner($owner, forUpdate: true);
+            if ($subscription === null) {
+                return null;
+            }
+
+            $isTrial = $subscription->plan_code === Plan::CODE_TRIAL
+                || $subscription->billing_period === Subscription::PERIOD_TRIAL;
+
+            $subscription->forceFill([
+                'status' => Subscription::STATUS_READ_ONLY,
+                'cancel_at_period_end' => false,
+                // For trials we keep ends_at (so the trial expiry date stays
+                // visible in history); for paid subs we collapse ends_at to
+                // the cancellation moment, marking the period as forfeited.
+                'ends_at' => $isTrial ? $subscription->ends_at : $cancelledAt,
+            ])->save();
+
+            $owner->forceFill([
+                'subscription_cancel_at_period_end' => false,
+                'subscription_cancelled_at' => $cancelledAt,
+                'subscription_ends_at' => $isTrial
+                    ? $owner->subscription_ends_at
+                    : $cancelledAt,
+                'trial_ends_at' => $isTrial ? $cancelledAt : $owner->trial_ends_at,
                 'subscription_note' => $note,
             ])->save();
 
@@ -126,10 +334,28 @@ class SubscriptionService
     public function markActive(User $owner, ?string $note = null): Subscription
     {
         return DB::transaction(function () use ($owner, $note): Subscription {
-            $subscription = $this->currentForOwner($owner) ?? $this->startTrial($owner, $note);
+            $subscription = $this->currentForOwner($owner, forUpdate: true);
+            if ($subscription === null) {
+                throw ValidationException::withMessages([
+                    'action' => ['Cannot mark active: no current subscription. Use set_trial or a paid action first.'],
+                ]);
+            }
             $endsAt = $subscription->ends_at;
             if ($endsAt === null || $endsAt->isPast()) {
-                $endsAt = now()->addDays(30);
+                // Extend based on the billing period rather than a flat
+                // 30 days — yearly subscribers shouldn't lose 11 months
+                // when an admin re-activates an expired row. Trial uses
+                // the plan's own `trial_days` (matches startTrial above);
+                // a plan with trial_days=14 was previously extended for
+                // 30. Fall back to SUBSCRIPTION_TRIAL_DAYS only when the
+                // plan row is missing.
+                $endsAt = match ($subscription->billing_period) {
+                    Subscription::PERIOD_YEARLY => now()->addYearNoOverflow(),
+                    Subscription::PERIOD_MONTHLY => now()->addMonthNoOverflow(),
+                    default => now()->addDays(
+                        (int) ($subscription->plan->trial_days ?? User::SUBSCRIPTION_TRIAL_DAYS)
+                    ),
+                };
             }
 
             $subscription->forceFill([
@@ -182,6 +408,17 @@ class SubscriptionService
             $note,
             $paidAt,
         ): Subscription {
+            // Lock the owner User row so two concurrent admin "Activate
+            // monthly" clicks cannot both pass through with currentForOwner()
+            // returning null and INSERT two parallel ACTIVE subscriptions.
+            // currentForOwner(forUpdate: true) already locks the existing
+            // Subscription row, but on first-paid-activation there is no
+            // existing row to lock — the User-row lock closes that gap.
+            User::query()
+                ->whereKey($owner->id)
+                ->lockForUpdate()
+                ->first();
+
             $startsAt = $paidAt?->copy() ?? now();
             $endsAt = $billingPeriod === Subscription::PERIOD_YEARLY
                 ? $startsAt->copy()->addYearNoOverflow()
@@ -211,9 +448,63 @@ class SubscriptionService
                 note: $note,
             );
             $this->applyStaffLimit($owner, $plan);
+            $this->recordManualAdminReceipt($owner, $subscription, $plan, $billingPeriod, $paymentMethod, $paymentAmount, $paidAt);
 
             return $subscription->load('plan');
         });
+    }
+
+    /**
+     * Persist an admin-recorded off-line receipt (cash / p2p / bank transfer)
+     * as a BillingPayment row so the same surfaces that show PayX revenue
+     * (admin /admin/payments, dentist /billing payment history, refund
+     * cascade, audit log filters) also reflect admin-collected revenue.
+     *
+     * Skipped when this is a PayX activation (no manual payment_method) or
+     * a state-only mutation (mark_active/cancel) that does not record money.
+     */
+    private function recordManualAdminReceipt(
+        User $owner,
+        Subscription $subscription,
+        Plan $plan,
+        string $billingPeriod,
+        ?string $paymentMethod,
+        ?float $paymentAmount,
+        ?CarbonInterface $paidAt,
+    ): void {
+        if ($paymentMethod === null || $paymentAmount === null || $paymentAmount <= 0) {
+            return;
+        }
+        // Skip when this activation is being driven by a PayX webhook — the
+        // webhook handler writes the canonical BillingPayment row itself.
+        if ($paymentMethod === BillingPayment::PROVIDER_PAYX) {
+            return;
+        }
+
+        $payment = new BillingPayment();
+        $payment->fill([
+            'user_id' => $owner->id,
+            'subscription_id' => $subscription->id,
+            'plan_id' => $plan->id,
+            'plan_code' => $plan->code,
+            'plan_name' => $plan->name,
+            'billing_period' => $billingPeriod,
+            'amount' => round($paymentAmount, 2),
+            'currency' => $plan->currency,
+            'provider' => BillingPayment::PROVIDER_MANUAL_ADMIN,
+        ]);
+        // Provider-side identity fields are non-fillable on the model; set
+        // them via forceFill the same way PayX checkout creation does.
+        $payment->forceFill([
+            'status' => BillingPayment::STATUS_PAID,
+            'provider_order_id' => 'man-'.Str::lower(Str::random(20)),
+            'provider_payment_id' => null,
+            'provider_payload' => [
+                'channel' => $paymentMethod,
+                'recorded_by_admin' => true,
+            ],
+            'paid_at' => $paidAt ?? now(),
+        ])->save();
     }
 
     public function isReadOnly(User $user): bool
@@ -277,7 +568,7 @@ class SubscriptionService
         array $selectedActiveStaffIds = [],
     ): Subscription {
         return DB::transaction(function () use ($owner, $plan, $billingPeriod, $selectedActiveStaffIds): Subscription {
-            $subscription = $this->currentForOwner($owner);
+            $subscription = $this->currentForOwner($owner, forUpdate: true);
             if ($subscription === null) {
                 return $this->activatePaid(
                     owner: $owner,
@@ -285,6 +576,25 @@ class SubscriptionService
                     billingPeriod: $billingPeriod,
                     note: 'Scheduled change without existing subscription',
                 );
+            }
+
+            // Idempotent overwrite of the *same* pending change is fine
+            // (admin or webhook re-fires), but silently dropping a *different*
+            // pending change leaks the prior payment intent. Refuse so the
+            // caller can refund / reconcile the earlier pending row.
+            if (
+                $subscription->pending_plan_id !== null
+                && (
+                    (string) $subscription->pending_plan_id !== (string) $plan->id
+                    || $subscription->pending_billing_period !== $billingPeriod
+                )
+            ) {
+                throw ValidationException::withMessages([
+                    'pending_change' => [
+                        'A different plan change is already scheduled for this subscription. '.
+                        'Cancel the existing pending change before scheduling a new one.',
+                    ],
+                ]);
             }
 
             $subscription->forceFill([
@@ -306,7 +616,6 @@ class SubscriptionService
         $subscription = $this->currentForOwner($owner);
         $plan = $subscription?->plan;
         $endsAt = $subscription?->ends_at;
-        $isReadOnly = $subscription?->status === Subscription::STATUS_READ_ONLY;
 
         // Derived grace state: a paid subscription whose period has ended but is
         // still inside the grace window keeps full access (status stays ACTIVE
@@ -319,6 +628,19 @@ class SubscriptionService
             && $graceEndsAt->isAfter($endsAt)
             && now()->lt($graceEndsAt);
 
+        // Derived read-only state: either the DB status is already READ_ONLY,
+        // OR the paid period + grace window have both elapsed but the
+        // scheduled `subscriptions:process` command hasn't flipped the row
+        // yet. This keeps the API contract stable in the gap between the
+        // grace deadline and the next cron tick.
+        $isReadOnly = $subscription?->status === Subscription::STATUS_READ_ONLY
+            || (
+                $subscription?->status === Subscription::STATUS_ACTIVE
+                && $endsAt !== null
+                && $endsAt->isPast()
+                && ! $inGrace
+            );
+
         return [
             'is_configured' => $subscription !== null,
             'plan' => $subscription?->plan_code,
@@ -326,7 +648,9 @@ class SubscriptionService
             'billing_period' => $subscription?->billing_period,
             'status' => $inGrace
                 ? User::SUBSCRIPTION_STATUS_GRACE
-                : ($subscription?->status ?? User::SUBSCRIPTION_STATUS_NONE),
+                : ($isReadOnly
+                    ? User::SUBSCRIPTION_STATUS_READ_ONLY
+                    : ($subscription?->status ?? User::SUBSCRIPTION_STATUS_NONE)),
             'access_mode' => $isReadOnly
                 ? User::SUBSCRIPTION_ACCESS_READ_ONLY
                 : User::SUBSCRIPTION_ACCESS_FULL,
@@ -337,8 +661,10 @@ class SubscriptionService
                 : null,
             'grace_ends_at' => $inGrace ? $graceEndsAt->toIso8601String() : null,
             'cancel_at_period_end' => (bool) ($subscription?->cancel_at_period_end ?? false),
-            'cancelled_at' => null,
+            'cancelled_at' => $owner->subscription_cancelled_at?->toIso8601String(),
             'pending_plan_id' => $subscription?->pending_plan_id !== null ? (string) $subscription->pending_plan_id : null,
+            'pending_plan_code' => $this->resolvePendingPlanField($subscription, 'code'),
+            'pending_plan_name' => $this->resolvePendingPlanField($subscription, 'name'),
             'pending_billing_period' => $subscription?->pending_billing_period,
             'pending_change_effective_at' => $subscription?->pending_change_effective_at?->toIso8601String(),
             'days_remaining' => $endsAt !== null
@@ -357,6 +683,25 @@ class SubscriptionService
                 : null,
             'note' => $owner->subscription_note,
         ];
+    }
+
+    /**
+     * Resolve the human-readable code/name for the plan a subscription is
+     * scheduled to switch to at period end. Returns null when no pending
+     * change is set, or when the target plan row has been deleted/disabled.
+     */
+    private function resolvePendingPlanField(?Subscription $subscription, string $field): ?string
+    {
+        if ($subscription === null || $subscription->pending_plan_id === null) {
+            return null;
+        }
+
+        $plan = Plan::query()->find($subscription->pending_plan_id);
+        if ($plan === null) {
+            return null;
+        }
+
+        return $field === 'name' ? $plan->name : $plan->code;
     }
 
     private function handleExpiredSubscription(Subscription $subscription): Subscription
@@ -419,15 +764,51 @@ class SubscriptionService
                 return $subscription->refresh()->load('plan');
             }
 
-            /** @var Plan $plan */
-            $plan = Plan::query()->where('id', $subscription->pending_plan_id)->firstOrFail();
+            /** @var Plan|null $plan */
+            $plan = Plan::query()->where('id', $subscription->pending_plan_id)->first();
+
+            // Defence-in-depth: if the pending plan was deactivated between
+            // checkout and activation (admin disabled it from /admin/plans
+            // while the subscription was waiting at the period boundary),
+            // refuse to silently activate a plan that `/billing/plans` no
+            // longer offers. Flip to read-only and clear the pending change
+            // so the admin sees the broken state in the dentist's billing
+            // page rather than the user landing on a hidden plan. Same
+            // exit path as `pending_plan_id === null` above.
+            if ($plan === null || ! (bool) $plan->is_active) {
+                $subscription->forceFill([
+                    'status' => Subscription::STATUS_READ_ONLY,
+                    'pending_plan_id' => null,
+                    'pending_billing_period' => null,
+                    'pending_change_effective_at' => null,
+                    'pending_active_staff_ids' => null,
+                ])->save();
+
+                return $subscription->refresh()->load('plan');
+            }
             /** @var User $owner */
             $owner = $subscription->user()->firstOrFail();
             $startsAt = $subscription->ends_at?->copy() ?? now();
             $endsAt = $subscription->pending_billing_period === Subscription::PERIOD_YEARLY
                 ? $startsAt->copy()->addYearNoOverflow()
                 : $startsAt->copy()->addMonthNoOverflow();
-            $selectedStaffIds = $subscription->pending_active_staff_ids ?? [];
+
+            // Re-validate the deferred staff selection. Between the checkout
+            // (when the IDs were snapshotted into pending_active_staff_ids)
+            // and webhook activation, some assistants may have been deleted
+            // or transferred. Pass only currently-existing rows to
+            // applyStaffLimit so a stale ID can't silently demote a third
+            // assistant in their place (applyStaffLimit picks fallbacks when
+            // preferred IDs don't resolve).
+            $pendingStaffIds = $subscription->pending_active_staff_ids ?? [];
+            $selectedStaffIds = [];
+            if (!empty($pendingStaffIds)) {
+                $existingIds = $owner->assistants()
+                    ->whereIn('id', $pendingStaffIds)
+                    ->pluck('id')
+                    ->all();
+                $selectedStaffIds = array_map('intval', $existingIds);
+            }
 
             $newSubscription = $owner->subscriptions()->create([
                 'plan_id' => $plan->id,

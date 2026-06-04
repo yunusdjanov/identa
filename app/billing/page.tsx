@@ -15,16 +15,8 @@ import {
 import { PageHeader } from '@/components/ui/page-shell';
 import { Skeleton } from '@/components/ui/skeleton';
 import { AccessDeniedState } from '@/components/error/access-denied-state';
+import { AppErrorState } from '@/components/error/app-error-state';
 import { BillingLoadingState } from '@/components/layout/page-loading-skeletons';
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from '@/components/ui/table';
-import { DataTableShell, getDataTableClassName } from '@/components/ui/data-table-shell';
 import {
     createBillingCheckout,
     getCurrentSubscription,
@@ -33,26 +25,46 @@ import {
     listBillingPayments,
     listBillingPlans,
 } from '@/lib/api/dentist';
-import type { ApiAssistantAccount, ApiPlan } from '@/lib/api/types';
+import type { ApiAssistantAccount, ApiBillingPayment, ApiPlan } from '@/lib/api/types';
 import { getApiErrorMessage } from '@/lib/api/client';
 import { formatLocalizedDate } from '@/lib/i18n/date';
 import { useI18n } from '@/components/providers/i18n-provider';
 import { toast } from 'sonner';
-import { ArrowRight, Check, CreditCard, Crown, Download, Image as ImageIcon, LockKeyhole, Sparkles, Upload, Users, X, Zap } from 'lucide-react';
+import { ArrowRight, Check, CreditCard, Crown, Download, Image as ImageIcon, Loader2, LockKeyhole, Sparkles, Upload, Users, X, Zap } from 'lucide-react';
 import { buildPdfFilename, exportRowsToPdf } from '@/lib/export/pdf';
 
 type BillingPeriod = 'monthly' | 'yearly';
 
-function formatMoney(amount: number | null, currency: string): string {
+function formatMoney(amount: number | null, currency: string, locale = 'uz-UZ'): string {
     if (amount === null) {
         return '-';
     }
 
-    return new Intl.NumberFormat('uz-UZ', {
+    return new Intl.NumberFormat(locale, {
         style: 'currency',
         currency,
         maximumFractionDigits: 0,
     }).format(amount);
+}
+
+/**
+ * Visual style per payment status. Refunded uses amber (not gray) so the
+ * dentist can spot it as a distinct outcome from canceled/failed/pending.
+ */
+function getPaymentStatusStyle(status: ApiBillingPayment['status']): { badge: string; dot: string } {
+    switch (status) {
+        case 'paid':
+            return { badge: 'bg-emerald-50 text-emerald-700 ring-emerald-100', dot: 'bg-emerald-500' };
+        case 'refunded':
+            return { badge: 'bg-amber-50 text-amber-700 ring-amber-200', dot: 'bg-amber-500' };
+        case 'failed':
+            return { badge: 'bg-red-50 text-red-700 ring-red-100', dot: 'bg-red-500' };
+        case 'canceled':
+            return { badge: 'bg-slate-100 text-slate-500 ring-slate-200', dot: 'bg-slate-400' };
+        case 'pending':
+        default:
+            return { badge: 'bg-blue-50 text-blue-700 ring-blue-100', dot: 'bg-blue-500' };
+    }
 }
 
 function getPlanPrice(plan: ApiPlan, period: BillingPeriod): number | null {
@@ -77,20 +89,30 @@ export default function BillingPage() {
     });
     // Billing is owner-only; gate the API calls so assistants never trigger a 403.
     const isOwner = currentUserQuery.data?.role === 'dentist';
+    // Subscription + payments refresh on a 60s heartbeat AND on window focus
+    // so an admin-side change (refund, mark_read_only, extend) is reflected
+    // here without requiring the dentist to manually reload. Without this,
+    // the dentist's UI lies about access state for up to staleTime.
     const subscriptionQuery = useQuery({
         queryKey: ['billing', 'current-subscription'],
         queryFn: getCurrentSubscription,
         enabled: isOwner,
+        refetchInterval: 60_000,
+        refetchOnWindowFocus: true,
     });
     const plansQuery = useQuery({
         queryKey: ['billing', 'plans'],
         queryFn: listBillingPlans,
         enabled: isOwner,
+        // Plans are essentially static — refetch less aggressively.
+        staleTime: 5 * 60_000,
     });
     const paymentsQuery = useQuery({
         queryKey: ['billing', 'payments'],
         queryFn: listBillingPayments,
         enabled: isOwner,
+        refetchInterval: 60_000,
+        refetchOnWindowFocus: true,
     });
     const staffQuery = useQuery({
         queryKey: ['team', 'assistants', 'billing-downgrade'],
@@ -118,6 +140,27 @@ export default function BillingPage() {
 
     const plans = useMemo(() => plansQuery.data ?? [], [plansQuery.data]);
     const subscription = subscriptionQuery.data ?? currentUserQuery.data?.subscription ?? null;
+    // Derive the subscription's currency from the matched plan row rather than
+    // hardcoding UZS — keeps the header amount honest if a tenant is ever
+    // priced in another currency.
+    const subscriptionPlan = useMemo(
+        () => (subscription?.plan ? plans.find((p) => p.code === subscription.plan) ?? null : null),
+        [plans, subscription],
+    );
+    const subscriptionCurrency = subscriptionPlan?.currency ?? 'UZS';
+
+    // Localized plan name with fallback: legacy subscription rows may carry
+    // plan codes like 'monthly'/'yearly' (period-only labels from older PayX
+    // flows) that have no plan.${code}.name dictionary entry. The i18n
+    // provider returns the raw key on miss — detect that and fall back to the
+    // frozen plan_name snapshot the backend stored at purchase time.
+    const resolvePlanLabel = (code: string | null | undefined, snapshot: string | null | undefined): string => {
+        if (!code) return snapshot ?? '-';
+        const key = `plan.${code}.name`;
+        const translated = t(key);
+        return translated === key ? (snapshot ?? code) : translated;
+    };
+
     const isLoading = currentUserQuery.isLoading || subscriptionQuery.isLoading || plansQuery.isLoading;
     const activeStaff = useMemo(
         () => (staffQuery.data?.data ?? []).filter(
@@ -180,6 +223,20 @@ export default function BillingPage() {
         return <BillingLoadingState />;
     }
 
+    if (subscriptionQuery.isError || plansQuery.isError) {
+        return (
+            <AppErrorState
+                title={t('common.loadErrorTitle')}
+                description={getApiErrorMessage(subscriptionQuery.error ?? plansQuery.error, t('billing.loadFailed'))}
+                retryLabel={t('common.retry')}
+                onRetry={() => {
+                    void subscriptionQuery.refetch();
+                    void plansQuery.refetch();
+                }}
+            />
+        );
+    }
+
     return (
         <div className="space-y-5 lg:space-y-6">
             <PageHeader title={t('billing.title')} description={t('billing.subtitle')} />
@@ -193,7 +250,7 @@ export default function BillingPage() {
                         <div className="min-w-0">
                             <div className="flex flex-wrap items-center gap-2">
                                 <h2 className="text-lg font-bold tracking-tight text-slate-950">
-                                    {subscription?.plan_name ?? subscription?.plan ?? '-'}
+                                    {resolvePlanLabel(subscription?.plan ?? null, subscription?.plan_name ?? null)}
                                 </h2>
                                 {subscription?.status ? (
                                     <span className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-semibold ${
@@ -202,13 +259,13 @@ export default function BillingPage() {
                                             : 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100'
                                     }`}>
                                         <span className={`h-1.5 w-1.5 rounded-full ${subscription.is_read_only ? 'bg-red-500' : 'bg-emerald-500'}`} />
-                                        {subscription.status}
+                                        {t(`subscription.status.${subscription.status}`)}
                                     </span>
                                 ) : null}
                             </div>
                             {subscription?.payment_amount ? (
                                 <p className="mt-0.5 text-xs text-slate-500">
-                                    {formatMoney(subscription.payment_amount, 'UZS')} / {t(subscription.billing_period === 'yearly' ? 'billing.period.yearly' : 'billing.period.monthly')}
+                                    {formatMoney(subscription.payment_amount, subscriptionCurrency, locale)} / {t(subscription.billing_period === 'yearly' ? 'billing.period.yearly' : 'billing.period.monthly')}
                                 </p>
                             ) : (
                                 <p className="mt-0.5 text-xs text-slate-500">{t('billing.subtitle')}</p>
@@ -283,6 +340,11 @@ export default function BillingPage() {
                 {plans.map((plan) => {
                     const price = plan.is_trial ? null : getPlanPrice(plan, period);
                     const disabled = plan.is_paid && (!isOwner || price === null || price <= 0 || checkoutMutation.isPending);
+                    // Spinner only on the specific plan being checked out — other plans
+                    // remain visually idle (just disabled) so the user knows which click
+                    // is in flight.
+                    const isThisPlanCheckingOut =
+                        checkoutMutation.isPending && checkoutMutation.variables?.plan_code === plan.code;
                     const isCurrent = subscription?.plan === plan.code;
                     const isPopular = plan.code === 'pro' && !isCurrent;
                     const planIcon = plan.code === 'pro' ? Crown : plan.code === 'basic' ? Zap : Sparkles;
@@ -326,8 +388,12 @@ export default function BillingPage() {
                                             <PlanIcon className="h-5 w-5" />
                                         </span>
                                         <div className="min-w-0">
-                                            <h3 className="text-lg font-bold tracking-tight text-slate-950">{plan.name}</h3>
-                                            <p className="mt-0.5 line-clamp-3 text-xs leading-relaxed text-slate-500">{plan.description}</p>
+                                            <h3 className="text-lg font-bold tracking-tight text-slate-950">
+                                                {t(`plan.${plan.code}.name`)}
+                                            </h3>
+                                            <p className="mt-0.5 line-clamp-3 text-xs leading-relaxed text-slate-500">
+                                                {t(`plan.${plan.code}.description`)}
+                                            </p>
                                         </div>
                                     </div>
                                     {isCurrent ? (
@@ -346,7 +412,7 @@ export default function BillingPage() {
                                         <span className="text-3xl font-semibold tracking-tight text-slate-900">{t('billing.free')}</span>
                                     ) : (
                                         <>
-                                            <span className="text-3xl font-semibold tracking-tight text-slate-900 tabular-nums">{formatMoney(price, plan.currency)}</span>
+                                            <span className="text-3xl font-semibold tracking-tight text-slate-900 tabular-nums">{formatMoney(price, plan.currency, locale)}</span>
                                             <span className="text-sm font-medium text-slate-400">/ {t(`billing.period.${period}`).toLowerCase()}</span>
                                         </>
                                     )}
@@ -403,6 +469,11 @@ export default function BillingPage() {
                                                 <Check className="mr-2 h-4 w-4" />
                                                 {t('billing.current')}
                                             </>
+                                        ) : isThisPlanCheckingOut ? (
+                                            <span className="flex items-center justify-center gap-2">
+                                                <Loader2 className="h-4 w-4 animate-spin" />
+                                                <span>{t('billing.processing')}</span>
+                                            </span>
                                         ) : (
                                             <span className="flex items-center justify-center gap-2">
                                                 <CreditCard className="h-4 w-4" />
@@ -544,8 +615,8 @@ export default function BillingPage() {
                                         const rows = data.map((p) => [
                                             p.created_at ? formatLocalizedDate(p.created_at, locale, { year: 'numeric', month: 'short', day: 'numeric' }) : '-',
                                             p.plan_name ?? '-',
-                                            formatMoney(p.amount, p.currency),
-                                            p.status,
+                                            formatMoney(p.amount, p.currency, locale),
+                                            t(`admin.billing.payment.status.${p.status}`),
                                             p.provider_order_id ?? '-',
                                         ]);
                                         exportRowsToPdf({
@@ -562,7 +633,7 @@ export default function BillingPage() {
                                             rows,
                                             summary: [
                                                 { label: t('billing.paymentHistory'), value: String(data.length) },
-                                                { label: t('billing.table.amount'), value: formatMoney(totalAmount, 'UZS') },
+                                                { label: t('billing.table.amount'), value: formatMoney(totalAmount, subscriptionCurrency, locale) },
                                             ],
                                             orientation: 'landscape',
                                         });
@@ -598,7 +669,7 @@ export default function BillingPage() {
                                 </thead>
                                 <tbody className="divide-y divide-slate-100">
                                     {(paymentsQuery.data ?? []).map((payment) => {
-                                        const isPaid = payment.status === 'paid';
+                                        const paymentStatusStyle = getPaymentStatusStyle(payment.status);
                                         return (
                                             <tr key={payment.id} className="transition-colors hover:bg-slate-50/60">
                                                 <td className="px-5 py-3.5 text-sm tabular-nums text-slate-700">
@@ -619,16 +690,12 @@ export default function BillingPage() {
                                                     </div>
                                                 </td>
                                                 <td className="px-5 py-3.5 text-right text-sm font-semibold tabular-nums text-slate-900">
-                                                    {formatMoney(payment.amount, payment.currency)}
+                                                    {formatMoney(payment.amount, payment.currency, locale)}
                                                 </td>
                                                 <td className="px-5 py-3.5">
-                                                    <span className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-semibold ${
-                                                        isPaid
-                                                            ? 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100'
-                                                            : 'bg-slate-100 text-slate-600 ring-1 ring-slate-200'
-                                                    }`}>
-                                                        <span className={`h-1.5 w-1.5 rounded-full ${isPaid ? 'bg-emerald-500' : 'bg-slate-400'}`} />
-                                                        {payment.status}
+                                                    <span className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-semibold ring-1 ${paymentStatusStyle.badge}`}>
+                                                        <span className={`h-1.5 w-1.5 rounded-full ${paymentStatusStyle.dot}`} />
+                                                        {t(`admin.billing.payment.status.${payment.status}`)}
                                                     </span>
                                                 </td>
                                                 <td className="px-5 py-3.5">

@@ -15,7 +15,23 @@ const eslintConfig = defineConfig([
     "public/identa-handoff/**",
     // Monorepo backend ignores:
     "backend/**",
+    // Generated coverage report (from `npm run test:coverage`):
+    "coverage/**",
   ]),
+  {
+    // Treat `_`-prefixed identifiers as intentionally unused (common pattern
+    // for omitted destructure targets and placeholder args).
+    rules: {
+      "@typescript-eslint/no-unused-vars": [
+        "warn",
+        {
+          argsIgnorePattern: "^_",
+          varsIgnorePattern: "^_",
+          caughtErrorsIgnorePattern: "^_",
+        },
+      ],
+    },
+  },
 ]);
 
 export default eslintConfig;

@@ -95,13 +95,24 @@ class SettingsProfileApiTest extends TestCase
             ]);
     }
 
-    public function test_guest_is_unauthorized_and_admin_forbidden_for_profile_routes(): void
+    public function test_guest_is_unauthorized_and_admin_is_authorized_for_profile_routes(): void
     {
+        // /settings/profile is the single endpoint the dentist, assistant, AND
+        // admin "Settings → Account" form all hit. A-C1 added the admin role
+        // to the route — without it, admins silently 403'd on save. The shape
+        // for admin is name + email only (ProfileSettingsService::update()
+        // filters the payload by role), but the GET must succeed.
         $this->getJson('/api/v1/settings/profile')->assertUnauthorized();
 
         $admin = User::factory()->admin()->create();
         $this->actingAs($admin, 'web')
             ->getJson('/api/v1/settings/profile')
-            ->assertForbidden();
+            ->assertOk()
+            ->assertJsonStructure([
+                'data' => [
+                    'email',
+                    'name',
+                ],
+            ]);
     }
 }

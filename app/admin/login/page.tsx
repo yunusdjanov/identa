@@ -15,6 +15,7 @@ import {
     clearClientLogoutInProgress,
     isClientLogoutInProgress,
 } from '@/lib/auth/client-logout';
+import { postAuthBroadcast, subscribeAuthBroadcast } from '@/lib/auth/auth-broadcast';
 import { toast } from 'sonner';
 import { INPUT_LIMITS, getEmailValidationMessage } from '@/lib/input-validation';
 import { useI18n } from '@/components/providers/i18n-provider';
@@ -64,7 +65,15 @@ export default function AdminLoginPage() {
         onSuccess: (user) => {
             clearClientLogoutInProgress();
             setIsLogoutRedirect(false);
+            // Wipe any cached data from a previous session BEFORE seeding the
+            // new auth/me. Closes the cross-tenant flash window covered by
+            // the matching change in /login. `invalidateQueries(['admin'])`
+            // below becomes redundant after the clear, but kept as belt-
+            // and-braces in case clear() is removed accidentally later.
+            queryClient.clear();
             queryClient.setQueryData(['auth', 'me'], user);
+            queryClient.invalidateQueries({ queryKey: ['admin'] });
+            postAuthBroadcast({ type: 'login' });
             toast.success(t('admin.login.success'));
             router.push('/admin');
         },
@@ -74,7 +83,9 @@ export default function AdminLoginPage() {
     });
 
     useEffect(() => {
-        void ensureCsrfCookie();
+        // Best-effort CSRF prefetch — swallow failures so a transient
+        // csrf-token endpoint error doesn't surface as an unhandled rejection.
+        void ensureCsrfCookie().catch(() => undefined);
     }, []);
 
     useEffect(() => {
@@ -85,11 +96,21 @@ export default function AdminLoginPage() {
         window.addEventListener(CLIENT_LOGOUT_FINISHED_EVENT, updateLogoutRedirectState);
         const timeoutId = window.setTimeout(updateLogoutRedirectState, 1200);
 
+        // FA-A10 multi-tab login signal. Mirrors the public /login page.
+        const unsubscribeBroadcast = subscribeAuthBroadcast((message) => {
+            if (message.type === 'login') {
+                clearClientLogoutInProgress();
+                setIsLogoutRedirect(false);
+                queryClient.invalidateQueries({ queryKey: ['auth', 'me'] });
+            }
+        });
+
         return () => {
             window.removeEventListener(CLIENT_LOGOUT_FINISHED_EVENT, updateLogoutRedirectState);
             window.clearTimeout(timeoutId);
+            unsubscribeBroadcast();
         };
-    }, []);
+    }, [queryClient]);
 
     useEffect(() => {
         if (isLogoutRedirect) {
@@ -115,7 +136,7 @@ export default function AdminLoginPage() {
     };
 
     if (!isLogoutRedirect && currentUserQuery.isLoading) {
-        return <AuthFormLoadingState fieldCount={2} />;
+        return <AuthFormLoadingState fieldCount={2} showRememberAndForgot />;
     }
 
     return (
@@ -153,6 +174,7 @@ export default function AdminLoginPage() {
                                     maxLength={INPUT_LIMITS.email}
                                     inputMode="email"
                                     autoComplete="email"
+                                    autoFocus
                                     aria-invalid={Boolean(isSubmitted && emailError)}
                                 />
                                 {isSubmitted && emailError ? (
@@ -212,13 +234,10 @@ export default function AdminLoginPage() {
                     </CardContent>
                 </Card>
 
-                <p className="mt-6 text-center text-sm text-slate-600">
-                    {t('login.noAccount')}{' '}
-                    <Link href="/register" className="font-semibold text-teal-700 transition hover:text-teal-800">
-                        {t('login.createAccount')}
-                    </Link>
-                </p>
-
+                {/* Admin login intentionally omits a self-service "Create account"
+                    affordance — admin accounts are provisioned by other admins via
+                    /admin/dentists or via DB seeder, never self-served. The notice
+                    below reinforces that this surface is for authorized personnel. */}
                 <p className="text-center text-xs text-slate-500 mt-6">
                     {t('admin.login.notice')}
                 </p>

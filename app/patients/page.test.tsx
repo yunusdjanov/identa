@@ -44,7 +44,11 @@ function renderPage() {
 }
 
 describe('PatientsPage', () => {
-    const buildPatientsResponse = (patients: unknown[]) => ({
+    // Generic so the return type carries the patient type forward. The
+    // earlier `unknown[]` signature widened `data` to `unknown[]`, which
+    // didn't satisfy `ApiCollectionEnvelope<ApiPatient>` when handed to
+    // `listPatients.mockResolvedValue(...)`.
+    const buildPatientsResponse = <T,>(patients: T[]) => ({
         data: patients,
         meta: {
             pagination: {

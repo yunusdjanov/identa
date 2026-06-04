@@ -132,7 +132,12 @@ function Providers({ client, children }: { client: QueryClient; children: React.
 }
 
 describe('AddAppointmentDialog', () => {
-    const buildPatientsResponse = (patients: unknown[]) => ({
+    // Both helpers were typed as `unknown[]` which widened the returned
+    // `data` field and made `mockResolvedValue(...)` reject the envelope as
+    // not satisfying `ApiCollectionEnvelope<ApiPatientLookup>` /
+    // `ApiCollectionEnvelope<ApiAppointment>`. A generic parameter lets the
+    // call site's element type flow through to `data`.
+    const buildPatientsResponse = <T,>(patients: T[]) => ({
         data: patients,
         meta: {
             pagination: {
@@ -143,7 +148,7 @@ describe('AddAppointmentDialog', () => {
             },
         },
     });
-    const buildAppointmentsResponse = (appointments: unknown[]) => ({
+    const buildAppointmentsResponse = <T,>(appointments: T[]) => ({
         data: appointments,
         meta: {
             pagination: {
@@ -229,7 +234,9 @@ describe('AddAppointmentDialog', () => {
         );
 
         await waitFor(() => {
-            expect(screen.getByText('Selected: Prefilled Patient (PT-9001)')).toBeInTheDocument();
+            // patient_id is no longer displayed alongside the name (task #21).
+            // formatPatientLabel returns just `full_name`.
+            expect(screen.getByText('Selected: Prefilled Patient')).toBeInTheDocument();
         });
     });
 
@@ -265,7 +272,7 @@ describe('AddAppointmentDialog', () => {
         );
 
         await waitFor(() => {
-            expect(screen.getByText('Selected: First Patient (PT-0001)')).toBeInTheDocument();
+            expect(screen.getByText('Selected: First Patient')).toBeInTheDocument();
         });
 
         view.rerender(
@@ -280,7 +287,7 @@ describe('AddAppointmentDialog', () => {
         );
 
         await waitFor(() => {
-            expect(screen.getByText('Selected: Second Patient (PT-0002)')).toBeInTheDocument();
+            expect(screen.getByText('Selected: Second Patient')).toBeInTheDocument();
         });
     });
 

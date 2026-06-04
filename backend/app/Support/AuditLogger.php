@@ -31,10 +31,15 @@ class AuditLogger
         array $metadata = [],
         ?string $ipAddress = null,
         ?string $userAgent = null,
+        ?int $tenantDentistId = null,
     ): AuditLog {
         return AuditLog::query()->create([
             'actor_id' => $actor?->id,
-            'dentist_id' => $actor?->tenantDentistId(),
+            // Allow the caller to override the tenant — used by anonymous
+            // events (password reset request, public verify) where we
+            // resolve the affected dentist via the supplied email and want
+            // the audit row to land on their tenant for forensics.
+            'dentist_id' => $tenantDentistId ?? $actor?->tenantDentistId(),
             'actor_role' => $actor?->role,
             'event_type' => $eventType,
             'entity_type' => $entityType,

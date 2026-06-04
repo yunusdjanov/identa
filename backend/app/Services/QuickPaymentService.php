@@ -77,15 +77,25 @@ class QuickPaymentService
                     ->where('patient_id', $patient->id)
                     ->lockForUpdate()
                     ->first();
-                if ($treatment !== null) {
-                    $debt = $this->normalizeMoney($treatment->debt_amount ?? $treatment->cost ?? '0');
-                    $alreadyPaid = $this->normalizeMoney($treatment->paid_amount ?? '0');
-                    $remaining = bcsub($debt, $alreadyPaid, 2);
-                    if (bccomp($amount, $remaining, 2) === 1) {
-                        throw ValidationException::withMessages([
-                            'amount' => [__('api.payments.amount_exceeds_balance')],
-                        ]);
-                    }
+                if ($treatment === null) {
+                    // The caller supplied a treatment_id that doesn't
+                    // belong to this dentist + patient. Previous behaviour
+                    // silently fell back to "no mirror" — which also
+                    // skipped the balance-exceeded guard below, letting a
+                    // misuser send an arbitrary amount with an unowned
+                    // UUID. Refuse the request outright so the boundary
+                    // stays tight.
+                    throw ValidationException::withMessages([
+                        'treatment_id' => [__('api.treatments.not_found')],
+                    ]);
+                }
+                $debt = $this->normalizeMoney($treatment->debt_amount ?? $treatment->cost ?? '0');
+                $alreadyPaid = $this->normalizeMoney($treatment->paid_amount ?? '0');
+                $remaining = bcsub($debt, $alreadyPaid, 2);
+                if (bccomp($amount, $remaining, 2) === 1) {
+                    throw ValidationException::withMessages([
+                        'amount' => [__('api.payments.amount_exceeds_balance')],
+                    ]);
                 }
             }
 

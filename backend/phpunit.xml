@@ -18,6 +18,10 @@
         </include>
     </source>
     <php>
+        <!-- Image-compression tests (WebP/JPEG GD encoding) exceed PHP's
+             default 128M; 512M gives headroom so `artisan test` passes
+             out of the box without a CLI -d override. -->
+        <ini name="memory_limit" value="512M"/>
         <env name="APP_ENV" value="testing"/>
         <env name="APP_KEY" value="base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="/>
         <env name="APP_MAINTENANCE_DRIVER" value="file"/>

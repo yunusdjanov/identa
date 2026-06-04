@@ -127,6 +127,18 @@ class TeamAssistantController extends Controller
 
     public function destroy(Request $request, string $id): JsonResponse
     {
+        // Capture original PII BEFORE the service rotates email/phone
+        // so the audit log records who was actually removed (the
+        // service overwrites `email` with a synthetic deleted-{id}@
+        // value to free the UNIQUE constraint for re-invites).
+        $assistantBeforeDelete = $this->team->ownedAssistant(
+            $id,
+            $this->team->dentistId($request),
+            true
+        );
+        $originalEmail = $assistantBeforeDelete->email;
+        $originalPhone = $assistantBeforeDelete->phone;
+
         $assistant = $this->team->delete($request, $id);
 
         $this->auditLogger->logFromRequest(
@@ -134,6 +146,10 @@ class TeamAssistantController extends Controller
             eventType: 'team.assistant.deleted',
             entityType: 'user',
             entityId: (string) $assistant->id,
+            metadata: [
+                'original_email' => $originalEmail,
+                'original_phone' => $originalPhone,
+            ],
         );
 
         return response()->json([], 204);

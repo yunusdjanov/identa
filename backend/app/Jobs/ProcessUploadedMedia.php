@@ -65,10 +65,14 @@ class ProcessUploadedMedia implements ShouldQueue
         }
 
         try {
+            // Auto compression: pass null so ImageCompressionService picks the
+            // best quality/size single-pass result. The legacy per-plan ceiling
+            // (stored_image_max_mb) is no longer enforced — upload_max_mb caps
+            // the input side and is enough to bound storage in practice.
             $optimized = $imageCompressionService->optimizeContents(
                 contents: $contents,
                 fallbackMimeType: (string) ($record->getAttribute('mime_type') ?? 'image/jpeg'),
-                targetMaxBytes: $planLimitService->storedImageMaxBytes(User::query()->findOrFail($this->ownerId)),
+                targetMaxBytes: null,
             );
 
             if ($optimized === null) {
@@ -76,11 +80,6 @@ class ProcessUploadedMedia implements ShouldQueue
 
                 return;
             }
-
-            $planLimitService->ensureStoredFileAllowed(
-                User::query()->findOrFail($this->ownerId),
-                $optimized['file_size']
-            );
 
             $approvedPath = $this->approvedPath($quarantinePath, $optimized['extension']);
             Storage::disk($disk)->put($approvedPath, $optimized['contents']);

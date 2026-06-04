@@ -7,6 +7,7 @@ use App\Http\Requests\UpdateInvoiceRequest;
 use App\Models\Invoice;
 use App\Models\OdontogramEntry;
 use App\Models\User;
+use App\Support\AuditLogger;
 use App\Support\Search;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
@@ -16,6 +17,10 @@ use Illuminate\Validation\ValidationException;
 
 class InvoiceService
 {
+    public function __construct(
+        private readonly AuditLogger $auditLogger,
+    ) {}
+
     private const DEFAULT_PER_PAGE = 15;
 
     private const MAX_PER_PAGE = 100;
@@ -97,7 +102,7 @@ class InvoiceService
         $validated = $request->validated();
         $dentistId = $this->dentistId($request);
 
-        return DB::transaction(function () use ($validated, $dentistId): Invoice {
+        $invoice = DB::transaction(function () use ($validated, $dentistId): Invoice {
             $this->assertOdontogramItemsBelongToPatient(
                 items: $validated['items'],
                 dentistId: $dentistId,
@@ -123,14 +128,39 @@ class InvoiceService
 
             return $invoice->load(['items', 'patient:id,full_name,phone']);
         });
+
+        $this->auditLogger->logFromRequest(
+            request: $request,
+            eventType: 'invoice.created',
+            entityType: 'invoice',
+            entityId: (string) $invoice->id,
+            metadata: [
+                'patient_id' => (string) $invoice->patient_id,
+                'invoice_number' => $invoice->invoice_number,
+                'total_amount' => (float) $invoice->total_amount,
+            ],
+        );
+
+        return $invoice;
     }
 
     public function update(UpdateInvoiceRequest $request, string $id): Invoice
     {
-        $invoice = $this->ownedInvoice($request, $id);
         $validated = $request->validated();
+        $dentistId = $this->dentistId($request);
 
-        return DB::transaction(function () use ($invoice, $validated): Invoice {
+        $invoice = DB::transaction(function () use ($id, $dentistId, $validated): Invoice {
+            // Lock the invoice row inside the transaction so a concurrent
+            // PaymentService::create / refund cannot commit a paid_amount
+            // delta between our read and our write. Without the lock, the
+            // recomputed balance below would be based on a stale paid_amount
+            // snapshot and we'd overwrite the new payment's effect.
+            $invoice = Invoice::query()
+                ->where('id', $id)
+                ->where('dentist_id', $dentistId)
+                ->lockForUpdate()
+                ->firstOrFail();
+
             $this->assertOdontogramItemsBelongToPatient(
                 items: $validated['items'],
                 dentistId: (int) $invoice->dentist_id,
@@ -164,6 +194,21 @@ class InvoiceService
 
             return $invoice->load(['items', 'patient:id,full_name,phone']);
         });
+
+        $this->auditLogger->logFromRequest(
+            request: $request,
+            eventType: 'invoice.updated',
+            entityType: 'invoice',
+            entityId: (string) $invoice->id,
+            metadata: [
+                'patient_id' => (string) $invoice->patient_id,
+                'invoice_number' => $invoice->invoice_number,
+                'total_amount' => (float) $invoice->total_amount,
+                'status' => $invoice->status,
+            ],
+        );
+
+        return $invoice;
     }
 
     public function delete(Request $request, string $id): void
@@ -176,7 +221,20 @@ class InvoiceService
             ]);
         }
 
+        $metadata = [
+            'patient_id' => (string) $invoice->patient_id,
+            'invoice_number' => $invoice->invoice_number,
+            'total_amount' => (float) $invoice->total_amount,
+        ];
         $invoice->delete();
+
+        $this->auditLogger->logFromRequest(
+            request: $request,
+            eventType: 'invoice.deleted',
+            entityType: 'invoice',
+            entityId: (string) $invoice->id,
+            metadata: $metadata,
+        );
     }
 
     public function ownedInvoice(Request $request, string $id): Invoice

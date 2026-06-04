@@ -143,10 +143,18 @@ describe('TreatmentHistoryCard image controls', () => {
         renderCard();
 
         await waitFor(() => {
-            expect(screen.getByText('Davalash')).toBeInTheDocument();
+            // The component renders `treatment_type` twice — once in the
+            // mobile card layout, once in the desktop table layout. In the
+            // browser only one is visible (the other has hidden / md:hidden
+            // classes), but JSDOM has both. Assert "at least one" to stay
+            // resilient to the responsive duplication.
+            expect(screen.getAllByText('Davalash').length).toBeGreaterThan(0);
         });
 
-        await user.click(screen.getByRole('button', { name: 'Edit Entry' }));
+        // Same responsive duplication for the per-row action buttons.
+        // Both mobile and desktop "Edit Entry" buttons mount the same edit
+        // dialog (same handler), so the first one is fine.
+        await user.click(screen.getAllByRole('button', { name: 'Edit Entry' })[0]);
 
         expect(screen.getByRole('button', { name: 'Image 1' })).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Image 2' })).toBeInTheDocument();
@@ -219,13 +227,16 @@ describe('TreatmentHistoryCard image controls', () => {
         renderCard();
 
         await waitFor(() => {
-            expect(screen.getByText('Pending scan')).toBeInTheDocument();
+            // Same responsive duplication as the previous test — see comment
+            // above. We just need to know the row rendered.
+            expect(screen.getAllByText('Pending scan').length).toBeGreaterThan(0);
         });
 
         expect(screen.getByTitle('Images processing')).toBeInTheDocument();
         expect(document.querySelector('img[src]')).not.toBeInTheDocument();
 
-        await user.click(screen.getByRole('button', { name: 'Edit Entry' }));
+        // Multiple Edit Entry buttons in the responsive layout — first is fine.
+        await user.click(screen.getAllByRole('button', { name: 'Edit Entry' })[0]);
 
         const pendingPreviewButton = screen.getByRole('button', { name: 'Image 1' });
         expect(pendingPreviewButton).toBeDisabled();

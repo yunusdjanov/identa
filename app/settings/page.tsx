@@ -1,10 +1,11 @@
 ﻿'use client';
 
 import dynamic from 'next/dynamic';
+import { useSearchParams } from 'next/navigation';
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { ShieldAlert } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -25,7 +26,6 @@ import { getApiErrorMessage } from '@/lib/api/client';
 import { toast } from 'sonner';
 import { User, Building2, Clock, Lock } from 'lucide-react';
 import type { DentistProfile } from '@/lib/types';
-import type { ApiSubscriptionSummary } from '@/lib/api/types';
 import { useI18n } from '@/components/providers/i18n-provider';
 import {
     INPUT_LIMITS,
@@ -36,7 +36,6 @@ import {
     normalizePhoneForApi,
 } from '@/lib/input-validation';
 import { isValidTimeInput, sanitizeTimeInput } from '@/lib/utils';
-import { formatLocalizedDate } from '@/lib/i18n/date';
 import { DEFAULT_APPOINTMENT_WORKING_HOURS } from '@/lib/appointments/time-slots';
 import { AppErrorState } from '@/components/error/app-error-state';
 import { AccessDeniedState } from '@/components/error/access-denied-state';
@@ -81,49 +80,16 @@ function mapProfileToForm(profile: Awaited<ReturnType<typeof getProfile>>): Dent
     };
 }
 
-function getSubscriptionSummary(
-    subscription: ApiSubscriptionSummary | null | undefined,
-    endsOn: string | null,
-    t: (key: string, variables?: Record<string, string | number>) => string
-): string {
-    if (!subscription?.is_configured || !endsOn) {
-        return t('settings.team.subscriptionPlanFallback');
-    }
-
-    if (subscription.status === 'trialing') {
-        return t('settings.team.trialAccessUntil', { date: endsOn });
-    }
-
-    if (subscription.status === 'grace') {
-        return t('settings.team.graceAccessUntil', { date: endsOn });
-    }
-
-    if (subscription.status === 'read_only') {
-        return t('settings.team.readOnlyAccess');
-    }
-
-    return t('settings.team.accessUntil', { date: endsOn });
-}
-
-function getSubscriptionBadgeClass(status: ApiSubscriptionSummary['status']): string {
-    return {
-        none: 'border-slate-300 text-slate-700',
-        trialing: 'bg-teal-100 text-teal-800 hover:bg-teal-100',
-        active: 'bg-green-100 text-green-800 hover:bg-green-100',
-        grace: 'bg-amber-100 text-amber-800 hover:bg-amber-100',
-        read_only: 'bg-red-100 text-red-800 hover:bg-red-100',
-        canceled: 'bg-slate-100 text-slate-700 hover:bg-slate-100',
-    }[status];
-}
-
 export default function SettingsPage() {
-    const { t, locale } = useI18n();
+    const { t } = useI18n();
     const queryClient = useQueryClient();
+    const searchParams = useSearchParams();
     const currentUserQuery = useQuery({
         queryKey: ['auth', 'me'],
         queryFn: getCurrentUser,
         staleTime: 5 * 60_000,
     });
+    const currentUser = currentUserQuery.data;
     const isDentist = currentUserQuery.data?.role === 'dentist';
     const isAssistant = currentUserQuery.data?.role === 'assistant';
     const isReadOnly = currentUserQuery.data?.subscription?.is_read_only === true;
@@ -186,18 +152,6 @@ export default function SettingsPage() {
         ? t('settings.timeInvalid')
         : null;
     const workingHoursHasErrors = Boolean(workingHoursStartError || workingHoursEndError);
-    const subscription = currentUserQuery.data?.subscription ?? null;
-    const subscriptionEndsOn = subscription?.ends_at
-        ? formatLocalizedDate(subscription.ends_at, locale, {
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit',
-        })
-        : null;
-    const subscriptionSummary = getSubscriptionSummary(subscription, subscriptionEndsOn, t);
-    const subscriptionStatusLabel = subscription
-        ? t(`subscription.status.${subscription.status}`)
-        : t('subscription.status.none');
 
     const updatePartialProfile = (payload: Parameters<typeof updateProfile>[0]) => {
         profileMutation.mutate(payload);
@@ -294,24 +248,62 @@ export default function SettingsPage() {
         );
     }
 
+    // When `must_change_password` is true the user is pinned to /settings
+    // by the app-layout redirect. Lock the Tabs component to the security
+    // tab AND disable the others so the user can't navigate away within
+    // settings either. The forceReset query param is set by the redirect
+    // and surfaces the banner explaining why.
+    const mustChangePassword = Boolean(currentUser?.must_change_password);
+    const forceReset = mustChangePassword || searchParams.get('forceReset') === '1';
+    const lockedTab = forceReset ? 'security' : undefined;
+
     return (
         <div className="space-y-5 lg:space-y-6">
             <PageHeader title={t('settings.title')} description={t('settings.subtitle')} />
 
-            <Tabs defaultValue="profile" className="space-y-6">
+            {forceReset ? (
+                <div
+                    role="alert"
+                    className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900"
+                >
+                    <ShieldAlert className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
+                    <div className="space-y-1">
+                        <p className="font-semibold">{t('settings.forceReset.title')}</p>
+                        <p className="text-amber-800">{t('settings.forceReset.description')}</p>
+                    </div>
+                </div>
+            ) : null}
+
+            <Tabs
+                value={lockedTab}
+                defaultValue="profile"
+                className="space-y-6"
+            >
                 <div className="overflow-x-auto overflow-y-hidden no-scrollbar -mx-4 px-4 sm:mx-0 sm:px-0">
                     <TabsList className="inline-flex w-full sm:w-auto min-w-max">
-                        <TabsTrigger value="profile" className="flex-shrink-0">
+                        <TabsTrigger
+                            value="profile"
+                            className="flex-shrink-0"
+                            disabled={forceReset}
+                        >
                             <User className="w-4 h-4 sm:mr-2" />
                             <span className="hidden sm:inline">{t('settings.tab.profile')}</span>
                         </TabsTrigger>
                         {isDentist ? (
                             <>
-                                <TabsTrigger value="practice" className="flex-shrink-0">
+                                <TabsTrigger
+                                    value="practice"
+                                    className="flex-shrink-0"
+                                    disabled={forceReset}
+                                >
                                     <Building2 className="w-4 h-4 sm:mr-2" />
                                     <span className="hidden sm:inline">{t('settings.tab.practice')}</span>
                                 </TabsTrigger>
-                                <TabsTrigger value="hours" className="flex-shrink-0">
+                                <TabsTrigger
+                                    value="hours"
+                                    className="flex-shrink-0"
+                                    disabled={forceReset}
+                                >
                                     <Clock className="w-4 h-4 sm:mr-2" />
                                     <span className="hidden sm:inline">{t('settings.tab.hours')}</span>
                                 </TabsTrigger>

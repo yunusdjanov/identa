@@ -1,13 +1,37 @@
 import type { Metadata } from "next";
+import { Geist, Geist_Mono, Instrument_Serif } from "next/font/google";
+import { Landing } from "@/components/landing/landing";
+import { getLandingPlans } from "@/lib/landing/plans";
+import "./landing.css";
 
 const siteUrl = "https://identa.uz";
 const seoTitle = "Identa — стоматологическая CRM для клиник и частных стоматологов";
 const seoDescription =
-    "Identa объединяет пациентов, приёмы, оплаты, сотрудников, клинические снимки и мобильный доступ в одном рабочем кабинете для стоматологов.";
+    "Identa объединяет пациентов, приёмы, оплаты, сотрудников, клинические снимки и мобильный доступ в одном рабочем кабинете для стоматологов. 30 дней бесплатного доступа после регистрации.";
+
+// Self-hosted via next/font (no render-blocking Google Fonts request, no
+// layout shift). The variables feed the landing's --font-sans/display/mono.
+const geist = Geist({ subsets: ["latin"], variable: "--font-geist", display: "swap" });
+const geistMono = Geist_Mono({ subsets: ["latin"], variable: "--font-geist-mono", display: "swap" });
+const instrumentSerif = Instrument_Serif({
+    subsets: ["latin"],
+    weight: "400",
+    style: ["normal", "italic"],
+    variable: "--font-instrument",
+    display: "swap",
+});
 
 export const metadata: Metadata = {
     title: seoTitle,
     description: seoDescription,
+    keywords: [
+        "стоматологическая CRM",
+        "CRM для стоматологии",
+        "программа для стоматолога",
+        "учёт пациентов стоматология",
+        "одонтограмма онлайн",
+        "Identa",
+    ],
     alternates: {
         canonical: "/",
     },
@@ -35,74 +59,54 @@ export const metadata: Metadata = {
     },
 };
 
-export default function LandingPage() {
-    const structuredData = {
-        "@context": "https://schema.org",
-        "@type": "SoftwareApplication",
+const structuredData = {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    name: "Identa",
+    applicationCategory: "BusinessApplication",
+    operatingSystem: "Web, iOS, Android",
+    url: siteUrl,
+    description: seoDescription,
+    offers: {
+        "@type": "Offer",
+        price: "0",
+        priceCurrency: "UZS",
+        description: "30 дней бесплатного пробного доступа после регистрации.",
+    },
+    audience: {
+        "@type": "Audience",
+        audienceType: "Стоматологи, частные клиники и небольшие стоматологические команды",
+    },
+    featureList: [
+        "Управление пациентами",
+        "Расписание приёмов",
+        "Учёт оплат",
+        "Клинические снимки",
+        "Права доступа сотрудников",
+        "Синхронизация web-кабинета и мобильного приложения",
+    ],
+    publisher: {
+        "@type": "Organization",
         name: "Identa",
-        applicationCategory: "BusinessApplication",
-        operatingSystem: "Web, iOS, Android",
         url: siteUrl,
-        description: seoDescription,
-        offers: {
-            "@type": "Offer",
-            price: "0",
-            priceCurrency: "UZS",
-            description: "30 дней бесплатного пробного доступа после регистрации.",
-        },
-        audience: {
-            "@type": "Audience",
-            audienceType: "Стоматологи, частные клиники и небольшие стоматологические команды",
-        },
-        featureList: [
-            "Управление пациентами",
-            "Расписание приёмов",
-            "Учёт оплат",
-            "Клинические снимки",
-            "Права доступа сотрудников",
-            "Синхронизация web-кабинета и мобильного приложения",
-        ],
-        publisher: {
-            "@type": "Organization",
-            name: "Identa",
-            url: siteUrl,
-            logo: `${siteUrl}/brand/identa-full-logo.png`,
-        },
-    };
+        logo: `${siteUrl}/brand/identa-full-logo.png`,
+    },
+};
+
+export default async function LandingPage() {
+    const fontClassName = `${geist.variable} ${geistMono.variable} ${instrumentSerif.variable}`;
+    // Pricing limits come from the DB (public plans endpoint) at render time so
+    // the landing never drifts from /admin/plans. Falls back to seeded defaults
+    // if the API is unreachable.
+    const plans = await getLandingPlans();
 
     return (
-        <main className="fixed inset-0 overflow-hidden bg-white">
-            <iframe
-                src="/identa-handoff/Identa%20Landing.html"
-                title="Identa Landing"
-                className="h-full w-full border-0"
-            />
-            <section className="sr-only" aria-label="Identa landing overview">
-                <h1>Identa — стоматологическая CRM для клиник и частных стоматологов</h1>
-                <p>
-                    Identa помогает вести пациентов, приёмы, оплаты, сотрудников,
-                    историю лечения и клинические снимки в одном рабочем кабинете.
-                </p>
-                <h2>Возможности Identa</h2>
-                <ul>
-                    <li>Карточки пациентов, история лечения и заметки.</li>
-                    <li>Расписание приёмов без пересечений и путаницы со статусами.</li>
-                    <li>Оплаты, счета и история платежей, связанные с пациентами.</li>
-                    <li>Клинические снимки с приватным доступом и тарифными лимитами.</li>
-                    <li>Права доступа для сотрудников: пациенты, приёмы и оплаты.</li>
-                    <li>Мобильное приложение с синхронизацией web-кабинета.</li>
-                </ul>
-                <h2>Для кого подходит</h2>
-                <p>
-                    Сервис подходит частным стоматологам, небольшим стоматологическим
-                    кабинетам и клиникам, которым нужен простой рабочий инструмент без
-                    лишней сложности.
-                </p>
-            </section>
+        <>
+            <Landing fontClassName={fontClassName} plans={plans} />
             <script
                 type="application/ld+json"
                 dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
             />
-        </main>
+        </>
     );
 }

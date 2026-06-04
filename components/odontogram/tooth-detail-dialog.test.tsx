@@ -48,6 +48,22 @@ function renderDialog(treatments: ApiTreatment[]) {
         },
     });
 
+    // The dialog reads `['auth', 'me']` to gate its financial summary on
+    // `payments.view`. In tests we seed a dentist owner so the financial
+    // cards remain visible; the dentist role short-circuits permission
+    // checks (a dentist always has full access to their own tenant's
+    // data). Tests that specifically exercise the assistant-without-
+    // payments.view code path can override the seed before render.
+    queryClient.setQueryData(['auth', 'me'], {
+        id: 'dentist-1',
+        name: 'Test Dentist',
+        email: 'dentist@test.local',
+        role: 'dentist',
+        email_verified: true,
+        account_status: 'active',
+        must_change_password: false,
+    });
+
     render(
         <QueryClientProvider client={queryClient}>
             <I18nProvider initialLocale="en" initialDictionary={DICTIONARIES.en}>

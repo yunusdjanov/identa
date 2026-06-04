@@ -7,7 +7,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { PasswordInput } from '@/components/ui/password-input';
 import { Badge } from '@/components/ui/badge';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
+import { AdminDashboardLoadingState } from '@/components/layout/page-loading-skeletons';
 import { PageHeader } from '@/components/ui/page-shell';
 import {
     Table,
@@ -41,6 +43,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
     type AdminDentistSubscriptionAction,
     createAdminDentist,
@@ -48,11 +51,14 @@ import {
     getCurrentUser,
     getAdminDentistBilling,
     listAdminDentists,
+    listAdminPlans,
     manageAdminDentistSubscription,
     resetAdminDentistPassword,
+    restoreAdminDentist,
     updateAdminDentistStatus,
+    verifyAdminDentistEmail,
 } from '@/lib/api/dentist';
-import type { ApiAdminDentist, ApiBillingPayment, ApiSubscriptionSummary } from '@/lib/api/types';
+import type { ApiAdminDentist, ApiBillingPayment, ApiPlan, ApiSubscriptionSummary } from '@/lib/api/types';
 import { getApiErrorMessage } from '@/lib/api/client';
 import { toast } from 'sonner';
 import {
@@ -66,6 +72,11 @@ import {
     Key,
     Trash2,
     CreditCard,
+    MailCheck,
+    BadgeCheck,
+    ShieldAlert,
+    RotateCcw,
+    CheckCircle2,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -82,6 +93,7 @@ import { AdminHeader } from '@/components/admin/admin-header';
 import { AppErrorState } from '@/components/error/app-error-state';
 import { ConfirmActionDialog } from '@/components/ui/confirm-action-dialog';
 import { useInstantLogout } from '@/lib/auth/use-instant-logout';
+import { useDebouncedValue } from '@/lib/hooks/use-debounced-value';
 
 interface CreateDentistForm {
     name: string;
@@ -159,6 +171,14 @@ function getSubscriptionActionLabel(
     return t(`admin.subscription.action.${action}`);
 }
 
+function getInitials(name: string): string {
+    const parts = name.trim().split(/\s+/);
+    if (parts.length >= 2) {
+        return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    }
+    return name.slice(0, 2).toUpperCase();
+}
+
 function formatBillingAmount(payment: ApiBillingPayment, locale: string): string {
     return new Intl.NumberFormat(locale, {
         style: 'currency',
@@ -167,72 +187,78 @@ function formatBillingAmount(payment: ApiBillingPayment, locale: string): string
     }).format(payment.amount);
 }
 
-function AdminDashboardLoadingSkeleton() {
-    return (
-        <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(219,234,254,0.55),transparent_34rem),linear-gradient(180deg,#f8fbff_0%,#f8fafc_42%,#f1f5f9_100%)]">
-            <header className="border-b border-teal-100/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(248,251,255,0.94)_100%)]">
-                <div className="mx-auto max-w-[1440px] px-4 sm:px-6 lg:px-8">
-                    <div className="flex h-16 items-center justify-between">
-                        <Skeleton className="h-10 w-36 rounded-md" />
-                        <div className="flex items-center gap-3">
-                            <Skeleton className="h-10 w-16" />
-                            <Skeleton className="h-10 w-28" />
-                            <Skeleton className="h-10 w-24" />
-                        </div>
-                    </div>
-                </div>
-            </header>
-
-        <div className="p-3 sm:p-5 lg:p-6">
-            <div className="mx-auto max-w-[1440px] space-y-5 lg:space-y-6">
-                    <div className="space-y-2">
-                        <Skeleton className="h-9 w-72" />
-                        <Skeleton className="h-4 w-80" />
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        {Array.from({ length: 3 }).map((_, index) => (
-                            <Card key={index}>
-                                <CardHeader className="pb-2">
-                                    <Skeleton className="h-4 w-28" />
-                                </CardHeader>
-                                <CardContent className="space-y-2">
-                                    <Skeleton className="h-8 w-20" />
-                                    <Skeleton className="h-3 w-24" />
-                                </CardContent>
-                            </Card>
-                        ))}
-                    </div>
-
-                    <Card>
-                        <CardHeader>
-                            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                                <Skeleton className="h-6 w-36" />
-                                <div className="flex items-center gap-3 w-full sm:w-auto">
-                                    <Skeleton className="h-10 w-64" />
-                                    <Skeleton className="h-10 w-28" />
-                                </div>
-                            </div>
-                        </CardHeader>
-                        <CardContent className="space-y-3">
-                            {Array.from({ length: 6 }).map((_, index) => (
-                                <div key={index} className="grid grid-cols-7 gap-3 items-center">
-                                    <Skeleton className="h-4 w-24" />
-                                    <Skeleton className="h-4 w-36" />
-                                    <Skeleton className="h-4 w-28" />
-                                    <Skeleton className="h-4 w-24" />
-                                    <Skeleton className="h-6 w-20" />
-                                    <Skeleton className="h-4 w-20" />
-                                    <Skeleton className="h-8 w-8 justify-self-end" />
-                                </div>
-                            ))}
-                        </CardContent>
-                    </Card>
-                </div>
-            </div>
-        </div>
-    );
+function formatPlanPrice(amount: number, currency: string, locale: string): string {
+    return new Intl.NumberFormat(locale, {
+        style: 'currency',
+        currency: currency || 'UZS',
+        maximumFractionDigits: 0,
+    }).format(amount);
 }
+
+function getSubscriptionStatusBadgeClasses(
+    status: ApiSubscriptionSummary['status'] | undefined
+): string {
+    switch (status) {
+        case 'active':
+            return 'border-emerald-100 bg-emerald-50 text-emerald-700';
+        case 'trialing':
+            return 'border-blue-100 bg-blue-50 text-blue-700';
+        case 'grace':
+            return 'border-amber-100 bg-amber-50 text-amber-700';
+        case 'read_only':
+            return 'border-orange-100 bg-orange-50 text-orange-700';
+        case 'canceled':
+            return 'border-slate-200 bg-slate-100 text-slate-600';
+        case 'none':
+        default:
+            return 'border-slate-200 bg-slate-50 text-slate-600';
+    }
+}
+
+function getPaymentStatusBadgeClasses(status: ApiBillingPayment['status']): string {
+    switch (status) {
+        case 'paid':
+            return 'border-emerald-100 bg-emerald-50 text-emerald-700';
+        case 'pending':
+            return 'border-amber-100 bg-amber-50 text-amber-700';
+        case 'failed':
+            return 'border-red-100 bg-red-50 text-red-700';
+        case 'refunded':
+            return 'border-blue-100 bg-blue-50 text-blue-700';
+        case 'canceled':
+        default:
+            return 'border-slate-200 bg-slate-100 text-slate-600';
+    }
+}
+
+function getPaymentStatusLabel(
+    status: ApiBillingPayment['status'],
+    t: (key: string, variables?: Record<string, string | number>) => string
+): string {
+    return t(`admin.billing.payment.status.${status}`);
+}
+
+function getBillingPeriodLabel(
+    period: string | null | undefined,
+    t: (key: string, variables?: Record<string, string | number>) => string
+): string {
+    if (!period) {
+        return '-';
+    }
+    if (period === 'trial' || period === 'monthly' || period === 'yearly') {
+        return t(`subscription.plan.${period}`);
+    }
+    return period;
+}
+
+// The inline `AdminDashboardLoadingSkeleton` was removed in favour of the
+// shared `AdminDashboardLoadingState` (page-loading-skeletons.tsx). The
+// inline version drew an uneven 7-col row pattern and lacked the
+// Active/Archive tabs strip + Add-dentist button that the real CardHeader
+// renders, which produced a visible layout jump on every revalidation of
+// the auth or accounts query. The shared skeleton mirrors all three
+// (tabs + search + button + 7-col grid) and matches the route-level
+// `app/admin/loading.tsx`.
 
 export default function AdminDashboardPage() {
     const { t, locale } = useI18n();
@@ -240,6 +266,7 @@ export default function AdminDashboardPage() {
     const queryClient = useQueryClient();
     const handleLogout = useInstantLogout('/admin/login');
     const [searchQuery, setSearchQuery] = useState('');
+    const [viewMode, setViewMode] = useState<'active' | 'archive'>('active');
     const [page, setPage] = useState(1);
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [resetPasswordTarget, setResetPasswordTarget] = useState<{ id: string; name: string } | null>(
@@ -248,6 +275,10 @@ export default function AdminDashboardPage() {
     const [deleteTarget, setDeleteTarget] = useState<ApiAdminDentist | null>(null);
     const [subscriptionDialog, setSubscriptionDialog] = useState<SubscriptionDialogState | null>(null);
     const [billingDetailsTarget, setBillingDetailsTarget] = useState<ApiAdminDentist | null>(null);
+    // Track which row triggered the in-flight global mutations so only that
+    // row's menu items are disabled (instead of disabling every row whenever
+    // any mutation is pending). Cleared in each mutation's onSettled.
+    const [activeMutationRowId, setActiveMutationRowId] = useState<string | null>(null);
     const [newDentist, setNewDentist] = useState<CreateDentistForm>({
         name: '',
         email: '',
@@ -291,6 +322,10 @@ export default function AdminDashboardPage() {
             ? t('register.passwordMismatch')
             : null;
     const handleCreateModalOpenChange = (open: boolean) => {
+        // Refuse to dismiss mid-submission so the admin doesn't lose the
+        // form they just filled in while the network round-trip resolves.
+        // The success/error handlers explicitly close the dialog.
+        if (!open && createMutation.isPending) return;
         setShowCreateModal(open);
         if (!open) {
             setCreateSubmitAttempted(false);
@@ -309,16 +344,20 @@ export default function AdminDashboardPage() {
         queryFn: getCurrentUser,
         retry: false,
     });
-    const normalizedSearch = searchQuery.trim();
+    // Debounce the search input: without this each keystroke spawns a query,
+    // saturating the network on slow links and inflating server load. 300 ms
+    // matches the /admin/payments page debounce so behaviour is consistent.
+    const debouncedSearch = useDebouncedValue(searchQuery.trim(), 300);
 
     const accountsQuery = useQuery({
-        queryKey: ['admin', 'dentists', page, normalizedSearch],
+        queryKey: ['admin', 'dentists', page, debouncedSearch, viewMode],
         queryFn: () =>
             listAdminDentists({
                 page,
                 perPage: ADMIN_DENTISTS_PER_PAGE,
                 filter: {
-                    search: normalizedSearch || undefined,
+                    search: debouncedSearch || undefined,
+                    status: viewMode === 'archive' ? 'deleted' : undefined,
                 },
             }),
         enabled: authQuery.data?.role === 'admin',
@@ -330,6 +369,19 @@ export default function AdminDashboardPage() {
         queryFn: () => getAdminDentistBilling(billingDetailsTarget?.id ?? ''),
         enabled: authQuery.data?.role === 'admin' && billingDetailsTarget !== null,
     });
+
+    const plansQuery = useQuery({
+        queryKey: ['admin', 'plans'],
+        queryFn: () => listAdminPlans(),
+        enabled: authQuery.data?.role === 'admin' && billingDetailsTarget !== null,
+        staleTime: 5 * 60_000,
+    });
+
+    const plans = useMemo<ApiPlan[]>(() => {
+        return (plansQuery.data ?? [])
+            .filter((p) => p.is_active)
+            .sort((a, b) => a.sort_order - b.sort_order);
+    }, [plansQuery.data]);
 
     useEffect(() => {
         if (authQuery.isError && !authQuery.isLoading) {
@@ -364,15 +416,22 @@ export default function AdminDashboardPage() {
     });
 
     const statusMutation = useMutation({
-        mutationFn: ({ id, status }: { id: string; status: 'active' | 'blocked' }) =>
-            updateAdminDentistStatus(id, status),
-        onSuccess: (account) => {
+        mutationFn: ({ id, status }: { id: string; status: 'active' | 'blocked' }) => {
+            setActiveMutationRowId(id);
+            return updateAdminDentistStatus(id, status);
+        },
+        onSettled: () => setActiveMutationRowId(null),
+        onSuccess: (account, variables) => {
             toast.success(
                 account.status === 'blocked'
                     ? t('admin.toast.accountBlocked')
                     : t('admin.toast.accountActivated')
             );
             queryClient.invalidateQueries({ queryKey: ['admin', 'dentists'] });
+            queryClient.invalidateQueries({ queryKey: ['admin', 'dentists', variables.id, 'billing'] });
+            // Status change is audit-worthy — invalidate audit log so the
+            // detail page history tab reflects the action without delay.
+            queryClient.invalidateQueries({ queryKey: ['admin', 'audit-logs'] });
         },
         onError: (error) => {
             toast.error(getApiErrorMessage(error, t('admin.error.updateStatusFailed')));
@@ -395,6 +454,9 @@ export default function AdminDashboardPage() {
             setSubscriptionForm(createEmptySubscriptionForm());
             queryClient.invalidateQueries({ queryKey: ['admin', 'dentists'] });
             queryClient.invalidateQueries({ queryKey: ['admin', 'dentists', variables.id, 'billing'] });
+            // Refresh audit log too so the action just performed shows up on
+            // the detail page's history tab without staleTime delay.
+            queryClient.invalidateQueries({ queryKey: ['admin', 'audit-logs'] });
         },
         onError: (error) => {
             toast.error(getApiErrorMessage(error, t('admin.error.subscriptionUpdateFailed')));
@@ -404,7 +466,10 @@ export default function AdminDashboardPage() {
     const resetMutation = useMutation({
         mutationFn: () => {
             if (!resetPasswordTarget) {
-                throw new Error(t('admin.error.selectDentistBeforeReset'));
+                // Reject (not throw) so TanStack's onError path fires —
+                // synchronous throws inside mutationFn can surface as an
+                // unhandled rejection in some versions.
+                return Promise.reject(new Error(t('admin.error.selectDentistBeforeReset')));
             }
 
             return resetAdminDentistPassword(resetPasswordTarget.id, {
@@ -414,11 +479,15 @@ export default function AdminDashboardPage() {
         },
         onSuccess: () => {
             toast.success(t('admin.toast.passwordReset'));
+            // Capture the id before clearing the form so the invalidate keys
+            // are stable (resetPasswordTarget gets nulled right after).
+            const targetId = resetPasswordTarget?.id;
             setResetPasswordTarget(null);
-            setResetPasswordForm({
-                newPassword: '',
-                confirmPassword: '',
-            });
+            setResetPasswordForm({ newPassword: '', confirmPassword: '' });
+            if (targetId) {
+                queryClient.invalidateQueries({ queryKey: ['admin', 'dentists', targetId, 'billing'] });
+            }
+            queryClient.invalidateQueries({ queryKey: ['admin', 'audit-logs'] });
         },
         onError: (error) => {
             toast.error(getApiErrorMessage(error, t('admin.error.resetPasswordFailed')));
@@ -427,21 +496,85 @@ export default function AdminDashboardPage() {
 
     const deleteMutation = useMutation({
         mutationFn: (id: string) => deleteAdminDentist(id),
-        onSuccess: () => {
-            toast.success(t('admin.toast.accountDeleted'));
+        onSuccess: (_account, id) => {
+            // Capture the name BEFORE setDeleteTarget(null) clears it so the
+            // toast carries the dentist's name for context.
+            const deletedName = deleteTarget?.name;
+            toast.success(
+                deletedName
+                    ? t('admin.toast.accountDeletedNamed', { name: deletedName })
+                    : t('admin.toast.accountDeleted')
+            );
             setDeleteTarget(null);
+            // If we just removed the last row on the current page, drop back
+            // a page so the user doesn't land on an empty paginated view.
+            if (accounts.length === 1 && page > 1) {
+                setPage((current) => Math.max(1, current - 1));
+            }
             queryClient.invalidateQueries({ queryKey: ['admin', 'dentists'] });
+            queryClient.invalidateQueries({ queryKey: ['admin', 'dentists', id, 'billing'] });
+            queryClient.invalidateQueries({ queryKey: ['admin', 'audit-logs'] });
         },
         onError: (error) => {
             toast.error(getApiErrorMessage(error, t('admin.error.deleteAccountFailed')));
         },
     });
 
-    const accounts = useMemo(() => accountsQuery.data?.data ?? [], [accountsQuery.data]);
+    const verifyMutation = useMutation({
+        mutationFn: (id: string) => {
+            setActiveMutationRowId(id);
+            return verifyAdminDentistEmail(id);
+        },
+        onSettled: () => setActiveMutationRowId(null),
+        onSuccess: (_account, id) => {
+            toast.success(t('admin.toast.emailVerified'));
+            queryClient.invalidateQueries({ queryKey: ['admin', 'dentists'] });
+            queryClient.invalidateQueries({ queryKey: ['admin', 'dentists', id, 'billing'] });
+            queryClient.invalidateQueries({ queryKey: ['admin', 'audit-logs'] });
+        },
+        onError: (error) => {
+            toast.error(getApiErrorMessage(error, t('admin.error.verifyEmailFailed')));
+        },
+    });
+
+    const restoreMutation = useMutation({
+        mutationFn: (id: string) => {
+            setActiveMutationRowId(id);
+            return restoreAdminDentist(id);
+        },
+        onSettled: () => setActiveMutationRowId(null),
+        onSuccess: (_account, id) => {
+            toast.success(t('admin.toast.accountRestored'));
+            queryClient.invalidateQueries({ queryKey: ['admin', 'dentists'] });
+            queryClient.invalidateQueries({ queryKey: ['admin', 'dentists', id, 'billing'] });
+            queryClient.invalidateQueries({ queryKey: ['admin', 'audit-logs'] });
+        },
+        onError: (error) => {
+            toast.error(getApiErrorMessage(error, t('admin.error.restoreFailed')));
+        },
+    });
+
+    const accounts = accountsQuery.data?.data ?? [];
     const pagination = accountsQuery.data?.meta?.pagination;
     const summary = accountsQuery.data?.meta?.summary;
 
+    // Clamp current page when the server reports fewer total pages than the
+    // local `page` state (admin deletes the last entry on page 5 → backend
+    // returns 4 pages; without this we'd show "Page 5 of 4" + empty body).
+    // Adjusted during render (not in an effect) so the clamp lands before
+    // paint; the `page > lastPage` guard self-terminates, so no render loop.
+    if (pagination) {
+        const lastPage = Math.max(1, pagination.total_pages);
+        if (page > lastPage) {
+            setPage(lastPage);
+        }
+    }
+
     const stats = useMemo(() => {
+        // Prefer the backend's GLOBAL summary (summary.total_count etc.) over
+        // pagination.total so the cards stay accurate while the user filters
+        // by search/view mode. Falling back to pagination.total would conflate
+        // "filtered total" with "system total" — confusing UX.
         const totalDentists = Number(summary?.total_count ?? pagination?.total ?? accounts.length);
         const activeDentists = Number(
             summary?.active_count ?? accounts.filter((account) => account.status === 'active').length
@@ -454,8 +587,11 @@ export default function AdminDashboardPage() {
             summary?.new_registrations_7d
             ?? accounts.filter((account) => new Date(account.registration_date) >= sevenDaysAgo).length
         );
+        // If we only have a filtered-view total (no `summary.total_count` from
+        // backend), surface that to the UI so cards can label themselves.
+        const isFilteredFallback = summary === undefined || summary === null;
 
-        return { totalDentists, activeDentists, newRegistrations };
+        return { totalDentists, activeDentists, newRegistrations, isFilteredFallback };
     }, [accounts, pagination?.total, summary]);
     const subscriptionRequiresPaymentDetails = subscriptionDialog !== null
         && BILLING_SUBSCRIPTION_ACTIONS.has(subscriptionDialog.action);
@@ -486,7 +622,7 @@ export default function AdminDashboardPage() {
     };
 
     if (authQuery.isLoading || (authQuery.data?.role === 'admin' && accountsQuery.isLoading)) {
-        return <AdminDashboardLoadingSkeleton />;
+        return <AdminDashboardLoadingState />;
     }
 
     if (accountsQuery.isError) {
@@ -527,7 +663,7 @@ export default function AdminDashboardPage() {
                                 <Users className="h-4 w-4 text-slate-600" />
                             </CardHeader>
                             <CardContent>
-                                <div className="text-xl font-bold tracking-[-0.03em] text-slate-950">{stats.totalDentists}</div>
+                                <div className="text-2xl font-bold tracking-[-0.03em] text-slate-950">{stats.totalDentists}</div>
                             </CardContent>
                         </Card>
 
@@ -537,7 +673,7 @@ export default function AdminDashboardPage() {
                                 <UserCheck className="h-4 w-4 text-emerald-600" />
                             </CardHeader>
                             <CardContent>
-                                <div className="text-xl font-bold tracking-[-0.03em] text-slate-950">{stats.activeDentists}</div>
+                                <div className="text-2xl font-bold tracking-[-0.03em] text-slate-950">{stats.activeDentists}</div>
                                 <p className="text-xs text-muted-foreground">
                                     {stats.totalDentists === 0
                                         ? '0'
@@ -553,15 +689,37 @@ export default function AdminDashboardPage() {
                                 <UserPlus className="h-4 w-4 text-blue-600" />
                             </CardHeader>
                             <CardContent>
-                                <div className="text-xl font-bold tracking-[-0.03em] text-slate-950">{stats.newRegistrations}</div>
+                                <div className="text-2xl font-bold tracking-[-0.03em] text-slate-950">{stats.newRegistrations}</div>
                             </CardContent>
                         </Card>
                     </div>
 
                     <Card className="overflow-hidden rounded-2xl bg-white">
                         <CardHeader className="pb-4">
-                            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                                <CardTitle className="text-base">{t('admin.accountsTitle')}</CardTitle>
+                            {/* Title temporarily hidden per user request — the
+                                page-level PageHeader above already announces
+                                this is the dentists dashboard so the inner
+                                card title was redundant. */}
+                            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+                                <Tabs
+                                    value={viewMode}
+                                    onValueChange={(value) => {
+                                        setViewMode(value as 'active' | 'archive');
+                                        setPage(1);
+                                    }}
+                                    className="self-start"
+                                >
+                                    <TabsList>
+                                        <TabsTrigger value="active" className="gap-2">
+                                            <UserCheck className="h-4 w-4" />
+                                            {t('admin.viewActive')}
+                                        </TabsTrigger>
+                                        <TabsTrigger value="archive" className="gap-2">
+                                            <Trash2 className="h-4 w-4" />
+                                            {t('admin.viewArchive')}
+                                        </TabsTrigger>
+                                    </TabsList>
+                                </Tabs>
                                 <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center sm:gap-3">
                                     <div className="relative flex-1 sm:w-64">
                                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
@@ -601,20 +759,56 @@ export default function AdminDashboardPage() {
                                         {accounts.length === 0 ? (
                                             <TableRow>
                                                 <TableCell colSpan={7} className="text-center text-slate-500 py-8">
-                                                    {t('admin.empty')}
+                                                    {debouncedSearch
+                                                        ? t('admin.empty.search', { query: debouncedSearch })
+                                                        : viewMode === 'archive'
+                                                            ? t('admin.empty.archive')
+                                                            : t('admin.empty')}
                                                 </TableCell>
                                             </TableRow>
                                         ) : (
                                             accounts.map((account) => (
                                                 <TableRow key={account.id}>
                                                     <TableCell
-                                                        className="max-w-[16rem] font-medium truncate"
+                                                        className="max-w-[18rem]"
                                                         title={`${t('common.doctorPrefix')} ${account.name}`}
                                                     >
-                                                        {t('common.doctorPrefix')} {truncateForUi(account.name, ADMIN_NAME_UI_LIMIT)}
+                                                        <div className="flex items-center gap-2.5 min-w-0">
+                                                            <Avatar>
+                                                                {account.avatar_url ? (
+                                                                    /* Avatar URL is user-uploaded and rendered cross-
+                                                                       origin. `no-referrer` blocks admin-session URL
+                                                                       leak to the avatar host via the Referer header. */
+                                                                    <AvatarImage
+                                                                        src={account.avatar_url}
+                                                                        alt={account.name}
+                                                                        referrerPolicy="no-referrer"
+                                                                    />
+                                                                ) : null}
+                                                                <AvatarFallback className="bg-teal-50 text-teal-700 font-semibold">
+                                                                    {getInitials(account.name)}
+                                                                </AvatarFallback>
+                                                            </Avatar>
+                                                            <span className="truncate font-medium text-slate-900">
+                                                                {t('common.doctorPrefix')} {truncateForUi(account.name, ADMIN_NAME_UI_LIMIT)}
+                                                            </span>
+                                                        </div>
                                                     </TableCell>
-                                                    <TableCell className="max-w-[18rem] truncate" title={account.email}>
-                                                        {truncateForUi(account.email, ADMIN_EMAIL_UI_LIMIT)}
+                                                    <TableCell className="max-w-[18rem]">
+                                                        <div className="truncate" title={account.email}>
+                                                            {truncateForUi(account.email, ADMIN_EMAIL_UI_LIMIT)}
+                                                        </div>
+                                                        {account.email_verified ? (
+                                                            <span className="mt-1 inline-flex items-center gap-1 text-xs font-medium text-emerald-600">
+                                                                <BadgeCheck className="h-3.5 w-3.5" />
+                                                                {t('admin.emailVerified')}
+                                                            </span>
+                                                        ) : (
+                                                            <span className="mt-1 inline-flex items-center gap-1 text-xs font-medium text-amber-600">
+                                                                <ShieldAlert className="h-3.5 w-3.5" />
+                                                                {t('admin.emailUnverified')}
+                                                            </span>
+                                                        )}
                                                     </TableCell>
                                                     <TableCell className="min-w-[15rem]">
                                                         <div className="space-y-2">
@@ -625,7 +819,7 @@ export default function AdminDashboardPage() {
                                                                 })}
                                                             </p>
                                                             <p className="text-xs text-slate-600">
-                                                                {account.subscription.ends_at
+                                                                {account.subscription?.ends_at
                                                                     ? t('admin.subscription.paidUntil', {
                                                                         date: formatLocalizedDate(
                                                                             account.subscription.ends_at,
@@ -640,16 +834,16 @@ export default function AdminDashboardPage() {
                                                                     : t('admin.subscription.notConfigured')}
                                                             </p>
                                                             <p className="text-xs text-slate-500">
-                                                                {account.subscription.staff_limit === null
+                                                                {account.subscription?.staff_limit === null
                                                                     ? t('admin.subscription.staffUnlimited', {
-                                                                        count: account.subscription.active_staff_count,
+                                                                        count: account.subscription?.active_staff_count ?? 0,
                                                                     })
                                                                     : t('admin.subscription.staffUsage', {
-                                                                        count: account.subscription.active_staff_count,
-                                                                        limit: account.subscription.staff_limit,
+                                                                        count: account.subscription?.active_staff_count ?? 0,
+                                                                        limit: account.subscription?.staff_limit ?? 0,
                                                                     })}
                                                             </p>
-                                                            {account.subscription.cancel_at_period_end ? (
+                                                            {account.subscription?.cancel_at_period_end ? (
                                                                 <p className="text-xs font-medium text-amber-700">
                                                                     {t('admin.subscription.cancelAtPeriodEnd')}
                                                                 </p>
@@ -686,9 +880,13 @@ export default function AdminDashboardPage() {
                                                             : t('patients.never')}
                                                     </TableCell>
                                                     <TableCell className="text-right">
-                                                        <DropdownMenu>
+                                                        <DropdownMenu modal={false}>
                                                             <DropdownMenuTrigger asChild>
-                                                                <Button variant="ghost" size="icon">
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    aria-label={t('admin.rowActions', { name: account.name })}
+                                                                >
                                                                     <MoreVertical className="h-4 w-4" />
                                                                 </Button>
                                                             </DropdownMenuTrigger>
@@ -701,7 +899,7 @@ export default function AdminDashboardPage() {
                                                                     <Users className="w-4 h-4 mr-2" />
                                                                     {t('admin.viewStaff')}
                                                                 </DropdownMenuItem>
-                                                                <DropdownMenuItem onClick={() => setBillingDetailsTarget(account)}>
+                                                                <DropdownMenuItem onClick={() => router.push(`/admin/dentists/${account.id}/billing`)}>
                                                                     <CreditCard className="w-4 h-4 mr-2" />
                                                                     {t('admin.billing.viewDetails')}
                                                                 </DropdownMenuItem>
@@ -718,7 +916,7 @@ export default function AdminDashboardPage() {
                                                                                             : 'blocked',
                                                                                 })
                                                                             }
-                                                                            disabled={statusMutation.isPending}
+                                                                            disabled={activeMutationRowId === account.id}
                                                                         >
                                                                             {account.status === 'blocked' ? (
                                                                                 <>
@@ -733,85 +931,17 @@ export default function AdminDashboardPage() {
                                                                             )}
                                                                         </DropdownMenuItem>
                                                                         <DropdownMenuSeparator />
-                                                                        <DropdownMenuItem
-                                                                            onClick={() =>
-                                                                                openSubscriptionDialog(
-                                                                                    account,
-                                                                                    'set_trial'
-                                                                                )
-                                                                            }
-                                                                            disabled={subscriptionMutation.isPending}
-                                                                        >
-                                                                            {t('admin.subscription.action.set_trial')}
-                                                                        </DropdownMenuItem>
-                                                                        <DropdownMenuItem
-                                                                            onClick={() =>
-                                                                                openSubscriptionDialog(
-                                                                                    account,
-                                                                                    'set_basic_monthly'
-                                                                                )
-                                                                            }
-                                                                            disabled={subscriptionMutation.isPending}
-                                                                        >
-                                                                            {t('admin.subscription.action.set_basic_monthly')}
-                                                                        </DropdownMenuItem>
-                                                                        <DropdownMenuItem
-                                                                            onClick={() =>
-                                                                                openSubscriptionDialog(
-                                                                                    account,
-                                                                                    'set_pro_monthly'
-                                                                                )
-                                                                            }
-                                                                            disabled={subscriptionMutation.isPending}
-                                                                        >
-                                                                            {t('admin.subscription.action.set_pro_monthly')}
-                                                                        </DropdownMenuItem>
-                                                                        <DropdownMenuItem
-                                                                            onClick={() =>
-                                                                                openSubscriptionDialog(
-                                                                                    account,
-                                                                                    'mark_read_only'
-                                                                                )
-                                                                            }
-                                                                            disabled={subscriptionMutation.isPending}
-                                                                        >
-                                                                            {t('admin.subscription.action.mark_read_only')}
-                                                                        </DropdownMenuItem>
-                                                                        <DropdownMenuItem
-                                                                            onClick={() =>
-                                                                                openSubscriptionDialog(
-                                                                                    account,
-                                                                                    'mark_active'
-                                                                                )
-                                                                            }
-                                                                            disabled={subscriptionMutation.isPending}
-                                                                        >
-                                                                            {t('admin.subscription.action.mark_active')}
-                                                                        </DropdownMenuItem>
-                                                                        <DropdownMenuItem
-                                                                            onClick={() =>
-                                                                                openSubscriptionDialog(
-                                                                                    account,
-                                                                                    'cancel_at_period_end'
-                                                                                )
-                                                                            }
-                                                                            disabled={subscriptionMutation.isPending}
-                                                                        >
-                                                                            {t('admin.subscription.action.cancel_at_period_end')}
-                                                                        </DropdownMenuItem>
-                                                                        <DropdownMenuItem
-                                                                            onClick={() =>
-                                                                                openSubscriptionDialog(
-                                                                                    account,
-                                                                                    'cancel_now'
-                                                                                )
-                                                                            }
-                                                                            disabled={subscriptionMutation.isPending}
-                                                                            className="text-red-600"
-                                                                        >
-                                                                            {t('admin.subscription.action.cancel_now')}
-                                                                        </DropdownMenuItem>
-                                                                        <DropdownMenuSeparator />
+                                                                        {!account.email_verified ? (
+                                                                            <DropdownMenuItem
+                                                                                onClick={() =>
+                                                                                    verifyMutation.mutate(account.id)
+                                                                                }
+                                                                                disabled={activeMutationRowId === account.id}
+                                                                            >
+                                                                                <MailCheck className="w-4 h-4 mr-2" />
+                                                                                {t('admin.verifyEmail')}
+                                                                            </DropdownMenuItem>
+                                                                        ) : null}
                                                                         <DropdownMenuItem
                                                                             onClick={() => {
                                                                                 setResetPasswordTarget({
@@ -823,14 +953,19 @@ export default function AdminDashboardPage() {
                                                                                     confirmPassword: '',
                                                                                 });
                                                                             }}
-                                                                            disabled={resetMutation.isPending}
+                                                                            // Row-scoped: only the row that opened the
+                                                                            // reset modal is disabled while its own
+                                                                            // mutation runs. Status / verify / restore
+                                                                            // already use this `activeMutationRowId`
+                                                                            // pattern; this keeps reset consistent.
+                                                                            disabled={resetMutation.isPending && resetPasswordTarget?.id === account.id}
                                                                         >
                                                                             <Key className="w-4 h-4 mr-2" />
                                                                             {t('admin.resetPassword')}
                                                                         </DropdownMenuItem>
                                                                         <DropdownMenuItem
                                                                             onClick={() => setDeleteTarget(account)}
-                                                                            disabled={deleteMutation.isPending}
+                                                                            disabled={deleteMutation.isPending && (deleteMutation.variables === account.id || deleteTarget?.id === account.id)}
                                                                             className="text-red-600"
                                                                         >
                                                                             <Trash2 className="w-4 h-4 mr-2" />
@@ -838,8 +973,13 @@ export default function AdminDashboardPage() {
                                                                         </DropdownMenuItem>
                                                                     </>
                                                                 ) : (
-                                                                    <DropdownMenuItem disabled>
-                                                                        {t('admin.accountDeleted')}
+                                                                    <DropdownMenuItem
+                                                                        onClick={() => restoreMutation.mutate(account.id)}
+                                                                        disabled={activeMutationRowId === account.id}
+                                                                        className="text-emerald-600 focus:text-emerald-700"
+                                                                    >
+                                                                        <RotateCcw className="w-4 h-4 mr-2" />
+                                                                        {t('admin.restoreAccount')}
                                                                     </DropdownMenuItem>
                                                                 )}
                                                             </DropdownMenuContent>
@@ -851,7 +991,7 @@ export default function AdminDashboardPage() {
                                     </TableBody>
                                 </Table>
                             </DataTableShell>
-                            {pagination ? (
+                            {pagination && pagination.total > 0 ? (
                                 <div className="mt-4 flex flex-col gap-3 text-sm text-slate-600 sm:flex-row sm:items-center sm:justify-between">
                                     <p>
                                         {t('admin.pagination.showing', {
@@ -1040,7 +1180,7 @@ export default function AdminDashboardPage() {
                         }
                     }}
                 >
-                    <DialogContent className="max-h-[calc(100dvh-1.5rem)] overflow-y-auto p-5 sm:max-w-3xl sm:p-6">
+                    <DialogContent className="max-h-[calc(100dvh-1.5rem)] overflow-y-auto p-5 sm:max-w-4xl sm:p-6">
                         <DialogHeader>
                             <DialogTitle>
                                 {billingDetailsTarget
@@ -1079,9 +1219,19 @@ export default function AdminDashboardPage() {
                                         <p className="mt-2 text-lg font-semibold text-slate-950">
                                             {getSubscriptionPlanLabel(billingDetailsQuery.data.subscription, t)}
                                         </p>
-                                        <p className="text-sm text-slate-600">
-                                            {getSubscriptionStatusLabel(billingDetailsQuery.data.subscription, t)}
-                                        </p>
+                                        <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                                            <Badge
+                                                variant="outline"
+                                                className={getSubscriptionStatusBadgeClasses(billingDetailsQuery.data.subscription.status)}
+                                            >
+                                                {getSubscriptionStatusLabel(billingDetailsQuery.data.subscription, t)}
+                                            </Badge>
+                                            {billingDetailsQuery.data.subscription.cancel_at_period_end ? (
+                                                <Badge variant="outline" className="border-amber-100 bg-amber-50 text-amber-700">
+                                                    {t('admin.subscription.cancelAtPeriodEnd')}
+                                                </Badge>
+                                            ) : null}
+                                        </div>
                                     </div>
                                     <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
                                         <p className="text-xs font-medium uppercase text-slate-500">
@@ -1097,7 +1247,7 @@ export default function AdminDashboardPage() {
                                                 : t('admin.subscription.notConfigured')}
                                         </p>
                                         <p className="text-sm text-slate-600">
-                                            {billingDetailsQuery.data.subscription.billing_period ?? '-'}
+                                            {getBillingPeriodLabel(billingDetailsQuery.data.subscription.billing_period, t)}
                                         </p>
                                     </div>
                                     <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
@@ -1120,36 +1270,195 @@ export default function AdminDashboardPage() {
                                     </div>
                                 </div>
 
-                                <div className="rounded-xl border border-slate-200 p-4">
-                                    <p className="mb-3 text-sm font-semibold text-slate-900">
+                                {billingDetailsQuery.data.subscription.pending_change_effective_at ? (
+                                    <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+                                        {t('admin.billing.pendingChangeAlert', {
+                                            date: formatLocalizedDate(
+                                                billingDetailsQuery.data.subscription.pending_change_effective_at,
+                                                locale,
+                                                { year: 'numeric', month: 'short', day: 'numeric' }
+                                            ),
+                                        })}
+                                    </div>
+                                ) : null}
+
+                                <div className="space-y-4 rounded-xl border border-slate-200 p-4">
+                                    <p className="text-sm font-semibold text-slate-900">
                                         {t('admin.billing.manualActions')}
                                     </p>
-                                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
-                                        {([
-                                            'set_trial',
-                                            'set_basic_monthly',
-                                            'set_basic_yearly',
-                                            'set_pro_monthly',
-                                            'set_pro_yearly',
-                                            'mark_read_only',
-                                            'mark_active',
-                                            'cancel_now',
-                                        ] as AdminDentistSubscriptionAction[]).map((action) => (
-                                            <Button
-                                                key={action}
-                                                type="button"
-                                                variant={action === 'cancel_now' ? 'destructive' : 'outline'}
-                                                className="justify-start"
-                                                disabled={subscriptionMutation.isPending}
-                                                onClick={() => {
-                                                    openSubscriptionDialog(billingDetailsQuery.data.dentist, action);
-                                                    setBillingDetailsTarget(null);
-                                                }}
-                                            >
-                                                {getSubscriptionActionLabel(action, t)}
-                                            </Button>
-                                        ))}
+
+                                    <div className="space-y-2">
+                                        <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                                            {t('admin.billing.actionGroup.changePlan')}
+                                        </p>
+                                        {plansQuery.isLoading ? (
+                                            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                                                <Skeleton className="h-36 rounded-xl" />
+                                                <Skeleton className="h-36 rounded-xl" />
+                                                <Skeleton className="h-36 rounded-xl" />
+                                            </div>
+                                        ) : plans.length > 0 ? (
+                                            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                                                {plans.map((plan) => {
+                                                    const currentPlan = billingDetailsQuery.data!.subscription.plan;
+                                                    const currentPeriod = billingDetailsQuery.data!.subscription.billing_period;
+                                                    const isCurrent = currentPlan === plan.code;
+                                                    const isCurrentMonthly = isCurrent && currentPeriod === 'monthly';
+                                                    const isCurrentYearly = isCurrent && currentPeriod === 'yearly';
+                                                    const isCurrentTrial = isCurrent && plan.code === 'trial';
+                                                    return (
+                                                        <div
+                                                            key={plan.code}
+                                                            className={
+                                                                'flex min-w-0 flex-col rounded-xl border p-3 transition ' +
+                                                                (isCurrent
+                                                                    ? 'border-teal-300 bg-teal-50/30 ring-1 ring-teal-200'
+                                                                    : 'border-slate-200 bg-white hover:border-slate-300')
+                                                            }
+                                                        >
+                                                            <div className="flex min-w-0 items-center justify-between gap-1.5">
+                                                                <p className="truncate text-sm font-semibold text-slate-900">{plan.name}</p>
+                                                                {isCurrent ? (
+                                                                    <span
+                                                                        className="inline-flex shrink-0 items-center gap-0.5 rounded-full border border-teal-200 bg-teal-50 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-teal-700"
+                                                                        aria-label={t('admin.billing.planCard.current')}
+                                                                    >
+                                                                        <CheckCircle2 className="h-3 w-3" />
+                                                                    </span>
+                                                                ) : null}
+                                                            </div>
+                                                            <div className="mt-2 flex-1 space-y-1 text-sm">
+                                                                {plan.code === 'trial' ? (
+                                                                    <p className="text-slate-600">
+                                                                        {t('admin.billing.planCard.trialDuration', { days: plan.trial_days ?? 30 })}
+                                                                    </p>
+                                                                ) : (
+                                                                    <>
+                                                                        <div className="flex min-w-0 items-baseline gap-1">
+                                                                            <span className="truncate text-base font-semibold text-slate-950">
+                                                                                {plan.monthly_price !== null
+                                                                                    ? formatPlanPrice(plan.monthly_price, plan.currency, locale)
+                                                                                    : '—'}
+                                                                            </span>
+                                                                            <span className="shrink-0 text-[11px] text-slate-500">
+                                                                                /{t('admin.billing.planCard.monthShort')}
+                                                                            </span>
+                                                                        </div>
+                                                                        <div className="flex min-w-0 items-baseline gap-1">
+                                                                            <span className="truncate text-sm text-slate-700">
+                                                                                {plan.yearly_price !== null
+                                                                                    ? formatPlanPrice(plan.yearly_price, plan.currency, locale)
+                                                                                    : '—'}
+                                                                            </span>
+                                                                            <span className="shrink-0 text-[11px] text-slate-500">
+                                                                                /{t('admin.billing.planCard.yearShort')}
+                                                                            </span>
+                                                                        </div>
+                                                                    </>
+                                                                )}
+                                                            </div>
+                                                            <div className="mt-3">
+                                                                {plan.code === 'trial' ? (
+                                                                    <Button
+                                                                        type="button"
+                                                                        size="sm"
+                                                                        variant={isCurrentTrial ? 'outline' : 'default'}
+                                                                        className="h-8 w-full px-2 text-xs"
+                                                                        disabled={subscriptionMutation.isPending || isCurrentTrial}
+                                                                        onClick={() => {
+                                                                            openSubscriptionDialog(billingDetailsQuery.data!.dentist, 'set_trial');
+                                                                            // Keep the billing modal open behind the
+                                                                            // confirm so the admin retains context if
+                                                                            // they cancel the subscription action.
+                                                                        }}
+                                                                    >
+                                                                        {t('admin.billing.planCard.assignTrial')}
+                                                                    </Button>
+                                                                ) : (
+                                                                    <div className="flex gap-1.5">
+                                                                        <Button
+                                                                            type="button"
+                                                                            size="sm"
+                                                                            variant={isCurrentMonthly ? 'outline' : 'default'}
+                                                                            className="h-8 flex-1 min-w-0 px-2 text-xs"
+                                                                            disabled={
+                                                                                subscriptionMutation.isPending
+                                                                                || plan.monthly_price === null
+                                                                                || (plan.code !== 'basic' && plan.code !== 'pro')
+                                                                            }
+                                                                            onClick={() => {
+                                                                                if (plan.code !== 'basic' && plan.code !== 'pro') return;
+                                                                                openSubscriptionDialog(
+                                                                                    billingDetailsQuery.data!.dentist,
+                                                                                    `set_${plan.code}_monthly` as AdminDentistSubscriptionAction
+                                                                                );
+                                                                            }}
+                                                                        >
+                                                                            <span className="truncate">{t('admin.billing.planCard.monthly')}</span>
+                                                                        </Button>
+                                                                        <Button
+                                                                            type="button"
+                                                                            size="sm"
+                                                                            variant={isCurrentYearly ? 'outline' : 'default'}
+                                                                            className="h-8 flex-1 min-w-0 px-2 text-xs"
+                                                                            disabled={
+                                                                                subscriptionMutation.isPending
+                                                                                || plan.yearly_price === null
+                                                                                || (plan.code !== 'basic' && plan.code !== 'pro')
+                                                                            }
+                                                                            onClick={() => {
+                                                                                if (plan.code !== 'basic' && plan.code !== 'pro') return;
+                                                                                openSubscriptionDialog(
+                                                                                    billingDetailsQuery.data!.dentist,
+                                                                                    `set_${plan.code}_yearly` as AdminDentistSubscriptionAction
+                                                                                );
+                                                                            }}
+                                                                        >
+                                                                            <span className="truncate">{t('admin.billing.planCard.yearly')}</span>
+                                                                        </Button>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        ) : null}
                                     </div>
+
+                                    {([
+                                        {
+                                            groupKey: 'admin.billing.actionGroup.state',
+                                            actions: ['mark_read_only', 'mark_active'] as AdminDentistSubscriptionAction[],
+                                        },
+                                        {
+                                            groupKey: 'admin.billing.actionGroup.cancel',
+                                            actions: ['cancel_at_period_end', 'cancel_now'] as AdminDentistSubscriptionAction[],
+                                        },
+                                    ]).map((group) => (
+                                        <div key={group.groupKey} className="space-y-2">
+                                            <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                                                {t(group.groupKey)}
+                                            </p>
+                                            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                                                {group.actions.map((action) => (
+                                                    <Button
+                                                        key={action}
+                                                        type="button"
+                                                        variant={action === 'cancel_now' ? 'destructive' : 'outline'}
+                                                        className="h-auto justify-start whitespace-normal py-2 text-left"
+                                                        disabled={subscriptionMutation.isPending}
+                                                        onClick={() => {
+                                                            // Keep billing modal open behind the confirm.
+                                                            openSubscriptionDialog(billingDetailsQuery.data!.dentist, action);
+                                                        }}
+                                                    >
+                                                        {getSubscriptionActionLabel(action, t)}
+                                                    </Button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    ))}
                                 </div>
 
                                 <div className="rounded-xl border border-slate-200">
@@ -1169,7 +1478,7 @@ export default function AdminDashboardPage() {
                                                 >
                                                     <div>
                                                         <p className="font-medium text-slate-900">
-                                                            {payment.plan_name} · {payment.billing_period}
+                                                            {payment.plan_name} · {getBillingPeriodLabel(payment.billing_period, t)}
                                                         </p>
                                                         <p className="text-xs text-slate-500">
                                                             {payment.provider_order_id}
@@ -1178,20 +1487,27 @@ export default function AdminDashboardPage() {
                                                                 : ''}
                                                         </p>
                                                     </div>
-                                                    <div className="text-left sm:text-right">
+                                                    <div className="flex flex-col items-start gap-1 sm:items-end">
                                                         <p className="font-semibold text-slate-900">
                                                             {formatBillingAmount(payment, locale)}
                                                         </p>
-                                                        <p className="text-xs text-slate-500">
-                                                            {payment.status}
-                                                            {payment.paid_at
-                                                                ? ` · ${formatLocalizedDate(payment.paid_at, locale, {
-                                                                    year: 'numeric',
-                                                                    month: 'short',
-                                                                    day: 'numeric',
-                                                                })}`
-                                                                : ''}
-                                                        </p>
+                                                        <div className="flex flex-wrap items-center gap-1.5">
+                                                            <Badge
+                                                                variant="outline"
+                                                                className={getPaymentStatusBadgeClasses(payment.status)}
+                                                            >
+                                                                {getPaymentStatusLabel(payment.status, t)}
+                                                            </Badge>
+                                                            {payment.paid_at ? (
+                                                                <span className="text-xs text-slate-500">
+                                                                    {formatLocalizedDate(payment.paid_at, locale, {
+                                                                        year: 'numeric',
+                                                                        month: 'short',
+                                                                        day: 'numeric',
+                                                                    })}
+                                                                </span>
+                                                            ) : null}
+                                                        </div>
                                                     </div>
                                                 </div>
                                             ))}
@@ -1203,36 +1519,16 @@ export default function AdminDashboardPage() {
                     </DialogContent>
                 </Dialog>
 
-                <ConfirmActionDialog
-                    open={deleteTarget !== null}
-                    onOpenChange={(open) => {
-                        if (!open) {
-                            setDeleteTarget(null);
-                        }
-                    }}
-                    title={t('admin.deleteConfirmTitle')}
-                    description={deleteTarget
-                        ? t('admin.deleteConfirmDescription', { name: deleteTarget.name })
-                        : t('admin.deleteConfirmDescriptionFallback')}
-                    confirmLabel={t('admin.deleteAccount')}
-                    pendingLabel={t('payments.deleting')}
-                    cancelLabel={t('common.cancel')}
-                    isPending={deleteMutation.isPending}
-                    onConfirm={() => {
-                        if (!deleteTarget) {
-                            return;
-                        }
-
-                        deleteMutation.mutate(deleteTarget.id);
-                    }}
-                />
-
                 <Dialog
                     open={subscriptionDialog !== null}
                     onOpenChange={(open) => {
                         if (open) {
                             return;
                         }
+                        // Mid-mutation close would lose the form values while
+                        // the API call resolves — the success/error handler
+                        // explicitly closes the dialog.
+                        if (subscriptionMutation.isPending) return;
 
                         setSubscriptionDialog(null);
                         setSubscriptionForm(createEmptySubscriptionForm());
@@ -1264,7 +1560,12 @@ export default function AdminDashboardPage() {
                                             status: getSubscriptionStatusLabel(subscriptionDialog.account.subscription, t),
                                         })}
                                     </p>
-                                    {subscriptionDialog.account.subscription.ends_at ? (
+                                    {/* Optional-chain — backend may return subscription: null on
+                                        a brand-new dentist (no subscription created yet); without
+                                        it `ends_at` access would throw and white-screen the
+                                        modal. The conditional render below shields the inner
+                                        date access too. */}
+                                    {subscriptionDialog.account.subscription?.ends_at ? (
                                         <p className="mt-1 text-xs text-slate-600">
                                             {t('admin.subscription.paidUntil', {
                                                 date: formatLocalizedDate(
@@ -1385,6 +1686,30 @@ export default function AdminDashboardPage() {
                     </DialogContent>
                 </Dialog>
 
+                <ConfirmActionDialog
+                    open={deleteTarget !== null}
+                    onOpenChange={(open) => {
+                        if (!open) {
+                            setDeleteTarget(null);
+                        }
+                    }}
+                    title={t('admin.deleteConfirmTitle')}
+                    description={deleteTarget
+                        ? t('admin.deleteConfirmDescription', { name: deleteTarget.name })
+                        : t('admin.deleteConfirmDescriptionFallback')}
+                    confirmLabel={t('admin.deleteAccount')}
+                    pendingLabel={t('payments.deleting')}
+                    cancelLabel={t('common.cancel')}
+                    isPending={deleteMutation.isPending}
+                    onConfirm={() => {
+                        if (!deleteTarget) {
+                            return;
+                        }
+
+                        deleteMutation.mutate(deleteTarget.id);
+                    }}
+                />
+
                 <Dialog
                     open={resetPasswordTarget !== null}
                     onOpenChange={(open) => {
@@ -1392,6 +1717,8 @@ export default function AdminDashboardPage() {
                             setResetPasswordSubmitAttempted(false);
                             return;
                         }
+                        // Refuse to close mid-mutation.
+                        if (resetMutation.isPending) return;
 
                         setResetPasswordTarget(null);
                         setResetPasswordSubmitAttempted(false);

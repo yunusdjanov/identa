@@ -1,9 +1,16 @@
 'use client';
 
+import { useSyncExternalStore } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, Home, RefreshCw } from 'lucide-react';
 import { Brand } from '@/components/branding/brand';
 import { Button } from '@/components/ui/button';
+import {
+    DEFAULT_LOCALE,
+    LOCALE_COOKIE_NAME,
+    resolveLocale,
+    type AppLocale,
+} from '@/lib/i18n/config';
 
 type ErrorScreenKind = 'not-found' | 'route-error' | 'global-error' | 'forbidden';
 
@@ -13,60 +20,167 @@ interface ErrorScreenProps {
     onRetry?: () => void;
 }
 
-const ERROR_COPY: Record<
-    ErrorScreenKind,
-    {
-        code: string;
-        eyebrow: string;
-        title: string;
-        description: string;
-        primaryLabel: string;
-        primaryHref?: string;
-        secondaryLabel?: string;
-        secondaryHref?: string;
-    }
-> = {
-    'not-found': {
-        code: '404',
-        eyebrow: 'Страница не найдена',
-        title: 'Такой страницы нет',
-        description: 'Адрес мог измениться или быть набран с ошибкой. Вернитесь на главную страницу и откройте нужный раздел заново.',
-        primaryLabel: 'На главную',
-        secondaryLabel: 'Войти',
-        secondaryHref: '/login',
+interface ErrorCopy {
+    code: string;
+    eyebrow: string;
+    title: string;
+    description: string;
+    primaryLabel: string;
+    primaryHref?: string;
+    secondaryLabel?: string;
+    secondaryHref?: string;
+}
+
+// Error boundaries (especially global-error) render outside the I18nProvider
+// tree, so this screen cannot use the `t()` hook. Copy is kept self-contained
+// per locale and selected from the `identa_locale` cookie, which is always
+// readable on the client regardless of provider state.
+const ERROR_COPY: Record<AppLocale, Record<ErrorScreenKind, ErrorCopy>> = {
+    ru: {
+        'not-found': {
+            code: '404',
+            eyebrow: 'Страница не найдена',
+            title: 'Такой страницы нет',
+            description: 'Адрес мог измениться или быть набран с ошибкой. Вернитесь на главную страницу и откройте нужный раздел заново.',
+            primaryLabel: 'На главную',
+            secondaryLabel: 'Войти',
+            secondaryHref: '/login',
+        },
+        'route-error': {
+            code: '500',
+            eyebrow: 'Ошибка загрузки',
+            title: 'Раздел не открылся',
+            description: 'Что-то пошло не так при загрузке страницы. Попробуйте ещё раз или вернитесь на главную.',
+            primaryLabel: 'Повторить',
+            secondaryLabel: 'На главную',
+            secondaryHref: '/',
+        },
+        'global-error': {
+            code: '500',
+            eyebrow: 'Системная ошибка',
+            title: 'Identa не смогла запуститься',
+            description: 'Обновите страницу. Если ошибка повторится, передайте код ошибки поддержке.',
+            primaryLabel: 'Обновить',
+            secondaryLabel: 'На главную',
+            secondaryHref: '/',
+        },
+        forbidden: {
+            code: '403',
+            eyebrow: 'Доступ закрыт',
+            title: 'У вас нет доступа',
+            description: 'Этот раздел или действие закрыты для вашей роли. Вернитесь в кабинет или попросите владельца изменить права доступа.',
+            primaryLabel: 'В кабинет',
+            primaryHref: '/dashboard',
+            secondaryLabel: 'На главную',
+            secondaryHref: '/',
+        },
     },
-    'route-error': {
-        code: '500',
-        eyebrow: 'Ошибка загрузки',
-        title: 'Раздел не открылся',
-        description: 'Что-то пошло не так при загрузке страницы. Попробуйте ещё раз или вернитесь на главную.',
-        primaryLabel: 'Повторить',
-        secondaryLabel: 'На главную',
-        secondaryHref: '/',
+    uz: {
+        'not-found': {
+            code: '404',
+            eyebrow: 'Sahifa topilmadi',
+            title: 'Bunday sahifa yoʻq',
+            description: 'Manzil oʻzgargan yoki xato kiritilgan boʻlishi mumkin. Bosh sahifaga qaytib, kerakli boʻlimni qaytadan oching.',
+            primaryLabel: 'Bosh sahifaga',
+            secondaryLabel: 'Kirish',
+            secondaryHref: '/login',
+        },
+        'route-error': {
+            code: '500',
+            eyebrow: 'Yuklashda xato',
+            title: 'Boʻlim ochilmadi',
+            description: 'Sahifani yuklashda nimadir xato ketdi. Qaytadan urinib koʻring yoki bosh sahifaga qayting.',
+            primaryLabel: 'Qayta urinish',
+            secondaryLabel: 'Bosh sahifaga',
+            secondaryHref: '/',
+        },
+        'global-error': {
+            code: '500',
+            eyebrow: 'Tizim xatosi',
+            title: 'Identa ishga tushmadi',
+            description: 'Sahifani yangilang. Xato takrorlansa, xato kodini qoʻllab-quvvatlash xizmatiga yuboring.',
+            primaryLabel: 'Yangilash',
+            secondaryLabel: 'Bosh sahifaga',
+            secondaryHref: '/',
+        },
+        forbidden: {
+            code: '403',
+            eyebrow: 'Kirish yopiq',
+            title: 'Sizda ruxsat yoʻq',
+            description: 'Bu boʻlim yoki amal sizning rolingiz uchun yopiq. Boshqaruv paneliga qayting yoki akkaunt egasidan ruxsatlarni oʻzgartirishni soʻrang.',
+            primaryLabel: 'Boshqaruv paneliga',
+            primaryHref: '/dashboard',
+            secondaryLabel: 'Bosh sahifaga',
+            secondaryHref: '/',
+        },
     },
-    'global-error': {
-        code: '500',
-        eyebrow: 'Системная ошибка',
-        title: 'Identa не смогла запуститься',
-        description: 'Обновите страницу. Если ошибка повторится, передайте код ошибки поддержке.',
-        primaryLabel: 'Обновить',
-        secondaryLabel: 'На главную',
-        secondaryHref: '/',
-    },
-    forbidden: {
-        code: '403',
-        eyebrow: 'Доступ закрыт',
-        title: 'У вас нет доступа',
-        description: 'Этот раздел или действие закрыты для вашей роли. Вернитесь в кабинет или попросите владельца изменить права доступа.',
-        primaryLabel: 'В кабинет',
-        primaryHref: '/dashboard',
-        secondaryLabel: 'На главную',
-        secondaryHref: '/',
+    en: {
+        'not-found': {
+            code: '404',
+            eyebrow: 'Page not found',
+            title: "This page doesn't exist",
+            description: 'The address may have changed or been mistyped. Return to the home page and open the section again.',
+            primaryLabel: 'Go home',
+            secondaryLabel: 'Sign in',
+            secondaryHref: '/login',
+        },
+        'route-error': {
+            code: '500',
+            eyebrow: 'Loading error',
+            title: 'This section failed to open',
+            description: 'Something went wrong while loading the page. Try again or return to the home page.',
+            primaryLabel: 'Try again',
+            secondaryLabel: 'Go home',
+            secondaryHref: '/',
+        },
+        'global-error': {
+            code: '500',
+            eyebrow: 'System error',
+            title: 'Identa failed to start',
+            description: 'Refresh the page. If the error repeats, share the error code with support.',
+            primaryLabel: 'Refresh',
+            secondaryLabel: 'Go home',
+            secondaryHref: '/',
+        },
+        forbidden: {
+            code: '403',
+            eyebrow: 'Access denied',
+            title: "You don't have access",
+            description: 'This section or action is closed for your role. Return to the dashboard or ask the owner to change your permissions.',
+            primaryLabel: 'To dashboard',
+            primaryHref: '/dashboard',
+            secondaryLabel: 'Go home',
+            secondaryHref: '/',
+        },
     },
 };
 
+const ERROR_CODE_LABEL: Record<AppLocale, string> = {
+    ru: 'Код ошибки:',
+    uz: 'Xato kodi:',
+    en: 'Error code:',
+};
+
+function readLocaleFromCookie(): AppLocale {
+    if (typeof document === 'undefined') {
+        return DEFAULT_LOCALE;
+    }
+    const match = document.cookie.match(new RegExp(`(?:^|; )${LOCALE_COOKIE_NAME}=([^;]+)`));
+    return resolveLocale(match ? decodeURIComponent(match[1]) : null);
+}
+
 export function ErrorScreen({ kind, digest, onRetry }: ErrorScreenProps) {
-    const copy = ERROR_COPY[kind];
+    // Resolve the locale from the cookie via useSyncExternalStore: server render
+    // uses DEFAULT_LOCALE, the client reads the real locale. This keeps the
+    // screen self-contained (works in global-error, outside the I18nProvider)
+    // without a setState-in-effect or hydration mismatch.
+    const locale = useSyncExternalStore(
+        () => () => undefined,
+        readLocaleFromCookie,
+        () => DEFAULT_LOCALE,
+    );
+
+    const copy = ERROR_COPY[locale][kind];
     const canRetry = typeof onRetry === 'function';
 
     return (
@@ -97,7 +211,7 @@ export function ErrorScreen({ kind, digest, onRetry }: ErrorScreenProps) {
 
                     {digest ? (
                         <p className="mx-auto mt-5 max-w-md rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs text-slate-500">
-                            Код ошибки: <span className="font-mono font-semibold text-slate-700">{digest}</span>
+                            {ERROR_CODE_LABEL[locale]} <span className="font-mono font-semibold text-slate-700">{digest}</span>
                         </p>
                     ) : null}
 

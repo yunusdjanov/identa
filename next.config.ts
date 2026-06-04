@@ -6,7 +6,7 @@ const contentSecurityPolicy = [
   "object-src 'none'",
   "frame-ancestors 'self'",
   "form-action 'self'",
-  "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://unpkg.com https://va.vercel-scripts.com",
+  "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://va.vercel-scripts.com",
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   "font-src 'self' https://fonts.gstatic.com data:",
   "img-src 'self' data: blob: https: http://127.0.0.1:8001 http://localhost:8001",
@@ -74,7 +74,7 @@ const nextConfig: NextConfig = {
       },
       {
         source:
-          "/:path(login|register|forgot-password|reset-password|dashboard|patients|appointments|payments|billing|settings|staff|team|admin|api|identa-handoff)(.*)",
+          "/:path(login|register|forgot-password|reset-password|dashboard|patients|appointments|payments|billing|settings|staff|team|admin|api)(.*)",
         headers: noIndexHeaders,
       },
     ];

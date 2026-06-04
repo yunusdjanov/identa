@@ -210,19 +210,9 @@ class User extends Authenticatable implements MustVerifyEmail
         return null;
     }
 
-    public function hasConfiguredSubscription(): bool
-    {
-        return $this->isDentist() && app(SubscriptionService::class)->currentForOwner($this) !== null;
-    }
-
     public function subscriptionEndsAt(): ?CarbonInterface
     {
         return app(SubscriptionService::class)->currentForOwner($this)?->ends_at;
-    }
-
-    public function subscriptionGraceEndsAt(): ?CarbonInterface
-    {
-        return null;
     }
 
     public function subscriptionStatus(): string
@@ -324,28 +314,31 @@ class User extends Authenticatable implements MustVerifyEmail
         $this->activatePaidSubscription($plan, $paymentMethod, $paymentAmount, $note);
     }
 
+    /**
+     * Extend the current paid subscription by one period. Routes through
+     * SubscriptionService::renewOrActivate so the Subscription row, legacy
+     * User columns and staff limits stay in sync under a single transaction
+     * + row lock. Previously this method wrote only to the User legacy
+     * columns, leaving the canonical Subscription row stale.
+     */
     public function extendPaidSubscription(
         string $plan,
         ?string $paymentMethod = null,
         ?float $paymentAmount = null,
         ?string $note = null,
     ): void {
-        $baseDate = $this->subscriptionEndsAt();
-        if ($baseDate === null || $baseDate->lessThan(now())) {
-            $baseDate = now();
-        }
+        $planModel = Plan::query()
+            ->where('code', $plan === self::SUBSCRIPTION_PLAN_YEARLY ? Plan::CODE_PRO : Plan::CODE_BASIC)
+            ->firstOrFail();
 
-        $this->forceFill([
-            'subscription_plan' => $plan,
-            'subscription_started_at' => $this->subscription_started_at ?? now(),
-            'subscription_ends_at' => $this->subscriptionEndForPlan($plan, $baseDate),
-            'trial_ends_at' => null,
-            'subscription_cancel_at_period_end' => false,
-            'subscription_cancelled_at' => null,
-            'subscription_payment_method' => $paymentMethod,
-            'subscription_payment_amount' => $paymentAmount,
-            'subscription_note' => $note,
-        ])->save();
+        app(SubscriptionService::class)->renewOrActivate(
+            owner: $this,
+            plan: $planModel,
+            billingPeriod: $plan === self::SUBSCRIPTION_PLAN_YEARLY ? Subscription::PERIOD_YEARLY : Subscription::PERIOD_MONTHLY,
+            paymentMethod: $paymentMethod,
+            paymentAmount: $paymentAmount,
+            note: $note,
+        );
     }
 
     private function shouldExtendPaidSubscription(string $plan): bool
@@ -360,34 +353,25 @@ class User extends Authenticatable implements MustVerifyEmail
         ], true);
     }
 
+    /**
+     * Schedule cancellation at the end of the current paid period. Routes
+     * through SubscriptionService so the subscription row + legacy columns
+     * are updated atomically under a row lock. Previously the two writes
+     * happened independently and were vulnerable to a webhook race.
+     */
     public function cancelSubscriptionAtPeriodEnd(?string $note = null): void
     {
-        $subscription = app(SubscriptionService::class)->currentForOwner($this);
-        $subscription?->forceFill(['cancel_at_period_end' => true])->save();
-
-        $this->forceFill([
-            'subscription_cancel_at_period_end' => true,
-            'subscription_note' => $note,
-        ])->save();
+        app(SubscriptionService::class)->cancelAtPeriodEnd($this, $note);
     }
 
+    /**
+     * Cancel the subscription immediately, dropping access to read-only.
+     * Routes through SubscriptionService for the same race-safety reason
+     * as cancelSubscriptionAtPeriodEnd().
+     */
     public function cancelSubscriptionImmediately(?string $note = null): void
     {
-        $cancelledAt = now();
-        $subscription = app(SubscriptionService::class)->currentForOwner($this);
-        $subscription?->forceFill(['status' => Subscription::STATUS_READ_ONLY])->save();
-
-        $this->forceFill([
-            'subscription_cancel_at_period_end' => false,
-            'subscription_cancelled_at' => $cancelledAt,
-            'subscription_ends_at' => $this->subscription_plan === self::SUBSCRIPTION_PLAN_TRIAL
-                ? $this->subscription_ends_at
-                : $cancelledAt,
-            'trial_ends_at' => $this->subscription_plan === self::SUBSCRIPTION_PLAN_TRIAL
-                ? $cancelledAt
-                : $this->trial_ends_at,
-            'subscription_note' => $note,
-        ])->save();
+        app(SubscriptionService::class)->cancelImmediately($this, $note);
     }
 
     private function subscriptionEndForPlan(string $plan, CarbonInterface $startsAt): ?CarbonInterface

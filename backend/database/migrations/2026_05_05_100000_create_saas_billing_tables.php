@@ -34,6 +34,10 @@ return new class extends Migration
             $table->string('currency', 3)->default('UZS');
             $table->unsignedInteger('staff_limit')->default(0);
             $table->unsignedInteger('entry_image_limit')->default(0);
+            // Both fields are per-file: upload is the raw size at ingest time,
+            // stored is the target size after image optimization. Stored is
+            // typically smaller (compression reduces size) but admins can tune
+            // either independently.
             $table->decimal('upload_max_mb', 6, 2)->default(1);
             $table->decimal('stored_image_max_mb', 6, 2)->default(0.5);
             $table->boolean('can_export')->default(false);
@@ -121,8 +125,8 @@ return new class extends Migration
                 'currency' => 'UZS',
                 'staff_limit' => 1,
                 'entry_image_limit' => 2,
-                'upload_max_mb' => 1,
-                'stored_image_max_mb' => 0.5,
+                'upload_max_mb' => 3,
+                'stored_image_max_mb' => 6,
                 'can_export' => false,
                 'is_active' => true,
                 'sort_order' => 10,
@@ -136,13 +140,13 @@ return new class extends Migration
                 'is_trial' => false,
                 'is_paid' => true,
                 'trial_days' => null,
-                'monthly_price' => 0,
-                'yearly_price' => 0,
+                'monthly_price' => 120000,
+                'yearly_price' => 1200000,
                 'currency' => 'UZS',
                 'staff_limit' => 3,
-                'entry_image_limit' => 2,
-                'upload_max_mb' => 3,
-                'stored_image_max_mb' => 0.5,
+                'entry_image_limit' => 5,
+                'upload_max_mb' => 5,
+                'stored_image_max_mb' => 25,
                 'can_export' => false,
                 'is_active' => true,
                 'sort_order' => 20,
@@ -156,13 +160,13 @@ return new class extends Migration
                 'is_trial' => false,
                 'is_paid' => true,
                 'trial_days' => null,
-                'monthly_price' => 0,
-                'yearly_price' => 0,
+                'monthly_price' => 200000,
+                'yearly_price' => 2000000,
                 'currency' => 'UZS',
                 'staff_limit' => 5,
                 'entry_image_limit' => 10,
-                'upload_max_mb' => 5,
-                'stored_image_max_mb' => 1,
+                'upload_max_mb' => 8,
+                'stored_image_max_mb' => 80,
                 'can_export' => true,
                 'is_active' => true,
                 'sort_order' => 30,

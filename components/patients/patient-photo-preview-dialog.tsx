@@ -9,6 +9,7 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog';
 import { getProtectedMediaCrossOrigin } from '@/lib/protected-media';
+import { useI18n } from '@/components/providers/i18n-provider';
 import { ChevronLeft, ChevronRight, Download, Loader2, X } from 'lucide-react';
 
 export interface PreviewGalleryImage {
@@ -50,6 +51,7 @@ export function PatientPhotoPreviewDialog({
     images,
     startIndex = 0,
 }: PatientPhotoPreviewDialogProps) {
+    const { t } = useI18n();
     const resolvedImages = useMemo<PreviewGalleryImage[]>(() => {
         if (images && images.length > 0) {
             return images.filter((image) => Boolean(image?.src));
@@ -188,14 +190,14 @@ export function PatientPhotoPreviewDialog({
                             type="button"
                             onClick={handleDownload}
                             className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-slate-200/90 bg-white text-slate-500 shadow-xs transition hover:-translate-y-0.5 hover:border-teal-100 hover:bg-teal-50 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-100"
-                            aria-label="Download image"
+                            aria-label={t('gallery.download')}
                         >
                             <Download className="h-4 w-4" />
                         </button>
                     ) : null}
                     <DialogClose className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-slate-200/90 bg-white text-slate-500 shadow-xs transition hover:-translate-y-0.5 hover:border-teal-100 hover:bg-teal-50 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-100">
                         <X className="h-4 w-4" />
-                        <span className="sr-only">Close</span>
+                        <span className="sr-only">{t('common.close')}</span>
                     </DialogClose>
                 </div>
                 <DialogDescription className="sr-only">
@@ -224,7 +226,7 @@ export function PatientPhotoPreviewDialog({
                                         type="button"
                                         className="absolute left-3 top-1/2 z-10 inline-flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:scale-105 hover:bg-white hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-200"
                                         onClick={goToPrevious}
-                                        aria-label="Previous image"
+                                        aria-label={t('gallery.previous')}
                                     >
                                         <ChevronLeft className="h-5 w-5" />
                                     </button>
@@ -232,7 +234,7 @@ export function PatientPhotoPreviewDialog({
                                         type="button"
                                         className="absolute right-3 top-1/2 z-10 inline-flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:scale-105 hover:bg-white hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-200"
                                         onClick={goToNext}
-                                        aria-label="Next image"
+                                        aria-label={t('gallery.next')}
                                     >
                                         <ChevronRight className="h-5 w-5" />
                                     </button>
@@ -246,7 +248,7 @@ export function PatientPhotoPreviewDialog({
                             <div className="flex max-w-full shrink-0 justify-center overflow-hidden">
                                 <div
                                     className="flex w-fit max-w-full items-center justify-start gap-2 overflow-x-auto px-1 pb-1"
-                                    aria-label="Image thumbnails"
+                                    aria-label={t('gallery.thumbnails')}
                                 >
                                     {resolvedImages.map((image, index) => {
                                         const thumbnailDisplaySrc = image.thumbnailSrc ?? image.src;

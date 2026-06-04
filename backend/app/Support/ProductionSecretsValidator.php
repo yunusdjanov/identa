@@ -51,6 +51,17 @@ class ProductionSecretsValidator
             $issues[] = 'SENTRY_LARAVEL_DSN is required in production when SENTRY_REQUIRED=true.';
         }
 
+        // Billing/subscription period boundaries are computed via Carbon's
+        // now() which honours config('app.timezone'). Refuse to boot without
+        // an explicit timezone in production so a renewal kicked off at
+        // 23:59 local can't land in a different calendar day than the
+        // dentist sees in their portal. APP_TIMEZONE=UTC is fine; the check
+        // only catches the case where the env var is empty.
+        $timezone = trim((string) env('APP_TIMEZONE', ''));
+        if ($timezone === '') {
+            $issues[] = 'APP_TIMEZONE must be set explicitly (e.g. "UTC" or "Asia/Tashkent") so billing period boundaries are deterministic.';
+        }
+
         return $issues;
     }
 

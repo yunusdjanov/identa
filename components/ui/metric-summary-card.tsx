@@ -1,4 +1,8 @@
-﻿import { cn } from '@/lib/utils';
+﻿'use client';
+
+import { Lock } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { useI18n } from '@/components/providers/i18n-provider';
 
 type MetricSummaryTone = 'teal' | 'emerald' | 'amber' | 'yellow' | 'red' | 'slate';
 
@@ -10,6 +14,14 @@ interface MetricSummaryCardProps {
     compact?: boolean;
     tabular?: boolean;
     className?: string;
+    /**
+     * When true, render a locked-state placeholder instead of `value`.
+     * The card keeps its label + tone so users see "this metric exists
+     * but you don't have access" rather than the metric vanishing.
+     * Mirrors the dashboard `LockedStatCard` pattern (Lock icon +
+     * locale-aware "No access" label).
+     */
+    locked?: boolean;
 }
 
 const toneClasses: Record<MetricSummaryTone, { card: string; label: string; value: string }> = {
@@ -45,7 +57,7 @@ const toneClasses: Record<MetricSummaryTone, { card: string; label: string; valu
     },
 };
 
-export function getBalanceMetricTone(balance: number): MetricSummaryTone {
+export function getBalanceMetricTone(_balance: number): MetricSummaryTone {
     return 'yellow';
 }
 
@@ -57,8 +69,35 @@ export function MetricSummaryCard({
     compact = false,
     tabular = false,
     className,
+    locked = false,
 }: MetricSummaryCardProps) {
     const resolvedValueTone = valueTone ?? tone;
+    const { t } = useI18n();
+
+    if (locked) {
+        // Locked state: render a muted card with the same label so the
+        // grid keeps its shape, but swap the value slot for a Lock icon
+        // + "No access" copy. Borders/background go to slate so the card
+        // visually reads as "disabled" without disappearing.
+        return (
+            <div
+                className={cn(
+                    'rounded-2xl border border-slate-200/70 bg-white p-3 shadow-sm',
+                    className
+                )}
+                aria-label={`${label}: ${t('dashboard.lockedKpi.label')}`}
+            >
+                <p className="text-xs font-medium uppercase tracking-wide text-slate-400">{label}</p>
+                <div className={cn(
+                    'mt-1 flex items-center gap-1.5 font-semibold text-slate-300',
+                    compact ? 'text-sm' : 'text-lg'
+                )}>
+                    <Lock className={cn(compact ? 'h-3.5 w-3.5' : 'h-4 w-4', 'shrink-0')} aria-hidden="true" />
+                    <span className="truncate">{t('dashboard.lockedKpi.label')}</span>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div

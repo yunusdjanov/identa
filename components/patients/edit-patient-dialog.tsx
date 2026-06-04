@@ -1,7 +1,8 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useDirtyFormWarning } from '@/lib/hooks/use-dirty-form-warning';
 import {
     Dialog,
     DialogContent,
@@ -43,7 +44,6 @@ interface EditPatientDialogProps {
     onOpenChange: (open: boolean) => void;
     patient: ApiPatient;
     uploadMaxMb?: number | null;
-    storedImageMaxMb?: number | null;
 }
 
 interface PatientFormState {
@@ -59,7 +59,6 @@ interface PatientFormState {
 }
 const NO_CATEGORY_VALUE = '__none__';
 const DEFAULT_PATIENT_PHOTO_UPLOAD_MAX_MB = 1;
-const DEFAULT_PATIENT_PHOTO_STORED_MAX_MB = 0.5;
 
 function createInitialState(patient: ApiPatient): PatientFormState {
     return {
@@ -80,7 +79,6 @@ export function EditPatientDialog({
     onOpenChange,
     patient,
     uploadMaxMb = DEFAULT_PATIENT_PHOTO_UPLOAD_MAX_MB,
-    storedImageMaxMb = DEFAULT_PATIENT_PHOTO_STORED_MAX_MB,
 }: EditPatientDialogProps) {
     const { t } = useI18n();
     const queryClient = useQueryClient();
@@ -90,6 +88,19 @@ export function EditPatientDialog({
     const [photoInputKey, setPhotoInputKey] = useState(0);
     const [removePhoto, setRemovePhoto] = useState(false);
     const [isSubmitted, setIsSubmitted] = useState(false);
+    // Dirty detection: compare current formData against the server-fed
+    // initial state. Photo selection / removal also count as dirty so a
+    // user who attached a photo but didn't save sees the warning. Only
+    // gates the browser-tab warning while the dialog is open — closing
+    // the dialog without saving silently drops the changes (intentional;
+    // matches the admin plans editor pattern).
+    const initialFormSnapshot = useMemo(() => createInitialState(patient), [patient]);
+    const isDirty = open && (
+        JSON.stringify(formData) !== JSON.stringify(initialFormSnapshot)
+        || photoFile !== null
+        || removePhoto
+    );
+    useDirtyFormWarning(isDirty);
     const categoriesQuery = useQuery({
         queryKey: ['patient-categories', 'list'],
         queryFn: () => listPatientCategories(),
@@ -124,9 +135,7 @@ export function EditPatientDialog({
     const secondaryPhoneError = getPhoneValidationMessage(formData.secondaryPhone, { required: false });
     const hasValidationErrors = Boolean(fullNameError || phoneError || secondaryPhoneError || addressError || medicalHistoryError || allergiesError || currentMedicationsError);
     const photoUploadMaxMb = uploadMaxMb ?? DEFAULT_PATIENT_PHOTO_UPLOAD_MAX_MB;
-    const photoStoredMaxMb = storedImageMaxMb ?? DEFAULT_PATIENT_PHOTO_STORED_MAX_MB;
     const photoUploadMaxBytes = photoUploadMaxMb * 1024 * 1024;
-    const photoStoredMaxBytes = photoStoredMaxMb * 1024 * 1024;
     const handleDialogOpenChange = (nextOpen: boolean) => {
         if (!nextOpen) {
             setIsSubmitted(false);
@@ -215,17 +224,12 @@ export function EditPatientDialog({
             return;
         }
 
+        // Client-side optimization is a bandwidth helper only — backend
+        // auto-compresses without enforcing a per-file stored cap.
         const optimizedPhoto = await optimizeImageFileForUpload(selectedPhoto, {
             maxEdge: 1400,
-            targetMaxBytes: photoStoredMaxBytes,
+            targetMaxBytes: null,
         });
-
-        if (optimizedPhoto.size > photoStoredMaxBytes) {
-            toast.error(t('patients.toast.photoTooLarge', { sizeMb: photoStoredMaxMb }));
-            setPhotoFile(null);
-            setPhotoInputKey((value) => value + 1);
-            return;
-        }
 
         setPhotoFile(optimizedPhoto);
         setRemovePhoto(false);

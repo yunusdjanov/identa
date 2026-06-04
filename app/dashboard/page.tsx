@@ -10,11 +10,11 @@ import { getCurrentUser, getDashboardSnapshot } from '@/lib/api/dentist';
 import { getApiErrorMessage } from '@/lib/api/client';
 import { formatCurrency, toLocalDateKey, truncateForUi } from '@/lib/utils';
 import { formatLocalizedDate } from '@/lib/i18n/date';
-import { AlertCircle, ArrowRight, Calendar, CheckCircle2, DollarSign, Plus } from 'lucide-react';
+import { AlertCircle, ArrowRight, Calendar, CheckCircle2, DollarSign, Lock, Plus } from 'lucide-react';
 import Link from 'next/link';
 import { useI18n } from '@/components/providers/i18n-provider';
 import { AppErrorState } from '@/components/error/app-error-state';
-import { canManage, canView, getManageDeniedMessage, PERMISSION_DENIED_MESSAGE } from '@/lib/auth/permissions';
+import { canManage, canView, getManageDeniedMessage, isSubscriptionReadOnly } from '@/lib/auth/permissions';
 import { getStatusTone } from '@/lib/appointments/status-tone';
 import { toast } from 'sonner';
 
@@ -105,17 +105,36 @@ function DashboardStatCard({
 }
 
 function LockedStatCard({ title, icon }: { title: string; icon: ReactNode }) {
+    const { t } = useI18n();
+    // Locked-state KPI mirrors the unlocked StatCard's structure so cards
+    // line up in the row at the same height:
+    //   eyebrow (title)      icon
+    //   <value placeholder>
+    //   <helper>             —
+    //
+    // Previously the value slot rendered the full Uzbek denied-message
+    // ("Sizda bu boʻlimga kirish uchun ruxsat yoʻq") at `text-2xl font-bold`,
+    // producing a Uzbek paragraph that drowned the card even when the user
+    // had set the app to Russian. The new shape — small Lock + locale-aware
+    // "No access" label — keeps the typographic hierarchy (value-row is
+    // big and dim, helper-row is small) without leaking a hardcoded
+    // language and without overpowering siblings in the grid.
     return (
-        <Card className="rounded-2xl border-slate-100 bg-gradient-to-br from-white via-slate-50/60 to-white shadow-sm">
-            <CardContent className="relative overflow-hidden px-4 py-3.5">
-                <div className="pointer-events-none absolute inset-0 bg-white/40 backdrop-blur-[1.5px]" />
-                <div className="relative flex items-center justify-between gap-2">
-                    <p className="truncate text-[11px] font-semibold uppercase tracking-[0.07em] text-slate-300">{title}</p>
+        <Card className="rounded-2xl border-slate-200/70 bg-white shadow-sm">
+            <CardContent className="px-4 py-3.5">
+                <div className="flex items-center justify-between gap-2">
+                    <p className="truncate text-[11px] font-semibold uppercase tracking-[0.07em] text-slate-400">{title}</p>
                     <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-slate-50 text-slate-300 ring-1 ring-slate-100">
                         {icon}
                     </div>
                 </div>
-                <p className="relative mt-1.5 text-2xl font-bold leading-none text-slate-200">{PERMISSION_DENIED_MESSAGE}</p>
+                <div className="mt-1.5 flex items-center gap-2 text-2xl font-bold leading-none tracking-tight text-slate-300">
+                    <Lock className="h-5 w-5 shrink-0" aria-hidden="true" />
+                    <span className="truncate">{t('dashboard.lockedKpi.label')}</span>
+                </div>
+                <p className="mt-2 truncate text-[11px] font-medium text-slate-400">
+                    {t('dashboard.lockedKpi.helper')}
+                </p>
             </CardContent>
         </Card>
     );
@@ -144,7 +163,7 @@ export default function DashboardPage() {
     const canViewAppointments = canView(currentUser, 'appointments');
     const canManageAppointments = canManage(currentUser, 'appointments');
     const canViewPayments = canView(currentUser, 'payments');
-    const denyManageAction = () => toast.error(getManageDeniedMessage(currentUser));
+    const denyManageAction = () => toast.error(getManageDeniedMessage(currentUser, t));
 
     const dashboardQuery = useQuery({
         queryKey: ['dashboard', 'snapshot', todayDateKey],
@@ -217,48 +236,57 @@ export default function DashboardPage() {
                     <h1 className="mt-0.5 text-2xl font-bold leading-tight text-slate-950">{t('dashboard.title')}</h1>
                     <p className="text-xs text-slate-500">{monthLabel}</p>
                 </div>
-                {(canViewPatients || canViewAppointments) ? (
+                {/* AF5: hide-not-disable for permission shortfalls; show
+                    disabled + toast for subscription read-only (so dentist
+                    owner knows it's a billing pause, not a permission
+                    gap). View-only assistant who never has create rights
+                    sees no CTA at all instead of a permanently dimmed
+                    button next to a working sibling. */}
+                {(canCreatePatients || canManageAppointments || (isSubscriptionReadOnly(currentUser) && (canViewPatients || canViewAppointments))) ? (
                     <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 md:flex md:flex-wrap md:justify-end">
-                        {canViewPatients ? (
-                            <Link
-                                href="/patients?action=new"
-                                onClick={(event) => {
-                                    if (!canCreatePatients) {
-                                        event.preventDefault();
-                                        denyManageAction();
-                                    }
-                                }}
-                            >
+                        {canCreatePatients ? (
+                            <Link href="/patients?action=new">
                                 <Button
                                     size="sm"
                                     className="h-8 w-full rounded-full px-3 shadow-sm md:w-auto"
-                                    disabled={!canCreatePatients}
                                 >
                                     <Plus className="w-3.5 h-3.5 mr-1.5" />
                                     {t('dashboard.addPatient')}
                                 </Button>
                             </Link>
-                        ) : null}
-                        {canViewAppointments ? (
-                            <Link
-                                href="/appointments?action=new"
-                                onClick={(event) => {
-                                    if (!canManageAppointments) {
-                                        event.preventDefault();
-                                        denyManageAction();
-                                    }
-                                }}
+                        ) : isSubscriptionReadOnly(currentUser) && canViewPatients ? (
+                            <Button
+                                size="sm"
+                                className="h-8 w-full rounded-full px-3 shadow-sm md:w-auto"
+                                disabled
+                                onClick={denyManageAction}
                             >
+                                <Plus className="w-3.5 h-3.5 mr-1.5" />
+                                {t('dashboard.addPatient')}
+                            </Button>
+                        ) : null}
+                        {canManageAppointments ? (
+                            <Link href="/appointments?action=new">
                                 <Button
                                     variant="outline"
                                     size="sm"
                                     className="h-8 w-full rounded-full border-teal-100 bg-white px-3 shadow-sm hover:bg-teal-50 md:w-auto"
-                                    disabled={!canManageAppointments}
                                 >
                                     <Calendar className="w-3.5 h-3.5 mr-1.5" />
                                     {t('dashboard.newAppointment')}
                                 </Button>
                             </Link>
+                        ) : isSubscriptionReadOnly(currentUser) && canViewAppointments ? (
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-8 w-full rounded-full border-teal-100 bg-white px-3 shadow-sm hover:bg-teal-50 md:w-auto"
+                                disabled
+                                onClick={denyManageAction}
+                            >
+                                <Calendar className="w-3.5 h-3.5 mr-1.5" />
+                                {t('dashboard.newAppointment')}
+                            </Button>
                         ) : null}
                     </div>
                 ) : null}
@@ -341,8 +369,15 @@ export default function DashboardPage() {
                 {/* Body */}
                 {!canViewAppointments ? (
                     <div className="flex items-center gap-3 px-4 py-4">
-                        <Calendar className="h-4 w-4 shrink-0 text-slate-300" />
-                        <p className="text-sm font-medium text-slate-400">{PERMISSION_DENIED_MESSAGE}</p>
+                        <Lock className="h-4 w-4 shrink-0 text-slate-300" aria-hidden="true" />
+                        <div className="min-w-0">
+                            <p className="truncate text-sm font-semibold text-slate-500">
+                                {t('dashboard.lockedKpi.label')}
+                            </p>
+                            <p className="truncate text-[11px] text-slate-400">
+                                {t('dashboard.lockedKpi.helper')}
+                            </p>
+                        </div>
                     </div>
                 ) : scheduledTodayAppointments.length === 0 ? (
                     <div className="flex items-center justify-between gap-4 px-4 py-4">
@@ -353,21 +388,26 @@ export default function DashboardPage() {
                                 <p className="text-[11px] text-slate-400">{t('dashboard.scheduleAppointment')}</p>
                             </div>
                         </div>
-                        <Button
-                            asChild
-                            size="sm"
-                            className="h-7 shrink-0 rounded-full px-3 text-xs"
-                            disabled={!canManageAppointments}
-                        >
-                            <Link
-                                href="/appointments?action=new"
-                                onClick={(event) => {
-                                    if (!canManageAppointments) { event.preventDefault(); denyManageAction(); }
-                                }}
+                        {/* AF5: don't show a "Schedule appointment" CTA the
+                            view-only assistant can't act on. Subscription
+                            read-only still shows the disabled state so the
+                            dentist owner sees why it's paused. */}
+                        {canManageAppointments ? (
+                            <Button asChild size="sm" className="h-7 shrink-0 rounded-full px-3 text-xs">
+                                <Link href="/appointments?action=new">
+                                    {t('dashboard.scheduleAppointment')}
+                                </Link>
+                            </Button>
+                        ) : isSubscriptionReadOnly(currentUser) && canViewAppointments ? (
+                            <Button
+                                size="sm"
+                                className="h-7 shrink-0 rounded-full px-3 text-xs"
+                                disabled
+                                onClick={denyManageAction}
                             >
                                 {t('dashboard.scheduleAppointment')}
-                            </Link>
-                        </Button>
+                            </Button>
+                        ) : null}
                     </div>
                 ) : upcomingTodayAppointments.length === 0 ? (
                     <div className="flex items-center gap-2.5 px-4 py-4">

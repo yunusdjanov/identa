@@ -31,6 +31,8 @@ export interface ApiSubscriptionSummary {
     cancel_at_period_end: boolean;
     cancelled_at: string | null;
     pending_plan_id?: string | null;
+    pending_plan_code?: 'trial' | 'basic' | 'pro' | null;
+    pending_plan_name?: string | null;
     pending_billing_period?: 'monthly' | 'yearly' | null;
     pending_change_effective_at?: string | null;
     days_remaining: number | null;
@@ -84,8 +86,36 @@ export interface ApiPlan {
     updated_at?: string | null;
 }
 
+/**
+ * Payload contract for `PUT /admin/plans/{code}`. Mirrors the backend
+ * `UpdatePlanRequest` rules — keep these in sync. Immutable identity fields
+ * (id, code, is_trial, is_paid) are intentionally omitted: code is the URL
+ * segment, the others are derived server-side from the plan type.
+ */
+export interface UpdatePlanPayload {
+    name: string;
+    description: string | null;
+    trial_days: number | null;
+    monthly_price: number | null;
+    yearly_price: number | null;
+    currency: string;
+    staff_limit: number;
+    entry_image_limit: number;
+    upload_max_mb: number;
+    stored_image_max_mb: number;
+    can_export: boolean;
+    is_active: boolean;
+    sort_order: number;
+}
+
 export interface ApiBillingPayment {
     id: string;
+    /**
+     * Subscription the payment funded — present on backend rows. Used by the
+     * admin refund cascade to distinguish "this funds the current sub"
+     * (cascade to read-only) from "this funds a past sub" (no access change).
+     */
+    subscription_id?: string | null;
     plan_code: 'basic' | 'pro';
     plan_name: string;
     billing_period: 'monthly' | 'yearly';
@@ -308,6 +338,8 @@ export interface ApiAdminDentist {
     registration_date: string;
     status: 'active' | 'blocked' | 'deleted';
     last_login: string | null;
+    email_verified: boolean;
+    avatar_url: string | null;
     patient_count: number;
     appointment_count: number;
     active_staff_count?: number;
@@ -330,6 +362,36 @@ export interface ApiAdminDentistBilling {
     };
 }
 
+export interface ApiAdminPayment extends ApiBillingPayment {
+    dentist: {
+        id: string;
+        name: string;
+        email: string;
+        avatar_url: string | null;
+    } | null;
+}
+
+export interface ApiAdminPaymentsSummary {
+    this_month: number;
+    this_year: number;
+    all_time: number;
+    paid_count: number;
+    currency: string;
+    /**
+     * Per-currency revenue breakdown — backend always returns this; the UI
+     * may opt to render it when a tenant bills in more than one currency.
+     */
+    totals_by_currency?: Record<string, number>;
+}
+
+export interface ApiAdminPaymentsEnvelope {
+    data: ApiAdminPayment[];
+    meta: {
+        pagination: PaginationMeta;
+        summary: ApiAdminPaymentsSummary;
+    };
+}
+
 export interface ApiAdminPasswordResetPayload {
     dentist_id: string;
     password_reset: boolean;
@@ -340,6 +402,7 @@ export interface ApiAssistantAccount {
     name: string;
     email: string;
     phone: string | null;
+    avatar_url: string | null;
     account_status: 'active' | 'blocked' | 'deleted';
     assistant_permissions: string[];
     must_change_password: boolean;
@@ -350,27 +413,6 @@ export interface ApiAssistantAccount {
 export interface ApiAssistantPasswordResetPayload {
     assistant_id: string;
     password_reset: boolean;
-}
-
-export interface ApiLandingSettings {
-    trial_price_amount: number;
-    monthly_price_amount: number;
-    yearly_price_amount: number;
-    currency: string;
-    telegram_contact_url: string | null;
-    plans?: ApiPlan[];
-}
-
-export interface ApiLeadRequest {
-    id: string;
-    name: string;
-    phone: string;
-    clinic_name: string;
-    city: string;
-    note: string | null;
-    status: 'new' | 'contacted' | 'closed';
-    handled_at: string | null;
-    created_at: string | null;
 }
 
 export interface ApiAuditActor {

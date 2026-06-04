@@ -50,8 +50,14 @@ class AssistantTenantAccessTest extends TestCase
     public function test_assistant_with_patients_manage_permission_creates_patient_for_owner_dentist(): void
     {
         $dentist = User::factory()->create();
+        // UserFactory::assistant() defaults to must_change_password=true (every
+        // invited assistant has to rotate their admin-set transient password
+        // before their first mutation). This test exercises the post-rotation
+        // happy path, so clear the flag — otherwise EnsurePasswordRotated will
+        // (correctly) 403 the POST below.
         $assistant = User::factory()->assistant($dentist)->create([
             'assistant_permissions' => [User::PERMISSION_PATIENTS_MANAGE],
+            'must_change_password' => false,
         ]);
 
         $response = $this->actingAs($assistant, 'web')

@@ -10,6 +10,7 @@ return [
         'email_verification_sent' => 'A verification link has been sent to your email.',
         'email_already_verified' => 'Email is already verified.',
         'email_verification_send_failed' => 'Could not send the email. Please try again later.',
+        'password_change_required' => 'Please change your password before continuing.',
     ],
     'appointments' => [
         'conflict' => 'Appointment time conflicts with an existing appointment.',
@@ -60,6 +61,9 @@ return [
             'bank_transfer' => 'Bank Transfer',
         ],
     ],
+    'errors' => [
+        'server_error' => 'A server error occurred. Please try again later.',
+    ],
     'payments' => [
         'amount_exceeds_balance' => 'Payment amount cannot exceed outstanding balance.',
     ],
@@ -88,6 +92,8 @@ return [
     'treatments' => [
         'archived_restore_before_add' => 'Archived patients must be restored before adding treatments.',
         'archived_restore_before_edit' => 'Archived patients must be restored before editing treatment history.',
+        'paid_exceeds_debt' => 'Paid amount cannot exceed debt amount.',
+        'not_found' => 'Treatment was not found or does not belong to your patient.',
         'archived_restore_before_delete' => 'Archived patients must be restored before deleting treatment history.',
         'archived_restore_before_upload_images' => 'Archived patients must be restored before uploading treatment images.',
         'archived_restore_before_delete_images' => 'Archived patients must be restored before deleting treatment images.',

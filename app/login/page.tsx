@@ -22,6 +22,7 @@ import {
     clearClientLogoutInProgress,
     isClientLogoutInProgress,
 } from '@/lib/auth/client-logout';
+import { postAuthBroadcast, subscribeAuthBroadcast } from '@/lib/auth/auth-broadcast';
 import { useAuthStore } from '@/lib/store';
 import { toast } from 'sonner';
 import { INPUT_LIMITS, getEmailValidationMessage } from '@/lib/input-validation';
@@ -101,8 +102,18 @@ export default function LoginPage() {
             clearClientLogoutInProgress();
             setIsLogoutRedirect(false);
             resetSessionExpiredNotification();
+            // Wipe any cached data from a previous tenant BEFORE seeding the
+            // new auth/me. The logout button already clears via AF6, but
+            // login can also be reached without an explicit logout (e.g.
+            // session expiry handled elsewhere, manual /login URL paste, or
+            // back-button after token revocation). Clearing here closes the
+            // cross-tenant flash window.
+            queryClient.clear();
             login(user.name);
             queryClient.setQueryData(['auth', 'me'], user);
+            // FA-A10: signal sibling tabs (they may be sitting at /login
+            // or showing a stale "session expired" state) to refresh.
+            postAuthBroadcast({ type: 'login' });
             toast.success(t('login.toast.success'));
             router.push(user.role === 'admin' ? '/admin' : '/dashboard');
         },
@@ -117,8 +128,10 @@ export default function LoginPage() {
             clearClientLogoutInProgress();
             setIsLogoutRedirect(false);
             resetSessionExpiredNotification();
+            queryClient.clear();
             login(user.name);
             queryClient.setQueryData(['auth', 'me'], user);
+            postAuthBroadcast({ type: 'login' });
             toast.success(t('register.toast.googleSuccess'));
             router.push('/dashboard');
         },
@@ -128,7 +141,11 @@ export default function LoginPage() {
     });
 
     useEffect(() => {
-        void ensureCsrfCookie();
+        // Best-effort CSRF prefetch — swallow failures so a transient
+        // csrf-token endpoint error (or offline/test environment) doesn't
+        // surface as an unhandled promise rejection. The login mutation
+        // re-ensures the cookie before submitting anyway.
+        void ensureCsrfCookie().catch(() => undefined);
     }, []);
 
     useEffect(() => {
@@ -146,11 +163,24 @@ export default function LoginPage() {
         window.addEventListener(CLIENT_LOGOUT_FINISHED_EVENT, updateLogoutRedirectState);
         const timeoutId = window.setTimeout(updateLogoutRedirectState, 1200);
 
+        // FA-A10: if a sibling tab successfully logs in, the cookie is
+        // now valid for THIS tab too — drop the logout-in-progress flag
+        // and invalidate auth/me so the existing query re-enables and
+        // resolves into the auto-redirect effect below.
+        const unsubscribeBroadcast = subscribeAuthBroadcast((message) => {
+            if (message.type === 'login') {
+                clearClientLogoutInProgress();
+                setIsLogoutRedirect(false);
+                queryClient.invalidateQueries({ queryKey: ['auth', 'me'] });
+            }
+        });
+
         return () => {
             window.removeEventListener(CLIENT_LOGOUT_FINISHED_EVENT, updateLogoutRedirectState);
             window.clearTimeout(timeoutId);
+            unsubscribeBroadcast();
         };
-    }, []);
+    }, [queryClient]);
 
     useEffect(() => {
         if (isLogoutRedirect) {

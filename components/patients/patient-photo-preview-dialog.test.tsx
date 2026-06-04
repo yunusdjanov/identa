@@ -2,6 +2,8 @@ import { cleanup, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it } from 'vitest';
 import { PatientPhotoPreviewDialog } from '@/components/patients/patient-photo-preview-dialog';
+import { I18nProvider } from '@/components/providers/i18n-provider';
+import { DICTIONARIES } from '@/lib/i18n/dictionaries';
 
 function buildImages(count: number) {
     return Array.from({ length: count }).map((_, index) => ({
@@ -10,6 +12,14 @@ function buildImages(count: number) {
         alt: `Image ${index + 1}`,
         title: `Image ${index + 1}`,
     }));
+}
+
+function wrapper({ children }: { children: React.ReactNode }) {
+    return (
+        <I18nProvider initialLocale="en" initialDictionary={DICTIONARIES.en}>
+            {children}
+        </I18nProvider>
+    );
 }
 
 describe('PatientPhotoPreviewDialog', () => {
@@ -29,7 +39,8 @@ describe('PatientPhotoPreviewDialog', () => {
                 title="Gallery"
                 images={images}
                 startIndex={0}
-            />
+            />,
+            { wrapper }
         );
 
         expect(screen.getByRole('dialog').className).toContain('h-[min(88dvh,720px)]');
@@ -61,7 +72,8 @@ describe('PatientPhotoPreviewDialog', () => {
                 title="Gallery"
                 images={images}
                 startIndex={0}
-            />
+            />,
+            { wrapper }
         );
 
         const thumbnailButtons = screen
@@ -86,7 +98,8 @@ describe('PatientPhotoPreviewDialog', () => {
                 title="Gallery"
                 images={images}
                 startIndex={4}
-            />
+            />,
+            { wrapper }
         );
 
         expect(screen.getByRole('heading', { name: 'Image 5' })).toBeInTheDocument();

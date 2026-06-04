@@ -3,6 +3,8 @@ import type {
     ApiAdminDentist,
     ApiAdminDentistBilling,
     ApiAdminPasswordResetPayload,
+    ApiAdminPayment,
+    ApiAdminPaymentsEnvelope,
     ApiAppointment,
     ApiAppointmentLookup,
     ApiAssistantAccount,
@@ -11,8 +13,6 @@ import type {
     ApiCollectionEnvelope,
     ApiEnvelope,
     ApiInvoice,
-    ApiLandingSettings,
-    ApiLeadRequest,
     ApiOdontogramEntry,
     ApiOdontogramSummary,
     ApiBillingPayment,
@@ -26,6 +26,7 @@ import type {
     ApiSubscriptionSummary,
     ApiTreatment,
     ApiUser,
+    UpdatePlanPayload,
 } from '@/lib/api/types';
 
 type FilterValue = string | number | boolean;
@@ -85,8 +86,6 @@ export type AdminDentistSubscriptionAction =
     | 'cancel_at_period_end'
     | 'cancel_now';
 
-export type AdminLeadRequestStatus = 'new' | 'contacted' | 'closed';
-
 const MAX_API_PER_PAGE = 500;
 
 function buildQueryParams(options?: QueryOptions): Record<string, unknown> {
@@ -119,26 +118,6 @@ function buildQueryParams(options?: QueryOptions): Record<string, unknown> {
     }
 
     return params;
-}
-
-export async function getPublicLandingSettings(): Promise<ApiLandingSettings> {
-    const { data } = await apiClient.get<ApiEnvelope<ApiLandingSettings>>('/public/landing-settings');
-
-    return data.data;
-}
-
-export async function createPublicLeadRequest(payload: {
-    name: string;
-    phone: string;
-    clinic_name: string;
-    city: string;
-    note?: string;
-}): Promise<ApiLeadRequest> {
-    const { data } = await withCsrfRetry(() =>
-        apiClient.post<ApiEnvelope<ApiLeadRequest>>('/public/lead-requests', payload)
-    );
-
-    return data.data;
 }
 
 async function collectAllPages<T>(
@@ -1357,8 +1336,13 @@ export async function updateProfile(payload: {
     working_hours_end?: string;
     default_appointment_duration?: number;
 }): Promise<ApiProfile> {
-    await ensureCsrfCookie();
-    const { data } = await apiClient.put<ApiEnvelope<ApiProfile>>('/settings/profile', payload);
+    // Wrap with withCsrfRetry so a stale XSRF-TOKEN cookie (e.g. after the
+    // backend recycled it because of a server restart) doesn't surface as a
+    // 419 to the user. Every other admin / settings mutation in this file
+    // uses the same pattern; updateProfile was the lone outlier.
+    const { data } = await withCsrfRetry(() =>
+        apiClient.put<ApiEnvelope<ApiProfile>>('/settings/profile', payload)
+    );
 
     return data.data;
 }
@@ -1487,8 +1471,9 @@ export async function createAdminDentist(payload: {
     license_number?: string;
     address?: string;
 }): Promise<ApiAdminDentist> {
-    await ensureCsrfCookie();
-    const { data } = await apiClient.post<ApiEnvelope<ApiAdminDentist>>('/admin/dentists', payload);
+    const { data } = await withCsrfRetry(() =>
+        apiClient.post<ApiEnvelope<ApiAdminDentist>>('/admin/dentists', payload)
+    );
 
     return data.data;
 }
@@ -1497,10 +1482,11 @@ export async function updateAdminDentistStatus(
     id: string,
     status: 'active' | 'blocked'
 ): Promise<ApiAdminDentist> {
-    await ensureCsrfCookie();
-    const { data } = await apiClient.patch<ApiEnvelope<ApiAdminDentist>>(
-        `/admin/dentists/${id}/status`,
-        { status }
+    const { data } = await withCsrfRetry(() =>
+        apiClient.patch<ApiEnvelope<ApiAdminDentist>>(
+            `/admin/dentists/${id}/status`,
+            { status }
+        )
     );
 
     return data.data;
@@ -1510,18 +1496,58 @@ export async function resetAdminDentistPassword(
     id: string,
     payload: { new_password: string; new_password_confirmation: string }
 ): Promise<ApiAdminPasswordResetPayload> {
-    await ensureCsrfCookie();
-    const { data } = await apiClient.post<ApiEnvelope<ApiAdminPasswordResetPayload>>(
-        `/admin/dentists/${id}/reset-password`,
-        payload
+    const { data } = await withCsrfRetry(() =>
+        apiClient.post<ApiEnvelope<ApiAdminPasswordResetPayload>>(
+            `/admin/dentists/${id}/reset-password`,
+            payload
+        )
+    );
+
+    return data.data;
+}
+
+export async function verifyAdminDentistEmail(id: string): Promise<ApiAdminDentist> {
+    const { data } = await withCsrfRetry(() =>
+        apiClient.post<ApiEnvelope<ApiAdminDentist>>(
+            `/admin/dentists/${id}/verify-email`
+        )
+    );
+
+    return data.data;
+}
+
+export async function restoreAdminDentist(id: string): Promise<ApiAdminDentist> {
+    const { data } = await withCsrfRetry(() =>
+        apiClient.post<ApiEnvelope<ApiAdminDentist>>(
+            `/admin/dentists/${id}/restore`
+        )
+    );
+
+    return data.data;
+}
+
+export async function listAdminPayments(
+    options?: QueryOptions
+): Promise<ApiAdminPaymentsEnvelope> {
+    const { data } = await apiClient.get<ApiAdminPaymentsEnvelope>('/admin/payments', {
+        params: buildQueryParams(options),
+    });
+
+    return data;
+}
+
+export async function refundAdminPayment(id: string): Promise<ApiAdminPayment> {
+    const { data } = await withCsrfRetry(() =>
+        apiClient.post<ApiEnvelope<ApiAdminPayment>>(
+            `/admin/payments/${id}/refund`
+        )
     );
 
     return data.data;
 }
 
 export async function deleteAdminDentist(id: string): Promise<void> {
-    await ensureCsrfCookie();
-    await apiClient.delete(`/admin/dentists/${id}`);
+    await withCsrfRetry(() => apiClient.delete(`/admin/dentists/${id}`));
 }
 
 export async function manageAdminDentistSubscription(
@@ -1533,41 +1559,14 @@ export async function manageAdminDentistSubscription(
         note?: string;
     }
 ): Promise<ApiAdminDentist> {
-    await ensureCsrfCookie();
-    const { data } = await apiClient.post<ApiEnvelope<ApiAdminDentist>>(
-        `/admin/dentists/${id}/subscription`,
-        payload
+    const { data } = await withCsrfRetry(() =>
+        apiClient.post<ApiEnvelope<ApiAdminDentist>>(
+            `/admin/dentists/${id}/subscription`,
+            payload
+        )
     );
 
     return data.data;
-}
-
-export async function getAdminLandingSettings(): Promise<ApiLandingSettings> {
-    const { data } = await apiClient.get<ApiEnvelope<ApiLandingSettings>>('/admin/landing-settings');
-
-    return data.data;
-}
-
-export async function updateAdminLandingSettings(payload: {
-    trial_price_amount?: number;
-    monthly_price_amount?: number;
-    yearly_price_amount?: number;
-    telegram_contact_url?: string | null;
-}): Promise<ApiLandingSettings> {
-    await ensureCsrfCookie();
-    const { data } = await apiClient.put<ApiEnvelope<ApiLandingSettings>>('/admin/landing-settings', payload);
-
-    return data.data;
-}
-
-export async function listAdminLeadRequests(
-    options?: QueryOptions
-): Promise<ApiCollectionEnvelope<ApiLeadRequest>> {
-    const { data } = await apiClient.get<ApiCollectionEnvelope<ApiLeadRequest>>('/admin/lead-requests', {
-        params: buildQueryParams(options),
-    });
-
-    return data;
 }
 
 export async function listAdminDentistStaff(id: string): Promise<ApiCollectionEnvelope<ApiAssistantAccount>> {
@@ -1578,19 +1577,6 @@ export async function listAdminDentistStaff(id: string): Promise<ApiCollectionEn
     return data;
 }
 
-export async function updateAdminLeadRequestStatus(
-    id: string,
-    status: AdminLeadRequestStatus
-): Promise<ApiLeadRequest> {
-    await ensureCsrfCookie();
-    const { data } = await apiClient.patch<ApiEnvelope<ApiLeadRequest>>(
-        `/admin/lead-requests/${id}`,
-        { status }
-    );
-
-    return data.data;
-}
-
 export async function listAdminPlans(): Promise<ApiPlan[]> {
     const { data } = await apiClient.get<ApiCollectionEnvelope<ApiPlan>>('/admin/plans');
 
@@ -1599,24 +1585,11 @@ export async function listAdminPlans(): Promise<ApiPlan[]> {
 
 export async function updateAdminPlan(
     code: ApiPlan['code'],
-    payload: {
-        name: string;
-        description?: string | null;
-        trial_days?: number | null;
-        monthly_price?: number | null;
-        yearly_price?: number | null;
-        currency: string;
-        staff_limit: number;
-        entry_image_limit: number;
-        upload_max_mb: number;
-        stored_image_max_mb: number;
-        can_export: boolean;
-        is_active: boolean;
-        sort_order?: number;
-    }
+    payload: UpdatePlanPayload,
 ): Promise<ApiPlan> {
-    await ensureCsrfCookie();
-    const { data } = await apiClient.put<ApiEnvelope<ApiPlan>>(`/admin/plans/${code}`, payload);
+    const { data } = await withCsrfRetry(() =>
+        apiClient.put<ApiEnvelope<ApiPlan>>(`/admin/plans/${code}`, payload)
+    );
 
     return data.data;
 }

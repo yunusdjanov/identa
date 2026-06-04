@@ -30,17 +30,15 @@ import { optimizeImageFilesForUpload } from '@/lib/browser-image';
 import { getProtectedMediaCrossOrigin, getProtectedMediaPreviewUrl, getProtectedMediaThumbnailUrl, isProtectedMediaApproved } from '@/lib/protected-media';
 import { formatCurrency, formatDate, toLocalDateKey } from '@/lib/utils';
 import { toast } from 'sonner';
-import { CalendarDays, Download, Loader2, Pencil, Plus, RotateCcw, Trash2, X } from 'lucide-react';
+import { CalendarDays, Download, Loader2, Lock, Pencil, Plus, RotateCcw, Trash2, X } from 'lucide-react';
 import { buildPdfFilename, exportPatientReportToPdf } from '@/lib/export/pdf';
 import { EmptyState } from '@/components/ui/empty-state';
-import { canManage, getManageDeniedMessage } from '@/lib/auth/permissions';
+import { canManage, canView, getManageDeniedMessage, isSubscriptionReadOnly } from '@/lib/auth/permissions';
 
 const UPPER_RIGHT_TEETH = [8, 7, 6, 5, 4, 3, 2, 1];
 const UPPER_LEFT_TEETH = [9, 10, 11, 12, 13, 14, 15, 16];
 const LOWER_RIGHT_TEETH = [32, 31, 30, 29, 28, 27, 26, 25];
 const LOWER_LEFT_TEETH = [17, 18, 19, 20, 21, 22, 23, 24];
-const UPPER_TEETH = [...UPPER_RIGHT_TEETH, ...UPPER_LEFT_TEETH];
-const LOWER_TEETH = [...LOWER_RIGHT_TEETH, ...LOWER_LEFT_TEETH];
 
 interface TreatmentHistoryCardProps {
     patientId: string;
@@ -60,7 +58,6 @@ interface TreatmentFormState {
 
 const MAX_HISTORY_IMAGES_PER_ENTRY = 10;
 const DEFAULT_HISTORY_UPLOAD_MAX_MB = 1;
-const DEFAULT_HISTORY_STORED_MAX_MB = 1;
 const ALLOWED_HISTORY_IMAGE_TYPES = new Set([
     'image/jpeg',
     'image/jpg',
@@ -70,6 +67,13 @@ const ALLOWED_HISTORY_IMAGE_TYPES = new Set([
 const HISTORY_IMAGE_UPLOAD_CONCURRENCY = 10;
 const MEDIA_READINESS_POLL_INTERVAL_MS = 1200;
 const MEDIA_READINESS_TIMEOUT_MS = 8000;
+// Single 8-column grid template. The financial columns (debt / paid /
+// remaining) stay in the layout regardless of permission — viewers
+// without payments.view see locked-state placeholders (Lock icon +
+// dash) in those cells, never an absence. Keeping the columns visible
+// communicates "this metric exists, you don't have access" instead of
+// silently dropping the column and leaving users wondering whether the
+// data is missing or hidden.
 const HISTORY_TABLE_GRID_CLASS = 'hidden lg:grid lg:min-w-[980px] lg:grid-cols-[120px_96px_minmax(220px,1.4fr)_116px_116px_120px_160px_84px] lg:gap-3';
 const HISTORY_HEADER_GRID_CLASS = HISTORY_TABLE_GRID_CLASS;
 
@@ -310,9 +314,7 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
     const subscription = currentUserQuery.data?.subscription;
     const maxHistoryImagesPerEntry = subscription?.entry_image_limit ?? MAX_HISTORY_IMAGES_PER_ENTRY;
     const maxHistoryUploadMb = subscription?.upload_max_mb ?? DEFAULT_HISTORY_UPLOAD_MAX_MB;
-    const maxHistoryStoredMb = subscription?.stored_image_max_mb ?? DEFAULT_HISTORY_STORED_MAX_MB;
     const maxHistoryUploadBytes = maxHistoryUploadMb * 1024 * 1024;
-    const maxHistoryStoredBytes = maxHistoryStoredMb * 1024 * 1024;
 
     const treatmentsQuery = useQuery({
         queryKey: ['patients', 'detail', patientId, 'treatments'],
@@ -453,14 +455,23 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
 
     const saveTreatmentMutation = useMutation({
         mutationFn: async () => {
+            // Only include financial fields in the payload if the viewer
+            // can see them. Backend `TreatmentService::payload` ignores
+            // them too if the actor lacks `payments.view`, so this is
+            // defense-in-depth — even a tampered client can't sneak in
+            // debt/paid values it shouldn't be able to set, and a
+            // legitimate client doesn't accidentally send empty 0s that
+            // would wipe the dentist owner's existing values on update.
             const payload = {
                 treatment_date: formState.treatmentDate,
                 treatment_type: formState.treatmentType.trim(),
                 comment: formState.comment.trim() || undefined,
                 teeth: formState.teeth,
                 tooth_number: formState.teeth[0] ?? null,
-                debt_amount: Number(formState.debtAmount || 0),
-                paid_amount: Number(formState.paidAmount || 0),
+                ...(canViewFinancials ? {
+                    debt_amount: Number(formState.debtAmount || 0),
+                    paid_amount: Number(formState.paidAmount || 0),
+                } : {}),
             };
             const treatment = editingTreatment
                 ? await updatePatientTreatment(patientId, editingTreatment.id, payload)
@@ -582,7 +593,7 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
     const imageValidationError =
         submitAttempted
             ? formState.imageFiles
-                .map((file) => validateHistoryImageFile(file, t, maxHistoryStoredBytes, maxHistoryStoredMb))
+                .map((file) => validateHistoryImageFile(file, t, maxHistoryUploadBytes, maxHistoryUploadMb))
                 .find(Boolean) ?? ''
             : '';
     const visibleExistingImagesCount = editingTreatment
@@ -618,7 +629,28 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
     }, [selectedImagePreviews]);
 
     const canManageHistory = canManage(currentUserQuery.data, 'patients');
-    const manageDeniedMessage = getManageDeniedMessage(currentUserQuery.data);
+    // Read-only financial display (summary cards + jadval debt/paid/
+    // remaining columns + the mobile-card 3-up trio) is gated by
+    // payments.view. A view-only-patients assistant (Madina-style)
+    // sees the financial slots rendered as locked-state placeholders
+    // (Lock icon + "No access") so the page shape stays consistent and
+    // the missing data is explicit, not silently absent. The edit
+    // dialog itself stays gated by canManageHistory (patients.manage)
+    // because creating a treatment inherently involves setting its
+    // price — so the form fields remain available to anyone authorised
+    // to record the treatment.
+    const canViewFinancials = canView(currentUserQuery.data, 'payments');
+    const manageDeniedMessage = getManageDeniedMessage(currentUserQuery.data, t);
+    // AF5: subscription-read-only is the one branch where we keep a
+    // disabled affordance (with a toast on click) so the dentist owner
+    // sees the action exists but is paused. View-only assistants get
+    // no affordance at all — `historyManageDisplayMode` decides which.
+    const historyManageDisplayMode: 'enabled' | 'disabled-readonly' | 'hidden' =
+        canManageHistory
+            ? 'enabled'
+            : isSubscriptionReadOnly(currentUserQuery.data)
+                ? 'disabled-readonly'
+                : 'hidden';
 
     const handleSubmit = () => {
         setSubmitAttempted(true);
@@ -721,18 +753,18 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
         setIsPreparingImages(true);
 
         try {
+            // Client-side optimization is a bandwidth optimization only — the backend
+            // image pipeline auto-compresses with smart quality-preserving heuristics.
+            // We don't post-filter by stored cap because the backend no longer enforces
+            // a per-file stored limit (only upload_max_mb is enforced on ingest).
             const optimizedFiles = await optimizeImageFilesForUpload(filesToAdd, {
                 concurrency: 4,
-                targetMaxBytes: maxHistoryStoredBytes,
+                targetMaxBytes: null,
             });
-            const uploadableFiles = optimizedFiles.filter((file) => file.size <= maxHistoryStoredBytes);
-            if (uploadableFiles.length < optimizedFiles.length) {
-                toast.error(t('patientHistory.validation.imageSize', { sizeMb: maxHistoryStoredMb }));
-            }
 
             setFormState((current) => ({
                 ...current,
-                imageFiles: [...current.imageFiles, ...uploadableFiles],
+                imageFiles: [...current.imageFiles, ...optimizedFiles],
             }));
         } finally {
             setIsPreparingImages(false);
@@ -851,14 +883,27 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                             <Button
                                 variant="outline"
                                 onClick={() => {
-                                    const treatmentRows = treatments.map((tr) => [
-                                        formatDate(tr.treatment_date),
-                                        formatTeeth(tr.teeth ?? []) || '-',
-                                        tr.treatment_type,
-                                        formatCurrency(Number(tr.debt_amount ?? 0)),
-                                        formatCurrency(Number(tr.paid_amount ?? 0)),
-                                        formatCurrency(Number(tr.balance ?? 0)),
-                                    ]);
+                                    // PDF payload mirrors the on-screen gating: viewers
+                                    // without `payments.view` get a slimmer PDF with
+                                    // clinical columns only. Without this, an
+                                    // assistant whose UI hides debt/paid/remaining
+                                    // could still print them via the export button
+                                    // (gated only by can_export at the subscription
+                                    // level). Keep clinical context (date/teeth/work).
+                                    const treatmentRows = treatments.map((tr) => canViewFinancials
+                                        ? [
+                                            formatDate(tr.treatment_date),
+                                            formatTeeth(tr.teeth ?? []) || '-',
+                                            tr.treatment_type,
+                                            formatCurrency(Number(tr.debt_amount ?? 0)),
+                                            formatCurrency(Number(tr.paid_amount ?? 0)),
+                                            formatCurrency(Number(tr.balance ?? 0)),
+                                        ]
+                                        : [
+                                            formatDate(tr.treatment_date),
+                                            formatTeeth(tr.teeth ?? []) || '-',
+                                            tr.treatment_type,
+                                        ]);
                                     exportPatientReportToPdf({
                                         filename: buildPdfFilename(`patient-${patientName.replace(/\s+/g, '-').toLowerCase()}`),
                                         title: t('patientHistory.title'),
@@ -867,23 +912,31 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                             t('patientDetail.totalAppointments') + ': ' + treatments.length,
                                             new Date().toLocaleDateString(),
                                         ],
-                                        summary: [
-                                            { label: t('patientHistory.totalDebt'), value: formatCurrency(summary.totalDebt), tone: 'red' },
-                                            { label: t('patientHistory.totalPaid'), value: formatCurrency(summary.totalPaid), tone: 'green' },
-                                            { label: t('patientHistory.netBalance'), value: formatCurrency(summary.netBalance), tone: 'yellow' },
-                                        ],
+                                        summary: canViewFinancials
+                                            ? [
+                                                { label: t('patientHistory.totalDebt'), value: formatCurrency(summary.totalDebt), tone: 'red' },
+                                                { label: t('patientHistory.totalPaid'), value: formatCurrency(summary.totalPaid), tone: 'green' },
+                                                { label: t('patientHistory.netBalance'), value: formatCurrency(summary.netBalance), tone: 'yellow' },
+                                            ]
+                                            : [],
                                         sections: [
                                             {
                                                 title: t('patientHistory.title'),
                                                 table: {
-                                                    columns: [
-                                                        t('patientHistory.table.date'),
-                                                        t('patientHistory.teethLabel'),
-                                                        t('patientHistory.table.workDone'),
-                                                        t('patientHistory.table.debt'),
-                                                        t('patientHistory.table.paid'),
-                                                        t('patientHistory.table.remaining'),
-                                                    ],
+                                                    columns: canViewFinancials
+                                                        ? [
+                                                            t('patientHistory.table.date'),
+                                                            t('patientHistory.teethLabel'),
+                                                            t('patientHistory.table.workDone'),
+                                                            t('patientHistory.table.debt'),
+                                                            t('patientHistory.table.paid'),
+                                                            t('patientHistory.table.remaining'),
+                                                        ]
+                                                        : [
+                                                            t('patientHistory.table.date'),
+                                                            t('patientHistory.teethLabel'),
+                                                            t('patientHistory.table.workDone'),
+                                                        ],
                                                     rows: treatmentRows,
                                                     emptyText: t('patientHistory.empty'),
                                                 },
@@ -898,10 +951,17 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                 {t('common.export')}
                             </Button>
                         ) : null}
-                        <Button onClick={openCreateDialog} disabled={!canManageHistory}>
-                            <Plus className="h-4 w-4" />
-                            {t('patientHistory.addEntry')}
-                        </Button>
+                        {historyManageDisplayMode === 'enabled' ? (
+                            <Button onClick={openCreateDialog}>
+                                <Plus className="h-4 w-4" />
+                                {t('patientHistory.addEntry')}
+                            </Button>
+                        ) : historyManageDisplayMode === 'disabled-readonly' ? (
+                            <Button disabled onClick={() => toast.error(manageDeniedMessage)}>
+                                <Plus className="h-4 w-4" />
+                                {t('patientHistory.addEntry')}
+                            </Button>
+                        ) : null}
                     </div>
                 </CardHeader>
                 <CardContent className="space-y-6">
@@ -912,13 +972,30 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                         isTreatmentsError={treatmentsQuery.isError}
                     />
 
+                    {/* When the viewer lacks payments.view the three financial
+                        cards are kept in the layout but rendered as locked
+                        placeholders (Lock icon + "No access"). The grid
+                        shape stays consistent so the page doesn't visually
+                        collapse — users see WHICH metric they don't have
+                        access to, not just empty space. */}
                     <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-                        <MetricSummaryCard label={t('patientHistory.totalDebt')} value={formatCurrency(summary.totalDebt)} tone="red" />
-                        <MetricSummaryCard label={t('patientHistory.totalPaid')} value={formatCurrency(summary.totalPaid)} tone="emerald" />
+                        <MetricSummaryCard
+                            label={t('patientHistory.totalDebt')}
+                            value={formatCurrency(summary.totalDebt)}
+                            tone="red"
+                            locked={!canViewFinancials}
+                        />
+                        <MetricSummaryCard
+                            label={t('patientHistory.totalPaid')}
+                            value={formatCurrency(summary.totalPaid)}
+                            tone="emerald"
+                            locked={!canViewFinancials}
+                        />
                         <MetricSummaryCard
                             label={t('patientHistory.netBalance')}
                             value={formatCurrency(summary.netBalance)}
                             tone={getBalanceMetricTone(summary.netBalance)}
+                            locked={!canViewFinancials}
                         />
                     </div>
 
@@ -968,12 +1045,17 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                             <EmptyState
                                 icon={CalendarDays}
                                 title={t('patientHistory.empty')}
-                                action={(
-                                    <Button variant="outline" onClick={openCreateDialog} disabled={!canManageHistory}>
+                                action={historyManageDisplayMode === 'enabled' ? (
+                                    <Button variant="outline" onClick={openCreateDialog}>
                                         <Plus className="h-4 w-4 mr-1.5" />
                                         {t('patientHistory.addFirstEntry')}
                                     </Button>
-                                )}
+                                ) : historyManageDisplayMode === 'disabled-readonly' ? (
+                                    <Button variant="outline" disabled onClick={() => toast.error(manageDeniedMessage)}>
+                                        <Plus className="h-4 w-4 mr-1.5" />
+                                        {t('patientHistory.addFirstEntry')}
+                                    </Button>
+                                ) : undefined}
                             />
                         </div>
                     ) : (
@@ -1020,33 +1102,47 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                                         </div>
                                                     )}
                                                 </div>
-                                                <div className="flex shrink-0 items-center gap-1.5">
-                                                    <Button
-                                                        type="button"
-                                                        variant="outline"
-                                                        size="icon-sm"
-                                                        className="h-8 w-8 border-slate-200 bg-white text-slate-700 shadow-sm hover:bg-slate-100"
-                                                        aria-label={t('patientHistory.editEntry')}
-                                                        disabled={detailLoadingTreatmentId === treatment.id || !canManageHistory}
-                                                        onClick={() => { void openEditDialog(treatment); }}
-                                                    >
-                                                        <Pencil className="h-3.5 w-3.5" />
-                                                    </Button>
-                                                    <Button
-                                                        type="button"
-                                                        variant="outline"
-                                                        size="icon-sm"
-                                                        className="h-8 w-8 border-red-200 bg-red-50 text-red-600 shadow-sm hover:bg-red-100 hover:text-red-700"
-                                                        aria-label={t('patientHistory.deleteEntry')}
-                                                        disabled={!canManageHistory}
-                                                        onClick={() => {
-                                                            if (!canManageHistory) { toast.error(manageDeniedMessage); return; }
-                                                            setTreatmentToDelete(treatment);
-                                                        }}
-                                                    >
-                                                        <Trash2 className="h-3.5 w-3.5" />
-                                                    </Button>
-                                                </div>
+                                                {historyManageDisplayMode === 'hidden' ? null : (
+                                                    <div className="flex shrink-0 items-center gap-1.5">
+                                                        <Button
+                                                            type="button"
+                                                            variant="outline"
+                                                            size="icon-sm"
+                                                            className="h-8 w-8 border-slate-200 bg-white text-slate-700 shadow-sm hover:bg-slate-100"
+                                                            aria-label={t('patientHistory.editEntry')}
+                                                            disabled={
+                                                                historyManageDisplayMode === 'disabled-readonly'
+                                                                || detailLoadingTreatmentId === treatment.id
+                                                            }
+                                                            onClick={() => {
+                                                                if (historyManageDisplayMode === 'disabled-readonly') {
+                                                                    toast.error(manageDeniedMessage);
+                                                                    return;
+                                                                }
+                                                                void openEditDialog(treatment);
+                                                            }}
+                                                        >
+                                                            <Pencil className="h-3.5 w-3.5" />
+                                                        </Button>
+                                                        <Button
+                                                            type="button"
+                                                            variant="outline"
+                                                            size="icon-sm"
+                                                            className="h-8 w-8 border-red-200 bg-red-50 text-red-600 shadow-sm hover:bg-red-100 hover:text-red-700"
+                                                            aria-label={t('patientHistory.deleteEntry')}
+                                                            disabled={historyManageDisplayMode === 'disabled-readonly'}
+                                                            onClick={() => {
+                                                                if (historyManageDisplayMode === 'disabled-readonly') {
+                                                                    toast.error(manageDeniedMessage);
+                                                                    return;
+                                                                }
+                                                                setTreatmentToDelete(treatment);
+                                                            }}
+                                                        >
+                                                            <Trash2 className="h-3.5 w-3.5" />
+                                                        </Button>
+                                                    </div>
+                                                )}
                                             </div>
                                             <p className="text-sm font-semibold leading-snug text-slate-900 break-words" title={treatment.treatment_type}>
                                                 {treatment.treatment_type}
@@ -1054,15 +1150,36 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                             <div className="grid grid-cols-3 gap-2 border-t border-slate-100 pt-2">
                                                 <div>
                                                     <p className="text-[9px] font-semibold uppercase tracking-wider text-slate-400">{t('patientHistory.table.debt')}</p>
-                                                    <p className="mt-0.5 truncate text-xs font-bold tabular-nums text-red-700">{formatCurrency(debtAmount)}</p>
+                                                    {canViewFinancials ? (
+                                                        <p className="mt-0.5 truncate text-xs font-bold tabular-nums text-red-700">{formatCurrency(debtAmount)}</p>
+                                                    ) : (
+                                                        <span className="mt-0.5 inline-flex items-center gap-1 text-xs font-bold text-slate-300">
+                                                            <Lock className="h-3 w-3 shrink-0" aria-hidden="true" />
+                                                            <span className="truncate">{t('dashboard.lockedKpi.label')}</span>
+                                                        </span>
+                                                    )}
                                                 </div>
                                                 <div>
                                                     <p className="text-[9px] font-semibold uppercase tracking-wider text-slate-400">{t('patientHistory.table.paid')}</p>
-                                                    <p className="mt-0.5 truncate text-xs font-bold tabular-nums text-green-700">{formatCurrency(paidAmount)}</p>
+                                                    {canViewFinancials ? (
+                                                        <p className="mt-0.5 truncate text-xs font-bold tabular-nums text-green-700">{formatCurrency(paidAmount)}</p>
+                                                    ) : (
+                                                        <span className="mt-0.5 inline-flex items-center gap-1 text-xs font-bold text-slate-300">
+                                                            <Lock className="h-3 w-3 shrink-0" aria-hidden="true" />
+                                                            <span className="truncate">{t('dashboard.lockedKpi.label')}</span>
+                                                        </span>
+                                                    )}
                                                 </div>
                                                 <div>
                                                     <p className="text-[9px] font-semibold uppercase tracking-wider text-slate-400">{t('patientHistory.table.remaining')}</p>
-                                                    <p className="mt-0.5 truncate text-xs font-bold tabular-nums text-yellow-800">{formatCurrency(balanceAmount)}</p>
+                                                    {canViewFinancials ? (
+                                                        <p className="mt-0.5 truncate text-xs font-bold tabular-nums text-yellow-800">{formatCurrency(balanceAmount)}</p>
+                                                    ) : (
+                                                        <span className="mt-0.5 inline-flex items-center gap-1 text-xs font-bold text-slate-300">
+                                                            <Lock className="h-3 w-3 shrink-0" aria-hidden="true" />
+                                                            <span className="truncate">{t('dashboard.lockedKpi.label')}</span>
+                                                        </span>
+                                                    )}
                                                 </div>
                                             </div>
                                             {treatmentImageCount > 0 && primaryImageThumbnailUrl ? (
@@ -1135,17 +1252,38 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                         </div>
                                         <div>
                                             <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400 lg:sr-only">{t('patientHistory.table.debt')}</p>
-                                            <p className="whitespace-nowrap text-sm font-semibold text-red-700">{formatCurrency(Number(treatment.debt_amount))}</p>
+                                            {canViewFinancials ? (
+                                                <p className="whitespace-nowrap text-sm font-semibold text-red-700">{formatCurrency(Number(treatment.debt_amount))}</p>
+                                            ) : (
+                                                <span className="inline-flex items-center gap-1 text-sm font-semibold text-slate-300" aria-label={t('dashboard.lockedKpi.label')}>
+                                                    <Lock className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                                                    <span className="truncate">{t('dashboard.lockedKpi.label')}</span>
+                                                </span>
+                                            )}
                                         </div>
                                         <div>
                                             <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400 lg:sr-only">{t('patientHistory.table.paid')}</p>
-                                            <p className="whitespace-nowrap text-sm font-semibold text-green-700">{formatCurrency(Number(treatment.paid_amount))}</p>
+                                            {canViewFinancials ? (
+                                                <p className="whitespace-nowrap text-sm font-semibold text-green-700">{formatCurrency(Number(treatment.paid_amount))}</p>
+                                            ) : (
+                                                <span className="inline-flex items-center gap-1 text-sm font-semibold text-slate-300" aria-label={t('dashboard.lockedKpi.label')}>
+                                                    <Lock className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                                                    <span className="truncate">{t('dashboard.lockedKpi.label')}</span>
+                                                </span>
+                                            )}
                                         </div>
                                         <div>
                                             <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400 lg:sr-only">{t('patientHistory.table.remaining')}</p>
-                                            <p className="whitespace-nowrap text-sm font-semibold text-yellow-800">
-                                                {formatCurrency(Number(treatment.balance))}
-                                            </p>
+                                            {canViewFinancials ? (
+                                                <p className="whitespace-nowrap text-sm font-semibold text-yellow-800">
+                                                    {formatCurrency(Number(treatment.balance))}
+                                                </p>
+                                            ) : (
+                                                <span className="inline-flex items-center gap-1 text-sm font-semibold text-slate-300" aria-label={t('dashboard.lockedKpi.label')}>
+                                                    <Lock className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                                                    <span className="truncate">{t('dashboard.lockedKpi.label')}</span>
+                                                </span>
+                                            )}
                                         </div>
                                         <div className="lg:flex lg:items-center">
                                             <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400 lg:sr-only">{t('patientHistory.images')}</p>
@@ -1219,37 +1357,48 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                             })()}
                                         </div>
                                         <div className="flex items-center justify-end gap-2">
-                                            <Button
-                                                type="button"
-                                                variant="outline"
-                                                size="icon-sm"
-                                                className="border-slate-200 bg-white text-slate-700 shadow-sm hover:bg-slate-100"
-                                                aria-label={t('patientHistory.editEntry')}
-                                                disabled={detailLoadingTreatmentId === treatment.id || !canManageHistory}
-                                                onClick={() => {
-                                                    void openEditDialog(treatment);
-                                                }}
-                                            >
-                                                <Pencil className="h-4 w-4" />
-                                            </Button>
-                                            <Button
-                                                type="button"
-                                                variant="outline"
-                                                size="icon-sm"
-                                                className="border-red-200 bg-red-50 text-red-600 shadow-sm hover:bg-red-100 hover:text-red-700"
-                                                aria-label={t('patientHistory.deleteEntry')}
-                                                disabled={!canManageHistory}
-                                                onClick={() => {
-                                                    if (!canManageHistory) {
-                                                        toast.error(manageDeniedMessage);
-                                                        return;
-                                                    }
+                                            {historyManageDisplayMode === 'hidden' ? null : (
+                                                <>
+                                                    <Button
+                                                        type="button"
+                                                        variant="outline"
+                                                        size="icon-sm"
+                                                        className="border-slate-200 bg-white text-slate-700 shadow-sm hover:bg-slate-100"
+                                                        aria-label={t('patientHistory.editEntry')}
+                                                        disabled={
+                                                            historyManageDisplayMode === 'disabled-readonly'
+                                                            || detailLoadingTreatmentId === treatment.id
+                                                        }
+                                                        onClick={() => {
+                                                            if (historyManageDisplayMode === 'disabled-readonly') {
+                                                                toast.error(manageDeniedMessage);
+                                                                return;
+                                                            }
+                                                            void openEditDialog(treatment);
+                                                        }}
+                                                    >
+                                                        <Pencil className="h-4 w-4" />
+                                                    </Button>
+                                                    <Button
+                                                        type="button"
+                                                        variant="outline"
+                                                        size="icon-sm"
+                                                        className="border-red-200 bg-red-50 text-red-600 shadow-sm hover:bg-red-100 hover:text-red-700"
+                                                        aria-label={t('patientHistory.deleteEntry')}
+                                                        disabled={historyManageDisplayMode === 'disabled-readonly'}
+                                                        onClick={() => {
+                                                            if (historyManageDisplayMode === 'disabled-readonly') {
+                                                                toast.error(manageDeniedMessage);
+                                                                return;
+                                                            }
 
-                                                    setTreatmentToDelete(treatment);
-                                                }}
-                                            >
-                                                <Trash2 className="h-4 w-4" />
-                                            </Button>
+                                                            setTreatmentToDelete(treatment);
+                                                        }}
+                                                    >
+                                                        <Trash2 className="h-4 w-4" />
+                                                    </Button>
+                                                </>
+                                            )}
                                         </div>
                                         </div>
                                     </div>
@@ -1410,17 +1559,29 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                             </div>
                             <p className="text-xs text-slate-500">{t('patientHistory.teethHint')}</p>
                         </div>
-                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                            <div className="space-y-2">
-                                <Label htmlFor="historyDebt">{t('patientHistory.table.debt')}</Label>
-                                <Input id="historyDebt" type="number" inputMode="decimal" min="0" step="0.01" value={formState.debtAmount} onChange={(event) => setFormState((current) => ({ ...current, debtAmount: event.target.value }))} placeholder="0" />
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="historyPaid">{t('patientHistory.table.paid')}</Label>
-                                <Input id="historyPaid" type="number" inputMode="decimal" min="0" step="0.01" value={formState.paidAmount} onChange={(event) => setFormState((current) => ({ ...current, paidAmount: event.target.value }))} placeholder="0" />
-                            </div>
-                        </div>
-                        {amountError ? <p className="text-xs text-red-600">{amountError}</p> : null}
+                        {/* Financial inputs are gated on payments.view —
+                            see TreatmentService::payload backend gate.
+                            Without this, a clinical assistant editing a
+                            treatment with the (hidden but empty) inputs
+                            would POST debt=0/paid=0 and overwrite the
+                            dentist owner's real values. Hiding here +
+                            backend-side payload gate together close the
+                            data-loss bug. */}
+                        {canViewFinancials ? (
+                            <>
+                                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                                    <div className="space-y-2">
+                                        <Label htmlFor="historyDebt">{t('patientHistory.table.debt')}</Label>
+                                        <Input id="historyDebt" type="number" inputMode="decimal" min="0" step="0.01" value={formState.debtAmount} onChange={(event) => setFormState((current) => ({ ...current, debtAmount: event.target.value }))} placeholder="0" />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="historyPaid">{t('patientHistory.table.paid')}</Label>
+                                        <Input id="historyPaid" type="number" inputMode="decimal" min="0" step="0.01" value={formState.paidAmount} onChange={(event) => setFormState((current) => ({ ...current, paidAmount: event.target.value }))} placeholder="0" />
+                                    </div>
+                                </div>
+                                {amountError ? <p className="text-xs text-red-600">{amountError}</p> : null}
+                            </>
+                        ) : null}
                         <div className="rounded-xl border border-slate-200 bg-slate-50/40 p-2.5">
                             <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
                                 <div className="min-w-0">

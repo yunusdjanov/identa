@@ -58,7 +58,7 @@ import { getProtectedMediaCrossOrigin, getProtectedMediaThumbnailUrl } from '@/l
 import { INPUT_LIMITS } from '@/lib/input-validation';
 import { AppErrorState } from '@/components/error/app-error-state';
 import { AccessDeniedState } from '@/components/error/access-denied-state';
-import { canManage, canView, PERMISSION_DENIED_MESSAGE } from '@/lib/auth/permissions';
+import { canManage, canView, getManageDeniedMessage, isSubscriptionReadOnly } from '@/lib/auth/permissions';
 import { getStatusTone } from '@/lib/appointments/status-tone';
 
 const EditPatientDialog = dynamic(
@@ -267,6 +267,10 @@ export default function PatientDetailPage({
     const canViewAppointments = canView(currentUser, 'appointments');
     const canManageAppointments = canManage(currentUser, 'appointments');
     const canViewPayments = canView(currentUser, 'payments');
+    // AF5: shared deny-toast for buttons we keep disabled because the
+    // subscription is read-only (vs. hidden when the assistant simply
+    // lacks the permission). Reused by Edit / Archive / Restore / Delete.
+    const denyManageAction = () => toast.error(getManageDeniedMessage(currentUser, t));
 
     const patientQuery = useQuery({
         queryKey: ['patients', 'detail', id],
@@ -350,7 +354,7 @@ export default function PatientDetailPage({
         return (
             <AccessDeniedState
                 title={t('common.forbiddenTitle')}
-                description={PERMISSION_DENIED_MESSAGE}
+                description={t('permissions.deniedDescription')}
                 actionHref="/patients"
                 actionLabel={t('patientDetail.backToPatients')}
             />
@@ -465,59 +469,114 @@ export default function PatientDetailPage({
                             {t('patientDetail.inactive')}
                         </Badge>
                     ) : null}
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        className="h-7 rounded-full px-3 text-xs"
-                        onClick={() => setIsEditDialogOpen(true)}
-                        disabled={isPatientArchived || !canManagePatients}
-                    >
-                        <Edit className="mr-1.5 h-3 w-3" />
-                        {t('patientDetail.editPatient')}
-                    </Button>
+                    {/* AF5 header buttons. canManagePatients short-circuits
+                        on subscription read-only too (see canManage in
+                        permissions.ts) — so we branch:
+                          1. permission + active subscription → enabled
+                          2. subscription read-only with view perm → disabled+toast
+                          3. neither → hide entirely (view-only assistant)
+                        The archive/restore/delete trio follow the same
+                        pattern with their respective mutation-pending
+                        guards retained on the enabled branch. */}
+                    {canManagePatients ? (
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-7 rounded-full px-3 text-xs"
+                            onClick={() => setIsEditDialogOpen(true)}
+                            disabled={isPatientArchived}
+                        >
+                            <Edit className="mr-1.5 h-3 w-3" />
+                            {t('patientDetail.editPatient')}
+                        </Button>
+                    ) : isSubscriptionReadOnly(currentUser) && canViewPatients ? (
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-7 rounded-full px-3 text-xs"
+                            disabled
+                            onClick={denyManageAction}
+                        >
+                            <Edit className="mr-1.5 h-3 w-3" />
+                            {t('patientDetail.editPatient')}
+                        </Button>
+                    ) : null}
                     {isPatientArchived ? (
                         <>
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                className="h-7 rounded-full px-3 text-xs"
-                                onClick={() => setIsRestorePatientDialogOpen(true)}
-                                disabled={
-                                    restorePatientMutation.isPending
-                                    || permanentlyDeletePatientMutation.isPending
-                                    || !canManagePatients
-                                }
-                            >
-                                {t('patients.restore')}
-                            </Button>
+                            {canManagePatients ? (
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-7 rounded-full px-3 text-xs"
+                                    onClick={() => setIsRestorePatientDialogOpen(true)}
+                                    disabled={
+                                        restorePatientMutation.isPending
+                                        || permanentlyDeletePatientMutation.isPending
+                                    }
+                                >
+                                    {t('patients.restore')}
+                                </Button>
+                            ) : isSubscriptionReadOnly(currentUser) && canViewPatients ? (
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-7 rounded-full px-3 text-xs"
+                                    disabled
+                                    onClick={denyManageAction}
+                                >
+                                    {t('patients.restore')}
+                                </Button>
+                            ) : null}
                             {/* Permanent delete is only offered once the patient is
                                 archived — the backend requires archive-first. */}
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                className="h-7 rounded-full px-3 text-xs text-red-600 hover:text-red-700"
-                                onClick={() => setIsPermanentDeletePatientDialogOpen(true)}
-                                disabled={
-                                    restorePatientMutation.isPending
-                                    || permanentlyDeletePatientMutation.isPending
-                                    || !canManagePatients
-                                }
-                            >
-                                <Trash2 className="mr-1.5 h-3 w-3" />
-                                {t('patientDetail.deletePermanently')}
-                            </Button>
+                            {canManagePatients ? (
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-7 rounded-full px-3 text-xs text-red-600 hover:text-red-700"
+                                    onClick={() => setIsPermanentDeletePatientDialogOpen(true)}
+                                    disabled={
+                                        restorePatientMutation.isPending
+                                        || permanentlyDeletePatientMutation.isPending
+                                    }
+                                >
+                                    <Trash2 className="mr-1.5 h-3 w-3" />
+                                    {t('patientDetail.deletePermanently')}
+                                </Button>
+                            ) : isSubscriptionReadOnly(currentUser) && canViewPatients ? (
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-7 rounded-full px-3 text-xs text-red-600 hover:text-red-700"
+                                    disabled
+                                    onClick={denyManageAction}
+                                >
+                                    <Trash2 className="mr-1.5 h-3 w-3" />
+                                    {t('patientDetail.deletePermanently')}
+                                </Button>
+                            ) : null}
                         </>
-                    ) : (
+                    ) : canManagePatients ? (
                         <Button
                             variant="outline"
                             size="sm"
                             className="h-7 rounded-full px-3 text-xs text-amber-700 hover:text-amber-800"
                             onClick={() => setIsArchivePatientDialogOpen(true)}
-                            disabled={archivePatientMutation.isPending || !canManagePatients}
+                            disabled={archivePatientMutation.isPending}
                         >
                             {t('patientDetail.archive')}
                         </Button>
-                    )}
+                    ) : isSubscriptionReadOnly(currentUser) && canViewPatients ? (
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-7 rounded-full px-3 text-xs text-amber-700 hover:text-amber-800"
+                            disabled
+                            onClick={denyManageAction}
+                        >
+                            {t('patientDetail.archive')}
+                        </Button>
+                    ) : null}
                 </div>
             </div>
 
@@ -688,19 +747,36 @@ export default function PatientDetailPage({
                             {t('patientHistory.title')}
                             <ArrowRight className="h-3.5 w-3.5 text-slate-400 transition-transform group-hover/link:translate-x-0.5" />
                         </Link>
-                        {canViewAppointments ? (
+                        {/* AF5 — schedule CTA hidden for view-only assistants
+                            (no canManageAppointments). The Link wrapper used
+                            to ship even when disabled, which kept the URL
+                            reachable via Cmd-click; conditionally rendering
+                            the entire affordance closes that escape hatch.
+                            Subscription read-only keeps the disabled
+                            button + toast pattern. */}
+                        {canManageAppointments ? (
                             <Link href={`/appointments?action=new&patientId=${encodeURIComponent(id)}`}>
-                                <Button size="sm" className="h-8 rounded-full px-3 text-[11px] font-semibold shadow-sm shadow-slate-900/10" disabled={!canManageAppointments}>
+                                <Button size="sm" className="h-8 rounded-full px-3 text-[11px] font-semibold shadow-sm shadow-slate-900/10">
                                     <Plus className="mr-1 h-3.5 w-3.5" />
                                     {t('dashboard.scheduleAppointment')}
                                 </Button>
                             </Link>
+                        ) : isSubscriptionReadOnly(currentUser) && canViewAppointments ? (
+                            <Button
+                                size="sm"
+                                className="h-8 rounded-full px-3 text-[11px] font-semibold shadow-sm shadow-slate-900/10"
+                                disabled
+                                onClick={denyManageAction}
+                            >
+                                <Plus className="mr-1 h-3.5 w-3.5" />
+                                {t('dashboard.scheduleAppointment')}
+                            </Button>
                         ) : null}
                     </div>
                 </header>
                 <div>
                     {!canViewAppointments ? (
-                        <EmptyState icon={Lock} title={PERMISSION_DENIED_MESSAGE} size="sm" />
+                        <EmptyState icon={Lock} title={t('permissions.deniedTitle')} size="sm" />
                     ) : upcomingAppointments.length === 0 ? (
                         <EmptyState icon={CalendarCheck} title={t('patientDetail.noUpcomingAppointments')} size="sm" />
                     ) : (
@@ -759,7 +835,6 @@ export default function PatientDetailPage({
                     onOpenChange={setIsEditDialogOpen}
                     patient={patient}
                     uploadMaxMb={currentUser?.subscription?.upload_max_mb}
-                    storedImageMaxMb={currentUser?.subscription?.stored_image_max_mb}
                 />
             ) : null}
 

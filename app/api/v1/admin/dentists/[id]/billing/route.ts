@@ -1,8 +1,12 @@
 import { NextResponse } from 'next/server';
 import { findDentist, getAdminStore } from '@/lib/mock/admin-store';
+import { requireAdmin } from '../../../../_auth';
 
 // Local mock: full billing snapshot for one dentist (subscription + payments + usage).
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+    const auth = await requireAdmin();
+    if (auth) return auth;
+
     const { id } = await params;
     const dentist = findDentist(id);
     if (!dentist) {

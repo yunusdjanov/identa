@@ -12,6 +12,7 @@ use App\Support\Search;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class TreatmentService
@@ -168,7 +169,7 @@ class TreatmentService
         }
 
         $treatment = Treatment::query()->create([
-            ...$this->payload($request->validated()),
+            ...$this->payload($request->validated(), $request->user()),
             'dentist_id' => $this->dentistId($request),
             'patient_id' => $patient->id,
         ]);
@@ -199,9 +200,27 @@ class TreatmentService
             ]);
         }
 
-        $treatment = $this->ownedTreatment($request, (string) $patient->id, $treatmentId);
-        $treatment->fill($this->payload($request->validated()));
-        $treatment->save();
+        $payload = $this->payload($request->validated(), $request->user());
+        $patientIdValue = (string) $patient->id;
+        $dentistId = $this->dentistId($request);
+
+        // Lock the treatment row before mutating so two concurrent edits
+        // (dentist on web + assistant on mobile, or two browser tabs)
+        // serialise on the financial columns. Without the lock, last-write
+        // wins on cost/debt/paid and the loser's calculation overwrites the
+        // winner's commit.
+        $treatment = DB::transaction(function () use ($patientIdValue, $treatmentId, $dentistId, $payload): Treatment {
+            $locked = Treatment::query()
+                ->where('id', $treatmentId)
+                ->where('patient_id', $patientIdValue)
+                ->where('dentist_id', $dentistId)
+                ->lockForUpdate()
+                ->firstOrFail();
+            $locked->fill($payload);
+            $locked->save();
+
+            return $locked;
+        });
 
         $this->auditLogger->logFromRequest(
             request: $request,
@@ -364,29 +383,53 @@ class TreatmentService
      * @param  array<string, mixed>  $validated
      * @return array<string, mixed>
      */
-    private function payload(array $validated): array
+    private function payload(array $validated, ?User $actor = null): array
     {
         $teeth = $this->normalizeTeeth($validated['teeth'] ?? null, $validated['tooth_number'] ?? null);
         $primaryTooth = $validated['tooth_number'] ?? ($teeth[0] ?? null);
-        $debtAmount = array_key_exists('debt_amount', $validated)
-            ? (float) $validated['debt_amount']
-            : (array_key_exists('cost', $validated) ? (float) $validated['cost'] : 0.0);
-        $paidAmount = array_key_exists('paid_amount', $validated)
-            ? (float) $validated['paid_amount']
-            : 0.0;
 
-        return [
+        $payload = [
             'tooth_number' => $primaryTooth !== null ? (int) $primaryTooth : null,
             'teeth' => $teeth !== [] ? $teeth : null,
             'treatment_type' => $validated['treatment_type'],
             'description' => $validated['description'] ?? null,
             'comment' => $validated['comment'] ?? ($validated['notes'] ?? null),
             'treatment_date' => $validated['treatment_date'],
-            'cost' => number_format($debtAmount, 2, '.', ''),
-            'debt_amount' => number_format($debtAmount, 2, '.', ''),
-            'paid_amount' => number_format($paidAmount, 2, '.', ''),
             'notes' => $validated['notes'] ?? null,
         ];
+
+        // Financial fields are gated on `payments.view`. Without this gate,
+        // an assistant with `patients.manage` but no `payments.view` would:
+        //   1. Submit an update without the (hidden) debt_amount/paid_amount
+        //      fields,
+        //   2. Hit the array_key_exists fallback → both default to 0,
+        //   3. Overwrite the dentist owner's real values to 0.
+        // That's a silent data-loss bug. Omitting these keys from the
+        // payload preserves the existing model values on update; on
+        // create, the DB defaults take over (decimal columns default to
+        // 0.00, which matches the prior behavior for the non-payments
+        // user who couldn't set a price anyway).
+        // Fail closed when no actor is provided (console/queue contexts
+        // currently don't invoke this, but a future scheduled job that
+        // does should be explicit about permissioning). The caller can
+        // always pass an explicit User with the right perms when bulk
+        // operations need financial writes.
+        $canSetFinancials = $actor !== null
+            && $actor->hasPermission(User::PERMISSION_PAYMENTS_VIEW);
+        if ($canSetFinancials) {
+            $debtAmount = array_key_exists('debt_amount', $validated)
+                ? (float) $validated['debt_amount']
+                : (array_key_exists('cost', $validated) ? (float) $validated['cost'] : 0.0);
+            $paidAmount = array_key_exists('paid_amount', $validated)
+                ? (float) $validated['paid_amount']
+                : 0.0;
+
+            $payload['cost'] = number_format($debtAmount, 2, '.', '');
+            $payload['debt_amount'] = number_format($debtAmount, 2, '.', '');
+            $payload['paid_amount'] = number_format($paidAmount, 2, '.', '');
+        }
+
+        return $payload;
     }
 
     /**

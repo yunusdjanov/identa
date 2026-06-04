@@ -54,6 +54,24 @@ class AuditLog extends Model implements TenantOwned
     }
 
     /**
+     * Audit rows are append-only. Block updates and deletes at the model
+     * layer so a future controller bug can never silently rewrite history.
+     * Production audit-log integrity is the kind of property that's easy
+     * to assume and impossible to retrofit — the throw makes any attempted
+     * mutation loud, in tests as well as in incidents.
+     */
+    protected static function booted(): void
+    {
+        static::updating(function (): void {
+            throw new \LogicException('AuditLog rows are immutable.');
+        });
+
+        static::deleting(function (): void {
+            throw new \LogicException('AuditLog rows are immutable.');
+        });
+    }
+
+    /**
      * @return BelongsTo<User, AuditLog>
      */
     public function actor(): BelongsTo

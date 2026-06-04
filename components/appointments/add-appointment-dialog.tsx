@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useDirtyFormWarning } from '@/lib/hooks/use-dirty-form-warning';
 import {
     Dialog,
     DialogContent,
@@ -263,6 +264,17 @@ export function AddAppointmentDialog({
     const [isPatientMenuOpen, setIsPatientMenuOpen] = useState(false);
     const [submitAttempted, setSubmitAttempted] = useState(false);
     const [selectedPatientSnapshot, setSelectedPatientSnapshot] = useState<PatientLookupOption | null>(createEditingPatientSnapshot(editingAppointment));
+    // Dirty detection: compare formData to the initial snapshot. Browser-
+    // tab warning fires when the user has any unsaved change (selected a
+    // patient, picked a date, etc.) so a tab close doesn't silently drop
+    // the booking. Closes only the OS-level navigation hole; in-app
+    // dialog dismiss is intentional and untracked. FA-X7 G9.
+    const initialFormSnapshot = useMemo(
+        () => createInitialFormData(prefillDate, prefillStartTime, prefillPatientId, editingAppointment, normalizedWorkingHours),
+        [prefillDate, prefillStartTime, prefillPatientId, editingAppointment, normalizedWorkingHours]
+    );
+    const isDirty = open && JSON.stringify(formData) !== JSON.stringify(initialFormSnapshot);
+    useDirtyFormWarning(isDirty);
 
     useEffect(() => {
         const timeoutId = window.setTimeout(() => {

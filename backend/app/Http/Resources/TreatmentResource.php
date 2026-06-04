@@ -4,6 +4,7 @@ namespace App\Http\Resources;
 
 use App\Models\Treatment;
 use App\Models\TreatmentImage;
+use App\Models\User;
 use App\Services\TreatmentImageService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -44,6 +45,28 @@ class TreatmentResource extends JsonResource
             ? $treatment->images->first()
             : ($this->includePrimaryImage && $treatment->relationLoaded('primaryImage') ? $treatment->primaryImage : null);
 
+        // Treatment routes are gated by `patients.view`/`patients.manage`
+        // at the route layer — financial fields (cost/debt/paid/balance)
+        // are present on every record but should only be exposed to
+        // viewers with `payments.view`. Without this gate, an assistant
+        // restricted to clinical data still receives the full money
+        // payload via the API even though the UI hides it; a network-tab
+        // inspector or scripted client defeats the frontend filter.
+        // Mirrors the same intent enforced by DashboardService and
+        // PatientService::overview's includePayments branch.
+        // Multi-guard resolution: production uses Sanctum tokens
+        // (`$request->user()` covers it); tests use `actingAs($u, 'web')`
+        // which puts the user in the web guard. Without checking both,
+        // legitimate dentist viewers would have their financial fields
+        // scrubbed in tests, masking real coverage of the scrubbing
+        // behavior. Production behavior is unchanged — sanctum's
+        // session/token resolution wins on the first hit.
+        $viewer = $request->user()
+            ?? auth()->guard('sanctum')->user()
+            ?? auth()->guard('web')->user();
+        $canViewFinancials = $viewer instanceof User
+            && $viewer->hasPermission(User::PERMISSION_PAYMENTS_VIEW);
+
         return [
             'id' => (string) $treatment->id,
             'patient_id' => (string) $treatment->patient_id,
@@ -53,10 +76,10 @@ class TreatmentResource extends JsonResource
             'description' => $treatment->description,
             'comment' => $treatment->comment,
             'treatment_date' => $treatment->treatment_date?->toDateString(),
-            'cost' => $debtAmount,
-            'debt_amount' => $debtAmount,
-            'paid_amount' => $paidAmount,
-            'balance' => round($debtAmount - $paidAmount, 2),
+            'cost' => $canViewFinancials ? $debtAmount : null,
+            'debt_amount' => $canViewFinancials ? $debtAmount : null,
+            'paid_amount' => $canViewFinancials ? $paidAmount : null,
+            'balance' => $canViewFinancials ? round($debtAmount - $paidAmount, 2) : null,
             'notes' => $treatment->notes,
             'image_count' => $imageCount,
             'primary_image' => $primaryImage instanceof TreatmentImage

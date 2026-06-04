@@ -388,16 +388,25 @@ class TreatmentImageDirectUploadService
 
             ProcessUploadedMedia::dispatch(TreatmentImage::class, (string) $image->id, $owner->id);
             $image->refresh();
-            if ((string) $image->scan_status === 'rejected') {
+            $scanStatus = (string) $image->scan_status;
+
+            if ($scanStatus === 'rejected') {
                 $failed[] = ['upload_id' => $uploadId, 'reason' => 'security'];
 
                 continue;
             }
 
-            if ((string) $image->scan_status === 'approved') {
+            // Treat `pending` as completed too (matches singular finalize at
+            // line ~197). With the production Redis queue, ProcessUploadedMedia
+            // is async — the inline `refresh()` almost always sees `pending`.
+            // Returning only `approved` rows silently dropped the new row out
+            // of the response and the caller couldn't poll for it. Hand the
+            // row back; the scan moves it to approved/rejected within seconds
+            // and the variant generator runs lazily on first stream.
+            if ($scanStatus === 'approved') {
                 $variantQueue[] = [(string) $image->disk, (string) $image->path];
-                $completed[] = $image;
             }
+            $completed[] = $image;
         }
 
         if ($variantQueue !== []) {

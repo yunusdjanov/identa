@@ -6,7 +6,7 @@ export const DEFAULT_LOCALE: AppLocale = 'ru';
 export const LOCALE_COOKIE_NAME = 'identa_locale';
 export const LOCALE_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 365;
 
-export function isSupportedLocale(value: string | null | undefined): value is AppLocale {
+function isSupportedLocale(value: string | null | undefined): value is AppLocale {
     return value === 'ru' || value === 'uz' || value === 'en';
 }
 

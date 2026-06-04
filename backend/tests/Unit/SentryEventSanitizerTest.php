@@ -43,7 +43,11 @@ class SentryEventSanitizerTest extends TestCase
         ]);
         $event->setExtra([
             'api_key' => 'abc123',
-            'note' => 'ok',
+            // `note` was promoted to a scrubbed key (Phase 10 audit) — it
+            // carries dentist-entered free-form text on subscription,
+            // refund, and treatment rows. Use a non-sensitive key here
+            // to assert the passthrough path still works.
+            'breadcrumb_id' => 'ok',
         ]);
         $event->setContext('debug', [
             'refresh_token' => 'refresh-secret',
@@ -57,7 +61,7 @@ class SentryEventSanitizerTest extends TestCase
         $this->assertSame('[Filtered]', $result?->getRequest()['headers']['Authorization']);
         $this->assertSame('[Filtered]', $result?->getRequest()['data']['password']);
         $this->assertSame('[Filtered]', $result?->getRequest()['data']['nested']['access_token']);
-        $this->assertSame('ok', $result?->getExtra()['note']);
+        $this->assertSame('ok', $result?->getExtra()['breadcrumb_id']);
         $this->assertSame('[Filtered]', $result?->getExtra()['api_key']);
         $this->assertSame('[Filtered]', $result?->getContexts()['debug']['refresh_token']);
     }

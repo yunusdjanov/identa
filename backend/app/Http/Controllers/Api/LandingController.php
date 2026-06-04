@@ -3,55 +3,28 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\StoreLeadRequest;
-use App\Http\Resources\LandingSettingsResource;
-use App\Http\Resources\LeadRequestResource;
-use App\Models\LeadRequest;
-use App\Services\LandingService;
-use App\Support\AuditLogger;
+use App\Http\Resources\PlanResource;
+use App\Services\BillingService;
 use Illuminate\Http\JsonResponse;
 
+/**
+ * Public (unauthenticated) marketing-landing data.
+ *
+ * The landing page renders pricing limits (staff/images/upload/export) from
+ * this endpoint so it can never drift from what admins configure in
+ * /admin/plans or what dentists see in billing. Only public, non-sensitive
+ * plan facts are exposed.
+ */
 class LandingController extends Controller
 {
-    public function __construct(
-        protected readonly AuditLogger $auditLogger,
-        private readonly LandingService $landing,
-    ) {}
-
-    public function showSettings(): JsonResponse
+    public function __construct(private readonly BillingService $billingService)
     {
-        $payload = $this->landing->settingsPayload();
+    }
 
+    public function plans(): JsonResponse
+    {
         return response()->json([
-            'data' => (new LandingSettingsResource($payload['settings'], $payload['plans']))->resolve(request()),
+            'data' => PlanResource::collection($this->billingService->activePlans())->resolve(),
         ]);
-    }
-
-    public function storeLeadRequest(StoreLeadRequest $request): JsonResponse
-    {
-        $leadRequest = $this->landing->createLead($request->validated());
-
-        $this->auditLogger->logFromRequest(
-            request: $request,
-            eventType: 'landing.lead_request_created',
-            entityType: 'lead_request',
-            entityId: (string) $leadRequest->id,
-            metadata: [
-                'clinic_name' => $leadRequest->clinic_name,
-                'city' => $leadRequest->city,
-            ],
-        );
-
-        return response()->json([
-            'data' => $this->transformLeadRequest($leadRequest),
-        ], 201);
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    private function transformLeadRequest(LeadRequest $leadRequest): array
-    {
-        return (new LeadRequestResource($leadRequest))->resolve(request());
     }
 }

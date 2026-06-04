@@ -24,6 +24,9 @@ import { getApiErrorMessage } from '@/lib/api/client';
 import { loginWithGoogleIdToken, registerWithPassword } from '@/lib/api/dentist';
 import { INPUT_LIMITS, getEmailValidationMessage, getPasswordValidationMessage } from '@/lib/input-validation';
 import { useAuthStore } from '@/lib/store';
+import { clearClientLogoutInProgress } from '@/lib/auth/client-logout';
+import { resetSessionExpiredNotification } from '@/lib/auth/session-expiry';
+import { postAuthBroadcast } from '@/lib/auth/auth-broadcast';
 import { toast } from 'sonner';
 
 interface GoogleCredentialResponse {
@@ -87,8 +90,18 @@ export default function RegisterPage() {
     const hasValidationErrors = Boolean(nameError || emailError || passwordError || passwordConfirmationError);
 
     const completeLogin = (user: Awaited<ReturnType<typeof registerWithPassword>>) => {
+        // Match login/page.tsx and admin/login/page.tsx onSuccess sequence so
+        // a register-after-logout flow in the same tab doesn't leave the
+        // logout marker or session-expiry singleton stale (which would
+        // suppress the next expiry toast or bounce the user back to the
+        // login screen mid-flow). Cache wipe also protects against cross-
+        // tenant flash before the new /auth/me lands.
+        clearClientLogoutInProgress();
+        resetSessionExpiredNotification();
+        queryClient.clear();
         login(user.name);
         queryClient.setQueryData(['auth', 'me'], user);
+        postAuthBroadcast({ type: 'login' });
         router.push('/dashboard');
     };
 

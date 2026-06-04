@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { ShieldAlert } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useI18n } from '@/components/providers/i18n-provider';
 import { cn } from '@/lib/utils';
 
 interface AccessDeniedStateProps {
@@ -17,11 +18,14 @@ interface AccessDeniedStateProps {
 export function AccessDeniedState({
     title,
     description,
-    eyebrow = 'Доступ закрыт',
-    actionLabel = 'В кабинет',
+    eyebrow,
+    actionLabel,
     actionHref = '/dashboard',
     className,
 }: AccessDeniedStateProps) {
+    const { t } = useI18n();
+    const resolvedEyebrow = eyebrow ?? t('permissions.deniedTitle');
+    const resolvedActionLabel = actionLabel ?? t('dashboard.title');
     return (
         <section className={cn('flex min-h-[24rem] items-center justify-center px-3 py-8', className)}>
             <div className="relative w-full max-w-3xl overflow-hidden rounded-3xl border border-teal-100 bg-gradient-to-br from-white via-white to-teal-50/70 p-6 shadow-xl shadow-teal-950/5 sm:p-8">
@@ -38,7 +42,7 @@ export function AccessDeniedState({
                             <span className="rounded-full bg-slate-950 px-2 py-0.5 font-mono text-[11px] text-white">
                                 403
                             </span>
-                            {eyebrow}
+                            {resolvedEyebrow}
                         </div>
                         <h2 className="mt-3 text-2xl font-black tracking-[-0.035em] text-slate-950 sm:text-3xl">
                             {title}
@@ -49,7 +53,7 @@ export function AccessDeniedState({
 
                         <div className="mt-6">
                             <Button asChild className="h-10 rounded-2xl bg-slate-950 px-5 text-white">
-                                <Link href={actionHref}>{actionLabel}</Link>
+                                <Link href={actionHref}>{resolvedActionLabel}</Link>
                             </Button>
                         </div>
                     </div>

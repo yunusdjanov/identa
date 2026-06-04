@@ -56,7 +56,7 @@ import {
 } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import { useI18n } from '@/components/providers/i18n-provider';
-import { canManage, canView, getManageDeniedMessage, PERMISSION_DENIED_MESSAGE } from '@/lib/auth/permissions';
+import { canManage, canView, getManageDeniedMessage, isSubscriptionReadOnly } from '@/lib/auth/permissions';
 
 const AddAppointmentDialog = dynamic(
     () => import('@/components/appointments/add-appointment-dialog').then((module) => module.AddAppointmentDialog),
@@ -174,21 +174,6 @@ function getAppointmentBorderClass(status: AppointmentRow['status']): string {
             return 'border-l-rose-400';
         default:
             return 'border-l-blue-500';
-    }
-}
-
-function getCompactAppointmentTimeClass(status: AppointmentRow['status']): string {
-    switch (status) {
-        case 'scheduled':
-            return 'bg-blue-50 text-blue-700 ring-1 ring-blue-100';
-        case 'completed':
-            return 'bg-teal-50 text-teal-700 ring-1 ring-teal-100';
-        case 'cancelled':
-            return 'bg-slate-200 text-slate-800 ring-1 ring-slate-300';
-        case 'no_show':
-            return 'bg-rose-50 text-rose-700 ring-1 ring-rose-100';
-        default:
-            return 'bg-blue-50 text-blue-700 ring-1 ring-blue-100';
     }
 }
 
@@ -390,7 +375,7 @@ export default function AppointmentsPage() {
     const canViewAppointments = canView(currentUser, 'appointments');
     const canManageAppointments = canManage(currentUser, 'appointments');
     const isDialogOpen = canManageAppointments && (isAddDialogOpen || shouldOpenFromUrl);
-    const denyPermission = () => toast.error(getManageDeniedMessage(currentUser));
+    const denyPermission = () => toast.error(getManageDeniedMessage(currentUser, t));
 
     const openAddDialog = (options?: { date?: Date; startTime?: string }) => {
         if (!canManageAppointments) {
@@ -585,10 +570,7 @@ export default function AppointmentsPage() {
             return true;
         });
     }, [appointmentRows, nowTimeKey, todayDateKey, urlStatuses, urlWhen, urlWindowMinutes]);
-    const availabilityTimeSlots = useMemo(
-        () => createAppointmentStartSlots(workingHours),
-        [workingHours]
-    );
+    const availabilityTimeSlots = createAppointmentStartSlots(workingHours);
     const timeSlots = useMemo(
         () => createAppointmentStartSlots(workingHours, {
             extraSlots: appointmentRows.flatMap((appointment) =>
@@ -696,7 +678,7 @@ export default function AppointmentsPage() {
             nextEndTime: string;
         }) => {
             if (!canManageAppointments) {
-                throw new Error(getManageDeniedMessage(currentUser));
+                throw new Error(getManageDeniedMessage(currentUser, t));
             }
 
             return updateAppointment(payload.appointment.id, {
@@ -724,7 +706,7 @@ export default function AppointmentsPage() {
     const deleteMutation = useMutation({
         mutationFn: async (appointmentId: string) => {
             if (!canManageAppointments) {
-                throw new Error(getManageDeniedMessage(currentUser));
+                throw new Error(getManageDeniedMessage(currentUser, t));
             }
 
             return deleteAppointment(appointmentId);
@@ -744,7 +726,7 @@ export default function AppointmentsPage() {
     const weekInlineEditMutation = useMutation({
         mutationFn: async (payload: { appointment: AppointmentRow; formData: WeekInlineEditFormData }) => {
             if (!canManageAppointments) {
-                throw new Error(getManageDeniedMessage(currentUser));
+                throw new Error(getManageDeniedMessage(currentUser, t));
             }
 
             const endTime = resolveAppointmentEndTime(payload.formData.startTime, payload.formData.durationMinutes);
@@ -975,32 +957,64 @@ export default function AppointmentsPage() {
                                         ? t('appointments.moreCount', { count: hiddenAppointmentsCount })
                                         : t('appointments.showAppointments')}
                                 </button>
-                                <button
-                                    type="button"
-                                    className={`inline-flex flex-1 items-center justify-center rounded-lg border border-slate-200 bg-white font-medium text-slate-700 transition-colors hover:bg-slate-50 ${
-                                        compact ? 'h-6 px-1.5 text-[10px]' : 'h-8 px-3 text-xs'
-                                    }`}
-                                    data-testid={includeTestIds ? `week-day-add-${descriptor.dateKey}` : undefined}
-                                    onClick={() => openAddDialog({ date: descriptor.date })}
-                                >
-                                    {t('appointments.addForDay')}
-                                </button>
+                                {/* AF5 day-card add button — hide for view-only
+                                    assistants so the day card collapses to
+                                    just the visible appointments / "show all"
+                                    chip. Read-only subscription keeps a
+                                    disabled affordance with the deny toast. */}
+                                {canManageAppointments ? (
+                                    <button
+                                        type="button"
+                                        className={`inline-flex flex-1 items-center justify-center rounded-lg border border-slate-200 bg-white font-medium text-slate-700 transition-colors hover:bg-slate-50 ${
+                                            compact ? 'h-6 px-1.5 text-[10px]' : 'h-8 px-3 text-xs'
+                                        }`}
+                                        data-testid={includeTestIds ? `week-day-add-${descriptor.dateKey}` : undefined}
+                                        onClick={() => openAddDialog({ date: descriptor.date })}
+                                    >
+                                        {t('appointments.addForDay')}
+                                    </button>
+                                ) : isSubscriptionReadOnly(currentUser) && canViewAppointments ? (
+                                    <button
+                                        type="button"
+                                        className={`inline-flex flex-1 items-center justify-center rounded-lg border border-slate-200 bg-white font-medium text-slate-400 ${
+                                            compact ? 'h-6 px-1.5 text-[10px]' : 'h-8 px-3 text-xs'
+                                        } disabled:cursor-not-allowed`}
+                                        disabled
+                                        onClick={denyPermission}
+                                    >
+                                        {t('appointments.addForDay')}
+                                    </button>
+                                ) : null}
                             </div>
                         </>
                     )}
                     {dayAppointments.length === 0 ? (
                         <div className={compact ? 'mt-auto pt-1.5' : 'mt-auto pt-2'}>
-                            <button
-                                type="button"
-                                className={`inline-flex w-full items-center justify-center rounded-lg border border-teal-200 bg-teal-50 font-medium text-teal-700 transition-colors hover:bg-teal-100 ${
-                                    compact ? 'h-6 px-1.5 text-[10px]' : 'h-8 px-3 text-xs'
-                                }`}
-                                aria-label={t('appointments.addForDay')}
-                                data-testid={includeTestIds ? `week-day-more-${descriptor.dateKey}` : undefined}
-                                onClick={() => openAddDialog({ date: descriptor.date })}
-                            >
-                                {t('appointments.addForDay')}
-                            </button>
+                            {canManageAppointments ? (
+                                <button
+                                    type="button"
+                                    className={`inline-flex w-full items-center justify-center rounded-lg border border-teal-200 bg-teal-50 font-medium text-teal-700 transition-colors hover:bg-teal-100 ${
+                                        compact ? 'h-6 px-1.5 text-[10px]' : 'h-8 px-3 text-xs'
+                                    }`}
+                                    aria-label={t('appointments.addForDay')}
+                                    data-testid={includeTestIds ? `week-day-more-${descriptor.dateKey}` : undefined}
+                                    onClick={() => openAddDialog({ date: descriptor.date })}
+                                >
+                                    {t('appointments.addForDay')}
+                                </button>
+                            ) : isSubscriptionReadOnly(currentUser) && canViewAppointments ? (
+                                <button
+                                    type="button"
+                                    className={`inline-flex w-full items-center justify-center rounded-lg border border-teal-100 bg-teal-50/60 font-medium text-teal-400 ${
+                                        compact ? 'h-6 px-1.5 text-[10px]' : 'h-8 px-3 text-xs'
+                                    } disabled:cursor-not-allowed`}
+                                    aria-label={t('appointments.addForDay')}
+                                    disabled
+                                    onClick={denyPermission}
+                                >
+                                    {t('appointments.addForDay')}
+                                </button>
+                            ) : null}
                         </div>
                     ) : null}
                 </div>
@@ -1150,7 +1164,7 @@ export default function AppointmentsPage() {
         return (
             <AccessDeniedState
                 title={t('common.forbiddenTitle')}
-                description={PERMISSION_DENIED_MESSAGE}
+                description={t('permissions.deniedDescription')}
                 actionLabel={t('dashboard.title')}
                 className="min-h-[20rem]"
             />
@@ -1229,14 +1243,30 @@ export default function AppointmentsPage() {
                                 {t('common.export')}
                             </Button>
                         ) : null}
-                        <Button
-                            className="w-full sm:w-auto"
-                            disabled={!canManageAppointments}
-                            onClick={() => openAddDialog({ date: currentDate })}
-                        >
-                            <Plus aria-hidden="true" className="w-4 h-4 mr-2" />
-                            {t('appointments.new')}
-                        </Button>
+                        {/* Hide for view-only assistants (no `manage`
+                            permission AND no read-only subscription). A
+                            subscription-driven read-only state still shows
+                            the button as disabled so the dentist owner can
+                            see why it's greyed and renew. Pattern matches
+                            patients page header. */}
+                        {canManageAppointments ? (
+                            <Button
+                                className="w-full sm:w-auto"
+                                onClick={() => openAddDialog({ date: currentDate })}
+                            >
+                                <Plus aria-hidden="true" className="w-4 h-4 mr-2" />
+                                {t('appointments.new')}
+                            </Button>
+                        ) : isSubscriptionReadOnly(currentUser) ? (
+                            <Button
+                                className="w-full sm:w-auto"
+                                disabled
+                                onClick={denyPermission}
+                            >
+                                <Plus aria-hidden="true" className="w-4 h-4 mr-2" />
+                                {t('appointments.new')}
+                            </Button>
+                        ) : null}
                     </>
                 )}
             />
@@ -1468,58 +1498,94 @@ export default function AppointmentsPage() {
                                                                     <Badge className={getAppointmentStatusBadgeClass(appointment.status)}>
                                                                         {t(`status.${appointment.status}`)}
                                                                     </Badge>
-                                                                    <Button
-                                                                        type="button"
-                                                                        size="xs"
-                                                                        variant="outline"
-                                                                        draggable={false}
-                                                                        onClick={() => openEditDialog(appointment)}
-                                                                        disabled={
-                                                                            rescheduleMutation.isPending
-                                                                            || deleteMutation.isPending
-                                                                            || appointment.status !== 'scheduled'
-                                                                            || !canManageAppointments
-                                                                        }
-                                                                    >
-                                                                        <Pencil className="w-3 h-3" />
-                                                                        {t('appointments.edit')}
-                                                                    </Button>
-                                                                    <Button
-                                                                        type="button"
-                                                                        size="xs"
-                                                                        variant="outline"
-                                                                        className="border-rose-100 bg-rose-50 text-rose-600 hover:bg-rose-100 hover:text-rose-700"
-                                                                        draggable={false}
-                                                                        onClick={() => openDeleteDialog(appointment)}
-                                                                        disabled={deleteMutation.isPending || !canManageAppointments}
-                                                                    >
-                                                                        <Trash2 className="w-3 h-3" />
-                                                                        {t('appointments.delete')}
-                                                                    </Button>
+                                                                    {/* AF5 day-view row actions: hide for view-only, keep
+                                                                        disabled for subscription read-only. */}
+                                                                    {canManageAppointments ? (
+                                                                        <>
+                                                                            <Button
+                                                                                type="button"
+                                                                                size="xs"
+                                                                                variant="outline"
+                                                                                draggable={false}
+                                                                                onClick={() => openEditDialog(appointment)}
+                                                                                disabled={
+                                                                                    rescheduleMutation.isPending
+                                                                                    || deleteMutation.isPending
+                                                                                    || appointment.status !== 'scheduled'
+                                                                                }
+                                                                            >
+                                                                                <Pencil className="w-3 h-3" />
+                                                                                {t('appointments.edit')}
+                                                                            </Button>
+                                                                            <Button
+                                                                                type="button"
+                                                                                size="xs"
+                                                                                variant="outline"
+                                                                                className="border-rose-100 bg-rose-50 text-rose-600 hover:bg-rose-100 hover:text-rose-700"
+                                                                                draggable={false}
+                                                                                onClick={() => openDeleteDialog(appointment)}
+                                                                                disabled={deleteMutation.isPending}
+                                                                            >
+                                                                                <Trash2 className="w-3 h-3" />
+                                                                                {t('appointments.delete')}
+                                                                            </Button>
+                                                                        </>
+                                                                    ) : isSubscriptionReadOnly(currentUser) && canViewAppointments ? (
+                                                                        <>
+                                                                            <Button type="button" size="xs" variant="outline" disabled onClick={denyPermission}>
+                                                                                <Pencil className="w-3 h-3" />
+                                                                                {t('appointments.edit')}
+                                                                            </Button>
+                                                                            <Button type="button" size="xs" variant="outline" className="border-rose-100 bg-rose-50 text-rose-600" disabled onClick={denyPermission}>
+                                                                                <Trash2 className="w-3 h-3" />
+                                                                                {t('appointments.delete')}
+                                                                            </Button>
+                                                                        </>
+                                                                    ) : null}
                                                                 </div>
                                                             </div>
                                                         </div>
                                                     ))}
                                                     {!hasBlockingSlotAppointments ? (
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => openAddDialog({ date: currentDate, startTime: time })}
-                                                            disabled={!canManageAppointments}
-                                                            className="text-xs text-slate-600 transition-colors hover:text-teal-700 disabled:text-slate-400"
-                                                        >
-                                                            {t('appointments.addSlot')}
-                                                        </button>
+                                                        canManageAppointments ? (
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => openAddDialog({ date: currentDate, startTime: time })}
+                                                                className="text-xs text-slate-600 transition-colors hover:text-teal-700"
+                                                            >
+                                                                {t('appointments.addSlot')}
+                                                            </button>
+                                                        ) : isSubscriptionReadOnly(currentUser) && canViewAppointments ? (
+                                                            <button
+                                                                type="button"
+                                                                onClick={denyPermission}
+                                                                disabled
+                                                                className="text-xs text-slate-400 cursor-not-allowed"
+                                                            >
+                                                                {t('appointments.addSlot')}
+                                                            </button>
+                                                        ) : null
                                                     ) : null}
                                                 </>
                                             ) : (
+                                                canManageAppointments ? (
                                                     <button
                                                         type="button"
                                                         onClick={() => openAddDialog({ date: currentDate, startTime: time })}
-                                                        disabled={!canManageAppointments}
-                                                        className="text-xs text-slate-600 transition-colors hover:text-teal-700 disabled:text-slate-400"
+                                                        className="text-xs text-slate-600 transition-colors hover:text-teal-700"
                                                     >
                                                         {t('appointments.addSlot')}
                                                     </button>
+                                                ) : isSubscriptionReadOnly(currentUser) && canViewAppointments ? (
+                                                    <button
+                                                        type="button"
+                                                        onClick={denyPermission}
+                                                        disabled
+                                                        className="text-xs text-slate-400 cursor-not-allowed"
+                                                    >
+                                                        {t('appointments.addSlot')}
+                                                    </button>
+                                                ) : null
                                             )}
                                         </div>
                                     </div>
@@ -1643,30 +1709,44 @@ export default function AppointmentsPage() {
                                                     <Badge className={`${getAppointmentStatusBadgeClass(appointment.status)} shrink-0 px-2 py-0.5 text-xs`}>
                                                         {t(`status.${appointment.status}`)}
                                                     </Badge>
-                                                    <Button
-                                                        type="button"
-                                                        size="icon"
-                                                        variant="outline"
-                                                        className="h-8 w-8 rounded-full bg-white"
-                                                        onClick={() => openWeekInlineEditor(appointment)}
-                                                        disabled={appointment.status !== 'scheduled' || !canManageAppointments}
-                                                        aria-label={t('appointments.edit')}
-                                                        title={t('appointments.edit')}
-                                                    >
-                                                        <Pencil className="h-3.5 w-3.5" />
-                                                    </Button>
-                                                    <Button
-                                                        type="button"
-                                                        size="icon"
-                                                        variant="outline"
-                                                        className="h-8 w-8 rounded-full border-rose-100 bg-rose-50 text-rose-600 shadow-sm shadow-rose-100/50 hover:bg-rose-100 hover:text-rose-700"
-                                                        onClick={() => openDeleteDialog(appointment)}
-                                                        disabled={deleteMutation.isPending || !canManageAppointments}
-                                                        aria-label={t('appointments.delete')}
-                                                        title={t('appointments.delete')}
-                                                    >
-                                                        <Trash2 className="h-3.5 w-3.5" />
-                                                    </Button>
+                                                    {/* AF5 week-modal row actions. */}
+                                                    {canManageAppointments ? (
+                                                        <>
+                                                            <Button
+                                                                type="button"
+                                                                size="icon"
+                                                                variant="outline"
+                                                                className="h-8 w-8 rounded-full bg-white"
+                                                                onClick={() => openWeekInlineEditor(appointment)}
+                                                                disabled={appointment.status !== 'scheduled'}
+                                                                aria-label={t('appointments.edit')}
+                                                                title={t('appointments.edit')}
+                                                            >
+                                                                <Pencil className="h-3.5 w-3.5" />
+                                                            </Button>
+                                                            <Button
+                                                                type="button"
+                                                                size="icon"
+                                                                variant="outline"
+                                                                className="h-8 w-8 rounded-full border-rose-100 bg-rose-50 text-rose-600 shadow-sm shadow-rose-100/50 hover:bg-rose-100 hover:text-rose-700"
+                                                                onClick={() => openDeleteDialog(appointment)}
+                                                                disabled={deleteMutation.isPending}
+                                                                aria-label={t('appointments.delete')}
+                                                                title={t('appointments.delete')}
+                                                            >
+                                                                <Trash2 className="h-3.5 w-3.5" />
+                                                            </Button>
+                                                        </>
+                                                    ) : isSubscriptionReadOnly(currentUser) && canViewAppointments ? (
+                                                        <>
+                                                            <Button type="button" size="icon" variant="outline" className="h-8 w-8 rounded-full bg-white" disabled onClick={denyPermission} aria-label={t('appointments.edit')}>
+                                                                <Pencil className="h-3.5 w-3.5" />
+                                                            </Button>
+                                                            <Button type="button" size="icon" variant="outline" className="h-8 w-8 rounded-full border-rose-100 bg-rose-50 text-rose-600" disabled onClick={denyPermission} aria-label={t('appointments.delete')}>
+                                                                <Trash2 className="h-3.5 w-3.5" />
+                                                            </Button>
+                                                        </>
+                                                    ) : null}
                                                 </div>
                                             </div>
                                             {isExpanded ? (
@@ -1849,20 +1929,34 @@ export default function AppointmentsPage() {
                         )}
                     </div>
                     <DialogFooter className="border-t border-slate-100 bg-slate-50/80 px-5 py-4 sm:justify-end sm:px-6">
-                        <Button
-                            type="button"
-                            className="h-10 w-full rounded-xl px-4 shadow-sm sm:w-auto sm:min-w-[10rem]"
-                            disabled={!expandedWeekDescriptor || !canManageAppointments}
-                            onClick={() => {
-                                if (expandedWeekDescriptor) {
-                                    setExpandedWeekDateKey(null);
-                                    openAddDialog({ date: expandedWeekDescriptor.date });
-                                }
-                            }}
-                        >
-                            <Plus className="mr-2 h-4 w-4" />
-                            {t('appointments.new')}
-                        </Button>
+                        {/* AF5 week-modal footer "New appointment" — view-only
+                            assistant shouldn't see this CTA at all. */}
+                        {canManageAppointments ? (
+                            <Button
+                                type="button"
+                                className="h-10 w-full rounded-xl px-4 shadow-sm sm:w-auto sm:min-w-[10rem]"
+                                disabled={!expandedWeekDescriptor}
+                                onClick={() => {
+                                    if (expandedWeekDescriptor) {
+                                        setExpandedWeekDateKey(null);
+                                        openAddDialog({ date: expandedWeekDescriptor.date });
+                                    }
+                                }}
+                            >
+                                <Plus className="mr-2 h-4 w-4" />
+                                {t('appointments.new')}
+                            </Button>
+                        ) : isSubscriptionReadOnly(currentUser) && canViewAppointments ? (
+                            <Button
+                                type="button"
+                                className="h-10 w-full rounded-xl px-4 shadow-sm sm:w-auto sm:min-w-[10rem]"
+                                disabled
+                                onClick={denyPermission}
+                            >
+                                <Plus className="mr-2 h-4 w-4" />
+                                {t('appointments.new')}
+                            </Button>
+                        ) : null}
                     </DialogFooter>
                 </DialogContent>
             </Dialog>

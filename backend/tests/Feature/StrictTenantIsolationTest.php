@@ -19,11 +19,16 @@ class StrictTenantIsolationTest extends TestCase
     public function test_assistant_cannot_show_or_update_another_tenant_patient_by_direct_id(): void
     {
         $dentist = User::factory()->create();
+        // must_change_password defaults to true on the assistant factory state
+        // (forced password rotation on first login). EnsurePasswordRotated
+        // 403s mutation routes while the flag is set, which would mask the
+        // 404 we're actually asserting on the cross-tenant PUT below.
         $assistant = User::factory()->assistant($dentist)->create([
             'assistant_permissions' => [
                 User::PERMISSION_PATIENTS_VIEW,
                 User::PERMISSION_PATIENTS_MANAGE,
             ],
+            'must_change_password' => false,
         ]);
         $otherDentist = User::factory()->create();
         $foreignPatient = Patient::factory()->create(['dentist_id' => $otherDentist->id]);

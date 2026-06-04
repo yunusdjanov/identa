@@ -1,6 +1,6 @@
 ﻿'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -59,12 +59,15 @@ export function ConfirmActionDialog({
 
     const [typedConfirmation, setTypedConfirmation] = useState('');
     // Reset the typed text whenever the dialog is toggled so a previous match
-    // never carries over to the next open.
-    useEffect(() => {
+    // never carries over to the next open. Done during render (React's "adjust
+    // state when a value changes" pattern) rather than in an effect.
+    const [wasOpen, setWasOpen] = useState(open);
+    if (wasOpen !== open) {
+        setWasOpen(open);
         if (!open) {
             setTypedConfirmation('');
         }
-    }, [open]);
+    }
 
     const needsTypedConfirmation = typeof requireConfirmationText === 'string' && requireConfirmationText.trim() !== '';
     const typedMatches = !needsTypedConfirmation

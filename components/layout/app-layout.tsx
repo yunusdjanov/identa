@@ -8,12 +8,13 @@ import axios from 'axios';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/lib/store';
 import { getCurrentUser } from '@/lib/api/dentist';
-import { canView, getModuleForPath, PERMISSION_DENIED_MESSAGE } from '@/lib/auth/permissions';
+import { canView, canViewAnalytics, getModuleForPath } from '@/lib/auth/permissions';
 import {
     AUTH_SESSION_EXPIRED_EVENT,
     markSessionExpiredRedirect,
     resetSessionExpiredNotification,
 } from '@/lib/auth/session-expiry';
+import { subscribeAuthBroadcast } from '@/lib/auth/auth-broadcast';
 import { useInstantLogout } from '@/lib/auth/use-instant-logout';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -23,7 +24,6 @@ import {
     Calendar,
     CreditCard,
 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 import { LanguageSwitcher } from '@/components/layout/language-switcher';
 import { useI18n } from '@/components/providers/i18n-provider';
 import { SubscriptionBanner } from '@/components/layout/subscription-banner';
@@ -79,7 +79,16 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         queryKey: ['auth', 'me'],
         queryFn: getCurrentUser,
         retry: false,
-        staleTime: 5 * 60_000,
+        // 30s staleTime + refetch-on-focus is the security-conscious
+        // refresh cadence for permission data. The previous 5-minute
+        // window meant a dentist owner who removed an assistant's
+        // payments.view in the middle of a session left the assistant
+        // staring at a UI that still gated on the old permissions for up
+        // to 5 minutes. Every other auth/me consumer shares this query
+        // via the shared queryKey — when this top-level query refreshes
+        // on focus, all consumers receive the new permission set.
+        staleTime: 30_000,
+        refetchOnWindowFocus: true,
     });
     const { locale, t } = useI18n();
     const isMounted = useIsHydrated();
@@ -97,12 +106,28 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             const status = axios.isAxiosError(userError) ? userError.response?.status : undefined;
 
             if (status === 401) {
+                // Session truly expired (token revoked, cookie cleared).
+                // Wipe cache + zustand state parity with 403 handler — the
+                // previous fix only handled 403 (account_inactive) and
+                // left 401 with just the redirect, which left stale
+                // tenant data in cache until the next user logged in.
                 markSessionExpiredRedirect();
+                queryClient.clear();
+                logout();
                 router.replace('/login');
                 return;
             }
 
             if (status === 403) {
+                // 403 on `/auth/me` typically means `account_inactive`
+                // (blocked / soft-deleted). Wipe React Query + zustand
+                // auth state before redirect — without this, the cached
+                // patient/appointment/payment data persists for the next
+                // user (or the same user re-logging in) and the stale
+                // zustand `isAuthenticated:true` survives a back-button
+                // press to flash protected UI before refetch.
+                queryClient.clear();
+                logout();
                 router.replace('/login');
                 return;
             }
@@ -115,7 +140,23 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         if (currentUser) {
             resetSessionExpiredNotification();
         }
-    }, [currentUser, isUserError, isUserLoading, router, userError]);
+
+        // Forced password rotation. When the admin (or dentist owner)
+        // resets a user's password, `must_change_password` is set true and
+        // the user is expected to set a new password before continuing.
+        // Without this gate the user can navigate freely using the
+        // admin-chosen transient credential indefinitely — the flag is
+        // technically observed by the Settings → Security card UI but is
+        // never enforced as a redirect. Pin the user to /settings until
+        // they clear the flag (the change-password API does so server-side).
+        if (
+            currentUser
+            && currentUser.must_change_password
+            && pathname !== '/settings'
+        ) {
+            router.replace('/settings?forceReset=1');
+        }
+    }, [currentUser, isUserError, isUserLoading, pathname, router, userError]);
 
     useEffect(() => {
         if (!isMounted) {
@@ -123,15 +164,41 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         }
 
         const handleSessionExpired = () => {
-            queryClient.removeQueries({ queryKey: ['auth'] });
+            // Full cache wipe (parity with manual logout — AF6). Previously
+            // we only removed the ['auth'] subtree, leaving patient /
+            // appointment / payment data cached. If the next user to log in
+            // on this browser was a different tenant, their first page
+            // renders flashed the previous tenant's data until the new
+            // query resolved — a cross-tenant leak window. `clear()`
+            // closes it.
+            queryClient.clear();
             logout();
             router.replace('/login');
         };
 
         window.addEventListener(AUTH_SESSION_EXPIRED_EVENT, handleSessionExpired);
 
+        // FA-A10: multi-tab logout sync. When a sibling tab fires
+        // `useInstantLogout`, this tab mirrors the cleanup so a kiosk
+        // user can't ALT+tab to another already-open tab and continue
+        // browsing the previous session's protected UI. We reuse the
+        // session-expired handler intentionally — its cleanup contract
+        // (clear cache, zustand reset, redirect to /login) is exactly
+        // what we want for a remote logout signal.
+        const unsubscribeBroadcast = subscribeAuthBroadcast((message) => {
+            if (message.type === 'logout') {
+                handleSessionExpired();
+            } else if (message.type === 'login') {
+                // Sibling tab signed in — refresh `/auth/me` so any
+                // pages this tab is showing pick up the new identity
+                // (the cookie was already rotated server-side).
+                queryClient.invalidateQueries({ queryKey: ['auth', 'me'] });
+            }
+        });
+
         return () => {
             window.removeEventListener(AUTH_SESSION_EXPIRED_EVENT, handleSessionExpired);
+            unsubscribeBroadcast();
         };
     }, [isMounted, logout, queryClient, router]);
 
@@ -140,15 +207,37 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     const canOpenStaff = Boolean(currentUser && currentUser.role === 'dentist');
     // Billing is owner-only — assistants must not see the practice's subscription/payments.
     const canOpenBilling = Boolean(currentUser && currentUser.role === 'dentist');
+    // Block downstream page mounts while the forced-password redirect is in
+    // flight. The redirect is queued in the useEffect above, but without
+    // this guard the destination page (e.g. /patients) would mount one
+    // frame, fire its `useQuery` hooks, and cache restricted data the user
+    // briefly saw before being bounced to /settings. Returning early here
+    // means the children component tree never instantiates, so no fetches
+    // race the redirect.
+    const isForcedResetRedirectPending = Boolean(
+        currentUser
+        && currentUser.must_change_password
+        && pathname !== '/settings'
+    );
     const showHeaderSkeleton = !isMounted || isUserLoading;
-    const handleNavigationClick = (event: MouseEvent<HTMLAnchorElement>, href: string) => {
+    const isNavLocked = (href: string): boolean => {
+        if (href === '/analytics') {
+            // /analytics is gated by the OR of patients/appointments/payments
+            // view permissions. Without this check the analytics tab read as
+            // unlocked for zero-permission assistants and bumped them into a
+            // mostly-empty AccessDeniedState on click.
+            return !canViewAnalytics(currentUser);
+        }
         const permissionModule = getModuleForPath(href);
-        if (!permissionModule || canView(currentUser, permissionModule)) {
+        return Boolean(permissionModule && !canView(currentUser, permissionModule));
+    };
+    const handleNavigationClick = (event: MouseEvent<HTMLAnchorElement>, href: string) => {
+        if (!isNavLocked(href)) {
             return;
         }
 
         event.preventDefault();
-        toast.error(PERMISSION_DENIED_MESSAGE);
+        toast.error(t('permissions.deniedDescription'));
     };
 
     return (
@@ -189,8 +278,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                                     {navigation.map((item) => {
                                         const isActive = isActiveRoute(item.href);
                                         const Icon = item.icon;
-                                        const permissionModule = getModuleForPath(item.href);
-                                        const isLocked = Boolean(permissionModule && !canView(currentUser, permissionModule));
+                                        const isLocked = isNavLocked(item.href);
                                         return (
                                             <Link
                                                 key={item.key}
@@ -247,8 +335,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                             {navigation.map((item) => {
                                 const isActive = isActiveRoute(item.href);
                                 const Icon = item.icon;
-                                const permissionModule = getModuleForPath(item.href);
-                                const isLocked = Boolean(permissionModule && !canView(currentUser, permissionModule));
+                                const isLocked = isNavLocked(item.href);
                                 return (
                                     <Link
                                         key={item.key}
@@ -291,7 +378,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
             {/* Main Content */}
             <main className="mx-auto max-w-[1440px] px-3 py-4 sm:px-6 sm:py-8 lg:px-8">
-                {children}
+                {isForcedResetRedirectPending ? null : children}
             </main>
         </div>
     );

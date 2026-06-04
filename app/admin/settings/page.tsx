@@ -11,12 +11,13 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { AdminSettingsLoadingState } from '@/components/layout/page-loading-skeletons';
 import { PageHeader } from '@/components/ui/page-shell';
-import { Skeleton } from '@/components/ui/skeleton';
 import { AppErrorState } from '@/components/error/app-error-state';
 import { useI18n } from '@/components/providers/i18n-provider';
 import { getApiErrorMessage } from '@/lib/api/client';
 import { getCurrentUser, updateProfile } from '@/lib/api/dentist';
+import { useDirtyFormWarning } from '@/lib/hooks/use-dirty-form-warning';
 import { useInstantLogout } from '@/lib/auth/use-instant-logout';
 import {
     INPUT_LIMITS,
@@ -29,44 +30,11 @@ interface AdminAccountDraft {
     email: string;
 }
 
-function AdminSettingsLoadingSkeleton() {
-    return (
-        <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(219,234,254,0.55),transparent_34rem),linear-gradient(180deg,#f8fbff_0%,#f8fafc_42%,#f1f5f9_100%)]">
-            <div className="border-b border-teal-100/70 bg-white px-4 py-3 sm:px-6 lg:px-8">
-                <div className="mx-auto flex max-w-[1440px] items-center justify-between">
-                    <Skeleton className="h-10 w-36 rounded-md" />
-                    <Skeleton className="h-10 w-80 rounded-2xl" />
-                </div>
-            </div>
-            <main className="p-4 sm:p-5 lg:p-6">
-                <div className="mx-auto max-w-5xl space-y-5 lg:space-y-6">
-                    <div className="space-y-2">
-                        <Skeleton className="h-9 w-64" />
-                        <Skeleton className="h-4 w-72" />
-                    </div>
-                    <Card>
-                        <CardHeader>
-                            <Skeleton className="h-6 w-32" />
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                            <Skeleton className="h-4 w-48" />
-                            <Skeleton className="h-4 w-64" />
-                            <Skeleton className="h-4 w-36" />
-                        </CardContent>
-                    </Card>
-                    <Card>
-                        <CardHeader>
-                            <Skeleton className="h-6 w-44" />
-                        </CardHeader>
-                        <CardContent>
-                            <Skeleton className="h-20 w-full" />
-                        </CardContent>
-                    </Card>
-                </div>
-            </main>
-        </div>
-    );
-}
+// The inline `AdminSettingsLoadingSkeleton` was removed in favour of the
+// shared `AdminSettingsLoadingState`. The inline version drew a different
+// header pattern and used plain `h-4` body lines where the real page
+// renders a 2-column form-field grid — produced a visible jump on each
+// auth-query revalidation.
 
 export default function AdminSettingsPage() {
     const { t } = useI18n();
@@ -126,6 +94,18 @@ export default function AdminSettingsPage() {
         });
     };
 
+    // Detect unsaved edits so the browser surfaces a confirmation on tab close
+    // / hard navigation. Soft client-side navigation can't be intercepted via
+    // beforeunload but admin is unlikely to leave by accident in-app.
+    const isDirty = accountDraft !== null
+        && authQuery.data !== undefined
+        && (accountDraft.name !== authQuery.data.name || accountDraft.email !== authQuery.data.email);
+
+    // Shared dirty-form warning — extracted from this page into a hook
+    // so edit-patient and add-appointment dialogs can re-use the same
+    // contract (FA-X7 G9).
+    useDirtyFormWarning(isDirty);
+
     useEffect(() => {
         if (authQuery.isError && !authQuery.isLoading) {
             router.push('/admin/login');
@@ -138,7 +118,7 @@ export default function AdminSettingsPage() {
     }, [authQuery.data, authQuery.isError, authQuery.isLoading, router]);
 
     if (authQuery.isLoading) {
-        return <AdminSettingsLoadingSkeleton />;
+        return <AdminSettingsLoadingState />;
     }
 
     return (

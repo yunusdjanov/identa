@@ -35,7 +35,22 @@ class DentistAccountController extends Controller
     {
         $search = $request->input('filter.search');
         $status = $request->input('filter.status');
-        $summaryQuery = User::query()->where('role', User::ROLE_DENTIST);
+        // Reject 1-character search terms — `LIKE '%a%'` forces a full table
+        // scan that an admin or compromised admin session can issue rapidly
+        // enough to DoS the DB. The throttle on the route is defense in
+        // depth; this is the cheap filter.
+        if (is_string($search) && trim($search) !== '' && mb_strlen(trim($search)) < 2) {
+            throw ValidationException::withMessages([
+                'filter.search' => ['Search term must be at least 2 characters.'],
+            ]);
+        }
+        // Summary excludes soft-deleted accounts so the header strip stays
+        // consistent with the default visible list. When the admin explicitly
+        // opens the Archive view (include_deleted=1), the same scope makes
+        // the summary reflect that filter too.
+        $summaryQuery = User::query()
+            ->where('role', User::ROLE_DENTIST)
+            ->where('account_status', '!=', User::ACCOUNT_STATUS_DELETED);
 
         $query = User::query()
             ->where('role', User::ROLE_DENTIST)
@@ -44,7 +59,15 @@ class DentistAccountController extends Controller
                 'appointments',
                 'assistants as active_assistants_count' => fn (Builder $builder) => $builder
                     ->where('account_status', User::ACCOUNT_STATUS_ACTIVE),
+                // Eager-load the total count so transformDentist's fallback
+                // does not fire a per-row `assistants()->count()` (former N+1).
+                'assistants as total_assistants_count' => fn (Builder $builder) => $builder
+                    ->where('account_status', '!=', User::ACCOUNT_STATUS_DELETED),
             ])
+            // Eager-load subscriptions + plan so `subscriptionSummary()` →
+            // `currentForOwner()` reuses the preloaded relation instead of
+            // hitting the DB once per dentist row (former N+1).
+            ->with(['subscriptions.plan'])
             ->orderByDesc('created_at');
 
         if (is_string($search) && $search !== '') {
@@ -54,6 +77,10 @@ class DentistAccountController extends Controller
 
         if (is_string($status) && $status !== '') {
             $query->where('account_status', $status);
+        } elseif (! $request->boolean('filter.include_deleted')) {
+            // Hide soft-deleted accounts from the default list — admins
+            // manage them from an explicit "Archive" view.
+            $query->where('account_status', '!=', User::ACCOUNT_STATUS_DELETED);
         }
 
         $dentists = $query->paginate($this->resolvePerPage($request));
@@ -137,9 +164,19 @@ class DentistAccountController extends Controller
 
     public function staff(string $id): JsonResponse
     {
-        $dentist = $this->findDentist($id, true);
+        // Soft-deleted dentists do not get a staff roster: their account is
+        // closed, the assistants are presumed transferred/inactive. Returning
+        // PII here serves no admin diagnostic purpose and only widens the
+        // surface for data leak.
+        $dentist = $this->findDentist($id, false);
 
+        // Exclude soft-deleted assistants from the admin roster. Their PII
+        // (name, email, phone, last_login) should not appear once they have
+        // been removed from active service; if forensic review is needed,
+        // it should go through a dedicated audit-log surface, not the live
+        // staff list.
         $staff = $dentist->assistants()
+            ->where('account_status', '!=', User::ACCOUNT_STATUS_DELETED)
             ->orderBy('account_status')
             ->orderBy('name')
             ->get();
@@ -246,7 +283,7 @@ class DentistAccountController extends Controller
             ),
             'set_basic_monthly' => $this->subscriptionService->overridePlan(
                 owner: $dentist,
-                plan: $this->findPlan(Plan::CODE_BASIC),
+                plan: $this->findPlan(Plan::CODE_BASIC, expectPaid: true),
                 billingPeriod: Subscription::PERIOD_MONTHLY,
                 paymentMethod: $paymentMethod,
                 paymentAmount: $paymentAmount,
@@ -254,7 +291,7 @@ class DentistAccountController extends Controller
             ),
             'set_basic_yearly' => $this->subscriptionService->overridePlan(
                 owner: $dentist,
-                plan: $this->findPlan(Plan::CODE_BASIC),
+                plan: $this->findPlan(Plan::CODE_BASIC, expectPaid: true),
                 billingPeriod: Subscription::PERIOD_YEARLY,
                 paymentMethod: $paymentMethod,
                 paymentAmount: $paymentAmount,
@@ -262,7 +299,7 @@ class DentistAccountController extends Controller
             ),
             'set_pro_monthly' => $this->subscriptionService->overridePlan(
                 owner: $dentist,
-                plan: $this->findPlan(Plan::CODE_PRO),
+                plan: $this->findPlan(Plan::CODE_PRO, expectPaid: true),
                 billingPeriod: Subscription::PERIOD_MONTHLY,
                 paymentMethod: $paymentMethod,
                 paymentAmount: $paymentAmount,
@@ -270,7 +307,7 @@ class DentistAccountController extends Controller
             ),
             'set_pro_yearly' => $this->subscriptionService->overridePlan(
                 owner: $dentist,
-                plan: $this->findPlan(Plan::CODE_PRO),
+                plan: $this->findPlan(Plan::CODE_PRO, expectPaid: true),
                 billingPeriod: Subscription::PERIOD_YEARLY,
                 paymentMethod: $paymentMethod,
                 paymentAmount: $paymentAmount,
@@ -291,9 +328,21 @@ class DentistAccountController extends Controller
         ]);
         $newSubscription = $dentist->subscriptionSummary();
 
+        // Emit a specific event type per action category so finance dashboards
+        // and audit-log filters can separate cancellations, mark-only state
+        // flips, and revenue-recording paid actions without scraping metadata.
+        $eventType = match (true) {
+            $action === 'cancel_at_period_end' => 'admin.dentist.subscription_cancel_at_period_end',
+            $action === 'cancel_now' => 'admin.dentist.subscription_cancel_now',
+            $action === 'mark_read_only' => 'admin.dentist.subscription_mark_read_only',
+            $action === 'mark_active' => 'admin.dentist.subscription_mark_active',
+            $action === 'set_trial' => 'admin.dentist.subscription_set_trial',
+            default => 'admin.dentist.subscription_updated',
+        };
+
         $this->auditLogger->logFromRequest(
             request: $request,
-            eventType: 'admin.dentist.subscription_updated',
+            eventType: $eventType,
             entityType: 'user',
             entityId: (string) $dentist->id,
             metadata: [
@@ -329,6 +378,28 @@ class DentistAccountController extends Controller
             'account_status' => $status,
         ]);
 
+        // Revoke active Sanctum tokens when blocking. Without this the
+        // blocked dentist's existing PAT/cookie session keeps full access
+        // until expiry — middleware EnsureRole catches the assistants on
+        // their next request, but the dentist themselves can still hit
+        // every endpoint that does not re-check account_status.
+        //
+        // Cascade to the dentist's assistants as well. Their tokens were
+        // previously left in the DB until the middleware re-check fired on
+        // the next request; that closes the access door at runtime but the
+        // token row persists until expiry. A leaked PAT is the durable
+        // attack surface — revoke it explicitly so token deletion is the
+        // ground truth for "this account can no longer authenticate".
+        $revokedTokenCount = 0;
+        if ($status === User::ACCOUNT_STATUS_BLOCKED) {
+            $revokedTokenCount = $dentist->tokens()->count();
+            $dentist->tokens()->delete();
+            foreach ($dentist->assistants as $assistant) {
+                $revokedTokenCount += $assistant->tokens()->count();
+                $assistant->tokens()->delete();
+            }
+        }
+
         $this->auditLogger->logFromRequest(
             request: $request,
             eventType: 'admin.dentist.status_updated',
@@ -337,6 +408,7 @@ class DentistAccountController extends Controller
             metadata: [
                 'old_status' => $oldStatus,
                 'new_status' => $status,
+                'revoked_tokens' => $revokedTokenCount,
             ],
         );
 
@@ -353,7 +425,24 @@ class DentistAccountController extends Controller
         $dentist->update([
             'password' => Hash::make($newPassword),
             'remember_token' => null,
+            // Force a rotation on next login so an admin-chosen password is
+            // never a permanent credential. Mirrors the assistant flow in
+            // TeamAssistantService::resetPassword.
+            'must_change_password' => true,
         ]);
+
+        // Revoke every active Sanctum personal-access token. Without this,
+        // any session/PAT the dentist already has (or that an attacker has
+        // exfiltrated) survives the password reset and keeps full access —
+        // the same blind spot would defeat the audit trail this method writes.
+        $dentist->tokens()->delete();
+        // Cascade to assistants — their tokens were minted under the same
+        // owner-tenant, and a dentist credential rotation should not leave
+        // assistant PATs alive on the previous owner-state. (Their passwords
+        // are separate, but token-bearer access does not need the password.)
+        foreach ($dentist->assistants as $assistant) {
+            $assistant->tokens()->delete();
+        }
 
         $this->auditLogger->logFromRequest(
             request: $request,
@@ -367,6 +456,79 @@ class DentistAccountController extends Controller
                 'dentist_id' => (string) $dentist->id,
                 'password_reset' => true,
             ],
+        ]);
+    }
+
+    public function verifyEmail(Request $request, string $id): JsonResponse
+    {
+        $dentist = $this->findDentist($id, false);
+
+        if ($dentist->email_verified_at === null) {
+            $dentist->forceFill(['email_verified_at' => now()])->save();
+
+            $this->auditLogger->logFromRequest(
+                request: $request,
+                eventType: 'admin.dentist.email_verified',
+                entityType: 'user',
+                entityId: (string) $dentist->id,
+            );
+        }
+
+        return response()->json([
+            'data' => $this->transformDentist($dentist->fresh()->loadCount(['patients', 'appointments'])),
+        ]);
+    }
+
+    public function restore(Request $request, string $id): JsonResponse
+    {
+        $dentist = $this->findDentist($id, true);
+
+        $startedTrial = false;
+        if ($dentist->account_status === User::ACCOUNT_STATUS_DELETED) {
+            $dentist->update([
+                'account_status' => User::ACCOUNT_STATUS_ACTIVE,
+            ]);
+
+            // When the dentist was deleted, `destroy()` called
+            // `cancelImmediately` on the subscription. Restoring the
+            // account flips the status flag back to active, but leaves the
+            // subscription in `canceled` / `read_only` — so the dentist
+            // can log in but immediately bumps into a "subscription
+            // inactive" wall. Mint a fresh trial as part of restore so
+            // the admin's "un-delete" mental model actually returns the
+            // user to a working state. `startTrial` is idempotent: if a
+            // live subscription somehow still exists it activates it
+            // instead of double-creating.
+            try {
+                $this->subscriptionService->startTrial(
+                    owner: $dentist,
+                    note: 'Trial restarted after account restore.',
+                );
+                $startedTrial = true;
+            } catch (\Throwable $e) {
+                // Trial provisioning is best-effort — the restore should
+                // succeed even if a configuration issue blocks the trial
+                // (e.g. trial plan inactive). Audit captures the outcome
+                // so an admin investigating "why can't the dentist log
+                // in" sees the failure path.
+                $startedTrial = false;
+            }
+
+            $this->auditLogger->logFromRequest(
+                request: $request,
+                eventType: 'admin.dentist.restored',
+                entityType: 'user',
+                entityId: (string) $dentist->id,
+                metadata: [
+                    'previous_status' => User::ACCOUNT_STATUS_DELETED,
+                    'new_status' => User::ACCOUNT_STATUS_ACTIVE,
+                    'trial_restarted' => $startedTrial,
+                ],
+            );
+        }
+
+        return response()->json([
+            'data' => $this->transformDentist($dentist->fresh()->loadCount(['patients', 'appointments'])),
         ]);
     }
 
@@ -384,6 +546,35 @@ class DentistAccountController extends Controller
             'account_status' => User::ACCOUNT_STATUS_DELETED,
         ]);
 
+        // Revoke every active Sanctum token so the deleted dentist can no
+        // longer hit any endpoint via their existing session/PAT. Without
+        // this they keep full access until token/cookie expiry. Cascade to
+        // assistants for the same reason — see block-status comment above.
+        $revokedTokenCount = $dentist->tokens()->count();
+        $dentist->tokens()->delete();
+        foreach ($dentist->assistants as $assistant) {
+            $revokedTokenCount += $assistant->tokens()->count();
+            $assistant->tokens()->delete();
+        }
+
+        // Cancel the active subscription so revenue reporting and renewal
+        // cycles stop treating a deleted dentist as an active payer.
+        // cancelImmediately is idempotent and gracefully handles the
+        // no-subscription case.
+        $cancelledSubscription = false;
+        try {
+            $this->subscriptionService->cancelImmediately(
+                owner: $dentist,
+                note: 'Cancelled by admin.dentist.deleted cascade',
+            );
+            $cancelledSubscription = true;
+        } catch (\Throwable $e) {
+            // Subscription cancellation is best-effort — the delete must
+            // succeed even if no subscription exists. Audit captures the
+            // outcome for forensic review.
+            $cancelledSubscription = false;
+        }
+
         $this->auditLogger->logFromRequest(
             request: $request,
             eventType: 'admin.dentist.deleted',
@@ -392,6 +583,8 @@ class DentistAccountController extends Controller
             metadata: [
                 'old_status' => $oldStatus,
                 'new_status' => User::ACCOUNT_STATUS_DELETED,
+                'revoked_tokens' => $revokedTokenCount,
+                'subscription_cancelled' => $cancelledSubscription,
             ],
         );
 
@@ -434,6 +627,8 @@ class DentistAccountController extends Controller
             'registration_date' => $dentist->created_at?->toDateString(),
             'status' => $dentist->account_status,
             'last_login' => $dentist->last_login_at?->toIso8601String(),
+            'email_verified' => $dentist->email_verified_at !== null,
+            'avatar_url' => $dentist->avatar_url,
             'patient_count' => $dentist->patients_count ?? 0,
             'appointment_count' => $dentist->appointments_count ?? 0,
             'active_staff_count' => $dentist->activeAssistantsCount(),
@@ -442,10 +637,34 @@ class DentistAccountController extends Controller
         ];
     }
 
-    private function findPlan(string $code): Plan
+    /**
+     * Resolve a plan by code with lockForUpdate so a concurrent admin
+     * deactivation cannot race the assignment. The caller signals whether
+     * the action is paid (Basic/Pro) so the helper enforces is_paid=true,
+     * preventing accidental assignment of a paid action onto the trial
+     * plan or a plan an admin deactivated mid-flow.
+     */
+    private function findPlan(string $code, bool $expectPaid = false): Plan
     {
+        $query = Plan::query()
+            ->where('code', $code)
+            ->where('is_active', true)
+            ->lockForUpdate();
+
+        if ($expectPaid) {
+            $query->where('is_paid', true);
+        }
+
         /** @var Plan $plan */
-        $plan = Plan::query()->where('code', $code)->firstOrFail();
+        $plan = $query->first();
+
+        if ($plan === null) {
+            throw ValidationException::withMessages([
+                'plan_code' => [$expectPaid
+                    ? 'Plan is not available for paid assignment.'
+                    : 'Plan is not available.'],
+            ]);
+        }
 
         return $plan;
     }
@@ -481,6 +700,7 @@ class DentistAccountController extends Controller
             'name' => $assistant->name,
             'email' => $assistant->email,
             'phone' => $assistant->phone,
+            'avatar_url' => $assistant->avatar_url,
             'account_status' => $assistant->account_status,
             'assistant_permissions' => $assistant->assistant_permissions ?? [],
             'must_change_password' => (bool) $assistant->must_change_password,

@@ -15,7 +15,7 @@ export const DEFAULT_APPOINTMENT_WORKING_HOURS: NormalizedAppointmentWorkingHour
     end: '20:00',
 };
 
-export const APPOINTMENT_SLOT_STEP_MINUTES = 30;
+const APPOINTMENT_SLOT_STEP_MINUTES = 30;
 
 export function toMinutesFromTime(timeInput: string): number {
     const [hours, minutes] = timeInput.split(':').map(Number);

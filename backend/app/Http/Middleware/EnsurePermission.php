@@ -34,7 +34,12 @@ class EnsurePermission
             ], Response::HTTP_UNAUTHORIZED);
         }
 
-        if (! $user->hasActiveAccount()) {
+        // `hasActiveAccessChain` re-checks the owning dentist for
+        // assistants — mirrors EnsureRole's contract so an assistant
+        // whose dentist owner was blocked is bounced even if the route
+        // chain skipped role middleware (defensive against future
+        // refactors that add permission-only routes).
+        if (! $user->hasActiveAccessChain()) {
             return response()->json([
                 'error' => [
                     'code' => 'account_inactive',

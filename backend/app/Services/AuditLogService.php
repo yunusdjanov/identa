@@ -23,16 +23,21 @@ class AuditLogService
     ];
 
     /**
+     * Events hidden from the dentist's audit-log UI. We deliberately do
+     * NOT hide `team.assistant.*` events — they're the exact rows a
+     * dentist (or compromised-session investigator) should be able to
+     * inspect: who created/blocked/reset-password-on/deleted which
+     * assistant, and when. The previous hide list defeated the audit
+     * trail for the very actions that matter most for tenant security.
+     * `auth.login`/`auth.logout` stay hidden because they fire on every
+     * page load — they would drown the panel in noise without forensic
+     * value beyond what the session timeline already shows.
+     *
      * @var list<string>
      */
     private const HIDDEN_EVENT_TYPES = [
         'auth.login',
         'auth.logout',
-        'team.assistant.created',
-        'team.assistant.updated',
-        'team.assistant.status_updated',
-        'team.assistant.password_reset',
-        'team.assistant.deleted',
     ];
 
     public function list(Request $request): LengthAwarePaginator

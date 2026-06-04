@@ -15,14 +15,15 @@ import {
 } from 'lucide-react';
 
 import { AdminHeader } from '@/components/admin/admin-header';
+import { AdminDentistStaffLoadingState } from '@/components/layout/page-loading-skeletons';
 import { AppErrorState } from '@/components/error/app-error-state';
 import { useI18n } from '@/components/providers/i18n-provider';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { DataTableShell, getDataTableClassName } from '@/components/ui/data-table-shell';
 import { PageHeader, SectionPanel } from '@/components/ui/page-shell';
-import { Skeleton } from '@/components/ui/skeleton';
 import {
     Table,
     TableBody,
@@ -42,6 +43,14 @@ import { useInstantLogout } from '@/lib/auth/use-instant-logout';
 import { formatLocalizedDate } from '@/lib/i18n/date';
 import { cn, truncateForUi } from '@/lib/utils';
 
+function getStaffInitials(name: string): string {
+    const parts = name.trim().split(/\s+/);
+    if (parts.length >= 2) {
+        return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    }
+    return name.slice(0, 2).toUpperCase();
+}
+
 function getStatusBadgeClassName(status: ApiAssistantAccount['account_status']): string {
     if (status === 'active') {
         return 'border-emerald-100 bg-emerald-50 text-emerald-700';
@@ -54,36 +63,13 @@ function getStatusBadgeClassName(status: ApiAssistantAccount['account_status']):
     return 'border-slate-200 bg-slate-100 text-slate-500';
 }
 
-function StaffPageSkeleton() {
-    return (
-        <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(219,234,254,0.55),transparent_34rem),linear-gradient(180deg,#f8fbff_0%,#f8fafc_42%,#f1f5f9_100%)]">
-            <AdminHeader active="dashboard" onLogout={() => undefined} />
-            <main className="p-3 sm:p-5 lg:p-6">
-                <div className="mx-auto max-w-[1440px] space-y-5 lg:space-y-6">
-                    <div className="rounded-2xl border border-white/80 bg-white p-6">
-                        <Skeleton className="h-10 w-72" />
-                        <Skeleton className="mt-3 h-4 w-96 max-w-full" />
-                    </div>
-                    <div className="grid gap-4 md:grid-cols-3">
-                        {Array.from({ length: 3 }).map((_, index) => (
-                            <Card key={index} className="rounded-2xl border-slate-200/80">
-                                <CardContent className="p-5">
-                                    <Skeleton className="h-4 w-28" />
-                                    <Skeleton className="mt-5 h-8 w-16" />
-                                </CardContent>
-                            </Card>
-                        ))}
-                    </div>
-                    <SectionPanel className="space-y-4">
-                        {Array.from({ length: 5 }).map((_, index) => (
-                            <Skeleton key={index} className="h-20 rounded-2xl" />
-                        ))}
-                    </SectionPanel>
-                </div>
-            </main>
-        </div>
-    );
-}
+// The inline `StaffPageSkeleton` was previously declared here, but it
+// drifted from the real layout (5 stacked rows where the real page has a
+// 6-column data table, and `max-w-[1440px]` where the real page is
+// `max-w-5xl`). Each in-page revalidation produced a visible jump from the
+// route-level skeleton → this inline one → the real layout. Importing the
+// shared `AdminDentistStaffLoadingState` keeps the route-level and in-page
+// shapes identical.
 
 export default function AdminDentistStaffPage() {
     const { t, locale } = useI18n();
@@ -142,11 +128,11 @@ export default function AdminDentistStaffPage() {
         authQuery.isLoading
         || (authQuery.data?.role === 'admin' && (dentistQuery.isLoading || staffQuery.isLoading))
     ) {
-        return <StaffPageSkeleton />;
+        return <AdminDentistStaffLoadingState />;
     }
 
     if (authQuery.data?.role !== 'admin') {
-        return <StaffPageSkeleton />;
+        return <AdminDentistStaffLoadingState />;
     }
 
     if (dentistQuery.isError || staffQuery.isError) {
@@ -161,6 +147,12 @@ export default function AdminDentistStaffPage() {
                             title={t('common.loadErrorTitle')}
                             description={getApiErrorMessage(error, t('admin.staffDialog.loadFailed'))}
                             onRetry={() => {
+                                // Refetch auth too — a 401 on dentist/staff
+                                // queries usually means the admin session
+                                // expired; refetching ['auth','me'] surfaces
+                                // that and triggers the redirect-to-login
+                                // useEffect rather than looping the same error.
+                                void authQuery.refetch();
                                 void dentistQuery.refetch();
                                 void staffQuery.refetch();
                             }}
@@ -176,7 +168,7 @@ export default function AdminDentistStaffPage() {
 
     const dentist = dentistQuery.data;
     if (!dentist) {
-        return <StaffPageSkeleton />;
+        return <AdminDentistStaffLoadingState />;
     }
 
     const staffLimit = dentist.subscription?.staff_limit;
@@ -221,20 +213,25 @@ export default function AdminDentistStaffPage() {
                             icon={<Users className="h-4 w-4" />}
                             label={t('admin.staffPage.summary.total')}
                             value={stats.total}
-                            tone="teal"
+                            tone="blue"
                         />
+                        {/* Active count prefers `subscription.active_staff_count`
+                            (backend's authoritative billing figure) over the
+                            client-side filter — they should agree, but a stale
+                            staff_limit downgrade can briefly disagree and we
+                            want the billable number displayed. */}
                         <StaffStatCard
                             icon={<UserCheck className="h-4 w-4" />}
                             label={t('admin.staffPage.summary.active')}
-                            value={stats.active}
+                            value={activeStaff}
                             description={t('admin.staffPage.summary.limit', { count: staffUsage })}
-                            tone="green"
+                            tone="teal"
                         />
                         <StaffStatCard
                             icon={<Ban className="h-4 w-4" />}
                             label={t('admin.staffPage.summary.blocked')}
                             value={stats.blocked}
-                            tone="amber"
+                            tone="red"
                         />
                     </div>
 
@@ -286,14 +283,34 @@ export default function AdminDentistStaffPage() {
                                             {staffMembers.map((staff) => (
                                                 <TableRow key={staff.id}>
                                                     <TableCell>
-                                                        <div className="min-w-0">
-                                                            <p className="font-semibold text-slate-950">
-                                                                {truncateForUi(staff.name, 34)}
-                                                            </p>
-                                                            <p className="mt-1 flex items-center gap-1.5 text-xs text-slate-500">
-                                                                <Mail className="h-3.5 w-3.5" />
-                                                                {truncateForUi(staff.email, 36)}
-                                                            </p>
+                                                        <div className="flex items-center gap-3 min-w-0">
+                                                            <Avatar>
+                                                                {staff.avatar_url ? (
+                                                                    /* Avatar URL comes from user input on the dentist side
+                                                                       (and may eventually be admin-uploaded). Without a
+                                                                       referrer policy a malicious host can capture admin
+                                                                       session URLs; `no-referrer` blocks that leak. The
+                                                                       fallback initials render automatically if the load
+                                                                       errors out. */
+                                                                    <AvatarImage
+                                                                        src={staff.avatar_url}
+                                                                        alt={staff.name}
+                                                                        referrerPolicy="no-referrer"
+                                                                    />
+                                                                ) : null}
+                                                                <AvatarFallback className="bg-teal-50 text-teal-700 font-semibold">
+                                                                    {getStaffInitials(staff.name)}
+                                                                </AvatarFallback>
+                                                            </Avatar>
+                                                            <div className="min-w-0">
+                                                                <p className="font-semibold text-slate-950 truncate">
+                                                                    {truncateForUi(staff.name, 34)}
+                                                                </p>
+                                                                <p className="mt-1 flex items-center gap-1.5 text-xs text-slate-500">
+                                                                    <Mail className="h-3.5 w-3.5 shrink-0" />
+                                                                    <span className="truncate">{truncateForUi(staff.email, 36)}</span>
+                                                                </p>
+                                                            </div>
                                                         </div>
                                                     </TableCell>
                                                     <TableCell className="text-sm text-slate-600">
@@ -404,12 +421,14 @@ function StaffStatCard({
     label: string;
     value: number;
     description?: string;
-    tone: 'teal' | 'green' | 'amber';
+    tone: 'blue' | 'teal' | 'green' | 'amber' | 'red';
 }) {
     const toneClassName = {
+        blue: 'border-blue-100 bg-[linear-gradient(135deg,rgba(255,255,255,0.98)_0%,rgba(219,234,254,0.72)_100%)] text-blue-600',
         teal: 'border-teal-100 bg-[linear-gradient(135deg,rgba(255,255,255,0.98)_0%,rgba(204,251,241,0.72)_100%)] text-teal-600',
         green: 'border-emerald-100 bg-[linear-gradient(135deg,rgba(255,255,255,0.98)_0%,rgba(236,253,245,0.72)_100%)] text-emerald-600',
         amber: 'border-amber-100 bg-[linear-gradient(135deg,rgba(255,255,255,0.98)_0%,rgba(255,251,235,0.72)_100%)] text-amber-600',
+        red: 'border-red-100 bg-[linear-gradient(135deg,rgba(255,255,255,0.98)_0%,rgba(254,226,226,0.72)_100%)] text-red-600',
     }[tone];
 
     return (
@@ -417,7 +436,7 @@ function StaffStatCard({
             <CardContent className="flex items-center justify-between gap-4 p-5">
                 <div>
                     <p className="text-sm font-semibold text-slate-600">{label}</p>
-                    <p className="mt-3 text-xl font-bold tracking-[-0.03em] text-slate-950">{value}</p>
+                    <p className="mt-3 text-2xl font-bold tracking-[-0.03em] text-slate-950">{value}</p>
                     {description ? <p className="mt-1 text-xs text-slate-500">{description}</p> : null}
                 </div>
                 <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white shadow-sm shadow-slate-200/70">

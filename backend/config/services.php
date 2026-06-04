@@ -40,13 +40,14 @@ return [
     ],
 
     'payx' => [
-        'merchant_id' => env('PAYX_MERCHANT_ID'),
-        'api_key' => env('PAYX_API_KEY'),
-        'secret_key' => env('PAYX_SECRET_KEY'),
-        'webhook_secret' => env('PAYX_WEBHOOK_SECRET'),
-        'base_url' => env('PAYX_BASE_URL'),
-        'return_url' => env('PAYX_RETURN_URL'),
-        'cancel_url' => env('PAYX_CANCEL_URL'),
+        // PayX API integration.
+        // Docs: https://payx.uz/docs (POST /api/v1/invoice + webhook).
+        // The API token is the merchant's Bearer token (pk_test_... or
+        // pk_live_...). The project token is the static Bearer token PayX
+        // attaches to every webhook so the receiver can verify the origin.
+        'base_url' => env('PAYX_BASE_URL', 'https://backend.payx.uz'),
+        'api_token' => env('PAYX_API_TOKEN'),
+        'project_token' => env('PAYX_PROJECT_TOKEN'),
     ],
 
 ];
