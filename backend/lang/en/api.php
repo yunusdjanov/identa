@@ -12,6 +12,11 @@ return [
         'email_verification_send_failed' => 'Could not send the email. Please try again later.',
         'password_change_required' => 'Please change your password before continuing.',
         'google_link_required' => 'An account with this email already exists. Sign in with your password first, then connect Google from Settings.',
+        'google_link_already_linked' => 'Google is already connected to your account.',
+        'google_link_conflict' => 'This Google account is connected to a different user.',
+        'google_link_email_mismatch' => 'The Google email must match the email on your Identa account.',
+        'google_unlink_not_linked' => 'Google is not connected to your account.',
+        'google_unlink_needs_password' => 'Set a password before disconnecting Google so you can still sign in.',
     ],
     'appointments' => [
         'conflict' => 'Appointment time conflicts with an existing appointment.',

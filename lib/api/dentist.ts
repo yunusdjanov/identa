@@ -185,6 +185,40 @@ export async function loginWithGoogleIdToken(idToken: string): Promise<ApiUser> 
     return data.data;
 }
 
+/**
+ * Connected Accounts → Link Google
+ *
+ * Posts a fresh Google Identity Services ID token to the authenticated
+ * link endpoint. The backend re-verifies the token (audience / subject /
+ * email-match) before binding `google_id` to the current user, so the
+ * client only has to hand over the credential.
+ */
+export async function linkGoogleAccount(idToken: string): Promise<ApiUser> {
+    const { data } = await withCsrfRetry(() =>
+        apiClient.post<{ data: ApiUser }>('/auth/google/link', {
+            id_token: idToken,
+        })
+    );
+
+    return data.data;
+}
+
+/**
+ * Connected Accounts → Unlink Google
+ *
+ * Backend refuses if the user has no password fallback — otherwise they
+ * would lock themselves out. The frontend mirrors that guard by hiding
+ * the disconnect button when `has_password === false`, but the server
+ * remains the source of truth.
+ */
+export async function unlinkGoogleAccount(): Promise<ApiUser> {
+    const { data } = await withCsrfRetry(() =>
+        apiClient.delete<{ data: ApiUser }>('/auth/google/link')
+    );
+
+    return data.data;
+}
+
 export async function resendEmailVerification(): Promise<string> {
     const { data } = await withCsrfRetry(() =>
         apiClient.post<{ message?: string }>('/auth/email/verification-notification')

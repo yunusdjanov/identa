@@ -67,6 +67,31 @@ class AuthController extends Controller
         ]);
     }
 
+    public function linkGoogle(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'id_token' => ['required', 'string'],
+        ]);
+        /** @var User $user */
+        $user = $request->user();
+        $linked = $this->auth->linkGoogle($request, $user, (string) $validated['id_token']);
+
+        return response()->json([
+            'data' => $this->transformUser($linked),
+        ]);
+    }
+
+    public function unlinkGoogle(Request $request): JsonResponse
+    {
+        /** @var User $user */
+        $user = $request->user();
+        $unlinked = $this->auth->unlinkGoogle($request, $user);
+
+        return response()->json([
+            'data' => $this->transformUser($unlinked),
+        ]);
+    }
+
     public function login(Request $request): JsonResponse
     {
         $credentials = $request->validate([

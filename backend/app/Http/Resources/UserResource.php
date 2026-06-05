@@ -81,6 +81,12 @@ class UserResource extends JsonResource
             'email_verified_at' => $user->email_verified_at?->toIso8601String(),
             'email_verified' => $user->hasVerifiedEmail(),
             'has_password' => $user->password !== null,
+            // Tells the Settings → Connected Accounts panel whether the
+            // Google identity is currently bound to this user, regardless
+            // of which provider they originally signed up with. We never
+            // emit the raw `google_id` (Google's stable subject) since
+            // it's PII of limited value to the client.
+            'google_linked' => $user->google_id !== null,
             'account_status' => $user->account_status,
             'dentist_owner_id' => $user->dentist_owner_id !== null ? (string) $user->dentist_owner_id : null,
             'assistant_permissions' => User::normalizeAssistantPermissions($user->assistant_permissions ?? []),

@@ -12,6 +12,11 @@ return [
         'email_verification_send_failed' => 'Xat yuborilmadi. Keyinroq urinib ko‘ring.',
         'password_change_required' => 'Davom etishdan oldin parolingizni almashtiring.',
         'google_link_required' => 'Bu email allaqachon ro‘yxatdan o‘tgan. Avval parol bilan kiring, so‘ng Sozlamalardan Google’ni ulang.',
+        'google_link_already_linked' => 'Google allaqachon hisobingizga ulangan.',
+        'google_link_conflict' => 'Ushbu Google hisobi boshqa foydalanuvchiga ulangan.',
+        'google_link_email_mismatch' => 'Google email manzili Identa hisobingizdagi email bilan bir xil bo‘lishi kerak.',
+        'google_unlink_not_linked' => 'Google hisobingizga ulanmagan.',
+        'google_unlink_needs_password' => 'Google’ni uzishdan oldin parol o‘rnating — aks holda kira olmay qolasiz.',
     ],
     'appointments' => [
         'conflict' => 'Qabul vaqti mavjud qabul bilan to‘qnashmoqda.',

@@ -48,6 +48,16 @@ const PasswordSecurityCard = dynamic(
     }
 );
 
+const ConnectedAccountsCard = dynamic(
+    () => import('@/components/settings/connected-accounts-card').then((module) => module.ConnectedAccountsCard),
+    {
+        // Pulls in the Google Identity Services script lazily — must be
+        // client-only so the SSR pass doesn't see `window.google`.
+        ssr: false,
+        loading: () => <Skeleton className="h-36 w-full rounded-2xl" />,
+    }
+);
+
 const defaultProfile: DentistProfile = {
     id: '',
     name: '',
@@ -584,9 +594,18 @@ export default function SettingsPage() {
                     </TabsContent>
                 ) : null}
 
-                <TabsContent value="security">
+                <TabsContent value="security" className="space-y-5">
                     {currentUserQuery.data ? (
-                        <PasswordSecurityCard user={currentUserQuery.data} className="interactive-card" />
+                        <>
+                            <PasswordSecurityCard user={currentUserQuery.data} className="interactive-card" />
+                            {/* Assistants share the dentist owner's sign-in
+                                surface only conceptually — their own account
+                                lives under a dentist_owner_id. Linking a
+                                Google identity is a per-account choice, so
+                                we surface the panel for every viewer who
+                                can reach Settings (dentist + assistant). */}
+                            <ConnectedAccountsCard user={currentUserQuery.data} className="interactive-card" />
+                        </>
                     ) : null}
                 </TabsContent>
             </Tabs>

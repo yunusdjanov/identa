@@ -85,6 +85,17 @@ Route::prefix('v1')->group(function (): void {
             Route::post('/email/verification-notification', [AuthController::class, 'resendEmailVerification'])
                 ->middleware('throttle:6,1')
                 ->name('verification.send');
+            // Connected Accounts (Settings → Security). Linking is the
+            // authenticated counterpart to the public /auth/google flow
+            // (which hard-rejects unknown linkages). Unlinking refuses if
+            // there's no password fallback. Both are throttled to keep
+            // the auth surface predictable.
+            Route::post('/google/link', [AuthController::class, 'linkGoogle'])
+                ->middleware('throttle:10,1')
+                ->name('auth.google-link');
+            Route::delete('/google/link', [AuthController::class, 'unlinkGoogle'])
+                ->middleware('throttle:10,1')
+                ->name('auth.google-unlink');
         });
     });
 

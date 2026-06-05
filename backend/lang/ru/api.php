@@ -12,6 +12,11 @@ return [
         'email_verification_send_failed' => 'Не удалось отправить письмо. Попробуйте позже.',
         'password_change_required' => 'Прежде чем продолжить, измените пароль.',
         'google_link_required' => 'Аккаунт с этой почтой уже существует. Войдите с паролем, затем привяжите Google в настройках.',
+        'google_link_already_linked' => 'Google уже привязан к вашему аккаунту.',
+        'google_link_conflict' => 'Этот аккаунт Google привязан к другому пользователю.',
+        'google_link_email_mismatch' => 'Email в Google должен совпадать с email вашего аккаунта Identa.',
+        'google_unlink_not_linked' => 'Google не привязан к вашему аккаунту.',
+        'google_unlink_needs_password' => 'Перед отвязкой Google задайте пароль, чтобы сохранить доступ.',
     ],
     'appointments' => [
         'conflict' => 'Время приема пересекается с существующей записью.',

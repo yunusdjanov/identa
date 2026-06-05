@@ -58,6 +58,11 @@ export interface ApiUser {
     email_verified_at?: string | null;
     email_verified?: boolean;
     has_password?: boolean;
+    // Mirrors the backend google_id boolean projection — drives the
+    // Settings → Connected Accounts panel without exposing the raw
+    // Google subject. Decoupled from `provider` because a user can
+    // sign up with one method and later link the other.
+    google_linked?: boolean;
     account_status: 'active' | 'blocked' | 'deleted';
     dentist_owner_id?: string | null;
     assistant_permissions?: string[];

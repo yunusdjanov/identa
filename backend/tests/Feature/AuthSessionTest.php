@@ -231,6 +231,193 @@ class AuthSessionTest extends TestCase
         $this->assertSame('https://example.com/new.png', $user->avatar_url);
     }
 
+    public function test_link_google_attaches_subject_to_authenticated_user(): void
+    {
+        $this->createTrialPlan();
+        $user = User::factory()->create([
+            'email' => 'owner@example.com',
+            'password' => 'password123',
+            'provider' => 'email',
+            'google_id' => null,
+        ]);
+
+        $this->mock(GoogleIdentityService::class, function ($mock): void {
+            $mock
+                ->shouldReceive('verifyIdToken')
+                ->once()
+                ->andReturn([
+                    'sub' => 'owner-google-sub',
+                    'email' => 'owner@example.com',
+                    'email_verified' => true,
+                    'name' => 'Owner',
+                    'picture' => 'https://example.com/owner.png',
+                ]);
+        });
+
+        $this->actingAs($user)
+            ->postJson('/api/v1/auth/google/link', ['id_token' => 'owner-token'], $this->csrfHeaders())
+            ->assertOk()
+            ->assertJsonPath('data.google_linked', true)
+            ->assertJsonPath('data.has_password', true);
+
+        $user->refresh();
+        $this->assertSame('owner-google-sub', $user->google_id);
+        $this->assertSame('https://example.com/owner.png', $user->avatar_url);
+    }
+
+    public function test_link_google_rejects_when_token_email_mismatches_account(): void
+    {
+        $this->createTrialPlan();
+        $user = User::factory()->create([
+            'email' => 'owner@example.com',
+            'password' => 'password123',
+            'provider' => 'email',
+            'google_id' => null,
+        ]);
+
+        $this->mock(GoogleIdentityService::class, function ($mock): void {
+            $mock
+                ->shouldReceive('verifyIdToken')
+                ->once()
+                ->andReturn([
+                    'sub' => 'other-sub',
+                    'email' => 'someone-else@example.com',
+                    'email_verified' => true,
+                    'name' => 'Someone',
+                    'picture' => null,
+                ]);
+        });
+
+        $this->actingAs($user)
+            ->postJson('/api/v1/auth/google/link', ['id_token' => 'tok'], $this->csrfHeaders())
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['id_token']);
+
+        $this->assertNull($user->fresh()->google_id);
+    }
+
+    public function test_link_google_rejects_when_already_linked(): void
+    {
+        $this->createTrialPlan();
+        $user = User::factory()->create([
+            'email' => 'owner@example.com',
+            'password' => 'password123',
+            'provider' => 'google',
+            'google_id' => 'already-linked-sub',
+        ]);
+
+        $this->mock(GoogleIdentityService::class, function ($mock): void {
+            $mock
+                ->shouldReceive('verifyIdToken')
+                ->once()
+                ->andReturn([
+                    'sub' => 'another-sub',
+                    'email' => 'owner@example.com',
+                    'email_verified' => true,
+                    'name' => 'Owner',
+                    'picture' => null,
+                ]);
+        });
+
+        $this->actingAs($user)
+            ->postJson('/api/v1/auth/google/link', ['id_token' => 'tok'], $this->csrfHeaders())
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['id_token']);
+
+        $this->assertSame('already-linked-sub', $user->fresh()->google_id);
+    }
+
+    public function test_link_google_rejects_when_subject_claimed_by_another_user(): void
+    {
+        $this->createTrialPlan();
+        $owner = User::factory()->create([
+            'email' => 'owner@example.com',
+            'password' => 'password123',
+            'provider' => 'email',
+            'google_id' => null,
+        ]);
+        User::factory()->create([
+            'email' => 'other@example.com',
+            'password' => null,
+            'provider' => 'google',
+            'google_id' => 'shared-sub',
+        ]);
+
+        $this->mock(GoogleIdentityService::class, function ($mock): void {
+            $mock
+                ->shouldReceive('verifyIdToken')
+                ->once()
+                ->andReturn([
+                    'sub' => 'shared-sub',
+                    'email' => 'owner@example.com',
+                    'email_verified' => true,
+                    'name' => 'Owner',
+                    'picture' => null,
+                ]);
+        });
+
+        $this->actingAs($owner)
+            ->postJson('/api/v1/auth/google/link', ['id_token' => 'tok'], $this->csrfHeaders())
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['id_token']);
+
+        $this->assertNull($owner->fresh()->google_id);
+    }
+
+    public function test_unlink_google_detaches_subject_when_password_exists(): void
+    {
+        $this->createTrialPlan();
+        $user = User::factory()->create([
+            'email' => 'dual@example.com',
+            'password' => 'password123',
+            'provider' => 'google',
+            'google_id' => 'dual-sub',
+        ]);
+
+        $this->actingAs($user)
+            ->deleteJson('/api/v1/auth/google/link', [], $this->csrfHeaders())
+            ->assertOk()
+            ->assertJsonPath('data.google_linked', false);
+
+        $user->refresh();
+        $this->assertNull($user->google_id);
+        $this->assertSame('email', $user->provider);
+    }
+
+    public function test_unlink_google_rejects_when_no_password_set(): void
+    {
+        $this->createTrialPlan();
+        $user = User::factory()->create([
+            'email' => 'google-only@example.com',
+            'password' => null,
+            'provider' => 'google',
+            'google_id' => 'google-only-sub',
+        ]);
+
+        $this->actingAs($user)
+            ->deleteJson('/api/v1/auth/google/link', [], $this->csrfHeaders())
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['provider']);
+
+        $this->assertSame('google-only-sub', $user->fresh()->google_id);
+    }
+
+    public function test_unlink_google_rejects_when_not_linked(): void
+    {
+        $this->createTrialPlan();
+        $user = User::factory()->create([
+            'email' => 'pw-only@example.com',
+            'password' => 'password123',
+            'provider' => 'email',
+            'google_id' => null,
+        ]);
+
+        $this->actingAs($user)
+            ->deleteJson('/api/v1/auth/google/link', [], $this->csrfHeaders())
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['provider']);
+    }
+
     public function test_mobile_refresh_rotates_refresh_token_and_returns_new_access_token(): void
     {
         User::factory()->create([

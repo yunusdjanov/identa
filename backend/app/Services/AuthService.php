@@ -157,6 +157,117 @@ class AuthService
     }
 
     /**
+     * Link a verified Google identity to the currently-authenticated user.
+     *
+     * This is the safe counterpart to the public /auth/google endpoint
+     * (which now hard-rejects unknown linkages, per the security policy).
+     * The session itself proves the user owns the Identa account; binding
+     * Google to it only succeeds when (1) the ID token's email matches the
+     * account email and (2) that Google subject isn't already claimed by
+     * someone else.
+     */
+    public function linkGoogle(Request $request, User $user, string $idToken): User
+    {
+        $googleUser = $this->googleIdentityService->verifyIdToken($idToken);
+
+        $linked = DB::transaction(function () use ($user, $googleUser): User {
+            /** @var User $fresh */
+            $fresh = User::query()->whereKey($user->id)->lockForUpdate()->firstOrFail();
+
+            if ($fresh->google_id !== null) {
+                throw ValidationException::withMessages([
+                    'id_token' => [__('api.auth.google_link_already_linked')],
+                ]);
+            }
+
+            // Cross-user collision: a different Identa row already owns this
+            // Google subject. Should never happen unless the user has two
+            // accounts under different emails, but we still want a clean
+            // 422 instead of a unique-index 500.
+            $collision = User::query()
+                ->where('google_id', $googleUser['sub'])
+                ->whereKeyNot($fresh->id)
+                ->exists();
+            if ($collision) {
+                throw ValidationException::withMessages([
+                    'id_token' => [__('api.auth.google_link_conflict')],
+                ]);
+            }
+
+            if (! hash_equals(strtolower($fresh->email), strtolower((string) $googleUser['email']))) {
+                throw ValidationException::withMessages([
+                    'id_token' => [__('api.auth.google_link_email_mismatch')],
+                ]);
+            }
+
+            $fresh->forceFill([
+                'google_id' => $googleUser['sub'],
+                'avatar_url' => $googleUser['picture'] ?? $fresh->avatar_url,
+                'email_verified_at' => $fresh->email_verified_at ?? now(),
+            ])->save();
+
+            return $fresh->fresh();
+        });
+
+        $this->auditLogger->logFromRequest(
+            request: $request,
+            eventType: 'auth.google_linked',
+            entityType: 'user',
+            entityId: (string) $linked->id,
+            metadata: [
+                'has_password' => $linked->password !== null,
+            ],
+        );
+
+        return $linked;
+    }
+
+    /**
+     * Detach the Google identity from the currently-authenticated user.
+     *
+     * Refuses to unlink when no password is set — otherwise the user would
+     * lock themselves out (no email/password fallback, no Google). They
+     * must use forgot-password to set one first, then disconnect.
+     */
+    public function unlinkGoogle(Request $request, User $user): User
+    {
+        $unlinked = DB::transaction(function () use ($user): User {
+            /** @var User $fresh */
+            $fresh = User::query()->whereKey($user->id)->lockForUpdate()->firstOrFail();
+
+            if ($fresh->google_id === null) {
+                throw ValidationException::withMessages([
+                    'provider' => [__('api.auth.google_unlink_not_linked')],
+                ]);
+            }
+
+            if ($fresh->password === null) {
+                throw ValidationException::withMessages([
+                    'provider' => [__('api.auth.google_unlink_needs_password')],
+                ]);
+            }
+
+            $fresh->forceFill([
+                'google_id' => null,
+                // Provider flips back to email so the canonical sign-in
+                // method shown in Settings is accurate.
+                'provider' => 'email',
+            ])->save();
+
+            return $fresh->fresh();
+        });
+
+        $this->auditLogger->logFromRequest(
+            request: $request,
+            eventType: 'auth.google_unlinked',
+            entityType: 'user',
+            entityId: (string) $unlinked->id,
+        );
+
+        return $unlinked;
+    }
+
+    /**
      * @param  array<string, mixed>  $credentials
      */
     public function login(Request $request, array $credentials): User
