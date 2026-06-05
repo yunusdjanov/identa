@@ -118,7 +118,7 @@ function TabStripSkeleton({ count = 2 }: { count?: number }) {
 function AdminHeaderSkeleton() {
     return (
         <header className="border-b border-teal-100/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(248,251,255,0.94)_100%)]">
-            <div className="mx-auto max-w-[1440px] px-4 sm:px-6 lg:px-8">
+            <div className="mx-auto max-w-[1440px] px-3 sm:px-6 lg:px-8">
                 <div className="flex h-16 items-center justify-between">
                     <Skeleton className="h-10 w-36 rounded-md" />
                     <div className="hidden items-center gap-3 sm:flex">
@@ -146,7 +146,7 @@ function AdminShellSkeleton({
             className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(209,228,255,0.7),transparent_34rem),linear-gradient(180deg,#eaf1f8_0%,#e8edf5_45%,#e2e8f0_100%)]"
         >
             <AdminHeaderSkeleton />
-            <main className="p-3 sm:p-5 lg:p-6">
+            <main className="px-3 py-3 sm:px-6 sm:py-5 lg:px-8 lg:py-6">
                 <div className={`mx-auto ${maxWidth} space-y-5 lg:space-y-6`}>
                     {children}
                 </div>

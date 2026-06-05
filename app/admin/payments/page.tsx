@@ -254,7 +254,7 @@ export default function AdminPaymentsPage() {
         <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(219,234,254,0.55),transparent_34rem),linear-gradient(180deg,#f8fbff_0%,#f8fafc_42%,#f1f5f9_100%)]">
             <AdminHeader active="payments" onLogout={handleLogout} />
 
-            <main className="mx-auto max-w-[1440px] space-y-5 px-4 py-6 sm:px-6 sm:py-8 lg:space-y-6 lg:px-8">
+            <main className="mx-auto max-w-[1440px] space-y-5 px-3 py-6 sm:px-6 sm:py-8 lg:space-y-6 lg:px-8">
                 <PageHeader title={t('admin.paymentsTitle')} description={t('admin.paymentsSubtitle')} />
 
                 {/* Summary cards (gray → blue → teal accent progression) */}

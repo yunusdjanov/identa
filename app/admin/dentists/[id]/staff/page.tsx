@@ -141,7 +141,7 @@ export default function AdminDentistStaffPage() {
         return (
             <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(219,234,254,0.55),transparent_34rem),linear-gradient(180deg,#f8fbff_0%,#f8fafc_42%,#f1f5f9_100%)]">
                 <AdminHeader active="dashboard" onLogout={handleLogout} />
-                <main className="p-3 sm:p-5 lg:p-6">
+                <main className="px-3 py-3 sm:px-6 sm:py-5 lg:px-8 lg:py-6">
                     <div className="mx-auto max-w-[1440px]">
                         <AppErrorState
                             title={t('common.loadErrorTitle')}
@@ -181,7 +181,7 @@ export default function AdminDentistStaffPage() {
         <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(219,234,254,0.55),transparent_34rem),linear-gradient(180deg,#f8fbff_0%,#f8fafc_42%,#f1f5f9_100%)]">
             <AdminHeader active="dashboard" onLogout={handleLogout} />
 
-            <main className="p-3 sm:p-5 lg:p-6">
+            <main className="px-3 py-3 sm:px-6 sm:py-5 lg:px-8 lg:py-6">
                 <div className="mx-auto max-w-[1440px] space-y-5 lg:space-y-6">
                     <PageHeader
                         title={t('admin.staffPage.title', { name: dentist.name })}

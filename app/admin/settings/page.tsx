@@ -128,7 +128,7 @@ export default function AdminSettingsPage() {
                 onLogout={handleLogout}
             />
 
-        <main className="p-4 sm:p-5 lg:p-6">
+        <main className="px-3 py-4 sm:px-6 sm:py-5 lg:px-8 lg:py-6">
             <div className="mx-auto max-w-5xl space-y-5 lg:space-y-6">
                     <PageHeader title={t('admin.settings.title')} description={t('admin.settings.subtitle')} />
 
