@@ -74,6 +74,19 @@
 .identa-landing, .identa-landing { margin: 0; padding: 0; }
 .identa-landing { scroll-behavior: smooth; }
 
+/* A fixed background attachment forces a full-viewport repaint on every scroll
+   frame — the single biggest cause of heavy/janky scrolling, and brutal on
+   mobile GPUs. Keep the subtle parallax only on precise-pointer (desktop)
+   devices, where it's affordable; on touch the gradient scrolls with the page
+   (visually almost identical, but buttery smooth). */
+@media (hover: hover) and (pointer: fine) {
+  .identa-landing { background-attachment: fixed; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .identa-landing { scroll-behavior: auto; }
+}
+
 .identa-landing {
   font-family: var(--font-sans);
   background:
@@ -81,7 +94,6 @@
     radial-gradient(780px circle at 92% 10%, oklch(0.64 0.11 235 / 0.09), transparent 58%),
     radial-gradient(920px circle at 78% 68%, oklch(0.80 0.10 195 / 0.08), transparent 62%),
     linear-gradient(135deg, color-mix(in oklab, var(--teal-100) 38%, var(--bg)) 0%, var(--bg) 44%, color-mix(in oklab, var(--bg-3) 54%, var(--bg)) 100%);
-  background-attachment: fixed;
   color: var(--ink);
   font-feature-settings: "ss01", "cv11";
   -webkit-font-smoothing: antialiased;
@@ -242,6 +254,13 @@
   opacity: 1;
   transform: none;
 }
+@media (prefers-reduced-motion: reduce) {
+  .identa-landing .reveal {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+}
 
 /* Utility */
 .identa-landing .muted { color: var(--ink-mute); }
@@ -292,6 +311,16 @@
   transition: border-color 0.2s ease, background 0.2s ease;
 }
 .identa-landing .nav.scrolled { border-bottom-color: var(--line); }
+/* backdrop-filter blur over scrolling content is recomputed every frame and
+   is a major source of scroll jank on touch GPUs. Drop it on touch devices and
+   compensate with a more opaque bar so the nav text stays legible. */
+@media (hover: none) and (pointer: coarse) {
+  .identa-landing .nav {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    background: color-mix(in oklab, var(--bg) 94%, transparent);
+  }
+}
 .identa-landing .nav-row {
   display: flex;
   align-items: center;

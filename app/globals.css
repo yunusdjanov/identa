@@ -183,7 +183,14 @@
 
   html, body {
     @apply bg-background text-foreground;
+    /* `overflow-x: hidden` on the root makes the body a scroll container, which
+       in some mobile engines drops threaded (off-main-thread) scrolling and
+       makes the whole page scroll on the main thread — i.e. heavy/janky scroll,
+       most noticeable on the tall landing page. `overflow-x: clip` clips the
+       same way WITHOUT creating a scroll container, so fast scrolling is kept.
+       `hidden` stays first as a fallback for engines that don't support clip. */
     overflow-x: hidden;
+    overflow-x: clip;
   }
 
   /* Prevent any descendant from forcing horizontal scroll on the page itself */

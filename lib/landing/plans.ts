@@ -62,6 +62,10 @@ export async function getLandingPlans(): Promise<LandingPlan[]> {
         const res = await fetch(`${serverApiRoot()}/v1/landing/plans`, {
             headers: { Accept: 'application/json' },
             next: { revalidate: 300 },
+            // Bound the request so a slow or unreachable backend can never hang
+            // the landing render (or the static build): abort after 3s and fall
+            // back to the seeded defaults below.
+            signal: AbortSignal.timeout(3000),
         });
         if (!res.ok) return FALLBACK_LIST;
         const json = (await res.json()) as { data?: unknown };
