@@ -211,7 +211,7 @@ export const LANDING_CONTENT: Record<LandingLocale, LandingDictionary> = {
             lede: 'Собрали главное, что важно понять перед регистрацией и первым рабочим днём в системе.',
             items: [
                 { q: 'Что происходит после регистрации?', a: 'Создаётся кабинет доктора и автоматически включается пробный доступ на 30 дней. После входа можно добавить пациентов, приёмы, оплаты, снимки и сотрудников.' },
-                { q: 'Можно ли войти через Google?', a: 'Да. Если электронная почта уже есть в системе, пользователь войдёт в существующий кабинет; если нет — будет создан новый кабинет доктора с пробным доступом.' },
+                { q: 'Можно ли войти через Google?', a: 'Да. Если почты ещё нет в системе, Google создаёт новый кабинет доктора с пробным доступом. Если почта уже зарегистрирована, сначала войдите по паролю, а затем подключите Google в настройках.' },
                 { q: 'Что будет, если тариф закончится?', a: 'Учётная запись не удаляется. Данные остаются доступными для просмотра, но создание, изменение, удаление, загрузка снимков и выгрузка блокируются до продления тарифа.' },
                 { q: 'Как работают сотрудники и права доступа?', a: 'Доктор добавляет сотрудников и выдаёт права отдельно для пациентов, приёмов и оплат: просмотр или управление. Закрытый раздел нельзя открыть ни из меню, ни по прямой ссылке.' },
                 { q: 'Как защищаются клинические снимки?', a: 'Снимки проверяются, очищаются от лишних данных и хранятся закрыто. Доступ получает только доктор или сотрудник с нужным правом, а загрузка ограничивается текущим тарифом.' },
@@ -347,7 +347,7 @@ export const LANDING_CONTENT: Record<LandingLocale, LandingDictionary> = {
             lede: "Roʻyxatdan oʻtish va birinchi ish kunidan oldin bilish kerak boʻlgan asosiy javoblar.",
             items: [
                 { q: "Roʻyxatdan keyin nima boʻladi?", a: "Shifokor kabineti yaratiladi va 30 kunlik sinov muddati avtomatik yoqiladi. Kirgandan keyin bemorlar, qabullar, toʻlovlar, rasmlar va xodimlarni kiritish mumkin." },
-                { q: 'Google orqali kirish mumkinmi?', a: "Ha. Elektron pochta tizimda mavjud boʻlsa shu hisobga kiradi, mavjud boʻlmasa yangi shifokor kabineti va sinov muddati yaratiladi." },
+                { q: 'Google orqali kirish mumkinmi?', a: "Ha. Pochta tizimda boʻlmasa, Google yangi shifokor kabineti va sinov muddatini yaratadi. Pochta allaqachon roʻyxatdan oʻtgan boʻlsa, avval parol bilan kiring, soʻngra sozlamalarda Google hisobini ulang." },
                 { q: "Tarif muddati tugasa nima boʻladi?", a: "Hisob oʻchmaydi. Maʼlumotlar koʻrish uchun ochiq qoladi, lekin yaratish, tahrirlash, oʻchirish, rasm yuklash va eksport qilish tarif uzaytirilmaguncha bloklanadi." },
                 { q: 'Xodimlar va ruxsatlar qanday ishlaydi?', a: "Shifokor xodim qoʻshadi va bemorlar, qabullar hamda toʻlovlar uchun alohida koʻrish yoki boshqarish huquqini beradi. Yopiq boʻlim menyudan ham, toʻgʻridan-toʻgʻri havoladan ham ochilmaydi." },
                 { q: 'Klinik rasmlar qanday himoyalanadi?', a: "Rasmlar tekshiruvdan oʻtadi, ortiqcha maʼlumotlardan tozalanadi va yopiq saqlanadi. Ularni faqat shifokor yoki kerakli ruxsatga ega xodim koʻra oladi, yuklash esa tarif limiti bilan cheklanadi." },
@@ -483,7 +483,7 @@ export const LANDING_CONTENT: Record<LandingLocale, LandingDictionary> = {
             lede: 'The key answers to know before registration and the first working day in Identa.',
             items: [
                 { q: 'What happens after registration?', a: "A doctor's workspace is created and a 30-day trial starts automatically. After sign-in, the clinic can add patients, appointments, payments, images and staff." },
-                { q: 'Can users sign in with Google?', a: 'Yes. Existing emails log in to the existing workspace; new emails create a new doctor’s workspace with a trial.' },
+                { q: 'Can users sign in with Google?', a: "Yes. If the email is new, Google creates a new doctor's workspace with a trial. If the email is already registered, sign in with your password first, then connect Google in Settings." },
                 { q: 'What happens when a plan expires?', a: 'The account is not deleted. Data remains visible, while create, edit, delete, image upload and export actions stay blocked until the plan is renewed.' },
                 { q: 'How do staff and permissions work?', a: 'The doctor adds staff and grants view or manage access separately for patients, appointments and payments. Locked sections cannot be opened from the menu or by direct URL.' },
                 { q: 'How are clinical images protected?', a: 'Images are checked, sanitized and stored privately. Only the doctor or permitted staff can access them, and uploads follow the limits of the current plan.' },

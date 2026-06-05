@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono, Instrument_Serif } from "next/font/google";
 import { Landing } from "@/components/landing/landing";
 import { getLandingPlans } from "@/lib/landing/plans";
+import { LANDING_CONTENT, DEFAULT_LANDING_LOCALE } from "@/lib/landing/content";
 import "./landing.css";
 
 const siteUrl = "https://identa.uz";
@@ -93,6 +94,22 @@ const structuredData = {
     },
 };
 
+// FAQ rich-result schema, built from the same FAQ copy the page renders. The
+// server pre-renders (and crawlers index) the default locale, so the schema
+// mirrors that locale's questions/answers to stay in sync with the visible text.
+const faqStructuredData = {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: LANDING_CONTENT[DEFAULT_LANDING_LOCALE].faq.items.map((item) => ({
+        "@type": "Question",
+        name: item.q,
+        acceptedAnswer: {
+            "@type": "Answer",
+            text: item.a,
+        },
+    })),
+};
+
 export default async function LandingPage() {
     const fontClassName = `${geist.variable} ${geistMono.variable} ${instrumentSerif.variable}`;
     // Pricing limits come from the DB (public plans endpoint) at render time so
@@ -106,6 +123,10 @@ export default async function LandingPage() {
             <script
                 type="application/ld+json"
                 dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
+            />
+            <script
+                type="application/ld+json"
+                dangerouslySetInnerHTML={{ __html: JSON.stringify(faqStructuredData) }}
             />
         </>
     );
