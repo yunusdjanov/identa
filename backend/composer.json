@@ -7,13 +7,14 @@
     "license": "MIT",
     "require": {
         "php": "^8.4",
-        "dompdf/dompdf": "3.0",
         "ext-gd": "*",
+        "dompdf/dompdf": "3.0",
         "fakerphp/faker": "^1.23",
         "laravel/framework": "^12.0",
         "laravel/sanctum": "^4.3",
         "laravel/tinker": "^2.10.1",
         "league/flysystem-aws-s3-v3": "^3.31",
+        "resend/resend-laravel": "*",
         "sentry/sentry-laravel": "^4.21"
     },
     "require-dev": {
