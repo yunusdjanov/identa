@@ -223,10 +223,10 @@ export default function DashboardPage() {
         .replace(' ->', '')
         .replace('->', '')
         .trim();
-    const debtTone: DashboardStatTone = (stats?.outstandingDebtTotal ?? 0) > 0 ? 'red' : 'green';
-    const debtActionClassName = debtTone === 'red'
-        ? 'h-6 rounded-full px-1.5 text-red-700 hover:bg-red-100 hover:text-red-800'
-        : 'h-6 rounded-full px-1.5 text-emerald-700 hover:bg-emerald-100 hover:text-emerald-800';
+    // Outstanding debt always uses the red tone — it's a "money owed" category,
+    // so the card stays red even at 0 (product decision).
+    const debtTone: DashboardStatTone = 'red';
+    const debtActionClassName = 'h-6 rounded-full px-1.5 text-red-700 hover:bg-red-100 hover:text-red-800';
 
     return (
         <div className="space-y-3">
