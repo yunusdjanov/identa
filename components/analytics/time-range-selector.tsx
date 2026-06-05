@@ -14,7 +14,9 @@ import { useI18n } from '@/components/providers/i18n-provider';
  */
 export type AnalyticsRange = '7d' | '30d' | '90d' | '180d' | '365d' | 'ytd';
 
-const ANALYTICS_RANGES: readonly AnalyticsRange[] = ['7d', '30d', '90d', '180d', '365d', 'ytd'] as const;
+// `90d` is intentionally omitted from the visible presets (product decision);
+// the type + bounds/bucket logic still support it for any persisted value.
+const ANALYTICS_RANGES: readonly AnalyticsRange[] = ['7d', '30d', '180d', '365d', 'ytd'] as const;
 
 export const DEFAULT_ANALYTICS_RANGE: AnalyticsRange = '180d';
 

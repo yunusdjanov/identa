@@ -466,7 +466,7 @@ export function AdminAnalyticsLoadingState() {
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
                 <Skeleton className="h-3 w-16 rounded-xl" />
                 <div className="flex gap-1 rounded-xl border border-slate-200 bg-white p-1">
-                    {Array.from({ length: 6 }).map((_, index) => (
+                    {Array.from({ length: 5 }).map((_, index) => (
                         <Skeleton key={index} className="h-7 w-16 rounded-lg" />
                     ))}
                 </div>
@@ -512,7 +512,7 @@ export function AnalyticsLoadingState() {
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
                 <Skeleton className="h-3 w-16 rounded-xl" />
                 <div className="flex gap-1 rounded-xl border border-slate-200 bg-white p-1">
-                    {Array.from({ length: 6 }).map((_, index) => (
+                    {Array.from({ length: 5 }).map((_, index) => (
                         <Skeleton key={index} className="h-7 w-16 rounded-lg" />
                     ))}
                 </div>
