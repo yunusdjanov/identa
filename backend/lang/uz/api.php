@@ -11,6 +11,7 @@ return [
         'email_already_verified' => 'Email allaqachon tasdiqlangan.',
         'email_verification_send_failed' => 'Xat yuborilmadi. Keyinroq urinib ko‘ring.',
         'password_change_required' => 'Davom etishdan oldin parolingizni almashtiring.',
+        'google_link_required' => 'Bu email allaqachon ro‘yxatdan o‘tgan. Avval parol bilan kiring, so‘ng Sozlamalardan Google’ni ulang.',
     ],
     'appointments' => [
         'conflict' => 'Qabul vaqti mavjud qabul bilan to‘qnashmoqda.',

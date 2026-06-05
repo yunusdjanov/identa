@@ -11,6 +11,7 @@ return [
         'email_already_verified' => 'Email is already verified.',
         'email_verification_send_failed' => 'Could not send the email. Please try again later.',
         'password_change_required' => 'Please change your password before continuing.',
+        'google_link_required' => 'An account with this email already exists. Sign in with your password first, then connect Google from Settings.',
     ],
     'appointments' => [
         'conflict' => 'Appointment time conflicts with an existing appointment.',

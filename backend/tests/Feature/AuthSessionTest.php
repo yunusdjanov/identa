@@ -149,6 +149,88 @@ class AuthSessionTest extends TestCase
         ]);
     }
 
+    public function test_google_login_rejects_silent_linking_to_email_only_account(): void
+    {
+        // Account-takeover regression: a dentist already exists with the
+        // same email but registered via password (no google_id). Clicking
+        // "Continue with Google" must NOT silently bind the Google identity
+        // to that account — first-time linking has to go through the
+        // authenticated Settings flow. The endpoint should reject with a
+        // 422 carrying the `google_link_required` message.
+        $this->createTrialPlan();
+        $existing = User::factory()->create([
+            'email' => 'existing@example.com',
+            'password' => 'password123',
+            'provider' => 'email',
+            'google_id' => null,
+        ]);
+
+        $this->mock(GoogleIdentityService::class, function ($mock): void {
+            $mock
+                ->shouldReceive('verifyIdToken')
+                ->once()
+                ->andReturn([
+                    'sub' => 'attacker-google-sub',
+                    'email' => 'existing@example.com',
+                    'email_verified' => true,
+                    'name' => 'Existing Dentist',
+                    'picture' => null,
+                ]);
+        });
+
+        $this->postJson('/api/v1/auth/google', [
+            'id_token' => 'attacker-id-token',
+        ], $this->csrfHeaders())
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['email']);
+
+        // The existing account stays untouched — no google_id stamped, no
+        // provider flip.
+        $this->assertDatabaseHas('users', [
+            'id' => $existing->id,
+            'provider' => 'email',
+            'google_id' => null,
+        ]);
+    }
+
+    public function test_google_login_accepts_returning_user_with_matching_google_id(): void
+    {
+        // The flip side: once an account is linked (google_id stamped), the
+        // same `sub` on a subsequent Google login should authenticate
+        // cleanly and refresh the avatar.
+        $this->createTrialPlan();
+        $user = User::factory()->create([
+            'email' => 'returning@example.com',
+            'password' => null,
+            'provider' => 'google',
+            'google_id' => 'returning-sub-1',
+            'avatar_url' => 'https://example.com/old.png',
+        ]);
+
+        $this->mock(GoogleIdentityService::class, function ($mock): void {
+            $mock
+                ->shouldReceive('verifyIdToken')
+                ->once()
+                ->andReturn([
+                    'sub' => 'returning-sub-1',
+                    'email' => 'returning@example.com',
+                    'email_verified' => true,
+                    'name' => 'Returning Dentist',
+                    'picture' => 'https://example.com/new.png',
+                ]);
+        });
+
+        $this->postJson('/api/v1/auth/google', [
+            'id_token' => 'good-id-token',
+        ], $this->csrfHeaders())
+            ->assertOk()
+            ->assertJsonPath('data.email', 'returning@example.com')
+            ->assertJsonPath('data.provider', 'google');
+
+        $user->refresh();
+        $this->assertSame('https://example.com/new.png', $user->avatar_url);
+    }
+
     public function test_mobile_refresh_rotates_refresh_token_and_returns_new_access_token(): void
     {
         User::factory()->create([

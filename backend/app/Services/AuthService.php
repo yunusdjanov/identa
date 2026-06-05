@@ -110,15 +110,31 @@ class AuthService
                 ]);
             }
 
+            // Strict linking policy: silently binding a Google identity to
+            // an existing email-only account is an account-takeover vector.
+            // (Compromise the Gmail → click "Sign in with Google" → inherit
+            // the victim's clinic.) The public /auth/google endpoint only
+            // accepts logins where `google_id` already matches the incoming
+            // Google subject — first-time linking has to go through the
+            // authenticated Settings → Connected Accounts flow, which proves
+            // the user owns the Identa account before binding Google. Same
+            // policy as Stripe / GitHub / Vercel.
+            if ($user->google_id !== $googleUser['sub']) {
+                throw ValidationException::withMessages([
+                    'email' => [__('api.auth.google_link_required')],
+                ]);
+            }
+
+            // Returning Google user — refresh the soft metadata Google may
+            // have changed (avatar, verification timestamp) without touching
+            // the identity columns (provider, google_id, email).
             $user->forceFill([
-                'provider' => $user->provider === 'email' ? 'email' : 'google',
-                'google_id' => $user->google_id ?? $googleUser['sub'],
                 'avatar_url' => $googleUser['picture'] ?? $user->avatar_url,
                 'email_verified_at' => $user->email_verified_at ?? now(),
             ])->save();
 
             if ($user->isDentist()) {
-                $this->subscriptionService->ensureTrial($user, 'Google account linked');
+                $this->subscriptionService->ensureTrial($user, 'Google login');
             }
 
             return $user->fresh();
