@@ -111,12 +111,12 @@ export default function StaffPage() {
                 <div className="-mx-4 overflow-x-auto overflow-y-hidden px-4 no-scrollbar sm:mx-0 sm:px-0">
                     <TabsList className="inline-flex min-w-max border border-slate-200/80 bg-white shadow-sm shadow-slate-200/50 sm:w-auto">
                         <TabsTrigger value="access" className="flex-shrink-0">
-                            <Users className="w-4 h-4 sm:mr-2" />
-                            <span className="hidden sm:inline">{t('menu.staffAccess')}</span>
+                            <Users className="w-4 h-4 mr-2" />
+                            <span>{t('menu.staffAccess')}</span>
                         </TabsTrigger>
                         <TabsTrigger value="logs" className="flex-shrink-0">
-                            <History className="w-4 h-4 sm:mr-2" />
-                            <span className="hidden sm:inline">{t('menu.actionLogs')}</span>
+                            <History className="w-4 h-4 mr-2" />
+                            <span>{t('menu.actionLogs')}</span>
                         </TabsTrigger>
                     </TabsList>
                 </div>
