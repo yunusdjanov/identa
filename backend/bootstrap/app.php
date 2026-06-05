@@ -23,7 +23,10 @@ use Symfony\Component\HttpFoundation\Exception\BadRequestException;
 use Symfony\Component\HttpFoundation\Request as SymfonyRequest;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
-use Throwable;
+// `Throwable` is in PHP's root namespace — `use Throwable` emits a noisy
+// "use statement with non-compound name has no effect" warning on every
+// request. Reference it directly as `Throwable` in the closure signature
+// below; PHP resolves it to `\Throwable` automatically.
 
 foreach ([
     __DIR__.'/../storage/framework/cache/data',
