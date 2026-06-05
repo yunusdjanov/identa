@@ -11,17 +11,18 @@ describe('GoogleAuthButton', () => {
                 isReady={false}
                 isPending={false}
                 label="Continue with Google"
-                unavailableLabel="Google sign-in will be available soon"
-                soonLabel="Soon"
+                unavailableLabel="Google sign-in is unavailable on this preview"
             />
         );
 
         const button = screen.getByRole('button', { name: /Continue with Google/i });
 
         expect(button).toBeDisabled();
-        expect(screen.getByText('Soon')).toBeInTheDocument();
+        // The "Soon" pill was retired when Google went live; the disabled
+        // fallback now communicates "why" via tooltip + accessible name.
+        expect(screen.queryByText(/soon/i)).not.toBeInTheDocument();
         expect(button).toHaveAccessibleName(
-            'Continue with Google. Google sign-in will be available soon. Soon'
+            'Continue with Google. Google sign-in is unavailable on this preview'
         );
     });
 });

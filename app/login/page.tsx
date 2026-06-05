@@ -354,7 +354,6 @@ export default function LoginPage() {
                             isPending={loginMutation.isPending || googleMutation.isPending}
                             label={t('register.googleContinue')}
                             unavailableLabel={t('register.googleNotConfigured')}
-                            soonLabel={t('register.googleSoon')}
                         />
 
                         <p className="text-center text-sm leading-6 text-slate-600">

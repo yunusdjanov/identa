@@ -42,7 +42,6 @@ interface GoogleAuthButtonProps {
     isPending: boolean;
     label: string;
     unavailableLabel: string;
-    soonLabel: string;
 }
 
 export function GoogleAuthButton({
@@ -52,25 +51,24 @@ export function GoogleAuthButton({
     isPending,
     label,
     unavailableLabel,
-    soonLabel,
 }: GoogleAuthButtonProps) {
+    // !isConfigured means the deploy lacks NEXT_PUBLIC_GOOGLE_CLIENT_ID
+    // (preview/local dev only — production sets it). We still render a
+    // disabled button so the layout doesn't shift between environments,
+    // but no longer pin a "Soon" pill on it now that Google is live; the
+    // reason surfaces via tooltip + accessible name instead.
     if (!isConfigured) {
         return (
             <Button
                 type="button"
                 variant="outline"
-                className="h-10 w-full justify-between gap-3 rounded-full border-slate-300/80 bg-white px-4 text-sm font-semibold text-slate-800 shadow-sm shadow-teal-950/5 backdrop-blur transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-100"
+                className="h-10 w-full justify-center gap-3 rounded-full border-slate-300/80 bg-white px-4 text-sm font-semibold text-slate-800 shadow-sm shadow-teal-950/5 backdrop-blur transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-100"
                 disabled
-                aria-label={`${label}. ${unavailableLabel}. ${soonLabel}`}
+                aria-label={`${label}. ${unavailableLabel}`}
                 title={unavailableLabel}
             >
-                <span className="flex min-w-0 items-center gap-3">
-                    <GoogleMark />
-                    <span className="truncate">{label}</span>
-                </span>
-                <span className="rounded-full border border-teal-200/80 bg-teal-50 px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.14em] text-teal-700">
-                    {soonLabel}
-                </span>
+                <GoogleMark />
+                <span className="truncate">{label}</span>
             </Button>
         );
     }
