@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { NextRequest } from 'next/server';
-import { isAuthCookieName, normalizeApiRootUrl, proxy } from './proxy';
+import { isAuthCookieName, isMockApiEnabled, isMockApiPath, normalizeApiRootUrl, proxy } from './proxy';
 
 describe('proxy auth redirects', () => {
     afterEach(() => {
@@ -49,6 +49,60 @@ describe('proxy auth redirects', () => {
         );
         expect(response.status).toBe(307);
         expect(response.headers.get('location')).toBe('https://identa.uz/dashboard');
+    });
+
+    it('identifies mock backend paths without touching the real i18n route', () => {
+        expect(isMockApiPath('/api/v1/auth/login')).toBe(true);
+        expect(isMockApiPath('/api/v1')).toBe(true);
+        expect(isMockApiPath('/api/v1/admin/dentists')).toBe(true);
+        // The first-party locale route must stay reachable in every environment.
+        expect(isMockApiPath('/api/i18n/ru')).toBe(false);
+        expect(isMockApiPath('/dashboard')).toBe(false);
+    });
+
+    it('enables the mock API outside production and honours the explicit opt-in', () => {
+        vi.stubEnv('NODE_ENV', 'development');
+        expect(isMockApiEnabled()).toBe(true);
+
+        vi.stubEnv('NODE_ENV', 'production');
+        vi.stubEnv('NEXT_PUBLIC_ENABLE_MOCK_API', '');
+        expect(isMockApiEnabled()).toBe(false);
+
+        vi.stubEnv('NEXT_PUBLIC_ENABLE_MOCK_API', 'true');
+        expect(isMockApiEnabled()).toBe(true);
+    });
+
+    it('returns 404 for mock /api/v1 routes in production', async () => {
+        vi.stubEnv('NODE_ENV', 'production');
+        vi.stubEnv('NEXT_PUBLIC_ENABLE_MOCK_API', '');
+        const fetchMock = vi.spyOn(globalThis, 'fetch');
+
+        const response = await proxy(new NextRequest('https://identa.uz/api/v1/auth/login', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+        }));
+
+        expect(response.status).toBe(404);
+        // The gate must short-circuit before any backend round-trip.
+        expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it('leaves the real i18n route reachable in production', async () => {
+        vi.stubEnv('NODE_ENV', 'production');
+        vi.stubEnv('NEXT_PUBLIC_ENABLE_MOCK_API', '');
+
+        const response = await proxy(new NextRequest('https://identa.uz/api/i18n/ru'));
+
+        expect(response.status).toBe(200);
+    });
+
+    it('still serves mock /api/v1 routes outside production', async () => {
+        vi.stubEnv('NODE_ENV', 'development');
+
+        const response = await proxy(new NextRequest('https://identa.uz/api/v1/auth/me'));
+
+        // Not a 404 from the gate — the request falls through to NextResponse.next().
+        expect(response.status).toBe(200);
     });
 
     it('redirects remembered admins away from the admin login page before rendering it', async () => {

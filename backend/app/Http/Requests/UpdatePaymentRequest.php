@@ -19,7 +19,7 @@ class UpdatePaymentRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'amount' => ['required', 'numeric', 'min:0.01'],
+            'amount' => ['required', 'numeric', 'min:0.01', 'max:99999999.99'],
             'payment_method' => [
                 'required',
                 Rule::in([

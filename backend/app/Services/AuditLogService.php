@@ -73,16 +73,21 @@ class AuditLogService
         }
 
         $search = $request->input('filter.search');
-        if (is_string($search) && $search !== '') {
-            $query->where(function (Builder $builder) use ($search): void {
+        $search = is_string($search) ? trim($search) : '';
+        // Require >= 2 chars and cap the length: a leading-wildcard LIKE on a
+        // single character forces an unindexed full scan with no selectivity
+        // (a mild DoS lever), and unbounded input bloats the query needlessly.
+        if (mb_strlen($search) >= 2) {
+            $term = mb_substr($search, 0, 100);
+            $query->where(function (Builder $builder) use ($term): void {
                 $builder
-                    ->where('event_type', 'like', "%{$search}%")
-                    ->orWhere('entity_type', 'like', "%{$search}%")
-                    ->orWhere('entity_id', 'like', "%{$search}%")
-                    ->orWhereHas('actor', function (Builder $actorQuery) use ($search): void {
+                    ->where('event_type', 'like', "%{$term}%")
+                    ->orWhere('entity_type', 'like', "%{$term}%")
+                    ->orWhere('entity_id', 'like', "%{$term}%")
+                    ->orWhereHas('actor', function (Builder $actorQuery) use ($term): void {
                         $actorQuery
-                            ->where('name', 'like', "%{$search}%")
-                            ->orWhere('email', 'like', "%{$search}%");
+                            ->where('name', 'like', "%{$term}%")
+                            ->orWhere('email', 'like', "%{$term}%");
                     });
             });
         }

@@ -29,6 +29,15 @@ class ImageCompressionService
     private const JPEG_QUALITIES = [84, 78, 72, 66, 60];
 
     /**
+     * Decompression-bomb ceiling. A few-KB image can declare enormous pixel
+     * dimensions that explode to gigabytes of raw bitmap the moment
+     * imagecreatefromstring() allocates the canvas, OOM-killing the queue
+     * worker. 40 MP is far above any legitimate dental photo/X-ray (capped to
+     * 1800 px on the longest edge after optimization) while rejecting bombs.
+     */
+    private const MAX_SOURCE_PIXELS = 40_000_000;
+
+    /**
      * @return array{contents: string, mime_type: string, extension: string, file_size: int}|null
      */
     public function optimizeUploadedFile(UploadedFile $file, ?int $targetMaxBytes): ?array
@@ -102,6 +111,20 @@ class ImageCompressionService
     {
         if (! function_exists('imagecreatefromstring') || ! function_exists('imagecreatetruecolor')) {
             return null;
+        }
+
+        // Reject decompression bombs using the cheap header read BEFORE the
+        // full bitmap is decoded into memory. Fails closed (null) like any
+        // other unprocessable input.
+        $dimensions = @getimagesizefromstring($contents);
+        if (is_array($dimensions)) {
+            $declaredWidth = (int) ($dimensions[0] ?? 0);
+            $declaredHeight = (int) ($dimensions[1] ?? 0);
+            if ($declaredWidth > 0
+                && $declaredHeight > 0
+                && ($declaredWidth * $declaredHeight) > self::MAX_SOURCE_PIXELS) {
+                return null;
+            }
         }
 
         $source = @imagecreatefromstring($contents);

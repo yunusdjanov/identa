@@ -13,6 +13,26 @@ const LARAVEL_REMEMBER_COOKIE_PREFIX = 'remember_web_';
 const MOCK_SESSION_COOKIE = 'mock_session';
 const MOCK_ROLE_COOKIE = 'mock_role';
 
+/**
+ * The in-app mock API (`/api/v1/*`) substitutes for the Laravel backend during
+ * local development and tests. It must NEVER be served in production: the mock
+ * login (`/api/v1/auth/login`) accepts ANY password and can mint an
+ * `mock_role=admin` cookie, so a deployed mock surface is a critical auth
+ * bypass. In production the browser talks to the real backend via
+ * `NEXT_PUBLIC_API_URL`, so these routes are dead weight there anyway.
+ *
+ * `/api/i18n/*` is a genuine first-party route (it serves locale dictionaries
+ * from this origin in every environment) and is intentionally NOT gated.
+ */
+export function isMockApiEnabled(): boolean {
+    return process.env.NODE_ENV !== 'production'
+        || process.env.NEXT_PUBLIC_ENABLE_MOCK_API === 'true';
+}
+
+export function isMockApiPath(pathname: string): boolean {
+    return pathname === '/api/v1' || pathname.startsWith('/api/v1/');
+}
+
 export function normalizeApiRootUrl(): string {
     const configuredApiUrl = process.env.NEXT_PUBLIC_API_URL
         ?? process.env.API_URL
@@ -121,6 +141,12 @@ export async function proxy(request: NextRequest) {
         redirectUrl.host = CANONICAL_HOST;
 
         return NextResponse.redirect(redirectUrl, 308);
+    }
+
+    // Hard-block the development-only mock backend in production so a deployed
+    // build can never expose the fixture data or the password-less mock login.
+    if (!isMockApiEnabled() && isMockApiPath(request.nextUrl.pathname)) {
+        return new NextResponse(null, { status: 404 });
     }
 
     const adminGateRedirect = resolveAdminGateRedirect(request);

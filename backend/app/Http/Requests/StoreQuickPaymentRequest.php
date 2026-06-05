@@ -37,7 +37,7 @@ class StoreQuickPaymentRequest extends FormRequest
             // belong to this dentist; we add the ownership rule here too
             // so validation errors surface as 422 instead of 404 for
             // forms that submit a malformed id.
-            'amount' => ['required', 'numeric', 'min:0.01'],
+            'amount' => ['required', 'numeric', 'min:0.01', 'max:99999999.99'],
             'payment_method' => [
                 'required',
                 Rule::in([

@@ -27,7 +27,9 @@ class StorePaymentRequest extends FormRequest
                 Rule::exists('invoices', 'id')
                     ->where(fn ($query) => $query->where('dentist_id', $dentistId)),
             ],
-            'amount' => ['required', 'numeric', 'min:0.01'],
+            // Upper bound keeps a malformed/abusive amount from overflowing the
+            // decimal(12,2) column and corrupting dashboard SUM aggregates.
+            'amount' => ['required', 'numeric', 'min:0.01', 'max:99999999.99'],
             'payment_method' => [
                 'required',
                 Rule::in([

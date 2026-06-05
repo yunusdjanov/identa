@@ -71,8 +71,8 @@ one is present, non-empty, and not a placeholder (`change-me`,
 | `DB_*` | managed Postgres credentials | |
 | `CACHE_STORE` / `SESSION_DRIVER` / `QUEUE_CONNECTION` | per `.env.example` | |
 | `AWS_*` (S3) | object-store creds | bucket must exist + be private |
-| `ANTIVIRUS_DRIVER` | constant `clamav` | NEVER `null` in prod — uploads bypass scanner |
-| `CLAMAV_HOST` / `CLAMAV_PORT` | clamd address | smoke-test connectivity from app pod |
+| `ANTIVIRUS_DRIVER` | `clamav` (recommended) **OR** intentionally null | see ClamAV decision matrix below |
+| `CLAMAV_HOST` / `CLAMAV_PORT` | clamd address | only when `ANTIVIRUS_DRIVER=clamav` |
 | `MAIL_*` | SMTP creds | password reset depends on this |
 | `PAYX_PROJECT_TOKEN` | from PayX dashboard, **production** | NOT the sandbox token |
 | `PAYX_WEBHOOK_TOKEN` | from PayX dashboard, **production** | webhook secret, not URL |
@@ -85,6 +85,38 @@ one is present, non-empty, and not a placeholder (`change-me`,
 | `TRUSTED_PROXIES` | edge LB IPs (CF, Railway, etc.) | leave `*` only if single trusted hop |
 | `LOG_CHANNEL` | constant `stack` (or `stderr` if shipping logs) | |
 | `LOG_LEVEL` | constant `warning` | |
+
+### ClamAV — defer-or-deploy decision
+
+The codebase has the scanner wired up (`AntivirusScannerService`), but the
+operational cost (a ClamAV sidecar service consumes ~1 GB RAM + a daily
+virus-definition refresh job) is not worth it in every configuration.
+Make the call BEFORE the first prod cut, document it here, and revisit
+when the situation changes.
+
+**Defer (leave `ANTIVIRUS_DRIVER` unset)** when ALL three hold:
+1. The upload surface is restricted to authenticated dentists +
+   assistants (no anonymous upload), so the threat is a hijacked session,
+   not a drive-by attacker.
+2. `ImageCompressionService` magic-byte check is on (it is, by default)
+   — non-image bytes are rejected before they touch S3.
+3. The deployment is single-tenant or shared-tenant with isolated
+   per-dentist S3 prefixes, so a malicious file can't pivot to another
+   tenant's data even if it lands in storage.
+
+**Deploy ClamAV** when ANY of these become true:
+- You open an anonymous upload endpoint (lead form attachment, support
+  ticket attachment, public landing form with file input).
+- A regulator / hospital procurement asks for "documented malware
+  scanning on PHI uploads" — most do.
+- You see anything in `/audit-logs` that looks like exploration of the
+  upload endpoint (status 422 storms, malformed MIME types, oversized
+  filenames). Sentry will surface these in production via the upload
+  controllers.
+
+Current decision: **deferred** as of 2026-06-05. Foundation reasoning:
+ishonchli klinika foydalanuvchilari + magic-byte check + per-tenant S3
+prefix. Revisit when adding any public upload surface.
 
 After all values are set, run the secrets gate from inside the app
 container:
