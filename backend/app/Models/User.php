@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Carbon\CarbonInterface;
+use App\Notifications\VerifyEmailNotification;
 use App\Services\SubscriptionService;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -139,6 +140,18 @@ class User extends Authenticatable implements MustVerifyEmail
             'subscription_payment_amount' => 'decimal:2',
             'last_login_at' => 'datetime',
         ];
+    }
+
+    /**
+     * Override Laravel's default English Markdown verification mailer with
+     * the branded, localized notification under App\Notifications. The
+     * locale is captured inside the notification's constructor from the
+     * current request — keep this trigger synchronous (no queue) so the
+     * request-bound `App::getLocale()` is still authoritative.
+     */
+    public function sendEmailVerificationNotification(): void
+    {
+        $this->notify(new VerifyEmailNotification());
     }
 
     public function isAdmin(): bool
