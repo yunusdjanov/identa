@@ -20,8 +20,8 @@ type PlanFeatureCopy = LandingDictionary['pricing']['feature'];
 // unreachable at render time, so the landing always shows correct numbers.
 export const FALLBACK_PLANS: Record<LandingPlanCode, LandingPlan> = {
     trial: { code: 'trial', staff_limit: 1, entry_image_limit: 2, upload_max_mb: 3, can_export: false, trial_days: 30, monthly_price: null, yearly_price: null, currency: 'UZS' },
-    basic: { code: 'basic', staff_limit: 3, entry_image_limit: 5, upload_max_mb: 5, can_export: false, trial_days: null, monthly_price: null, yearly_price: null, currency: 'UZS' },
-    pro: { code: 'pro', staff_limit: 5, entry_image_limit: 10, upload_max_mb: 8, can_export: true, trial_days: null, monthly_price: null, yearly_price: null, currency: 'UZS' },
+    basic: { code: 'basic', staff_limit: 3, entry_image_limit: 5, upload_max_mb: 5, can_export: false, trial_days: null, monthly_price: 120000, yearly_price: 1200000, currency: 'UZS' },
+    pro: { code: 'pro', staff_limit: 5, entry_image_limit: 10, upload_max_mb: 8, can_export: true, trial_days: null, monthly_price: 200000, yearly_price: 2000000, currency: 'UZS' },
 };
 
 const FALLBACK_LIST: LandingPlan[] = [FALLBACK_PLANS.trial, FALLBACK_PLANS.basic, FALLBACK_PLANS.pro];
@@ -114,10 +114,40 @@ export function buildPlanFeatures(plan: LandingPlan, locale: LandingLocale, f: P
     return features;
 }
 
-/** Localized price label: trial shows its duration, paid plans defer to the app. */
-export function planPriceLabel(plan: LandingPlan, f: PlanFeatureCopy): string {
+/** The big amount + the small unit/period shown under it. */
+export interface PlanPriceDisplay {
+    /** Large emphasized text: the number, the trial duration, or the fallback. */
+    amount: string;
+    /** Small muted suffix (currency + period), e.g. "сум/мес". Null when there
+     *  is no per-period unit (trial duration or the "price in app" fallback). */
+    period: string | null;
+}
+
+/** Group thousands with a regular space: 1200000 -> "1 200 000". */
+function formatPriceAmount(value: number): string {
+    return String(Math.round(value)).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+}
+
+/**
+ * Localized price for a plan card. Trial shows its duration; paid plans show the
+ * real monthly/yearly price (from the DB) with grouped digits and a currency +
+ * period suffix. If the price is unset, it gracefully falls back to the
+ * "price in app" label so the card never shows a broken value.
+ */
+export function planPriceLabel(
+    plan: LandingPlan,
+    f: PlanFeatureCopy,
+    opts: { yearly: boolean } = { yearly: false },
+): PlanPriceDisplay {
     if (plan.code === 'trial' && plan.trial_days != null) {
-        return f.trialPrice.replace('{days}', String(plan.trial_days));
+        return { amount: f.trialPrice.replace('{days}', String(plan.trial_days)), period: null };
     }
-    return f.priceInApp;
+    const price = opts.yearly ? plan.yearly_price : plan.monthly_price;
+    if (price == null || price <= 0) {
+        return { amount: f.priceInApp, period: null };
+    }
+    return {
+        amount: formatPriceAmount(price),
+        period: `${f.currencySuffix}${opts.yearly ? f.perYear : f.perMonth}`,
+    };
 }

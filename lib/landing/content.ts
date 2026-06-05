@@ -70,6 +70,9 @@ export interface LandingDictionary {
             payx: string;
             trialPrice: string;
             priceInApp: string;
+            currencySuffix: string;
+            perMonth: string;
+            perYear: string;
         };
         plans: {
             code: 'trial' | 'basic' | 'pro';
@@ -150,7 +153,7 @@ export const LANDING_CONTENT: Record<LandingLocale, LandingDictionary> = {
                 { t: 'Пациент под рукой', d: 'Открывайте профиль, контакты, историю лечения, снимки и заметки перед приёмом.' },
                 { t: 'Оплаты и уведомления', d: 'Просматривайте статусы платежей и получайте важные события по клинике в мобильном интерфейсе.' },
             ],
-            badges: ['iOS и Android', 'Единый аккаунт', 'Синхронизация с веб-кабинетом'],
+            badges: ['Android • iOS скоро', 'Единый аккаунт', 'Синхронизация с веб-кабинетом'],
             mockupLabel: 'Мобильное приложение Identa',
             today: 'Сегодня',
             appointments: 'приёмов',
@@ -181,6 +184,9 @@ export const LANDING_CONTENT: Record<LandingLocale, LandingDictionary> = {
                 payx: 'Оплата на месяц или год через PayX',
                 trialPrice: '{days} дней',
                 priceInApp: 'Цена в кабинете',
+                currencySuffix: 'сум',
+                perMonth: '/мес',
+                perYear: '/год',
             },
             plans: [
                 { code: 'trial', name: 'Пробный', desc: 'Автоматический пробный доступ сразу после регистрации.', cta: 'Начать пробный доступ', flag: 'Автоматически' },
@@ -283,7 +289,7 @@ export const LANDING_CONTENT: Record<LandingLocale, LandingDictionary> = {
                 { t: 'Bemor kartasi yoningizda', d: 'Qabuldan oldin profil, kontaktlar, davolanish tarixi, rasmlar va izohlarni oching.' },
                 { t: "Toʻlovlar va xabarlar", d: "Toʻlovlar holatini kuzating va klinikadagi muhim voqealarni mobil interfeysda oling." },
             ],
-            badges: ['iOS va Android', 'Bitta akkaunt', 'Web-kabinet bilan sinxron'],
+            badges: ['Android • iOS tez orada', 'Bitta akkaunt', 'Web-kabinet bilan sinxron'],
             mockupLabel: 'Identa mobil ilovasi',
             today: 'Bugun',
             appointments: 'qabul',
@@ -314,6 +320,9 @@ export const LANDING_CONTENT: Record<LandingLocale, LandingDictionary> = {
                 payx: 'Oylik yoki yillik toʻlov PayX orqali',
                 trialPrice: '{days} kun',
                 priceInApp: 'Narx kabinet ichida',
+                currencySuffix: "so'm",
+                perMonth: '/oy',
+                perYear: '/yil',
             },
             plans: [
                 { code: 'trial', name: 'Sinov', desc: "Roʻyxatdan oʻtgach avtomatik ochiladigan sinov tarifi.", cta: 'Sinovni boshlash', flag: 'Avtomatik' },
@@ -416,7 +425,7 @@ export const LANDING_CONTENT: Record<LandingLocale, LandingDictionary> = {
                 { t: 'Patient card in hand', d: 'Open profile details, contacts, treatment history, images and notes before the visit.' },
                 { t: 'Payments and alerts', d: 'See payment status and receive important clinic events in a focused mobile interface.' },
             ],
-            badges: ['iOS and Android', 'One account', 'Synced with web'],
+            badges: ['Android • iOS soon', 'One account', 'Synced with web'],
             mockupLabel: 'Identa mobile app',
             today: 'Today',
             appointments: 'appointments',
@@ -447,6 +456,9 @@ export const LANDING_CONTENT: Record<LandingLocale, LandingDictionary> = {
                 payx: 'Monthly/yearly via PayX',
                 trialPrice: '{days} days',
                 priceInApp: 'Price in app',
+                currencySuffix: 'UZS',
+                perMonth: '/mo',
+                perYear: '/yr',
             },
             plans: [
                 { code: 'trial', name: 'Trial', desc: 'Automatic trial access right after registration.', cta: 'Start trial', flag: 'Automatic' },

@@ -439,14 +439,15 @@ function Pricing({ t, lang, plans }: { t: T; lang: LandingLocale; plans: Landing
                         // seeded defaults if the public plans API was unreachable).
                         const dbPlan = planByCode.get(p.code) ?? FALLBACK_PLANS[p.code];
                         const features = buildPlanFeatures(dbPlan, lang, t.pricing.feature);
-                        const priceLabel = planPriceLabel(dbPlan, t.pricing.feature);
+                        const price = planPriceLabel(dbPlan, t.pricing.feature, { yearly });
                         return (
                             <div key={p.code} className={'price reveal' + (p.featured ? ' featured' : '')}>
                                 {p.flag && <div className="price-flag">{p.flag}</div>}
                                 <div className="name">{p.name}</div>
                                 <div className="desc">{p.desc}</div>
                                 <div className="price-amt">
-                                    <em style={{ fontFamily: 'var(--font-display)', fontStyle: 'italic', fontSize: '34px' }}>{priceLabel}</em>
+                                    <em style={{ fontFamily: 'var(--font-display)', fontStyle: 'italic', fontSize: '34px' }}>{price.amount}</em>
+                                    {price.period && <small>{price.period}</small>}
                                 </div>
                                 <ul>
                                     {features.map((f, j) => <li key={j}>{f}</li>)}

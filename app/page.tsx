@@ -64,7 +64,7 @@ const structuredData = {
     "@type": "SoftwareApplication",
     name: "Identa",
     applicationCategory: "BusinessApplication",
-    operatingSystem: "Web, iOS, Android",
+    operatingSystem: "Web, Android",
     url: siteUrl,
     description: seoDescription,
     offers: {

@@ -479,6 +479,17 @@
   overflow: visible;
   isolation: isolate;
 }
+/* On large screens (16" laptops and up) give the hero mockup a bit more
+   presence — ~12% larger. The dashboard is a fixed-px design, so a transform
+   scales it proportionally (chips included) without reflowing. Pure transform +
+   a min-width gate means smaller breakpoints are untouched (responsiveness
+   preserved). Higher specificity than `.reveal.in` so it isn't overridden. */
+@media (min-width: 1440px) {
+  .identa-landing .hero-preview.reveal.in {
+    transform: scale(1.12);
+    transform-origin: center;
+  }
+}
 .identa-landing .hero-eyebrow {
   display: flex;
   align-items: flex-start;
@@ -1538,11 +1549,17 @@
   justify-content: space-between;
   align-items: center;
   gap: 24px;
+  width: 100%;
+  /* <button> defaults to text-align:center, which makes wrapped (2-line)
+     questions look centered while single-line ones look left-aligned. Force
+     start alignment so every question reads consistently from the left. */
+  text-align: start;
   font-size: 17px;
   font-weight: 500;
   color: var(--navy-900);
   letter-spacing: -0.01em;
 }
+.identa-landing .faq-q > span:first-child { flex: 1; min-width: 0; }
 .identa-landing .faq-q .ic {
   width: 28px; height: 28px;
   border-radius: 50%;

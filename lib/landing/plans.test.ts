@@ -57,10 +57,22 @@ describe('buildPlanFeatures', () => {
 });
 
 describe('planPriceLabel', () => {
-    it('shows the trial duration and defers paid plans to the app', () => {
-        expect(planPriceLabel(FALLBACK_PLANS.trial, ruF)).toBe('30 дней');
-        expect(planPriceLabel(FALLBACK_PLANS.basic, ruF)).toBe('Цена в кабинете');
-        expect(planPriceLabel(FALLBACK_PLANS.pro, enF)).toBe('Price in app');
-        expect(planPriceLabel(FALLBACK_PLANS.trial, enF)).toBe('30 days');
+    it('shows the trial duration with no period suffix', () => {
+        expect(planPriceLabel(FALLBACK_PLANS.trial, ruF)).toEqual({ amount: '30 дней', period: null });
+        expect(planPriceLabel(FALLBACK_PLANS.trial, enF)).toEqual({ amount: '30 days', period: null });
+    });
+
+    it('shows the real monthly/yearly price with grouped digits + currency/period', () => {
+        // basic 120000/mo, 1200000/yr and pro 200000/mo, 2000000/yr mirror the seeded DB defaults.
+        expect(planPriceLabel(FALLBACK_PLANS.basic, ruF, { yearly: false })).toEqual({ amount: '120 000', period: 'сум/мес' });
+        expect(planPriceLabel(FALLBACK_PLANS.basic, ruF, { yearly: true })).toEqual({ amount: '1 200 000', period: 'сум/год' });
+        expect(planPriceLabel(FALLBACK_PLANS.pro, uzF, { yearly: false })).toEqual({ amount: '200 000', period: "so'm/oy" });
+        expect(planPriceLabel(FALLBACK_PLANS.pro, enF, { yearly: true })).toEqual({ amount: '2 000 000', period: 'UZS/yr' });
+    });
+
+    it('falls back to the "price in app" label when the price is unset', () => {
+        const noPrice = { ...FALLBACK_PLANS.basic, monthly_price: null, yearly_price: null };
+        expect(planPriceLabel(noPrice, ruF)).toEqual({ amount: 'Цена в кабинете', period: null });
+        expect(planPriceLabel(noPrice, enF)).toEqual({ amount: 'Price in app', period: null });
     });
 });
