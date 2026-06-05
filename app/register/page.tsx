@@ -139,12 +139,21 @@ export default function RegisterPage() {
         }
 
         const existingScript = document.querySelector<HTMLScriptElement>('script[src="https://accounts.google.com/gsi/client"]');
+        let pollHandle = 0;
+        let cancelled = false;
+
         const initializeGoogle = () => {
+            if (cancelled) return;
             const googleId = window.google?.accounts?.id;
             if (!googleId || !googleButtonRef.current) {
+                // GSI tag is in the DOM but the global hasn't been
+                // attached yet, OR React mounted the ref a tick later
+                // than we expected. Re-poll up to ~2s so we don't
+                // silently strand the user with the disabled placeholder
+                // when the script's `load` event already fired.
+                pollHandle = window.setTimeout(initializeGoogle, 100);
                 return;
             }
-
             googleButtonRef.current.innerHTML = '';
             googleId.initialize({
                 client_id: googleClientId,
@@ -171,7 +180,11 @@ export default function RegisterPage() {
             initializeGoogle();
             existingScript.addEventListener('load', initializeGoogle);
 
-            return () => existingScript.removeEventListener('load', initializeGoogle);
+            return () => {
+                cancelled = true;
+                window.clearTimeout(pollHandle);
+                existingScript.removeEventListener('load', initializeGoogle);
+            };
         }
 
         const script = document.createElement('script');
@@ -182,6 +195,8 @@ export default function RegisterPage() {
         document.head.appendChild(script);
 
         return () => {
+            cancelled = true;
+            window.clearTimeout(pollHandle);
             script.removeEventListener('load', initializeGoogle);
         };
     }, [googleMutation, t]);

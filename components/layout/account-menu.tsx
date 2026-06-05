@@ -111,7 +111,25 @@ export function AccountMenu({
                         <DropdownMenuSeparator />
                     </>
                 ) : null}
-                <DropdownMenuItem onClick={onLogout} disabled={isLoggingOut}>
+                {/* onSelect, not onClick. Radix's DropdownMenuItem is a
+                    `role=menuitem` div, not a <button>. onClick + the
+                    item's built-in auto-close racy each other in some
+                    browsers (especially Firefox + WebKit on press-and-
+                    release timings); onSelect is the Radix-native
+                    activation hook that fires reliably for both mouse
+                    and keyboard. preventDefault keeps Radix from closing
+                    BEFORE our handler runs — useInstantLogout immediately
+                    triggers a full-page redirect, which would otherwise
+                    race the dropdown's focus restoration animation and
+                    occasionally cancel the navigation. */}
+                <DropdownMenuItem
+                    onSelect={(event) => {
+                        event.preventDefault();
+                        if (isLoggingOut) return;
+                        onLogout();
+                    }}
+                    disabled={isLoggingOut}
+                >
                     <LogOut className="mr-2 h-4 w-4" />
                     {isLoggingOut ? t('menu.loggingOut') : t('menu.logout')}
                 </DropdownMenuItem>

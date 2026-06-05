@@ -200,12 +200,21 @@ export default function LoginPage() {
         }
 
         const existingScript = document.querySelector<HTMLScriptElement>('script[src="https://accounts.google.com/gsi/client"]');
+        let pollHandle = 0;
+        let cancelled = false;
+
         const initializeGoogle = () => {
+            if (cancelled) return;
             const googleId = window.google?.accounts?.id;
             if (!googleId || !googleButtonRef.current) {
+                // Script tag is in the DOM but the global hasn't been
+                // attached yet (race between `appendChild` and `load`)
+                // OR the React tree mounted the ref a tick later than
+                // we expected. Re-poll up to ~2s so we don't silently
+                // strand the user with the disabled placeholder.
+                pollHandle = window.setTimeout(initializeGoogle, 100);
                 return;
             }
-
             googleButtonRef.current.innerHTML = '';
             googleId.initialize({
                 client_id: googleClientId,
@@ -232,7 +241,11 @@ export default function LoginPage() {
             initializeGoogle();
             existingScript.addEventListener('load', initializeGoogle);
 
-            return () => existingScript.removeEventListener('load', initializeGoogle);
+            return () => {
+                cancelled = true;
+                window.clearTimeout(pollHandle);
+                existingScript.removeEventListener('load', initializeGoogle);
+            };
         }
 
         const script = document.createElement('script');
@@ -243,6 +256,8 @@ export default function LoginPage() {
         document.head.appendChild(script);
 
         return () => {
+            cancelled = true;
+            window.clearTimeout(pollHandle);
             script.removeEventListener('load', initializeGoogle);
         };
     }, [googleMutation, isLogoutRedirect, t]);

@@ -1,6 +1,5 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
 import { logoutSession } from '@/lib/api/dentist';
 import { useAuthStore } from '@/lib/store';
@@ -8,7 +7,6 @@ import { markClientLogoutInProgress } from '@/lib/auth/client-logout';
 import { postAuthBroadcast } from '@/lib/auth/auth-broadcast';
 
 export function useInstantLogout(loginPath = '/login') {
-    const router = useRouter();
     const queryClient = useQueryClient();
     const logout = useAuthStore((state) => state.logout);
 
@@ -45,16 +43,26 @@ export function useInstantLogout(loginPath = '/login') {
         // mirror the redirect even if the server-side logout request
         // never lands. FA-A10 multi-tab sync.
         postAuthBroadcast({ type: 'logout' });
-        router.replace(loginPath);
 
-        void logoutSession().catch(() => {
-            // The local session is already cleared. Keep the short-lived guard
-            // so the login page does not bounce back while the cookie expires.
-            // Don't re-clear the cache on resolve either: the user may have
-            // already re-logged in by the time `logoutSession` resolves
-            // (e.g. fast click-through, slow network), and a second
-            // `queryClient.clear()` here would wipe the freshly-seeded
-            // `['auth', 'me']` data set by login.onSuccess.
-        });
+        // Fire the server-side logout best-effort. The local session is
+        // already cleared, so the cookie/Sanctum revocation is just for
+        // server hygiene; we don't block the redirect on it.
+        void logoutSession().catch(() => undefined);
+
+        // **Hard navigation** instead of router.replace. The Next.js soft
+        // router can race the dropdown's focus restoration on some
+        // browsers and silently no-op — "click logout, nothing happens"
+        // — and it leaves bundled-in singletons (BroadcastChannel
+        // listeners, Sentry breadcrumbs, in-flight queries) alive in
+        // memory. window.location.replace forces a full document load,
+        // which: guarantees the navigation actually happens, drops all
+        // residual React state, kills any in-flight /auth/me request that
+        // could repopulate the cache before /login mounts, and matches
+        // how Stripe / GitHub / Vercel handle their own logouts. Cost is
+        // a ~200-400ms full reload — acceptable for a once-per-session
+        // action.
+        if (typeof window !== 'undefined') {
+            window.location.replace(loginPath);
+        }
     };
 }

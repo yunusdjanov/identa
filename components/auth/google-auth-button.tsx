@@ -73,24 +73,41 @@ export function GoogleAuthButton({
         );
     }
 
+    // Configured + GSI ready path. We used to render a `disabled` Button at
+    // `absolute inset-0` over the mount div while `googleReady` was still
+    // false, intending it as a "loading" placeholder. That overlay was a
+    // pointer-events trap: a disabled <button> intercepts the pointerdown
+    // without dispatching click, so even after GSI's iframe mounted into the
+    // div underneath, every user click landed on the overlay and was
+    // silently swallowed — visually "the button does nothing, no error".
+    //
+    // The overlay is now gone. The mount div still reserves its own height
+    // (`min-h-10`) so the surrounding layout doesn't jump while Google's
+    // SDK initializes, and `pointer-events-none` during the not-ready
+    // window keeps stray clicks on the empty area from doing nothing
+    // confusing — but the iframe itself is always the topmost interactive
+    // element the moment GSI calls `renderButton`.
     return (
-        <div className="relative min-h-10 w-full overflow-hidden rounded-full">
+        <div className="relative min-h-10 w-full">
             <div
                 ref={mountRef}
-                className={cn('flex min-h-10 justify-center', (!isReady || isPending) && 'pointer-events-none opacity-0')}
+                className={cn(
+                    'flex min-h-10 items-center justify-center',
+                    (!isReady || isPending) && 'pointer-events-none opacity-60'
+                )}
                 aria-busy={!isReady || isPending}
-            />
-            {!isReady || isPending ? (
-                <Button
-                    type="button"
-                    variant="outline"
-                    className="absolute inset-0 h-10 w-full justify-center gap-3 rounded-full border-slate-300/80 bg-white px-4 text-sm font-semibold text-slate-800 shadow-sm shadow-teal-950/5 backdrop-blur disabled:opacity-100"
-                    disabled
-                >
-                    <GoogleMark />
-                    <span>{label}</span>
-                </Button>
-            ) : null}
+            >
+                {!isReady ? (
+                    // Visible-but-static placeholder *inside* the mount div.
+                    // GSI's `renderButton` clears innerHTML before mounting
+                    // its iframe, so this disappears the moment the SDK is
+                    // ready — without ever covering the iframe.
+                    <span className="inline-flex items-center gap-3 text-sm font-semibold text-slate-700">
+                        <GoogleMark />
+                        <span>{label}</span>
+                    </span>
+                ) : null}
+            </div>
         </div>
     );
 }
