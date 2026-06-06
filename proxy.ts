@@ -77,7 +77,17 @@ export function isAuthCookieName(cookieName: string): boolean {
 }
 
 function hasAuthCookie(request: NextRequest): boolean {
-    return request.cookies.getAll().some((cookie) => isAuthCookieName(cookie.name) && Boolean(cookie.value));
+    if (request.cookies.getAll().some((cookie) => isAuthCookieName(cookie.name) && Boolean(cookie.value))) {
+        return true;
+    }
+    // Mock mode (local dev / preview / tests): the in-app mock login sets
+    // `mock_session` instead of a real Sanctum cookie, so the dentist/assistant
+    // protected-route gate must accept it too — otherwise a logged-in mock
+    // session bounces straight back to /login and the app is unreachable.
+    // Recognised ONLY when the mock API is actually enabled: in production
+    // `isMockApiEnabled()` is false, so a forged `mock_session` can never slip
+    // past the gate there — the real Sanctum cookie stays the only credential.
+    return isMockApiEnabled() && Boolean(request.cookies.get(MOCK_SESSION_COOKIE)?.value);
 }
 
 function normalizePathname(pathname: string): string {
