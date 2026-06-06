@@ -1,11 +1,12 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { Check, KeyRound } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { GoogleAuthButton } from '@/components/auth/google-auth-button';
 import { useI18n } from '@/components/providers/i18n-provider';
 import { linkGoogleAccount, unlinkGoogleAccount } from '@/lib/api/dentist';
 import { getApiErrorMessage } from '@/lib/api/client';
@@ -16,19 +17,29 @@ const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ?? '';
 /**
  * Local narrow types for the bits of the Google Identity Services API we
  * touch from this card. The /login + /register pages already augment
- * `Window.google` with their own narrow GoogleAccountsId shape (the
- * subset they need: initialize + renderButton). Re-augmenting from here
- * with the One-Tap `prompt` API would conflict with that declaration,
- * so we keep these as a local cast instead.
+ * `Window.google` with their own narrow GoogleAccountsId shape; our
+ * `initialize` config carries a couple of extra fields (auto_select,
+ * cancel_on_tap_outside), so re-augmenting the global from here would
+ * clash with that declaration. We keep these as a local cast instead.
  */
 interface GsiIdApi {
     initialize: (config: {
         client_id: string;
         callback: (response: { credential?: string }) => void;
-        auto_select?: boolean;
-        cancel_on_tap_outside?: boolean;
     }) => void;
-    prompt: () => void;
+    renderButton: (
+        parent: HTMLElement,
+        options: {
+            theme: 'outline';
+            size: 'large';
+            type: 'standard';
+            text: 'continue_with';
+            shape: 'rectangular' | 'pill';
+            logo_alignment?: 'left' | 'center';
+            locale?: string;
+            width: number;
+        }
+    ) => void;
 }
 
 function getGsi(): GsiIdApi | undefined {
@@ -77,17 +88,25 @@ interface ConnectedAccountsCardProps {
  *   - Email + Password — derived from `has_password`.
  *   - Google — derived from `google_linked`.
  *
- * Connecting Google triggers Google Identity Services' One-Tap prompt;
- * the returned ID token is shipped to `POST /auth/google/link`, which
- * re-verifies it server-side before binding. Disconnecting is hidden
+ * Connecting Google renders Google Identity Services' official button
+ * (the same reliable popup flow used on /login + /register — NOT the
+ * One-Tap prompt, which silently no-ops on Safari/Firefox/ITP and after
+ * a couple of dismissals, which would make this the dead-end the login
+ * page warns users away from). The returned ID token is shipped to
+ * `POST /auth/google/link`, which re-verifies it server-side before
+ * binding. Disconnecting is hidden
  * when the user has no password fallback (the backend also refuses,
  * but hiding the action keeps the UX from leading them into the dead
  * end). Owner password-reset can be used to set the missing password.
  */
 export function ConnectedAccountsCard({ user, className }: ConnectedAccountsCardProps) {
-    const { t } = useI18n();
+    const { t, locale } = useI18n();
     const queryClient = useQueryClient();
     const [googleReady, setGoogleReady] = useState(false);
+    // GSI injects its <iframe> button here. Like /login + /register, this
+    // div MUST stay empty in JSX (it's GSI's territory) — GoogleAuthButton
+    // enforces that and overlays its own loading placeholder as a sibling.
+    const mountRef = useRef<HTMLDivElement | null>(null);
 
     const linkMutation = useMutation({
         mutationFn: linkGoogleAccount,
@@ -111,16 +130,46 @@ export function ConnectedAccountsCard({ user, className }: ConnectedAccountsCard
             toast.error(getApiErrorMessage(error, t('settings.connectedAccounts.toast.unlinkFailed'))),
     });
 
-    // Lazy-load the Google Identity Services SDK only when the user lands
-    // on Settings → Security and the deploy is actually configured. Same
-    // pattern as the /login + /register pages so we don't ship the script
-    // tag (~70KB) until it might be used.
+    // Keep the latest link handler in a ref so the GSI init effect below
+    // doesn't need `linkMutation` in its deps — otherwise every flip of the
+    // mutation's pending state would re-run the effect and re-render
+    // (flicker) the GSI button mid-link.
+    const linkRef = useRef(linkMutation.mutate);
     useEffect(() => {
-        if (!googleClientId || typeof window === 'undefined') return;
+        linkRef.current = linkMutation.mutate;
+    }, [linkMutation.mutate]);
+
+    // Lazy-load the Google Identity Services SDK and render Google's OWN
+    // button only when the user lands on Settings → Security, the deploy is
+    // configured, AND Google isn't linked yet (nothing to connect once it
+    // is). Same proven pattern as /login + /register: render Google's
+    // official button (a reliable click → account-chooser popup) instead of
+    // One-Tap `prompt()`, which can silently no-op on Safari/Firefox/ITP and
+    // strand the user with no dialog and no error. The script (~70KB) only
+    // ships when this branch is actually reachable.
+    useEffect(() => {
+        if (!googleClientId || typeof window === 'undefined' || user.google_linked) {
+            return;
+        }
+
+        let cancelled = false;
+        let pollHandle = 0;
 
         const initialize = () => {
+            if (cancelled) return;
             const gid = getGsi();
-            if (!gid) return;
+            const mount = mountRef.current;
+            if (!gid || !mount) {
+                // Either GSI's global hasn't attached yet (race between
+                // appendChild and load) or React mounted the ref a tick
+                // later than us. Re-poll up to ~2s rather than strand the
+                // user on the disabled placeholder.
+                pollHandle = window.setTimeout(initialize, 100);
+                return;
+            }
+            // GSI owns this node — clear it before handing it over so a
+            // re-render never collides with React's view of the children.
+            mount.innerHTML = '';
             gid.initialize({
                 client_id: googleClientId,
                 callback: (response) => {
@@ -128,10 +177,21 @@ export function ConnectedAccountsCard({ user, className }: ConnectedAccountsCard
                         toast.error(t('settings.connectedAccounts.toast.linkFailed'));
                         return;
                     }
-                    linkMutation.mutate(response.credential);
+                    linkRef.current(response.credential);
                 },
-                auto_select: false,
-                cancel_on_tap_outside: true,
+            });
+            gid.renderButton(mount, {
+                theme: 'outline',
+                size: 'large',
+                type: 'standard',
+                text: 'continue_with',
+                shape: 'pill',
+                locale,
+                logo_alignment: 'left',
+                width: Math.max(
+                    240,
+                    Math.min(400, Math.floor(mount.getBoundingClientRect().width || 400))
+                ),
             });
             setGoogleReady(true);
         };
@@ -140,32 +200,30 @@ export function ConnectedAccountsCard({ user, className }: ConnectedAccountsCard
             'script[src="https://accounts.google.com/gsi/client"]'
         );
         if (existing) {
-            if (getGsi()) {
-                initialize();
-            } else {
-                existing.addEventListener('load', initialize, { once: true });
-            }
-            return;
+            initialize();
+            existing.addEventListener('load', initialize);
+            return () => {
+                cancelled = true;
+                window.clearTimeout(pollHandle);
+                existing.removeEventListener('load', initialize);
+            };
         }
 
         const script = document.createElement('script');
         script.src = 'https://accounts.google.com/gsi/client';
         script.async = true;
         script.defer = true;
-        script.addEventListener('load', initialize, { once: true });
+        script.addEventListener('load', initialize);
         document.head.appendChild(script);
-        // No teardown — the script is a long-lived global and re-mounting
-        // settings should re-use it. We rely on the `existing` short-
-        // circuit on subsequent mounts.
-    }, [linkMutation, t]);
+        return () => {
+            cancelled = true;
+            window.clearTimeout(pollHandle);
+            script.removeEventListener('load', initialize);
+        };
+    }, [user.google_linked, locale, t]);
 
     const isLinkPending = linkMutation.isPending;
     const isUnlinkPending = unlinkMutation.isPending;
-
-    const handleConnect = () => {
-        if (!googleReady) return;
-        getGsi()?.prompt();
-    };
 
     return (
         <Card className={className}>
@@ -242,17 +300,13 @@ export function ConnectedAccountsCard({ user, className }: ConnectedAccountsCard
                                     ) : null}
                                 </>
                             ) : googleClientId ? (
-                                <Button
-                                    size="sm"
-                                    variant="outline"
-                                    disabled={!googleReady || isLinkPending}
-                                    onClick={handleConnect}
-                                    className="h-8 rounded-lg text-xs"
-                                >
-                                    {isLinkPending
-                                        ? t('common.saving')
-                                        : t('settings.connectedAccounts.connect')}
-                                </Button>
+                                // Status only — the actual connect affordance is
+                                // Google's own rendered button below the list (a
+                                // reliable popup, unlike One-Tap). Mirrors the
+                                // password row's "Not set" treatment.
+                                <span className="shrink-0 text-xs font-medium text-slate-500">
+                                    {t('settings.connectedAccounts.google.notConnected')}
+                                </span>
                             ) : (
                                 <span className="text-xs font-medium text-slate-400">
                                     {t('settings.connectedAccounts.google.unavailable')}
@@ -261,6 +315,22 @@ export function ConnectedAccountsCard({ user, className }: ConnectedAccountsCard
                         </div>
                     </li>
                 </ul>
+                {/* Connect affordance: Google's OWN rendered button (reliable
+                    popup) rather than One-Tap. Shown only while unlinked and
+                    configured; GoogleAuthButton keeps the mount node empty for
+                    GSI and overlays a matching loading pill until it's ready. */}
+                {!user.google_linked && googleClientId ? (
+                    <div className="mt-4">
+                        <GoogleAuthButton
+                            mountRef={mountRef}
+                            isConfigured
+                            isReady={googleReady}
+                            isPending={isLinkPending}
+                            label={t('register.googleContinue')}
+                            unavailableLabel={t('settings.connectedAccounts.google.unavailable')}
+                        />
+                    </div>
+                ) : null}
                 {/* Lock-out reminder: a user who deletes their password and
                     only has Google linked could lose access if Google is
                     unavailable. The backend refuses the unlink in that
