@@ -93,13 +93,18 @@ export function GoogleAuthButton({
     // clean unmount. `pointer-events-none` lets clicks fall through to the
     // GSI iframe underneath the instant it mounts.
     return (
-        <div className="relative min-h-10 w-full">
-            <div ref={mountRef} className="flex min-h-10 items-center justify-center" />
+        <div className="relative min-h-11 w-full">
+            <div ref={mountRef} className="flex min-h-11 items-center justify-center" />
             {!isReady || isPending ? (
+                // Loading placeholder styled as a white pill so it visually
+                // matches the GSI button (theme:'outline', shape:'pill')
+                // that replaces it — no jump between the loading and ready
+                // states. pointer-events-none lets clicks fall through to
+                // the real GSI button the instant it mounts underneath.
                 <div
                     aria-hidden="true"
                     className={cn(
-                        'pointer-events-none absolute inset-0 flex items-center justify-center gap-3 rounded-full text-sm font-semibold text-slate-700',
+                        'pointer-events-none absolute inset-0 flex items-center justify-center gap-3 rounded-full border border-slate-300/70 bg-white text-sm font-medium text-slate-700 shadow-sm',
                         isPending && 'opacity-60'
                     )}
                 >

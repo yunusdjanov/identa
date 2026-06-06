@@ -54,7 +54,9 @@ interface GoogleAccountsId {
             size: 'large';
             type: 'standard';
             text: 'continue_with';
-            shape: 'rectangular';
+            shape: 'rectangular' | 'pill';
+            logo_alignment?: 'left' | 'center';
+            locale?: string;
             width: number;
         }
     ) => void;
@@ -76,7 +78,7 @@ export default function LoginPage() {
     const router = useRouter();
     const queryClient = useQueryClient();
     const { isAuthenticated, login } = useAuthStore();
-    const { t } = useI18n();
+    const { t, locale } = useI18n();
     const googleButtonRef = useRef<HTMLDivElement | null>(null);
 
     const [email, setEmail] = useState('');
@@ -231,8 +233,19 @@ export default function LoginPage() {
                 size: 'large',
                 type: 'standard',
                 text: 'continue_with',
-                shape: 'rectangular',
-                width: Math.max(240, Math.min(360, Math.floor(googleButtonRef.current.getBoundingClientRect().width || 360))),
+                // `pill` matches the app's rounded-full buttons (the
+                // primary "Войти" submit is rounded-full); `rectangular`
+                // looked foreign next to it.
+                shape: 'pill',
+                // Render Google's button in the same language the user
+                // picked in the app so "Continue with Google" isn't stuck
+                // in English next to a Russian/Uzbek form.
+                locale,
+                logo_alignment: 'left',
+                // GSI caps width at 400px. Fill the container so the
+                // Google button spans the same width as the submit button
+                // above it instead of floating narrow in the middle.
+                width: Math.max(240, Math.min(400, Math.floor(googleButtonRef.current.getBoundingClientRect().width || 400))),
             });
             setGoogleReady(true);
         };
@@ -260,7 +273,7 @@ export default function LoginPage() {
             window.clearTimeout(pollHandle);
             script.removeEventListener('load', initializeGoogle);
         };
-    }, [googleMutation, isLogoutRedirect, t]);
+    }, [googleMutation, isLogoutRedirect, t, locale]);
 
     const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault();

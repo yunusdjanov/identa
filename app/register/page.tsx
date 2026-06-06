@@ -45,7 +45,9 @@ interface GoogleAccountsId {
             size: 'large';
             type: 'standard';
             text: 'continue_with';
-            shape: 'rectangular';
+            shape: 'rectangular' | 'pill';
+            logo_alignment?: 'left' | 'center';
+            locale?: string;
             width: number;
         }
     ) => void;
@@ -67,7 +69,7 @@ export default function RegisterPage() {
     const router = useRouter();
     const queryClient = useQueryClient();
     const { login } = useAuthStore();
-    const { t } = useI18n();
+    const { t, locale } = useI18n();
     const googleButtonRef = useRef<HTMLDivElement | null>(null);
 
     const [name, setName] = useState('');
@@ -170,8 +172,13 @@ export default function RegisterPage() {
                 size: 'large',
                 type: 'standard',
                 text: 'continue_with',
-                shape: 'rectangular',
-                width: Math.max(240, Math.min(360, Math.floor(googleButtonRef.current.getBoundingClientRect().width || 360))),
+                // Match the app's rounded-full buttons + render in the
+                // user's chosen UI language; see login/page.tsx for the
+                // full rationale.
+                shape: 'pill',
+                locale,
+                logo_alignment: 'left',
+                width: Math.max(240, Math.min(400, Math.floor(googleButtonRef.current.getBoundingClientRect().width || 400))),
             });
             setGoogleReady(true);
         };
@@ -199,7 +206,7 @@ export default function RegisterPage() {
             window.clearTimeout(pollHandle);
             script.removeEventListener('load', initializeGoogle);
         };
-    }, [googleMutation, t]);
+    }, [googleMutation, t, locale]);
 
     const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault();
