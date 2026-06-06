@@ -64,6 +64,8 @@ public/identa-handoff/landing.bundle.js
 
 # backend local runtime data
 backend/database/*.sqlite
+# stray sqlite db accidentally created when DB_DATABASE has no extension
+backend/identa
 backend/storage/logs/
 backend/storage/framework/cache/
 backend/storage/framework/sessions/
