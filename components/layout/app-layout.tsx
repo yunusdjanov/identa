@@ -65,26 +65,32 @@ function useIsHydrated() {
     );
 }
 
+/**
+ * Outer shell: ONLY reads the `isLoggingOut` flag. Splitting the
+ * conditional return into its own component keeps Rules of Hooks
+ * happy — the inner `AppLayoutBody` can call as many hooks as it
+ * needs (useQuery, useEffect, etc.) without React losing track of
+ * the order when the flag flips. The previous in-line `if (...)
+ * return` skipped every hook below it on the very next render,
+ * which surfaced as "Rendered fewer hooks than during the previous
+ * render" — visible to the user as a 500 from `error.tsx` after
+ * login or logout.
+ */
 export function AppLayout({ children }: { children: React.ReactNode }) {
+    const isLoggingOut = useAuthStore((state) => state.isLoggingOut);
+    if (isLoggingOut) {
+        return <LogoutLoadingScreen />;
+    }
+    return <AppLayoutBody>{children}</AppLayoutBody>;
+}
+
+function AppLayoutBody({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
     const router = useRouter();
     const queryClient = useQueryClient();
     const { dentistName, logout } = useAuthStore();
-    const isLoggingOut = useAuthStore((state) => state.isLoggingOut);
     const handleLogout = useInstantLogout('/login');
 
-    // Logout overlay — when the user clicks Logout, `useInstantLogout`
-    // flips `isLoggingOut` to true synchronously BEFORE any of the
-    // async cleanup runs. From this render onward the entire
-    // authenticated tree is replaced with a full-screen "Logging out…"
-    // screen until the hard navigation lands. This is what defeats the
-    // long-standing "click logout, then dashboard reopens" bounce-back:
-    // queries, layout effects, and AccountMenu unmount the instant the
-    // flag flips, so nothing left in the tree can dispatch a
-    // /dashboard redirect mid-flight.
-    if (isLoggingOut) {
-        return <LogoutLoadingScreen />;
-    }
     const {
         data: currentUser,
         isLoading: isUserLoading,
