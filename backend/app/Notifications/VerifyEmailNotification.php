@@ -27,8 +27,15 @@ class VerifyEmailNotification extends BaseVerifyEmail
     /**
      * Locale frozen at dispatch time so the queued worker doesn't render
      * the email in the worker's default locale.
+     *
+     * Deliberately NOT named `$locale`: the parent
+     * `Illuminate\Notifications\Notification` already declares a `public
+     * $locale` (backing its `->locale()` helper). PHP forbids a child from
+     * narrowing that to `private`, so reusing the name is a fatal
+     * "access level must be public" compile error that 500s every request —
+     * and blocks the whole test suite — that autoloads this class.
      */
-    private string $locale;
+    private string $mailLocale;
 
     public function __construct()
     {
@@ -37,7 +44,7 @@ class VerifyEmailNotification extends BaseVerifyEmail
         // ?lang query). Falling back to the configured app fallback covers
         // CLI / artisan dispatch (seeders, tinker) where there's no
         // request locale.
-        $this->locale = App::getLocale() ?: Config::get('app.fallback_locale', 'en');
+        $this->mailLocale = App::getLocale() ?: Config::get('app.fallback_locale', 'en');
     }
 
     /**
@@ -51,7 +58,7 @@ class VerifyEmailNotification extends BaseVerifyEmail
         // view-side __() calls — Laravel resolves the locale at render
         // time, so without this the queued mail might pick up another
         // request's locale that ran on the same worker.
-        App::setLocale($this->locale);
+        App::setLocale($this->mailLocale);
 
         $expiresAt = Carbon::now()
             ->addMinutes(Config::get('auth.verification.expire', 60));
@@ -64,7 +71,7 @@ class VerifyEmailNotification extends BaseVerifyEmail
                 'verificationUrl' => $verificationUrl,
                 'recipientName' => $notifiable->name ?? '',
                 'expiresAt' => $expiresAt,
-                'locale' => $this->locale,
+                'locale' => $this->mailLocale,
             ]);
     }
 
