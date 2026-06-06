@@ -28,6 +28,7 @@ import { LanguageSwitcher } from '@/components/layout/language-switcher';
 import { useI18n } from '@/components/providers/i18n-provider';
 import { SubscriptionBanner } from '@/components/layout/subscription-banner';
 import { EmailVerificationBanner } from '@/components/layout/email-verification-banner';
+import { LogoutLoadingScreen } from '@/components/layout/logout-loading-screen';
 import { Brand } from '@/components/branding/brand';
 import { AccountMenu } from '@/components/layout/account-menu';
 import { toast } from 'sonner';
@@ -69,7 +70,21 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     const router = useRouter();
     const queryClient = useQueryClient();
     const { dentistName, logout } = useAuthStore();
+    const isLoggingOut = useAuthStore((state) => state.isLoggingOut);
     const handleLogout = useInstantLogout('/login');
+
+    // Logout overlay — when the user clicks Logout, `useInstantLogout`
+    // flips `isLoggingOut` to true synchronously BEFORE any of the
+    // async cleanup runs. From this render onward the entire
+    // authenticated tree is replaced with a full-screen "Logging out…"
+    // screen until the hard navigation lands. This is what defeats the
+    // long-standing "click logout, then dashboard reopens" bounce-back:
+    // queries, layout effects, and AccountMenu unmount the instant the
+    // flag flips, so nothing left in the tree can dispatch a
+    // /dashboard redirect mid-flight.
+    if (isLoggingOut) {
+        return <LogoutLoadingScreen />;
+    }
     const {
         data: currentUser,
         isLoading: isUserLoading,
