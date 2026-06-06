@@ -73,41 +73,40 @@ export function GoogleAuthButton({
         );
     }
 
-    // Configured + GSI ready path. We used to render a `disabled` Button at
-    // `absolute inset-0` over the mount div while `googleReady` was still
-    // false, intending it as a "loading" placeholder. That overlay was a
-    // pointer-events trap: a disabled <button> intercepts the pointerdown
-    // without dispatching click, so even after GSI's iframe mounted into the
-    // div underneath, every user click landed on the overlay and was
-    // silently swallowed — visually "the button does nothing, no error".
+    // Configured + GSI path.
     //
-    // The overlay is now gone. The mount div still reserves its own height
-    // (`min-h-10`) so the surrounding layout doesn't jump while Google's
-    // SDK initializes, and `pointer-events-none` during the not-ready
-    // window keeps stray clicks on the empty area from doing nothing
-    // confusing — but the iframe itself is always the topmost interactive
-    // element the moment GSI calls `renderButton`.
+    // CRITICAL: the `mountRef` div MUST stay empty in JSX — it is Google
+    // Identity Services' territory. The caller does
+    // `googleButtonRef.current.innerHTML = ''` then `accounts.id.renderButton`,
+    // which injects a Google-owned <iframe> into it. If React also rendered
+    // children into that same div (an earlier version put a `<span>`
+    // placeholder there), the two DOM owners collide: React's virtual DOM
+    // still believes the placeholder node exists, but GSI has already
+    // replaced the div's contents, so the next reconciliation throws
+    // `NotFoundError: Failed to execute 'removeChild' on 'Node'` — which
+    // bubbles to the route error boundary and renders the 500 page. This
+    // only reproduced in production because GSI loads only when
+    // NEXT_PUBLIC_GOOGLE_CLIENT_ID is set (i.e. not in local dev).
+    //
+    // The loading placeholder is therefore a SIBLING overlay React fully
+    // owns — GSI never touches it, so removing it when `isReady` flips is a
+    // clean unmount. `pointer-events-none` lets clicks fall through to the
+    // GSI iframe underneath the instant it mounts.
     return (
         <div className="relative min-h-10 w-full">
-            <div
-                ref={mountRef}
-                className={cn(
-                    'flex min-h-10 items-center justify-center',
-                    (!isReady || isPending) && 'pointer-events-none opacity-60'
-                )}
-                aria-busy={!isReady || isPending}
-            >
-                {!isReady ? (
-                    // Visible-but-static placeholder *inside* the mount div.
-                    // GSI's `renderButton` clears innerHTML before mounting
-                    // its iframe, so this disappears the moment the SDK is
-                    // ready — without ever covering the iframe.
-                    <span className="inline-flex items-center gap-3 text-sm font-semibold text-slate-700">
-                        <GoogleMark />
-                        <span>{label}</span>
-                    </span>
-                ) : null}
-            </div>
+            <div ref={mountRef} className="flex min-h-10 items-center justify-center" />
+            {!isReady || isPending ? (
+                <div
+                    aria-hidden="true"
+                    className={cn(
+                        'pointer-events-none absolute inset-0 flex items-center justify-center gap-3 rounded-full text-sm font-semibold text-slate-700',
+                        isPending && 'opacity-60'
+                    )}
+                >
+                    <GoogleMark />
+                    <span>{label}</span>
+                </div>
+            ) : null}
         </div>
     );
 }
