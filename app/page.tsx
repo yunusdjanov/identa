@@ -12,14 +12,43 @@ const seoDescription =
 
 // Self-hosted via next/font (no render-blocking Google Fonts request, no
 // layout shift). The variables feed the landing's --font-sans/display/mono.
-const geist = Geist({ subsets: ["latin"], variable: "--font-geist", display: "swap" });
-const geistMono = Geist_Mono({ subsets: ["latin"], variable: "--font-geist-mono", display: "swap" });
+//
+// `display: "optional"` instead of `"swap"`:
+//   - With "swap", the browser paints fallback fonts immediately and swaps
+//     to the custom font when it loads. That swap is the visible "flash"
+//     between two designs the user complained about on refresh — system
+//     font metrics differ from Geist/Instrument Serif enough that lines
+//     re-flow when the swap happens (especially on the Cyrillic landing
+//     copy, where the fallback "system-ui" has different widths than the
+//     custom font's latin-only glyphs).
+//   - "optional" gives the font 100ms to load before render; if it makes
+//     it, the user sees the brand font from the first paint. If not, the
+//     browser commits to the fallback for the rest of this page load —
+//     no swap, no reflow. On the next visit the font is already cached
+//     and loads instantly. End result: zero visible swap, ever.
+//
+// `preload: true` is also explicit so Vercel's edge cache always serves
+// the font woff2 alongside the HTML; combined with "optional", the
+// cache-warm visit always paints with the brand font.
+const geist = Geist({
+    subsets: ["latin"],
+    variable: "--font-geist",
+    display: "optional",
+    preload: true,
+});
+const geistMono = Geist_Mono({
+    subsets: ["latin"],
+    variable: "--font-geist-mono",
+    display: "optional",
+    preload: true,
+});
 const instrumentSerif = Instrument_Serif({
     subsets: ["latin"],
     weight: "400",
     style: ["normal", "italic"],
     variable: "--font-instrument",
-    display: "swap",
+    display: "optional",
+    preload: true,
 });
 
 export const metadata: Metadata = {
