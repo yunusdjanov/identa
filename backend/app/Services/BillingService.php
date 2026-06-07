@@ -313,7 +313,22 @@ class BillingService
         $this->logWebhook('info', 'received', $request);
 
         if (! $this->payxService->verifyWebhook($request)) {
-            $this->logWebhook('warning', 'rejected_invalid_token', $request);
+            // Diagnostic (no secret exposure): identify WHICH token PayX signs
+            // the webhook with so we can configure PAYX_PROJECT_TOKEN to match.
+            // We log only a 6-char prefix + length, plus booleans comparing the
+            // received bearer against our configured api/project tokens — never
+            // the full token. `matches_api_token: true` means PayX reuses the
+            // API key for webhooks; false + a 6137.. prefix means it uses the
+            // production key, etc.
+            $bearer = (string) $request->bearerToken();
+            $this->logWebhook('warning', 'rejected_invalid_token', $request, [
+                'received_token_prefix' => $bearer === '' ? '(none)' : substr($bearer, 0, 6),
+                'received_token_len' => strlen($bearer),
+                'matches_api_token' => $bearer !== ''
+                    && hash_equals(trim((string) config('services.payx.api_token')), $bearer),
+                'matches_project_token' => $bearer !== ''
+                    && hash_equals(trim((string) config('services.payx.project_token')), $bearer),
+            ]);
 
             throw ValidationException::withMessages([
                 'webhook' => ['invalid_payment_webhook'],
