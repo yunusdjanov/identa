@@ -596,7 +596,7 @@ export default function SettingsPage() {
 
                 <TabsContent value="security" className="space-y-5">
                     {currentUserQuery.data ? (
-                        <>
+                        <div className="grid items-start gap-5 xl:grid-cols-2">
                             <PasswordSecurityCard user={currentUserQuery.data} className="interactive-card" />
                             {/* Assistants share the dentist owner's sign-in
                                 surface only conceptually — their own account
@@ -605,7 +605,7 @@ export default function SettingsPage() {
                                 we surface the panel for every viewer who
                                 can reach Settings (dentist + assistant). */}
                             <ConnectedAccountsCard user={currentUserQuery.data} className="interactive-card" />
-                        </>
+                        </div>
                     ) : null}
                 </TabsContent>
             </Tabs>

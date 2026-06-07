@@ -687,7 +687,7 @@ export function AdminPlansLoadingState() {
 
 export function AdminSettingsLoadingState() {
     return (
-        <AdminShellSkeleton maxWidth="max-w-5xl">
+        <AdminShellSkeleton>
             <PageHeaderSkeleton actions={0} />
             <Card className="rounded-2xl border-slate-200 bg-white">
                 <CardHeader>
@@ -722,8 +722,8 @@ export function AdminPlansPanelSkeleton() {
 
 export function AdminDentistBillingLoadingState() {
     // Mirrors the real page (`app/admin/dentists/[id]/billing/page.tsx`):
-    // - max-w-[1100px] container, not the default max-w-[1440px], because
-    //   the billing detail page is narrower than the dashboard.
+    // - Default max-w-[1440px] container — kept in sync with the dentist-side
+    //   and every other admin page so there's no horizontal jump on load.
     // - Back link, dentist identity header with 3 inline metric columns,
     //   plan picker grid, state-management card, danger zone, and an
     //   activity card with tabs.
@@ -731,7 +731,7 @@ export function AdminDentistBillingLoadingState() {
     // included — they only render when their data fields are populated and
     // we can't predict them at skeleton time.
     return (
-        <AdminShellSkeleton maxWidth="max-w-[1100px]">
+        <AdminShellSkeleton>
             <Skeleton className="h-5 w-32 rounded-xl" />
             {/* Dentist header card */}
             <Card className="rounded-2xl border-slate-200 bg-white shadow-sm shadow-slate-200/60">
@@ -902,7 +902,7 @@ export function AdminDentistStaffLoadingState() {
     //   LastLogin, Created). On mobile the page switches to a card list,
     //   but the desktop column count is what the table-row skeleton mirrors.
     return (
-        <AdminShellSkeleton maxWidth="max-w-5xl">
+        <AdminShellSkeleton>
             <PageHeaderSkeleton actions={1} />
             <MetricCardsSkeleton count={3} />
             <DataTableSkeleton columns={6} rows={4} />

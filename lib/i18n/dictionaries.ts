@@ -4093,7 +4093,6 @@ Object.assign(en, {
 Object.assign(ru, {
     'patientHistory.imagesUploading': 'Идёт загрузка...',
     'patientHistory.toast.imagesSyncFailed': 'Запись сохранена, но часть изображений не завершила обработку. Откройте запись и попробуйте ещё раз.',
-    'settings.passwordSelfServiceInfo': 'Смена пароля доступна для суперадмина, стоматолога и ассистента.',
     'settings.currentPassword': 'Текущий пароль',
     'settings.newPassword': 'Новый пароль',
     'settings.confirmNewPassword': 'Подтвердите новый пароль',
@@ -4128,7 +4127,6 @@ Object.assign(uz, {
 Object.assign(en, {
     'patientHistory.imagesUploading': 'Uploading...',
     'patientHistory.toast.imagesSyncFailed': 'Entry saved, but some images did not finish processing. Please reopen the entry and try again.',
-    'settings.passwordSelfServiceInfo': 'Super admins, dentists, and staff can change their own password from here.',
     'settings.currentPassword': 'Current password',
     'settings.newPassword': 'New password',
     'settings.confirmNewPassword': 'Confirm new password',
@@ -4279,7 +4277,6 @@ Object.assign(uz, {
     'admin.billing.loadFailed': 'Akkaunt tarifi va toʻlov maʼlumotlarini yuklab boʻlmadi.',
     'patientHistory.validation.maxImages': 'Bir yozuvga koʻpi bilan {{max}} ta rasm yuklash mumkin.',
     'patientHistory.toast.imagesSyncFailed': 'Yozuv saqlandi, lekin ayrim rasmlar hali qayta ishlanmadi. Yozuvni qayta ochib, yana urinib koʻring.',
-    'settings.passwordSelfServiceInfo': 'Parolni superadministrator, stomatolog va xodim oʻz kabinetidan almashtirishi mumkin.',
     'settings.passwordFixErrors': 'Formadagi xatolarni toʻgʻrilang.',
 });
 

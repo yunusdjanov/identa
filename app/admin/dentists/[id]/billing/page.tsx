@@ -463,7 +463,7 @@ export default function AdminBillingDetailPage() {
         <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(219,234,254,0.55),transparent_34rem),linear-gradient(180deg,#f8fbff_0%,#f8fafc_42%,#f1f5f9_100%)]">
             <AdminHeader active="dashboard" onLogout={handleLogout} />
 
-            <main className="mx-auto max-w-[1100px] space-y-5 px-3 py-6 sm:px-6 sm:py-8 lg:px-8">
+            <main className="mx-auto max-w-[1440px] space-y-5 px-3 py-6 sm:px-6 sm:py-8 lg:px-8">
                 <Link
                     href="/admin"
                     className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-600 transition hover:text-slate-900"
@@ -623,7 +623,7 @@ export default function AdminBillingDetailPage() {
                                         <p className="mt-1 truncate text-base font-semibold text-slate-950">
                                             {t('admin.billing.staffCount', {
                                                 active: billing.staff.active,
-                                                total: billing.staff.total,
+                                                total: billing.subscription.staff_limit ?? billing.staff.total,
                                             })}
                                         </p>
                                         <p className="mt-1 truncate text-xs text-slate-500">

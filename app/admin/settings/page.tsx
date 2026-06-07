@@ -129,7 +129,7 @@ export default function AdminSettingsPage() {
             />
 
         <main className="px-3 py-4 sm:px-6 sm:py-5 lg:px-8 lg:py-6">
-            <div className="mx-auto max-w-5xl space-y-5 lg:space-y-6">
+            <div className="mx-auto max-w-[1440px] space-y-5 lg:space-y-6">
                     <PageHeader title={t('admin.settings.title')} description={t('admin.settings.subtitle')} />
 
                     {authQuery.isError || !authQuery.data ? (

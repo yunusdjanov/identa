@@ -64,12 +64,10 @@ function getStatusBadgeClassName(status: ApiAssistantAccount['account_status']):
 }
 
 // The inline `StaffPageSkeleton` was previously declared here, but it
-// drifted from the real layout (5 stacked rows where the real page has a
-// 6-column data table, and `max-w-[1440px]` where the real page is
-// `max-w-5xl`). Each in-page revalidation produced a visible jump from the
-// route-level skeleton → this inline one → the real layout. Importing the
-// shared `AdminDentistStaffLoadingState` keeps the route-level and in-page
-// shapes identical.
+// drifted from the real layout (different row shape and container width),
+// producing a visible jump from the route-level skeleton → this inline one
+// → the real layout. Importing the shared `AdminDentistStaffLoadingState`
+// keeps the route-level and in-page shapes identical.
 
 export default function AdminDentistStaffPage() {
     const { t, locale } = useI18n();

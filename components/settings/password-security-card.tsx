@@ -100,7 +100,6 @@ export function PasswordSecurityCard({ user, className }: PasswordSecurityCardPr
                     <Lock className="mr-2 h-4 w-4" />
                     {t('settings.passwordSecurity')}
                 </CardTitle>
-                <p className="text-sm text-slate-500">{t('settings.passwordSelfServiceInfo')}</p>
             </CardHeader>
             <CardContent>
                 <form onSubmit={handleSubmit} className="space-y-5">
