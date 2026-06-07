@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\AuditLogController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BillingController;
 use App\Http\Controllers\Api\DashboardController;
+use App\Http\Controllers\Api\DeviceController;
 use App\Http\Controllers\Api\InvoiceController;
 use App\Http\Controllers\Api\LandingController;
 use App\Http\Controllers\Api\PatientController;
@@ -16,6 +17,7 @@ use App\Http\Controllers\Api\PatientOdontogramController;
 use App\Http\Controllers\Api\PatientTreatmentController;
 use App\Http\Controllers\Api\PaymentController;
 use App\Http\Controllers\Api\QuickPaymentController;
+use App\Http\Controllers\Api\SettingsNotificationController;
 use App\Http\Controllers\Api\SettingsProfileController;
 use App\Http\Controllers\Api\TeamAssistantController;
 use App\Models\User;
@@ -141,7 +143,24 @@ Route::prefix('v1')->group(function (): void {
         // out from under the admin who reset them.
         Route::put('settings/profile', [SettingsProfileController::class, 'update'])
             ->middleware(['password.fresh', 'throttle:30,1']);
+
+        // Mobile Settings → Notifications. Personal push toggles, not a
+        // clinical mutation, so they stay outside subscription.access /
+        // password.fresh — a read-only or force-reset user can still mute
+        // their own notifications.
+        Route::get('settings/notifications', [SettingsNotificationController::class, 'show']);
+        Route::put('settings/notifications', [SettingsNotificationController::class, 'update'])
+            ->middleware('throttle:30,1');
     });
+
+    // Push-token registration for the mobile app. Deliberately free of
+    // subscription.access + password.fresh: a device must be able to register
+    // its token immediately after login regardless of billing state, so push
+    // (e.g. a payment-overdue nudge) can still reach a read-only account.
+    Route::middleware(['auth:sanctum', 'role:dentist,assistant', 'throttle:30,1'])
+        ->group(function (): void {
+            Route::post('devices/register', [DeviceController::class, 'register']);
+        });
 
     Route::post('webhooks/payx', [BillingController::class, 'payxWebhook'])
         ->middleware('throttle:120,1');

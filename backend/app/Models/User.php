@@ -105,6 +105,22 @@ class User extends Authenticatable implements MustVerifyEmail
         'subscription_payment_amount',
         'subscription_note',
         'last_login_at',
+        'notification_preferences',
+    ];
+
+    /**
+     * Default mobile notification toggles. Mirrors the mobile client's
+     * DEFAULT_PREFS (src/api/notifications.ts) so a brand-new account sees
+     * the same switches whether the server has persisted anything yet or not.
+     *
+     * @var array<string, bool>
+     */
+    public const NOTIFICATION_PREFERENCE_DEFAULTS = [
+        'push_enabled' => true,
+        'appointment_reminder' => true,
+        'new_appointment' => true,
+        'payment_received' => false,
+        'daily_summary' => false,
     ];
 
     /**
@@ -139,7 +155,30 @@ class User extends Authenticatable implements MustVerifyEmail
             'subscription_cancelled_at' => 'datetime',
             'subscription_payment_amount' => 'decimal:2',
             'last_login_at' => 'datetime',
+            'notification_preferences' => 'array',
         ];
+    }
+
+    /**
+     * Resolved notification toggles: the stored JSON merged over the defaults
+     * so callers always receive every key as a strict boolean, regardless of
+     * what (if anything) was persisted.
+     *
+     * @return array<string, bool>
+     */
+    public function notificationPreferences(): array
+    {
+        $stored = $this->notification_preferences;
+        $stored = is_array($stored) ? $stored : [];
+
+        $resolved = [];
+        foreach (self::NOTIFICATION_PREFERENCE_DEFAULTS as $key => $default) {
+            $resolved[$key] = array_key_exists($key, $stored)
+                ? (bool) $stored[$key]
+                : $default;
+        }
+
+        return $resolved;
     }
 
     /**
