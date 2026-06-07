@@ -265,20 +265,49 @@ export function PatientsLoadingState() {
 }
 
 export function PaymentsLoadingState() {
+    // The real page (`app/payments/page.tsx`) keeps the toolbar (tab group +
+    // search) AND the ledger table inside ONE `overflow-hidden rounded-2xl`
+    // card. The earlier skeleton split them into three free-floating blocks
+    // (bare tab pills → a standalone search card → a separate table card),
+    // so the layout reshuffled when data landed. Mirror the single-card shape.
     return (
         <div data-testid="payments-loading" className="space-y-5 lg:space-y-6">
             <PageHeaderSkeleton actions={0} />
             <MetricCardsSkeleton count={4} />
-            <div className="flex gap-2">
-                <Skeleton className="h-10 w-32 rounded-xl" />
-                <Skeleton className="h-10 w-32 rounded-xl" />
-            </div>
-            <Card className="rounded-2xl border-slate-200 bg-white shadow-sm">
-                <CardContent className="p-4">
-                    <Skeleton className="h-10 w-full rounded-xl" />
+            <Card data-testid="ledger-table-skeleton" className="overflow-hidden rounded-2xl bg-white shadow-sm">
+                <CardContent className="space-y-5 p-4 sm:p-5">
+                    {/* Toolbar: 2-tab segmented control (left) + search (right) */}
+                    <div className="flex flex-col gap-4 rounded-2xl border border-teal-100/80 bg-white p-3 lg:flex-row lg:items-center lg:justify-between">
+                        <div className="inline-flex w-full items-center gap-1 rounded-xl border border-slate-200/80 bg-slate-100/70 p-1 sm:w-auto">
+                            <Skeleton className="h-9 flex-1 rounded-lg sm:w-28 sm:flex-none" />
+                            <Skeleton className="h-9 flex-1 rounded-lg sm:w-28 sm:flex-none" />
+                        </div>
+                        <Skeleton className="h-9 w-full rounded-xl sm:w-[22rem]" />
+                    </div>
+                    {/* Ledger rows */}
+                    <div className="space-y-3">
+                        <div
+                            className="hidden gap-3 md:grid"
+                            style={{ gridTemplateColumns: 'repeat(6, minmax(0, 1fr))' }}
+                        >
+                            {Array.from({ length: 6 }).map((_, index) => (
+                                <Skeleton key={index} className="h-4 w-full rounded-xl" />
+                            ))}
+                        </div>
+                        {Array.from({ length: 7 }).map((_, rowIndex) => (
+                            <div
+                                key={rowIndex}
+                                className="grid gap-3 rounded-xl border border-slate-100 bg-white p-3 md:border-0 md:bg-transparent md:p-0"
+                                style={{ gridTemplateColumns: 'repeat(6, minmax(0, 1fr))' }}
+                            >
+                                {Array.from({ length: 6 }).map((__, columnIndex) => (
+                                    <Skeleton key={columnIndex} className="h-4 min-w-0 rounded-xl" />
+                                ))}
+                            </div>
+                        ))}
+                    </div>
                 </CardContent>
             </Card>
-            <DataTableSkeleton columns={6} rows={7} testId="ledger-table-skeleton" />
         </div>
     );
 }
