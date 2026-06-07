@@ -9,8 +9,10 @@ use App\Models\Subscription;
 use App\Models\User;
 use App\Support\AuditLogger;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use RuntimeException;
@@ -195,7 +197,7 @@ class BillingService
             // (status, provider_order_id, provider_payload) is set via forceFill
             // because those columns are non-fillable on the model to block any
             // future user-input path from rewriting them.
-            $payment = new BillingPayment();
+            $payment = new BillingPayment;
             $payment->fill([
                 'user_id' => $user->id,
                 'subscription_id' => $subscription?->id,
@@ -301,7 +303,18 @@ class BillingService
      */
     public function handlePayxWebhook(Request $request): BillingPayment
     {
+        // First line of diagnostics: record EVERY inbound webhook before any
+        // validation, so "did PayX even call us?" is answerable from the log
+        // stream alone. Without this, a rejected webhook (bad token, unknown
+        // id, amount/currency mismatch) left no trace — only the successful
+        // path wrote to payx_webhook_events — so a stuck-pending payment was
+        // indistinguishable from "PayX never fired". Routed to the dedicated
+        // `payx` channel (stderr, info) so it survives LOG_LEVEL=warning.
+        $this->logWebhook('info', 'received', $request);
+
         if (! $this->payxService->verifyWebhook($request)) {
+            $this->logWebhook('warning', 'rejected_invalid_token', $request);
+
             throw ValidationException::withMessages([
                 'webhook' => ['invalid_payment_webhook'],
             ]);
@@ -309,6 +322,8 @@ class BillingService
 
         $transactionId = trim((string) $request->input('transaction_id'));
         if ($transactionId === '') {
+            $this->logWebhook('warning', 'rejected_missing_transaction_id', $request);
+
             throw ValidationException::withMessages([
                 'transaction_id' => ['Missing transaction id.'],
             ]);
@@ -320,12 +335,26 @@ class BillingService
             // the invoice. We additionally scope by provider so that a stale
             // uuid collision (or a future second provider) cannot collide
             // with a PayX webhook and renew the wrong subscription.
-            /** @var BillingPayment $payment */
             $payment = BillingPayment::query()
                 ->where('provider', BillingPayment::PROVIDER_PAYX)
                 ->where('provider_payment_id', $transactionId)
                 ->lockForUpdate()
-                ->firstOrFail();
+                ->first();
+
+            // The single most likely silent failure: PayX's webhook
+            // transaction_id does not equal the invoice uuid we stored as
+            // provider_payment_id. Log the exact id we searched for so the
+            // mismatch is obvious in the stream — compare it against the
+            // provider_payment_id on the pending billing_payments row. We
+            // still throw ModelNotFoundException (404) to preserve the prior
+            // firstOrFail() response contract.
+            if ($payment === null) {
+                $this->logWebhook('warning', 'rejected_payment_not_found', $request, [
+                    'searched_transaction_id' => $transactionId,
+                ]);
+
+                throw (new ModelNotFoundException)->setModel(BillingPayment::class);
+            }
 
             // Idempotency: PayX may deliver the same webhook more than once.
             if ($payment->status === BillingPayment::STATUS_PAID) {
@@ -358,12 +387,21 @@ class BillingService
                     'ip_address' => $request->ip(),
                 ]);
 
+                $this->logWebhook('info', 'duplicate_ignored', $request, [
+                    'payment_id' => (string) $payment->id,
+                ]);
+
                 return $payment;
             }
 
             // A webhook for an already-terminal payment (failed/canceled)
             // must not silently revive the subscription.
             if ($payment->status !== BillingPayment::STATUS_PENDING) {
+                $this->logWebhook('warning', 'rejected_terminal_state', $request, [
+                    'payment_id' => (string) $payment->id,
+                    'status' => $payment->status,
+                ]);
+
                 throw ValidationException::withMessages([
                     'payment' => ['Payment is no longer pending.'],
                 ]);
@@ -371,6 +409,10 @@ class BillingService
 
             $amount = $request->input('amount');
             if ($amount === null) {
+                $this->logWebhook('warning', 'rejected_missing_amount', $request, [
+                    'payment_id' => (string) $payment->id,
+                ]);
+
                 throw ValidationException::withMessages([
                     'amount' => ['Payment amount is required.'],
                 ]);
@@ -391,12 +433,22 @@ class BillingService
             // an unsafe condition rather than a default-to-our-side situation.
             $currencyInput = $request->input('currency');
             if ($currencyInput === null || (is_string($currencyInput) && trim($currencyInput) === '')) {
+                $this->logWebhook('warning', 'rejected_missing_currency', $request, [
+                    'payment_id' => (string) $payment->id,
+                ]);
+
                 throw ValidationException::withMessages([
                     'currency' => ['Payment currency is required.'],
                 ]);
             }
             $currency = strtoupper((string) $currencyInput);
             if ($currency !== strtoupper($payment->currency)) {
+                $this->logWebhook('warning', 'rejected_currency_mismatch', $request, [
+                    'payment_id' => (string) $payment->id,
+                    'expected_currency' => strtoupper($payment->currency),
+                    'received_currency' => $currency,
+                ]);
+
                 throw ValidationException::withMessages([
                     'currency' => ['Payment currency mismatch.'],
                 ]);
@@ -450,6 +502,11 @@ class BillingService
                     ],
                 );
 
+                $this->logWebhook('warning', 'paid_but_account_deleted', $request, [
+                    'payment_id' => (string) $payment->id,
+                    'user_id' => (string) $user->id,
+                ]);
+
                 return $payment->refresh();
             }
 
@@ -473,6 +530,11 @@ class BillingService
                         'currency' => $payment->currency,
                     ],
                 );
+
+                $this->logWebhook('warning', 'paid_but_plan_inactive', $request, [
+                    'payment_id' => (string) $payment->id,
+                    'plan_code' => $plan->code,
+                ]);
 
                 return $payment->refresh();
             }
@@ -504,6 +566,12 @@ class BillingService
                         'currency' => $payment->currency,
                     ],
                 );
+
+                $this->logWebhook('info', 'deferred_downgrade_scheduled', $request, [
+                    'payment_id' => (string) $payment->id,
+                    'subscription_id' => (string) $subscription->id,
+                    'plan_code' => $plan->code,
+                ]);
 
                 return $payment->refresh();
             }
@@ -539,8 +607,38 @@ class BillingService
                 ],
             );
 
+            $this->logWebhook('info', 'paid', $request, [
+                'payment_id' => (string) $payment->id,
+                'user_id' => (string) $user->id,
+                'subscription_id' => (string) $subscription->id,
+                'plan_code' => $plan->code,
+                'subscription_ends_at' => $subscription->ends_at?->toIso8601String(),
+            ]);
+
             return $payment->refresh();
         });
+    }
+
+    /**
+     * Structured PayX webhook diagnostics.
+     *
+     * Routed to the dedicated `payx` log channel (config/logging.php) which
+     * writes to php://stderr at info level independent of the global
+     * LOG_LEVEL — so every callback and the exact accept/reject reason shows
+     * up in the platform log stream (Railway) even though the app runs at
+     * LOG_LEVEL=warning. The Authorization bearer token lives in the request
+     * header (never in $request->all()), and the body is passed through the
+     * sanitizePayxPayload whitelist, so no secret or unexpected PII is logged.
+     *
+     * @param  'info'|'warning'  $level
+     * @param  array<string, mixed>  $context
+     */
+    private function logWebhook(string $level, string $event, Request $request, array $context = []): void
+    {
+        Log::channel('payx')->log($level, 'payx.webhook.'.$event, array_merge([
+            'ip' => $request->ip(),
+            'payload' => $this->sanitizePayxPayload($request->all()),
+        ], $context));
     }
 
     private function generateOrderId(): string

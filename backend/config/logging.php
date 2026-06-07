@@ -105,6 +105,23 @@ return [
             'processors' => [PsrLogMessageProcessor::class],
         ],
 
+        // Dedicated PayX webhook diagnostics channel. Always writes to stderr
+        // (captured by the platform log stream, e.g. Railway) at info level
+        // regardless of the global LOG_LEVEL, so the money path
+        // (BillingService::logWebhook) stays observable in production where
+        // LOG_LEVEL=warning would otherwise drop every info log. Tune the floor
+        // with PAYX_LOG_LEVEL without touching the app's global log level.
+        'payx' => [
+            'driver' => 'monolog',
+            'level' => env('PAYX_LOG_LEVEL', 'info'),
+            'handler' => StreamHandler::class,
+            'handler_with' => [
+                'stream' => 'php://stderr',
+            ],
+            'formatter' => env('LOG_STDERR_FORMATTER'),
+            'processors' => [PsrLogMessageProcessor::class],
+        ],
+
         'syslog' => [
             'driver' => 'syslog',
             'level' => env('LOG_LEVEL', 'debug'),
