@@ -2,21 +2,23 @@
 
 use App\Jobs\GenerateMediaVariants;
 use App\Models\BillingPayment;
+use App\Models\Invoice;
 use App\Models\Patient;
 use App\Models\Subscription;
 use App\Models\TreatmentImage;
-use App\Support\ProductionSecretsValidator;
-use App\Support\ProductionRuntimePolicyValidator;
 use App\Models\User;
 use App\Services\SubscriptionService;
-use Illuminate\Support\Facades\DB;
-use App\Models\Invoice;
+use App\Support\ProductionRuntimePolicyValidator;
+use App\Support\ProductionSecretsValidator;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Schedule;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rules\Password;
 
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
@@ -45,7 +47,7 @@ Artisan::command('security:check-secrets', function () {
 Artisan::command('security:check-runtime {--production : Force production-policy checks even outside APP_ENV=production}', function () {
     $checkForProduction = (bool) $this->option('production') || app()->environment('production');
 
-    if (!$checkForProduction) {
+    if (! $checkForProduction) {
         $this->warn('Runtime security policy check skipped (not in production). Use --production to force.');
 
         return 0;
@@ -82,7 +84,7 @@ Artisan::command('invoices:normalize-numbers {--commit : Persist changes (defaul
 
     if (is_string($dentistIdFilter) && trim($dentistIdFilter) !== '') {
         $trimmedDentistId = trim($dentistIdFilter);
-        if (!ctype_digit($trimmedDentistId)) {
+        if (! ctype_digit($trimmedDentistId)) {
             $this->error('The --dentist_id option must be a numeric user id.');
 
             return 1;
@@ -148,7 +150,7 @@ Artisan::command('invoices:normalize-numbers {--commit : Persist changes (defaul
         $this->line("... plus {$remaining} more change(s).");
     }
 
-    if (!$commit) {
+    if (! $commit) {
         $this->comment('Dry-run only. Re-run with --commit to apply changes.');
 
         return 0;
@@ -186,7 +188,7 @@ Artisan::command('users:ensure-account {email} {password} {--name=} {--role=dent
     $role = trim((string) $this->option('role'));
     $providedName = trim((string) $this->option('name'));
 
-    if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+    if ($email === '' || ! filter_var($email, FILTER_VALIDATE_EMAIL)) {
         $this->error('A valid email address is required.');
 
         return 1;
@@ -232,6 +234,63 @@ Artisan::command('users:ensure-account {email} {password} {--name=} {--role=dent
 
     return 0;
 })->purpose('Create or update a user account with a known password for maintenance or demo access');
+
+Artisan::command('app:create-admin {--email= : Login email (prompted if omitted)} {--name= : Display name (prompted if omitted)}', function () {
+    $email = strtolower(trim((string) ($this->option('email') ?: $this->ask('Admin email'))));
+    $name = trim((string) ($this->option('name') ?: $this->ask('Admin display name')));
+    $password = (string) $this->secret('Admin password (hidden — min 12 chars, mixed case, number, symbol)');
+    $passwordConfirmation = (string) $this->secret('Confirm password (hidden)');
+
+    if ($password !== $passwordConfirmation) {
+        $this->error('Passwords do not match.');
+
+        return 1;
+    }
+
+    $validator = Validator::make(
+        ['email' => $email, 'name' => $name, 'password' => $password],
+        [
+            'email' => ['required', 'email', 'max:255', 'unique:users,email'],
+            'name' => ['required', 'string', 'max:255'],
+            'password' => ['required', 'string', Password::min(12)->mixedCase()->numbers()->symbols()],
+        ]
+    );
+
+    if ($validator->fails()) {
+        foreach ($validator->errors()->all() as $message) {
+            $this->error($message);
+        }
+
+        return 1;
+    }
+
+    $admin = User::query()->create([
+        'name' => $name,
+        'email' => $email,
+        'password' => $password,
+        'role' => User::ROLE_ADMIN,
+        'account_status' => User::ACCOUNT_STATUS_ACTIVE,
+        'dentist_owner_id' => null,
+        'assistant_permissions' => null,
+        'must_change_password' => false,
+        'phone' => null,
+        'practice_name' => null,
+        'license_number' => null,
+        'address' => null,
+        'working_hours_start' => '09:00',
+        'working_hours_end' => '20:00',
+        'default_appointment_duration' => 30,
+    ]);
+
+    // email_verified_at is intentionally not mass-assignable; a super admin
+    // provisioned by an operator over the CLI is trusted, so mark it verified
+    // directly instead of dispatching a verification email.
+    $admin->forceFill(['email_verified_at' => now()])->save();
+
+    $this->info(sprintf('Super admin created: %s (%s).', $admin->email, $admin->role));
+
+    return 0;
+})->purpose('Create a platform super admin with a securely prompted, strong password (production-safe)');
 
 Artisan::command('subscriptions:process', function () {
     $now = now();
@@ -291,6 +350,7 @@ Artisan::command('subscriptions:process', function () {
                 if ($owner === null) {
                     $subscription->forceFill(['status' => Subscription::STATUS_READ_ONLY])->save();
                     $expiredCount++;
+
                     continue;
                 }
 
@@ -298,6 +358,7 @@ Artisan::command('subscriptions:process', function () {
                 $processedSubscription = $subscriptionService->processExpiredSubscription($subscription);
                 if ($processedSubscription?->id !== $beforeSubscriptionId) {
                     $pendingChangesActivated++;
+
                     continue;
                 }
 
@@ -333,8 +394,18 @@ Artisan::command('subscriptions:process', function () {
 Schedule::command('subscriptions:process')->hourly();
 
 Artisan::command(
-    'app:reset-test-data {--force : Required to confirm destructive cleanup} {--email=admin@identa.uz : Super admin email} {--password=password123 : Super admin password} {--name=Platform Super Admin : Super admin display name}',
+    'app:reset-test-data {--force : Required to confirm destructive cleanup} {--email=admin@identa.uz : Super admin email} {--password= : Super admin password (required, no insecure default)} {--name=Platform Super Admin : Super admin display name}',
     function () {
+        // Hard refusal in production: this truncates every table. It exists
+        // purely to reset a local/staging database to a clean single-admin
+        // state, and must never be reachable on the live database — not even
+        // with --force.
+        if (app()->environment('production')) {
+            $this->error('app:reset-test-data is destructive (truncates every table) and refuses to run in production.');
+
+            return 1;
+        }
+
         if (! $this->option('force')) {
             $this->error('This command is destructive. Re-run with --force to continue.');
 

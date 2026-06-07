@@ -8,7 +8,6 @@ use App\Models\OdontogramEntry;
 use App\Models\Patient;
 use App\Models\PatientCategory;
 use App\Models\Payment;
-use App\Models\Plan;
 use App\Models\Treatment;
 use App\Models\User;
 use Carbon\Carbon;
@@ -23,9 +22,13 @@ class DatabaseSeeder extends Seeder
     use WithoutModelEvents;
 
     private const ADMIN_EMAIL = 'admin@identa.test';
+
     private const DENTIST_EMAIL = 'dentist@identa.test';
+
     private const ASSISTANT_ONE_EMAIL = 'assistant1@identa.test';
+
     private const ASSISTANT_TWO_EMAIL = 'assistant2@identa.test';
+
     private const DEMO_PASSWORD = 'password123';
 
     /**
@@ -33,8 +36,20 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
+        // Essential reference data — required in every environment.
+        $this->call(PlanSeeder::class);
+
+        // Everything below is demo/fixture data for local + staging only. A
+        // production database must never get fake patients or the weak demo
+        // password, so an accidental `db:seed --force` on prod stops here —
+        // the plan catalogue above is already upserted idempotently.
+        if (app()->environment('production')) {
+            $this->command?->warn('DatabaseSeeder: demo data skipped in production. Create the live super admin with `php artisan app:create-admin`.');
+
+            return;
+        }
+
         DB::transaction(function (): void {
-            $this->seedPlans();
             $this->seedAdmin();
             $dentist = $this->seedDentist();
 
@@ -50,70 +65,6 @@ class DatabaseSeeder extends Seeder
             $this->seedTreatments($dentist, $patients);
             $this->seedInvoicesAndPayments($dentist, $patients);
         });
-    }
-
-    private function seedPlans(): void
-    {
-        $plans = [
-            [
-                'code' => Plan::CODE_TRIAL,
-                'name' => 'Trial',
-                'description' => '30 kunlik sinov tarifi',
-                'is_trial' => true,
-                'is_paid' => false,
-                'trial_days' => 30,
-                'monthly_price' => null,
-                'yearly_price' => null,
-                'currency' => 'UZS',
-                'staff_limit' => 1,
-                'entry_image_limit' => 2,
-                'upload_max_mb' => 3,
-                'stored_image_max_mb' => 6,
-                'can_export' => false,
-                'is_active' => true,
-                'sort_order' => 10,
-            ],
-            [
-                'code' => Plan::CODE_BASIC,
-                'name' => 'Basic',
-                'description' => 'Kichik klinikalar uchun asosiy tarif',
-                'is_trial' => false,
-                'is_paid' => true,
-                'trial_days' => null,
-                'monthly_price' => 120000,
-                'yearly_price' => 1200000,
-                'currency' => 'UZS',
-                'staff_limit' => 3,
-                'entry_image_limit' => 5,
-                'upload_max_mb' => 5,
-                'stored_image_max_mb' => 25,
-                'can_export' => false,
-                'is_active' => true,
-                'sort_order' => 20,
-            ],
-            [
-                'code' => Plan::CODE_PRO,
-                'name' => 'Pro',
-                'description' => 'Kengaytirilgan limitlar va export',
-                'is_trial' => false,
-                'is_paid' => true,
-                'trial_days' => null,
-                'monthly_price' => 200000,
-                'yearly_price' => 2000000,
-                'currency' => 'UZS',
-                'staff_limit' => 5,
-                'entry_image_limit' => 10,
-                'upload_max_mb' => 8,
-                'stored_image_max_mb' => 80,
-                'can_export' => true,
-                'is_active' => true,
-                'sort_order' => 30,
-            ],
-        ];
-
-        foreach ($plans as $plan) {
-            Plan::query()->updateOrCreate(['code' => $plan['code']], $plan);
-        }
     }
 
     private function seedAdmin(): User
@@ -276,8 +227,8 @@ class DatabaseSeeder extends Seeder
     }
 
     /**
-     * @param Collection<int, Patient> $patients
-     * @param Collection<int, PatientCategory> $categories
+     * @param  Collection<int, Patient>  $patients
+     * @param  Collection<int, PatientCategory>  $categories
      */
     private function attachCategoriesToPatients(Collection $patients, Collection $categories): void
     {
@@ -295,7 +246,7 @@ class DatabaseSeeder extends Seeder
     }
 
     /**
-     * @param Collection<int, Patient> $patients
+     * @param  Collection<int, Patient>  $patients
      */
     private function seedAppointments(User $dentist, Collection $patients): void
     {
@@ -380,7 +331,7 @@ class DatabaseSeeder extends Seeder
     }
 
     /**
-     * @param Collection<int, Patient> $patients
+     * @param  Collection<int, Patient>  $patients
      */
     private function seedOdontogramEntries(User $dentist, Collection $patients): void
     {
@@ -432,7 +383,7 @@ class DatabaseSeeder extends Seeder
     }
 
     /**
-     * @param Collection<int, Patient> $patients
+     * @param  Collection<int, Patient>  $patients
      */
     private function seedTreatments(User $dentist, Collection $patients): void
     {
@@ -492,7 +443,7 @@ class DatabaseSeeder extends Seeder
     }
 
     /**
-     * @param Collection<int, Patient> $patients
+     * @param  Collection<int, Patient>  $patients
      */
     private function seedInvoicesAndPayments(User $dentist, Collection $patients): void
     {
@@ -614,7 +565,7 @@ class DatabaseSeeder extends Seeder
     }
 
     /**
-     * @param array<string, int> $invoiceSequenceByMonth
+     * @param  array<string, int>  $invoiceSequenceByMonth
      */
     private function nextInvoiceNumber(Carbon $invoiceDate, array &$invoiceSequenceByMonth): string
     {
