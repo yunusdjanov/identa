@@ -107,6 +107,10 @@ export function ConnectedAccountsCard({ user, className }: ConnectedAccountsCard
     // div MUST stay empty in JSX (it's GSI's territory) — GoogleAuthButton
     // enforces that and overlays its own loading placeholder as a sibling.
     const mountRef = useRef<HTMLDivElement | null>(null);
+    // One-time GSI init guard — see login/page.tsx. The effect re-runs on
+    // locale/t changes; without this it would re-initialize the GSI singleton
+    // and strand the rendered "Connect" button (unclickable).
+    const googleInitializedRef = useRef(false);
 
     const linkMutation = useMutation({
         mutationFn: linkGoogleAccount,
@@ -167,6 +171,12 @@ export function ConnectedAccountsCard({ user, className }: ConnectedAccountsCard
                 pollHandle = window.setTimeout(initialize, 100);
                 return;
             }
+            // Initialize + render exactly once per mount (see login/page.tsx).
+            if (googleInitializedRef.current) {
+                setGoogleReady(true);
+                return;
+            }
+            googleInitializedRef.current = true;
             // GSI owns this node — clear it before handing it over so a
             // re-render never collides with React's view of the children.
             mount.innerHTML = '';

@@ -71,6 +71,11 @@ export default function RegisterPage() {
     const { login } = useAuthStore();
     const { t, locale } = useI18n();
     const googleButtonRef = useRef<HTMLDivElement | null>(null);
+    // One-time GSI init guard — see login/page.tsx. Without it the effect
+    // re-runs on t/locale/mutation identity changes and re-initializes the
+    // GSI singleton, which strands the rendered button (unclickable) and logs
+    // "initialize() is called multiple times".
+    const googleInitializedRef = useRef(false);
 
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
@@ -156,6 +161,12 @@ export default function RegisterPage() {
                 pollHandle = window.setTimeout(initializeGoogle, 100);
                 return;
             }
+            // Initialize + render exactly once per mount (see login/page.tsx).
+            if (googleInitializedRef.current) {
+                setGoogleReady(true);
+                return;
+            }
+            googleInitializedRef.current = true;
             googleButtonRef.current.innerHTML = '';
             googleId.initialize({
                 client_id: googleClientId,

@@ -80,6 +80,12 @@ export default function LoginPage() {
     const { isAuthenticated, login } = useAuthStore();
     const { t, locale } = useI18n();
     const googleButtonRef = useRef<HTMLDivElement | null>(null);
+    // Guards the one-time GSI initialize()+renderButton(). Without it, the
+    // effect below re-runs whenever `t`/`locale`/the mutation object change
+    // identity and calls initialize() again — GSI logs "initialize() is
+    // called multiple times" and the rendered button binds to a superseded
+    // instance, leaving it unclickable.
+    const googleInitializedRef = useRef(false);
 
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -217,6 +223,15 @@ export default function LoginPage() {
                 pollHandle = window.setTimeout(initializeGoogle, 100);
                 return;
             }
+            // Initialize + render exactly once per mount. A re-run that calls
+            // initialize() again triggers GSI's "called multiple times"
+            // warning and can strand the rendered button against the stale
+            // instance; later invocations only re-assert the ready flag.
+            if (googleInitializedRef.current) {
+                setGoogleReady(true);
+                return;
+            }
+            googleInitializedRef.current = true;
             googleButtonRef.current.innerHTML = '';
             googleId.initialize({
                 client_id: googleClientId,
