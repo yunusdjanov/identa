@@ -299,6 +299,23 @@ export async function createBillingCheckout(payload: {
     return data.data;
 }
 
+/**
+ * Schedule a downgrade (Pro → Basic) for the end of the current paid period
+ * WITHOUT payment. Returns the refreshed subscription summary (now carrying
+ * the pending change). Unlike createBillingCheckout there is no PayX redirect.
+ */
+export async function scheduleBillingDowngrade(payload: {
+    plan_code: 'basic';
+    billing_period: 'monthly' | 'yearly';
+    selected_active_staff_ids?: number[];
+}): Promise<ApiSubscriptionSummary> {
+    const { data } = await withCsrfRetry(() =>
+        apiClient.post<ApiEnvelope<ApiSubscriptionSummary>>('/billing/downgrade', payload)
+    );
+
+    return data.data;
+}
+
 export async function listBillingPayments(): Promise<ApiBillingPayment[]> {
     const { data } = await apiClient.get<ApiCollectionEnvelope<ApiBillingPayment>>('/billing/payments');
 

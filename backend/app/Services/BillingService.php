@@ -152,6 +152,17 @@ class BillingService
         return DB::transaction(function () use ($user, $plan, $billingPeriod, $amount, $selectedActiveStaffIds): array {
             $subscription = $this->subscriptionService->currentForOwner($user);
 
+            // Downgrades (active Pro → Basic) are NEVER charged here. Best
+            // practice schedules them for period end WITHOUT payment via
+            // scheduleDowngrade(); a paid checkout must refuse, so a downgrade
+            // can never double-charge a dentist still inside a paid Pro period.
+            // Renewals and upgrades fall through and are charged normally.
+            if ($this->isDeferredDowngrade($subscription, $plan)) {
+                throw ValidationException::withMessages([
+                    'plan_code' => ['Downgrades are scheduled without payment.'],
+                ]);
+            }
+
             // Soft-cancel any older PENDING payment from the same user for
             // the same plan + period. Without this, a dentist who clicks
             // "Pay" five times in a row would orphan four pending invoices,
@@ -189,7 +200,6 @@ class BillingService
             }
 
             $metadata = [
-                'change_type' => $this->isDeferredDowngrade($subscription, $plan) ? 'deferred_downgrade' : 'immediate',
                 'selected_active_staff_ids' => $this->normalizeStaffIds($selectedActiveStaffIds),
                 'stale_pending_cancelled_count' => $stalePendingCount,
             ];
@@ -241,7 +251,7 @@ class BillingService
                     'currency' => $payment->currency,
                     'provider' => BillingPayment::PROVIDER_PAYX,
                     'provider_order_id' => $payment->provider_order_id,
-                    'change_type' => $metadata['change_type'] ?? 'immediate',
+                    'change_type' => 'immediate',
                 ],
             );
 
@@ -250,6 +260,85 @@ class BillingService
                 'checkout_url' => (string) $checkout['checkout_url'],
             ];
         });
+    }
+
+    /**
+     * Schedule a best-practice downgrade (active Pro → Basic) WITHOUT charging.
+     *
+     * Industry standard: a downgrade takes effect at the end of the current
+     * paid period and is NOT billed up-front (the owner already paid for the
+     * higher tier). The owner keeps Pro until ends_at; the pending Basic plan
+     * is recorded only as a renewal hint the billing UI pre-selects, and is
+     * charged at the Basic rate when the owner next renews. No PayX invoice is
+     * created here — that is what makes this different from createCheckout.
+     *
+     * @param  list<int|string>  $selectedActiveStaffIds
+     * @return array<string, mixed>|null
+     */
+    public function scheduleDowngrade(
+        User $user,
+        string $planCode,
+        string $billingPeriod,
+        array $selectedActiveStaffIds = [],
+    ): ?array {
+        if (! $user->isDentist()) {
+            throw ValidationException::withMessages([
+                'billing' => ['Only account owners can manage billing.'],
+            ]);
+        }
+
+        if ($user->account_status === User::ACCOUNT_STATUS_DELETED) {
+            throw ValidationException::withMessages([
+                'billing' => ['Account is archived. Restore the account before changing plans.'],
+            ]);
+        }
+
+        if (! in_array($billingPeriod, [Subscription::PERIOD_MONTHLY, Subscription::PERIOD_YEARLY], true)) {
+            throw ValidationException::withMessages([
+                'billing_period' => ['Invalid billing period.'],
+            ]);
+        }
+
+        /** @var Plan $plan */
+        $plan = Plan::query()
+            ->where('code', $planCode)
+            ->where('is_active', true)
+            ->where('is_paid', true)
+            ->firstOrFail();
+
+        $current = $this->subscriptionService->currentForOwner($user);
+
+        // Only a genuine downgrade (active, future-dated Pro → Basic) may be
+        // scheduled for free. Anything else (renewal, upgrade, expired/read-only
+        // subscription) is a paid action and must go through createCheckout.
+        if (! $this->isDeferredDowngrade($current, $plan)) {
+            throw ValidationException::withMessages([
+                'plan_code' => ['This plan change is not a downgrade; pay for it via checkout.'],
+            ]);
+        }
+
+        $selectedActiveStaffIds = $this->validateStaffSelection($user, $plan, $selectedActiveStaffIds);
+
+        $subscription = $this->subscriptionService->schedulePlanChange(
+            owner: $user,
+            plan: $plan,
+            billingPeriod: $billingPeriod,
+            selectedActiveStaffIds: $selectedActiveStaffIds,
+        );
+
+        $this->auditLogger->log(
+            actor: $user,
+            eventType: 'billing.subscription.downgrade_scheduled',
+            entityType: 'user',
+            entityId: (string) $user->id,
+            metadata: [
+                'plan_code' => $plan->code,
+                'billing_period' => $billingPeriod,
+                'effective_at' => $subscription->pending_change_effective_at?->toIso8601String(),
+            ],
+        );
+
+        return $user->refresh()->subscriptionSummary();
     }
 
     /**
@@ -313,22 +402,7 @@ class BillingService
         $this->logWebhook('info', 'received', $request);
 
         if (! $this->payxService->verifyWebhook($request)) {
-            // Diagnostic (no secret exposure): identify WHICH token PayX signs
-            // the webhook with so we can configure PAYX_PROJECT_TOKEN to match.
-            // We log only a 6-char prefix + length, plus booleans comparing the
-            // received bearer against our configured api/project tokens — never
-            // the full token. `matches_api_token: true` means PayX reuses the
-            // API key for webhooks; false + a 6137.. prefix means it uses the
-            // production key, etc.
-            $bearer = (string) $request->bearerToken();
-            $this->logWebhook('warning', 'rejected_invalid_token', $request, [
-                'received_token_prefix' => $bearer === '' ? '(none)' : substr($bearer, 0, 6),
-                'received_token_len' => strlen($bearer),
-                'matches_api_token' => $bearer !== ''
-                    && hash_equals(trim((string) config('services.payx.api_token')), $bearer),
-                'matches_project_token' => $bearer !== ''
-                    && hash_equals(trim((string) config('services.payx.project_token')), $bearer),
-            ]);
+            $this->logWebhook('warning', 'rejected_invalid_token', $request);
 
             throw ValidationException::withMessages([
                 'webhook' => ['invalid_payment_webhook'],
@@ -548,43 +622,6 @@ class BillingService
 
                 $this->logWebhook('warning', 'paid_but_plan_inactive', $request, [
                     'payment_id' => (string) $payment->id,
-                    'plan_code' => $plan->code,
-                ]);
-
-                return $payment->refresh();
-            }
-
-            $metadata = $payment->provider_payload['metadata'] ?? [];
-
-            if (($metadata['change_type'] ?? null) === 'deferred_downgrade') {
-                $subscription = $this->subscriptionService->schedulePlanChange(
-                    owner: $user,
-                    plan: $plan,
-                    billingPeriod: $payment->billing_period,
-                    selectedActiveStaffIds: is_array($metadata['selected_active_staff_ids'] ?? null)
-                        ? $metadata['selected_active_staff_ids']
-                        : [],
-                );
-                $payment->forceFill(['subscription_id' => $subscription->id])->save();
-
-                $this->auditLogger->logFromRequest(
-                    request: $request,
-                    eventType: 'billing.payx.deferred_downgrade_scheduled',
-                    entityType: 'billing_payment',
-                    entityId: (string) $payment->id,
-                    metadata: [
-                        'user_id' => (string) $user->id,
-                        'subscription_id' => (string) $subscription->id,
-                        'plan_code' => $plan->code,
-                        'billing_period' => $payment->billing_period,
-                        'amount' => (float) $payment->amount,
-                        'currency' => $payment->currency,
-                    ],
-                );
-
-                $this->logWebhook('info', 'deferred_downgrade_scheduled', $request, [
-                    'payment_id' => (string) $payment->id,
-                    'subscription_id' => (string) $subscription->id,
                     'plan_code' => $plan->code,
                 ]);
 

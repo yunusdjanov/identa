@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import type { ApiAuditLogEntry, ApiBillingPayment } from '@/lib/api/types';
 import { useI18n } from '@/components/providers/i18n-provider';
 import { formatLocalizedDate } from '@/lib/i18n/date';
+import { localizeSubscriptionNote } from '@/lib/i18n/subscription-notes';
 
 interface ActivityTabsCardProps {
     payments: ApiBillingPayment[];
@@ -185,7 +186,7 @@ export function ActivityTabsCard({
                                                     {noteFromMetadata ? (
                                                         <>
                                                             <span className="text-slate-400"> · </span>
-                                                            <span>{noteFromMetadata}</span>
+                                                            <span>{localizeSubscriptionNote(noteFromMetadata, t)}</span>
                                                         </>
                                                     ) : null}
                                                 </p>

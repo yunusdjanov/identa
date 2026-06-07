@@ -44,7 +44,7 @@ export function AdminHeader({ active, isLoggingOut = false, onLogout }: AdminHea
     });
 
     return (
-        <header className="sticky top-0 z-10 border-b border-teal-100/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(248,251,255,0.94)_100%)] shadow-sm shadow-slate-200/40 backdrop-blur-xl">
+        <header className="sticky top-0 z-30 border-b border-teal-100/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(248,251,255,0.94)_100%)] shadow-sm shadow-slate-200/40 backdrop-blur-xl">
             <div className="mx-auto max-w-[1440px] px-3 sm:px-6 lg:px-8">
                 <div className="flex h-14 items-center justify-between gap-3 sm:h-16 sm:gap-4">
                     <div className="flex min-w-0 items-center">

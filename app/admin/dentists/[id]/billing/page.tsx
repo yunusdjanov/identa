@@ -51,6 +51,7 @@ import type {
 import { useInstantLogout } from '@/lib/auth/use-instant-logout';
 import { useI18n } from '@/components/providers/i18n-provider';
 import { formatLocalizedDate } from '@/lib/i18n/date';
+import { localizeSubscriptionNote } from '@/lib/i18n/subscription-notes';
 import { toast } from 'sonner';
 
 interface ManageSubscriptionForm {
@@ -650,7 +651,7 @@ export default function AdminBillingDetailPage() {
                                             {t('admin.billing.note.label')}
                                         </p>
                                         <p className="mt-0.5 whitespace-pre-wrap text-sm text-slate-900">
-                                            {billing.subscription.note}
+                                            {localizeSubscriptionNote(billing.subscription.note, t)}
                                         </p>
                                     </div>
                                 </div>

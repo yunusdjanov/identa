@@ -481,7 +481,7 @@ class SubscriptionService
             return;
         }
 
-        $payment = new BillingPayment();
+        $payment = new BillingPayment;
         $payment->fill([
             'user_id' => $owner->id,
             'subscription_id' => $subscription->id,
@@ -559,7 +559,7 @@ class SubscriptionService
     }
 
     /**
-     * @param list<int|string> $selectedActiveStaffIds
+     * @param  list<int|string>  $selectedActiveStaffIds
      */
     public function schedulePlanChange(
         User $owner,
@@ -714,10 +714,14 @@ class SubscriptionService
             return $subscription;
         }
 
-        // A scheduled plan change (e.g. downgrade) takes effect at period end.
-        if ($subscription->pending_plan_id !== null && $subscription->pending_billing_period !== null) {
-            return $this->activatePendingChange($subscription);
-        }
+        // Note: a scheduled downgrade (pending_plan_id) is NOT auto-activated
+        // here. Best-practice downgrades are scheduled WITHOUT prepayment, so
+        // there is nothing paid to activate at the period boundary — the
+        // subscription simply expires (grace → read-only) like any other, and
+        // the pending plan is preserved purely as a renewal hint that the
+        // billing UI pre-selects. It is consumed when the owner pays to renew
+        // (renewOrActivate clears the pending fields). Auto-granting a free
+        // Basic period here would hand out unpaid service.
 
         // Paid subscriptions get a short grace window after expiry before being
         // locked to read-only; free trials lock immediately (no grace).
@@ -748,100 +752,6 @@ class SubscriptionService
         return $isPaidPeriod
             ? $endsAt->copy()->addDays(User::SUBSCRIPTION_GRACE_DAYS)
             : $endsAt->copy();
-    }
-
-    private function activatePendingChange(Subscription $subscription): Subscription
-    {
-        return DB::transaction(function () use ($subscription): Subscription {
-            $subscription->refresh();
-
-            if (
-                $subscription->pending_plan_id === null
-                || $subscription->pending_billing_period === null
-            ) {
-                $subscription->forceFill(['status' => Subscription::STATUS_READ_ONLY])->save();
-
-                return $subscription->refresh()->load('plan');
-            }
-
-            /** @var Plan|null $plan */
-            $plan = Plan::query()->where('id', $subscription->pending_plan_id)->first();
-
-            // Defence-in-depth: if the pending plan was deactivated between
-            // checkout and activation (admin disabled it from /admin/plans
-            // while the subscription was waiting at the period boundary),
-            // refuse to silently activate a plan that `/billing/plans` no
-            // longer offers. Flip to read-only and clear the pending change
-            // so the admin sees the broken state in the dentist's billing
-            // page rather than the user landing on a hidden plan. Same
-            // exit path as `pending_plan_id === null` above.
-            if ($plan === null || ! (bool) $plan->is_active) {
-                $subscription->forceFill([
-                    'status' => Subscription::STATUS_READ_ONLY,
-                    'pending_plan_id' => null,
-                    'pending_billing_period' => null,
-                    'pending_change_effective_at' => null,
-                    'pending_active_staff_ids' => null,
-                ])->save();
-
-                return $subscription->refresh()->load('plan');
-            }
-            /** @var User $owner */
-            $owner = $subscription->user()->firstOrFail();
-            $startsAt = $subscription->ends_at?->copy() ?? now();
-            $endsAt = $subscription->pending_billing_period === Subscription::PERIOD_YEARLY
-                ? $startsAt->copy()->addYearNoOverflow()
-                : $startsAt->copy()->addMonthNoOverflow();
-
-            // Re-validate the deferred staff selection. Between the checkout
-            // (when the IDs were snapshotted into pending_active_staff_ids)
-            // and webhook activation, some assistants may have been deleted
-            // or transferred. Pass only currently-existing rows to
-            // applyStaffLimit so a stale ID can't silently demote a third
-            // assistant in their place (applyStaffLimit picks fallbacks when
-            // preferred IDs don't resolve).
-            $pendingStaffIds = $subscription->pending_active_staff_ids ?? [];
-            $selectedStaffIds = [];
-            if (!empty($pendingStaffIds)) {
-                $existingIds = $owner->assistants()
-                    ->whereIn('id', $pendingStaffIds)
-                    ->pluck('id')
-                    ->all();
-                $selectedStaffIds = array_map('intval', $existingIds);
-            }
-
-            $newSubscription = $owner->subscriptions()->create([
-                'plan_id' => $plan->id,
-                'plan_code' => $plan->code,
-                'plan_name' => $plan->name,
-                'billing_period' => $subscription->pending_billing_period,
-                'status' => Subscription::STATUS_ACTIVE,
-                'starts_at' => $startsAt,
-                'ends_at' => $endsAt,
-                'cancel_at_period_end' => false,
-            ]);
-
-            $subscription->forceFill([
-                'status' => Subscription::STATUS_CANCELED,
-                'pending_plan_id' => null,
-                'pending_billing_period' => null,
-                'pending_change_effective_at' => null,
-                'pending_active_staff_ids' => null,
-            ])->save();
-
-            $this->syncLegacyUserColumns(
-                owner: $owner,
-                planCode: $newSubscription->billing_period === Subscription::PERIOD_YEARLY
-                    ? User::SUBSCRIPTION_PLAN_YEARLY
-                    : User::SUBSCRIPTION_PLAN_MONTHLY,
-                startsAt: $startsAt,
-                endsAt: $endsAt,
-                trialEndsAt: null,
-            );
-            $this->applyStaffLimit($owner, $plan, $selectedStaffIds);
-
-            return $newSubscription->load('plan');
-        });
     }
 
     private function megabytesToBytes(float $megabytes): int
@@ -879,7 +789,7 @@ class SubscriptionService
     }
 
     /**
-     * @param list<int|string> $preferredActiveStaffIds
+     * @param  list<int|string>  $preferredActiveStaffIds
      */
     private function applyStaffLimit(User $owner, ?Plan $plan, array $preferredActiveStaffIds = []): void
     {
@@ -922,7 +832,7 @@ class SubscriptionService
     }
 
     /**
-     * @param list<int|string> $ids
+     * @param  list<int|string>  $ids
      * @return list<int>
      */
     private function normalizeStaffIds(array $ids): array

@@ -115,62 +115,106 @@ class BillingLifecycleTest extends TestCase
         ]);
     }
 
-    public function test_expired_pro_subscription_activates_pending_basic_and_applies_staff_selection(): void
+    public function test_expired_pro_with_pending_downgrade_does_not_auto_activate_basic(): void
     {
+        // Best-practice downgrades are scheduled WITHOUT prepayment, so at the
+        // period boundary the pending Basic plan must NOT auto-activate a free
+        // period. The Pro subscription expires to read-only like any other; the
+        // pending plan is preserved purely as a renewal hint, and the tighter
+        // Basic staff limit only applies when the owner pays to renew into Basic.
         $dentist = User::factory()->create();
         $pro = $this->createPlan(Plan::CODE_PRO, [
             'monthly_price' => 300000,
-            'yearly_price' => 3000000,
             'staff_limit' => 5,
-            'can_export' => true,
         ]);
         $basic = $this->createPlan(Plan::CODE_BASIC, [
             'monthly_price' => 120000,
-            'yearly_price' => 1200000,
             'staff_limit' => 3,
-            'can_export' => false,
         ]);
 
         $assistants = User::factory()->count(5)->assistant($dentist)->create([
             'account_status' => User::ACCOUNT_STATUS_ACTIVE,
         ]);
-        $selectedIds = $assistants->take(3)->pluck('id')->all();
-        $blockedIds = $assistants->slice(3)->pluck('id')->all();
 
         $subscription = $this->createSubscription($dentist, $pro, [
-            'ends_at' => now()->subMinute(),
+            // Past the grace window so processing flips it to read-only.
+            'ends_at' => now()->subDays(User::SUBSCRIPTION_GRACE_DAYS + 1),
             'pending_plan_id' => $basic->id,
             'pending_billing_period' => Subscription::PERIOD_MONTHLY,
-            'pending_change_effective_at' => now()->subMinute(),
-            'pending_active_staff_ids' => $selectedIds,
+            'pending_change_effective_at' => now()->subDays(User::SUBSCRIPTION_GRACE_DAYS + 1),
         ]);
 
         Artisan::call('subscriptions:process');
 
+        // Pro subscription is read-only (NOT canceled); the pending downgrade
+        // is preserved as a renewal hint.
         $this->assertDatabaseHas('subscriptions', [
             'id' => $subscription->id,
-            'status' => Subscription::STATUS_CANCELED,
+            'status' => Subscription::STATUS_READ_ONLY,
+            'pending_plan_id' => $basic->id,
         ]);
-        $this->assertDatabaseHas('subscriptions', [
+
+        // No free Basic period was granted.
+        $this->assertDatabaseMissing('subscriptions', [
             'user_id' => $dentist->id,
             'plan_code' => Plan::CODE_BASIC,
-            'billing_period' => Subscription::PERIOD_MONTHLY,
             'status' => Subscription::STATUS_ACTIVE,
         ]);
 
-        foreach ($selectedIds as $assistantId) {
-            $this->assertDatabaseHas('users', [
-                'id' => $assistantId,
-                'account_status' => User::ACCOUNT_STATUS_ACTIVE,
-            ]);
-        }
+        // Staff untouched — the Basic staff limit applies only at paid renewal.
+        $this->assertSame(5, $dentist->assistants()
+            ->where('account_status', User::ACCOUNT_STATUS_ACTIVE)
+            ->count());
+        $this->assertSame(5, $assistants->count());
+    }
 
-        foreach ($blockedIds as $assistantId) {
-            $this->assertDatabaseHas('users', [
-                'id' => $assistantId,
-                'account_status' => User::ACCOUNT_STATUS_BLOCKED,
-            ]);
-        }
+    public function test_schedule_downgrade_does_not_charge_and_keeps_pro_until_period_end(): void
+    {
+        $dentist = User::factory()->create();
+        $pro = $this->createPlan(Plan::CODE_PRO, ['monthly_price' => 300000, 'staff_limit' => 5]);
+        $basic = $this->createPlan(Plan::CODE_BASIC, ['monthly_price' => 120000, 'staff_limit' => 3]);
+        $endsAt = now()->addDays(20)->startOfSecond();
+        $subscription = $this->createSubscription($dentist, $pro, [
+            'billing_period' => Subscription::PERIOD_MONTHLY,
+            'ends_at' => $endsAt,
+        ]);
+
+        /** @var \App\Services\BillingService $billing */
+        $billing = app(\App\Services\BillingService::class);
+        $summary = $billing->scheduleDowngrade($dentist, Plan::CODE_BASIC, Subscription::PERIOD_MONTHLY);
+
+        // No payment row was created — a downgrade is free.
+        $this->assertSame(0, BillingPayment::query()->where('user_id', $dentist->id)->count());
+
+        // Still on Pro, with the pending downgrade scheduled for period end.
+        $subscription->refresh();
+        $this->assertSame(Subscription::STATUS_ACTIVE, $subscription->status);
+        $this->assertSame((string) $basic->id, (string) $subscription->pending_plan_id);
+        $this->assertTrue($subscription->pending_change_effective_at->equalTo($endsAt));
+        $this->assertSame(Plan::CODE_PRO, $summary['plan']);
+    }
+
+    public function test_create_checkout_refuses_a_downgrade(): void
+    {
+        config()->set('services.payx.project_token', 'test-project-token');
+        config()->set('services.payx.api_token', 'test-api-token');
+        config()->set('services.payx.base_url', 'https://test.payx.uz');
+
+        $dentist = User::factory()->create();
+        $pro = $this->createPlan(Plan::CODE_PRO, ['monthly_price' => 300000]);
+        $this->createPlan(Plan::CODE_BASIC, ['monthly_price' => 120000]);
+        $this->createSubscription($dentist, $pro, [
+            'billing_period' => Subscription::PERIOD_MONTHLY,
+            'ends_at' => now()->addDays(15),
+        ]);
+
+        /** @var \App\Services\BillingService $billing */
+        $billing = app(\App\Services\BillingService::class);
+
+        // A paid checkout must refuse a downgrade — it can only be scheduled
+        // (free) via scheduleDowngrade().
+        $this->expectException(\Illuminate\Validation\ValidationException::class);
+        $billing->createCheckout($dentist, Plan::CODE_BASIC, Subscription::PERIOD_MONTHLY);
     }
 
     public function test_subscription_expiration_warning_is_marked_once(): void
@@ -383,7 +427,7 @@ class BillingLifecycleTest extends TestCase
         // so seed via forceFill + save in one shot — `create()` does the INSERT
         // before any post-create hook gets a chance to populate the NOT NULL
         // provider_order_id column.
-        $stale1 = (new BillingPayment())->forceFill([
+        $stale1 = (new BillingPayment)->forceFill([
             'user_id' => $dentist->id,
             'plan_id' => $plan->id,
             'plan_code' => $plan->code,
@@ -397,7 +441,7 @@ class BillingLifecycleTest extends TestCase
             'provider_payment_id' => 'payx-uuid-stale-1',
         ]);
         $stale1->save();
-        $stale2 = (new BillingPayment())->forceFill([
+        $stale2 = (new BillingPayment)->forceFill([
             'user_id' => $dentist->id,
             'plan_id' => $plan->id,
             'plan_code' => $plan->code,
@@ -535,7 +579,7 @@ class BillingLifecycleTest extends TestCase
     }
 
     /**
-     * @param array<string, mixed> $overrides
+     * @param  array<string, mixed>  $overrides
      */
     private function createPlan(string $code, array $overrides = []): Plan
     {
@@ -572,7 +616,7 @@ class BillingLifecycleTest extends TestCase
     }
 
     /**
-     * @param array<string, mixed> $overrides
+     * @param  array<string, mixed>  $overrides
      */
     private function createSubscription(User $dentist, Plan $plan, array $overrides = []): Subscription
     {
@@ -615,7 +659,7 @@ class BillingLifecycleTest extends TestCase
         // save in one shot — `create()` would do an INSERT before we get a
         // chance to forceFill, hitting the NOT NULL constraint on
         // provider_order_id.
-        $payment = (new BillingPayment())->forceFill([
+        $payment = (new BillingPayment)->forceFill([
             'user_id' => $dentist->id,
             'plan_id' => $plan->id,
             'plan_code' => $plan->code,
@@ -638,7 +682,7 @@ class BillingLifecycleTest extends TestCase
      * Build a webhook payload that mirrors the example shown in PayX docs:
      * { user_id, amount, currency, transaction_id, timestamp }.
      *
-     * @param array<string, mixed> $overrides
+     * @param  array<string, mixed>  $overrides
      * @return array<string, mixed>
      */
     private function payxPayload(BillingPayment $payment, array $overrides = []): array
@@ -656,7 +700,7 @@ class BillingLifecycleTest extends TestCase
      * Send a PayX webhook authenticated with `Authorization: Bearer
      * {project_token}` exactly as PayX itself does.
      *
-     * @param array<string, mixed> $payload
+     * @param  array<string, mixed>  $payload
      */
     private function postPayxWebhook(array $payload): \Illuminate\Testing\TestResponse
     {

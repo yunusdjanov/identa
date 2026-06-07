@@ -93,6 +93,32 @@ class BillingController extends Controller
         return $this->checkout($request);
     }
 
+    /**
+     * Schedule a downgrade (Pro → Basic) for the end of the current paid
+     * period WITHOUT charging — the best-practice deferred downgrade. Returns
+     * the refreshed subscription summary (now carrying the pending change).
+     */
+    public function downgrade(Request $request): JsonResponse
+    {
+        /** @var User $user */
+        $user = $request->user();
+        $validated = $request->validate([
+            'plan_code' => ['required', 'string', Rule::in([Plan::CODE_BASIC])],
+            'billing_period' => ['required', 'string', Rule::in([Subscription::PERIOD_MONTHLY, Subscription::PERIOD_YEARLY])],
+            'selected_active_staff_ids' => ['nullable', 'array'],
+            'selected_active_staff_ids.*' => ['integer', 'distinct'],
+        ]);
+
+        return response()->json([
+            'data' => $this->billingService->scheduleDowngrade(
+                user: $user,
+                planCode: (string) $validated['plan_code'],
+                billingPeriod: (string) $validated['billing_period'],
+                selectedActiveStaffIds: $validated['selected_active_staff_ids'] ?? [],
+            ),
+        ]);
+    }
+
     public function payxWebhook(Request $request): JsonResponse
     {
         $payment = $this->billingService->handlePayxWebhook($request);

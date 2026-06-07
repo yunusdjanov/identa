@@ -2,7 +2,6 @@
 
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -13,7 +12,6 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog';
 import { PageHeader } from '@/components/ui/page-shell';
-import { Skeleton } from '@/components/ui/skeleton';
 import { AccessDeniedState } from '@/components/error/access-denied-state';
 import { AppErrorState } from '@/components/error/app-error-state';
 import { BillingLoadingState } from '@/components/layout/page-loading-skeletons';
@@ -21,11 +19,11 @@ import {
     createBillingCheckout,
     getCurrentSubscription,
     getCurrentUser,
-    listAssistants,
     listBillingPayments,
     listBillingPlans,
+    scheduleBillingDowngrade,
 } from '@/lib/api/dentist';
-import type { ApiAssistantAccount, ApiBillingPayment, ApiPlan } from '@/lib/api/types';
+import type { ApiBillingPayment, ApiPlan } from '@/lib/api/types';
 import { getApiErrorMessage } from '@/lib/api/client';
 import { formatLocalizedDate } from '@/lib/i18n/date';
 import { useI18n } from '@/components/providers/i18n-provider';
@@ -71,8 +69,18 @@ function getPlanPrice(plan: ApiPlan, period: BillingPeriod): number | null {
     return period === 'yearly' ? plan.yearly_price : plan.monthly_price;
 }
 
-function isProToBasicDowngrade(subscriptionPlan: string | null | undefined, targetPlan: ApiPlan): boolean {
-    return subscriptionPlan === 'pro' && targetPlan.code === 'basic';
+function isProToBasicDowngrade(
+    subscriptionPlan: string | null | undefined,
+    subscriptionStatus: string | null | undefined,
+    targetPlan: ApiPlan,
+): boolean {
+    // Only an ACTIVE Pro (future-dated — not grace/read-only) → Basic is a
+    // deferred, no-charge downgrade, matching the backend isDeferredDowngrade
+    // guard. An expired/grace Pro picking Basic is a fresh PAID purchase that
+    // must route through checkout, so this returns false for those states.
+    return subscriptionPlan === 'pro'
+        && subscriptionStatus === 'active'
+        && targetPlan.code === 'basic';
 }
 
 export default function BillingPage() {
@@ -80,7 +88,6 @@ export default function BillingPage() {
     const queryClient = useQueryClient();
     const [period, setPeriod] = useState<BillingPeriod>('monthly');
     const [downgradePlan, setDowngradePlan] = useState<ApiPlan | null>(null);
-    const [selectedStaffIds, setSelectedStaffIds] = useState<number[]>([]);
 
     const currentUserQuery = useQuery({
         queryKey: ['auth', 'me'],
@@ -114,12 +121,6 @@ export default function BillingPage() {
         refetchInterval: 60_000,
         refetchOnWindowFocus: true,
     });
-    const staffQuery = useQuery({
-        queryKey: ['team', 'assistants', 'billing-downgrade'],
-        queryFn: () => listAssistants({ perPage: 100 }),
-        enabled: downgradePlan !== null && currentUserQuery.data?.role === 'dentist',
-    });
-
     const checkoutMutation = useMutation({
         mutationFn: (payload: {
             plan_code: 'basic' | 'pro';
@@ -130,11 +131,31 @@ export default function BillingPage() {
         onSuccess: (checkout) => {
             queryClient.invalidateQueries({ queryKey: ['billing', 'payments'] });
             setDowngradePlan(null);
-            setSelectedStaffIds([]);
             window.location.href = checkout.checkout_url;
         },
         onError: (error) => {
             toast.error(getApiErrorMessage(error, t('billing.checkoutFailed')));
+        },
+    });
+
+    // Deferred downgrade (Pro → Basic): scheduled for period end with NO
+    // payment and NO PayX redirect. Reflects the pending change in place.
+    const downgradeMutation = useMutation({
+        mutationFn: (payload: {
+            plan_code: 'basic';
+            billing_period: BillingPeriod;
+            selected_active_staff_ids?: number[];
+        }) =>
+            scheduleBillingDowngrade(payload),
+        onSuccess: (summary) => {
+            queryClient.setQueryData(['billing', 'current-subscription'], summary);
+            queryClient.invalidateQueries({ queryKey: ['billing'] });
+            queryClient.invalidateQueries({ queryKey: ['auth', 'me'] });
+            setDowngradePlan(null);
+            toast.success(t('billing.downgrade.scheduled'));
+        },
+        onError: (error) => {
+            toast.error(getApiErrorMessage(error, t('billing.downgrade.failed')));
         },
     });
 
@@ -162,44 +183,21 @@ export default function BillingPage() {
     };
 
     const isLoading = currentUserQuery.isLoading || subscriptionQuery.isLoading || plansQuery.isLoading;
-    const activeStaff = useMemo(
-        () => (staffQuery.data?.data ?? []).filter(
-            (assistant: ApiAssistantAccount) => assistant.account_status === 'active'
-        ),
-        [staffQuery.data]
-    );
-    const effectiveSelectedStaffIds = useMemo(() => {
-        if (selectedStaffIds.length > 0 || !downgradePlan) {
-            return selectedStaffIds;
-        }
-
-        return activeStaff
-            .slice(0, downgradePlan.staff_limit)
-            .map((assistant) => Number(assistant.id));
-    }, [activeStaff, downgradePlan, selectedStaffIds]);
-
     const openDowngradeDialog = (plan: ApiPlan) => {
         setDowngradePlan(plan);
-        setSelectedStaffIds(activeStaff.slice(0, plan.staff_limit).map((assistant) => Number(assistant.id)));
     };
     const submitDowngrade = () => {
         if (!downgradePlan) {
             return;
         }
 
-        if (effectiveSelectedStaffIds.length > downgradePlan.staff_limit) {
-            toast.error(t('billing.downgrade.tooManyStaff', { count: downgradePlan.staff_limit }));
-            return;
-        }
-        if (activeStaff.length > downgradePlan.staff_limit && effectiveSelectedStaffIds.length !== downgradePlan.staff_limit) {
-            toast.error(t('billing.downgrade.selectExactStaff', { count: downgradePlan.staff_limit }));
-            return;
-        }
-
-        checkoutMutation.mutate({
-            plan_code: downgradePlan.code as 'basic' | 'pro',
+        // No staff selection here: in the deferred model the Basic staff limit
+        // is applied automatically at renewal (the most-recently-active stay),
+        // so asking the dentist to pick now would collect a choice that is
+        // never honoured. They manage staff explicitly on the Staff page.
+        downgradeMutation.mutate({
+            plan_code: 'basic',
             billing_period: period,
-            selected_active_staff_ids: effectiveSelectedStaffIds,
         });
     };
 
@@ -275,6 +273,7 @@ export default function BillingPage() {
                     {subscription?.pending_change_effective_at ? (
                         <span className="inline-flex items-center gap-1.5 self-start rounded-lg bg-teal-50 px-3 py-1.5 text-xs font-medium text-teal-700 ring-1 ring-teal-100 sm:self-center">
                             {t('billing.pendingChange', {
+                                plan: resolvePlanLabel(subscription.pending_plan_code, subscription.pending_plan_name),
                                 date: formatLocalizedDate(subscription.pending_change_effective_at, locale, {
                                     year: 'numeric',
                                     month: 'short',
@@ -453,7 +452,7 @@ export default function BillingPage() {
                                         variant={isCurrent ? 'outline' : 'default'}
                                         disabled={disabled || isCurrent}
                                         onClick={() => {
-                                            if (isProToBasicDowngrade(subscription?.plan, plan)) {
+                                            if (isProToBasicDowngrade(subscription?.plan, subscription?.status, plan)) {
                                                 openDowngradeDialog(plan);
                                                 return;
                                             }
@@ -498,7 +497,6 @@ export default function BillingPage() {
                 onOpenChange={(open) => {
                     if (!open) {
                         setDowngradePlan(null);
-                        setSelectedStaffIds([]);
                     }
                 }}
             >
@@ -518,56 +516,23 @@ export default function BillingPage() {
                             })}
                         </p>
 
-                        {staffQuery.isLoading ? (
-                            <div className="space-y-2">
-                                <Skeleton className="h-12 rounded-xl" />
-                                <Skeleton className="h-12 rounded-xl" />
-                                <Skeleton className="h-12 rounded-xl" />
-                            </div>
-                        ) : activeStaff.length === 0 ? (
-                            <p className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
-                                {t('billing.downgrade.noStaff')}
-                            </p>
-                        ) : (
-                            <div className="space-y-2">
-                                {activeStaff.map((assistant) => {
-                                    const assistantId = Number(assistant.id);
-                                    const checked = effectiveSelectedStaffIds.includes(assistantId);
-                                    const limit = downgradePlan?.staff_limit ?? 0;
-                                    const disabled = !checked && effectiveSelectedStaffIds.length >= limit;
-
-                                    return (
-                                        <button
-                                            key={assistant.id}
-                                            type="button"
-                                            disabled={disabled}
-                                            onClick={() => {
-                                                setSelectedStaffIds(
-                                                    effectiveSelectedStaffIds.includes(assistantId)
-                                                        ? effectiveSelectedStaffIds.filter((id) => id !== assistantId)
-                                                        : [...effectiveSelectedStaffIds, assistantId]
-                                                );
-                                            }}
-                                            className={[
-                                                'flex w-full items-center justify-between rounded-xl border px-4 py-3 text-left transition',
-                                                checked
-                                                    ? 'border-teal-300 bg-teal-50 text-teal-950'
-                                                    : 'border-slate-200 bg-white text-slate-800',
-                                                disabled ? 'cursor-not-allowed opacity-50' : 'hover:border-teal-200 hover:bg-teal-50/60',
-                                            ].join(' ')}
-                                        >
-                                            <span>
-                                                <span className="block text-sm font-medium">{assistant.name}</span>
-                                                <span className="block text-xs text-slate-500">{assistant.email}</span>
-                                            </span>
-                                            <Badge variant={checked ? 'secondary' : 'outline'}>
-                                                {checked ? t('billing.downgrade.keepActive') : t('billing.downgrade.disable')}
-                                            </Badge>
-                                        </button>
-                                    );
+                        {subscription?.ends_at ? (
+                            <div className="rounded-xl border border-teal-200 bg-teal-50/50 px-4 py-3 text-sm text-teal-800">
+                                {t('billing.downgrade.noChargeNote', {
+                                    date: formatLocalizedDate(subscription.ends_at, locale, {
+                                        year: 'numeric',
+                                        month: 'short',
+                                        day: 'numeric',
+                                    }),
                                 })}
                             </div>
-                        )}
+                        ) : null}
+
+                        <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+                            {t('billing.downgrade.staffNote', {
+                                count: downgradePlan?.staff_limit ?? 0,
+                            })}
+                        </div>
 
                         <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row">
                             <Button
@@ -576,7 +541,6 @@ export default function BillingPage() {
                                 className="flex-1"
                                 onClick={() => {
                                     setDowngradePlan(null);
-                                    setSelectedStaffIds([]);
                                 }}
                             >
                                 {t('common.cancel')}
@@ -584,10 +548,10 @@ export default function BillingPage() {
                             <Button
                                 type="button"
                                 className="flex-1"
-                                disabled={checkoutMutation.isPending || staffQuery.isLoading}
+                                disabled={downgradeMutation.isPending}
                                 onClick={submitDowngrade}
                             >
-                                {checkoutMutation.isPending ? t('billing.processing') : t('billing.downgrade.continue')}
+                                {downgradeMutation.isPending ? t('billing.processing') : t('billing.downgrade.continue')}
                             </Button>
                         </div>
                     </div>

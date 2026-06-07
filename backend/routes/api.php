@@ -10,8 +10,8 @@ use App\Http\Controllers\Api\BillingController;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\InvoiceController;
 use App\Http\Controllers\Api\LandingController;
-use App\Http\Controllers\Api\PatientController;
 use App\Http\Controllers\Api\PatientCategoryController;
+use App\Http\Controllers\Api\PatientController;
 use App\Http\Controllers\Api\PatientOdontogramController;
 use App\Http\Controllers\Api\PatientTreatmentController;
 use App\Http\Controllers\Api\PaymentController;
@@ -164,6 +164,11 @@ Route::prefix('v1')->group(function (): void {
             Route::post('cancel', [BillingController::class, 'cancel'])
                 ->middleware('throttle:10,1');
             Route::post('change-plan', [BillingController::class, 'changePlan'])
+                ->middleware('throttle:10,1');
+            // Deferred downgrade (Pro → Basic) — schedules the switch for period
+            // end WITHOUT a payment. Separate from checkout precisely because no
+            // invoice is created.
+            Route::post('downgrade', [BillingController::class, 'downgrade'])
                 ->middleware('throttle:10,1');
         });
 
