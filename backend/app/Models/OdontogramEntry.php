@@ -93,6 +93,10 @@ class OdontogramEntry extends Model implements TenantOwned
                     ->whereColumn('odontogram_entries.id', 'odontogram_entry_images.odontogram_entry_id')
                     ->whereColumn('odontogram_entries.dentist_id', 'odontogram_entry_images.dentist_id');
             })
+            ->where(function ($query): void {
+                $query->whereNull('scan_status')
+                    ->orWhere('scan_status', '!=', 'rejected');
+            })
             ->orderBy('created_at');
     }
 

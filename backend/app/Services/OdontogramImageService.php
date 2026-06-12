@@ -3,7 +3,6 @@
 namespace App\Services;
 
 use App\Jobs\DeleteStoredMediaPaths;
-use App\Jobs\GenerateMediaVariants;
 use App\Jobs\ProcessUploadedMedia;
 use App\Models\OdontogramEntry;
 use App\Models\OdontogramEntryImage;
@@ -97,15 +96,10 @@ class OdontogramImageService
         if ($existingImage) {
             $existingImage->update([
                 'disk' => $disk,
-                'path' => $path,
-                'mime_type' => $mimeType,
-                'file_size' => max((int) Storage::disk($disk)->size($path), 0),
-                'captured_at' => $validated['captured_at'] ?? null,
                 'scan_status' => 'pending',
                 'scan_result' => null,
                 'scan_provider' => null,
                 'quarantine_path' => $path,
-                'approved_at' => null,
                 'scanned_at' => null,
                 'rejected_at' => null,
             ]);
@@ -131,10 +125,6 @@ class OdontogramImageService
                 'image' => [__('api.odontogram.image_store_failed')],
             ]);
         }
-        if ((string) $image->scan_status === 'approved') {
-            $this->queueVariants((string) $image->disk, (string) $image->path);
-        }
-
         return $image;
     }
 
@@ -276,15 +266,10 @@ class OdontogramImageService
         if ($existingImage) {
             $existingImage->update([
                 'disk' => $disk,
-                'path' => $path,
-                'mime_type' => (string) ($ticket['mime_type'] ?? 'image/jpeg'),
-                'file_size' => $storedSize,
-                'captured_at' => $ticket['captured_at'] ?? null,
                 'scan_status' => 'pending',
                 'scan_result' => null,
                 'scan_provider' => null,
                 'quarantine_path' => $path,
-                'approved_at' => null,
                 'scanned_at' => null,
                 'rejected_at' => null,
             ]);
@@ -314,10 +299,6 @@ class OdontogramImageService
             ]);
         }
 
-        if ((string) $image->scan_status === 'approved') {
-            $this->queueVariants((string) $image->disk, (string) $image->path);
-        }
-
         return $image;
     }
 
@@ -331,6 +312,9 @@ class OdontogramImageService
     public function deleteFile(OdontogramEntryImage $image): void
     {
         $this->queueDeletion((string) $image->disk, (string) $image->path);
+        if (is_string($image->quarantine_path) && trim($image->quarantine_path) !== '') {
+            $this->queueDeletion((string) $image->disk, $image->quarantine_path);
+        }
     }
 
     /**
@@ -350,7 +334,7 @@ class OdontogramImageService
 
     public function stream(OdontogramEntryImage $image, ?string $variant): StreamedResponse
     {
-        if ((string) $image->scan_status !== 'approved') {
+        if (! $this->isDisplayable($image)) {
             abort(404);
         }
 
@@ -380,6 +364,10 @@ class OdontogramImageService
         OdontogramEntryImage $image,
         ?string $variant = null
     ): ?string {
+        if (! $this->isDisplayable($image)) {
+            return null;
+        }
+
         $disk = (string) $image->disk;
         $path = (string) $image->path;
 
@@ -439,6 +427,10 @@ class OdontogramImageService
 
     public function variantReady(OdontogramEntryImage $image, string $variant): bool
     {
+        if (! $this->isDisplayable($image)) {
+            return false;
+        }
+
         return $this->mediaPathExists(
             (string) $image->disk,
             $this->variantPath((string) $image->path, $variant)
@@ -453,6 +445,18 @@ class OdontogramImageService
     private function mediaDiskSupportsDirectUpload(string $disk): bool
     {
         return (string) config("filesystems.disks.{$disk}.driver") === 's3';
+    }
+
+    private function isDisplayable(OdontogramEntryImage $image): bool
+    {
+        if ((string) $image->scan_status === 'approved') {
+            return true;
+        }
+
+        $path = trim((string) $image->path);
+        $quarantinePath = trim((string) $image->quarantine_path);
+
+        return $path !== '' && $quarantinePath !== '' && $path !== $quarantinePath;
     }
 
     private function directUploadCacheKey(string $uploadId): string
@@ -595,27 +599,6 @@ class OdontogramImageService
                 $this->variantPath($path, self::IMAGE_VARIANT_PREVIEW),
             ],
             logContext: 'Odontogram image'
-        )->afterResponse();
-    }
-
-    private function queueVariants(string $disk, string $path): void
-    {
-        GenerateMediaVariants::dispatch(
-            disk: $disk,
-            sourcePath: $path,
-            variants: [
-                self::IMAGE_VARIANT_THUMBNAIL => [
-                    'path' => $this->variantPath($path, self::IMAGE_VARIANT_THUMBNAIL),
-                    'max_edge' => self::THUMBNAIL_MAX_EDGE,
-                ],
-                self::IMAGE_VARIANT_PREVIEW => [
-                    'path' => $this->variantPath($path, self::IMAGE_VARIANT_PREVIEW),
-                    'max_edge' => self::PREVIEW_MAX_EDGE,
-                ],
-            ],
-            logContext: 'Odontogram image',
-            jpegQuality: self::JPEG_VARIANT_QUALITY,
-            webpQuality: self::WEBP_VARIANT_QUALITY,
         )->afterResponse();
     }
 

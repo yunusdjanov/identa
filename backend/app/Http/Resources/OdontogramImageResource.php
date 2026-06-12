@@ -29,14 +29,19 @@ class OdontogramImageResource extends JsonResource
     {
         /** @var OdontogramEntryImage $image */
         $image = $this->resource;
-        $isApproved = (string) $image->scan_status === 'approved';
+        $isApproved = (string) $image->scan_status === 'approved'
+            || (
+                trim((string) $image->path) !== ''
+                && trim((string) $image->quarantine_path) !== ''
+                && trim((string) $image->path) !== trim((string) $image->quarantine_path)
+            );
 
         return [
             'id' => (string) $image->id,
             'stage' => $image->stage,
             'mime_type' => $image->mime_type,
             'file_size' => (int) $image->file_size,
-            'scan_status' => (string) ($image->scan_status ?? 'approved'),
+            'scan_status' => $isApproved ? 'approved' : (string) ($image->scan_status ?? 'approved'),
             'captured_at' => $image->captured_at?->toDateString(),
             'created_at' => $image->created_at?->toIso8601String(),
             'url' => $isApproved

@@ -39,7 +39,7 @@ class PatientResource extends JsonResource
             'medical_history' => $patient->medical_history,
             'allergies' => $patient->allergies,
             'current_medications' => $patient->current_medications,
-            'photo_scan_status' => (string) ($patient->scan_status ?? 'approved'),
+            'photo_scan_status' => $this->photos->displayScanStatus($patient),
             'photo_url' => $this->photos->url($patient, $request),
             'photo_thumbnail_url' => $this->photos->url($patient, $request, PatientPhotoService::IMAGE_VARIANT_THUMBNAIL),
             'photo_preview_url' => $this->photos->url($patient, $request, PatientPhotoService::IMAGE_VARIANT_PREVIEW),

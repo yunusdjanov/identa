@@ -3,7 +3,6 @@
 namespace App\Services;
 
 use App\Jobs\DeleteStoredMediaPaths;
-use App\Jobs\GenerateMediaVariants;
 use App\Jobs\ProcessUploadedMedia;
 use App\Models\Patient;
 use App\Models\Treatment;
@@ -44,7 +43,6 @@ class TreatmentImageService
 
     public function __construct(
         private readonly PlanLimitService $planLimitService,
-        private readonly TreatmentImageDirectUploadService $directUploads,
     ) {}
 
     public function uploadQueued(
@@ -98,10 +96,6 @@ class TreatmentImageService
             throw ValidationException::withMessages([
                 'image' => [__('api.treatments.image_store_failed')],
             ]);
-        }
-
-        if ((string) $image->scan_status === 'approved') {
-            $this->directUploads->queueVariants((string) $image->disk, (string) $image->path);
         }
 
         return $image;
@@ -213,6 +207,13 @@ class TreatmentImageService
             paths: $this->deletePaths($path),
             logContext: 'Treatment image'
         )->afterResponse();
+        if (is_string($image->quarantine_path) && trim($image->quarantine_path) !== '') {
+            DeleteStoredMediaPaths::dispatch(
+                disk: $disk,
+                paths: $this->deletePaths($image->quarantine_path),
+                logContext: 'Treatment image'
+            )->afterResponse();
+        }
     }
 
     public function deleteAllForTreatment(Treatment $treatment): void
@@ -249,18 +250,6 @@ class TreatmentImageService
         TreatmentImage::query()
             ->whereIn('id', $imageIds)
             ->delete();
-    }
-
-    public function queueVariants(string $disk, string $path): void
-    {
-        GenerateMediaVariants::dispatch(
-            disk: $disk,
-            sourcePath: $path,
-            variants: $this->variantDefinitions($path),
-            logContext: 'Treatment image',
-            jpegQuality: self::JPEG_VARIANT_QUALITY,
-            webpQuality: self::WEBP_VARIANT_QUALITY,
-        )->afterResponse();
     }
 
     private function url(
@@ -348,23 +337,6 @@ class TreatmentImageService
         $extension = pathinfo($path, PATHINFO_EXTENSION) ?: 'jpg';
 
         return sprintf('%s/variants/%s-%s.%s', $directory, $filename, $variant, $extension);
-    }
-
-    /**
-     * @return array<string, array{path: string, max_edge: int}>
-     */
-    private function variantDefinitions(string $path): array
-    {
-        $variants = [];
-
-        foreach (self::IMAGE_VARIANT_MAX_EDGES as $variant => $maxEdge) {
-            $variants[$variant] = [
-                'path' => $this->variantPath($path, $variant),
-                'max_edge' => $maxEdge,
-            ];
-        }
-
-        return $variants;
     }
 
     private function streamVariant(string $disk, string $path, string $variant): ?StreamedResponse

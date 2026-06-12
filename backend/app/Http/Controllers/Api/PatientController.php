@@ -192,6 +192,13 @@ class PatientController extends Controller
         $patient->forceFill([
             'photo_disk' => null,
             'photo_path' => null,
+            'scan_status' => 'approved',
+            'scan_result' => null,
+            'scan_provider' => null,
+            'quarantine_path' => null,
+            'approved_at' => null,
+            'scanned_at' => null,
+            'rejected_at' => null,
         ])->save();
 
         $patient = $this->patients->ownedPatient($request, $id);

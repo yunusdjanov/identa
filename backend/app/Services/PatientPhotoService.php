@@ -3,7 +3,6 @@
 namespace App\Services;
 
 use App\Jobs\DeleteStoredMediaPaths;
-use App\Jobs\GenerateMediaVariants;
 use App\Jobs\ProcessUploadedMedia;
 use App\Models\Patient;
 use App\Models\User;
@@ -72,21 +71,22 @@ class PatientPhotoService
             ]);
         }
 
-        $previousPhotoDisk = is_string($patient->photo_disk) && $patient->photo_disk !== ''
-            ? $patient->photo_disk
-            : $this->disk();
-        $previousPhotoPath = is_string($patient->photo_path) ? trim($patient->photo_path) : '';
+        $hasRetainedPhoto = is_string($patient->photo_path) && trim($patient->photo_path) !== '';
 
-        $patient->forceFill([
+        $attributes = [
             'photo_disk' => $disk,
             'scan_status' => 'pending',
             'scan_result' => null,
             'scan_provider' => null,
             'quarantine_path' => $quarantinePath,
-            'approved_at' => null,
             'scanned_at' => null,
             'rejected_at' => null,
-        ])->save();
+        ];
+        if (! $hasRetainedPhoto) {
+            $attributes['approved_at'] = null;
+        }
+
+        $patient->forceFill($attributes)->save();
 
         ProcessUploadedMedia::dispatch(Patient::class, (string) $patient->id, (int) $owner->id);
         $patient->refresh();
@@ -95,12 +95,6 @@ class PatientPhotoService
             throw ValidationException::withMessages([
                 'photo' => [__('api.patients.photo_store_failed')],
             ]);
-        }
-
-        $newPhotoPath = is_string($patient->photo_path) ? trim($patient->photo_path) : '';
-        if ((string) $patient->scan_status === 'approved' && $newPhotoPath !== '') {
-            $this->queueVariants($disk, $newPhotoPath);
-            $this->queueDeletion($previousPhotoDisk, $previousPhotoPath);
         }
 
         return $patient;
@@ -219,21 +213,22 @@ class PatientPhotoService
             throw $exception;
         }
 
-        $previousPhotoDisk = is_string($patient->photo_disk) && $patient->photo_disk !== ''
-            ? $patient->photo_disk
-            : $this->disk();
-        $previousPhotoPath = is_string($patient->photo_path) ? trim($patient->photo_path) : '';
+        $hasRetainedPhoto = is_string($patient->photo_path) && trim($patient->photo_path) !== '';
 
-        $patient->forceFill([
+        $attributes = [
             'photo_disk' => $disk,
             'scan_status' => 'pending',
             'scan_result' => null,
             'scan_provider' => null,
             'quarantine_path' => $path,
-            'approved_at' => null,
             'scanned_at' => null,
             'rejected_at' => null,
-        ])->save();
+        ];
+        if (! $hasRetainedPhoto) {
+            $attributes['approved_at'] = null;
+        }
+
+        $patient->forceFill($attributes)->save();
 
         ProcessUploadedMedia::dispatch(Patient::class, (string) $patient->id, (int) $owner->id);
         $patient->refresh();
@@ -247,19 +242,13 @@ class PatientPhotoService
             ]);
         }
 
-        $newPhotoPath = is_string($patient->photo_path) ? trim($patient->photo_path) : '';
-        if ((string) $patient->scan_status === 'approved' && $newPhotoPath !== '') {
-            $this->queueVariants($disk, $newPhotoPath);
-            $this->queueDeletion($previousPhotoDisk, $previousPhotoPath);
-        }
-
         return $patient;
     }
 
     public function stream(Request $request, Patient $patient): StreamedResponse
     {
         $photoPath = trim((string) $patient->photo_path);
-        if ($photoPath === '' || (string) $patient->scan_status !== 'approved') {
+        if (! $this->isDisplayable($patient)) {
             abort(404);
         }
 
@@ -285,14 +274,21 @@ class PatientPhotoService
 
     public function delete(Patient $patient): void
     {
-        if (! is_string($patient->photo_path) || $patient->photo_path === '') {
+        $photoPath = is_string($patient->photo_path) ? trim($patient->photo_path) : '';
+        $quarantinePath = is_string($patient->quarantine_path) ? trim($patient->quarantine_path) : '';
+        if ($photoPath === '' && $quarantinePath === '') {
             return;
         }
 
         $disk = is_string($patient->photo_disk) && $patient->photo_disk !== ''
             ? $patient->photo_disk
             : $this->disk();
-        $this->queueDeletion($disk, $patient->photo_path);
+        if ($photoPath !== '') {
+            $this->queueDeletion($disk, $photoPath);
+        }
+        if ($quarantinePath !== '') {
+            $this->queueDeletion($disk, $quarantinePath);
+        }
     }
 
     public function url(Patient $patient, ?Request $request = null, ?string $variant = null): ?string
@@ -300,7 +296,7 @@ class PatientPhotoService
         if (
             ! is_string($patient->photo_path)
             || $patient->photo_path === ''
-            || (string) $patient->scan_status !== 'approved'
+            || ! $this->isDisplayable($patient)
         ) {
             return null;
         }
@@ -365,12 +361,22 @@ class PatientPhotoService
         if (
             ! is_string($patient->photo_path)
             || $patient->photo_path === ''
-            || (string) $patient->scan_status !== 'approved'
+            || ! $this->isDisplayable($patient)
         ) {
             return false;
         }
 
         return $this->mediaPathExists($disk, $this->variantPath($patient->photo_path, $variant));
+    }
+
+    /**
+     * Return the scan status that should gate display URLs in API resources.
+     */
+    public function displayScanStatus(Patient $patient): string
+    {
+        $status = (string) ($patient->scan_status ?? 'approved');
+
+        return $this->isDisplayable($patient) ? 'approved' : $status;
     }
 
     public function disk(): string
@@ -397,6 +403,22 @@ class PatientPhotoService
         // image direct-upload service so this stays consistent across the
         // codebase and the fallback branch is reachable in tests.
         return (string) config("filesystems.disks.{$disk}.driver") === 's3';
+    }
+
+    private function isDisplayable(Patient $patient): bool
+    {
+        $photoPath = trim((string) $patient->photo_path);
+        if ($photoPath === '') {
+            return false;
+        }
+
+        if ((string) $patient->scan_status === 'approved') {
+            return true;
+        }
+
+        $quarantinePath = trim((string) $patient->quarantine_path);
+
+        return $quarantinePath !== '' && $photoPath !== $quarantinePath;
     }
 
     private function resolveUploadedObjectSize(string $disk, string $path, int $expectedSize): int
@@ -551,27 +573,6 @@ class PatientPhotoService
             disk: $disk,
             paths: $this->deletePaths($path),
             logContext: 'Patient photo'
-        )->afterResponse();
-    }
-
-    private function queueVariants(string $disk, string $path): void
-    {
-        GenerateMediaVariants::dispatch(
-            disk: $disk,
-            sourcePath: $path,
-            variants: [
-                self::IMAGE_VARIANT_THUMBNAIL => [
-                    'path' => $this->variantPath($path, self::IMAGE_VARIANT_THUMBNAIL),
-                    'max_edge' => self::THUMBNAIL_MAX_EDGE,
-                ],
-                self::IMAGE_VARIANT_PREVIEW => [
-                    'path' => $this->variantPath($path, self::IMAGE_VARIANT_PREVIEW),
-                    'max_edge' => self::PREVIEW_MAX_EDGE,
-                ],
-            ],
-            logContext: 'Patient photo',
-            jpegQuality: self::JPEG_VARIANT_QUALITY,
-            webpQuality: self::WEBP_VARIANT_QUALITY,
         )->afterResponse();
     }
 

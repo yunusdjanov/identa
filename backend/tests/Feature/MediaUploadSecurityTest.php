@@ -122,6 +122,115 @@ class MediaUploadSecurityTest extends TestCase
         Storage::disk('local')->assertExists((string) $patient->photo_path);
     }
 
+    public function test_rejected_patient_photo_replacement_retains_previous_photo(): void
+    {
+        Storage::fake('local');
+        $this->bindInfectedScanner();
+
+        $dentist = User::factory()->create();
+        $previousPath = 'approved/patients/previous-photo.jpg';
+        $quarantinePath = 'quarantine/patients/replacement-photo.jpg';
+        $previousPhoto = UploadedFile::fake()->image('previous-photo.jpg', 800, 600);
+        $replacementPhoto = UploadedFile::fake()->image('replacement-photo.jpg', 800, 600);
+        Storage::disk('local')->put($previousPath, file_get_contents((string) $previousPhoto->getRealPath()));
+        Storage::disk('local')->put($quarantinePath, file_get_contents((string) $replacementPhoto->getRealPath()));
+
+        $patient = Patient::factory()->create([
+            'dentist_id' => $dentist->id,
+            'photo_disk' => 'local',
+            'photo_path' => $previousPath,
+            'scan_status' => 'pending',
+            'quarantine_path' => $quarantinePath,
+            'approved_at' => now(),
+        ]);
+
+        ProcessUploadedMedia::dispatchSync(Patient::class, (string) $patient->id, $dentist->id);
+
+        $patient->refresh();
+        $this->assertSame('approved', $patient->scan_status);
+        $this->assertSame($previousPath, $patient->photo_path);
+        $this->assertNull($patient->quarantine_path);
+        Storage::disk('local')->assertExists($previousPath);
+        Storage::disk('local')->assertMissing($quarantinePath);
+    }
+
+    public function test_clean_patient_photo_replacement_generates_variants_and_deletes_previous_photo(): void
+    {
+        Storage::fake('local');
+        $this->bindCleanScanner();
+
+        $dentist = User::factory()->create();
+        $previousPath = 'approved/patients/previous-clean-photo.jpg';
+        $quarantinePath = 'quarantine/patients/replacement-clean-photo.jpg';
+        $previousPhoto = UploadedFile::fake()->image('previous-clean-photo.jpg', 800, 600);
+        $replacementPhoto = UploadedFile::fake()->image('replacement-clean-photo.jpg', 1200, 900);
+        Storage::disk('local')->put($previousPath, file_get_contents((string) $previousPhoto->getRealPath()));
+        Storage::disk('local')->put($quarantinePath, file_get_contents((string) $replacementPhoto->getRealPath()));
+
+        $patient = Patient::factory()->create([
+            'dentist_id' => $dentist->id,
+            'photo_disk' => 'local',
+            'photo_path' => $previousPath,
+            'scan_status' => 'pending',
+            'quarantine_path' => $quarantinePath,
+            'approved_at' => now(),
+        ]);
+
+        ProcessUploadedMedia::dispatchSync(Patient::class, (string) $patient->id, $dentist->id);
+
+        $patient->refresh();
+        $newPath = (string) $patient->photo_path;
+        $this->assertSame('approved', $patient->scan_status);
+        $this->assertNotSame($previousPath, $newPath);
+        $this->assertStringStartsWith('approved/patients/', $newPath);
+        Storage::disk('local')->assertExists($newPath);
+        Storage::disk('local')->assertExists($this->variantPath($newPath, 'thumbnail'));
+        Storage::disk('local')->assertExists($this->variantPath($newPath, 'preview'));
+        Storage::disk('local')->assertMissing($previousPath);
+        Storage::disk('local')->assertMissing($quarantinePath);
+    }
+
+    public function test_rejected_odontogram_image_replacement_retains_previous_image(): void
+    {
+        Storage::fake('local');
+        $this->bindInfectedScanner();
+
+        $dentist = User::factory()->create();
+        $patient = Patient::factory()->create(['dentist_id' => $dentist->id]);
+        $entry = OdontogramEntry::factory()->create([
+            'dentist_id' => $dentist->id,
+            'patient_id' => $patient->id,
+        ]);
+        $previousPath = 'approved/odontogram/previous-before.jpg';
+        $quarantinePath = 'quarantine/odontogram/replacement-before.jpg';
+        $previousImage = UploadedFile::fake()->image('previous-before.jpg', 800, 600);
+        $replacementImage = UploadedFile::fake()->image('replacement-before.jpg', 800, 600);
+        Storage::disk('local')->put($previousPath, file_get_contents((string) $previousImage->getRealPath()));
+        Storage::disk('local')->put($quarantinePath, file_get_contents((string) $replacementImage->getRealPath()));
+
+        $image = OdontogramEntryImage::query()->create([
+            'dentist_id' => $dentist->id,
+            'odontogram_entry_id' => $entry->id,
+            'stage' => 'before',
+            'disk' => 'local',
+            'path' => $previousPath,
+            'mime_type' => 'image/jpeg',
+            'file_size' => Storage::disk('local')->size($previousPath),
+            'scan_status' => 'pending',
+            'quarantine_path' => $quarantinePath,
+            'approved_at' => now(),
+        ]);
+
+        ProcessUploadedMedia::dispatchSync(OdontogramEntryImage::class, (string) $image->id, $dentist->id);
+
+        $image->refresh();
+        $this->assertSame('approved', $image->scan_status);
+        $this->assertSame($previousPath, $image->path);
+        $this->assertNull($image->quarantine_path);
+        Storage::disk('local')->assertExists($previousPath);
+        Storage::disk('local')->assertMissing($quarantinePath);
+    }
+
     public function test_pending_treatment_image_cannot_be_downloaded(): void
     {
         Storage::fake('local');
@@ -402,6 +511,34 @@ class MediaUploadSecurityTest extends TestCase
             ->assertJsonPath('data.0.images.0.preview_url', null);
     }
 
+    public function test_rejected_treatment_images_are_hidden_from_treatment_response(): void
+    {
+        $dentist = User::factory()->create();
+        $dentist->activatePaidSubscription(User::SUBSCRIPTION_PLAN_YEARLY);
+        $patient = Patient::factory()->create(['dentist_id' => $dentist->id]);
+        $treatment = Treatment::factory()->create([
+            'dentist_id' => $dentist->id,
+            'patient_id' => $patient->id,
+        ]);
+
+        TreatmentImage::query()->create([
+            'dentist_id' => $dentist->id,
+            'treatment_id' => $treatment->id,
+            'disk' => 'local',
+            'path' => 'approved/treatments/rejected.jpg',
+            'mime_type' => 'image/jpeg',
+            'file_size' => 123,
+            'scan_status' => 'rejected',
+        ]);
+
+        $this->actingAs($dentist, 'web')
+            ->getJson("/api/v1/patients/{$patient->id}/treatments/{$treatment->id}")
+            ->assertOk()
+            ->assertJsonPath('data.image_count', 0)
+            ->assertJsonPath('data.primary_image', null)
+            ->assertJsonPath('data.images', []);
+    }
+
     public function test_infected_patient_photo_direct_upload_is_rejected(): void
     {
         Storage::fake('local');
@@ -579,6 +716,15 @@ class MediaUploadSecurityTest extends TestCase
             'scan_status' => 'rejected',
         ]);
         Storage::disk('local')->assertMissing($path);
+    }
+
+    private function variantPath(string $path, string $variant): string
+    {
+        $directory = pathinfo($path, PATHINFO_DIRNAME);
+        $filename = pathinfo($path, PATHINFO_FILENAME);
+        $extension = pathinfo($path, PATHINFO_EXTENSION) ?: 'jpg';
+
+        return sprintf('%s/variants/%s-%s.%s', $directory, $filename, $variant, $extension);
     }
 
     private function bindInfectedScanner(): void

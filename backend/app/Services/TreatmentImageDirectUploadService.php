@@ -3,8 +3,6 @@
 namespace App\Services;
 
 use App\Jobs\DeleteStoredMediaPaths;
-use App\Jobs\GenerateMediaVariantBatch;
-use App\Jobs\GenerateMediaVariants;
 use App\Jobs\ProcessUploadedMedia;
 use App\Models\Treatment;
 use App\Models\TreatmentImage;
@@ -23,22 +21,6 @@ class TreatmentImageDirectUploadService
     private const IMAGE_VARIANT_THUMBNAIL = 'thumbnail';
 
     private const IMAGE_VARIANT_PREVIEW = 'preview';
-
-    private const THUMBNAIL_MAX_EDGE = 200;
-
-    private const PREVIEW_MAX_EDGE = 1280;
-
-    private const JPEG_VARIANT_QUALITY = 82;
-
-    private const WEBP_VARIANT_QUALITY = 80;
-
-    /**
-     * @var array<string, int>
-     */
-    private const IMAGE_VARIANT_MAX_EDGES = [
-        self::IMAGE_VARIANT_THUMBNAIL => self::THUMBNAIL_MAX_EDGE,
-        self::IMAGE_VARIANT_PREVIEW => self::PREVIEW_MAX_EDGE,
-    ];
 
     public function __construct(
         private readonly ImageCompressionService $imageCompressionService,
@@ -203,10 +185,6 @@ class TreatmentImageDirectUploadService
             ]);
         }
 
-        if ((string) $image->scan_status === 'approved') {
-            $this->queueVariants((string) $image->disk, (string) $image->path);
-        }
-
         return $image;
     }
 
@@ -301,7 +279,6 @@ class TreatmentImageDirectUploadService
     ): array {
         $completed = [];
         $failed = [];
-        $variantQueue = [];
         $owner = User::query()->whereKey($dentistId)->firstOrFail();
         $availableSlots = $this->planLimitService->availableEntryImageSlots(
             $owner,
@@ -402,54 +379,14 @@ class TreatmentImageDirectUploadService
             // Returning only `approved` rows silently dropped the new row out
             // of the response and the caller couldn't poll for it. Hand the
             // row back; the scan moves it to approved/rejected within seconds
-            // and the variant generator runs lazily on first stream.
-            if ($scanStatus === 'approved') {
-                $variantQueue[] = [(string) $image->disk, (string) $image->path];
-            }
+            // and the worker queues variants once approval is persisted.
             $completed[] = $image;
-        }
-
-        if ($variantQueue !== []) {
-            $this->queueVariantBatch($variantQueue);
         }
 
         return [
             'completed' => $completed,
             'failed' => $failed,
         ];
-    }
-
-    public function queueVariants(string $disk, string $path): void
-    {
-        GenerateMediaVariants::dispatch(
-            disk: $disk,
-            sourcePath: $path,
-            variants: $this->variantDefinitions($path),
-            logContext: 'Treatment image',
-            jpegQuality: self::JPEG_VARIANT_QUALITY,
-            webpQuality: self::WEBP_VARIANT_QUALITY,
-        )->afterResponse();
-    }
-
-    /**
-     * @param  list<array{0: string, 1: string}>  $items
-     */
-    private function queueVariantBatch(array $items): void
-    {
-        if ($items === []) {
-            return;
-        }
-
-        GenerateMediaVariantBatch::dispatch(
-            items: array_map(fn (array $item): array => [
-                'disk' => (string) $item[0],
-                'source_path' => (string) $item[1],
-                'variants' => $this->variantDefinitions((string) $item[1]),
-                'log_context' => 'Treatment image',
-            ], $items),
-            jpegQuality: self::JPEG_VARIANT_QUALITY,
-            webpQuality: self::WEBP_VARIANT_QUALITY,
-        )->afterResponse();
     }
 
     /**
@@ -518,23 +455,6 @@ class TreatmentImageDirectUploadService
             'image/webp' => 'webp',
             default => 'jpg',
         };
-    }
-
-    /**
-     * @return array<string, array{path: string, max_edge: int}>
-     */
-    private function variantDefinitions(string $path): array
-    {
-        $variants = [];
-
-        foreach (self::IMAGE_VARIANT_MAX_EDGES as $variant => $maxEdge) {
-            $variants[$variant] = [
-                'path' => $this->variantPath($path, $variant),
-                'max_edge' => $maxEdge,
-            ];
-        }
-
-        return $variants;
     }
 
     private function variantPath(string $path, string $variant): string

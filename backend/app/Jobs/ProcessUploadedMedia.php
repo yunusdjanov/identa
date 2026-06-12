@@ -9,6 +9,7 @@ use App\Services\Media\AntivirusScanner;
 use App\Services\Media\ScanResult;
 use App\Services\PlanLimitService;
 use App\Support\MediaPathCache;
+use App\Support\MediaVariantPaths;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Database\Eloquent\Model;
@@ -22,6 +23,10 @@ use Illuminate\Support\Str;
 class ProcessUploadedMedia implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
+
+    private const JPEG_VARIANT_QUALITY = 82;
+
+    private const WEBP_VARIANT_QUALITY = 80;
 
     public int $tries = 3;
 
@@ -82,6 +87,8 @@ class ProcessUploadedMedia implements ShouldQueue
             }
 
             $approvedPath = $this->approvedPath($quarantinePath, $optimized['extension']);
+            $previousDisk = $this->recordDisk($record);
+            $previousPath = $this->currentMediaPath($record);
             Storage::disk($disk)->put($approvedPath, $optimized['contents']);
             Storage::disk($disk)->delete($quarantinePath);
             MediaPathCache::forgetPaths($disk, [$quarantinePath]);
@@ -95,6 +102,8 @@ class ProcessUploadedMedia implements ShouldQueue
                 $optimized['file_size'],
                 $scanResult,
             ))->save();
+            $this->queueApprovedMediaVariants($record, $disk, $approvedPath);
+            $this->queuePreviousMediaDeletion($record, $previousDisk, $previousPath, $quarantinePath, $approvedPath);
         } catch (\Throwable $exception) {
             $this->reject($record, ScanResult::failed('sanitizer', $exception->getMessage()));
         }
@@ -165,12 +174,33 @@ class ProcessUploadedMedia implements ShouldQueue
             MediaPathCache::forgetPaths($disk, [$quarantinePath]);
         }
 
+        if ($this->hasRetainedApprovedMedia($record, $quarantinePath)) {
+            $record->forceFill([
+                'scan_status' => 'approved',
+                'scan_result' => null,
+                'scan_provider' => null,
+                'scanned_at' => now(),
+                'rejected_at' => null,
+                'quarantine_path' => null,
+            ])->save();
+
+            Log::warning('Uploaded media replacement rejected; previous media retained.', [
+                'model' => $record::class,
+                'id' => $record->getKey(),
+                'provider' => $scanResult->provider,
+                'status' => $scanResult->status,
+            ]);
+
+            return;
+        }
+
         $record->forceFill([
             'scan_status' => 'rejected',
             'scan_result' => $scanResult->message,
             'scan_provider' => $scanResult->provider,
             'scanned_at' => now(),
             'rejected_at' => now(),
+            'quarantine_path' => null,
         ])->save();
 
         Log::warning('Uploaded media rejected.', [
@@ -189,5 +219,61 @@ class ProcessUploadedMedia implements ShouldQueue
         $directory = $directory === '.' ? '' : trim($directory, '/');
 
         return ($directory !== '' ? $directory.'/' : '').$filename.'.'.strtolower($extension);
+    }
+
+    private function currentMediaPath(Model $record): string
+    {
+        if ($record instanceof Patient) {
+            return trim((string) $record->getAttribute('photo_path'));
+        }
+
+        return trim((string) $record->getAttribute('path'));
+    }
+
+    private function hasRetainedApprovedMedia(Model $record, string $quarantinePath): bool
+    {
+        $path = $this->currentMediaPath($record);
+
+        return $path !== '' && $path !== $quarantinePath;
+    }
+
+    private function queueApprovedMediaVariants(Model $record, string $disk, string $approvedPath): void
+    {
+        $variants = MediaVariantPaths::definitions($record, $approvedPath);
+        if ($disk === '' || $approvedPath === '' || $variants === []) {
+            return;
+        }
+
+        GenerateMediaVariants::dispatch(
+            disk: $disk,
+            sourcePath: $approvedPath,
+            variants: $variants,
+            logContext: MediaVariantPaths::logContext($record),
+            jpegQuality: self::JPEG_VARIANT_QUALITY,
+            webpQuality: self::WEBP_VARIANT_QUALITY,
+        );
+    }
+
+    private function queuePreviousMediaDeletion(
+        Model $record,
+        string $disk,
+        string $previousPath,
+        string $quarantinePath,
+        string $approvedPath
+    ): void {
+        if (
+            $disk === ''
+            || $previousPath === ''
+            || $previousPath === $quarantinePath
+            || $previousPath === $approvedPath
+        ) {
+            return;
+        }
+
+        DeleteStoredMediaPaths::dispatch(
+            disk: $disk,
+            paths: MediaVariantPaths::deletePaths($record, $previousPath),
+            logContext: MediaVariantPaths::logContext($record)
+        );
     }
 }

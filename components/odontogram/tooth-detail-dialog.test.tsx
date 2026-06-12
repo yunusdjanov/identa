@@ -183,4 +183,43 @@ describe('ToothDetailDialog (history-first mode)', () => {
         expect(screen.queryByRole('button', { name: 'Images (1)' })).not.toBeInTheDocument();
         expect(document.querySelector('img[src]')).not.toBeInTheDocument();
     });
+
+    it('uses the approved original image while generated variants are not ready', () => {
+        renderDialog([
+            buildTreatment({
+                id: 't-5',
+                image_count: 1,
+                primary_image: {
+                    id: 'img-approved',
+                    mime_type: 'image/jpeg',
+                    file_size: 1234,
+                    created_at: '2026-03-29T10:00:00Z',
+                    url: 'https://example.com/original.jpg',
+                    thumbnail_url: null,
+                    preview_url: null,
+                    thumbnail_ready: false,
+                    preview_ready: false,
+                    scan_status: 'approved',
+                },
+                images: [
+                    {
+                        id: 'img-approved',
+                        mime_type: 'image/jpeg',
+                        file_size: 1234,
+                        created_at: '2026-03-29T10:00:00Z',
+                        url: 'https://example.com/original.jpg',
+                        thumbnail_url: null,
+                        preview_url: null,
+                        thumbnail_ready: false,
+                        preview_ready: false,
+                        scan_status: 'approved',
+                    },
+                ],
+            }),
+        ]);
+
+        expect(screen.getByRole('button', { name: 'Images (1)' })).toBeInTheDocument();
+        expect(document.querySelector('img[src="https://example.com/original.jpg"]')).toBeInTheDocument();
+        expect(screen.queryByTitle('Images processing')).not.toBeInTheDocument();
+    });
 });

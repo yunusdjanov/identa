@@ -91,6 +91,10 @@ class Treatment extends Model implements TenantOwned
                     ->whereColumn('treatments.id', 'treatment_images.treatment_id')
                     ->whereColumn('treatments.dentist_id', 'treatment_images.dentist_id');
             })
+            ->where(function ($query): void {
+                $query->whereNull('scan_status')
+                    ->orWhere('scan_status', '!=', 'rejected');
+            })
             ->orderBy('created_at');
     }
 
@@ -106,6 +110,7 @@ class Treatment extends Model implements TenantOwned
                     ->whereColumn('treatments.id', 'treatment_images.treatment_id')
                     ->whereColumn('treatments.dentist_id', 'treatment_images.dentist_id');
             })
+            ->where('scan_status', 'approved')
             ->orderBy('created_at')
             ->orderBy('id');
     }
