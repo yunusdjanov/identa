@@ -408,6 +408,7 @@ export default function PatientDetailPage({
         previewUrl: patient.photo_preview_url,
         previewReady: patient.photo_preview_ready,
         url: patient.photo_url,
+        allowFullFallback: true,
     }) ?? undefined;
 
     return (

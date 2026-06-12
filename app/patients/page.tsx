@@ -76,6 +76,7 @@ function mapPatientRow(patient: ApiPatient): PatientRow {
         previewUrl: patient.photo_preview_url,
         previewReady: patient.photo_preview_ready,
         url: patient.photo_url,
+        allowFullFallback: true,
     }) ?? undefined;
 
     return {
