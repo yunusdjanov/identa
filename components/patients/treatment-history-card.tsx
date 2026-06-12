@@ -134,6 +134,7 @@ function getTreatmentImageThumbnailUrl(image: ApiTreatmentImage) {
         previewUrl: image.preview_url,
         previewReady: image.preview_ready,
         url: image.url,
+        allowFullFallback: true,
     });
 }
 
