@@ -9,6 +9,10 @@ const devConnectSrc = isProduction
   ? []
   : ["http://127.0.0.1:8001", "http://localhost:8001", "http://127.0.0.1:8100", "http://localhost:8100"];
 const devImgSrc = isProduction ? [] : ["http://127.0.0.1:8001", "http://localhost:8001"];
+const directUploadConnectSrc = [
+  "https://*.r2.cloudflarestorage.com",
+  "https://*.r2.dev",
+];
 
 // 'unsafe-eval' is required by React Refresh / HMR in development only. The
 // production bundle must not allow eval(); 'unsafe-inline' stays because Next
@@ -60,6 +64,7 @@ const contentSecurityPolicy = [
   [
     "connect-src 'self' https://api.identa.uz",
     ...devConnectSrc,
+    ...directUploadConnectSrc,
     "https://vitals.vercel-insights.com",
     "https://*.vercel-insights.com",
     // GSI verifies tokens against accounts.google.com behind the scenes;

@@ -624,11 +624,7 @@ async function uploadPatientPhotoViaApi(id: string, photo: File): Promise<ApiPat
     formData.append('photo', photo);
 
     const { data } = await withCsrfRetry(() =>
-        apiClient.post<ApiEnvelope<ApiPatient>>(`/patients/${id}/photo`, formData, {
-            headers: {
-                'Content-Type': 'multipart/form-data',
-            },
-        })
+        apiClient.post<ApiEnvelope<ApiPatient>>(`/patients/${id}/photo`, formData)
     );
 
     return data.data;
@@ -680,12 +676,7 @@ async function uploadPatientOdontogramEntryImageViaApi(
     const { data } = await withCsrfRetry(() =>
         apiClient.post<ApiEnvelope<ApiOdontogramEntry>>(
             `/patients/${patientId}/odontogram/${entryId}/images`,
-            formData,
-            {
-                headers: {
-                    'Content-Type': 'multipart/form-data',
-                },
-            }
+            formData
         )
     );
 
@@ -995,12 +986,7 @@ async function uploadPatientTreatmentImageViaApi(
     await withCsrfRetry(() =>
         apiClient.post<ApiEnvelope<ApiTreatment>>(
             `/patients/${patientId}/treatments/${treatmentId}/images`,
-            formData,
-            {
-                headers: {
-                    'Content-Type': 'multipart/form-data',
-                },
-            }
+            formData
         )
     );
 }
