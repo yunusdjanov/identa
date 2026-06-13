@@ -90,7 +90,7 @@ describe('ToothDetailDialog (history-first mode)', () => {
             buildTreatment({ id: 't-2', debt_amount: 30000, paid_amount: 10000, balance: 20000, treatment_type: 'Filling' }),
         ]);
 
-        expect(screen.getByText('Tooth #14')).toBeInTheDocument();
+        expect(screen.getByText('Tooth #26')).toBeInTheDocument();
         expect(screen.getByText((_, element) => normalizeText(element?.textContent) === '1 230 000 UZS')).toBeInTheDocument();
         expect(screen.getByText((_, element) => normalizeText(element?.textContent) === '610 000 UZS')).toBeInTheDocument();
         expect(screen.getByText((_, element) => normalizeText(element?.textContent) === '620 000 UZS')).toBeInTheDocument();

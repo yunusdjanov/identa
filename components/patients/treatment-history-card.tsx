@@ -28,17 +28,13 @@ import type { PreviewGalleryImage } from '@/components/patients/patient-photo-pr
 import { ClinicalSnapshotCard } from '@/components/patients/clinical-snapshot-card';
 import { optimizeImageFilesForUpload } from '@/lib/browser-image';
 import { getProtectedMediaCrossOrigin, getProtectedMediaPreviewUrl, getProtectedMediaThumbnailUrl, isProtectedMediaApproved } from '@/lib/protected-media';
+import { formatToothList, formatToothNumber, TOOTH_LAYOUT } from '@/lib/tooth-numbering';
 import { formatCurrency, formatDate, toLocalDateKey } from '@/lib/utils';
 import { toast } from 'sonner';
 import { CalendarDays, Download, Loader2, Lock, Pencil, Plus, RotateCcw, Trash2, X } from 'lucide-react';
 import { buildPdfFilename, exportPatientReportToPdf } from '@/lib/export/pdf';
 import { EmptyState } from '@/components/ui/empty-state';
 import { canManage, canView, getManageDeniedMessage, isSubscriptionReadOnly } from '@/lib/auth/permissions';
-
-const UPPER_RIGHT_TEETH = [8, 7, 6, 5, 4, 3, 2, 1];
-const UPPER_LEFT_TEETH = [9, 10, 11, 12, 13, 14, 15, 16];
-const LOWER_RIGHT_TEETH = [32, 31, 30, 29, 28, 27, 26, 25];
-const LOWER_LEFT_TEETH = [17, 18, 19, 20, 21, 22, 23, 24];
 
 interface TreatmentHistoryCardProps {
     patientId: string;
@@ -94,7 +90,7 @@ const createEmptyFormState = (): TreatmentFormState => ({
 });
 
 function formatTeeth(teeth: number[]) {
-    return teeth.length > 0 ? teeth.join(', ') : '-';
+    return formatToothList(teeth);
 }
 
 function validateHistoryImageFile(
@@ -199,7 +195,7 @@ function ToothCell({
     label,
 }: {
     selected: boolean;
-    label: number;
+    label: string | number;
 }) {
     return (
         <div
@@ -1093,7 +1089,7 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                                     {teeth.length === 0 ? null : (
                                                         <div className="flex flex-wrap items-center gap-1" title={formatTeeth(teeth)}>
                                                             <span className="inline-flex h-6 min-w-6 items-center justify-center rounded-full border border-slate-200 bg-white px-1.5 text-[11px] font-semibold text-slate-700">
-                                                                {firstTooth}
+                                                                {formatToothNumber(firstTooth)}
                                                             </span>
                                                             {hiddenToothCount > 0 ? (
                                                                 <span className="inline-flex h-6 items-center justify-center rounded-full border border-teal-200 bg-teal-50 px-1.5 text-[11px] font-semibold text-teal-700">
@@ -1231,7 +1227,7 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                                         <span
                                                             className="inline-flex h-7 min-w-7 items-center justify-center rounded-full border border-slate-200 bg-white px-2 text-xs font-semibold text-slate-700"
                                                         >
-                                                            {firstTooth}
+                                                            {formatToothNumber(firstTooth)}
                                                         </span>
                                                         {hiddenCount > 0 ? (
                                                             <span className="inline-flex h-7 items-center justify-center rounded-full border border-teal-200 bg-teal-50 px-2.5 text-xs font-semibold text-teal-700">
@@ -1443,8 +1439,9 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                             <div>
                                                 <p className="mb-0.5 text-center text-xs text-slate-500">{t('odontogram.upperRight')}</p>
                                                 <div className="flex gap-1 md:gap-0.5">
-                                                    {UPPER_RIGHT_TEETH.map((toothNumber) => {
+                                                    {TOOTH_LAYOUT.upperRight.map((toothNumber) => {
                                                         const isSelected = formState.teeth.includes(toothNumber);
+                                                        const toothLabel = formatToothNumber(toothNumber);
                                                         return (
                                                             <button
                                                                 key={toothNumber}
@@ -1459,9 +1456,9 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                                                     }))
                                                                 }
                                                                 aria-pressed={isSelected}
-                                                                title={t('odontogram.toothTitle', { toothNumber })}
+                                                                title={t('odontogram.toothTitle', { toothNumber: toothLabel })}
                                                             >
-                                                                <ToothCell selected={isSelected} label={toothNumber} />
+                                                                <ToothCell selected={isSelected} label={toothLabel} />
                                                             </button>
                                                         );
                                                     })}
@@ -1470,8 +1467,9 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                             <div>
                                                 <p className="mb-0.5 text-center text-xs text-slate-500">{t('odontogram.upperLeft')}</p>
                                                 <div className="flex gap-1 md:gap-0.5">
-                                                    {UPPER_LEFT_TEETH.map((toothNumber) => {
+                                                    {TOOTH_LAYOUT.upperLeft.map((toothNumber) => {
                                                         const isSelected = formState.teeth.includes(toothNumber);
+                                                        const toothLabel = formatToothNumber(toothNumber);
                                                         return (
                                                             <button
                                                                 key={toothNumber}
@@ -1486,9 +1484,9 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                                                     }))
                                                                 }
                                                                 aria-pressed={isSelected}
-                                                                title={t('odontogram.toothTitle', { toothNumber })}
+                                                                title={t('odontogram.toothTitle', { toothNumber: toothLabel })}
                                                             >
-                                                                <ToothCell selected={isSelected} label={toothNumber} />
+                                                                <ToothCell selected={isSelected} label={toothLabel} />
                                                             </button>
                                                         );
                                                     })}
@@ -1503,8 +1501,9 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                             <div>
                                                 <p className="mb-0.5 text-center text-xs text-slate-500">{t('odontogram.lowerRight')}</p>
                                                 <div className="flex gap-1 md:gap-0.5">
-                                                    {LOWER_RIGHT_TEETH.map((toothNumber) => {
+                                                    {TOOTH_LAYOUT.lowerRight.map((toothNumber) => {
                                                         const isSelected = formState.teeth.includes(toothNumber);
+                                                        const toothLabel = formatToothNumber(toothNumber);
                                                         return (
                                                             <button
                                                                 key={toothNumber}
@@ -1519,9 +1518,9 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                                                     }))
                                                                 }
                                                                 aria-pressed={isSelected}
-                                                                title={t('odontogram.toothTitle', { toothNumber })}
+                                                                title={t('odontogram.toothTitle', { toothNumber: toothLabel })}
                                                             >
-                                                                <ToothCell selected={isSelected} label={toothNumber} />
+                                                                <ToothCell selected={isSelected} label={toothLabel} />
                                                             </button>
                                                         );
                                                     })}
@@ -1530,8 +1529,9 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                             <div>
                                                 <p className="mb-0.5 text-center text-xs text-slate-500">{t('odontogram.lowerLeft')}</p>
                                                 <div className="flex gap-1 md:gap-0.5">
-                                                    {LOWER_LEFT_TEETH.map((toothNumber) => {
+                                                    {TOOTH_LAYOUT.lowerLeft.map((toothNumber) => {
                                                         const isSelected = formState.teeth.includes(toothNumber);
+                                                        const toothLabel = formatToothNumber(toothNumber);
                                                         return (
                                                             <button
                                                                 key={toothNumber}
@@ -1546,9 +1546,9 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                                                     }))
                                                                 }
                                                                 aria-pressed={isSelected}
-                                                                title={t('odontogram.toothTitle', { toothNumber })}
+                                                                title={t('odontogram.toothTitle', { toothNumber: toothLabel })}
                                                             >
-                                                                <ToothCell selected={isSelected} label={toothNumber} />
+                                                                <ToothCell selected={isSelected} label={toothLabel} />
                                                             </button>
                                                         );
                                                     })}

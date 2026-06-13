@@ -22,6 +22,7 @@ import { getCurrentUser, getPatient, listAllTreatments } from '@/lib/api/dentist
 import type { ApiPatient, ApiTreatment } from '@/lib/api/types';
 import { useI18n } from '@/components/providers/i18n-provider';
 import { formatLocalizedDate } from '@/lib/i18n/date';
+import { formatToothList, formatToothNumber } from '@/lib/tooth-numbering';
 import { extractPrimaryPhone, formatCurrency } from '@/lib/utils';
 import { AlertCircle, Download, History, Phone, Search, Users, Wallet } from 'lucide-react';
 import { buildPdfFilename, exportRowsToPdf } from '@/lib/export/pdf';
@@ -68,7 +69,7 @@ interface GlobalLedgerRow {
 type PaymentsTab = 'patients' | 'history';
 
 function formatTeeth(teeth: number[]) {
-    return teeth.length > 0 ? teeth.join(', ') : '-';
+    return formatToothList(teeth);
 }
 
 function paginate<T>(items: T[], page: number) {
@@ -704,7 +705,7 @@ export default function PaymentsPage() {
                                                             ) : (
                                                                 <div className="flex flex-wrap items-center gap-1.5" title={formatTeeth(row.teeth)}>
                                                                     <span className="inline-flex h-7 min-w-7 items-center justify-center rounded-full border border-slate-200 bg-white px-2 text-xs font-semibold text-slate-700">
-                                                                        {row.teeth[0]}
+                                                                        {formatToothNumber(row.teeth[0])}
                                                                     </span>
                                                                     {row.teeth.length > 1 ? (
                                                                         <span className="inline-flex h-7 items-center justify-center rounded-full border border-teal-200 bg-teal-50 px-2.5 text-xs font-semibold text-teal-700">

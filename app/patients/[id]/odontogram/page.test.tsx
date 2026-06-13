@@ -77,5 +77,8 @@ describe('OdontogramPage', () => {
         await renderPage();
         // odontogram.title (EN) = "Odontogram"
         expect(await screen.findByText('Odontogram')).toBeInTheDocument();
+        expect(screen.getByTitle('Tooth #18')).toBeInTheDocument();
+        expect(screen.getByTitle('Tooth #21')).toBeInTheDocument();
+        expect(screen.getByTitle('Tooth #48')).toBeInTheDocument();
     });
 });

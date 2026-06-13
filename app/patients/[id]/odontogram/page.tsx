@@ -20,6 +20,7 @@ import { useI18n } from '@/components/providers/i18n-provider';
 import { AppErrorState } from '@/components/error/app-error-state';
 import { AccessDeniedState } from '@/components/error/access-denied-state';
 import { canView } from '@/lib/auth/permissions';
+import { formatToothNumber, TOOTH_LAYOUT } from '@/lib/tooth-numbering';
 
 export default function OdontogramPage({
     params,
@@ -139,6 +140,7 @@ export default function OdontogramPage({
         const historyCount = toothTreatments.length;
         const hasHistory = historyCount > 0;
         const isSelected = selectedTooth === toothNumber;
+        const toothLabel = formatToothNumber(toothNumber);
 
         return (
             <button
@@ -154,10 +156,10 @@ export default function OdontogramPage({
               ? 'ring-2 ring-teal-600 ring-offset-2 border-teal-600 shadow-md shadow-teal-400/40 scale-105'
               : ''}
         `}
-                title={t('odontogram.toothTitle', { toothNumber })}
+                title={t('odontogram.toothTitle', { toothNumber: toothLabel })}
             >
                 <span className={`absolute inset-0 flex items-center justify-center text-[10px] sm:text-xs font-bold ${hasHistory ? 'text-teal-800' : 'text-slate-600'}`}>
-                    {toothNumber}
+                    {toothLabel}
                 </span>
                 {hasHistory ? (
                     <span className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-teal-600 px-1 text-[11px] font-semibold text-white shadow-sm">
@@ -193,13 +195,13 @@ export default function OdontogramPage({
                                 <div>
                                     <p className="text-xs text-slate-500 text-center mb-2">{t('odontogram.upperRight')}</p>
                                     <div className="flex gap-0.5 sm:gap-1">
-                                        {[8, 7, 6, 5, 4, 3, 2, 1].map((num) => renderTooth(num))}
+                                        {TOOTH_LAYOUT.upperRight.map((num) => renderTooth(num))}
                                     </div>
                                 </div>
                                 <div>
                                     <p className="text-xs text-slate-500 text-center mb-2">{t('odontogram.upperLeft')}</p>
                                     <div className="flex gap-0.5 sm:gap-1">
-                                        {[9, 10, 11, 12, 13, 14, 15, 16].map((num) => renderTooth(num))}
+                                        {TOOTH_LAYOUT.upperLeft.map((num) => renderTooth(num))}
                                     </div>
                                 </div>
                             </div>
@@ -213,13 +215,13 @@ export default function OdontogramPage({
                                 <div>
                                     <p className="text-xs text-slate-500 text-center mb-2">{t('odontogram.lowerRight')}</p>
                                     <div className="flex gap-0.5 sm:gap-1">
-                                        {[32, 31, 30, 29, 28, 27, 26, 25].map((num) => renderTooth(num))}
+                                        {TOOTH_LAYOUT.lowerRight.map((num) => renderTooth(num))}
                                     </div>
                                 </div>
                                 <div>
                                     <p className="text-xs text-slate-500 text-center mb-2">{t('odontogram.lowerLeft')}</p>
                                     <div className="flex gap-0.5 sm:gap-1">
-                                        {[17, 18, 19, 20, 21, 22, 23, 24].map((num) => renderTooth(num))}
+                                        {TOOTH_LAYOUT.lowerLeft.map((num) => renderTooth(num))}
                                     </div>
                                 </div>
                             </div>

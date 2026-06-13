@@ -10,6 +10,7 @@ import { getApiErrorMessage } from '@/lib/api/client';
 import { canView } from '@/lib/auth/permissions';
 import type { ApiTreatment, ApiTreatmentImage } from '@/lib/api/types';
 import { getProtectedMediaCrossOrigin, getProtectedMediaPreviewUrl, getProtectedMediaThumbnailUrl, isProtectedMediaApproved } from '@/lib/protected-media';
+import { formatToothNumber } from '@/lib/tooth-numbering';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { useI18n } from '@/components/providers/i18n-provider';
 import { PatientPhotoPreviewDialog, type PreviewGalleryImage } from '@/components/patients/patient-photo-preview-dialog';
@@ -87,6 +88,7 @@ export function ToothDetailDialog({
         staleTime: 30_000,
     });
     const canViewFinancials = canView(currentUserQuery.data, 'payments');
+    const toothLabel = formatToothNumber(toothNumber);
 
     const getLinkedTeeth = (treatment: ApiTreatment): number[] => {
         const linkedTeeth = new Set<number>();
@@ -165,7 +167,7 @@ export function ToothDetailDialog({
             <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="h-auto max-h-[calc(100dvh-1.5rem)] w-[min(96vw,1040px)] max-w-[1040px] overflow-x-hidden overflow-y-auto p-5 sm:max-w-[1040px] sm:p-6">
                     <DialogHeader>
-                        <DialogTitle>{t('odontogram.toothTitle', { toothNumber })}</DialogTitle>
+                        <DialogTitle>{t('odontogram.toothTitle', { toothNumber: toothLabel })}</DialogTitle>
                         <DialogDescription>{t('patientHistory.subtitle')}</DialogDescription>
                     </DialogHeader>
 
@@ -276,7 +278,7 @@ export function ToothDetailDialog({
                                             <div className="mt-2 flex flex-wrap items-center gap-1.5">
                                                 {linkedTeeth.slice(0, 1).map((tooth) => (
                                                     <Badge key={`${treatment.id}-${tooth}`} variant="outline" className="border-slate-300 bg-slate-50 text-slate-700">
-                                                        #{tooth}
+                                                        #{formatToothNumber(tooth)}
                                                     </Badge>
                                                 ))}
                                                 {linkedTeeth.length > 1 ? (

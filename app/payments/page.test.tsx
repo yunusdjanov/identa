@@ -133,5 +133,8 @@ describe('PaymentsPage', () => {
             expect(screen.getAllByText('Composite filling').length).toBeGreaterThan(0);
             expect(screen.getByText('Teeth cleaning')).toBeInTheDocument();
         });
+
+        expect(screen.getByTitle('24')).toBeInTheDocument();
+        expect(screen.queryByTitle('12')).not.toBeInTheDocument();
     });
 });

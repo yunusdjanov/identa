@@ -11,6 +11,7 @@ import { formatCurrency, formatDate } from '@/lib/utils';
 import { getCurrentUser } from '@/lib/api/dentist';
 import { canView } from '@/lib/auth/permissions';
 import { ToothDetailDialog } from '@/components/odontogram/tooth-detail-dialog';
+import { formatToothNumber, TOOTH_LAYOUT } from '@/lib/tooth-numbering';
 
 interface ClinicalSnapshotCardProps {
     patientId: string;
@@ -20,10 +21,6 @@ interface ClinicalSnapshotCardProps {
 }
 
 const SNAPSHOT_ODONTOGRAM_OPEN_KEY = 'identa:patient-history-snapshot-odontogram-open';
-const UPPER_RIGHT_TEETH = [8, 7, 6, 5, 4, 3, 2, 1] as const;
-const UPPER_LEFT_TEETH = [9, 10, 11, 12, 13, 14, 15, 16] as const;
-const LOWER_RIGHT_TEETH = [32, 31, 30, 29, 28, 27, 26, 25] as const;
-const LOWER_LEFT_TEETH = [17, 18, 19, 20, 21, 22, 23, 24] as const;
 
 export function ClinicalSnapshotCard({
     patientId,
@@ -178,6 +175,7 @@ export function ClinicalSnapshotCard({
     const renderTooth = (toothNumber: number) => {
         const count = toothCounts.get(toothNumber) ?? 0;
         const hasHistory = count > 0;
+        const toothLabel = formatToothNumber(toothNumber);
         const className = `relative flex h-10 w-7 items-center justify-center rounded-lg border text-[11px] font-semibold transition-colors sm:h-11 sm:w-8 ${
             hasHistory
                 ? 'border-teal-500 bg-teal-100 text-teal-900 ring-1 ring-teal-200 hover:border-teal-600 hover:bg-teal-200'
@@ -186,8 +184,8 @@ export function ClinicalSnapshotCard({
 
         if (!hasHistory) {
             return (
-                <div key={toothNumber} className={className} title={t('odontogram.toothTitle', { toothNumber })}>
-                    <span>{toothNumber}</span>
+                <div key={toothNumber} className={className} title={t('odontogram.toothTitle', { toothNumber: toothLabel })}>
+                    <span>{toothLabel}</span>
                 </div>
             );
         }
@@ -197,10 +195,10 @@ export function ClinicalSnapshotCard({
                 key={toothNumber}
                 type="button"
                 className={className}
-                title={t('odontogram.toothTitle', { toothNumber })}
+                title={t('odontogram.toothTitle', { toothNumber: toothLabel })}
                 onClick={() => setSelectedTooth(toothNumber)}
             >
-                <span>{toothNumber}</span>
+                <span>{toothLabel}</span>
                 <span className="absolute -right-1 -top-1 inline-flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-sky-600 px-1 text-[11px] font-semibold text-white">
                     {count}
                 </span>
@@ -311,13 +309,13 @@ export function ClinicalSnapshotCard({
                                         <div>
                                             <p className="mb-1 text-center text-xs text-slate-500">{t('odontogram.upperRight')}</p>
                                             <div className="flex gap-0.5 sm:gap-1">
-                                                {UPPER_RIGHT_TEETH.map((toothNumber) => renderTooth(toothNumber))}
+                                                {TOOTH_LAYOUT.upperRight.map((toothNumber) => renderTooth(toothNumber))}
                                             </div>
                                         </div>
                                         <div>
                                             <p className="mb-1 text-center text-xs text-slate-500">{t('odontogram.upperLeft')}</p>
                                             <div className="flex gap-0.5 sm:gap-1">
-                                                {UPPER_LEFT_TEETH.map((toothNumber) => renderTooth(toothNumber))}
+                                                {TOOTH_LAYOUT.upperLeft.map((toothNumber) => renderTooth(toothNumber))}
                                             </div>
                                         </div>
                                     </div>
@@ -331,13 +329,13 @@ export function ClinicalSnapshotCard({
                                         <div>
                                             <p className="mb-1 text-center text-xs text-slate-500">{t('odontogram.lowerRight')}</p>
                                             <div className="flex gap-0.5 sm:gap-1">
-                                                {LOWER_RIGHT_TEETH.map((toothNumber) => renderTooth(toothNumber))}
+                                                {TOOTH_LAYOUT.lowerRight.map((toothNumber) => renderTooth(toothNumber))}
                                             </div>
                                         </div>
                                         <div>
                                             <p className="mb-1 text-center text-xs text-slate-500">{t('odontogram.lowerLeft')}</p>
                                             <div className="flex gap-0.5 sm:gap-1">
-                                                {LOWER_LEFT_TEETH.map((toothNumber) => renderTooth(toothNumber))}
+                                                {TOOTH_LAYOUT.lowerLeft.map((toothNumber) => renderTooth(toothNumber))}
                                             </div>
                                         </div>
                                     </div>

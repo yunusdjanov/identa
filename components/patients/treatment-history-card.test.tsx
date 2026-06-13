@@ -156,6 +156,8 @@ describe('TreatmentHistoryCard image controls', () => {
         // dialog (same handler), so the first one is fine.
         await user.click(screen.getAllByRole('button', { name: 'Edit Entry' })[0]);
 
+        expect(screen.getAllByTitle('Tooth #21').length).toBeGreaterThan(0);
+        expect(screen.queryByTitle('Tooth #9')).not.toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Image 1' })).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Image 2' })).toBeInTheDocument();
         expect(screen.queryByText('tooth-1.jpg')).not.toBeInTheDocument();
