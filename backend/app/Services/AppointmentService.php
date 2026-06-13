@@ -56,7 +56,11 @@ class AppointmentService
     {
         $query = Appointment::query()
             ->where('dentist_id', $this->dentistId($request))
-            ->with('patient:id,full_name');
+            ->with([
+                'patient:id,full_name',
+                'createdBy:id,name,role',
+                'updatedBy:id,name,role',
+            ]);
 
         $patientId = $request->input('filter.patient_id');
         if (is_string($patientId) && $patientId !== '') {
@@ -113,9 +117,10 @@ class AppointmentService
     {
         $validated = $request->validated();
         $dentistId = $this->dentistId($request);
+        $actorId = $this->actorId($request);
         $status = $validated['status'] ?? Appointment::STATUS_SCHEDULED;
 
-        $appointment = DB::transaction(function () use ($validated, $dentistId, $status): Appointment {
+        $appointment = DB::transaction(function () use ($validated, $dentistId, $actorId, $status): Appointment {
             $this->assertNoConflict(
                 dentistId: $dentistId,
                 appointmentDate: $validated['appointment_date'],
@@ -127,9 +132,15 @@ class AppointmentService
             return Appointment::create([
                 ...$validated,
                 'dentist_id' => $dentistId,
+                'created_by_user_id' => $actorId,
+                'updated_by_user_id' => $actorId,
                 'status' => $status,
                 'notes' => $validated['reason'] ?? null,
-            ])->load('patient:id,full_name');
+            ])->load([
+                'patient:id,full_name',
+                'createdBy:id,name,role',
+                'updatedBy:id,name,role',
+            ]);
         });
 
         $this->auditLogger->logFromRequest(
@@ -152,8 +163,9 @@ class AppointmentService
         $validated = $request->validated();
         $status = $validated['status'] ?? Appointment::STATUS_SCHEDULED;
         $dentistId = $this->dentistId($request);
+        $actorId = $this->actorId($request);
 
-        $appointment = DB::transaction(function () use ($id, $dentistId, $validated, $status): Appointment {
+        $appointment = DB::transaction(function () use ($id, $dentistId, $actorId, $validated, $status): Appointment {
             // Lock the appointment row inside the transaction so the
             // immutable-status guard below is not TOCTOU vs a concurrent
             // status transition. Otherwise two clients could both observe
@@ -182,11 +194,16 @@ class AppointmentService
 
             $appointment->update([
                 ...$validated,
+                'updated_by_user_id' => $actorId,
                 'status' => $status,
                 'notes' => $validated['reason'] ?? null,
             ]);
 
-            return $appointment->fresh()->load('patient:id,full_name');
+            return $appointment->fresh()->load([
+                'patient:id,full_name',
+                'createdBy:id,name,role',
+                'updatedBy:id,name,role',
+            ]);
         });
 
         $this->auditLogger->logFromRequest(
@@ -228,7 +245,11 @@ class AppointmentService
         return Appointment::query()
             ->where('id', $id)
             ->where('dentist_id', $this->dentistId($request))
-            ->with('patient:id,full_name')
+            ->with([
+                'patient:id,full_name',
+                'createdBy:id,name,role',
+                'updatedBy:id,name,role',
+            ])
             ->firstOrFail();
     }
 
@@ -240,6 +261,15 @@ class AppointmentService
         abort_if($dentistId === null, 403);
 
         return $dentistId;
+    }
+
+    private function actorId(Request $request): int
+    {
+        /** @var User|null $actor */
+        $actor = $request->user();
+        abort_if($actor === null, 403);
+
+        return (int) $actor->id;
     }
 
     private function assertNoConflict(

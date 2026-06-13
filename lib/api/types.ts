@@ -67,7 +67,14 @@ export interface ApiUser {
     dentist_owner_id?: string | null;
     assistant_permissions?: string[];
     must_change_password?: boolean;
+    show_record_authors?: boolean;
     subscription?: ApiSubscriptionSummary | null;
+}
+
+export interface ApiRecordActor {
+    id: string;
+    name: string;
+    role: ApiUser['role'];
 }
 
 export interface ApiPlan {
@@ -162,6 +169,9 @@ export interface ApiPatient {
     photo_preview_ready?: boolean;
     photo_scan_status?: ApiMediaScanStatus | null;
     created_at?: string | null;
+    updated_at?: string | null;
+    created_by?: ApiRecordActor | null;
+    updated_by?: ApiRecordActor | null;
     last_visit_at?: string | null;
     is_archived?: boolean;
     archived_at?: string | null;
@@ -194,6 +204,8 @@ export interface ApiAppointment {
     end_time: string;
     status: 'scheduled' | 'completed' | 'cancelled' | 'no_show';
     notes: string | null;
+    created_by?: ApiRecordActor | null;
+    updated_by?: ApiRecordActor | null;
 }
 
 export interface ApiAppointmentLookup {
@@ -270,6 +282,8 @@ export interface ApiTreatment {
     images: ApiTreatmentImage[];
     created_at: string | null;
     updated_at: string | null;
+    created_by?: ApiRecordActor | null;
+    updated_by?: ApiRecordActor | null;
 }
 
 export interface ApiTreatmentImage {
@@ -334,6 +348,7 @@ export interface ApiProfile {
         end: string | null;
     };
     default_appointment_duration: number;
+    show_record_authors: boolean;
 }
 
 export interface ApiAdminDentist {

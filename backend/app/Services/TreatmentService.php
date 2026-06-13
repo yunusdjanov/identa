@@ -47,6 +47,10 @@ class TreatmentService
         $query = Treatment::query()
             ->where('dentist_id', $this->dentistId($request))
             ->where('patient_id', $patient->id)
+            ->with([
+                'createdBy:id,name,role',
+                'updatedBy:id,name,role',
+            ])
             ->withCount('images');
 
         if ($includeImages) {
@@ -80,6 +84,8 @@ class TreatmentService
             ->where('dentist_id', $dentistId)
             ->with([
                 'patient:id,full_name,phone,secondary_phone,patient_id',
+                'createdBy:id,name,role',
+                'updatedBy:id,name,role',
             ]);
 
         $patientId = $request->input('filter.patient_id');
@@ -154,7 +160,11 @@ class TreatmentService
     {
         $patient = $this->ownedPatient($request, $patientId);
         $treatment = $this->ownedTreatment($request, (string) $patient->id, $treatmentId);
-        $treatment->load('images');
+        $treatment->load([
+            'images',
+            'createdBy:id,name,role',
+            'updatedBy:id,name,role',
+        ]);
 
         return $treatment;
     }
@@ -168,9 +178,12 @@ class TreatmentService
             ]);
         }
 
+        $actorId = $this->actorId($request);
         $treatment = Treatment::query()->create([
             ...$this->payload($request->validated(), $request->user()),
             'dentist_id' => $this->dentistId($request),
+            'created_by_user_id' => $actorId,
+            'updated_by_user_id' => $actorId,
             'patient_id' => $patient->id,
         ]);
 
@@ -188,7 +201,10 @@ class TreatmentService
             ],
         );
 
-        return $treatment;
+        return $treatment->load([
+            'createdBy:id,name,role',
+            'updatedBy:id,name,role',
+        ]);
     }
 
     public function update(UpdateTreatmentRequest $request, string $patientId, string $treatmentId): Treatment
@@ -203,13 +219,14 @@ class TreatmentService
         $payload = $this->payload($request->validated(), $request->user());
         $patientIdValue = (string) $patient->id;
         $dentistId = $this->dentistId($request);
+        $actorId = $this->actorId($request);
 
         // Lock the treatment row before mutating so two concurrent edits
         // (dentist on web + assistant on mobile, or two browser tabs)
         // serialise on the financial columns. Without the lock, last-write
         // wins on cost/debt/paid and the loser's calculation overwrites the
         // winner's commit.
-        $treatment = DB::transaction(function () use ($patientIdValue, $treatmentId, $dentistId, $payload): Treatment {
+        $treatment = DB::transaction(function () use ($patientIdValue, $treatmentId, $dentistId, $actorId, $payload): Treatment {
             $locked = Treatment::query()
                 ->where('id', $treatmentId)
                 ->where('patient_id', $patientIdValue)
@@ -217,9 +234,13 @@ class TreatmentService
                 ->lockForUpdate()
                 ->firstOrFail();
             $locked->fill($payload);
+            $locked->updated_by_user_id = $actorId;
             $locked->save();
 
-            return $locked;
+            return $locked->fresh()->load([
+                'createdBy:id,name,role',
+                'updatedBy:id,name,role',
+            ]);
         });
 
         $this->auditLogger->logFromRequest(
@@ -288,6 +309,15 @@ class TreatmentService
         abort_if($dentistId === null, 403);
 
         return $dentistId;
+    }
+
+    private function actorId(Request $request): int
+    {
+        /** @var User|null $actor */
+        $actor = $request->user();
+        abort_if($actor === null, 403);
+
+        return (int) $actor->id;
     }
 
     public function subscriptionOwner(Request $request): User

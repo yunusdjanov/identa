@@ -128,6 +128,7 @@ describe('AppointmentsPage drag and drop', () => {
                 end: '22:30',
             },
             default_appointment_duration: 30,
+            show_record_authors: false,
         });
     });
 
@@ -496,11 +497,33 @@ describe('AppointmentsPage drag and drop', () => {
         const addButton = await screen.findByTestId(`week-day-more-${today}`);
         expect(addButton).toHaveTextContent('Add');
     });
-});
+
+    it('shows record authors when the display preference is enabled', async () => {
         vi.mocked(getCurrentUser).mockResolvedValue({
             id: 'user-1',
             name: 'Dr. Test',
             email: 'doctor@example.test',
             role: 'dentist',
             account_status: 'active',
+            show_record_authors: true,
         });
+        vi.mocked(listAllAppointments).mockResolvedValue([
+            {
+                id: 'appointment-authored',
+                patient_id: 'patient-a',
+                patient_name: 'Alice Doe',
+                appointment_date: today,
+                start_time: '08:00',
+                end_time: '08:30',
+                status: 'scheduled',
+                notes: 'Checkup',
+                created_by: { id: 'assistant-1', name: 'Scheduler', role: 'assistant' },
+                updated_by: { id: 'assistant-1', name: 'Scheduler', role: 'assistant' },
+            },
+        ]);
+
+        renderPage('/appointments?view=day');
+
+        expect(await screen.findByText('by Scheduler')).toBeInTheDocument();
+    });
+});

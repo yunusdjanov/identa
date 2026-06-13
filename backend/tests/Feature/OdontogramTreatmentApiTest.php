@@ -91,6 +91,8 @@ class OdontogramTreatmentApiTest extends TestCase
             ->assertJsonPath('data.treatment_type', 'Filling')
             ->assertJsonPath('data.debt_amount', 100)
             ->assertJsonPath('data.paid_amount', 40)
+            ->assertJsonPath('data.created_by.id', (string) $dentist->id)
+            ->assertJsonPath('data.updated_by.id', (string) $dentist->id)
             ->assertJsonPath('data.balance', 60);
 
         $this->actingAs($dentist, 'web')
@@ -101,6 +103,7 @@ class OdontogramTreatmentApiTest extends TestCase
             ->assertJsonPath('data.0.teeth.0', 12)
             ->assertJsonPath('data.0.teeth.1', 13)
             ->assertJsonPath('data.0.comment', 'Upper right restoration')
+            ->assertJsonPath('data.0.created_by.id', (string) $dentist->id)
             ->assertJsonPath('data.0.treatment_type', 'Filling');
     }
 
@@ -136,7 +139,13 @@ class OdontogramTreatmentApiTest extends TestCase
             ->assertJsonPath('data.teeth.0', 8)
             ->assertJsonPath('data.teeth.1', 9)
             ->assertJsonPath('data.treatment_type', 'Bridge')
+            ->assertJsonPath('data.updated_by.id', (string) $dentist->id)
             ->assertJsonPath('data.balance', 250);
+
+        $this->assertDatabaseHas('treatments', [
+            'id' => $treatment->id,
+            'updated_by_user_id' => $dentist->id,
+        ]);
 
         $firstUpload = $this->actingAs($dentist, 'web')
             ->post("/api/v1/patients/{$patient->id}/treatments/{$treatment->id}/images", [

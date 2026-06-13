@@ -24,7 +24,7 @@ class ProfileSettingsService
         }
 
         if ($user->isAssistant()) {
-            $validated = Arr::only($validated, ['name', 'email', 'phone']);
+            $validated = Arr::only($validated, ['name', 'email', 'phone', 'show_record_authors']);
         }
 
         $start = $validated['working_hours_start'] ?? null;

@@ -28,7 +28,7 @@ import { DataTableShell, getDataTableClassName } from '@/components/ui/data-tabl
 import { PageHeader } from '@/components/ui/page-shell';
 import { getCurrentUser, listPatientCategories, listPatients, restorePatient } from '@/lib/api/dentist';
 import { getApiErrorMessage } from '@/lib/api/client';
-import type { ApiPatient } from '@/lib/api/types';
+import type { ApiPatient, ApiRecordActor } from '@/lib/api/types';
 import { cn, extractPrimaryPhone, formatDate, toLocalDateKey, truncateForUi } from '@/lib/utils';
 import { Plus, Search, Phone, Users, CalendarPlus, ArrowRight, Tags, FileText, FilterX, Download } from 'lucide-react';
 import { buildPdfFilename, exportRowsToPdf } from '@/lib/export/pdf';
@@ -41,6 +41,7 @@ import { toast } from 'sonner';
 import { AppErrorState } from '@/components/error/app-error-state';
 import { AccessDeniedState } from '@/components/error/access-denied-state';
 import { canManage, canView, getManageDeniedMessage, isSubscriptionReadOnly } from '@/lib/auth/permissions';
+import { RecordAuthorBadge } from '@/components/ui/record-author-badge';
 
 const AddPatientDialog = dynamic(
     () => import('@/components/patients/add-patient-dialog').then((module) => module.AddPatientDialog),
@@ -65,6 +66,8 @@ interface PatientRow {
     dateOfBirth?: string;
     createdAt?: string;
     lastVisitDate?: string;
+    createdBy?: ApiRecordActor | null;
+    updatedBy?: ApiRecordActor | null;
     categories: Array<{ id: string; name: string; color: string }>;
 }
 
@@ -88,6 +91,8 @@ function mapPatientRow(patient: ApiPatient): PatientRow {
         dateOfBirth: patient.date_of_birth ?? undefined,
         createdAt: patient.created_at ?? undefined,
         lastVisitDate: patient.last_visit_at ?? undefined,
+        createdBy: patient.created_by ?? null,
+        updatedBy: patient.updated_by ?? null,
         categories: (patient.categories ?? []).map((category) => ({
             id: category.id,
             name: category.name,
@@ -155,6 +160,7 @@ export default function PatientsPage() {
     const canManagePatients = canManage(currentUser, 'patients');
     const canViewAppointments = canView(currentUser, 'appointments');
     const canManageAppointments = canManage(currentUser, 'appointments');
+    const showRecordAuthors = currentUser?.show_record_authors === true;
     const isDialogOpen = canManagePatients && (isAddDialogOpen || shouldOpenFromUrl);
     const denyManageAction = () => toast.error(getManageDeniedMessage(currentUser, t));
 
@@ -591,6 +597,13 @@ export default function PatientsPage() {
                                                             {t('patients.born')}: {formatDate(patient.dateOfBirth)}
                                                         </p>
                                                     )}
+                                                    {showRecordAuthors ? (
+                                                        <RecordAuthorBadge
+                                                            className="mt-1"
+                                                            createdBy={patient.createdBy}
+                                                            updatedBy={patient.updatedBy}
+                                                        />
+                                                    ) : null}
                                                 </div>
                                             </TableCell>
                                             <TableCell>

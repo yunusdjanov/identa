@@ -1,8 +1,9 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { cleanup, render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import SettingsPage from '@/app/settings/page';
-import { getCurrentUser, getProfile } from '@/lib/api/dentist';
+import { getCurrentUser, getProfile, updateProfile } from '@/lib/api/dentist';
 import { I18nProvider } from '@/components/providers/i18n-provider';
 import { DICTIONARIES } from '@/lib/i18n/dictionaries';
 
@@ -37,6 +38,7 @@ const profile = {
     address: 'Tashkent',
     working_hours: { start: '09:00', end: '18:00' },
     default_appointment_duration: 30,
+    show_record_authors: false,
 };
 
 function renderPage() {
@@ -56,7 +58,9 @@ describe('SettingsPage', () => {
     beforeEach(() => {
         vi.mocked(getCurrentUser).mockReset();
         vi.mocked(getProfile).mockReset();
+        vi.mocked(updateProfile).mockReset();
         vi.mocked(getProfile).mockResolvedValue(profile as never);
+        vi.mocked(updateProfile).mockResolvedValue({ ...profile, show_record_authors: true } as never);
     });
 
     afterEach(() => {
@@ -82,5 +86,16 @@ describe('SettingsPage', () => {
         renderPage();
         // settings.subtitle (EN) = "Manage your profile and preferences"
         expect(await screen.findByText('Manage your profile and preferences')).toBeInTheDocument();
+    });
+
+    it('updates the record author display preference', async () => {
+        vi.mocked(getCurrentUser).mockResolvedValue(dentist as never);
+        renderPage();
+
+        const user = userEvent.setup();
+        await user.click(await screen.findByRole('tab', { name: 'Display' }));
+        await user.click(screen.getByRole('switch', { name: 'Show record authors' }));
+
+        expect(vi.mocked(updateProfile).mock.calls[0]?.[0]).toEqual({ show_record_authors: true });
     });
 });

@@ -33,6 +33,7 @@ class UpdateProfileRequest extends FormRequest
             'working_hours_start' => ['nullable', 'date_format:H:i'],
             'working_hours_end' => ['nullable', 'date_format:H:i'],
             'default_appointment_duration' => ['nullable', 'integer', Rule::in([15, 30, 45, 60])],
+            'show_record_authors' => ['sometimes', 'boolean'],
         ];
     }
 }

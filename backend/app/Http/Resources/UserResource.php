@@ -91,6 +91,7 @@ class UserResource extends JsonResource
             'dentist_owner_id' => $user->dentist_owner_id !== null ? (string) $user->dentist_owner_id : null,
             'assistant_permissions' => User::normalizeAssistantPermissions($user->assistant_permissions ?? []),
             'must_change_password' => (bool) $user->must_change_password,
+            'show_record_authors' => (bool) $user->show_record_authors,
             'subscription' => $subscription,
         ];
     }

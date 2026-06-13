@@ -1372,6 +1372,7 @@ export async function updateProfile(payload: {
     working_hours_start?: string;
     working_hours_end?: string;
     default_appointment_duration?: number;
+    show_record_authors?: boolean;
 }): Promise<ApiProfile> {
     // Wrap with withCsrfRetry so a stale XSRF-TOKEN cookie (e.g. after the
     // backend recycled it because of a server restart) doesn't surface as a

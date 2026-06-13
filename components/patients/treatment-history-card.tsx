@@ -35,6 +35,7 @@ import { CalendarDays, Download, Loader2, Lock, Pencil, Plus, RotateCcw, Trash2,
 import { buildPdfFilename, exportPatientReportToPdf } from '@/lib/export/pdf';
 import { EmptyState } from '@/components/ui/empty-state';
 import { canManage, canView, getManageDeniedMessage, isSubscriptionReadOnly } from '@/lib/auth/permissions';
+import { RecordAuthorBadge } from '@/components/ui/record-author-badge';
 
 interface TreatmentHistoryCardProps {
     patientId: string;
@@ -308,6 +309,7 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
         queryFn: getCurrentUser,
         staleTime: 5 * 60_000,
     });
+    const showRecordAuthors = currentUserQuery.data?.show_record_authors === true;
     const subscription = currentUserQuery.data?.subscription;
     const maxHistoryImagesPerEntry = subscription?.entry_image_limit ?? MAX_HISTORY_IMAGES_PER_ENTRY;
     const maxHistoryUploadMb = subscription?.upload_max_mb ?? DEFAULT_HISTORY_UPLOAD_MAX_MB;
@@ -1144,6 +1146,12 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                             <p className="text-sm font-semibold leading-snug text-slate-900 break-words" title={treatment.treatment_type}>
                                                 {treatment.treatment_type}
                                             </p>
+                                            {showRecordAuthors ? (
+                                                <RecordAuthorBadge
+                                                    createdBy={treatment.created_by}
+                                                    updatedBy={treatment.updated_by}
+                                                />
+                                            ) : null}
                                             <div className="grid grid-cols-3 gap-2 border-t border-slate-100 pt-2">
                                                 <div>
                                                     <p className="text-[9px] font-semibold uppercase tracking-wider text-slate-400">{t('patientHistory.table.debt')}</p>
@@ -1246,6 +1254,13 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                             >
                                                 {treatment.treatment_type}
                                             </p>
+                                            {showRecordAuthors ? (
+                                                <RecordAuthorBadge
+                                                    className="mt-1"
+                                                    createdBy={treatment.created_by}
+                                                    updatedBy={treatment.updated_by}
+                                                />
+                                            ) : null}
                                         </div>
                                         <div>
                                             <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400 lg:sr-only">{t('patientHistory.table.debt')}</p>

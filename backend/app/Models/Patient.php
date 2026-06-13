@@ -32,6 +32,8 @@ class Patient extends Model implements TenantOwned
      */
     protected $fillable = [
         'dentist_id',
+        'created_by_user_id',
+        'updated_by_user_id',
         'patient_id',
         'full_name',
         'phone',
@@ -72,6 +74,22 @@ class Patient extends Model implements TenantOwned
     public function dentist(): BelongsTo
     {
         return $this->belongsTo(User::class, 'dentist_id');
+    }
+
+    /**
+     * @return BelongsTo<User, Patient>
+     */
+    public function createdBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'created_by_user_id');
+    }
+
+    /**
+     * @return BelongsTo<User, Patient>
+     */
+    public function updatedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'updated_by_user_id');
     }
 
     /**

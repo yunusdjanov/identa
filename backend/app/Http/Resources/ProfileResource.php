@@ -34,6 +34,7 @@ class ProfileResource extends JsonResource
                 'end' => $user->working_hours_end ? substr($user->working_hours_end, 0, 5) : null,
             ],
             'default_appointment_duration' => $user->default_appointment_duration,
+            'show_record_authors' => (bool) $user->show_record_authors,
         ];
     }
 }

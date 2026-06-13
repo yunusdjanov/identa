@@ -2,19 +2,22 @@
 
 namespace App\Http\Resources;
 
+use App\Http\Resources\Concerns\SerializesRecordActors;
 use App\Models\Appointment;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 class AppointmentResource extends JsonResource
 {
+    use SerializesRecordActors;
+
     public function __construct(Appointment $resource)
     {
         parent::__construct($resource);
     }
 
     /**
-     * @return array<string, string|null>
+     * @return array<string, mixed>
      */
     public function toArray(Request $request): array
     {
@@ -30,6 +33,8 @@ class AppointmentResource extends JsonResource
             'end_time' => substr((string) $appointment->end_time, 0, 5),
             'status' => $appointment->status,
             'notes' => $appointment->notes,
+            'created_by' => $this->actorSummary($appointment, 'createdBy'),
+            'updated_by' => $this->actorSummary($appointment, 'updatedBy'),
         ];
     }
 }

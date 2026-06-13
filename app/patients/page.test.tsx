@@ -221,4 +221,37 @@ describe('PatientsPage', () => {
 
         expect(pushMock).toHaveBeenCalledWith('/patients/patient-followup');
     });
+
+    it('shows record authors when the display preference is enabled', async () => {
+        vi.mocked(getCurrentUser).mockResolvedValue({
+            id: 'user-1',
+            name: 'Dr. Test',
+            email: 'doctor@example.test',
+            role: 'dentist',
+            account_status: 'active',
+            show_record_authors: true,
+        });
+        vi.mocked(listPatients).mockResolvedValue(buildPatientsResponse([
+            {
+                id: 'patient-authored',
+                patient_id: 'PT-3001AA',
+                full_name: 'Authored Patient',
+                phone: '+10000000006',
+                created_at: '2026-02-01T10:00:00Z',
+                last_visit_at: null,
+                address: null,
+                date_of_birth: null,
+                gender: null,
+                medical_history: null,
+                allergies: null,
+                current_medications: null,
+                created_by: { id: 'staff-1', name: 'Front Desk', role: 'assistant' },
+                updated_by: { id: 'staff-1', name: 'Front Desk', role: 'assistant' },
+            },
+        ]));
+
+        renderPage();
+
+        expect(await screen.findByText('by Front Desk')).toBeInTheDocument();
+    });
 });

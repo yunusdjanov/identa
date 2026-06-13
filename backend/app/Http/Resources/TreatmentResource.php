@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Http\Resources\Concerns\SerializesRecordActors;
 use App\Models\Treatment;
 use App\Models\TreatmentImage;
 use App\Models\User;
@@ -11,6 +12,8 @@ use Illuminate\Http\Resources\Json\JsonResource;
 
 class TreatmentResource extends JsonResource
 {
+    use SerializesRecordActors;
+
     public function __construct(
         Treatment $resource,
         private readonly TreatmentImageService $images,
@@ -93,6 +96,8 @@ class TreatmentResource extends JsonResource
                 : [],
             'created_at' => $treatment->created_at?->toIso8601String(),
             'updated_at' => $treatment->updated_at?->toIso8601String(),
+            'created_by' => $this->actorSummary($treatment, 'createdBy'),
+            'updated_by' => $this->actorSummary($treatment, 'updatedBy'),
             'patient_name' => $treatment->relationLoaded('patient') ? $treatment->patient?->full_name : null,
             'patient_phone' => $treatment->relationLoaded('patient') ? $treatment->patient?->phone : null,
             'patient_secondary_phone' => $treatment->relationLoaded('patient') ? $treatment->patient?->secondary_phone : null,

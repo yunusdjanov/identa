@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Http\Resources\Concerns\SerializesRecordActors;
 use App\Models\Patient;
 use App\Services\PatientPhotoService;
 use Illuminate\Http\Request;
@@ -9,6 +10,8 @@ use Illuminate\Http\Resources\Json\JsonResource;
 
 class PatientResource extends JsonResource
 {
+    use SerializesRecordActors;
+
     public function __construct(
         Patient $resource,
         private readonly PatientPhotoService $photos,
@@ -54,6 +57,9 @@ class PatientResource extends JsonResource
                 PatientPhotoService::IMAGE_VARIANT_PREVIEW
             ),
             'created_at' => $patient->created_at?->toIso8601String(),
+            'updated_at' => $patient->updated_at?->toIso8601String(),
+            'created_by' => $this->actorSummary($patient, 'createdBy'),
+            'updated_by' => $this->actorSummary($patient, 'updatedBy'),
             'is_archived' => $patient->trashed(),
             'archived_at' => $patient->deleted_at?->toIso8601String(),
             'last_visit_at' => $this->resolveLastVisitAt($patient),

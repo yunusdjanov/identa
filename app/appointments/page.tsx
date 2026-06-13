@@ -57,6 +57,8 @@ import {
 import { toast } from 'sonner';
 import { useI18n } from '@/components/providers/i18n-provider';
 import { canManage, canView, getManageDeniedMessage, isSubscriptionReadOnly } from '@/lib/auth/permissions';
+import { RecordAuthorBadge } from '@/components/ui/record-author-badge';
+import type { ApiRecordActor } from '@/lib/api/types';
 
 const AddAppointmentDialog = dynamic(
     () => import('@/components/appointments/add-appointment-dialog').then((module) => module.AddAppointmentDialog),
@@ -221,6 +223,8 @@ interface AppointmentRow {
     durationMinutes: number;
     status: AppointmentStatus;
     reason?: string;
+    createdBy?: ApiRecordActor | null;
+    updatedBy?: ApiRecordActor | null;
 }
 
 interface WeekInlineEditFormData {
@@ -374,6 +378,7 @@ export default function AppointmentsPage() {
     const currentUser = currentUserQuery.data;
     const canViewAppointments = canView(currentUser, 'appointments');
     const canManageAppointments = canManage(currentUser, 'appointments');
+    const showRecordAuthors = currentUser?.show_record_authors === true;
     const isDialogOpen = canManageAppointments && (isAddDialogOpen || shouldOpenFromUrl);
     const denyPermission = () => toast.error(getManageDeniedMessage(currentUser, t));
 
@@ -531,6 +536,8 @@ export default function AppointmentsPage() {
                 durationMinutes: getDurationMinutes(appointment.start_time, appointment.end_time),
                 status: appointment.status,
                 reason: reason || undefined,
+                createdBy: appointment.created_by ?? null,
+                updatedBy: appointment.updated_by ?? null,
             };
         });
     }, [appointmentsQuery.data, t]);
@@ -930,6 +937,13 @@ export default function AppointmentsPage() {
                                                         )}
                                                     </span>
                                                 </div>
+                                                {showRecordAuthors && !compact ? (
+                                                    <RecordAuthorBadge
+                                                        className="mt-1"
+                                                        createdBy={appointment.createdBy}
+                                                        updatedBy={appointment.updatedBy}
+                                                    />
+                                                ) : null}
                                             </div>
                                             {compact ? null : (
                                                 <Badge className={`${getAppointmentStatusBadgeClass(appointment.status)} shrink-0`}>
@@ -1493,6 +1507,13 @@ export default function AppointmentsPage() {
                                                                     <p className="text-xs text-slate-500 mt-1">
                                                                         {appointment.startTime} - {appointment.endTime} ({t('appointments.minutesShort', { count: appointment.durationMinutes })})
                                                                     </p>
+                                                                    {showRecordAuthors ? (
+                                                                        <RecordAuthorBadge
+                                                                            className="mt-1"
+                                                                            createdBy={appointment.createdBy}
+                                                                            updatedBy={appointment.updatedBy}
+                                                                        />
+                                                                    ) : null}
                                                                 </div>
                                                                 <div className="flex flex-wrap items-center gap-2 sm:justify-end" onPointerDown={(event) => event.stopPropagation()}>
                                                                     <Badge className={getAppointmentStatusBadgeClass(appointment.status)}>
@@ -1704,6 +1725,13 @@ export default function AppointmentsPage() {
                                                     <p className="truncate text-[11px] text-slate-600 leading-tight" title={appointment.reason || t('appointments.general')}>
                                                         {truncateForUi(appointment.reason || t('appointments.general'), APPOINTMENT_MODAL_REASON_UI_LIMIT)}
                                                     </p>
+                                                    {showRecordAuthors ? (
+                                                        <RecordAuthorBadge
+                                                            className="mt-1"
+                                                            createdBy={appointment.createdBy}
+                                                            updatedBy={appointment.updatedBy}
+                                                        />
+                                                    ) : null}
                                                 </div>
                                                 <div className="flex shrink-0 flex-wrap items-start gap-1.5 sm:justify-end">
                                                     <Badge className={`${getAppointmentStatusBadgeClass(appointment.status)} shrink-0 px-2 py-0.5 text-xs`}>

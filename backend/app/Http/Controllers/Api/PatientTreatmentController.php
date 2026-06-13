@@ -107,7 +107,7 @@ class PatientTreatmentController extends Controller
         $treatment = $this->treatments->update($request, $id, $treatmentId);
 
         return response()->json([
-            'data' => $this->treatmentPayload($request, $treatment->fresh(), false),
+            'data' => $this->treatmentPayload($request, $treatment, false),
         ]);
     }
 

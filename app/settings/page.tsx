@@ -24,7 +24,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { getCurrentUser, getProfile, updateProfile } from '@/lib/api/dentist';
 import { getApiErrorMessage } from '@/lib/api/client';
 import { toast } from 'sonner';
-import { User, Building2, Clock, Lock } from 'lucide-react';
+import { User, Building2, Clock, Eye, Lock } from 'lucide-react';
 import type { DentistProfile } from '@/lib/types';
 import { useI18n } from '@/components/providers/i18n-provider';
 import {
@@ -71,6 +71,7 @@ const defaultProfile: DentistProfile = {
         end: DEFAULT_APPOINTMENT_WORKING_HOURS.end,
     },
     defaultAppointmentDuration: 30,
+    showRecordAuthors: false,
 };
 
 function mapProfileToForm(profile: Awaited<ReturnType<typeof getProfile>>): DentistProfile {
@@ -87,6 +88,7 @@ function mapProfileToForm(profile: Awaited<ReturnType<typeof getProfile>>): Dent
             end: profile.working_hours.end ?? DEFAULT_APPOINTMENT_WORKING_HOURS.end,
         },
         defaultAppointmentDuration: profile.default_appointment_duration || 30,
+        showRecordAuthors: profile.show_record_authors === true,
     };
 }
 
@@ -222,6 +224,16 @@ export default function SettingsPage() {
         });
     };
 
+    const handleDisplayPreferenceChange = (enabled: boolean) => {
+        if (!canManagePersonalProfile) {
+            toast.error(t('settings.readOnlyNotice'));
+            return;
+        }
+
+        setProfileDraft({ ...profile, showRecordAuthors: enabled });
+        updatePartialProfile({ show_record_authors: enabled });
+    };
+
     if (currentUserQuery.isLoading || (canViewSettings && profileQuery.isLoading)) {
         return <SettingsLoadingState />;
     }
@@ -319,6 +331,14 @@ export default function SettingsPage() {
                                 </TabsTrigger>
                             </>
                         ) : null}
+                        <TabsTrigger
+                            value="display"
+                            className="flex-shrink-0"
+                            disabled={forceReset}
+                        >
+                            <Eye className="w-4 h-4 sm:mr-2" />
+                            <span className="hidden sm:inline">{t('settings.tab.display')}</span>
+                        </TabsTrigger>
                         <TabsTrigger value="security" className="flex-shrink-0">
                             <Lock className="w-4 h-4 sm:mr-2" />
                             <span className="hidden sm:inline">{t('settings.tab.security')}</span>
@@ -593,6 +613,46 @@ export default function SettingsPage() {
                     </Card>
                     </TabsContent>
                 ) : null}
+
+                <TabsContent value="display">
+                    <Card className="interactive-card overflow-hidden rounded-2xl bg-white">
+                        <CardHeader className="pb-2">
+                            <CardTitle>{t('settings.displayPreferences')}</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-slate-50/70 p-4 sm:flex-row sm:items-center sm:justify-between">
+                                <div className="min-w-0">
+                                    <Label htmlFor="showRecordAuthors" className="text-sm font-semibold text-slate-900">
+                                        {t('settings.showRecordAuthors.title')}
+                                    </Label>
+                                    <p className="mt-1 text-sm text-slate-600">
+                                        {t('settings.showRecordAuthors.description')}
+                                    </p>
+                                </div>
+                                <button
+                                    id="showRecordAuthors"
+                                    type="button"
+                                    role="switch"
+                                    aria-checked={profile.showRecordAuthors}
+                                    aria-label={t('settings.showRecordAuthors.title')}
+                                    disabled={!canManagePersonalProfile || profileMutation.isPending}
+                                    onClick={() => handleDisplayPreferenceChange(!profile.showRecordAuthors)}
+                                    className={`relative inline-flex h-7 w-12 shrink-0 rounded-full border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 ${
+                                        profile.showRecordAuthors
+                                            ? 'border-teal-500 bg-teal-500'
+                                            : 'border-slate-300 bg-slate-200'
+                                    }`}
+                                >
+                                    <span
+                                        className={`mt-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition-transform ${
+                                            profile.showRecordAuthors ? 'translate-x-6' : 'translate-x-0.5'
+                                        }`}
+                                    />
+                                </button>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </TabsContent>
 
                 <TabsContent value="security" className="space-y-5">
                     {currentUserQuery.data ? (

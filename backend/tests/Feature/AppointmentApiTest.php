@@ -32,12 +32,16 @@ class AppointmentApiTest extends TestCase
             ->assertCreated()
             ->assertJsonPath('data.patient_id', $patient->id)
             ->assertJsonPath('data.patient_name', $patient->full_name)
+            ->assertJsonPath('data.created_by.id', (string) $dentist->id)
+            ->assertJsonPath('data.updated_by.id', (string) $dentist->id)
             ->assertJsonPath('data.status', Appointment::STATUS_SCHEDULED);
 
         $this->assertTrue(
             Appointment::query()
                 ->where('dentist_id', $dentist->id)
                 ->where('patient_id', $patient->id)
+                ->where('created_by_user_id', $dentist->id)
+                ->where('updated_by_user_id', $dentist->id)
                 ->whereDate('appointment_date', $appointmentDate)
                 ->exists()
         );
@@ -226,6 +230,7 @@ class AppointmentApiTest extends TestCase
             ])
             ->assertOk()
             ->assertJsonPath('data.appointment_date', $pastDate)
+            ->assertJsonPath('data.updated_by.id', (string) $dentist->id)
             ->assertJsonPath('data.start_time', '11:00')
             ->assertJsonPath('data.end_time', '11:30');
     }

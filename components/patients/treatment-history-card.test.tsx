@@ -245,4 +245,47 @@ describe('TreatmentHistoryCard image controls', () => {
         expect(screen.getByTitle('Image is processing')).toBeInTheDocument();
         expect(document.querySelector('img[src]')).not.toBeInTheDocument();
     });
+
+    it('shows record authors when the display preference is enabled', async () => {
+        vi.mocked(getCurrentUser).mockResolvedValue({
+            id: 'dentist-1',
+            name: 'Dentist',
+            email: 'dentist@example.com',
+            role: 'dentist',
+            account_status: 'active',
+            show_record_authors: true,
+        });
+        vi.mocked(listAllPatientTreatments).mockResolvedValue([
+            {
+                id: 'treatment-authored',
+                patient_id: 'patient-1',
+                patient_name: 'Sardor',
+                patient_phone: '+998 90 123 45 67',
+                patient_secondary_phone: null,
+                patient_code: 'PT-1001',
+                tooth_number: 9,
+                teeth: [9],
+                treatment_type: 'Authored history',
+                description: null,
+                comment: null,
+                treatment_date: '2026-04-05',
+                cost: null,
+                debt_amount: 120000,
+                paid_amount: 60000,
+                balance: 60000,
+                notes: null,
+                image_count: 0,
+                primary_image: null,
+                images: [],
+                created_at: '2026-04-05T10:00:00Z',
+                updated_at: '2026-04-05T10:00:00Z',
+                created_by: { id: 'assistant-1', name: 'Hygienist', role: 'assistant' },
+                updated_by: { id: 'assistant-1', name: 'Hygienist', role: 'assistant' },
+            },
+        ] as never);
+
+        renderCard();
+
+        expect((await screen.findAllByText('by Hygienist')).length).toBeGreaterThan(0);
+    });
 });

@@ -21,6 +21,7 @@ const ADMIN_PROFILE = {
     address: null,
     working_hours: { start: null, end: null },
     default_appointment_duration: 30,
+    show_record_authors: false,
 };
 
 async function isAdminSession(): Promise<boolean> {
@@ -57,6 +58,7 @@ export async function PUT(request: Request) {
             'working_hours_start',
             'working_hours_end',
             'default_appointment_duration',
+            'show_record_authors',
         ]);
 
     const filtered: Record<string, unknown> = {};

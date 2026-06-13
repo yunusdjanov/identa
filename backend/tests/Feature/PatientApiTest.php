@@ -46,6 +46,8 @@ class PatientApiTest extends TestCase
             ->assertJsonPath('data.last_visit_at', null)
             ->assertJsonPath('data.categories.0.id', $category->id)
             ->assertJsonPath('data.categories.0.name', 'VIP')
+            ->assertJsonPath('data.created_by.id', (string) $dentist->id)
+            ->assertJsonPath('data.updated_by.id', (string) $dentist->id)
             ->assertJsonStructure([
                 'data' => [
                     'id',
@@ -64,6 +66,8 @@ class PatientApiTest extends TestCase
         $this->assertDatabaseHas('patients', [
             'dentist_id' => $dentist->id,
             'full_name' => 'John Doe',
+            'created_by_user_id' => $dentist->id,
+            'updated_by_user_id' => $dentist->id,
         ]);
         $this->assertDatabaseHas('patient_category_patient', [
             'patient_id' => $response->json('data.id'),
@@ -231,7 +235,13 @@ class PatientApiTest extends TestCase
             ->assertJsonPath('data.full_name', 'After Name')
             ->assertJsonPath('data.phone', '+15551112222')
             ->assertJsonPath('data.secondary_phone', '+15553334444')
+            ->assertJsonPath('data.updated_by.id', (string) $dentist->id)
             ->assertJsonPath('data.categories.0.id', $secondCategory->id);
+
+        $this->assertDatabaseHas('patients', [
+            'id' => $patient->id,
+            'updated_by_user_id' => $dentist->id,
+        ]);
 
         $this->assertDatabaseHas('patient_category_patient', [
             'patient_id' => $patient->id,

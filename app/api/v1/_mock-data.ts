@@ -91,6 +91,7 @@ export const PROFILE = {
     address: 'Toshkent sh., Yunusobod tumani, 7-mavze',
     working_hours: { start: '09:00', end: '18:00' },
     default_appointment_duration: 45,
+    show_record_authors: false,
 };
 
 export const AUDIT_LOGS = [

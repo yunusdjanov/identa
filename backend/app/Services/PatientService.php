@@ -48,7 +48,11 @@ class PatientService
         $query = $this->withLastVisitAggregates(
             Patient::query()
                 ->where('dentist_id', $dentistId)
-                ->with(['categories:id,name,color,sort_order'])
+                ->with([
+                    'categories:id,name,color,sort_order',
+                    'createdBy:id,name,role',
+                    'updatedBy:id,name,role',
+                ])
         );
 
         $archivedOnly = $this->booleanFilter($request, 'filter.archived_only');
@@ -132,19 +136,26 @@ class PatientService
     {
         $dentistId = $this->dentistId($request);
         $validated = $request->validated();
+        $actorId = $this->actorId($request);
         $patientAttributes = collect($validated)
             ->except(['category_id'])
             ->all();
 
-        $patient = DB::transaction(function () use ($dentistId, $patientAttributes, $validated): Patient {
+        $patient = DB::transaction(function () use ($dentistId, $actorId, $patientAttributes, $validated): Patient {
             $patient = Patient::create([
                 ...$patientAttributes,
                 'dentist_id' => $dentistId,
+                'created_by_user_id' => $actorId,
+                'updated_by_user_id' => $actorId,
                 'patient_id' => $this->generatePatientId($dentistId),
             ]);
             $this->syncCategory($patient, $validated);
 
-            return $patient->fresh()->load('categories:id,name,color,sort_order');
+            return $patient->fresh()->load([
+                'categories:id,name,color,sort_order',
+                'createdBy:id,name,role',
+                'updatedBy:id,name,role',
+            ]);
         });
 
         $this->auditLogger->logFromRequest(
@@ -167,9 +178,10 @@ class PatientService
             ->except(['category_id'])
             ->all();
         $dentistId = $this->dentistId($request);
+        $actorId = $this->actorId($request);
         $archivedMessage = __('api.patients.archived_restore_before_edit');
 
-        $patient = DB::transaction(function () use ($id, $dentistId, $patientAttributes, $validated, $archivedMessage): Patient {
+        $patient = DB::transaction(function () use ($id, $dentistId, $actorId, $patientAttributes, $validated, $archivedMessage): Patient {
             // Lock the patient row inside the transaction so two concurrent
             // two-tab edits (or admin + assistant) serialise on the row.
             // Without the lock, syncCategory() can interleave detach/attach
@@ -182,10 +194,17 @@ class PatientService
                 ->firstOrFail();
             $this->ensureNotArchived($patient, $archivedMessage);
 
-            $patient->update($patientAttributes);
+            $patient->update([
+                ...$patientAttributes,
+                'updated_by_user_id' => $actorId,
+            ]);
             $this->syncCategory($patient, $validated);
 
-            return $patient->fresh()->load('categories:id,name,color,sort_order');
+            return $patient->fresh()->load([
+                'categories:id,name,color,sort_order',
+                'createdBy:id,name,role',
+                'updatedBy:id,name,role',
+            ]);
         });
 
         $this->auditLogger->logFromRequest(
@@ -439,7 +458,11 @@ class PatientService
                 ->withTrashed()
                 ->where('id', $id)
                 ->where('dentist_id', $this->dentistId($request))
-                ->with(['categories:id,name,color,sort_order'])
+                ->with([
+                    'categories:id,name,color,sort_order',
+                    'createdBy:id,name,role',
+                    'updatedBy:id,name,role',
+                ])
         )->firstOrFail();
     }
 
@@ -451,6 +474,15 @@ class PatientService
         abort_if($dentistId === null, 403);
 
         return $dentistId;
+    }
+
+    private function actorId(Request $request): int
+    {
+        /** @var User|null $actor */
+        $actor = $request->user();
+        abort_if($actor === null, 403);
+
+        return (int) $actor->id;
     }
 
     public function subscriptionOwner(Request $request): User

@@ -14,4 +14,5 @@ export interface DentistProfile {
         end: string;   // HH:mm format
     };
     defaultAppointmentDuration: number; // minutes
+    showRecordAuthors: boolean;
 }

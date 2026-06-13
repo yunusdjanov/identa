@@ -24,6 +24,7 @@ class SettingsProfileApiTest extends TestCase
             ->getJson('/api/v1/settings/profile')
             ->assertOk()
             ->assertJsonPath('data.email', 'dentist@example.com')
+            ->assertJsonPath('data.show_record_authors', false)
             ->assertJsonPath('data.working_hours.start', '09:00');
 
         $this->actingAs($dentist, 'web')
@@ -37,13 +38,20 @@ class SettingsProfileApiTest extends TestCase
                 'working_hours_start' => '08:00',
                 'working_hours_end' => '17:00',
                 'default_appointment_duration' => 45,
+                'show_record_authors' => true,
             ])
             ->assertOk()
             ->assertJsonPath('data.name', 'Dr Updated')
             ->assertJsonPath('data.email', 'updated@example.com')
             ->assertJsonPath('data.practice_name', 'Updated Dental')
             ->assertJsonPath('data.working_hours.start', '08:00')
-            ->assertJsonPath('data.default_appointment_duration', 45);
+            ->assertJsonPath('data.default_appointment_duration', 45)
+            ->assertJsonPath('data.show_record_authors', true);
+
+        $this->assertDatabaseHas('users', [
+            'id' => $dentist->id,
+            'show_record_authors' => true,
+        ]);
     }
 
     public function test_profile_update_validates_working_hours_and_email_uniqueness(): void
