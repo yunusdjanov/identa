@@ -90,6 +90,10 @@ class PatientService
                 ->whereDoesntHave('odontogramEntries', function (Builder $odontogramEntries) use ($inactiveBefore): void {
                     $odontogramEntries
                         ->whereDate('condition_date', '>=', $inactiveBefore);
+                })
+                ->whereDoesntHave('treatments', function (Builder $treatments) use ($inactiveBefore): void {
+                    $treatments
+                        ->whereDate('treatment_date', '>=', $inactiveBefore);
                 });
         }
 
@@ -500,7 +504,8 @@ class PatientService
                 }],
                 'appointment_date'
             )
-            ->withMax('odontogramEntries as last_odontogram_visit_at', 'condition_date');
+            ->withMax('odontogramEntries as last_odontogram_visit_at', 'condition_date')
+            ->withMax('treatments as last_treatment_visit_at', 'treatment_date');
     }
 
     private function booleanFilter(Request $request, string $key): bool

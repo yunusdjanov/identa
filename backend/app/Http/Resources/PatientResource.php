@@ -74,15 +74,14 @@ class PatientResource extends JsonResource
     {
         $lastCompletedAppointmentAt = $this->normalizeDateValue($patient->getAttribute('last_completed_appointment_at'));
         $lastOdontogramVisitAt = $this->normalizeDateValue($patient->getAttribute('last_odontogram_visit_at'));
+        $lastTreatmentVisitAt = $this->normalizeDateValue($patient->getAttribute('last_treatment_visit_at'));
+        $visitDates = array_filter([
+            $lastCompletedAppointmentAt,
+            $lastOdontogramVisitAt,
+            $lastTreatmentVisitAt,
+        ], static fn (?string $visitDate): bool => $visitDate !== null);
 
-        if ($lastCompletedAppointmentAt === null) {
-            return $lastOdontogramVisitAt;
-        }
-        if ($lastOdontogramVisitAt === null) {
-            return $lastCompletedAppointmentAt;
-        }
-
-        return max($lastCompletedAppointmentAt, $lastOdontogramVisitAt);
+        return $visitDates === [] ? null : max($visitDates);
     }
 
     private function normalizeDateValue(mixed $value): ?string

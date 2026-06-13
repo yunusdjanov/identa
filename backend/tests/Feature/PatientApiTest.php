@@ -6,6 +6,7 @@ use App\Models\Appointment;
 use App\Models\OdontogramEntry;
 use App\Models\Patient;
 use App\Models\PatientCategory;
+use App\Models\Treatment;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -94,13 +95,39 @@ class PatientApiTest extends TestCase
             'patient_id' => $ownedPatient->id,
             'condition_date' => '2026-01-20',
         ]);
+        Treatment::factory()->create([
+            'dentist_id' => $dentist->id,
+            'patient_id' => $ownedPatient->id,
+            'treatment_date' => '2026-01-25',
+        ]);
 
         $this->actingAs($dentist, 'web')
             ->getJson('/api/v1/patients')
             ->assertOk()
             ->assertJsonCount(1, 'data')
             ->assertJsonPath('data.0.full_name', 'Owned Patient')
-            ->assertJsonPath('data.0.last_visit_at', '2026-01-20');
+            ->assertJsonPath('data.0.last_visit_at', '2026-01-25');
+    }
+
+    public function test_dentist_can_list_treatment_history_as_last_visit_without_appointments(): void
+    {
+        $dentist = User::factory()->create();
+        $patient = Patient::factory()->create([
+            'dentist_id' => $dentist->id,
+            'full_name' => 'History Only Patient',
+        ]);
+
+        Treatment::factory()->create([
+            'dentist_id' => $dentist->id,
+            'patient_id' => $patient->id,
+            'treatment_date' => '2026-06-13',
+        ]);
+
+        $this->actingAs($dentist, 'web')
+            ->getJson('/api/v1/patients')
+            ->assertOk()
+            ->assertJsonPath('data.0.full_name', 'History Only Patient')
+            ->assertJsonPath('data.0.last_visit_at', '2026-06-13');
     }
 
     public function test_patient_create_validates_name_phone_and_optional_text_lengths(): void
@@ -490,6 +517,14 @@ class PatientApiTest extends TestCase
             'dentist_id' => $dentist->id,
             'full_name' => 'Active Odontogram Patient',
         ]);
+        $inactiveTreatmentPatient = Patient::factory()->create([
+            'dentist_id' => $dentist->id,
+            'full_name' => 'Inactive Treatment Patient',
+        ]);
+        $activeTreatmentPatient = Patient::factory()->create([
+            'dentist_id' => $dentist->id,
+            'full_name' => 'Active Treatment Patient',
+        ]);
 
         Appointment::factory()->create([
             'dentist_id' => $dentist->id,
@@ -513,16 +548,28 @@ class PatientApiTest extends TestCase
             'patient_id' => $activeOdontogramPatient->id,
             'condition_date' => '2025-10-01',
         ]);
+        Treatment::factory()->create([
+            'dentist_id' => $dentist->id,
+            'patient_id' => $inactiveTreatmentPatient->id,
+            'treatment_date' => '2025-07-15',
+        ]);
+        Treatment::factory()->create([
+            'dentist_id' => $dentist->id,
+            'patient_id' => $activeTreatmentPatient->id,
+            'treatment_date' => '2025-10-15',
+        ]);
 
         $this->actingAs($dentist, 'web')
             ->getJson('/api/v1/patients?filter[inactive_before]=2025-09-01')
             ->assertOk()
-            ->assertJsonPath('meta.pagination.total', 3)
+            ->assertJsonPath('meta.pagination.total', 4)
             ->assertJsonFragment(['full_name' => $noVisitPatient->full_name])
             ->assertJsonFragment(['full_name' => $inactivePatient->full_name])
             ->assertJsonFragment(['full_name' => $inactiveOdontogramPatient->full_name])
+            ->assertJsonFragment(['full_name' => $inactiveTreatmentPatient->full_name])
             ->assertJsonMissing(['full_name' => $activePatient->full_name])
-            ->assertJsonMissing(['full_name' => $activeOdontogramPatient->full_name]);
+            ->assertJsonMissing(['full_name' => $activeOdontogramPatient->full_name])
+            ->assertJsonMissing(['full_name' => $activeTreatmentPatient->full_name]);
     }
 
     public function test_guest_is_unauthorized_for_patients_routes(): void
