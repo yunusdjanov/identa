@@ -24,7 +24,7 @@ import { useI18n } from '@/components/providers/i18n-provider';
 import { formatLocalizedDate } from '@/lib/i18n/date';
 import { formatToothList, formatToothNumber } from '@/lib/tooth-numbering';
 import { extractPrimaryPhone, formatCurrency } from '@/lib/utils';
-import { AlertCircle, Download, History, Phone, Search, Users, Wallet } from 'lucide-react';
+import { AlertCircle, Download, History, Phone, Search, Users, Wallet, X } from 'lucide-react';
 import { buildPdfFilename, exportRowsToPdf } from '@/lib/export/pdf';
 import { EmptyState } from '@/components/ui/empty-state';
 import { AppErrorState } from '@/components/error/app-error-state';
@@ -574,7 +574,7 @@ export default function PaymentsPage() {
                                 variant="outline"
                                 aria-pressed={showOutstandingOnly}
                                 aria-label={t('payments.filters.outstandingOnly')}
-                                title={showOutstandingOnly ? t('payments.filters.outstandingActive') : t('payments.filters.outstandingHint')}
+                                title={showOutstandingOnly ? t('payments.filters.clearOutstanding') : t('payments.filters.outstandingHint')}
                                 className={`h-9 w-full justify-center rounded-xl px-3 sm:w-auto ${
                                     showOutstandingOnly
                                         ? 'border-red-200 bg-red-50 text-red-700 shadow-xs ring-1 ring-red-100 hover:bg-red-50 hover:text-red-700'
@@ -584,6 +584,7 @@ export default function PaymentsPage() {
                             >
                                 <AlertCircle className={`h-4 w-4 ${showOutstandingOnly ? 'text-red-600' : 'text-slate-400'}`} />
                                 <span>{t('payments.filters.outstandingOnly')}</span>
+                                {showOutstandingOnly ? <X className="h-3.5 w-3.5 text-red-600" aria-hidden="true" /> : null}
                             </Button>
                             {patientFilterId ? (
                                 <Button variant="outline" className="rounded-xl bg-white" onClick={clearPatientFilter}>{t('payments.clearFilter')}</Button>

@@ -167,6 +167,7 @@ describe('PaymentsPage', () => {
         });
 
         expect(screen.getByRole('button', { name: 'With debt' })).toHaveAttribute('aria-pressed', 'true');
+        expect(screen.getByRole('button', { name: 'With debt' })).toHaveAttribute('title', 'Clear debt filter.');
         expect(window.location.search).toContain('outstanding=1');
 
         fireEvent.click(screen.getByRole('button', { name: 'History' }));
