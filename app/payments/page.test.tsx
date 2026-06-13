@@ -5,12 +5,20 @@ import PaymentsPage from '@/app/payments/page';
 import { getCurrentUser, getPatient, listAllTreatments } from '@/lib/api/dentist';
 import { I18nProvider } from '@/components/providers/i18n-provider';
 import { DICTIONARIES } from '@/lib/i18n/dictionaries';
+import { exportRowsToPdf } from '@/lib/export/pdf';
 
 vi.mock('@/lib/api/dentist', () => ({
     getCurrentUser: vi.fn(),
     listAllTreatments: vi.fn(),
     getPatient: vi.fn(),
 }));
+
+vi.mock('@/lib/export/pdf', () => ({
+    buildPdfFilename: vi.fn((prefix: string) => `${prefix}.pdf`),
+    exportRowsToPdf: vi.fn(),
+}));
+
+vi.mock('sonner', () => ({ toast: { error: vi.fn(), success: vi.fn() } }));
 
 function renderPage() {
     const queryClient = new QueryClient({
@@ -41,6 +49,8 @@ describe('PaymentsPage', () => {
         vi.mocked(listAllTreatments).mockReset();
         vi.mocked(getCurrentUser).mockReset();
         vi.mocked(getPatient).mockReset();
+        vi.mocked(exportRowsToPdf).mockClear();
+        window.history.replaceState({}, '', '/payments');
 
         vi.mocked(getCurrentUser).mockResolvedValue({
             id: 'user-1',
@@ -48,6 +58,9 @@ describe('PaymentsPage', () => {
             email: 'doctor@example.test',
             role: 'dentist',
             account_status: 'active',
+            subscription: {
+                can_export: true,
+            },
         });
         vi.mocked(listAllTreatments).mockResolvedValue([
             {
@@ -136,5 +149,38 @@ describe('PaymentsPage', () => {
 
         expect(screen.getByTitle('24')).toBeInTheDocument();
         expect(screen.queryByTitle('12')).not.toBeInTheDocument();
+    });
+
+    it('filters payments to patients with outstanding debt and exports the filtered rows', async () => {
+        renderPage();
+
+        await waitFor(() => {
+            expect(screen.getByText('Jane Doe')).toBeInTheDocument();
+            expect(screen.getByText('John Smith')).toBeInTheDocument();
+        });
+
+        fireEvent.click(screen.getByRole('button', { name: 'With debt' }));
+
+        await waitFor(() => {
+            expect(screen.getByText('Jane Doe')).toBeInTheDocument();
+            expect(screen.queryByText('John Smith')).not.toBeInTheDocument();
+        });
+
+        expect(screen.getByRole('button', { name: 'With debt' })).toHaveAttribute('aria-pressed', 'true');
+        expect(window.location.search).toContain('outstanding=1');
+
+        fireEvent.click(screen.getByRole('button', { name: 'History' }));
+
+        await waitFor(() => {
+            expect(screen.getByText('Entry History')).toBeInTheDocument();
+            expect(screen.getAllByText('Composite filling').length).toBeGreaterThan(0);
+            expect(screen.queryByText('Teeth cleaning')).not.toBeInTheDocument();
+        });
+
+        fireEvent.click(screen.getByRole('button', { name: 'Download PDF' }));
+
+        expect(exportRowsToPdf).toHaveBeenCalledTimes(1);
+        expect(vi.mocked(exportRowsToPdf).mock.calls[0]?.[0].rows).toHaveLength(1);
+        expect(vi.mocked(exportRowsToPdf).mock.calls[0]?.[0].rows[0]?.[0]).toBe('Jane Doe');
     });
 });

@@ -1,7 +1,7 @@
 ﻿'use client';
 
 import Link from 'next/link';
-import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
+import { useMemo, useState, useSyncExternalStore } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -33,7 +33,36 @@ import { canView } from '@/lib/auth/permissions';
 import { toast } from 'sonner';
 
 const PAGE_SIZE = 10;
-const noopSubscribe = () => () => undefined;
+const OUTSTANDING_FILTER_PARAM = 'outstanding';
+const OUTSTANDING_FILTER_VALUE = '1';
+const URL_SEARCH_CHANGE_EVENT = 'identa:payments-url-search-change';
+
+function subscribeToUrlSearch(onStoreChange: () => void) {
+    if (typeof window === 'undefined') {
+        return () => undefined;
+    }
+
+    window.addEventListener('popstate', onStoreChange);
+    window.addEventListener(URL_SEARCH_CHANGE_EVENT, onStoreChange);
+
+    return () => {
+        window.removeEventListener('popstate', onStoreChange);
+        window.removeEventListener(URL_SEARCH_CHANGE_EVENT, onStoreChange);
+    };
+}
+
+function getUrlSearchSnapshot() {
+    return typeof window === 'undefined' ? '' : window.location.search;
+}
+
+function getServerUrlSearchSnapshot() {
+    return '';
+}
+
+function replaceUrl(nextUrl: URL) {
+    window.history.replaceState({}, '', `${nextUrl.pathname}${nextUrl.search}${nextUrl.hash}`);
+    window.dispatchEvent(new Event(URL_SEARCH_CHANGE_EVENT));
+}
 
 interface PatientTreatmentGroup {
     patient: ApiPatient;
@@ -83,31 +112,21 @@ function parsePaymentsTab(value: string | null): PaymentsTab {
 
 export default function PaymentsPage() {
     const { t, locale } = useI18n();
-    const isClient = useSyncExternalStore(
-        noopSubscribe,
-        () => true,
-        () => false
-    );
     const urlSearch = useSyncExternalStore(
-        noopSubscribe,
-        () => window.location.search,
-        () => ''
+        subscribeToUrlSearch,
+        getUrlSearchSnapshot,
+        getServerUrlSearchSnapshot
     );
-    const initialPatientIdFromUrl = useMemo(
-        () => (isClient ? (new URLSearchParams(urlSearch).get('patientId') ?? '').trim() : ''),
-        [isClient, urlSearch]
-    );
-    const initialTabFromUrl = useMemo(
-        () => (isClient ? parsePaymentsTab(new URLSearchParams(urlSearch).get('tab')) : 'patients'),
-        [isClient, urlSearch]
-    );
-    const [activeTab, setActiveTab] = useState<PaymentsTab>('patients');
+    const urlParams = useMemo(() => new URLSearchParams(urlSearch), [urlSearch]);
+    const patientIdFromUrl = (urlParams.get('patientId') ?? '').trim();
+    const activeTab = parsePaymentsTab(urlParams.get('tab'));
+    const showOutstandingOnly = urlParams.get(OUTSTANDING_FILTER_PARAM) === OUTSTANDING_FILTER_VALUE;
     const [patientSearch, setPatientSearch] = useState('');
     const [historySearch, setHistorySearch] = useState('');
     const [patientPage, setPatientPage] = useState(1);
     const [historyPage, setHistoryPage] = useState(1);
     const [isUrlPatientFilterDismissed, setIsUrlPatientFilterDismissed] = useState(false);
-    const patientFilterId = isUrlPatientFilterDismissed ? '' : initialPatientIdFromUrl;
+    const patientFilterId = isUrlPatientFilterDismissed ? '' : patientIdFromUrl;
     const currentUserQuery = useQuery({
         queryKey: ['auth', 'me'],
         queryFn: getCurrentUser,
@@ -116,10 +135,6 @@ export default function PaymentsPage() {
     const currentUser = currentUserQuery.data;
     const canViewPayments = canView(currentUser, 'payments');
     const canViewPatients = canView(currentUser, 'patients');
-
-    useEffect(() => {
-        setActiveTab(initialTabFromUrl);
-    }, [initialTabFromUrl]);
 
     const accountingQuery = useQuery({
         queryKey: ['payments', 'history-accounting', patientFilterId],
@@ -212,6 +227,7 @@ export default function PaymentsPage() {
             })
             .filter((row) => row.entryCount > 0 || row.patientId === patientFilterId)
             .filter((row) => (patientFilterId ? row.patientId === patientFilterId : true))
+            .filter((row) => (showOutstandingOnly ? row.balance > 0 : true))
             .filter((row) => {
                 if (!normalizedSearch) {
                     return true;
@@ -231,7 +247,7 @@ export default function PaymentsPage() {
 
                 return left.patientName.localeCompare(right.patientName);
             });
-    }, [accountingQuery.data, patientFilterId, patientSearch]);
+    }, [accountingQuery.data, patientFilterId, patientSearch, showOutstandingOnly]);
 
     const globalHistoryRows = useMemo(() => {
         const normalizedSearch = historySearch.trim().toLowerCase();
@@ -308,32 +324,47 @@ export default function PaymentsPage() {
     const paginatedPatientRows = paginate(patientRows, effectivePatientPage);
     const paginatedHistoryRows = paginate(globalHistoryRows, effectiveHistoryPage);
 
+    const updateUrlSearch = (update: (params: URLSearchParams) => void) => {
+        if (typeof window === 'undefined') {
+            return;
+        }
+
+        const nextUrl = new URL(window.location.href);
+        update(nextUrl.searchParams);
+        replaceUrl(nextUrl);
+    };
+
     const clearPatientFilter = () => {
         setIsUrlPatientFilterDismissed(true);
         setPatientPage(1);
         setHistoryPage(1);
+        updateUrlSearch((params) => params.delete('patientId'));
+    };
 
-        if (typeof window !== 'undefined') {
-            const nextUrl = new URL(window.location.href);
-            nextUrl.searchParams.delete('patientId');
-            window.history.replaceState({}, '', `${nextUrl.pathname}${nextUrl.search}`);
-        }
+    const handleOutstandingFilterChange = () => {
+        const nextShowOutstandingOnly = !showOutstandingOnly;
+        setPatientPage(1);
+        setHistoryPage(1);
+        updateUrlSearch((params) => {
+            if (nextShowOutstandingOnly) {
+                params.set(OUTSTANDING_FILTER_PARAM, OUTSTANDING_FILTER_VALUE);
+                return;
+            }
+
+            params.delete(OUTSTANDING_FILTER_PARAM);
+        });
     };
 
     const handleTabChange = (tab: PaymentsTab) => {
-        setActiveTab(tab);
         setPatientPage(1);
         setHistoryPage(1);
-
-        if (typeof window !== 'undefined') {
-            const nextUrl = new URL(window.location.href);
+        updateUrlSearch((params) => {
             if (tab === 'history') {
-                nextUrl.searchParams.set('tab', 'history');
+                params.set('tab', 'history');
             } else {
-                nextUrl.searchParams.delete('tab');
+                params.delete('tab');
             }
-            window.history.replaceState({}, '', `${nextUrl.pathname}${nextUrl.search}`);
-        }
+        });
     };
 
     if (currentUserQuery.isLoading || (accountingQuery.isLoading && !accountingQuery.data)) {
@@ -519,7 +550,7 @@ export default function PaymentsPage() {
                             </Button>
                         </div>
 
-                        <div className="flex flex-col gap-3 sm:flex-row">
+                        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
                             <div className="relative min-w-0 sm:w-[22rem]">
                                 <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                                 <Input
@@ -538,6 +569,22 @@ export default function PaymentsPage() {
                                     className="h-9 rounded-xl border-slate-200 bg-white pl-9 shadow-xs"
                                 />
                             </div>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                aria-pressed={showOutstandingOnly}
+                                aria-label={t('payments.filters.outstandingOnly')}
+                                title={showOutstandingOnly ? t('payments.filters.outstandingActive') : t('payments.filters.outstandingHint')}
+                                className={`h-9 w-full justify-center rounded-xl px-3 sm:w-auto ${
+                                    showOutstandingOnly
+                                        ? 'border-red-200 bg-red-50 text-red-700 shadow-xs ring-1 ring-red-100 hover:bg-red-50 hover:text-red-700'
+                                        : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                                }`}
+                                onClick={handleOutstandingFilterChange}
+                            >
+                                <AlertCircle className={`h-4 w-4 ${showOutstandingOnly ? 'text-red-600' : 'text-slate-400'}`} />
+                                <span>{t('payments.filters.outstandingOnly')}</span>
+                            </Button>
                             {patientFilterId ? (
                                 <Button variant="outline" className="rounded-xl bg-white" onClick={clearPatientFilter}>{t('payments.clearFilter')}</Button>
                             ) : null}
@@ -568,7 +615,7 @@ export default function PaymentsPage() {
                                 <div className="rounded-2xl border border-dashed border-slate-200">
                                     <EmptyState
                                         icon={Wallet}
-                                        title={t('payments.empty.patients')}
+                                        title={showOutstandingOnly ? t('payments.empty.outstandingPatients') : t('payments.empty.patients')}
                                     />
                                 </div>
                             ) : (
@@ -670,7 +717,7 @@ export default function PaymentsPage() {
                             {globalHistoryRows.length === 0 ? (
                                 <div className="rounded-xl border border-dashed border-slate-200 px-6 py-10 text-center">
                                     <History className="mx-auto h-10 w-10 text-slate-300" />
-                                    <p className="mt-4 text-sm text-slate-500">{t('payments.empty.history')}</p>
+                                    <p className="mt-4 text-sm text-slate-500">{showOutstandingOnly ? t('payments.empty.outstandingHistory') : t('payments.empty.history')}</p>
                                 </div>
                             ) : (
                                 <>
