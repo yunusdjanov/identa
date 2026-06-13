@@ -130,6 +130,44 @@ class PatientApiTest extends TestCase
             ->assertJsonPath('data.0.last_visit_at', '2026-06-13');
     }
 
+    public function test_patient_overview_counts_completed_appointments_and_history_as_visits(): void
+    {
+        $dentist = User::factory()->create();
+        $patient = Patient::factory()->create([
+            'dentist_id' => $dentist->id,
+            'full_name' => 'Visit Count Patient',
+        ]);
+
+        Appointment::factory()->create([
+            'dentist_id' => $dentist->id,
+            'patient_id' => $patient->id,
+            'appointment_date' => '2026-06-10',
+            'status' => Appointment::STATUS_COMPLETED,
+        ]);
+        Appointment::factory()->create([
+            'dentist_id' => $dentist->id,
+            'patient_id' => $patient->id,
+            'appointment_date' => '2026-06-20',
+            'status' => Appointment::STATUS_SCHEDULED,
+        ]);
+        Treatment::factory()->create([
+            'dentist_id' => $dentist->id,
+            'patient_id' => $patient->id,
+            'treatment_date' => '2026-06-13',
+        ]);
+        OdontogramEntry::factory()->create([
+            'dentist_id' => $dentist->id,
+            'patient_id' => $patient->id,
+            'condition_date' => '2026-06-13',
+        ]);
+
+        $this->actingAs($dentist, 'web')
+            ->getJson("/api/v1/patients/{$patient->id}/overview")
+            ->assertOk()
+            ->assertJsonPath('data.appointment_count', 2)
+            ->assertJsonPath('data.visit_count', 3);
+    }
+
     public function test_patient_create_validates_name_phone_and_optional_text_lengths(): void
     {
         $dentist = User::factory()->create();

@@ -47,7 +47,7 @@ const patient = {
     deleted_at: null,
 };
 
-const overview = { appointment_count: 0, upcoming_appointments: [], total_balance: 0 };
+const overview = { appointment_count: 0, visit_count: 0, upcoming_appointments: [], total_balance: 0 };
 
 // `PatientDetailPage` calls `use(params)`, which suspends on first render.
 // Wrapping the initial render in `act(async () => …)` flushes the resolved
@@ -114,6 +114,21 @@ describe('PatientDetailPage', () => {
         await renderPage();
 
         expect(await screen.findByText('John Smith')).toBeInTheDocument();
+    });
+
+    it('renders the total visits from the overview visit count', async () => {
+        vi.mocked(getCurrentUser).mockResolvedValue(dentist as never);
+        vi.mocked(getPatient).mockResolvedValue(patient as never);
+        vi.mocked(getPatientOverview).mockResolvedValue({
+            ...overview,
+            appointment_count: 0,
+            visit_count: 2,
+        } as never);
+
+        await renderPage();
+
+        expect(await screen.findByText('Total Visits')).toBeInTheDocument();
+        expect(screen.getByTitle('2')).toBeInTheDocument();
     });
 
     it('archives the patient through the confirm dialog', async () => {

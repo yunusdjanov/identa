@@ -333,7 +333,7 @@ export default function PatientDetailPage({
     });
 
     const patient = patientQuery.data;
-    const patientAppointmentsCount = overviewQuery.data?.appointment_count ?? 0;
+    const patientVisitCount = overviewQuery.data?.visit_count ?? overviewQuery.data?.appointment_count ?? 0;
     const latestVisitDate = patient?.last_visit_at ?? undefined;
     const upcomingAppointments = useMemo(
         () => overviewQuery.data?.upcoming_appointments ?? [],
@@ -708,7 +708,7 @@ export default function PatientDetailPage({
                         <VitalStatCell
                             icon={Hash}
                             label={t('patientDetail.totalAppointments')}
-                            value={canViewAppointments ? String(patientAppointmentsCount) : '—'}
+                            value={String(patientVisitCount)}
                         />
                         <VitalStatCell
                             icon={CalendarCheck}

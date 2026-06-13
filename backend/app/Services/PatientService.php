@@ -6,6 +6,7 @@ use App\Http\Requests\StorePatientRequest;
 use App\Http\Requests\UpdatePatientRequest;
 use App\Jobs\DeleteStoredMediaPaths;
 use App\Models\Appointment;
+use App\Models\OdontogramEntry;
 use App\Models\Patient;
 use App\Models\Treatment;
 use App\Models\User;
@@ -227,11 +228,17 @@ class PatientService
             now()->addSeconds(10),
             function () use ($dentistId, $id, $includeAppointments, $includePayments): array {
                 $appointmentCount = 0;
+                $completedAppointmentCount = 0;
                 $upcomingAppointments = [];
                 if ($includeAppointments) {
                     $appointmentCount = (int) Appointment::query()
                         ->where('dentist_id', $dentistId)
                         ->where('patient_id', $id)
+                        ->count();
+                    $completedAppointmentCount = (int) Appointment::query()
+                        ->where('dentist_id', $dentistId)
+                        ->where('patient_id', $id)
+                        ->where('status', Appointment::STATUS_COMPLETED)
                         ->count();
 
                     $upcomingAppointments = Appointment::query()
@@ -262,6 +269,16 @@ class PatientService
                         ->all();
                 }
 
+                $treatmentCount = (int) Treatment::query()
+                    ->where('dentist_id', $dentistId)
+                    ->where('patient_id', $id)
+                    ->count();
+                $odontogramEntryCount = (int) OdontogramEntry::query()
+                    ->where('dentist_id', $dentistId)
+                    ->where('patient_id', $id)
+                    ->count();
+                $visitCount = $completedAppointmentCount + $treatmentCount + $odontogramEntryCount;
+
                 $totalDebt = 0.0;
                 $totalPaid = 0.0;
                 if ($includePayments) {
@@ -277,6 +294,7 @@ class PatientService
 
                 return [
                     'appointment_count' => $appointmentCount,
+                    'visit_count' => $visitCount,
                     'upcoming_appointments' => $upcomingAppointments,
                     'total_debt' => $totalDebt,
                     'total_paid' => $totalPaid,

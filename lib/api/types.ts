@@ -178,6 +178,7 @@ export interface ApiPatientLookup {
 
 export interface ApiPatientOverview {
     appointment_count: number;
+    visit_count?: number;
     upcoming_appointments: ApiAppointment[];
     total_debt: number;
     total_paid: number;
