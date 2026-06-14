@@ -12,6 +12,7 @@ import { getCurrentUser } from '@/lib/api/dentist';
 import { canView } from '@/lib/auth/permissions';
 import { ToothDetailDialog } from '@/components/odontogram/tooth-detail-dialog';
 import { formatToothNumber, TOOTH_LAYOUT } from '@/lib/tooth-numbering';
+import { getBalanceMetricTone } from '@/components/ui/metric-summary-card';
 
 interface ClinicalSnapshotCardProps {
     patientId: string;
@@ -21,6 +22,46 @@ interface ClinicalSnapshotCardProps {
 }
 
 const SNAPSHOT_ODONTOGRAM_OPEN_KEY = 'identa:patient-history-snapshot-odontogram-open';
+
+function getBalanceStatusKey(balance: number) {
+    if (balance < 0) {
+        return 'patientHistory.balanceStatus.advance';
+    }
+
+    if (balance === 0) {
+        return 'patientHistory.balanceStatus.paid';
+    }
+
+    return 'patientHistory.balanceStatus.debt';
+}
+
+function getBalanceTextClass(balance: number) {
+    const tone = getBalanceMetricTone(balance);
+
+    if (tone === 'blue') {
+        return 'text-blue-700';
+    }
+
+    if (tone === 'slate') {
+        return 'text-slate-700';
+    }
+
+    return 'text-yellow-800';
+}
+
+function getBalanceBadgeClass(balance: number) {
+    const tone = getBalanceMetricTone(balance);
+
+    if (tone === 'blue') {
+        return 'border-blue-200 bg-blue-50 text-blue-700';
+    }
+
+    if (tone === 'slate') {
+        return 'border-slate-200 bg-slate-50 text-slate-600';
+    }
+
+    return 'border-yellow-200 bg-yellow-50 text-yellow-700';
+}
 
 export function ClinicalSnapshotCard({
     patientId,
@@ -168,6 +209,8 @@ export function ClinicalSnapshotCard({
             ),
         [treatments]
     );
+    const netBalanceTextClass = getBalanceTextClass(netBalance);
+    const netBalanceBadgeClass = getBalanceBadgeClass(netBalance);
 
     const showTreatmentSkeleton = isTreatmentsLoading && treatments.length === 0;
     const showTreatmentFallback = isTreatmentsError && treatments.length === 0;
@@ -242,19 +285,18 @@ export function ClinicalSnapshotCard({
                             {showTreatmentSkeleton ? (
                                 <Skeleton className="h-4 w-24 rounded" />
                             ) : canViewFinancials ? (
-                                <span
-                                    className={`font-semibold ${
-                                        showTreatmentFallback
-                                            ? 'text-slate-900'
-                                            : netBalance > 0
-                                                ? 'text-red-700'
-                                                : netBalance < 0
-                                                    ? 'text-green-700'
-                                                    : 'text-slate-900'
-                                    }`}
-                                >
-                                    {showTreatmentFallback ? '-' : formatCurrency(netBalance)}
-                                </span>
+                                showTreatmentFallback ? (
+                                    <span className="font-semibold text-slate-900">-</span>
+                                ) : (
+                                    <>
+                                        <span className={`font-semibold ${netBalanceTextClass}`}>
+                                            {formatCurrency(Math.abs(netBalance))}
+                                        </span>
+                                        <span className={`inline-flex items-center rounded-full border px-1.5 py-0.5 text-[10px] font-semibold leading-none ${netBalanceBadgeClass}`}>
+                                            {t(getBalanceStatusKey(netBalance))}
+                                        </span>
+                                    </>
+                                )
                             ) : (
                                 <span className="inline-flex items-center gap-1 font-semibold text-slate-300" aria-label={t('dashboard.lockedKpi.label')}>
                                     <Lock className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />

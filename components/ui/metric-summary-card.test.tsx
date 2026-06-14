@@ -1,7 +1,7 @@
 import { cleanup, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { MetricSummaryCard } from '@/components/ui/metric-summary-card';
+import { getBalanceMetricTone, MetricSummaryCard } from '@/components/ui/metric-summary-card';
 import { I18nProvider } from '@/components/providers/i18n-provider';
 import { DICTIONARIES } from '@/lib/i18n/dictionaries';
 
@@ -22,6 +22,19 @@ describe('MetricSummaryCard', () => {
         renderCard({ label: 'Total debt', value: '350,000 UZS', tone: 'red' });
         expect(screen.getByText('Total debt')).toBeInTheDocument();
         expect(screen.getByText('350,000 UZS')).toBeInTheDocument();
+    });
+
+    it('renders an optional status badge beside the label', () => {
+        renderCard({ label: 'Remaining', value: '250,000 UZS', tone: 'blue', badge: 'Advance', badgeTone: 'blue' });
+        expect(screen.getByText('Remaining')).toBeInTheDocument();
+        expect(screen.getByText('Advance')).toBeInTheDocument();
+        expect(screen.getByText('250,000 UZS')).toBeInTheDocument();
+    });
+
+    it('maps net balance direction to debt advance and settled tones', () => {
+        expect(getBalanceMetricTone(250000)).toBe('yellow');
+        expect(getBalanceMetricTone(-250000)).toBe('blue');
+        expect(getBalanceMetricTone(0)).toBe('slate');
     });
 
     it('hides the value and shows the locked label when locked=true', () => {

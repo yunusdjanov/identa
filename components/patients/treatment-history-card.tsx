@@ -79,6 +79,46 @@ const PatientPhotoPreviewDialog = dynamic(
     { ssr: false }
 );
 
+function getBalanceStatusKey(balance: number) {
+    if (balance < 0) {
+        return 'patientHistory.balanceStatus.advance';
+    }
+
+    if (balance === 0) {
+        return 'patientHistory.balanceStatus.paid';
+    }
+
+    return 'patientHistory.balanceStatus.debt';
+}
+
+function getBalanceTextClass(balance: number) {
+    const tone = getBalanceMetricTone(balance);
+
+    if (tone === 'blue') {
+        return 'text-blue-700';
+    }
+
+    if (tone === 'slate') {
+        return 'text-slate-700';
+    }
+
+    return 'text-yellow-800';
+}
+
+function getBalanceExportTone(balance: number): 'yellow' | 'blue' | 'neutral' {
+    const tone = getBalanceMetricTone(balance);
+
+    if (tone === 'blue') {
+        return 'blue';
+    }
+
+    if (tone === 'slate') {
+        return 'neutral';
+    }
+
+    return 'yellow';
+}
+
 const createEmptyFormState = (): TreatmentFormState => ({
     treatmentDate: toLocalDateKey(),
     treatmentType: '',
@@ -349,6 +389,7 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
             netBalance: totalDebt - totalPaid,
         };
     }, [treatments]);
+    const netBalanceTone = getBalanceMetricTone(summary.netBalance);
 
     const invalidateHistory = () => {
         queryClient.invalidateQueries({ queryKey: treatmentsQueryKey });
@@ -890,14 +931,18 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                     // (gated only by can_export at the subscription
                                     // level). Keep clinical context (date/teeth/work).
                                     const treatmentRows = treatments.map((tr) => canViewFinancials
-                                        ? [
-                                            formatDate(tr.treatment_date),
-                                            formatTeeth(tr.teeth ?? []) || '-',
-                                            tr.treatment_type,
-                                            formatCurrency(Number(tr.debt_amount ?? 0)),
-                                            formatCurrency(Number(tr.paid_amount ?? 0)),
-                                            formatCurrency(Number(tr.balance ?? 0)),
-                                        ]
+                                        ? (() => {
+                                            const balance = Number(tr.balance ?? 0);
+
+                                            return [
+                                                formatDate(tr.treatment_date),
+                                                formatTeeth(tr.teeth ?? []) || '-',
+                                                tr.treatment_type,
+                                                formatCurrency(Number(tr.debt_amount ?? 0)),
+                                                formatCurrency(Number(tr.paid_amount ?? 0)),
+                                                `${formatCurrency(Math.abs(balance))} (${t(getBalanceStatusKey(balance))})`,
+                                            ];
+                                        })()
                                         : [
                                             formatDate(tr.treatment_date),
                                             formatTeeth(tr.teeth ?? []) || '-',
@@ -915,7 +960,11 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                             ? [
                                                 { label: t('patientHistory.totalDebt'), value: formatCurrency(summary.totalDebt), tone: 'red' },
                                                 { label: t('patientHistory.totalPaid'), value: formatCurrency(summary.totalPaid), tone: 'green' },
-                                                { label: t('patientHistory.netBalance'), value: formatCurrency(summary.netBalance), tone: 'yellow' },
+                                                {
+                                                    label: `${t('patientHistory.netBalance')} · ${t(getBalanceStatusKey(summary.netBalance))}`,
+                                                    value: formatCurrency(Math.abs(summary.netBalance)),
+                                                    tone: getBalanceExportTone(summary.netBalance),
+                                                },
                                             ]
                                             : [],
                                         sections: [
@@ -992,8 +1041,10 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                         />
                         <MetricSummaryCard
                             label={t('patientHistory.netBalance')}
-                            value={formatCurrency(summary.netBalance)}
-                            tone={getBalanceMetricTone(summary.netBalance)}
+                            value={formatCurrency(Math.abs(summary.netBalance))}
+                            tone={netBalanceTone}
+                            badge={t(getBalanceStatusKey(summary.netBalance))}
+                            badgeTone={netBalanceTone}
                             locked={!canViewFinancials}
                         />
                     </div>
@@ -1077,6 +1128,7 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                     const debtAmount = Number(treatment.debt_amount);
                                     const paidAmount = Number(treatment.paid_amount);
                                     const balanceAmount = Number(treatment.balance);
+                                    const balanceTextClass = getBalanceTextClass(balanceAmount);
                                     const treatmentImageCount = getTreatmentImageCount(treatment);
                                     const primaryImage = getTreatmentPrimaryImage(treatment);
                                     const primaryImageThumbnailUrl = primaryImage ? getTreatmentImageThumbnailUrl(primaryImage) : null;
@@ -1178,7 +1230,12 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                                 <div>
                                                     <p className="text-[9px] font-semibold uppercase tracking-wider text-slate-400">{t('patientHistory.table.remaining')}</p>
                                                     {canViewFinancials ? (
-                                                        <p className="mt-0.5 truncate text-xs font-bold tabular-nums text-yellow-800">{formatCurrency(balanceAmount)}</p>
+                                                        <p
+                                                            className={`mt-0.5 truncate text-xs font-bold tabular-nums ${balanceTextClass}`}
+                                                            title={t(getBalanceStatusKey(balanceAmount))}
+                                                        >
+                                                            {formatCurrency(Math.abs(balanceAmount))}
+                                                        </p>
                                                     ) : (
                                                         <span className="mt-0.5 inline-flex items-center gap-1 text-xs font-bold text-slate-300">
                                                             <Lock className="h-3 w-3 shrink-0" aria-hidden="true" />
@@ -1287,8 +1344,11 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                         <div>
                                             <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400 lg:sr-only">{t('patientHistory.table.remaining')}</p>
                                             {canViewFinancials ? (
-                                                <p className="whitespace-nowrap text-sm font-semibold text-yellow-800">
-                                                    {formatCurrency(Number(treatment.balance))}
+                                                <p
+                                                    className={`whitespace-nowrap text-sm font-semibold ${balanceTextClass}`}
+                                                    title={t(getBalanceStatusKey(balanceAmount))}
+                                                >
+                                                    {formatCurrency(Math.abs(balanceAmount))}
                                                 </p>
                                             ) : (
                                                 <span className="inline-flex items-center gap-1 text-sm font-semibold text-slate-300" aria-label={t('dashboard.lockedKpi.label')}>

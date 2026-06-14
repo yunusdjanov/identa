@@ -4,13 +4,15 @@ import { Lock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useI18n } from '@/components/providers/i18n-provider';
 
-type MetricSummaryTone = 'teal' | 'emerald' | 'amber' | 'yellow' | 'red' | 'slate';
+type MetricSummaryTone = 'teal' | 'blue' | 'emerald' | 'amber' | 'yellow' | 'red' | 'slate';
 
 interface MetricSummaryCardProps {
     label: string;
     value: string;
     tone?: MetricSummaryTone;
     valueTone?: MetricSummaryTone;
+    badge?: string;
+    badgeTone?: MetricSummaryTone;
     compact?: boolean;
     tabular?: boolean;
     className?: string;
@@ -29,6 +31,11 @@ const toneClasses: Record<MetricSummaryTone, { card: string; label: string; valu
         card: 'metric-hover-teal border-teal-100 shadow-teal-100/60',
         label: 'text-teal-700',
         value: 'text-teal-900',
+    },
+    blue: {
+        card: 'metric-hover-blue border-blue-100 shadow-blue-100/60',
+        label: 'text-blue-600',
+        value: 'text-blue-700',
     },
     emerald: {
         card: 'metric-hover-emerald border-emerald-100 shadow-emerald-100/60',
@@ -57,7 +64,28 @@ const toneClasses: Record<MetricSummaryTone, { card: string; label: string; valu
     },
 };
 
-export function getBalanceMetricTone(_balance: number): MetricSummaryTone {
+const badgeClasses: Record<MetricSummaryTone, string> = {
+    teal: 'border-teal-200 bg-teal-50 text-teal-700',
+    blue: 'border-blue-200 bg-blue-50 text-blue-700',
+    emerald: 'border-emerald-200 bg-emerald-50 text-emerald-700',
+    amber: 'border-amber-200 bg-amber-50 text-amber-700',
+    yellow: 'border-yellow-200 bg-yellow-50 text-yellow-700',
+    red: 'border-red-200 bg-red-50 text-red-700',
+    slate: 'border-slate-200 bg-slate-50 text-slate-600',
+};
+
+/**
+ * Maps a net balance to the visual tone used for remaining/credit cards.
+ */
+export function getBalanceMetricTone(balance: number): MetricSummaryTone {
+    if (balance < 0) {
+        return 'blue';
+    }
+
+    if (balance === 0) {
+        return 'slate';
+    }
+
     return 'yellow';
 }
 
@@ -66,12 +94,15 @@ export function MetricSummaryCard({
     value,
     tone = 'teal',
     valueTone,
+    badge,
+    badgeTone,
     compact = false,
     tabular = false,
     className,
     locked = false,
 }: MetricSummaryCardProps) {
     const resolvedValueTone = valueTone ?? tone;
+    const resolvedBadgeTone = badgeTone ?? tone;
     const { t } = useI18n();
 
     if (locked) {
@@ -107,7 +138,17 @@ export function MetricSummaryCard({
                 className
             )}
         >
-            <p className={cn('text-xs font-medium uppercase tracking-wide', toneClasses[tone].label)}>{label}</p>
+            <div className={cn('flex flex-wrap items-center gap-1.5 text-xs font-medium uppercase tracking-wide', toneClasses[tone].label)}>
+                <span>{label}</span>
+                {badge ? (
+                    <span className={cn(
+                        'inline-flex items-center rounded-full border px-1.5 py-0.5 text-[10px] font-semibold leading-none tracking-normal',
+                        badgeClasses[resolvedBadgeTone]
+                    )}>
+                        {badge}
+                    </span>
+                ) : null}
+            </div>
             <p
                 className={cn(
                     'mt-1 font-semibold',

@@ -251,7 +251,7 @@ export interface PatientReportOptions {
     title: string;
     patientName: string;
     patientMeta?: ReadonlyArray<string>;
-    summary?: ReadonlyArray<{ label: string; value: string; tone?: 'red' | 'green' | 'yellow' | 'neutral' }>;
+    summary?: ReadonlyArray<{ label: string; value: string; tone?: 'red' | 'green' | 'yellow' | 'blue' | 'neutral' }>;
     sections: ReadonlyArray<PatientReportSection>;
     orientation?: 'portrait' | 'landscape';
 }
@@ -260,6 +260,7 @@ const TONE_COLORS = {
     red: { bg: '#fef2f2', border: '#fecaca', text: '#b91c1c', label: '#b91c1c' },
     green: { bg: '#f0fdf4', border: '#bbf7d0', text: '#15803d', label: '#15803d' },
     yellow: { bg: '#fefce8', border: '#fde68a', text: '#854d0e', label: '#854d0e' },
+    blue: { bg: '#eff6ff', border: '#bfdbfe', text: '#1d4ed8', label: '#1d4ed8' },
     neutral: { bg: '#f8fafc', border: '#e2e8f0', text: '#0f172a', label: '#64748b' },
 } as const;
 

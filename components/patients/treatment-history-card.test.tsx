@@ -289,6 +289,40 @@ describe('TreatmentHistoryCard image controls', () => {
         expect((await screen.findAllByText('by Hygienist')).length).toBeGreaterThan(0);
     });
 
+    it('labels overpaid remaining summary as an advance without a negative amount', async () => {
+        vi.mocked(listAllPatientTreatments).mockResolvedValue([
+            {
+                id: 'treatment-credit',
+                patient_id: 'patient-1',
+                patient_name: 'Sardor',
+                patient_phone: '+998 90 123 45 67',
+                patient_secondary_phone: null,
+                patient_code: 'PT-1001',
+                tooth_number: 21,
+                teeth: [21],
+                treatment_type: 'Advance payment',
+                description: null,
+                comment: null,
+                treatment_date: '2026-04-05',
+                cost: null,
+                debt_amount: 0,
+                paid_amount: 60000,
+                balance: -60000,
+                notes: null,
+                image_count: 0,
+                primary_image: null,
+                images: [],
+                created_at: '2026-04-05T10:00:00Z',
+                updated_at: '2026-04-05T10:00:00Z',
+            },
+        ] as never);
+
+        renderCard();
+
+        expect((await screen.findAllByText('Advance')).length).toBeGreaterThan(0);
+        expect(screen.queryAllByText((content) => content.includes('-60') && content.includes('UZS'))).toHaveLength(0);
+    });
+
     it('submits standalone payments without requiring matching debt', async () => {
         const user = userEvent.setup();
 

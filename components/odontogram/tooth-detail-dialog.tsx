@@ -61,6 +61,32 @@ function getTreatmentPrimaryImage(treatment: ApiTreatment) {
     return treatment.primary_image ?? null;
 }
 
+function getBalanceStatusKey(balance: number) {
+    if (balance < 0) {
+        return 'patientHistory.balanceStatus.advance';
+    }
+
+    if (balance === 0) {
+        return 'patientHistory.balanceStatus.paid';
+    }
+
+    return 'patientHistory.balanceStatus.debt';
+}
+
+function getBalanceTextClass(balance: number) {
+    const tone = getBalanceMetricTone(balance);
+
+    if (tone === 'blue') {
+        return 'text-blue-700';
+    }
+
+    if (tone === 'slate') {
+        return 'text-slate-700';
+    }
+
+    return 'text-yellow-800';
+}
+
 export function ToothDetailDialog({
     open,
     onOpenChange,
@@ -121,6 +147,7 @@ export function ToothDetailDialog({
             netBalance: totalDebt - totalPaid,
         };
     }, [treatments]);
+    const netBalanceTone = getBalanceMetricTone(summary.netBalance);
 
     const loadTreatmentDetail = async (treatment: ApiTreatment) => {
         if ((treatment.images?.length ?? 0) > 0 || getTreatmentImageCount(treatment) === 0) {
@@ -192,8 +219,10 @@ export function ToothDetailDialog({
                             />
                             <MetricSummaryCard
                                 label={t('patientHistory.table.remaining')}
-                                value={formatCurrency(summary.netBalance)}
-                                tone={getBalanceMetricTone(summary.netBalance)}
+                                value={formatCurrency(Math.abs(summary.netBalance))}
+                                tone={netBalanceTone}
+                                badge={t(getBalanceStatusKey(summary.netBalance))}
+                                badgeTone={netBalanceTone}
                                 tabular
                                 locked={!canViewFinancials}
                             />
@@ -256,15 +285,10 @@ export function ToothDetailDialog({
                                                         <p className="text-xs font-medium uppercase tracking-wide text-slate-400">{t('patientHistory.table.remaining')}</p>
                                                         {canViewFinancials ? (
                                                             <p
-                                                                className={`whitespace-nowrap text-sm font-semibold tabular-nums ${
-                                                                    Number(treatment.balance ?? 0) > 0
-                                                                        ? 'text-red-700'
-                                                                        : Number(treatment.balance ?? 0) < 0
-                                                                            ? 'text-green-700'
-                                                                            : 'text-slate-700'
-                                                                }`}
+                                                                className={`whitespace-nowrap text-sm font-semibold tabular-nums ${getBalanceTextClass(Number(treatment.balance ?? 0))}`}
+                                                                title={t(getBalanceStatusKey(Number(treatment.balance ?? 0)))}
                                                             >
-                                                                {formatCurrency(Number(treatment.balance ?? 0))}
+                                                                {formatCurrency(Math.abs(Number(treatment.balance ?? 0)))}
                                                             </p>
                                                         ) : (
                                                             <span className="inline-flex items-center gap-1 text-sm font-semibold text-slate-300" aria-label={t('dashboard.lockedKpi.label')}>
