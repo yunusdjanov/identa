@@ -107,6 +107,41 @@ class OdontogramTreatmentApiTest extends TestCase
             ->assertJsonPath('data.0.treatment_type', 'Filling');
     }
 
+    public function test_treatments_allow_standalone_payments_and_prepayments(): void
+    {
+        $dentist = User::factory()->create();
+        $patient = Patient::factory()->create(['dentist_id' => $dentist->id]);
+
+        $created = $this->actingAs($dentist, 'web')
+            ->postJson("/api/v1/patients/{$patient->id}/treatments", [
+                'teeth' => [21],
+                'treatment_type' => 'Standalone payment',
+                'treatment_date' => '2026-02-14',
+                'debt_amount' => 0,
+                'paid_amount' => 60000,
+            ])
+            ->assertCreated()
+            ->assertJsonPath('data.debt_amount', 0)
+            ->assertJsonPath('data.paid_amount', 60000)
+            ->assertJsonPath('data.balance', -60000);
+
+        $treatmentId = $created->json('data.id');
+        $this->assertIsString($treatmentId);
+
+        $this->actingAs($dentist, 'web')
+            ->putJson("/api/v1/patients/{$patient->id}/treatments/{$treatmentId}", [
+                'teeth' => [21],
+                'treatment_type' => 'Prepayment',
+                'treatment_date' => '2026-02-15',
+                'debt_amount' => 100,
+                'paid_amount' => 250,
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.debt_amount', 100)
+            ->assertJsonPath('data.paid_amount', 250)
+            ->assertJsonPath('data.balance', -150);
+    }
+
     public function test_dentist_can_update_delete_and_manage_images_for_owned_treatments(): void
     {
         Storage::fake('local');

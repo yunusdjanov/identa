@@ -288,4 +288,55 @@ describe('TreatmentHistoryCard image controls', () => {
 
         expect((await screen.findAllByText('by Hygienist')).length).toBeGreaterThan(0);
     });
+
+    it('submits standalone payments without requiring matching debt', async () => {
+        const user = userEvent.setup();
+
+        vi.mocked(listAllPatientTreatments).mockResolvedValue([] as never);
+        vi.mocked(createPatientTreatment).mockResolvedValue({
+            id: 'treatment-credit',
+            patient_id: 'patient-1',
+            patient_name: 'Sardor',
+            patient_phone: '+998 90 123 45 67',
+            patient_secondary_phone: null,
+            patient_code: 'PT-1001',
+            tooth_number: 21,
+            teeth: [21],
+            treatment_type: 'Advance payment',
+            description: null,
+            comment: null,
+            treatment_date: '2026-04-05',
+            cost: null,
+            debt_amount: 0,
+            paid_amount: 60000,
+            balance: -60000,
+            notes: null,
+            image_count: 0,
+            primary_image: null,
+            images: [],
+            created_at: '2026-04-05T10:00:00Z',
+            updated_at: '2026-04-05T10:00:00Z',
+        } as never);
+
+        renderCard();
+
+        await user.click(await screen.findByRole('button', { name: 'Add Entry' }));
+        await user.clear(screen.getByLabelText(/^Date/i));
+        await user.type(screen.getByLabelText(/^Date/i), '2026-04-05');
+        await user.type(screen.getByLabelText(/^Entry/i), 'Advance payment');
+        await user.clear(screen.getByLabelText(/^Debt/i));
+        await user.type(screen.getByLabelText(/^Debt/i), '0');
+        await user.clear(screen.getByLabelText(/^Paid/i));
+        await user.type(screen.getByLabelText(/^Paid/i), '60000');
+
+        await user.click(screen.getByRole('button', { name: 'Save Changes' }));
+
+        await waitFor(() => {
+            expect(createPatientTreatment).toHaveBeenCalledWith('patient-1', expect.objectContaining({
+                debt_amount: 0,
+                paid_amount: 60000,
+                treatment_type: 'Advance payment',
+            }));
+        });
+    });
 });
