@@ -131,6 +131,24 @@ describe('PatientDetailPage', () => {
         expect(screen.getByTitle('2')).toBeInTheDocument();
     });
 
+    it('renders the compact oral photo section after the summary cards', async () => {
+        vi.mocked(getCurrentUser).mockResolvedValue(dentist as never);
+        vi.mocked(getPatient).mockResolvedValue(patient as never);
+
+        await renderPage();
+
+        const detailCard = await screen.findByText('Detail');
+        const oralPhotoTitle = screen.getByText('Oral photo');
+        const appointmentsTitle = screen.getByText('Appointments');
+
+        expect(screen.getByText('Smile')).toBeInTheDocument();
+        expect(screen.getByText('Top')).toBeInTheDocument();
+        expect(screen.getByText('Bottom')).toBeInTheDocument();
+        expect(screen.getAllByText('No photo')).toHaveLength(3);
+        expect(detailCard.compareDocumentPosition(oralPhotoTitle) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+        expect(oralPhotoTitle.compareDocumentPosition(appointmentsTitle) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    });
+
     it('archives the patient through the confirm dialog', async () => {
         vi.mocked(getCurrentUser).mockResolvedValue(dentist as never);
         vi.mocked(getPatient).mockResolvedValue(patient as never);

@@ -712,13 +712,8 @@ export default function PatientDetailPage({
                 </div>
             </div>
 
-            {/* ───────────────────────────────────────────────────────────
-                ORAL PHOTO — clinical reference image
-                Separate from the identity avatar so doctors can inspect
-                the mouth profile photo without changing patient identity.
-            ─────────────────────────────────────────────────────────── */}
-            <article className="relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm shadow-slate-200/40">
-                <div className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-cyan-400 via-sky-400 to-blue-500" />
+            {/* Shared hidden input for oral photo slot uploads. */}
+            <div className="hidden">
                 <input
                     key={oralPhotoInputKey}
                     ref={oralPhotoInputRef}
@@ -728,141 +723,7 @@ export default function PatientDetailPage({
                     aria-label={t('patientDetail.oralPhoto.upload')}
                     onChange={handleOralPhotoSelection}
                 />
-                <header className="flex items-center gap-2.5 px-4 pt-4 pb-3">
-                    <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-sky-50 text-sky-600 ring-1 ring-sky-100">
-                        <Camera className="h-4 w-4" />
-                    </span>
-                    <div className="min-w-0">
-                        <p className="truncate text-sm font-semibold text-slate-900">
-                            {t('patientDetail.oralPhoto.title')}
-                        </p>
-                        <p className="mt-0.5 text-xs text-slate-500">
-                            {t('patientDetail.oralPhoto.empty')}
-                        </p>
-                    </div>
-                </header>
-                <div className="grid border-t border-slate-100 md:grid-cols-3">
-                    {oralPhotoSlots.map((slot, index) => {
-                        const isUploadingSlot = uploadOralPhotoMutation.isPending
-                            && uploadOralPhotoMutation.variables?.viewType === slot.viewType;
-                        const isDeletingSlot = deleteOralPhotoMutation.isPending
-                            && deleteOralPhotoMutation.variables === slot.viewType;
-                        const slotLabel = t(slot.labelKey);
-                        const slotStatus = slot.hasPhoto
-                            ? t('patientDetail.oralPhoto.ready')
-                            : slot.isProcessing
-                                ? t('patientDetail.oralPhoto.processing')
-                                : slot.isRejected
-                                    ? t('patientDetail.oralPhoto.rejected')
-                                    : t('patientDetail.oralPhoto.slotEmpty');
-
-                        return (
-                            <div
-                                key={slot.viewType}
-                                className={`min-w-0 px-4 py-3 ${index > 0 ? 'border-t border-slate-100 md:border-l md:border-t-0' : ''}`}
-                            >
-                                <div className="flex min-w-0 gap-3">
-                                    <button
-                                        type="button"
-                                        disabled={!slot.hasPhoto}
-                                        onClick={() => {
-                                            if (slot.previewUrl) {
-                                                setOralPhotoPreviewViewType(slot.viewType);
-                                            }
-                                        }}
-                                        className="group relative flex h-20 w-24 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-slate-200 bg-slate-50 text-slate-400 transition hover:border-sky-200 hover:bg-sky-50 disabled:cursor-default disabled:hover:border-slate-200 disabled:hover:bg-slate-50"
-                                        aria-label={t('patientDetail.oralPhoto.view')}
-                                    >
-                                        {slot.hasPhoto && slot.thumbnailUrl ? (
-                                            <>
-                                                {/* eslint-disable-next-line @next/next/no-img-element */}
-                                                <img
-                                                    src={slot.thumbnailUrl}
-                                                    alt={slotLabel}
-                                                    crossOrigin={getProtectedMediaCrossOrigin(slot.thumbnailUrl)}
-                                                    className="h-full w-full object-cover"
-                                                    decoding="async"
-                                                />
-                                                <span className="absolute inset-0 flex items-center justify-center bg-slate-950/0 text-white opacity-0 transition group-hover:bg-slate-950/25 group-hover:opacity-100">
-                                                    <Maximize2 className="h-4 w-4" />
-                                                </span>
-                                            </>
-                                        ) : slot.isProcessing ? (
-                                            <Loader2 className="h-5 w-5 animate-spin text-sky-500" />
-                                        ) : (
-                                            <ImageIcon className="h-6 w-6" />
-                                        )}
-                                    </button>
-                                    <div className="min-w-0 flex-1">
-                                        <p className="truncate text-sm font-semibold text-slate-900">{slotLabel}</p>
-                                        <p className="mt-1 line-clamp-2 text-xs leading-snug text-slate-500">{slotStatus}</p>
-                                        <div className="mt-2 flex flex-wrap gap-1.5">
-                                            {slot.hasPhoto && slot.previewUrl ? (
-                                                <Button
-                                                    type="button"
-                                                    variant="outline"
-                                                    size="sm"
-                                                    className="h-7 rounded-full px-2.5 text-[11px]"
-                                                    onClick={() => setOralPhotoPreviewViewType(slot.viewType)}
-                                                >
-                                                    <Maximize2 className="mr-1 h-3 w-3" />
-                                                    {t('patientDetail.oralPhoto.view')}
-                                                </Button>
-                                            ) : null}
-                                            {canManagePatients ? (
-                                                <Button
-                                                    type="button"
-                                                    variant={slot.hasPhoto ? 'outline' : 'default'}
-                                                    size="sm"
-                                                    className="h-7 rounded-full px-2.5 text-[11px]"
-                                                    disabled={isPatientArchived || isUploadingSlot || isDeletingSlot}
-                                                    onClick={() => pickOralPhoto(slot.viewType)}
-                                                >
-                                                    {isUploadingSlot ? (
-                                                        <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-                                                    ) : (
-                                                        <Upload className="mr-1 h-3 w-3" />
-                                                    )}
-                                                    {slot.hasPhoto ? t('patientDetail.oralPhoto.replace') : t('patientDetail.oralPhoto.upload')}
-                                                </Button>
-                                            ) : isSubscriptionReadOnly(currentUser) && canViewPatients ? (
-                                                <Button
-                                                    type="button"
-                                                    variant="outline"
-                                                    size="sm"
-                                                    className="h-7 rounded-full px-2.5 text-[11px]"
-                                                    disabled
-                                                    onClick={denyManageAction}
-                                                >
-                                                    <Upload className="mr-1 h-3 w-3" />
-                                                    {slot.hasPhoto ? t('patientDetail.oralPhoto.replace') : t('patientDetail.oralPhoto.upload')}
-                                                </Button>
-                                            ) : null}
-                                            {canManagePatients && slot.photo ? (
-                                                <Button
-                                                    type="button"
-                                                    variant="outline"
-                                                    size="sm"
-                                                    className="h-7 rounded-full px-2.5 text-[11px] text-red-600 hover:text-red-700"
-                                                    disabled={isPatientArchived || isUploadingSlot || isDeletingSlot}
-                                                    onClick={() => setDeleteOralPhotoViewType(slot.viewType)}
-                                                >
-                                                    {isDeletingSlot ? (
-                                                        <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-                                                    ) : (
-                                                        <Trash2 className="mr-1 h-3 w-3" />
-                                                    )}
-                                                    {t('common.delete')}
-                                                </Button>
-                                            ) : null}
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        );
-                    })}
-                </div>
-            </article>
+            </div>
 
             {/* Premium triad: Contact · Clinic · Detail */}
             <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
@@ -1003,6 +864,147 @@ export default function PatientDetailPage({
                 </article>
 
             </div>
+
+            <article className="relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm shadow-slate-200/40">
+                <div className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-cyan-400 via-sky-400 to-blue-500" />
+                <header className="flex flex-col gap-2 px-4 pt-3 pb-2 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex min-w-0 items-center gap-2.5">
+                        <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-sky-50 text-sky-600 ring-1 ring-sky-100">
+                            <Camera className="h-4 w-4" />
+                        </span>
+                        <div className="min-w-0">
+                            <p className="truncate text-sm font-semibold text-slate-900">
+                                {t('patientDetail.oralPhoto.title')}
+                            </p>
+                            <p className="mt-0.5 truncate text-xs text-slate-500">
+                                {t('patientDetail.oralPhoto.empty')}
+                            </p>
+                        </div>
+                    </div>
+                </header>
+                <div className="grid gap-2 border-t border-slate-100 p-3 lg:grid-cols-3">
+                    {oralPhotoSlots.map((slot) => {
+                        const isUploadingSlot = uploadOralPhotoMutation.isPending
+                            && uploadOralPhotoMutation.variables?.viewType === slot.viewType;
+                        const isDeletingSlot = deleteOralPhotoMutation.isPending
+                            && deleteOralPhotoMutation.variables === slot.viewType;
+                        const slotLabel = t(slot.labelKey);
+                        const slotStatusKey = slot.hasPhoto
+                            ? 'patientDetail.oralPhoto.status.ready'
+                            : slot.isProcessing
+                                ? 'patientDetail.oralPhoto.status.processing'
+                                : slot.isRejected
+                                    ? 'patientDetail.oralPhoto.status.rejected'
+                                    : 'patientDetail.oralPhoto.status.empty';
+                        const slotStatusClassName = slot.hasPhoto
+                            ? 'bg-emerald-50 text-emerald-700 ring-emerald-100'
+                            : slot.isProcessing
+                                ? 'bg-sky-50 text-sky-700 ring-sky-100'
+                                : slot.isRejected
+                                    ? 'bg-rose-50 text-rose-700 ring-rose-100'
+                                    : 'bg-slate-50 text-slate-500 ring-slate-100';
+
+                        return (
+                            <div
+                                key={slot.viewType}
+                                className="flex min-w-0 items-center gap-3 rounded-xl border border-slate-100 bg-slate-50/60 p-2.5"
+                            >
+                                <button
+                                    type="button"
+                                    disabled={!slot.hasPhoto}
+                                    onClick={() => {
+                                        if (slot.previewUrl) {
+                                            setOralPhotoPreviewViewType(slot.viewType);
+                                        }
+                                    }}
+                                    className="group relative flex h-14 w-16 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-slate-200 bg-white text-slate-400 transition hover:border-sky-200 hover:bg-sky-50 disabled:cursor-default disabled:hover:border-slate-200 disabled:hover:bg-white"
+                                    aria-label={t('patientDetail.oralPhoto.view')}
+                                    title={slot.hasPhoto ? t('patientDetail.oralPhoto.view') : slotLabel}
+                                >
+                                    {slot.hasPhoto && slot.thumbnailUrl ? (
+                                        <>
+                                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                                            <img
+                                                src={slot.thumbnailUrl}
+                                                alt={slotLabel}
+                                                crossOrigin={getProtectedMediaCrossOrigin(slot.thumbnailUrl)}
+                                                className="h-full w-full object-cover"
+                                                decoding="async"
+                                            />
+                                            <span className="absolute inset-0 flex items-center justify-center bg-slate-950/0 text-white opacity-0 transition group-hover:bg-slate-950/25 group-hover:opacity-100">
+                                                <Maximize2 className="h-4 w-4" />
+                                            </span>
+                                        </>
+                                    ) : slot.isProcessing ? (
+                                        <Loader2 className="h-4 w-4 animate-spin text-sky-500" />
+                                    ) : (
+                                        <ImageIcon className="h-5 w-5" />
+                                    )}
+                                </button>
+                                <div className="min-w-0 flex-1">
+                                    <div className="flex min-w-0 items-center gap-2">
+                                        <p className="min-w-0 flex-1 truncate text-sm font-semibold text-slate-900">
+                                            {slotLabel}
+                                        </p>
+                                        <span className={`inline-flex shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.08em] ring-1 ${slotStatusClassName}`}>
+                                            {t(slotStatusKey)}
+                                        </span>
+                                    </div>
+                                    <div className="mt-2 flex items-center gap-1.5">
+                                        {canManagePatients ? (
+                                            <Button
+                                                type="button"
+                                                variant={slot.hasPhoto ? 'outline' : 'default'}
+                                                size="sm"
+                                                className="h-7 rounded-full px-2.5 text-[11px]"
+                                                disabled={isPatientArchived || isUploadingSlot || isDeletingSlot}
+                                                onClick={() => pickOralPhoto(slot.viewType)}
+                                            >
+                                                {isUploadingSlot ? (
+                                                    <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                                                ) : (
+                                                    <Upload className="mr-1 h-3 w-3" />
+                                                )}
+                                                {slot.hasPhoto ? t('patientDetail.oralPhoto.replace') : t('patientDetail.oralPhoto.upload')}
+                                            </Button>
+                                        ) : isSubscriptionReadOnly(currentUser) && canViewPatients ? (
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                size="sm"
+                                                className="h-7 rounded-full px-2.5 text-[11px]"
+                                                disabled
+                                                onClick={denyManageAction}
+                                            >
+                                                <Upload className="mr-1 h-3 w-3" />
+                                                {slot.hasPhoto ? t('patientDetail.oralPhoto.replace') : t('patientDetail.oralPhoto.upload')}
+                                            </Button>
+                                        ) : null}
+                                        {canManagePatients && slot.photo ? (
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                size="icon"
+                                                className="h-7 w-7 rounded-full text-red-600 hover:text-red-700"
+                                                disabled={isPatientArchived || isUploadingSlot || isDeletingSlot}
+                                                onClick={() => setDeleteOralPhotoViewType(slot.viewType)}
+                                                aria-label={t('common.delete')}
+                                                title={t('common.delete')}
+                                            >
+                                                {isDeletingSlot ? (
+                                                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                                ) : (
+                                                    <Trash2 className="h-3.5 w-3.5" />
+                                                )}
+                                            </Button>
+                                        ) : null}
+                                    </div>
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+            </article>
 
             {/* ───────────────────────────────────────────────────────────
                 APPOINTMENTS — sister card to the triad

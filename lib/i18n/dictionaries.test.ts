@@ -85,6 +85,15 @@ describe('i18n dictionaries integrity', () => {
         expect(offenders).toEqual([]);
     });
 
+    it('localizes oral photo slot and compact status labels', () => {
+        expect(ru['patientDetail.oralPhoto.slot.smile']).toBe('Улыбка');
+        expect(uz['patientDetail.oralPhoto.slot.smile']).toBe('Tabassum');
+        expect(en['patientDetail.oralPhoto.slot.smile']).toBe('Smile');
+        expect(ru['patientDetail.oralPhoto.status.empty']).toBe('Нет фото');
+        expect(uz['patientDetail.oralPhoto.status.empty']).toBe("Rasm yo'q");
+        expect(en['patientDetail.oralPhoto.status.empty']).toBe('No photo');
+    });
+
     it('defines each key exactly once per locale in the source', () => {
         // The dictionaries are assembled from many `Object.assign` blocks where
         // a later definition silently overrides an earlier one. Duplicate keys
