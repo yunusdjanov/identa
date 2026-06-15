@@ -160,16 +160,24 @@ function ReachRow({
     value,
     href,
     multiline = false,
+    maxLines,
 }: {
     icon: React.ComponentType<{ className?: string }>;
     label: string;
     value: string;
     href?: string;
     multiline?: boolean;
+    maxLines?: 2;
 }) {
+    const valueWrappingClass = multiline
+        ? maxLines === 2
+            ? 'line-clamp-2 whitespace-normal break-words'
+            : 'whitespace-normal break-words'
+        : 'truncate';
+
     const valueNode = (
         <span
-            className={`ml-auto max-w-[62%] text-right text-[13px] font-semibold tabular-nums text-slate-900 ${multiline ? 'whitespace-normal break-words' : 'truncate'}`}
+            className={`ml-auto max-w-[62%] text-right text-[13px] font-semibold tabular-nums text-slate-900 ${valueWrappingClass}`}
             title={value}
         >
             {value}
@@ -761,6 +769,7 @@ export default function PatientDetailPage({
                                 label={t('patientDetail.address')}
                                 value={patient.address}
                                 multiline
+                                maxLines={2}
                             />
                         ) : null}
                         {patient.date_of_birth ? (

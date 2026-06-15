@@ -116,6 +116,19 @@ describe('PatientDetailPage', () => {
         expect(await screen.findByText('John Smith')).toBeInTheDocument();
     });
 
+    it('keeps long address values clamped in the contact card', async () => {
+        const longAddress =
+            '4501 Garfield Centers, B block 23 floor 334# Room. Main road street side. 4501 Garfield Centers, B block 23 floor 334# Room.';
+        vi.mocked(getCurrentUser).mockResolvedValue(dentist as never);
+        vi.mocked(getPatient).mockResolvedValue({ ...patient, address: longAddress } as never);
+
+        await renderPage();
+
+        const addressValue = await screen.findByTitle(longAddress);
+        expect(addressValue).toHaveClass('line-clamp-2');
+        expect(addressValue).toHaveTextContent(longAddress);
+    });
+
     it('renders the total visits from the overview visit count', async () => {
         vi.mocked(getCurrentUser).mockResolvedValue(dentist as never);
         vi.mocked(getPatient).mockResolvedValue(patient as never);
