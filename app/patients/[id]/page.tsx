@@ -65,6 +65,12 @@ import { getProtectedMediaCrossOrigin, getProtectedMediaPreviewUrl, getProtected
 import { INPUT_LIMITS } from '@/lib/input-validation';
 import { optimizeImageFileForUpload } from '@/lib/browser-image';
 import type { ApiPatient, ApiPatientClinicalPhotoViewType } from '@/lib/api/types';
+import {
+    getPatientOralPhoto,
+    hasPendingOralPhotoProcessing,
+    ORAL_PHOTO_POLL_INTERVAL_MS,
+    ORAL_PHOTO_SLOTS,
+} from '@/lib/patients/oral-photos';
 import { AppErrorState } from '@/components/error/app-error-state';
 import { AccessDeniedState } from '@/components/error/access-denied-state';
 import { canManage, canView, getManageDeniedMessage, isSubscriptionReadOnly } from '@/lib/auth/permissions';
@@ -87,14 +93,6 @@ const PATIENT_MEDICATIONS_UI_LIMIT = INPUT_LIMITS.medicalMedications;
 const PATIENT_MEDICAL_HISTORY_UI_LIMIT = INPUT_LIMITS.medicalHistory;
 const DEFAULT_ORAL_PHOTO_UPLOAD_MAX_MB = 1;
 const ORAL_PHOTO_UPLOAD_MAX_EDGE = 1600;
-const ORAL_PHOTO_SLOTS: Array<{
-    viewType: ApiPatientClinicalPhotoViewType;
-    labelKey: string;
-}> = [
-    { viewType: 'smile', labelKey: 'patientDetail.oralPhoto.slot.smile' },
-    { viewType: 'top', labelKey: 'patientDetail.oralPhoto.slot.top' },
-    { viewType: 'bottom', labelKey: 'patientDetail.oralPhoto.slot.bottom' },
-];
 
 function getPatientInitials(fullName: string): string {
     const parts = fullName.trim().split(/\s+/).filter(Boolean);
@@ -121,10 +119,6 @@ function computePatientAge(dateOfBirth: string): number {
         age--;
     }
     return Math.max(0, age);
-}
-
-function getPatientOralPhoto(patient: ApiPatient, viewType: ApiPatientClinicalPhotoViewType) {
-    return patient.oral_photos?.[viewType] ?? (viewType === 'smile' ? patient.oral_photo ?? null : null);
 }
 
 /* ============================================================
@@ -311,6 +305,10 @@ export default function PatientDetailPage({
         enabled: canViewPatients,
         retry: false,
         staleTime: 30_000,
+        refetchInterval: (query) => hasPendingOralPhotoProcessing(query.state.data as ApiPatient | undefined)
+            ? ORAL_PHOTO_POLL_INTERVAL_MS
+            : false,
+        refetchIntervalInBackground: true,
     });
 
     const overviewQuery = useQuery({
@@ -369,7 +367,11 @@ export default function PatientDetailPage({
         mutationFn: ({ photo, viewType }: { photo: File; viewType: ApiPatientClinicalPhotoViewType }) =>
             uploadPatientOralPhoto(id, photo, viewType),
         onSuccess: (updatedPatient) => {
-            toast.success(t('patientDetail.toast.oralPhotoUploaded'));
+            toast.success(t(
+                hasPendingOralPhotoProcessing(updatedPatient)
+                    ? 'patientDetail.toast.oralPhotoProcessing'
+                    : 'patientDetail.toast.oralPhotoUploaded'
+            ));
             queryClient.setQueryData(['patients', 'detail', id], updatedPatient);
             queryClient.invalidateQueries({ queryKey: ['patients'] });
             queryClient.invalidateQueries({ queryKey: ['patients', 'detail', id] });
