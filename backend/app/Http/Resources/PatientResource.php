@@ -4,6 +4,7 @@ namespace App\Http\Resources;
 
 use App\Http\Resources\Concerns\SerializesRecordActors;
 use App\Models\Patient;
+use App\Services\PatientClinicalPhotoService;
 use App\Services\PatientPhotoService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -15,6 +16,7 @@ class PatientResource extends JsonResource
     public function __construct(
         Patient $resource,
         private readonly PatientPhotoService $photos,
+        private readonly PatientClinicalPhotoService $clinicalPhotos,
     ) {
         parent::__construct($resource);
     }
@@ -29,6 +31,7 @@ class PatientResource extends JsonResource
         $photoDisk = is_string($patient->photo_disk) && $patient->photo_disk !== ''
             ? $patient->photo_disk
             : $this->photos->disk();
+        $patient->loadMissing('primaryOralPhoto');
 
         return [
             'id' => (string) $patient->id,
@@ -55,6 +58,11 @@ class PatientResource extends JsonResource
                 $photoDisk,
                 $patient,
                 PatientPhotoService::IMAGE_VARIANT_PREVIEW
+            ),
+            'oral_photo' => $this->clinicalPhotos->resourcePayload(
+                $patient,
+                $patient->primaryOralPhoto,
+                $request
             ),
             'created_at' => $patient->created_at?->toIso8601String(),
             'updated_at' => $patient->updated_at?->toIso8601String(),

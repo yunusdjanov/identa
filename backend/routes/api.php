@@ -220,6 +220,16 @@ Route::prefix('v1')->group(function (): void {
             ->middleware('permission:'.User::PERMISSION_PATIENTS_MANAGE);
         Route::delete('patients/{id}/photo', [PatientController::class, 'deletePhoto'])
             ->middleware('permission:'.User::PERMISSION_PATIENTS_MANAGE);
+        Route::get('patients/{id}/oral-photo', [PatientController::class, 'downloadOralPhoto'])
+            ->middleware('permission:'.User::PERMISSION_PATIENTS_VIEW);
+        Route::post('patients/{id}/oral-photo/direct-upload', [PatientController::class, 'prepareOralPhotoUpload'])
+            ->middleware('permission:'.User::PERMISSION_PATIENTS_MANAGE);
+        Route::post('patients/{id}/oral-photo/direct-upload/{uploadId}/complete', [PatientController::class, 'finalizeOralPhotoUpload'])
+            ->middleware('permission:'.User::PERMISSION_PATIENTS_MANAGE);
+        Route::post('patients/{id}/oral-photo', [PatientController::class, 'uploadOralPhoto'])
+            ->middleware('permission:'.User::PERMISSION_PATIENTS_MANAGE);
+        Route::delete('patients/{id}/oral-photo', [PatientController::class, 'deleteOralPhoto'])
+            ->middleware('permission:'.User::PERMISSION_PATIENTS_MANAGE);
         Route::put('patients/{id}', [PatientController::class, 'update'])
             ->middleware('permission:'.User::PERMISSION_PATIENTS_MANAGE);
         Route::delete('patients/{id}', [PatientController::class, 'destroy'])

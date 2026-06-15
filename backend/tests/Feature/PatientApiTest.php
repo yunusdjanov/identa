@@ -261,6 +261,43 @@ class PatientApiTest extends TestCase
         ]);
     }
 
+    public function test_dentist_can_upload_patient_oral_photo(): void
+    {
+        Storage::fake('local');
+        $dentist = User::factory()->create();
+        $patient = Patient::factory()->create([
+            'dentist_id' => $dentist->id,
+        ]);
+
+        $this->actingAs($dentist, 'web')
+            ->post("/api/v1/patients/{$patient->id}/oral-photo", [
+                'photo' => UploadedFile::fake()->image('oral-photo.jpg', 1800, 1200),
+            ], ['Accept' => 'application/json'])
+            ->assertOk()
+            ->assertJsonPath('data.id', $patient->id)
+            ->assertJsonPath('data.oral_photo.view_type', 'oral_primary')
+            ->assertJsonPath('data.oral_photo.scan_status', 'approved')
+            ->assertJsonPath('data.oral_photo.thumbnail_ready', true)
+            ->assertJsonPath('data.oral_photo.preview_ready', true)
+            ->assertJsonStructure([
+                'data' => [
+                    'oral_photo' => [
+                        'id',
+                        'url',
+                        'thumbnail_url',
+                        'preview_url',
+                    ],
+                ],
+            ]);
+
+        $this->assertDatabaseHas('patient_clinical_photos', [
+            'dentist_id' => $dentist->id,
+            'patient_id' => $patient->id,
+            'view_type' => 'oral_primary',
+            'scan_status' => 'approved',
+        ]);
+    }
+
     public function test_dentist_can_restore_archived_patient(): void
     {
         $dentist = User::factory()->create();

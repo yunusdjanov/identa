@@ -11,6 +11,7 @@ use App\Models\Patient;
 use App\Models\Treatment;
 use App\Models\User;
 use App\Support\AuditLogger;
+use App\Support\MediaVariantPaths;
 use App\Support\Search;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
@@ -52,6 +53,7 @@ class PatientService
                     'categories:id,name,color,sort_order',
                     'createdBy:id,name,role',
                     'updatedBy:id,name,role',
+                    'primaryOralPhoto',
                 ])
         );
 
@@ -155,6 +157,7 @@ class PatientService
                 'categories:id,name,color,sort_order',
                 'createdBy:id,name,role',
                 'updatedBy:id,name,role',
+                'primaryOralPhoto',
             ]);
         });
 
@@ -204,6 +207,7 @@ class PatientService
                 'categories:id,name,color,sort_order',
                 'createdBy:id,name,role',
                 'updatedBy:id,name,role',
+                'primaryOralPhoto',
             ]);
         });
 
@@ -424,6 +428,12 @@ class PatientService
                 fn ($image) => $collect($image->disk, $this->treatmentImages->deletePaths((string) $image->path))
             )
         );
+        $patient->clinicalPhotos()->get()->each(function ($photo) use ($collect): void {
+            $collect($photo->disk, MediaVariantPaths::deletePaths($photo, (string) $photo->path));
+            if (is_string($photo->quarantine_path) && trim($photo->quarantine_path) !== '') {
+                $collect($photo->disk, MediaVariantPaths::deletePaths($photo, $photo->quarantine_path));
+            }
+        });
 
         // Remove the patient (cascades appointments/invoices/payments/odontogram
         // entries+images/treatments+images/category links) atomically.
@@ -462,6 +472,7 @@ class PatientService
                     'categories:id,name,color,sort_order',
                     'createdBy:id,name,role',
                     'updatedBy:id,name,role',
+                    'primaryOralPhoto',
                 ])
         )->firstOrFail();
     }

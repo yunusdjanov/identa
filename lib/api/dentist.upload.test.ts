@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { apiClient } from '@/lib/api/client';
-import { uploadPatientPhoto } from '@/lib/api/dentist';
+import { uploadPatientOralPhoto, uploadPatientPhoto } from '@/lib/api/dentist';
 
 vi.mock('@/lib/api/client', () => ({
     apiClient: {
@@ -77,6 +77,68 @@ describe('uploadPatientPhoto', () => {
 
         expect(apiClient.post).toHaveBeenLastCalledWith(
             '/patients/patient-1/photo',
+            expect.any(FormData)
+        );
+    });
+});
+
+describe('uploadPatientOralPhoto', () => {
+    beforeEach(() => {
+        vi.mocked(apiClient.post).mockReset();
+        vi.stubGlobal('fetch', vi.fn());
+    });
+
+    it('uploads oral photos directly to the signed URL and completes the ticket', async () => {
+        vi.mocked(apiClient.post)
+            .mockResolvedValueOnce({
+                data: {
+                    data: {
+                        supported: true,
+                        upload_id: 'oral-upload-1',
+                        method: 'PUT',
+                        url: 'https://bucket.account.r2.cloudflarestorage.com/oral-photo.png',
+                    },
+                },
+            })
+            .mockResolvedValueOnce({ data: { data: patient } });
+        vi.mocked(fetch).mockResolvedValueOnce({ ok: true } as Response);
+
+        await expect(uploadPatientOralPhoto('patient-1', makePhoto())).resolves.toEqual(patient);
+
+        expect(fetch).toHaveBeenCalledWith(
+            'https://bucket.account.r2.cloudflarestorage.com/oral-photo.png',
+            expect.objectContaining({
+                method: 'PUT',
+                mode: 'cors',
+                headers: expect.objectContaining({
+                    'Content-Type': 'image/png',
+                }),
+            })
+        );
+        expect(apiClient.post).toHaveBeenLastCalledWith(
+            '/patients/patient-1/oral-photo/direct-upload/oral-upload-1/complete'
+        );
+    });
+
+    it('falls back to multipart API upload for oral photos when direct upload is blocked', async () => {
+        vi.mocked(apiClient.post)
+            .mockResolvedValueOnce({
+                data: {
+                    data: {
+                        supported: true,
+                        upload_id: 'oral-upload-1',
+                        method: 'PUT',
+                        url: 'https://bucket.account.r2.cloudflarestorage.com/oral-photo.png',
+                    },
+                },
+            })
+            .mockResolvedValueOnce({ data: { data: patient } });
+        vi.mocked(fetch).mockRejectedValueOnce(new TypeError('Blocked by CSP'));
+
+        await expect(uploadPatientOralPhoto('patient-1', makePhoto())).resolves.toEqual(patient);
+
+        expect(apiClient.post).toHaveBeenLastCalledWith(
+            '/patients/patient-1/oral-photo',
             expect.any(FormData)
         );
     });

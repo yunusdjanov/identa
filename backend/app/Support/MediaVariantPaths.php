@@ -4,6 +4,7 @@ namespace App\Support;
 
 use App\Models\OdontogramEntryImage;
 use App\Models\Patient;
+use App\Models\PatientClinicalPhoto;
 use App\Models\TreatmentImage;
 use Illuminate\Database\Eloquent\Model;
 
@@ -20,6 +21,10 @@ class MediaVariantPaths
     private const TREATMENT_THUMBNAIL_MAX_EDGE = 200;
 
     private const TREATMENT_PREVIEW_MAX_EDGE = 1280;
+
+    private const CLINICAL_PHOTO_THUMBNAIL_MAX_EDGE = 200;
+
+    private const CLINICAL_PHOTO_PREVIEW_MAX_EDGE = 1280;
 
     /**
      * Build image variant job definitions for the media record type.
@@ -63,6 +68,7 @@ class MediaVariantPaths
     {
         return match (true) {
             $record instanceof Patient => 'Patient photo',
+            $record instanceof PatientClinicalPhoto => 'Patient clinical photo',
             $record instanceof TreatmentImage => 'Treatment image',
             $record instanceof OdontogramEntryImage => 'Odontogram image',
             default => 'Stored media',
@@ -78,6 +84,13 @@ class MediaVariantPaths
             return [
                 self::IMAGE_VARIANT_THUMBNAIL => self::TREATMENT_THUMBNAIL_MAX_EDGE,
                 self::IMAGE_VARIANT_PREVIEW => self::TREATMENT_PREVIEW_MAX_EDGE,
+            ];
+        }
+
+        if ($record instanceof PatientClinicalPhoto) {
+            return [
+                self::IMAGE_VARIANT_THUMBNAIL => self::CLINICAL_PHOTO_THUMBNAIL_MAX_EDGE,
+                self::IMAGE_VARIANT_PREVIEW => self::CLINICAL_PHOTO_PREVIEW_MAX_EDGE,
             ];
         }
 

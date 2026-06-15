@@ -8,6 +8,7 @@ use App\Http\Requests\StorePatientRequest;
 use App\Http\Requests\UpdatePatientRequest;
 use App\Http\Resources\PatientResource;
 use App\Models\Patient;
+use App\Services\PatientClinicalPhotoService;
 use App\Services\PatientPhotoService;
 use App\Services\PatientService;
 use App\Support\AuditLogger;
@@ -22,6 +23,7 @@ class PatientController extends Controller
         private readonly AuditLogger $auditLogger,
         private readonly PatientService $patients,
         private readonly PatientPhotoService $photos,
+        private readonly PatientClinicalPhotoService $clinicalPhotos,
     ) {}
 
     public function index(Request $request): JsonResponse
@@ -215,6 +217,121 @@ class PatientController extends Controller
         ]);
     }
 
+    public function uploadOralPhoto(Request $request, string $id): JsonResponse
+    {
+        $patient = $this->patients->ownedPatient($request, $id);
+        $this->patients->ensureNotArchived($patient, __('api.patients.archived_restore_before_edit'));
+
+        $validated = $request->validate([
+            'photo' => ['required', 'file', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
+        ]);
+
+        /** @var UploadedFile $uploadedPhoto */
+        $uploadedPhoto = $validated['photo'];
+        $this->clinicalPhotos->uploadPrimaryOralQueued(
+            $patient,
+            $uploadedPhoto,
+            $this->patients->subscriptionOwner($request)
+        );
+
+        $this->auditLogger->logFromRequest(
+            request: $request,
+            eventType: 'patient.oral_photo.updated',
+            entityType: 'patient',
+            entityId: (string) $patient->id,
+            metadata: [
+                'view_type' => 'oral_primary',
+            ],
+        );
+
+        return response()->json([
+            'data' => $this->transformPatient($this->patients->ownedPatient($request, $id), $request),
+        ]);
+    }
+
+    public function prepareOralPhotoUpload(
+        PreparePatientPhotoUploadRequest $request,
+        string $id
+    ): JsonResponse {
+        $patient = $this->patients->ownedPatient($request, $id);
+        $this->patients->ensureNotArchived($patient, __('api.patients.archived_restore_before_edit'));
+
+        return response()->json([
+            'data' => $this->clinicalPhotos->preparePrimaryOral(
+                dentistId: $this->patients->dentistId($request),
+                patient: $patient,
+                owner: $this->patients->subscriptionOwner($request),
+                validated: $request->validated(),
+            ),
+        ]);
+    }
+
+    public function finalizeOralPhotoUpload(
+        Request $request,
+        string $id,
+        string $uploadId
+    ): JsonResponse {
+        $patient = $this->patients->ownedPatient($request, $id);
+        $this->patients->ensureNotArchived($patient, __('api.patients.archived_restore_before_edit'));
+
+        $this->clinicalPhotos->finalizePrimaryOral(
+            patient: $patient,
+            dentistId: $this->patients->dentistId($request),
+            owner: $this->patients->subscriptionOwner($request),
+            uploadId: $uploadId,
+        );
+
+        $this->auditLogger->logFromRequest(
+            request: $request,
+            eventType: 'patient.oral_photo.updated',
+            entityType: 'patient',
+            entityId: (string) $patient->id,
+            metadata: [
+                'direct_upload' => true,
+                'view_type' => 'oral_primary',
+            ],
+        );
+
+        return response()->json([
+            'data' => $this->transformPatient($this->patients->ownedPatient($request, $id), $request),
+        ]);
+    }
+
+    public function downloadOralPhoto(Request $request, string $id): StreamedResponse
+    {
+        $patient = $this->patients->ownedPatient($request, $id);
+        $variant = $request->query('variant');
+
+        return $this->clinicalPhotos->stream(
+            $this->clinicalPhotos->primaryOralPhotoOrFail($patient),
+            is_string($variant) && $variant !== '' ? $variant : null
+        );
+    }
+
+    public function deleteOralPhoto(Request $request, string $id): JsonResponse
+    {
+        $patient = $this->patients->ownedPatient($request, $id);
+        $this->patients->ensureNotArchived($patient, __('api.patients.archived_restore_before_edit'));
+        $photo = $this->clinicalPhotos->primaryOralPhotoOrFail($patient);
+
+        $this->clinicalPhotos->delete($photo);
+        $photo->delete();
+
+        $this->auditLogger->logFromRequest(
+            request: $request,
+            eventType: 'patient.oral_photo.deleted',
+            entityType: 'patient',
+            entityId: (string) $patient->id,
+            metadata: [
+                'view_type' => 'oral_primary',
+            ],
+        );
+
+        return response()->json([
+            'data' => $this->transformPatient($this->patients->ownedPatient($request, $id), $request),
+        ]);
+    }
+
     public function destroy(Request $request, string $id): JsonResponse
     {
         $this->patients->archive($request, $id);
@@ -243,6 +360,6 @@ class PatientController extends Controller
      */
     private function transformPatient(Patient $patient, ?Request $request = null): array
     {
-        return (new PatientResource($patient, $this->photos))->resolve($request ?? request());
+        return (new PatientResource($patient, $this->photos, $this->clinicalPhotos))->resolve($request ?? request());
     }
 }

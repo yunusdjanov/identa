@@ -1,7 +1,7 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { use, useMemo, useState } from 'react';
+import { use, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -12,11 +12,13 @@ import { PatientDetailLoadingState } from '@/components/layout/page-loading-skel
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
     archivePatient,
+    deletePatientOralPhoto,
     getCurrentUser,
     getPatient,
     getPatientOverview,
     permanentlyDeletePatient,
     restorePatient,
+    uploadPatientOralPhoto,
 } from '@/lib/api/dentist';
 import { getApiErrorMessage } from '@/lib/api/client';
 import {
@@ -35,6 +37,7 @@ import {
     Calendar,
     CalendarCheck,
     CalendarClock,
+    Camera,
     ClipboardList,
     Clock3,
     Contact,
@@ -42,11 +45,15 @@ import {
     FileText,
     Hash,
     HeartPulse,
+    ImageIcon,
+    Loader2,
     Lock,
     MapPin,
+    Maximize2,
     Phone,
     Pill,
     Plus,
+    Upload,
     Trash2,
     User,
     Wallet,
@@ -54,8 +61,9 @@ import {
 import { EmptyState } from '@/components/ui/empty-state';
 import { toast } from 'sonner';
 import { useI18n } from '@/components/providers/i18n-provider';
-import { getProtectedMediaCrossOrigin, getProtectedMediaThumbnailUrl } from '@/lib/protected-media';
+import { getProtectedMediaCrossOrigin, getProtectedMediaPreviewUrl, getProtectedMediaThumbnailUrl } from '@/lib/protected-media';
 import { INPUT_LIMITS } from '@/lib/input-validation';
+import { optimizeImageFileForUpload } from '@/lib/browser-image';
 import { AppErrorState } from '@/components/error/app-error-state';
 import { AccessDeniedState } from '@/components/error/access-denied-state';
 import { canManage, canView, getManageDeniedMessage, isSubscriptionReadOnly } from '@/lib/auth/permissions';
@@ -66,11 +74,18 @@ const EditPatientDialog = dynamic(
     { ssr: false }
 );
 
+const PatientPhotoPreviewDialog = dynamic(
+    () => import('@/components/patients/patient-photo-preview-dialog').then((module) => module.PatientPhotoPreviewDialog),
+    { ssr: false }
+);
+
 const PATIENT_HEADER_NAME_UI_LIMIT = 25;
 const PATIENT_CATEGORY_CHIP_UI_LIMIT = 20;
 const PATIENT_ALLERGIES_UI_LIMIT = INPUT_LIMITS.medicalAllergies;
 const PATIENT_MEDICATIONS_UI_LIMIT = INPUT_LIMITS.medicalMedications;
 const PATIENT_MEDICAL_HISTORY_UI_LIMIT = INPUT_LIMITS.medicalHistory;
+const DEFAULT_ORAL_PHOTO_UPLOAD_MAX_MB = 1;
+const ORAL_PHOTO_UPLOAD_MAX_EDGE = 1600;
 
 function getPatientInitials(fullName: string): string {
     const parts = fullName.trim().split(/\s+/).filter(Boolean);
@@ -251,10 +266,14 @@ export default function PatientDetailPage({
         detail: { ru: 'Детали', uz: 'Tafsilot', en: 'Detail' }[locale] ?? 'Detail',
     };
     const queryClient = useQueryClient();
+    const oralPhotoInputRef = useRef<HTMLInputElement | null>(null);
     const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
     const [isArchivePatientDialogOpen, setIsArchivePatientDialogOpen] = useState(false);
     const [isRestorePatientDialogOpen, setIsRestorePatientDialogOpen] = useState(false);
     const [isPermanentDeletePatientDialogOpen, setIsPermanentDeletePatientDialogOpen] = useState(false);
+    const [isOralPhotoPreviewOpen, setIsOralPhotoPreviewOpen] = useState(false);
+    const [isDeleteOralPhotoDialogOpen, setIsDeleteOralPhotoDialogOpen] = useState(false);
+    const [oralPhotoInputKey, setOralPhotoInputKey] = useState(0);
     const todayDateKey = toLocalDateKey();
     const currentUserQuery = useQuery({
         queryKey: ['auth', 'me'],
@@ -329,6 +348,37 @@ export default function PatientDetailPage({
         },
         onError: (error) => {
             toast.error(getApiErrorMessage(error, t('patientDetail.toast.permanentDeleteFailed')));
+        },
+    });
+
+    const uploadOralPhotoMutation = useMutation({
+        mutationFn: (photo: File) => uploadPatientOralPhoto(id, photo),
+        onSuccess: (updatedPatient) => {
+            toast.success(t('patientDetail.toast.oralPhotoUploaded'));
+            queryClient.setQueryData(['patients', 'detail', id], updatedPatient);
+            queryClient.invalidateQueries({ queryKey: ['patients'] });
+            queryClient.invalidateQueries({ queryKey: ['patients', 'detail', id] });
+        },
+        onError: (error) => {
+            toast.error(getApiErrorMessage(error, t('patients.toast.photoUploadFailed')));
+        },
+        onSettled: () => {
+            setOralPhotoInputKey((value) => value + 1);
+        },
+    });
+
+    const deleteOralPhotoMutation = useMutation({
+        mutationFn: () => deletePatientOralPhoto(id),
+        onSuccess: (updatedPatient) => {
+            toast.success(t('patientDetail.toast.oralPhotoDeleted'));
+            setIsDeleteOralPhotoDialogOpen(false);
+            setIsOralPhotoPreviewOpen(false);
+            queryClient.setQueryData(['patients', 'detail', id], updatedPatient);
+            queryClient.invalidateQueries({ queryKey: ['patients'] });
+            queryClient.invalidateQueries({ queryKey: ['patients', 'detail', id] });
+        },
+        onError: (error) => {
+            toast.error(getApiErrorMessage(error, t('patients.toast.photoDeleteFailed')));
         },
     });
 
@@ -410,6 +460,54 @@ export default function PatientDetailPage({
         url: patient.photo_url,
         allowFullFallback: true,
     }) ?? undefined;
+    const oralPhoto = patient.oral_photo ?? null;
+    const oralPhotoThumbnailUrl = getProtectedMediaThumbnailUrl({
+        scanStatus: oralPhoto?.scan_status,
+        thumbnailUrl: oralPhoto?.thumbnail_url,
+        thumbnailReady: oralPhoto?.thumbnail_ready,
+        previewUrl: oralPhoto?.preview_url,
+        previewReady: oralPhoto?.preview_ready,
+        url: oralPhoto?.url,
+        allowFullFallback: true,
+    });
+    const oralPhotoPreviewUrl = getProtectedMediaPreviewUrl({
+        scanStatus: oralPhoto?.scan_status,
+        previewUrl: oralPhoto?.preview_url,
+        url: oralPhoto?.url,
+    }) ?? oralPhotoThumbnailUrl;
+    const hasOralPhoto = Boolean(oralPhotoThumbnailUrl);
+    const isOralPhotoProcessing = oralPhoto?.scan_status === 'pending' && !hasOralPhoto;
+    const isOralPhotoRejected = oralPhoto?.scan_status === 'rejected';
+    const oralPhotoUploadMaxMb = currentUser?.subscription?.upload_max_mb ?? DEFAULT_ORAL_PHOTO_UPLOAD_MAX_MB;
+    const oralPhotoUploadMaxBytes = oralPhotoUploadMaxMb * 1024 * 1024;
+    const handleOralPhotoSelection = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        const selectedPhoto = event.target.files?.[0] ?? null;
+        if (!selectedPhoto || uploadOralPhotoMutation.isPending || isPatientArchived) {
+            return;
+        }
+
+        if (!selectedPhoto.type.startsWith('image/')) {
+            toast.error(t('patients.toast.photoInvalidType'));
+            setOralPhotoInputKey((value) => value + 1);
+            return;
+        }
+        if (selectedPhoto.size > oralPhotoUploadMaxBytes) {
+            toast.error(t('patients.toast.photoTooLarge', { sizeMb: oralPhotoUploadMaxMb }));
+            setOralPhotoInputKey((value) => value + 1);
+            return;
+        }
+
+        try {
+            const optimizedPhoto = await optimizeImageFileForUpload(selectedPhoto, {
+                maxEdge: ORAL_PHOTO_UPLOAD_MAX_EDGE,
+                targetMaxBytes: null,
+            });
+            uploadOralPhotoMutation.mutate(optimizedPhoto);
+        } catch (error) {
+            toast.error(getApiErrorMessage(error, t('patients.toast.photoUploadFailed')));
+            setOralPhotoInputKey((value) => value + 1);
+        }
+    };
 
     return (
         <div className="space-y-4">
@@ -582,10 +680,136 @@ export default function PatientDetailPage({
             </div>
 
             {/* ───────────────────────────────────────────────────────────
-                PREMIUM TRIAD — Contact · Clinic · Detail
-                Three sister cards: shared shape & shadow,
-                each with its own top-edge gradient color story.
+                ORAL PHOTO — clinical reference image
+                Separate from the identity avatar so doctors can inspect
+                the mouth profile photo without changing patient identity.
             ─────────────────────────────────────────────────────────── */}
+            <article className="relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm shadow-slate-200/40">
+                <div className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-cyan-400 via-sky-400 to-blue-500" />
+                <input
+                    key={oralPhotoInputKey}
+                    ref={oralPhotoInputRef}
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    className="hidden"
+                    aria-label={t('patientDetail.oralPhoto.upload')}
+                    onChange={handleOralPhotoSelection}
+                />
+                <div className="flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex min-w-0 items-center gap-3">
+                        <button
+                            type="button"
+                            disabled={!hasOralPhoto}
+                            onClick={() => {
+                                if (oralPhotoPreviewUrl) {
+                                    setIsOralPhotoPreviewOpen(true);
+                                }
+                            }}
+                            className="group relative flex h-20 w-28 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-slate-200 bg-slate-50 text-slate-400 transition hover:border-sky-200 hover:bg-sky-50 disabled:cursor-default disabled:hover:border-slate-200 disabled:hover:bg-slate-50"
+                            aria-label={t('patientDetail.oralPhoto.view')}
+                        >
+                            {hasOralPhoto && oralPhotoThumbnailUrl ? (
+                                <>
+                                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                                    <img
+                                        src={oralPhotoThumbnailUrl}
+                                        alt={t('patientDetail.oralPhoto.title')}
+                                        crossOrigin={getProtectedMediaCrossOrigin(oralPhotoThumbnailUrl)}
+                                        className="h-full w-full object-cover"
+                                        decoding="async"
+                                    />
+                                    <span className="absolute inset-0 flex items-center justify-center bg-slate-950/0 text-white opacity-0 transition group-hover:bg-slate-950/25 group-hover:opacity-100">
+                                        <Maximize2 className="h-4 w-4" />
+                                    </span>
+                                </>
+                            ) : isOralPhotoProcessing ? (
+                                <Loader2 className="h-5 w-5 animate-spin text-sky-500" />
+                            ) : (
+                                <ImageIcon className="h-6 w-6" />
+                            )}
+                        </button>
+                        <div className="min-w-0">
+                            <div className="flex flex-wrap items-center gap-2">
+                                <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-sky-50 text-sky-600 ring-1 ring-sky-100">
+                                    <Camera className="h-4 w-4" />
+                                </span>
+                                <div className="min-w-0">
+                                    <p className="truncate text-sm font-semibold text-slate-900">
+                                        {t('patientDetail.oralPhoto.title')}
+                                    </p>
+                                    <p className="mt-0.5 text-xs text-slate-500">
+                                        {hasOralPhoto
+                                            ? t('patientDetail.oralPhoto.ready')
+                                            : isOralPhotoProcessing
+                                                ? t('patientDetail.oralPhoto.processing')
+                                                : isOralPhotoRejected
+                                                    ? t('patientDetail.oralPhoto.rejected')
+                                                    : t('patientDetail.oralPhoto.empty')}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                        {hasOralPhoto && oralPhotoPreviewUrl ? (
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                className="h-8 rounded-full px-3 text-xs"
+                                onClick={() => setIsOralPhotoPreviewOpen(true)}
+                            >
+                                <Maximize2 className="mr-1.5 h-3.5 w-3.5" />
+                                {t('patientDetail.oralPhoto.view')}
+                            </Button>
+                        ) : null}
+                        {canManagePatients ? (
+                            <Button
+                                type="button"
+                                variant={hasOralPhoto ? 'outline' : 'default'}
+                                size="sm"
+                                className="h-8 rounded-full px-3 text-xs"
+                                disabled={isPatientArchived || uploadOralPhotoMutation.isPending || deleteOralPhotoMutation.isPending}
+                                onClick={() => oralPhotoInputRef.current?.click()}
+                            >
+                                {uploadOralPhotoMutation.isPending ? (
+                                    <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                                ) : (
+                                    <Upload className="mr-1.5 h-3.5 w-3.5" />
+                                )}
+                                {hasOralPhoto ? t('patientDetail.oralPhoto.replace') : t('patientDetail.oralPhoto.upload')}
+                            </Button>
+                        ) : isSubscriptionReadOnly(currentUser) && canViewPatients ? (
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                className="h-8 rounded-full px-3 text-xs"
+                                disabled
+                                onClick={denyManageAction}
+                            >
+                                <Upload className="mr-1.5 h-3.5 w-3.5" />
+                                {hasOralPhoto ? t('patientDetail.oralPhoto.replace') : t('patientDetail.oralPhoto.upload')}
+                            </Button>
+                        ) : null}
+                        {canManagePatients && oralPhoto ? (
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                className="h-8 rounded-full px-3 text-xs text-red-600 hover:text-red-700"
+                                disabled={isPatientArchived || uploadOralPhotoMutation.isPending || deleteOralPhotoMutation.isPending}
+                                onClick={() => setIsDeleteOralPhotoDialogOpen(true)}
+                            >
+                                <Trash2 className="mr-1.5 h-3.5 w-3.5" />
+                                {t('common.delete')}
+                            </Button>
+                        ) : null}
+                    </div>
+                </div>
+            </article>
+
+            {/* Premium triad: Contact · Clinic · Detail */}
             <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
 
                 {/* ── CARD 1 · CONTACT — click-to-call essentials ── */}
@@ -838,6 +1062,28 @@ export default function PatientDetailPage({
                     uploadMaxMb={currentUser?.subscription?.upload_max_mb}
                 />
             ) : null}
+
+            {oralPhotoPreviewUrl ? (
+                <PatientPhotoPreviewDialog
+                    open={isOralPhotoPreviewOpen}
+                    onOpenChange={setIsOralPhotoPreviewOpen}
+                    src={oralPhotoPreviewUrl}
+                    alt={t('patientDetail.oralPhoto.title')}
+                    title={t('patientDetail.oralPhoto.title')}
+                />
+            ) : null}
+
+            <ConfirmActionDialog
+                open={isDeleteOralPhotoDialogOpen}
+                onOpenChange={setIsDeleteOralPhotoDialogOpen}
+                title={t('patientDetail.oralPhoto.deleteTitle')}
+                description={t('patientDetail.oralPhoto.deleteDescription', { patientName: patient.full_name })}
+                confirmLabel={t('common.delete')}
+                pendingLabel={t('payments.deleting')}
+                confirmVariant="destructive"
+                isPending={deleteOralPhotoMutation.isPending}
+                onConfirm={() => deleteOralPhotoMutation.mutate()}
+            />
 
             <ConfirmActionDialog
                 open={isArchivePatientDialogOpen}

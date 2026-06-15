@@ -6,6 +6,7 @@ use App\Jobs\ProcessUploadedMedia;
 use App\Models\OdontogramEntry;
 use App\Models\OdontogramEntryImage;
 use App\Models\Patient;
+use App\Models\PatientClinicalPhoto;
 use App\Models\Treatment;
 use App\Models\TreatmentImage;
 use App\Models\User;
@@ -25,7 +26,7 @@ class MediaUploadSecurityTest extends TestCase
 
     public function test_media_tables_have_scan_lifecycle_columns(): void
     {
-        foreach (['patients', 'treatment_images', 'odontogram_entry_images'] as $table) {
+        foreach (['patients', 'treatment_images', 'odontogram_entry_images', 'patient_clinical_photos'] as $table) {
             $this->assertTrue(Schema::hasColumn($table, 'scan_status'), "{$table} is missing scan_status");
             $this->assertTrue(Schema::hasColumn($table, 'scan_result'), "{$table} is missing scan_result");
             $this->assertTrue(Schema::hasColumn($table, 'scan_provider'), "{$table} is missing scan_provider");
@@ -120,6 +121,42 @@ class MediaUploadSecurityTest extends TestCase
         $this->assertStringStartsWith('approved/', $patient->photo_path);
         Storage::disk('local')->assertMissing($quarantinePath);
         Storage::disk('local')->assertExists((string) $patient->photo_path);
+    }
+
+    public function test_process_uploaded_media_approves_clean_patient_oral_photo(): void
+    {
+        Storage::fake('local');
+        $this->bindCleanScanner();
+
+        $dentist = User::factory()->create();
+        $patient = Patient::factory()->create(['dentist_id' => $dentist->id]);
+        $quarantinePath = 'quarantine/patients/oral-clean-photo.jpg';
+        $image = UploadedFile::fake()->image('oral-clean-photo.jpg', 1800, 1200);
+        Storage::disk('local')->put($quarantinePath, file_get_contents((string) $image->getRealPath()));
+
+        $photo = PatientClinicalPhoto::query()->create([
+            'dentist_id' => $dentist->id,
+            'patient_id' => $patient->id,
+            'view_type' => PatientClinicalPhoto::VIEW_TYPE_ORAL_PRIMARY,
+            'is_primary' => true,
+            'disk' => 'local',
+            'path' => $quarantinePath,
+            'mime_type' => 'image/jpeg',
+            'file_size' => Storage::disk('local')->size($quarantinePath),
+            'scan_status' => 'pending',
+            'quarantine_path' => $quarantinePath,
+        ]);
+
+        ProcessUploadedMedia::dispatchSync(PatientClinicalPhoto::class, (string) $photo->id, $dentist->id);
+
+        $photo->refresh();
+        $this->assertSame('approved', $photo->scan_status);
+        $this->assertSame('test', $photo->scan_provider);
+        $this->assertStringStartsWith('approved/patients/', (string) $photo->path);
+        Storage::disk('local')->assertMissing($quarantinePath);
+        Storage::disk('local')->assertExists((string) $photo->path);
+        Storage::disk('local')->assertExists($this->variantPath((string) $photo->path, 'thumbnail'));
+        Storage::disk('local')->assertExists($this->variantPath((string) $photo->path, 'preview'));
     }
 
     public function test_rejected_patient_photo_replacement_retains_previous_photo(): void
@@ -277,6 +314,32 @@ class MediaUploadSecurityTest extends TestCase
 
         $this->actingAs($dentist, 'web')
             ->get("/api/v1/patients/{$patient->id}/photo")
+            ->assertNotFound();
+    }
+
+    public function test_pending_patient_oral_photo_cannot_be_downloaded(): void
+    {
+        Storage::fake('local');
+        $dentist = User::factory()->create();
+        $patient = Patient::factory()->create(['dentist_id' => $dentist->id]);
+        $photoPath = 'quarantine/patients/pending-oral-photo.jpg';
+        $image = UploadedFile::fake()->image('pending-oral-photo.jpg', 800, 600);
+        Storage::disk('local')->put($photoPath, file_get_contents((string) $image->getRealPath()));
+        PatientClinicalPhoto::query()->create([
+            'dentist_id' => $dentist->id,
+            'patient_id' => $patient->id,
+            'view_type' => PatientClinicalPhoto::VIEW_TYPE_ORAL_PRIMARY,
+            'is_primary' => true,
+            'disk' => 'local',
+            'path' => $photoPath,
+            'mime_type' => 'image/jpeg',
+            'file_size' => Storage::disk('local')->size($photoPath),
+            'scan_status' => 'pending',
+            'quarantine_path' => $photoPath,
+        ]);
+
+        $this->actingAs($dentist, 'web')
+            ->get("/api/v1/patients/{$patient->id}/oral-photo")
             ->assertNotFound();
     }
 

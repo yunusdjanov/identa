@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Patient extends Model implements TenantOwned
@@ -180,5 +181,23 @@ class Patient extends Model implements TenantOwned
                     ->whereColumn('patients.dentist_id', 'patient_categories.dentist_id');
             })
             ->withTimestamps();
+    }
+
+    /**
+     * @return HasMany<PatientClinicalPhoto, Patient>
+     */
+    public function clinicalPhotos(): HasMany
+    {
+        return $this->hasMany(PatientClinicalPhoto::class);
+    }
+
+    /**
+     * @return HasOne<PatientClinicalPhoto, Patient>
+     */
+    public function primaryOralPhoto(): HasOne
+    {
+        return $this->hasOne(PatientClinicalPhoto::class)
+            ->where('view_type', PatientClinicalPhoto::VIEW_TYPE_ORAL_PRIMARY)
+            ->where('is_primary', true);
     }
 }
