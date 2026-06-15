@@ -131,7 +131,7 @@ describe('PatientDetailPage', () => {
         expect(screen.getByTitle('2')).toBeInTheDocument();
     });
 
-    it('renders the compact oral photo section after the summary cards', async () => {
+    it('renders the compact oral photo card with the summary cards', async () => {
         vi.mocked(getCurrentUser).mockResolvedValue(dentist as never);
         vi.mocked(getPatient).mockResolvedValue(patient as never);
 
@@ -141,6 +141,7 @@ describe('PatientDetailPage', () => {
         const oralPhotoTitle = screen.getByText('Oral photo');
         const appointmentsTitle = screen.getByText('Appointments');
 
+        expect(screen.getAllByText('Oral photo')).toHaveLength(1);
         expect(screen.getByText('Smile')).toBeInTheDocument();
         expect(screen.getByText('Top')).toBeInTheDocument();
         expect(screen.getByText('Bottom')).toBeInTheDocument();

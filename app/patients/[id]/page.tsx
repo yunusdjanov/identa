@@ -725,8 +725,8 @@ export default function PatientDetailPage({
                 />
             </div>
 
-            {/* Premium triad: Contact · Clinic · Detail */}
-            <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
+            {/* Premium summary cards: contact, clinic, detail, oral photo */}
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
 
                 {/* ── CARD 1 · CONTACT — click-to-call essentials ── */}
                 <article className="group/card relative flex flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm shadow-slate-200/40 transition-all hover:-translate-y-0.5 hover:shadow-md hover:shadow-slate-200/70">
@@ -863,52 +863,48 @@ export default function PatientDetailPage({
                     </div>
                 </article>
 
-            </div>
-
-            <article className="overflow-hidden rounded-xl border border-slate-200/70 bg-white shadow-sm shadow-slate-200/30">
-                <header className="flex items-center justify-between gap-3 border-b border-slate-100/80 px-3 py-2">
-                    <div className="flex min-w-0 items-center gap-2">
-                        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-sky-50 text-sky-600 ring-1 ring-sky-100/80">
-                            <Camera className="h-3.5 w-3.5" />
+                {/* Oral photo: compact clinical photo shortcuts */}
+                <article className="group/card relative flex flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm shadow-slate-200/40 transition-all hover:-translate-y-0.5 hover:shadow-md hover:shadow-slate-200/70">
+                    <div className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-cyan-400 via-sky-400 to-blue-500" />
+                    <header className="flex items-center justify-between gap-3 px-4 pt-4 pb-2">
+                        <div className="flex min-w-0 items-center gap-2.5">
+                            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-sky-50 to-cyan-50 text-sky-600 ring-1 ring-sky-100/80 shadow-sm shadow-sky-100/40">
+                                <Camera className="h-4 w-4" strokeWidth={2.25} />
+                            </span>
+                            <p className="truncate text-[11px] font-bold uppercase tracking-[0.14em] text-slate-700">
+                                {t('patientDetail.oralPhoto.title')}
+                            </p>
+                        </div>
+                        <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-slate-50 px-2 py-0.5 text-[11px] font-semibold text-slate-600 ring-1 ring-slate-100">
+                            <span className="h-1.5 w-1.5 rounded-full bg-sky-400" />
+                            <span className="tabular-nums">{oralPhotoReadyCount}/{ORAL_PHOTO_SLOTS.length}</span>
                         </span>
-                        <p className="truncate text-sm font-semibold text-slate-950">
-                            {t('patientDetail.oralPhoto.title')}
-                        </p>
-                    </div>
-                    <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-slate-50 px-2 py-0.5 text-[11px] font-semibold text-slate-600 ring-1 ring-slate-100">
-                        <span className="h-1.5 w-1.5 rounded-full bg-sky-400" />
-                        <span className="tabular-nums">{oralPhotoReadyCount}/{ORAL_PHOTO_SLOTS.length}</span>
-                    </span>
-                </header>
-                <div className="grid md:grid-cols-3">
-                    {oralPhotoSlots.map((slot, index) => {
-                        const isUploadingSlot = uploadOralPhotoMutation.isPending
-                            && uploadOralPhotoMutation.variables?.viewType === slot.viewType;
-                        const isDeletingSlot = deleteOralPhotoMutation.isPending
-                            && deleteOralPhotoMutation.variables === slot.viewType;
-                        const canUploadOralPhoto = canManagePatients && !isPatientArchived && !isUploadingSlot && !isDeletingSlot;
-                        const slotLabel = t(slot.labelKey);
-                        const slotStatusKey = slot.hasPhoto
-                            ? 'patientDetail.oralPhoto.status.ready'
-                            : slot.isProcessing
-                                ? 'patientDetail.oralPhoto.status.processing'
-                                : slot.isRejected
-                                    ? 'patientDetail.oralPhoto.status.rejected'
-                                    : 'patientDetail.oralPhoto.status.empty';
-                        const slotStatusDotClassName = slot.hasPhoto
-                            ? 'bg-emerald-500'
-                            : slot.isProcessing
-                                ? 'bg-sky-500'
-                                : slot.isRejected
-                                    ? 'bg-rose-500'
-                                    : 'bg-slate-300';
+                    </header>
+                    <div className="divide-y divide-slate-100 px-2 pb-2">
+                        {oralPhotoSlots.map((slot) => {
+                            const isUploadingSlot = uploadOralPhotoMutation.isPending
+                                && uploadOralPhotoMutation.variables?.viewType === slot.viewType;
+                            const isDeletingSlot = deleteOralPhotoMutation.isPending
+                                && deleteOralPhotoMutation.variables === slot.viewType;
+                            const canUploadOralPhoto = canManagePatients && !isPatientArchived && !isUploadingSlot && !isDeletingSlot;
+                            const slotLabel = t(slot.labelKey);
+                            const slotStatusKey = slot.hasPhoto
+                                ? 'patientDetail.oralPhoto.status.ready'
+                                : slot.isProcessing
+                                    ? 'patientDetail.oralPhoto.status.processing'
+                                    : slot.isRejected
+                                        ? 'patientDetail.oralPhoto.status.rejected'
+                                        : 'patientDetail.oralPhoto.status.empty';
+                            const slotStatusDotClassName = slot.hasPhoto
+                                ? 'bg-emerald-500'
+                                : slot.isProcessing
+                                    ? 'bg-sky-500'
+                                    : slot.isRejected
+                                        ? 'bg-rose-500'
+                                        : 'bg-slate-300';
 
-                        return (
-                            <section
-                                key={slot.viewType}
-                                className={`min-w-0 p-2.5 ${index > 0 ? 'border-t border-slate-100 md:border-l md:border-t-0' : ''}`}
-                            >
-                                <div className="flex min-w-0 items-center gap-2.5">
+                            return (
+                                <section key={slot.viewType} className="flex min-w-0 items-center gap-2.5 py-2">
                                     <button
                                         type="button"
                                         disabled={!slot.hasPhoto && !canUploadOralPhoto}
@@ -921,7 +917,7 @@ export default function PatientDetailPage({
                                                 pickOralPhoto(slot.viewType);
                                             }
                                         }}
-                                        className="relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-slate-200 bg-slate-50 text-slate-400 transition hover:border-sky-200 hover:bg-sky-50 disabled:cursor-default disabled:hover:border-slate-200 disabled:hover:bg-slate-50"
+                                        className="relative flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-slate-200 bg-slate-50 text-slate-400 transition hover:border-sky-200 hover:bg-sky-50 disabled:cursor-default disabled:hover:border-slate-200 disabled:hover:bg-slate-50"
                                         aria-label={slot.hasPhoto ? t('patientDetail.oralPhoto.view') : t('patientDetail.oralPhoto.upload')}
                                         title={slot.hasPhoto ? t('patientDetail.oralPhoto.view') : slotLabel}
                                     >
@@ -947,23 +943,23 @@ export default function PatientDetailPage({
                                             </p>
                                             <span className="inline-flex shrink-0 items-center gap-1.5 text-[11px] font-medium text-slate-500">
                                                 <span className={`h-1.5 w-1.5 rounded-full ${slotStatusDotClassName}`} />
-                                                <span className="max-w-24 truncate">{t(slotStatusKey)}</span>
+                                                <span className="max-w-20 truncate">{t(slotStatusKey)}</span>
                                             </span>
                                         </div>
-                                        <div className="mt-1.5 flex min-w-0 items-center gap-1.5">
+                                        <div className="mt-1 flex min-w-0 items-center gap-1.5">
                                             {canManagePatients ? (
                                                 <Button
                                                     type="button"
                                                     variant="outline"
                                                     size="sm"
-                                                    className="h-7 min-w-0 rounded-full px-2.5 text-[11px] font-semibold"
+                                                    className="h-6 min-w-0 rounded-full px-2 text-[11px] font-semibold"
                                                     disabled={!canUploadOralPhoto}
                                                     onClick={() => pickOralPhoto(slot.viewType)}
                                                 >
                                                     {isUploadingSlot ? (
-                                                        <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
+                                                        <Loader2 className="mr-1 h-3 w-3 animate-spin" />
                                                     ) : (
-                                                        <Upload className="mr-1 h-3.5 w-3.5" />
+                                                        <Upload className="mr-1 h-3 w-3" />
                                                     )}
                                                     <span className="truncate">{slot.hasPhoto ? t('patientDetail.oralPhoto.replace') : t('patientDetail.oralPhoto.upload')}</span>
                                                 </Button>
@@ -972,11 +968,11 @@ export default function PatientDetailPage({
                                                     type="button"
                                                     variant="outline"
                                                     size="sm"
-                                                    className="h-7 min-w-0 rounded-full px-2.5 text-[11px] font-semibold"
+                                                    className="h-6 min-w-0 rounded-full px-2 text-[11px] font-semibold"
                                                     disabled
                                                     onClick={denyManageAction}
                                                 >
-                                                    <Upload className="mr-1 h-3.5 w-3.5" />
+                                                    <Upload className="mr-1 h-3 w-3" />
                                                     <span className="truncate">{slot.hasPhoto ? t('patientDetail.oralPhoto.replace') : t('patientDetail.oralPhoto.upload')}</span>
                                                 </Button>
                                             ) : null}
@@ -985,27 +981,28 @@ export default function PatientDetailPage({
                                                     type="button"
                                                     variant="outline"
                                                     size="icon"
-                                                    className="h-7 w-7 shrink-0 rounded-full text-red-600 hover:border-red-200 hover:bg-red-50 hover:text-red-700"
+                                                    className="h-6 w-6 shrink-0 rounded-full text-red-600 hover:border-red-200 hover:bg-red-50 hover:text-red-700"
                                                     disabled={isPatientArchived || isUploadingSlot || isDeletingSlot}
                                                     onClick={() => setDeleteOralPhotoViewType(slot.viewType)}
                                                     aria-label={t('common.delete')}
                                                     title={t('common.delete')}
                                                 >
                                                     {isDeletingSlot ? (
-                                                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                                        <Loader2 className="h-3 w-3 animate-spin" />
                                                     ) : (
-                                                        <Trash2 className="h-3.5 w-3.5" />
+                                                        <Trash2 className="h-3 w-3" />
                                                     )}
                                                 </Button>
                                             ) : null}
                                         </div>
                                     </div>
-                                </div>
-                            </section>
-                        );
-                    })}
-                </div>
-            </article>
+                                </section>
+                            );
+                        })}
+                    </div>
+                </article>
+
+            </div>
 
             {/* ───────────────────────────────────────────────────────────
                 APPOINTMENTS — sister card to the triad
