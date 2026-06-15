@@ -147,8 +147,8 @@ describe('PatientDetailPage', () => {
         expect(screen.getByText('Bottom')).toBeInTheDocument();
         expect(screen.getAllByText('No photo')).toHaveLength(3);
         expect(screen.getAllByTitle('Upload')).toHaveLength(3);
-        expect(detailCard.compareDocumentPosition(oralPhotoTitle) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-        expect(oralPhotoTitle.compareDocumentPosition(appointmentsTitle) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+        expect(oralPhotoTitle.compareDocumentPosition(detailCard) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+        expect(detailCard.compareDocumentPosition(appointmentsTitle) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     });
 
     it('hides ready status copy for completed oral photos', async () => {

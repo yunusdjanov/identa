@@ -822,48 +822,6 @@ export default function PatientDetailPage({
                     </div>
                 </article>
 
-                {/* ── CARD 3 · DETAIL — activity & balance snapshot ── */}
-                <article className="group/card relative flex flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm shadow-slate-200/40 transition-all hover:-translate-y-0.5 hover:shadow-md hover:shadow-slate-200/70">
-                    <div className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-teal-400 via-sky-400 to-indigo-400" />
-                    <header className="flex items-center justify-between gap-3 px-4 pt-4 pb-3">
-                        <div className="flex items-center gap-2.5">
-                            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-teal-50 to-sky-50 text-teal-600 ring-1 ring-teal-100/80 shadow-sm shadow-teal-100/40">
-                                <Activity className="h-4 w-4" strokeWidth={2.25} />
-                            </span>
-                            <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-700">{triadLabels.detail}</p>
-                        </div>
-                        {isInactive ? (
-                            <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.1em] text-amber-700 ring-1 ring-amber-100">
-                                <Clock3 className="h-2.5 w-2.5" />
-                                {daysSinceVisit}d
-                            </span>
-                        ) : null}
-                    </header>
-                    <div className="mx-px grid flex-1 grid-cols-2 grid-rows-2 gap-px overflow-hidden rounded-b-2xl bg-slate-100/70">
-                        <VitalStatCell
-                            icon={Wallet}
-                            label={t('patientDetail.openBalance')}
-                            value={!canViewPayments ? '—' : totalBalance > 0 ? formatCurrency(totalBalance) : t('payments.paid')}
-                            valueClassName={!canViewPayments ? 'text-slate-700' : totalBalance > 0 ? 'text-red-700' : 'text-emerald-700'}
-                        />
-                        <VitalStatCell
-                            icon={Hash}
-                            label={t('patientDetail.totalAppointments')}
-                            value={String(patientVisitCount)}
-                        />
-                        <VitalStatCell
-                            icon={CalendarCheck}
-                            label={t('patientDetail.lastVisit')}
-                            value={latestVisitDate ? formatDate(latestVisitDate) : t('patients.never')}
-                        />
-                        <VitalStatCell
-                            icon={User}
-                            label={t('patientDetail.age')}
-                            value={patient.date_of_birth ? t('patientDetail.years', { count: computePatientAge(patient.date_of_birth) }) : '—'}
-                        />
-                    </div>
-                </article>
-
                 {/* Oral photo: compact clinical photo shortcuts */}
                 <article className="group/card relative flex flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm shadow-slate-200/40 transition-all hover:-translate-y-0.5 hover:shadow-md hover:shadow-slate-200/70">
                     <div className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-slate-200 via-slate-300 to-slate-400" />
@@ -1009,6 +967,48 @@ export default function PatientDetailPage({
                                 </section>
                             );
                         })}
+                    </div>
+                </article>
+
+                {/* Detail: activity and balance snapshot */}
+                <article className="group/card relative flex flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm shadow-slate-200/40 transition-all hover:-translate-y-0.5 hover:shadow-md hover:shadow-slate-200/70">
+                    <div className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-teal-400 via-sky-400 to-indigo-400" />
+                    <header className="flex items-center justify-between gap-3 px-4 pt-4 pb-3">
+                        <div className="flex items-center gap-2.5">
+                            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-teal-50 to-sky-50 text-teal-600 ring-1 ring-teal-100/80 shadow-sm shadow-teal-100/40">
+                                <Activity className="h-4 w-4" strokeWidth={2.25} />
+                            </span>
+                            <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-700">{triadLabels.detail}</p>
+                        </div>
+                        {isInactive ? (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.1em] text-amber-700 ring-1 ring-amber-100">
+                                <Clock3 className="h-2.5 w-2.5" />
+                                {daysSinceVisit}d
+                            </span>
+                        ) : null}
+                    </header>
+                    <div className="mx-px grid flex-1 grid-cols-2 grid-rows-2 gap-px overflow-hidden rounded-b-2xl bg-slate-100/70">
+                        <VitalStatCell
+                            icon={Wallet}
+                            label={t('patientDetail.openBalance')}
+                            value={!canViewPayments ? '—' : totalBalance > 0 ? formatCurrency(totalBalance) : t('payments.paid')}
+                            valueClassName={!canViewPayments ? 'text-slate-700' : totalBalance > 0 ? 'text-red-700' : 'text-emerald-700'}
+                        />
+                        <VitalStatCell
+                            icon={Hash}
+                            label={t('patientDetail.totalAppointments')}
+                            value={String(patientVisitCount)}
+                        />
+                        <VitalStatCell
+                            icon={CalendarCheck}
+                            label={t('patientDetail.lastVisit')}
+                            value={latestVisitDate ? formatDate(latestVisitDate) : t('patients.never')}
+                        />
+                        <VitalStatCell
+                            icon={User}
+                            label={t('patientDetail.age')}
+                            value={patient.date_of_birth ? t('patientDetail.years', { count: computePatientAge(patient.date_of_birth) }) : '—'}
+                        />
                     </div>
                 </article>
 

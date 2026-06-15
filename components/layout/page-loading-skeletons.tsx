@@ -418,9 +418,9 @@ export function PatientDetailLoadingState() {
                 </div>
             </section>
 
-            {/* Summary cards: contact, clinic, detail, oral photo */}
+            {/* Summary cards: contact, clinic, oral photo, detail */}
             <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
-                {[4, 3, 3].map((rowCount, cardIndex) => (
+                {[4, 3].map((rowCount, cardIndex) => (
                     <div key={cardIndex} className="overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm shadow-slate-100/80">
                         {/* Header: h-7 w-7 rounded-lg badge + title */}
                         <div className="flex items-center gap-2.5 border-b border-slate-100 px-4 py-1.5">
@@ -441,12 +441,6 @@ export function PatientDetailLoadingState() {
                                     <Skeleton className="h-3.5 w-24 rounded-xl" />
                                 </div>
                             ))}
-                            {/* Visit card history link */}
-                            {cardIndex === 2 ? (
-                                <div className="border-t border-slate-100 pt-2.5">
-                                    <Skeleton className="h-6 w-28 rounded-lg" />
-                                </div>
-                            ) : null}
                         </div>
                     </div>
                 ))}
@@ -479,6 +473,20 @@ export function PatientDetailLoadingState() {
                                         <Skeleton className="h-7 w-7 rounded-full" />
                                     </div>
                                 </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+                <div className="overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm shadow-slate-100/80">
+                    <div className="flex items-center gap-2.5 border-b border-slate-100 px-4 py-1.5">
+                        <Skeleton className="h-7 w-7 shrink-0 rounded-lg" />
+                        <Skeleton className="h-[14px] w-32 rounded-xl" />
+                    </div>
+                    <div className="mx-px grid grid-cols-2 grid-rows-2 gap-px overflow-hidden rounded-b-2xl bg-slate-100/70">
+                        {Array.from({ length: 4 }).map((_, rowIndex) => (
+                            <div key={rowIndex} className="bg-white px-4 py-5">
+                                <Skeleton className="mx-auto h-3 w-20 rounded-xl" />
+                                <Skeleton className="mx-auto mt-3 h-4 w-24 rounded-xl" />
                             </div>
                         ))}
                     </div>
