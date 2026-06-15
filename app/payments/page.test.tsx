@@ -132,6 +132,20 @@ describe('PaymentsPage', () => {
         expect(historyLink).toHaveAttribute('href', '/patients/patient-1/history?from=payments');
     });
 
+    it('renders the total patients summary with the teal accent', async () => {
+        renderPage();
+
+        await waitFor(() => {
+            expect(screen.getByText('Jane Doe')).toBeInTheDocument();
+        });
+
+        const totalPatientsCard = screen.getByText('Total Patients').closest('.interactive-card') as HTMLElement;
+        expect(totalPatientsCard).not.toBeNull();
+        expect(totalPatientsCard).toHaveClass('metric-hover-teal');
+        expect(totalPatientsCard).toHaveClass('border-cyan-200');
+        expect(totalPatientsCard).not.toHaveClass('metric-hover-blue');
+    });
+
     it('labels a negative remaining summary as advance without a minus sign', async () => {
         vi.mocked(listAllTreatments).mockResolvedValue([
             {

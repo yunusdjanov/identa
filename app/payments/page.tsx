@@ -546,15 +546,15 @@ export default function PaymentsPage() {
                     <p className={`mt-1 text-xs ${netBalanceSummary.hintClassName}`}>{t(netBalanceSummary.hintKey)}</p>
                 </div>
 
-                <div className="interactive-card metric-hover-card metric-hover-blue rounded-2xl border border-blue-200 bg-gradient-to-br from-blue-50 via-blue-100/70 to-white p-4 shadow-sm shadow-blue-200/60 md:p-5">
-                    <div className="flex items-center gap-2 text-sm font-medium text-blue-600">
-                        <Users className="h-4 w-4 text-blue-500" />
+                <div className="interactive-card metric-hover-card metric-hover-teal rounded-2xl border border-cyan-200 bg-gradient-to-br from-cyan-50 via-teal-50/80 to-white p-4 shadow-sm shadow-cyan-100/70 md:p-5">
+                    <div className="flex items-center gap-2 text-sm font-medium text-cyan-700">
+                        <Users className="h-4 w-4 text-teal-600" />
                         {t('payments.summary.totalPatients')}
                     </div>
-                    <p className="mt-2 text-lg font-semibold leading-none tabular-nums text-blue-900">
+                    <p className="mt-2 text-lg font-semibold leading-none tabular-nums text-cyan-950">
                         {isAccountingLoading ? '...' : overallSummary.totalPatients}
                     </p>
-                    <p className="mt-1 text-xs text-blue-500/80">
+                    <p className="mt-1 text-xs text-cyan-600/80">
                         {t('payments.summary.entryCount', { count: overallSummary.totalEntries })}
                     </p>
                 </div>
