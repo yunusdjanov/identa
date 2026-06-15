@@ -36,6 +36,38 @@ const PAGE_SIZE = 10;
 const OUTSTANDING_FILTER_PARAM = 'outstanding';
 const OUTSTANDING_FILTER_VALUE = '1';
 const URL_SEARCH_CHANGE_EVENT = 'identa:payments-url-search-change';
+const NET_BALANCE_SUMMARY_VARIANTS = {
+    advance: {
+        statusKey: 'patientHistory.balanceStatus.advance',
+        hintKey: 'payments.summary.netBalanceAdvanceHint',
+        cardClassName: 'metric-hover-blue border-blue-100 shadow-blue-100/60',
+        labelClassName: 'text-blue-600',
+        iconClassName: 'text-blue-500',
+        valueClassName: 'text-blue-700',
+        badgeClassName: 'border-blue-200 bg-blue-50 text-blue-700',
+        hintClassName: 'text-blue-500/80',
+    },
+    settled: {
+        statusKey: 'patientHistory.balanceStatus.paid',
+        hintKey: 'payments.summary.netBalanceSettledHint',
+        cardClassName: 'metric-hover-slate border-slate-200 shadow-slate-200/60',
+        labelClassName: 'text-slate-600',
+        iconClassName: 'text-slate-500',
+        valueClassName: 'text-slate-700',
+        badgeClassName: 'border-slate-200 bg-slate-50 text-slate-600',
+        hintClassName: 'text-slate-500',
+    },
+    debt: {
+        statusKey: 'patientHistory.balanceStatus.debt',
+        hintKey: 'payments.summary.netBalanceHint',
+        cardClassName: 'metric-hover-amber border-amber-100 shadow-amber-100/60',
+        labelClassName: 'text-amber-600',
+        iconClassName: 'text-amber-500',
+        valueClassName: 'text-amber-700',
+        badgeClassName: 'border-amber-200 bg-amber-50 text-amber-700',
+        hintClassName: 'text-amber-500/80',
+    },
+} as const;
 
 function subscribeToUrlSearch(onStoreChange: () => void) {
     if (typeof window === 'undefined') {
@@ -62,6 +94,18 @@ function getServerUrlSearchSnapshot() {
 function replaceUrl(nextUrl: URL) {
     window.history.replaceState({}, '', `${nextUrl.pathname}${nextUrl.search}${nextUrl.hash}`);
     window.dispatchEvent(new Event(URL_SEARCH_CHANGE_EVENT));
+}
+
+function getNetBalanceSummary(balance: number) {
+    if (balance < 0) {
+        return { ...NET_BALANCE_SUMMARY_VARIANTS.advance, amount: Math.abs(balance) };
+    }
+
+    if (balance === 0) {
+        return { ...NET_BALANCE_SUMMARY_VARIANTS.settled, amount: 0 };
+    }
+
+    return { ...NET_BALANCE_SUMMARY_VARIANTS.debt, amount: balance };
 }
 
 interface PatientTreatmentGroup {
@@ -404,6 +448,7 @@ export default function PaymentsPage() {
     }
 
     const isAccountingLoading = accountingQuery.isLoading && !accountingQuery.data;
+    const netBalanceSummary = getNetBalanceSummary(overallSummary.totalBalance);
 
     return (
         <div className="space-y-5 lg:space-y-6">
@@ -485,23 +530,20 @@ export default function PaymentsPage() {
                     <p className="mt-1 text-xs text-slate-500">{t('payments.summary.totalPaidHint')}</p>
                 </div>
 
-                <div className="interactive-card metric-hover-card metric-hover-amber rounded-2xl border border-amber-100 bg-white p-4 shadow-sm shadow-amber-100/60 md:p-5">
-                    <div className="flex items-center gap-2 text-sm font-medium text-amber-600">
-                        <History className="h-4 w-4 text-amber-500" />
-                        {t('payments.summary.netBalance')}
+                <div className={`interactive-card metric-hover-card rounded-2xl border bg-white p-4 shadow-sm md:p-5 ${netBalanceSummary.cardClassName}`}>
+                    <div className={`flex flex-wrap items-center gap-2 text-sm font-medium ${netBalanceSummary.labelClassName}`}>
+                        <History className={`h-4 w-4 ${netBalanceSummary.iconClassName}`} />
+                        <span>{t('payments.summary.netBalance')}</span>
+                        {!isAccountingLoading ? (
+                            <span className={`inline-flex items-center rounded-full border px-1.5 py-0.5 text-[10px] font-semibold leading-none ${netBalanceSummary.badgeClassName}`}>
+                                {t(netBalanceSummary.statusKey)}
+                            </span>
+                        ) : null}
                     </div>
-                    <p
-                        className={`mt-2 text-lg font-semibold leading-none tabular-nums ${
-                            overallSummary.totalBalance > 0
-                                ? 'text-amber-700'
-                                : overallSummary.totalBalance < 0
-                                    ? 'text-emerald-700'
-                                    : 'text-slate-900'
-                        }`}
-                    >
-                        {isAccountingLoading ? '...' : formatCurrency(overallSummary.totalBalance)}
+                    <p className={`mt-2 text-lg font-semibold leading-none tabular-nums ${netBalanceSummary.valueClassName}`}>
+                        {isAccountingLoading ? '...' : formatCurrency(netBalanceSummary.amount)}
                     </p>
-                    <p className="mt-1 text-xs text-amber-500/80">{t('payments.summary.netBalanceHint')}</p>
+                    <p className={`mt-1 text-xs ${netBalanceSummary.hintClassName}`}>{t(netBalanceSummary.hintKey)}</p>
                 </div>
 
                 <div className="interactive-card metric-hover-card metric-hover-blue rounded-2xl border border-blue-200 bg-gradient-to-br from-blue-50 via-blue-100/70 to-white p-4 shadow-sm shadow-blue-200/60 md:p-5">

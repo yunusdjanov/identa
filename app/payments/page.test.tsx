@@ -132,6 +132,47 @@ describe('PaymentsPage', () => {
         expect(historyLink).toHaveAttribute('href', '/patients/patient-1/history?from=payments');
     });
 
+    it('labels a negative remaining summary as advance without a minus sign', async () => {
+        vi.mocked(listAllTreatments).mockResolvedValue([
+            {
+                id: 'tr-advance',
+                patient_id: 'patient-advance',
+                patient_name: 'Advance Patient',
+                patient_phone: '+998900000009',
+                patient_code: 'PT-1009',
+                tooth_number: null,
+                teeth: [],
+                treatment_type: 'Prepayment',
+                description: null,
+                comment: null,
+                treatment_date: '2026-03-18',
+                cost: null,
+                debt_amount: 0,
+                paid_amount: 250000,
+                balance: -250000,
+                notes: null,
+                images: [],
+                created_at: '2026-03-18T09:00:00Z',
+                updated_at: '2026-03-18T09:00:00Z',
+            },
+        ] as never);
+
+        renderPage();
+
+        await waitFor(() => {
+            expect(screen.getByText('Advance Patient')).toBeInTheDocument();
+        });
+
+        expect(screen.getByText('Advance')).toBeInTheDocument();
+        const netBalanceCard = screen.getByText('Paid amount exceeds debt.').closest('.interactive-card') as HTMLElement;
+        expect(netBalanceCard).not.toBeNull();
+        expect(within(netBalanceCard).getByText('Advance')).toBeInTheDocument();
+        expect(
+            within(netBalanceCard).getByText((_, element) => normalizeText(element?.textContent) === '250 000 UZS')
+        ).toBeInTheDocument();
+        expect(normalizeText(netBalanceCard.textContent)).not.toContain('-250 000 UZS');
+    });
+
     it('switches to the global history tab and shows treatment rows', async () => {
         renderPage();
 
