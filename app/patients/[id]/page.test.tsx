@@ -151,6 +151,50 @@ describe('PatientDetailPage', () => {
         expect(oralPhotoTitle.compareDocumentPosition(appointmentsTitle) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     });
 
+    it('hides ready status copy for completed oral photos', async () => {
+        vi.mocked(getCurrentUser).mockResolvedValue(dentist as never);
+        vi.mocked(getPatient).mockResolvedValue({
+            ...patient,
+            oral_photos: {
+                smile: {
+                    id: 'smile-photo',
+                    view_type: 'smile',
+                    scan_status: 'approved',
+                    thumbnail_url: 'https://media.identa.test/smile-thumb.webp',
+                    preview_url: 'https://media.identa.test/smile-preview.webp',
+                    thumbnail_ready: true,
+                    preview_ready: true,
+                },
+                top: {
+                    id: 'top-photo',
+                    view_type: 'top',
+                    scan_status: 'approved',
+                    thumbnail_url: 'https://media.identa.test/top-thumb.webp',
+                    preview_url: 'https://media.identa.test/top-preview.webp',
+                    thumbnail_ready: true,
+                    preview_ready: true,
+                },
+                bottom: {
+                    id: 'bottom-photo',
+                    view_type: 'bottom',
+                    scan_status: 'approved',
+                    thumbnail_url: 'https://media.identa.test/bottom-thumb.webp',
+                    preview_url: 'https://media.identa.test/bottom-preview.webp',
+                    thumbnail_ready: true,
+                    preview_ready: true,
+                },
+            },
+        } as never);
+
+        await renderPage();
+
+        expect(await screen.findByText('Oral photo')).toBeInTheDocument();
+        expect(screen.queryByText('Ready')).not.toBeInTheDocument();
+        expect(screen.queryByText('No photo')).not.toBeInTheDocument();
+        expect(screen.getAllByTitle('Replace')).toHaveLength(3);
+        expect(screen.getAllByTitle('View')).toHaveLength(3);
+    });
+
     it('archives the patient through the confirm dialog', async () => {
         vi.mocked(getCurrentUser).mockResolvedValue(dentist as never);
         vi.mocked(getPatient).mockResolvedValue(patient as never);

@@ -45,11 +45,12 @@ import {
     FileText,
     Hash,
     HeartPulse,
-    ImageIcon,
     Loader2,
     Lock,
     MapPin,
+    Maximize2,
     Phone,
+    Pencil,
     Pill,
     Plus,
     Upload,
@@ -888,20 +889,17 @@ export default function PatientDetailPage({
                                 && deleteOralPhotoMutation.variables === slot.viewType;
                             const canUploadOralPhoto = canManagePatients && !isPatientArchived && !isUploadingSlot && !isDeletingSlot;
                             const slotLabel = t(slot.labelKey);
-                            const slotStatusKey = slot.hasPhoto
-                                ? 'patientDetail.oralPhoto.status.ready'
+                            const shouldShowSlotStatus = !slot.hasPhoto || slot.isProcessing || slot.isRejected;
+                            const slotStatusKey = slot.isProcessing
+                                ? 'patientDetail.oralPhoto.status.processing'
+                                : slot.isRejected
+                                    ? 'patientDetail.oralPhoto.status.rejected'
+                                    : 'patientDetail.oralPhoto.status.empty';
+                            const slotStatusClassName = slot.isRejected
+                                ? 'text-rose-600'
                                 : slot.isProcessing
-                                    ? 'patientDetail.oralPhoto.status.processing'
-                                    : slot.isRejected
-                                        ? 'patientDetail.oralPhoto.status.rejected'
-                                        : 'patientDetail.oralPhoto.status.empty';
-                            const slotStatusDotClassName = slot.hasPhoto
-                                ? 'bg-emerald-500'
-                                : slot.isProcessing
-                                    ? 'bg-sky-500'
-                                    : slot.isRejected
-                                        ? 'bg-rose-500'
-                                        : 'bg-slate-300';
+                                    ? 'text-sky-600'
+                                    : 'text-slate-500';
 
                             return (
                                 <section key={slot.viewType} className="flex min-w-0 items-center gap-2 py-1.5">
@@ -917,35 +915,39 @@ export default function PatientDetailPage({
                                                 pickOralPhoto(slot.viewType);
                                             }
                                         }}
-                                        className="relative flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-slate-200 bg-slate-50 text-slate-400 transition hover:border-slate-300 hover:bg-slate-100 disabled:cursor-default disabled:hover:border-slate-200 disabled:hover:bg-slate-50"
+                                        className={`group/thumb relative flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg border text-slate-400 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 focus-visible:ring-offset-1 disabled:cursor-default disabled:hover:border-slate-200 disabled:hover:bg-slate-50 ${slot.hasPhoto ? 'border-slate-200 bg-slate-50 hover:border-slate-300 hover:bg-slate-100' : 'border-dashed border-slate-300 bg-white hover:border-slate-400 hover:bg-slate-50'}`}
                                         aria-label={slot.hasPhoto ? t('patientDetail.oralPhoto.view') : slotLabel}
                                         title={slot.hasPhoto ? t('patientDetail.oralPhoto.view') : slotLabel}
                                     >
                                         {slot.hasPhoto && slot.thumbnailUrl ? (
-                                            // eslint-disable-next-line @next/next/no-img-element
-                                            <img
-                                                src={slot.thumbnailUrl}
-                                                alt={slotLabel}
-                                                crossOrigin={getProtectedMediaCrossOrigin(slot.thumbnailUrl)}
-                                                className="h-full w-full object-cover"
-                                                decoding="async"
-                                            />
+                                            <>
+                                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                <img
+                                                    src={slot.thumbnailUrl}
+                                                    alt={slotLabel}
+                                                    crossOrigin={getProtectedMediaCrossOrigin(slot.thumbnailUrl)}
+                                                    className="h-full w-full object-cover"
+                                                    decoding="async"
+                                                />
+                                                <span className="pointer-events-none absolute inset-0 flex items-center justify-center bg-slate-950/0 text-white opacity-0 transition group-hover/thumb:bg-slate-950/25 group-hover/thumb:opacity-100 group-focus-visible/thumb:bg-slate-950/25 group-focus-visible/thumb:opacity-100">
+                                                    <Maximize2 className="h-3.5 w-3.5" />
+                                                </span>
+                                            </>
                                         ) : slot.isProcessing ? (
                                             <Loader2 className="h-4 w-4 animate-spin text-sky-500" />
                                         ) : (
-                                            <ImageIcon className="h-5 w-5" />
+                                            <Upload className="h-4 w-4" />
                                         )}
                                     </button>
                                     <div className="min-w-0 flex-1">
-                                        <div className="flex min-w-0 items-center gap-1.5">
-                                            <p className="min-w-0 flex-1 truncate text-[13px] font-semibold text-slate-950">
-                                                {slotLabel}
-                                            </p>
-                                            <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${slotStatusDotClassName}`} />
-                                        </div>
-                                        <p className="mt-0.5 truncate text-[11px] font-medium text-slate-500">
-                                            {t(slotStatusKey)}
+                                        <p className="truncate text-[13px] font-semibold text-slate-950">
+                                            {slotLabel}
                                         </p>
+                                        {shouldShowSlotStatus ? (
+                                            <p className={`mt-0.5 truncate text-[11px] font-medium ${slotStatusClassName}`}>
+                                                {t(slotStatusKey)}
+                                            </p>
+                                        ) : null}
                                     </div>
                                     <div className="flex shrink-0 items-center gap-1">
                                         {canManagePatients ? (
@@ -961,6 +963,8 @@ export default function PatientDetailPage({
                                             >
                                                 {isUploadingSlot ? (
                                                     <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                                ) : slot.hasPhoto ? (
+                                                    <Pencil className="h-3.5 w-3.5" />
                                                 ) : (
                                                     <Upload className="h-3.5 w-3.5" />
                                                 )}
@@ -976,7 +980,11 @@ export default function PatientDetailPage({
                                                 aria-label={slot.hasPhoto ? t('patientDetail.oralPhoto.replace') : t('patientDetail.oralPhoto.upload')}
                                                 title={slot.hasPhoto ? t('patientDetail.oralPhoto.replace') : t('patientDetail.oralPhoto.upload')}
                                             >
-                                                <Upload className="h-3.5 w-3.5" />
+                                                {slot.hasPhoto ? (
+                                                    <Pencil className="h-3.5 w-3.5" />
+                                                ) : (
+                                                    <Upload className="h-3.5 w-3.5" />
+                                                )}
                                             </Button>
                                         ) : null}
                                         {canManagePatients && slot.photo ? (
