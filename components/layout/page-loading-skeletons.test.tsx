@@ -8,6 +8,7 @@ import {
     AdminPlansLoadingState,
     AdminSettingsLoadingState,
     AuthFormLoadingState,
+    PatientDetailLoadingState,
     PaymentsLoadingState,
     RouteDashboardLoadingState,
 } from '@/components/layout/page-loading-skeletons';
@@ -40,6 +41,13 @@ describe('page loading skeletons', () => {
             expect(screen.getByTestId('payments-loading')).toBeInTheDocument();
             expect(screen.getAllByTestId('metric-card-skeleton')).toHaveLength(4);
             expect(screen.getByTestId('ledger-table-skeleton')).toBeInTheDocument();
+        });
+
+        it('renders the patient detail oral photo panel skeleton', () => {
+            render(<PatientDetailLoadingState />);
+
+            expect(screen.getByTestId('patient-detail-oral-photo-skeleton')).toBeInTheDocument();
+            expect(screen.getAllByTestId('patient-detail-oral-photo-slot-skeleton')).toHaveLength(3);
         });
     });
 
