@@ -461,24 +461,22 @@ export function PatientDetailLoadingState() {
                         </div>
                         <Skeleton className="h-5 w-12 shrink-0 rounded-full" />
                     </div>
-                    <div className="divide-y divide-slate-100 px-2 pb-2">
+                    <div className="divide-y divide-slate-100 px-3 pb-2">
                         {Array.from({ length: 3 }).map((_, index) => (
                             <div
                                 key={index}
                                 data-testid="patient-detail-oral-photo-slot-skeleton"
-                                className="py-2"
+                                className="py-1.5"
                             >
-                                <div className="flex min-w-0 items-center gap-2.5">
-                                    <Skeleton className="h-10 w-10 shrink-0 rounded-lg" />
-                                    <div className="min-w-0 flex-1 space-y-2">
-                                        <div className="flex items-center justify-between gap-2">
-                                            <Skeleton className="h-4 w-20 rounded-xl" />
-                                            <Skeleton className="h-3 w-14 shrink-0 rounded-xl" />
-                                        </div>
-                                        <div className="flex items-center gap-1.5">
-                                            <Skeleton className="h-6 w-20 rounded-full" />
-                                            <Skeleton className="h-6 w-6 shrink-0 rounded-full" />
-                                        </div>
+                                <div className="flex min-w-0 items-center gap-2">
+                                    <Skeleton className="h-9 w-9 shrink-0 rounded-lg" />
+                                    <div className="min-w-0 flex-1 space-y-1.5">
+                                        <Skeleton className="h-3.5 w-24 rounded-xl" />
+                                        <Skeleton className="h-3 w-16 rounded-xl" />
+                                    </div>
+                                    <div className="flex shrink-0 items-center gap-1">
+                                        <Skeleton className="h-7 w-7 rounded-full" />
+                                        <Skeleton className="h-7 w-7 rounded-full" />
                                     </div>
                                 </div>
                             </div>

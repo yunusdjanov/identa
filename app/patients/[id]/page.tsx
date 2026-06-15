@@ -865,10 +865,10 @@ export default function PatientDetailPage({
 
                 {/* Oral photo: compact clinical photo shortcuts */}
                 <article className="group/card relative flex flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm shadow-slate-200/40 transition-all hover:-translate-y-0.5 hover:shadow-md hover:shadow-slate-200/70">
-                    <div className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-cyan-400 via-sky-400 to-blue-500" />
+                    <div className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-slate-200 via-slate-300 to-slate-400" />
                     <header className="flex items-center justify-between gap-3 px-4 pt-4 pb-2">
                         <div className="flex min-w-0 items-center gap-2.5">
-                            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-sky-50 to-cyan-50 text-sky-600 ring-1 ring-sky-100/80 shadow-sm shadow-sky-100/40">
+                            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-slate-50 text-slate-500 ring-1 ring-slate-100/80 shadow-sm shadow-slate-100/40">
                                 <Camera className="h-4 w-4" strokeWidth={2.25} />
                             </span>
                             <p className="truncate text-[11px] font-bold uppercase tracking-[0.14em] text-slate-700">
@@ -876,11 +876,11 @@ export default function PatientDetailPage({
                             </p>
                         </div>
                         <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-slate-50 px-2 py-0.5 text-[11px] font-semibold text-slate-600 ring-1 ring-slate-100">
-                            <span className="h-1.5 w-1.5 rounded-full bg-sky-400" />
+                            <span className="h-1.5 w-1.5 rounded-full bg-slate-400" />
                             <span className="tabular-nums">{oralPhotoReadyCount}/{ORAL_PHOTO_SLOTS.length}</span>
                         </span>
                     </header>
-                    <div className="divide-y divide-slate-100 px-2 pb-2">
+                    <div className="divide-y divide-slate-100 px-3 pb-2">
                         {oralPhotoSlots.map((slot) => {
                             const isUploadingSlot = uploadOralPhotoMutation.isPending
                                 && uploadOralPhotoMutation.variables?.viewType === slot.viewType;
@@ -904,7 +904,7 @@ export default function PatientDetailPage({
                                         : 'bg-slate-300';
 
                             return (
-                                <section key={slot.viewType} className="flex min-w-0 items-center gap-2.5 py-2">
+                                <section key={slot.viewType} className="flex min-w-0 items-center gap-2 py-1.5">
                                     <button
                                         type="button"
                                         disabled={!slot.hasPhoto && !canUploadOralPhoto}
@@ -917,8 +917,8 @@ export default function PatientDetailPage({
                                                 pickOralPhoto(slot.viewType);
                                             }
                                         }}
-                                        className="relative flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-slate-200 bg-slate-50 text-slate-400 transition hover:border-sky-200 hover:bg-sky-50 disabled:cursor-default disabled:hover:border-slate-200 disabled:hover:bg-slate-50"
-                                        aria-label={slot.hasPhoto ? t('patientDetail.oralPhoto.view') : t('patientDetail.oralPhoto.upload')}
+                                        className="relative flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-slate-200 bg-slate-50 text-slate-400 transition hover:border-slate-300 hover:bg-slate-100 disabled:cursor-default disabled:hover:border-slate-200 disabled:hover:bg-slate-50"
+                                        aria-label={slot.hasPhoto ? t('patientDetail.oralPhoto.view') : slotLabel}
                                         title={slot.hasPhoto ? t('patientDetail.oralPhoto.view') : slotLabel}
                                     >
                                         {slot.hasPhoto && slot.thumbnailUrl ? (
@@ -937,64 +937,66 @@ export default function PatientDetailPage({
                                         )}
                                     </button>
                                     <div className="min-w-0 flex-1">
-                                        <div className="flex min-w-0 items-center gap-2">
-                                            <p className="min-w-0 flex-1 truncate text-sm font-semibold text-slate-950">
+                                        <div className="flex min-w-0 items-center gap-1.5">
+                                            <p className="min-w-0 flex-1 truncate text-[13px] font-semibold text-slate-950">
                                                 {slotLabel}
                                             </p>
-                                            <span className="inline-flex shrink-0 items-center gap-1.5 text-[11px] font-medium text-slate-500">
-                                                <span className={`h-1.5 w-1.5 rounded-full ${slotStatusDotClassName}`} />
-                                                <span className="max-w-20 truncate">{t(slotStatusKey)}</span>
-                                            </span>
+                                            <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${slotStatusDotClassName}`} />
                                         </div>
-                                        <div className="mt-1 flex min-w-0 items-center gap-1.5">
-                                            {canManagePatients ? (
-                                                <Button
-                                                    type="button"
-                                                    variant="outline"
-                                                    size="sm"
-                                                    className="h-6 min-w-0 rounded-full px-2 text-[11px] font-semibold"
-                                                    disabled={!canUploadOralPhoto}
-                                                    onClick={() => pickOralPhoto(slot.viewType)}
-                                                >
-                                                    {isUploadingSlot ? (
-                                                        <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-                                                    ) : (
-                                                        <Upload className="mr-1 h-3 w-3" />
-                                                    )}
-                                                    <span className="truncate">{slot.hasPhoto ? t('patientDetail.oralPhoto.replace') : t('patientDetail.oralPhoto.upload')}</span>
-                                                </Button>
-                                            ) : isSubscriptionReadOnly(currentUser) && canViewPatients ? (
-                                                <Button
-                                                    type="button"
-                                                    variant="outline"
-                                                    size="sm"
-                                                    className="h-6 min-w-0 rounded-full px-2 text-[11px] font-semibold"
-                                                    disabled
-                                                    onClick={denyManageAction}
-                                                >
-                                                    <Upload className="mr-1 h-3 w-3" />
-                                                    <span className="truncate">{slot.hasPhoto ? t('patientDetail.oralPhoto.replace') : t('patientDetail.oralPhoto.upload')}</span>
-                                                </Button>
-                                            ) : null}
-                                            {canManagePatients && slot.photo ? (
-                                                <Button
-                                                    type="button"
-                                                    variant="outline"
-                                                    size="icon"
-                                                    className="h-6 w-6 shrink-0 rounded-full text-red-600 hover:border-red-200 hover:bg-red-50 hover:text-red-700"
-                                                    disabled={isPatientArchived || isUploadingSlot || isDeletingSlot}
-                                                    onClick={() => setDeleteOralPhotoViewType(slot.viewType)}
-                                                    aria-label={t('common.delete')}
-                                                    title={t('common.delete')}
-                                                >
-                                                    {isDeletingSlot ? (
-                                                        <Loader2 className="h-3 w-3 animate-spin" />
-                                                    ) : (
-                                                        <Trash2 className="h-3 w-3" />
-                                                    )}
-                                                </Button>
-                                            ) : null}
-                                        </div>
+                                        <p className="mt-0.5 truncate text-[11px] font-medium text-slate-500">
+                                            {t(slotStatusKey)}
+                                        </p>
+                                    </div>
+                                    <div className="flex shrink-0 items-center gap-1">
+                                        {canManagePatients ? (
+                                            <Button
+                                                type="button"
+                                                variant="ghost"
+                                                size="icon"
+                                                className="h-7 w-7 rounded-full text-slate-500 hover:bg-slate-100 hover:text-slate-900"
+                                                disabled={!canUploadOralPhoto}
+                                                onClick={() => pickOralPhoto(slot.viewType)}
+                                                aria-label={slot.hasPhoto ? t('patientDetail.oralPhoto.replace') : t('patientDetail.oralPhoto.upload')}
+                                                title={slot.hasPhoto ? t('patientDetail.oralPhoto.replace') : t('patientDetail.oralPhoto.upload')}
+                                            >
+                                                {isUploadingSlot ? (
+                                                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                                ) : (
+                                                    <Upload className="h-3.5 w-3.5" />
+                                                )}
+                                            </Button>
+                                        ) : isSubscriptionReadOnly(currentUser) && canViewPatients ? (
+                                            <Button
+                                                type="button"
+                                                variant="ghost"
+                                                size="icon"
+                                                className="h-7 w-7 rounded-full text-slate-400"
+                                                disabled
+                                                onClick={denyManageAction}
+                                                aria-label={slot.hasPhoto ? t('patientDetail.oralPhoto.replace') : t('patientDetail.oralPhoto.upload')}
+                                                title={slot.hasPhoto ? t('patientDetail.oralPhoto.replace') : t('patientDetail.oralPhoto.upload')}
+                                            >
+                                                <Upload className="h-3.5 w-3.5" />
+                                            </Button>
+                                        ) : null}
+                                        {canManagePatients && slot.photo ? (
+                                            <Button
+                                                type="button"
+                                                variant="ghost"
+                                                size="icon"
+                                                className="h-7 w-7 rounded-full text-red-500 hover:bg-red-50 hover:text-red-700"
+                                                disabled={isPatientArchived || isUploadingSlot || isDeletingSlot}
+                                                onClick={() => setDeleteOralPhotoViewType(slot.viewType)}
+                                                aria-label={t('common.delete')}
+                                                title={t('common.delete')}
+                                            >
+                                                {isDeletingSlot ? (
+                                                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                                ) : (
+                                                    <Trash2 className="h-3.5 w-3.5" />
+                                                )}
+                                            </Button>
+                                        ) : null}
                                     </div>
                                 </section>
                             );

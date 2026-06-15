@@ -146,7 +146,7 @@ describe('PatientDetailPage', () => {
         expect(screen.getByText('Top')).toBeInTheDocument();
         expect(screen.getByText('Bottom')).toBeInTheDocument();
         expect(screen.getAllByText('No photo')).toHaveLength(3);
-        expect(screen.getAllByText('Upload')).toHaveLength(3);
+        expect(screen.getAllByTitle('Upload')).toHaveLength(3);
         expect(detailCard.compareDocumentPosition(oralPhotoTitle) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
         expect(oralPhotoTitle.compareDocumentPosition(appointmentsTitle) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     });
