@@ -20,6 +20,7 @@ import type {
     ApiPatientLookup,
     ApiPatientOverview,
     ApiPatientCategory,
+    ApiPatientClinicalPhotoViewType,
     ApiPlan,
     ApiPayment,
     ApiProfile,
@@ -118,6 +119,10 @@ function buildQueryParams(options?: QueryOptions): Record<string, unknown> {
     }
 
     return params;
+}
+
+function patientOralPhotoEndpoint(id: string, viewType: ApiPatientClinicalPhotoViewType): string {
+    return `/patients/${id}/oral-photos/${viewType}`;
 }
 
 async function collectAllPages<T>(
@@ -426,22 +431,26 @@ export async function uploadPatientPhoto(id: string, photo: File): Promise<ApiPa
 }
 
 /**
- * Upload or replace the patient's primary oral clinical photo.
+ * Upload or replace one of the patient's oral clinical photo slots.
  */
-export async function uploadPatientOralPhoto(id: string, photo: File): Promise<ApiPatient> {
-    const directUpload = await preparePatientOralPhotoDirectUpload(id, photo);
+export async function uploadPatientOralPhoto(
+    id: string,
+    photo: File,
+    viewType: ApiPatientClinicalPhotoViewType = 'smile'
+): Promise<ApiPatient> {
+    const directUpload = await preparePatientOralPhotoDirectUpload(id, photo, viewType);
 
     if (directUpload.supported && directUpload.upload_id && directUpload.url) {
         try {
             await performDirectSignedUpload(photo, directUpload);
         } catch {
-            return uploadPatientOralPhotoViaApi(id, photo);
+            return uploadPatientOralPhotoViaApi(id, photo, viewType);
         }
 
-        return finalizePatientOralPhotoDirectUpload(id, directUpload.upload_id);
+        return finalizePatientOralPhotoDirectUpload(id, directUpload.upload_id, viewType);
     }
 
-    return uploadPatientOralPhotoViaApi(id, photo);
+    return uploadPatientOralPhotoViaApi(id, photo, viewType);
 }
 
 export async function deletePatientPhoto(id: string): Promise<ApiPatient> {
@@ -453,11 +462,14 @@ export async function deletePatientPhoto(id: string): Promise<ApiPatient> {
 }
 
 /**
- * Delete the patient's primary oral clinical photo.
+ * Delete one of the patient's oral clinical photo slots.
  */
-export async function deletePatientOralPhoto(id: string): Promise<ApiPatient> {
+export async function deletePatientOralPhoto(
+    id: string,
+    viewType: ApiPatientClinicalPhotoViewType = 'smile'
+): Promise<ApiPatient> {
     const { data } = await withCsrfRetry(() =>
-        apiClient.delete<ApiEnvelope<ApiPatient>>(`/patients/${id}/oral-photo`)
+        apiClient.delete<ApiEnvelope<ApiPatient>>(patientOralPhotoEndpoint(id, viewType))
     );
 
     return data.data;
@@ -660,12 +672,16 @@ async function uploadPatientPhotoViaApi(id: string, photo: File): Promise<ApiPat
     return data.data;
 }
 
-async function uploadPatientOralPhotoViaApi(id: string, photo: File): Promise<ApiPatient> {
+async function uploadPatientOralPhotoViaApi(
+    id: string,
+    photo: File,
+    viewType: ApiPatientClinicalPhotoViewType
+): Promise<ApiPatient> {
     const formData = new FormData();
     formData.append('photo', photo);
 
     const { data } = await withCsrfRetry(() =>
-        apiClient.post<ApiEnvelope<ApiPatient>>(`/patients/${id}/oral-photo`, formData)
+        apiClient.post<ApiEnvelope<ApiPatient>>(patientOralPhotoEndpoint(id, viewType), formData)
     );
 
     return data.data;
@@ -692,11 +708,12 @@ async function preparePatientPhotoDirectUpload(
 
 async function preparePatientOralPhotoDirectUpload(
     id: string,
-    photo: File
+    photo: File,
+    viewType: ApiPatientClinicalPhotoViewType
 ): Promise<ApiDirectUploadTicket> {
     try {
         const { data } = await withCsrfRetry(() =>
-            apiClient.post<ApiEnvelope<ApiDirectUploadTicket>>(`/patients/${id}/oral-photo/direct-upload`, {
+            apiClient.post<ApiEnvelope<ApiDirectUploadTicket>>(`${patientOralPhotoEndpoint(id, viewType)}/direct-upload`, {
                 filename: photo.name,
                 content_type: resolveDirectUploadContentType(photo),
                 file_size: photo.size,
@@ -717,9 +734,13 @@ async function finalizePatientPhotoDirectUpload(id: string, uploadId: string): P
     return data.data;
 }
 
-async function finalizePatientOralPhotoDirectUpload(id: string, uploadId: string): Promise<ApiPatient> {
+async function finalizePatientOralPhotoDirectUpload(
+    id: string,
+    uploadId: string,
+    viewType: ApiPatientClinicalPhotoViewType
+): Promise<ApiPatient> {
     const { data } = await withCsrfRetry(() =>
-        apiClient.post<ApiEnvelope<ApiPatient>>(`/patients/${id}/oral-photo/direct-upload/${uploadId}/complete`)
+        apiClient.post<ApiEnvelope<ApiPatient>>(`${patientOralPhotoEndpoint(id, viewType)}/direct-upload/${uploadId}/complete`)
     );
 
     return data.data;

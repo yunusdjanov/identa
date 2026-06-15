@@ -15,9 +15,10 @@ const patient = {
     id: 'patient-1',
     full_name: 'Test Patient',
 };
+const testImageBytes = 'image-bytes';
 
 function makePhoto(): File {
-    return new File(['image-bytes'], 'avatar.png', { type: 'image/png' });
+    return new File([testImageBytes], 'avatar.png', { type: 'image/png' });
 }
 
 describe('uploadPatientPhoto', () => {
@@ -116,7 +117,38 @@ describe('uploadPatientOralPhoto', () => {
             })
         );
         expect(apiClient.post).toHaveBeenLastCalledWith(
-            '/patients/patient-1/oral-photo/direct-upload/oral-upload-1/complete'
+            '/patients/patient-1/oral-photos/smile/direct-upload/oral-upload-1/complete'
+        );
+    });
+
+    it('uploads a requested oral photo slot through its slot endpoint', async () => {
+        vi.mocked(apiClient.post)
+            .mockResolvedValueOnce({
+                data: {
+                    data: {
+                        supported: true,
+                        upload_id: 'top-upload-1',
+                        method: 'PUT',
+                        url: 'https://bucket.account.r2.cloudflarestorage.com/top-photo.png',
+                    },
+                },
+            })
+            .mockResolvedValueOnce({ data: { data: patient } });
+        vi.mocked(fetch).mockResolvedValueOnce({ ok: true } as Response);
+
+        await expect(uploadPatientOralPhoto('patient-1', makePhoto(), 'top')).resolves.toEqual(patient);
+
+        expect(apiClient.post).toHaveBeenNthCalledWith(
+            1,
+            '/patients/patient-1/oral-photos/top/direct-upload',
+            {
+                filename: 'avatar.png',
+                content_type: 'image/png',
+                file_size: testImageBytes.length,
+            }
+        );
+        expect(apiClient.post).toHaveBeenLastCalledWith(
+            '/patients/patient-1/oral-photos/top/direct-upload/top-upload-1/complete'
         );
     });
 
@@ -138,7 +170,7 @@ describe('uploadPatientOralPhoto', () => {
         await expect(uploadPatientOralPhoto('patient-1', makePhoto())).resolves.toEqual(patient);
 
         expect(apiClient.post).toHaveBeenLastCalledWith(
-            '/patients/patient-1/oral-photo',
+            '/patients/patient-1/oral-photos/smile',
             expect.any(FormData)
         );
     });

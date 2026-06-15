@@ -6,6 +6,7 @@ use App\Models\Appointment;
 use App\Models\OdontogramEntry;
 use App\Models\Patient;
 use App\Models\PatientCategory;
+use App\Models\PatientClinicalPhoto;
 use App\Models\Treatment;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -275,10 +276,13 @@ class PatientApiTest extends TestCase
             ], ['Accept' => 'application/json'])
             ->assertOk()
             ->assertJsonPath('data.id', $patient->id)
-            ->assertJsonPath('data.oral_photo.view_type', 'oral_primary')
+            ->assertJsonPath('data.oral_photo.view_type', 'smile')
             ->assertJsonPath('data.oral_photo.scan_status', 'approved')
             ->assertJsonPath('data.oral_photo.thumbnail_ready', true)
             ->assertJsonPath('data.oral_photo.preview_ready', true)
+            ->assertJsonPath('data.oral_photos.smile.view_type', 'smile')
+            ->assertJsonPath('data.oral_photos.top', null)
+            ->assertJsonPath('data.oral_photos.bottom', null)
             ->assertJsonStructure([
                 'data' => [
                     'oral_photo' => [
@@ -293,8 +297,83 @@ class PatientApiTest extends TestCase
         $this->assertDatabaseHas('patient_clinical_photos', [
             'dentist_id' => $dentist->id,
             'patient_id' => $patient->id,
-            'view_type' => 'oral_primary',
+            'view_type' => 'smile',
             'scan_status' => 'approved',
+        ]);
+    }
+
+    public function test_dentist_can_upload_patient_oral_photo_slot(): void
+    {
+        Storage::fake('local');
+        $dentist = User::factory()->create();
+        $patient = Patient::factory()->create([
+            'dentist_id' => $dentist->id,
+        ]);
+
+        $this->actingAs($dentist, 'web')
+            ->post("/api/v1/patients/{$patient->id}/oral-photos/top", [
+                'photo' => UploadedFile::fake()->image('top-photo.jpg', 1800, 1200),
+            ], ['Accept' => 'application/json'])
+            ->assertOk()
+            ->assertJsonPath('data.id', $patient->id)
+            ->assertJsonPath('data.oral_photo', null)
+            ->assertJsonPath('data.oral_photos.top.view_type', 'top')
+            ->assertJsonPath('data.oral_photos.top.scan_status', 'approved')
+            ->assertJsonPath('data.oral_photos.smile', null)
+            ->assertJsonPath('data.oral_photos.bottom', null);
+
+        $this->assertDatabaseHas('patient_clinical_photos', [
+            'dentist_id' => $dentist->id,
+            'patient_id' => $patient->id,
+            'view_type' => 'top',
+            'scan_status' => 'approved',
+        ]);
+    }
+
+    public function test_legacy_oral_primary_photo_is_exposed_as_smile_slot(): void
+    {
+        Storage::fake('local');
+        $dentist = User::factory()->create();
+        $patient = Patient::factory()->create([
+            'dentist_id' => $dentist->id,
+        ]);
+        $path = 'approved/patients/legacy-oral-photo.jpg';
+        $image = UploadedFile::fake()->image('legacy-oral-photo.jpg', 800, 600);
+        Storage::disk('local')->put($path, file_get_contents((string) $image->getRealPath()));
+
+        $photo = PatientClinicalPhoto::query()->create([
+            'dentist_id' => $dentist->id,
+            'patient_id' => $patient->id,
+            'view_type' => PatientClinicalPhoto::VIEW_TYPE_LEGACY_ORAL_PRIMARY,
+            'is_primary' => true,
+            'disk' => 'local',
+            'path' => $path,
+            'mime_type' => 'image/jpeg',
+            'file_size' => Storage::disk('local')->size($path),
+            'scan_status' => 'approved',
+            'approved_at' => now(),
+        ]);
+
+        $this->actingAs($dentist, 'web')
+            ->getJson("/api/v1/patients/{$patient->id}")
+            ->assertOk()
+            ->assertJsonPath('data.oral_photo.view_type', 'smile')
+            ->assertJsonPath('data.oral_photos.smile.view_type', 'smile')
+            ->assertJsonPath('data.oral_photos.top', null)
+            ->assertJsonPath('data.oral_photos.bottom', null);
+
+        $downloadResponse = $this->actingAs($dentist, 'web')
+            ->get("/api/v1/patients/{$patient->id}/oral-photos/smile");
+        $downloadResponse->assertOk();
+        $this->assertStringContainsString('image/', (string) $downloadResponse->headers->get('Content-Type'));
+
+        $this->actingAs($dentist, 'web')
+            ->deleteJson("/api/v1/patients/{$patient->id}/oral-photos/smile")
+            ->assertOk()
+            ->assertJsonPath('data.oral_photos.smile', null);
+
+        $this->assertDatabaseMissing('patient_clinical_photos', [
+            'id' => $photo->id,
         ]);
     }
 

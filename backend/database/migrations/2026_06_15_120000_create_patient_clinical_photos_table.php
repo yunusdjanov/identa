@@ -15,7 +15,7 @@ return new class extends Migration
             $table->uuid('id')->primary();
             $table->foreignId('dentist_id')->constrained('users')->cascadeOnDelete();
             $table->uuid('patient_id');
-            $table->string('view_type', 32)->default('oral_primary');
+            $table->string('view_type', 32)->default('smile');
             $table->boolean('is_primary')->default(true);
             $table->unsignedSmallInteger('sort_order')->default(0);
             $table->string('disk', 32)->default('local');

@@ -75,10 +75,11 @@ class PatientClinicalPhotoMediaService
         if ($photo === null) {
             return null;
         }
+        $viewType = PatientClinicalPhoto::normalizeViewType((string) $photo->view_type) ?? (string) $photo->view_type;
 
         return [
             'id' => (string) $photo->id,
-            'view_type' => (string) $photo->view_type,
+            'view_type' => $viewType,
             'scan_status' => $this->displayScanStatus($photo),
             'url' => $this->url($patient, $photo, $request),
             'thumbnail_url' => $this->url($patient, $photo, $request, self::IMAGE_VARIANT_THUMBNAIL),
@@ -88,6 +89,39 @@ class PatientClinicalPhotoMediaService
             'created_at' => $photo->created_at?->toIso8601String(),
             'updated_at' => $photo->updated_at?->toIso8601String(),
         ];
+    }
+
+    /**
+     * Build all oral-photo slot payloads keyed by slot name.
+     *
+     * @param  iterable<PatientClinicalPhoto>  $photos
+     * @return array<string, array<string, mixed>|null>
+     */
+    public function resourceCollectionPayload(Patient $patient, iterable $photos, Request $request): array
+    {
+        $photosByViewType = [];
+        foreach ($photos as $photo) {
+            $viewType = PatientClinicalPhoto::normalizeViewType((string) $photo->view_type);
+            if ($viewType === null) {
+                continue;
+            }
+
+            $isCurrentViewType = (string) $photo->view_type === $viewType;
+            if (! array_key_exists($viewType, $photosByViewType) || $isCurrentViewType) {
+                $photosByViewType[$viewType] = $photo;
+            }
+        }
+
+        $payload = [];
+        foreach (PatientClinicalPhoto::VIEW_TYPES as $viewType) {
+            $payload[$viewType] = $this->resourcePayload(
+                $patient,
+                $photosByViewType[$viewType] ?? null,
+                $request
+            );
+        }
+
+        return $payload;
     }
 
     /**
@@ -110,11 +144,13 @@ class PatientClinicalPhotoMediaService
         if ($temporaryUrl !== null) {
             return $temporaryUrl;
         }
+        $viewType = PatientClinicalPhoto::normalizeViewType((string) $photo->view_type) ?? (string) $photo->view_type;
 
         $url = sprintf(
-            '%s/api/v1/patients/%s/oral-photo?v=%s',
+            '%s/api/v1/patients/%s/oral-photos/%s?v=%s',
             $request->getSchemeAndHttpHost(),
             (string) $patient->id,
+            $viewType,
             (string) ($photo->updated_at?->getTimestamp() ?? 0)
         );
 

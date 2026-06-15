@@ -197,7 +197,24 @@ class Patient extends Model implements TenantOwned
     public function primaryOralPhoto(): HasOne
     {
         return $this->hasOne(PatientClinicalPhoto::class)
-            ->where('view_type', PatientClinicalPhoto::VIEW_TYPE_ORAL_PRIMARY)
+            ->whereIn('view_type', [
+                PatientClinicalPhoto::VIEW_TYPE_SMILE,
+                PatientClinicalPhoto::VIEW_TYPE_LEGACY_ORAL_PRIMARY,
+            ])
+            ->where('is_primary', true)
+            ->orderByRaw(
+                'case when view_type = ? then 0 else 1 end',
+                [PatientClinicalPhoto::VIEW_TYPE_SMILE]
+            );
+    }
+
+    /**
+     * @return HasMany<PatientClinicalPhoto, Patient>
+     */
+    public function oralPhotos(): HasMany
+    {
+        return $this->hasMany(PatientClinicalPhoto::class)
+            ->whereIn('view_type', PatientClinicalPhoto::READABLE_VIEW_TYPES)
             ->where('is_primary', true);
     }
 }

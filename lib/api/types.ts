@@ -150,9 +150,11 @@ export interface ApiPatientCategory {
 
 export type ApiMediaScanStatus = 'pending' | 'approved' | 'rejected';
 
+export type ApiPatientClinicalPhotoViewType = 'smile' | 'top' | 'bottom';
+
 export interface ApiPatientClinicalPhoto {
     id: string;
-    view_type: 'oral_primary' | string;
+    view_type: ApiPatientClinicalPhotoViewType | string;
     scan_status?: ApiMediaScanStatus | null;
     url?: string | null;
     thumbnail_url?: string | null;
@@ -182,6 +184,7 @@ export interface ApiPatient {
     photo_preview_ready?: boolean;
     photo_scan_status?: ApiMediaScanStatus | null;
     oral_photo?: ApiPatientClinicalPhoto | null;
+    oral_photos?: Partial<Record<ApiPatientClinicalPhotoViewType, ApiPatientClinicalPhoto | null>>;
     created_at?: string | null;
     updated_at?: string | null;
     created_by?: ApiRecordActor | null;

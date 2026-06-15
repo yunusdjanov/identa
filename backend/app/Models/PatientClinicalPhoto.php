@@ -14,7 +14,32 @@ class PatientClinicalPhoto extends Model implements TenantOwned
     /** @use HasFactory<\Database\Factories\PatientClinicalPhotoFactory> */
     use BelongsToTenant, HasFactory, HasUuids;
 
-    public const VIEW_TYPE_ORAL_PRIMARY = 'oral_primary';
+    public const VIEW_TYPE_LEGACY_ORAL_PRIMARY = 'oral_primary';
+
+    public const VIEW_TYPE_SMILE = 'smile';
+
+    public const VIEW_TYPE_TOP = 'top';
+
+    public const VIEW_TYPE_BOTTOM = 'bottom';
+
+    /**
+     * @var list<string>
+     */
+    public const VIEW_TYPES = [
+        self::VIEW_TYPE_SMILE,
+        self::VIEW_TYPE_TOP,
+        self::VIEW_TYPE_BOTTOM,
+    ];
+
+    /**
+     * @var list<string>
+     */
+    public const READABLE_VIEW_TYPES = [
+        self::VIEW_TYPE_LEGACY_ORAL_PRIMARY,
+        self::VIEW_TYPE_SMILE,
+        self::VIEW_TYPE_TOP,
+        self::VIEW_TYPE_BOTTOM,
+    ];
 
     /**
      * @var bool
@@ -77,5 +102,20 @@ class PatientClinicalPhoto extends Model implements TenantOwned
     public function patient(): BelongsTo
     {
         return $this->belongsTo(Patient::class);
+    }
+
+    /**
+     * Normalize legacy and public oral-photo slot names to the persisted view type.
+     */
+    public static function normalizeViewType(?string $viewType): ?string
+    {
+        $normalized = strtolower(trim((string) $viewType));
+
+        return match ($normalized) {
+            '', self::VIEW_TYPE_LEGACY_ORAL_PRIMARY, self::VIEW_TYPE_SMILE => self::VIEW_TYPE_SMILE,
+            self::VIEW_TYPE_TOP => self::VIEW_TYPE_TOP,
+            self::VIEW_TYPE_BOTTOM => self::VIEW_TYPE_BOTTOM,
+            default => null,
+        };
     }
 }

@@ -137,7 +137,7 @@ class MediaUploadSecurityTest extends TestCase
         $photo = PatientClinicalPhoto::query()->create([
             'dentist_id' => $dentist->id,
             'patient_id' => $patient->id,
-            'view_type' => PatientClinicalPhoto::VIEW_TYPE_ORAL_PRIMARY,
+            'view_type' => PatientClinicalPhoto::VIEW_TYPE_SMILE,
             'is_primary' => true,
             'disk' => 'local',
             'path' => $quarantinePath,
@@ -328,7 +328,7 @@ class MediaUploadSecurityTest extends TestCase
         PatientClinicalPhoto::query()->create([
             'dentist_id' => $dentist->id,
             'patient_id' => $patient->id,
-            'view_type' => PatientClinicalPhoto::VIEW_TYPE_ORAL_PRIMARY,
+            'view_type' => PatientClinicalPhoto::VIEW_TYPE_SMILE,
             'is_primary' => true,
             'disk' => 'local',
             'path' => $photoPath,

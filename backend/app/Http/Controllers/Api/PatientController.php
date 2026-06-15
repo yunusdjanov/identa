@@ -217,10 +217,11 @@ class PatientController extends Controller
         ]);
     }
 
-    public function uploadOralPhoto(Request $request, string $id): JsonResponse
+    public function uploadOralPhoto(Request $request, string $id, ?string $viewType = null): JsonResponse
     {
         $patient = $this->patients->ownedPatient($request, $id);
         $this->patients->ensureNotArchived($patient, __('api.patients.archived_restore_before_edit'));
+        $viewType = $this->clinicalPhotos->normalizeViewType($viewType);
 
         $validated = $request->validate([
             'photo' => ['required', 'file', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
@@ -231,7 +232,8 @@ class PatientController extends Controller
         $this->clinicalPhotos->uploadPrimaryOralQueued(
             $patient,
             $uploadedPhoto,
-            $this->patients->subscriptionOwner($request)
+            $this->patients->subscriptionOwner($request),
+            $viewType
         );
 
         $this->auditLogger->logFromRequest(
@@ -240,7 +242,7 @@ class PatientController extends Controller
             entityType: 'patient',
             entityId: (string) $patient->id,
             metadata: [
-                'view_type' => 'oral_primary',
+                'view_type' => $viewType,
             ],
         );
 
@@ -251,10 +253,12 @@ class PatientController extends Controller
 
     public function prepareOralPhotoUpload(
         PreparePatientPhotoUploadRequest $request,
-        string $id
+        string $id,
+        ?string $viewType = null
     ): JsonResponse {
         $patient = $this->patients->ownedPatient($request, $id);
         $this->patients->ensureNotArchived($patient, __('api.patients.archived_restore_before_edit'));
+        $viewType = $this->clinicalPhotos->normalizeViewType($viewType);
 
         return response()->json([
             'data' => $this->clinicalPhotos->preparePrimaryOral(
@@ -262,6 +266,7 @@ class PatientController extends Controller
                 patient: $patient,
                 owner: $this->patients->subscriptionOwner($request),
                 validated: $request->validated(),
+                viewType: $viewType,
             ),
         ]);
     }
@@ -269,16 +274,19 @@ class PatientController extends Controller
     public function finalizeOralPhotoUpload(
         Request $request,
         string $id,
+        string $viewType,
         string $uploadId
     ): JsonResponse {
         $patient = $this->patients->ownedPatient($request, $id);
         $this->patients->ensureNotArchived($patient, __('api.patients.archived_restore_before_edit'));
+        $viewType = $this->clinicalPhotos->normalizeViewType($viewType);
 
         $this->clinicalPhotos->finalizePrimaryOral(
             patient: $patient,
             dentistId: $this->patients->dentistId($request),
             owner: $this->patients->subscriptionOwner($request),
             uploadId: $uploadId,
+            viewType: $viewType,
         );
 
         $this->auditLogger->logFromRequest(
@@ -288,7 +296,7 @@ class PatientController extends Controller
             entityId: (string) $patient->id,
             metadata: [
                 'direct_upload' => true,
-                'view_type' => 'oral_primary',
+                'view_type' => $viewType,
             ],
         );
 
@@ -297,22 +305,32 @@ class PatientController extends Controller
         ]);
     }
 
-    public function downloadOralPhoto(Request $request, string $id): StreamedResponse
+    public function finalizeLegacyOralPhotoUpload(
+        Request $request,
+        string $id,
+        string $uploadId
+    ): JsonResponse {
+        return $this->finalizeOralPhotoUpload($request, $id, 'smile', $uploadId);
+    }
+
+    public function downloadOralPhoto(Request $request, string $id, ?string $viewType = null): StreamedResponse
     {
         $patient = $this->patients->ownedPatient($request, $id);
         $variant = $request->query('variant');
+        $viewType = $this->clinicalPhotos->normalizeViewType($viewType);
 
         return $this->clinicalPhotos->stream(
-            $this->clinicalPhotos->primaryOralPhotoOrFail($patient),
+            $this->clinicalPhotos->oralPhotoOrFail($patient, $viewType),
             is_string($variant) && $variant !== '' ? $variant : null
         );
     }
 
-    public function deleteOralPhoto(Request $request, string $id): JsonResponse
+    public function deleteOralPhoto(Request $request, string $id, ?string $viewType = null): JsonResponse
     {
         $patient = $this->patients->ownedPatient($request, $id);
         $this->patients->ensureNotArchived($patient, __('api.patients.archived_restore_before_edit'));
-        $photo = $this->clinicalPhotos->primaryOralPhotoOrFail($patient);
+        $viewType = $this->clinicalPhotos->normalizeViewType($viewType);
+        $photo = $this->clinicalPhotos->oralPhotoOrFail($patient, $viewType);
 
         $this->clinicalPhotos->delete($photo);
         $photo->delete();
@@ -323,7 +341,7 @@ class PatientController extends Controller
             entityType: 'patient',
             entityId: (string) $patient->id,
             metadata: [
-                'view_type' => 'oral_primary',
+                'view_type' => $viewType,
             ],
         );
 

@@ -25,12 +25,14 @@ class PatientClinicalPhotoService
         private readonly PatientClinicalPhotoMediaService $media,
     ) {}
 
-    /** Store or replace the patient's primary oral photo through the API upload path. */
+    /** Store or replace one of the patient's oral photo slots through the API upload path. */
     public function uploadPrimaryOralQueued(
         Patient $patient,
         UploadedFile $uploadedPhoto,
-        User $owner
+        User $owner,
+        string $viewType = PatientClinicalPhoto::VIEW_TYPE_SMILE
     ): PatientClinicalPhoto {
+        $viewType = $this->normalizeViewType($viewType);
         $this->planLimitService->ensureUploadFileAllowed(
             $owner,
             max((int) $uploadedPhoto->getSize(), 0),
@@ -39,7 +41,7 @@ class PatientClinicalPhotoService
 
         $disk = $this->disk();
         $mimeType = (string) ($uploadedPhoto->getMimeType() ?: $uploadedPhoto->getClientMimeType());
-        $path = $this->buildStoragePath((int) $patient->dentist_id, (string) $patient->id, $this->extensionForMimeType($mimeType));
+        $path = $this->buildStoragePath((int) $patient->dentist_id, (string) $patient->id, $viewType, $this->extensionForMimeType($mimeType));
         $contents = file_get_contents((string) $uploadedPhoto->getRealPath());
         $stored = is_string($contents) && $contents !== '' ? Storage::disk($disk)->put($path, $contents) : false;
 
@@ -49,6 +51,7 @@ class PatientClinicalPhotoService
 
         return $this->queueScanOrFail($this->startPendingReplacement(
             patient: $patient,
+            viewType: $viewType,
             disk: $disk,
             path: $path,
             mimeType: $mimeType,
@@ -62,8 +65,14 @@ class PatientClinicalPhotoService
      * @param  array<string, mixed>  $validated
      * @return array<string, mixed>
      */
-    public function preparePrimaryOral(int $dentistId, Patient $patient, User $owner, array $validated): array
-    {
+    public function preparePrimaryOral(
+        int $dentistId,
+        Patient $patient,
+        User $owner,
+        array $validated,
+        string $viewType = PatientClinicalPhoto::VIEW_TYPE_SMILE
+    ): array {
+        $viewType = $this->normalizeViewType($viewType);
         $disk = $this->disk();
         if (! $this->mediaDiskSupportsDirectUpload($disk)) {
             return ['supported' => false];
@@ -77,6 +86,7 @@ class PatientClinicalPhotoService
         $path = $this->buildStoragePath(
             $dentistId,
             (string) $patient->id,
+            $viewType,
             $this->extensionForMimeType((string) $validated['content_type'])
         );
         $uploadId = (string) Str::uuid();
@@ -95,6 +105,7 @@ class PatientClinicalPhotoService
         Cache::put($this->directUploadCacheKey($uploadId), [
             'dentist_id' => $dentistId,
             'patient_id' => (string) $patient->id,
+            'view_type' => $viewType,
             'disk' => $disk,
             'path' => $path,
             'mime_type' => (string) $validated['content_type'],
@@ -116,13 +127,15 @@ class PatientClinicalPhotoService
         Patient $patient,
         int $dentistId,
         User $owner,
-        string $uploadId
+        string $uploadId,
+        string $viewType = PatientClinicalPhoto::VIEW_TYPE_SMILE
     ): PatientClinicalPhoto {
+        $viewType = $this->normalizeViewType($viewType);
         $ticket = Cache::pull($this->directUploadCacheKey($uploadId));
         if (! is_array($ticket)) {
             throw ValidationException::withMessages(['photo' => [$this->message('direct_upload_expired', 'The upload session expired. Please try uploading the oral photo again.')]]);
         }
-        $this->assertTicketBelongsToPatient($ticket, $dentistId, (string) $patient->id);
+        $this->assertTicketBelongsToPatient($ticket, $dentistId, (string) $patient->id, $viewType);
 
         $disk = (string) ($ticket['disk'] ?? '');
         $path = (string) ($ticket['path'] ?? '');
@@ -145,6 +158,7 @@ class PatientClinicalPhotoService
 
         return $this->queueScanOrFail($this->startPendingReplacement(
             patient: $patient,
+            viewType: $viewType,
             disk: $disk,
             path: $path,
             mimeType: (string) ($ticket['mime_type'] ?? 'image/jpeg'),
@@ -152,10 +166,25 @@ class PatientClinicalPhotoService
         ), $owner, $this->message('direct_upload_rejected', 'The uploaded oral photo failed security checks.'));
     }
 
-    /** Return the patient's primary oral photo or abort with 404. */
-    public function primaryOralPhotoOrFail(Patient $patient): PatientClinicalPhoto
+    /** Return one of the patient's oral photo slots or abort with 404. */
+    public function oralPhotoOrFail(Patient $patient, string $viewType = PatientClinicalPhoto::VIEW_TYPE_SMILE): PatientClinicalPhoto
     {
-        return $patient->primaryOralPhoto()->firstOrFail();
+        $viewType = $this->normalizeViewType($viewType);
+        $query = $patient->oralPhotos();
+        if ($viewType === PatientClinicalPhoto::VIEW_TYPE_SMILE) {
+            return $query
+                ->whereIn('view_type', [
+                    PatientClinicalPhoto::VIEW_TYPE_SMILE,
+                    PatientClinicalPhoto::VIEW_TYPE_LEGACY_ORAL_PRIMARY,
+                ])
+                ->orderByRaw(
+                    'case when view_type = ? then 0 else 1 end',
+                    [PatientClinicalPhoto::VIEW_TYPE_SMILE]
+                )
+                ->firstOrFail();
+        }
+
+        return $query->where('view_type', $viewType)->firstOrFail();
     }
 
     /** Stream the original or requested variant through the protected API route. */
@@ -180,10 +209,34 @@ class PatientClinicalPhotoService
         return $this->media->resourcePayload($patient, $photo, $request);
     }
 
+    /**
+     * Build all oral-photo slot payloads keyed by slot name.
+     *
+     * @param  iterable<PatientClinicalPhoto>  $photos
+     * @return array<string, array<string, mixed>|null>
+     */
+    public function resourceCollectionPayload(Patient $patient, iterable $photos, Request $request): array
+    {
+        return $this->media->resourceCollectionPayload($patient, $photos, $request);
+    }
+
     /** Return the configured media disk. */
     public function disk(): string
     {
         return $this->media->disk();
+    }
+
+    /** Normalize and validate an oral photo slot name. */
+    public function normalizeViewType(?string $viewType): string
+    {
+        $normalized = PatientClinicalPhoto::normalizeViewType($viewType);
+        if ($normalized !== null) {
+            return $normalized;
+        }
+
+        throw ValidationException::withMessages([
+            'view_type' => ['Allowed oral photo slots are smile, top, and bottom.'],
+        ]);
     }
 
     private function queueScanOrFail(PatientClinicalPhoto $photo, User $owner, string $message): PatientClinicalPhoto
@@ -197,11 +250,18 @@ class PatientClinicalPhotoService
         return $photo;
     }
 
-    private function startPendingReplacement(Patient $patient, string $disk, string $path, string $mimeType, int $fileSize): PatientClinicalPhoto
+    private function startPendingReplacement(
+        Patient $patient,
+        string $viewType,
+        string $disk,
+        string $path,
+        string $mimeType,
+        int $fileSize
+    ): PatientClinicalPhoto
     {
         $photo = PatientClinicalPhoto::query()->firstOrNew([
             'patient_id' => (string) $patient->id,
-            'view_type' => PatientClinicalPhoto::VIEW_TYPE_ORAL_PRIMARY,
+            'view_type' => $viewType,
         ]);
         $attributes = [
             'dentist_id' => (int) $patient->dentist_id,
@@ -228,18 +288,22 @@ class PatientClinicalPhotoService
     }
 
     /** @param array<string, mixed> $ticket */
-    private function assertTicketBelongsToPatient(array $ticket, int $dentistId, string $patientId): void
+    private function assertTicketBelongsToPatient(array $ticket, int $dentistId, string $patientId, string $viewType): void
     {
-        if ((int) ($ticket['dentist_id'] ?? 0) === $dentistId && (string) ($ticket['patient_id'] ?? '') === $patientId) {
+        if (
+            (int) ($ticket['dentist_id'] ?? 0) === $dentistId
+            && (string) ($ticket['patient_id'] ?? '') === $patientId
+            && (string) ($ticket['view_type'] ?? PatientClinicalPhoto::VIEW_TYPE_SMILE) === $viewType
+        ) {
             return;
         }
 
         throw ValidationException::withMessages(['photo' => [$this->message('direct_upload_invalid', 'This upload does not belong to the selected patient.')]]);
     }
 
-    private function buildStoragePath(int $dentistId, string $patientId, string $extension): string
+    private function buildStoragePath(int $dentistId, string $patientId, string $viewType, string $extension): string
     {
-        return sprintf('quarantine/patients/%d/%s/oral-photos/%s.%s', $dentistId, $patientId, Str::uuid()->toString(), strtolower($extension));
+        return sprintf('quarantine/patients/%d/%s/oral-photos/%s/%s.%s', $dentistId, $patientId, $viewType, Str::uuid()->toString(), strtolower($extension));
     }
 
     private function extensionForMimeType(string $contentType): string

@@ -53,7 +53,7 @@ class PatientService
                     'categories:id,name,color,sort_order',
                     'createdBy:id,name,role',
                     'updatedBy:id,name,role',
-                    'primaryOralPhoto',
+                    'oralPhotos',
                 ])
         );
 
@@ -157,7 +157,7 @@ class PatientService
                 'categories:id,name,color,sort_order',
                 'createdBy:id,name,role',
                 'updatedBy:id,name,role',
-                'primaryOralPhoto',
+                'oralPhotos',
             ]);
         });
 
@@ -207,7 +207,7 @@ class PatientService
                 'categories:id,name,color,sort_order',
                 'createdBy:id,name,role',
                 'updatedBy:id,name,role',
-                'primaryOralPhoto',
+                'oralPhotos',
             ]);
         });
 
@@ -472,7 +472,7 @@ class PatientService
                     'categories:id,name,color,sort_order',
                     'createdBy:id,name,role',
                     'updatedBy:id,name,role',
-                    'primaryOralPhoto',
+                    'oralPhotos',
                 ])
         )->firstOrFail();
     }
