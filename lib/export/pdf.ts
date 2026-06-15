@@ -19,19 +19,25 @@ function escapeHtml(value: string | number): string {
 
 const PRINT_STYLES = `
     * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    :root {
+        --pdf-screen-padding-y: 32px;
+        --pdf-screen-padding-x: 36px;
+        --pdf-print-padding-y: 16mm;
+        --pdf-print-padding-x: 16mm;
+    }
     html, body { margin: 0; padding: 0; }
     body {
         font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', Roboto, sans-serif;
         color: #0f172a;
         background: #fff;
-        padding: 32px 36px;
+        padding: var(--pdf-screen-padding-y) var(--pdf-screen-padding-x);
         font-size: 11px;
         line-height: 1.4;
     }
     .brand-strip {
         height: 4px;
         background: #0d9488;
-        margin: -32px -36px 24px;
+        margin: calc(-1 * var(--pdf-screen-padding-y)) calc(-1 * var(--pdf-screen-padding-x)) 24px;
     }
     .header {
         display: flex;
@@ -129,8 +135,11 @@ const PRINT_STYLES = `
         display: flex;
         justify-content: space-between;
     }
-    @page { margin: 16mm; size: A4 landscape; }
-    @media print { body { padding: 0; } .brand-strip { margin: 0 0 24px; } }
+    @page { margin: 0; size: A4 landscape; }
+    @media print {
+        body { padding: var(--pdf-print-padding-y) var(--pdf-print-padding-x); }
+        .brand-strip { margin: calc(-1 * var(--pdf-print-padding-y)) calc(-1 * var(--pdf-print-padding-x)) 24px; }
+    }
 `;
 
 function buildHtml({ title, subtitle, columns, rows, summary }: PdfExportOptions): string {
@@ -182,7 +191,7 @@ export function exportRowsToPdf(options: PdfExportOptions): void {
 
     const bodyHtml = buildHtml(options);
     const pageOrientation = options.orientation ?? 'landscape';
-    const pageRule = `@page { margin: 16mm; size: A4 ${pageOrientation}; }`;
+    const pageRule = `:root { --pdf-print-padding-y: 16mm; --pdf-print-padding-x: 16mm; } @page { margin: 0; size: A4 ${pageOrientation}; }`;
 
     const printWindow = window.open('', '_blank', 'noopener,noreferrer,width=1024,height=768');
     if (!printWindow) {
@@ -420,7 +429,7 @@ export function exportPatientReportToPdf(options: PatientReportOptions): void {
 
     const dateStr = new Date().toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
     const pageOrientation = options.orientation ?? 'portrait';
-    const pageRule = `@page { margin: 14mm; size: A4 ${pageOrientation}; }`;
+    const pageRule = `:root { --pdf-print-padding-y: 14mm; --pdf-print-padding-x: 14mm; } @page { margin: 0; size: A4 ${pageOrientation}; }`;
 
     const headerHtml = `
         <div class="brand-strip"></div>
