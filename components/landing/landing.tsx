@@ -1,7 +1,7 @@
 'use client';
 
 import { Fragment, useEffect, useRef, useState, useSyncExternalStore } from 'react';
-import Link from 'next/link';
+import type { CSSProperties, ReactNode } from 'react';
 import {
     LANDING_CONTENT,
     LANDING_LOCALES,
@@ -20,6 +20,24 @@ const APP_LOGIN_URL = '/login';
 const APP_REGISTER_URL = '/register';
 const LANG_STORAGE_KEY = 'identa-lang';
 const LANG_CHANGE_EVENT = 'identa-lang-change';
+const DOCUMENT_NAVIGATION_ATTR = 'document';
+
+type AppEntryLinkProps = {
+    href: string;
+    className: string;
+    children: ReactNode;
+    style?: CSSProperties;
+};
+
+function AppEntryLink({ href, className, children, style }: AppEntryLinkProps) {
+    // Full document navigation avoids stale App Router chunks after deploys
+    // when a visitor keeps the marketing page open and then enters the app.
+    return (
+        <a href={href} className={className} style={style} data-navigation={DOCUMENT_NAVIGATION_ATTR}>
+            {children}
+        </a>
+    );
+}
 
 // localStorage is the single source of truth for the chosen language, read via
 // useSyncExternalStore so the server renders the default locale and the client
@@ -118,7 +136,7 @@ function Nav({ t, lang, setLang, onMenu }: { t: T; lang: LandingLocale; setLang:
                 </nav>
                 <div className="nav-cta">
                     <LangSwitch lang={lang} setLang={setLang} />
-                    <Link href={APP_LOGIN_URL} className="btn btn-ghost btn-sm hide-mobile">{t.nav.login}</Link>
+                    <AppEntryLink href={APP_LOGIN_URL} className="btn btn-ghost btn-sm hide-mobile">{t.nav.login}</AppEntryLink>
                     <button className="menu-btn" type="button" onClick={onMenu} aria-label="Open menu">
                         <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 4h12M2 8h12M2 12h12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>
                     </button>
@@ -146,7 +164,7 @@ function MobileMenu({ open, onClose, t, lang, setLang }: { open: boolean; onClos
             </div>
             <div style={{ marginTop: 32, display: 'flex', gap: 12, alignItems: 'center' }}>
                 <LangSwitch lang={lang} setLang={setLang} />
-                <Link href={APP_LOGIN_URL} className="btn btn-ghost btn-sm">{t.nav.login}</Link>
+                <AppEntryLink href={APP_LOGIN_URL} className="btn btn-ghost btn-sm">{t.nav.login}</AppEntryLink>
             </div>
         </div>
     );
@@ -201,11 +219,11 @@ function Hero({ t }: { t: T }) {
                     </h1>
                     {t.hero.lede ? <p className="lede reveal in">{t.hero.lede}</p> : null}
                     <div className="hero-actions reveal in">
-                        <Link href={APP_REGISTER_URL} className="btn btn-primary">
+                        <AppEntryLink href={APP_REGISTER_URL} className="btn btn-primary">
                             {t.hero.ctaPrimary}
                             <ArrowIcon />
-                        </Link>
-                        <Link href={APP_LOGIN_URL} className="btn btn-ghost">{t.hero.ctaSecondary}</Link>
+                        </AppEntryLink>
+                        <AppEntryLink href={APP_LOGIN_URL} className="btn btn-ghost">{t.hero.ctaSecondary}</AppEntryLink>
                     </div>
                 </div>
 
@@ -452,7 +470,7 @@ function Pricing({ t, lang, plans }: { t: T; lang: LandingLocale; plans: Landing
                                 <ul>
                                     {features.map((f, j) => <li key={j}>{f}</li>)}
                                 </ul>
-                                <Link href={APP_REGISTER_URL} className={'btn ' + (p.featured ? 'btn-accent' : 'btn-ghost')}>{p.cta}</Link>
+                                <AppEntryLink href={APP_REGISTER_URL} className={'btn ' + (p.featured ? 'btn-accent' : 'btn-ghost')}>{p.cta}</AppEntryLink>
                             </div>
                         );
                     })}
@@ -523,11 +541,11 @@ function CTA({ t }: { t: T }) {
                         <p>{t.cta.lede}</p>
                     </div>
                     <div className="actions">
-                        <Link href={APP_REGISTER_URL} className="btn btn-accent">
+                        <AppEntryLink href={APP_REGISTER_URL} className="btn btn-accent">
                             {t.cta.primary}
                             <ArrowIcon />
-                        </Link>
-                        <Link href={APP_LOGIN_URL} className="btn btn-ghost" style={{ borderColor: 'oklch(0.4 0.05 230)', color: 'var(--bg)' }}>{t.cta.secondary}</Link>
+                        </AppEntryLink>
+                        <AppEntryLink href={APP_LOGIN_URL} className="btn btn-ghost" style={{ borderColor: 'oklch(0.4 0.05 230)', color: 'var(--bg)' }}>{t.cta.secondary}</AppEntryLink>
                     </div>
                 </div>
             </div>

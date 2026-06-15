@@ -45,4 +45,14 @@ describe('Landing', () => {
         const langTabs = screen.getAllByRole('tablist', { name: 'Language' })[0];
         expect(within(langTabs).getByRole('tab', { name: 'ru' })).toHaveAttribute('aria-selected', 'true');
     });
+
+    it('uses full document navigation for app entry links', () => {
+        const { container } = render(<Landing />);
+
+        const appEntryLinks = Array.from(container.querySelectorAll('a[href="/login"], a[href="/register"]'));
+        expect(appEntryLinks.length).toBeGreaterThan(0);
+        appEntryLinks.forEach((link) => {
+            expect(link).toHaveAttribute('data-navigation', 'document');
+        });
+    });
 });
