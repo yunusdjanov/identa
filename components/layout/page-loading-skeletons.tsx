@@ -457,37 +457,33 @@ export function PatientDetailLoadingState() {
                 className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm shadow-slate-200/40"
             >
                 <div className="h-[3px] bg-gradient-to-r from-cyan-400 via-sky-400 to-blue-500" />
-                <div className="flex flex-col gap-3 border-b border-slate-100/80 px-4 pt-4 pb-3 lg:flex-row lg:items-center lg:justify-between">
-                    <div className="flex min-w-0 items-center gap-3">
-                        <Skeleton className="h-9 w-9 shrink-0 rounded-xl" />
+                <div className="flex flex-col gap-3 border-b border-slate-100/80 px-4 pt-4 pb-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex min-w-0 items-center gap-2.5">
+                        <Skeleton className="h-8 w-8 shrink-0 rounded-xl" />
                         <div className="min-w-0 space-y-2">
-                            <Skeleton className="h-3 w-32 rounded-xl" />
-                            <Skeleton className="h-3.5 w-64 max-w-full rounded-xl" />
+                            <Skeleton className="h-4 w-32 rounded-xl" />
+                            <Skeleton className="h-3 w-64 max-w-full rounded-xl" />
                         </div>
                     </div>
                     <Skeleton className="h-6 w-14 rounded-full" />
                 </div>
-                <div className="grid gap-3 p-3 lg:grid-cols-3">
+                <div className="grid md:grid-cols-3">
                     {Array.from({ length: 3 }).map((_, index) => (
                         <div
                             key={index}
                             data-testid="patient-detail-oral-photo-slot-skeleton"
-                            className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm shadow-slate-200/40"
+                            className={`min-w-0 p-3 ${index > 0 ? 'border-t border-slate-100 md:border-l md:border-t-0' : ''}`}
                         >
-                            <Skeleton className="h-36 w-full rounded-none sm:h-40" />
-                            <div className="space-y-3 border-t border-slate-100 px-3 py-3">
-                                <div className="flex items-start justify-between gap-2">
-                                    <div className="min-w-0 flex-1 space-y-2">
-                                        <Skeleton className="h-4 w-24 rounded-xl" />
-                                        <Skeleton className="h-3 w-36 rounded-xl" />
-                                    </div>
-                                    <Skeleton className="h-5 w-20 shrink-0 rounded-full" />
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <Skeleton className="h-8 min-w-0 flex-1 rounded-full" />
-                                    <Skeleton className="h-8 w-8 shrink-0 rounded-full" />
-                                </div>
+                            <div className="mb-2 flex items-center justify-between gap-2">
+                                <Skeleton className="h-4 w-24 rounded-xl" />
+                                <Skeleton className="h-5 w-20 shrink-0 rounded-full" />
                             </div>
+                            <Skeleton className="h-28 w-full rounded-xl sm:h-32" />
+                            <div className="mt-2 flex items-center gap-2">
+                                <Skeleton className="h-8 min-w-0 flex-1 rounded-full" />
+                                <Skeleton className="h-8 w-8 shrink-0 rounded-full" />
+                            </div>
+                            <Skeleton className="mt-2 h-3 w-36 rounded-xl" />
                         </div>
                     ))}
                 </div>
