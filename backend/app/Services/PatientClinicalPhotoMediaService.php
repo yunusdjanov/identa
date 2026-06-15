@@ -9,7 +9,6 @@ use App\Support\MediaPathCache;
 use App\Support\MediaVariantPaths;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
-use RuntimeException;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class PatientClinicalPhotoMediaService
@@ -125,7 +124,7 @@ class PatientClinicalPhotoMediaService
     }
 
     /**
-     * Build a protected or temporary URL for the oral photo.
+     * Build a stable protected API URL for the oral photo.
      */
     public function url(Patient $patient, PatientClinicalPhoto $photo, Request $request, ?string $variant = null): ?string
     {
@@ -133,19 +132,7 @@ class PatientClinicalPhotoMediaService
             return null;
         }
 
-        $disk = (string) ($photo->disk ?: $this->disk());
-        $path = (string) $photo->path;
-        $selectedPath = $variant !== null ? $this->variantPath($path, $variant) : $path;
-        if ($variant !== null && ! $this->mediaPathExists($disk, $selectedPath)) {
-            $selectedPath = $path;
-        }
-
-        $temporaryUrl = $this->temporaryUrl($disk, $selectedPath, now()->addMinutes(10), (string) $photo->mime_type);
-        if ($temporaryUrl !== null) {
-            return $temporaryUrl;
-        }
         $viewType = PatientClinicalPhoto::normalizeViewType((string) $photo->view_type) ?? (string) $photo->view_type;
-
         $url = sprintf(
             '%s/api/v1/patients/%s/oral-photos/%s?v=%s',
             $request->getSchemeAndHttpHost(),
@@ -154,7 +141,7 @@ class PatientClinicalPhotoMediaService
             (string) ($photo->updated_at?->getTimestamp() ?? 0)
         );
 
-        return $variant !== null && $selectedPath !== $path ? $url.'&variant='.$variant : $url;
+        return $variant !== null ? $url.'&variant='.$variant : $url;
     }
 
     /**
@@ -200,22 +187,6 @@ class PatientClinicalPhotoMediaService
     public function disk(): string
     {
         return (string) config('filesystems.media_disk', 'local');
-    }
-
-    private function temporaryUrl(string $disk, string $path, \DateTimeInterface $expiresAt, ?string $contentType): ?string
-    {
-        if ((string) config("filesystems.disks.{$disk}.driver") !== 's3') {
-            return null;
-        }
-        try {
-            return Storage::disk($disk)->temporaryUrl(
-                $path,
-                $expiresAt,
-                $contentType !== null ? ['ResponseContentType' => $contentType] : []
-            );
-        } catch (RuntimeException) {
-            return null;
-        }
     }
 
     private function mediaPathExists(string $disk, string $path): bool

@@ -301,23 +301,6 @@ class PatientPhotoService
             return null;
         }
 
-        $disk = is_string($patient->photo_disk) && $patient->photo_disk !== ''
-            ? $patient->photo_disk
-            : $this->disk();
-
-        if ($variant === null) {
-            $temporaryUrl = $this->buildTemporaryMediaUrl(
-                $disk,
-                $patient->photo_path,
-                now()->addMinutes(10),
-                $this->guessImageMimeType($patient->photo_path)
-            );
-
-            if ($temporaryUrl !== null) {
-                return $temporaryUrl;
-            }
-        }
-
         $baseUrl = $request !== null
             ? $request->getSchemeAndHttpHost()
             : rtrim((string) config('app.url'), '/');
@@ -326,31 +309,6 @@ class PatientPhotoService
 
         if ($variant === null) {
             return $url;
-        }
-
-        $variantPath = $this->variantPath($patient->photo_path, $variant);
-        if (! $this->mediaPathExists($disk, $variantPath)) {
-            if ($this->mediaDiskSupportsDirectUpload($disk)) {
-                return $this->buildTemporaryMediaUrl(
-                    $disk,
-                    $patient->photo_path,
-                    now()->addMinutes(10),
-                    $this->guessImageMimeType($patient->photo_path)
-                );
-            }
-
-            return $url;
-        }
-
-        $temporaryVariantUrl = $this->buildTemporaryMediaUrl(
-            $disk,
-            $variantPath,
-            now()->addMinutes(10),
-            $this->guessImageMimeType($variantPath)
-        );
-
-        if ($temporaryVariantUrl !== null) {
-            return $temporaryVariantUrl;
         }
 
         return $url.'&variant='.$variant;
@@ -488,29 +446,6 @@ class PatientPhotoService
         }
 
         return $normalized;
-    }
-
-    private function buildTemporaryMediaUrl(
-        string $disk,
-        string $path,
-        \DateTimeInterface $expiresAt,
-        ?string $contentType = null
-    ): ?string {
-        if (! $this->mediaDiskSupportsDirectUpload($disk)) {
-            return null;
-        }
-
-        try {
-            return Storage::disk($disk)->temporaryUrl(
-                $path,
-                $expiresAt,
-                $contentType !== null
-                    ? ['ResponseContentType' => $contentType]
-                    : []
-            );
-        } catch (RuntimeException) {
-            return null;
-        }
     }
 
     private function mediaPathExists(string $disk, string $path): bool

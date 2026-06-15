@@ -11,6 +11,7 @@ use App\Models\Treatment;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
@@ -280,6 +281,13 @@ class PatientApiTest extends TestCase
             ->assertJsonPath('data.oral_photo.scan_status', 'approved')
             ->assertJsonPath('data.oral_photo.thumbnail_ready', true)
             ->assertJsonPath('data.oral_photo.preview_ready', true)
+            ->assertJsonPath('data.oral_photo.url', fn ($value): bool => is_string($value)
+                && str_contains($value, "/api/v1/patients/{$patient->id}/oral-photos/smile")
+                && ! str_contains($value, 'X-Amz-'))
+            ->assertJsonPath('data.oral_photo.thumbnail_url', fn ($value): bool => is_string($value)
+                && str_contains($value, "/api/v1/patients/{$patient->id}/oral-photos/smile")
+                && str_contains($value, 'variant=thumbnail')
+                && ! str_contains($value, 'X-Amz-'))
             ->assertJsonPath('data.oral_photos.smile.view_type', 'smile')
             ->assertJsonPath('data.oral_photos.top', null)
             ->assertJsonPath('data.oral_photos.bottom', null)
@@ -327,6 +335,33 @@ class PatientApiTest extends TestCase
             'patient_id' => $patient->id,
             'view_type' => 'top',
             'scan_status' => 'approved',
+        ]);
+    }
+
+    public function test_patient_oral_photo_upload_is_processed_before_response_when_queue_is_async(): void
+    {
+        Config::set('queue.default', 'database');
+        Storage::fake('local');
+        $dentist = User::factory()->create();
+        $patient = Patient::factory()->create([
+            'dentist_id' => $dentist->id,
+        ]);
+
+        $this->actingAs($dentist, 'web')
+            ->post("/api/v1/patients/{$patient->id}/oral-photos/bottom", [
+                'photo' => UploadedFile::fake()->image('bottom-photo.jpg', 1800, 1200),
+            ], ['Accept' => 'application/json'])
+            ->assertOk()
+            ->assertJsonPath('data.oral_photos.bottom.scan_status', 'approved')
+            ->assertJsonPath('data.oral_photos.bottom.url', fn ($value): bool => is_string($value)
+                && str_contains($value, "/api/v1/patients/{$patient->id}/oral-photos/bottom"));
+
+        $this->assertDatabaseHas('patient_clinical_photos', [
+            'dentist_id' => $dentist->id,
+            'patient_id' => $patient->id,
+            'view_type' => 'bottom',
+            'scan_status' => 'approved',
+            'quarantine_path' => null,
         ]);
     }
 
@@ -578,9 +613,17 @@ class PatientApiTest extends TestCase
             ])
             ->assertOk()
             ->assertJsonPath('data.id', (string) $patient->id)
-            ->assertJsonPath('data.photo_url', fn ($value): bool => is_string($value) && $value !== '')
-            ->assertJsonPath('data.photo_thumbnail_url', fn ($value): bool => is_string($value) && $value !== '')
-            ->assertJsonPath('data.photo_preview_url', fn ($value): bool => is_string($value) && $value !== '');
+            ->assertJsonPath('data.photo_url', fn ($value): bool => is_string($value)
+                && str_contains($value, "/api/v1/patients/{$patient->id}/photo")
+                && ! str_contains($value, 'X-Amz-'))
+            ->assertJsonPath('data.photo_thumbnail_url', fn ($value): bool => is_string($value)
+                && str_contains($value, "/api/v1/patients/{$patient->id}/photo")
+                && str_contains($value, 'variant=thumbnail')
+                && ! str_contains($value, 'X-Amz-'))
+            ->assertJsonPath('data.photo_preview_url', fn ($value): bool => is_string($value)
+                && str_contains($value, "/api/v1/patients/{$patient->id}/photo")
+                && str_contains($value, 'variant=preview')
+                && ! str_contains($value, 'X-Amz-'));
 
         $patient->refresh();
         $this->assertIsString($patient->photo_path);

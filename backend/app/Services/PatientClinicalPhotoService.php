@@ -241,7 +241,7 @@ class PatientClinicalPhotoService
 
     private function queueScanOrFail(PatientClinicalPhoto $photo, User $owner, string $message): PatientClinicalPhoto
     {
-        ProcessUploadedMedia::dispatch(PatientClinicalPhoto::class, (string) $photo->id, (int) $owner->id);
+        ProcessUploadedMedia::dispatchSync(PatientClinicalPhoto::class, (string) $photo->id, (int) $owner->id);
         $photo->refresh();
         if ((string) $photo->scan_status === 'rejected') {
             throw ValidationException::withMessages(['photo' => [$message]]);
