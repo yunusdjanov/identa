@@ -791,6 +791,13 @@ export default function PaymentsPage() {
                                                             <div className="space-y-1">
                                                                 <p className="font-medium text-slate-900">{row.patientName}</p>
                                                                 <p className="text-xs text-slate-500">{row.patientPhone}</p>
+                                                                {showRecordAuthors ? (
+                                                                    <RecordAuthorBadge
+                                                                        className="mt-1"
+                                                                        createdBy={row.createdBy}
+                                                                        updatedBy={row.updatedBy}
+                                                                    />
+                                                                ) : null}
                                                             </div>
                                                         </TableCell>
                                                         <TableCell>
@@ -826,13 +833,6 @@ export default function PaymentsPage() {
                                                                     >
                                                                         {row.comment}
                                                                     </p>
-                                                                ) : null}
-                                                                {showRecordAuthors ? (
-                                                                    <RecordAuthorBadge
-                                                                        className="mt-1"
-                                                                        createdBy={row.createdBy}
-                                                                        updatedBy={row.updatedBy}
-                                                                    />
                                                                 ) : null}
                                                             </div>
                                                         </TableCell>

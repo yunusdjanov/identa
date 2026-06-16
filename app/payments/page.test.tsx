@@ -254,6 +254,12 @@ describe('PaymentsPage', () => {
         await waitFor(() => {
             expect(screen.getByText('by Front Desk')).toBeInTheDocument();
         });
+
+        const historyRow = screen.getByText('Jane Doe').closest('tr') as HTMLElement;
+        const historyCells = within(historyRow).getAllByRole('cell');
+
+        expect(within(historyCells[1]).getByText('by Front Desk')).toBeInTheDocument();
+        expect(within(historyCells[3]).queryByText('by Front Desk')).not.toBeInTheDocument();
         expect(screen.getByTitle('Created by Front Desk')).toBeInTheDocument();
     });
 
