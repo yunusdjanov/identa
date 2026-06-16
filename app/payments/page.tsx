@@ -15,11 +15,12 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import { DataTableShell, getDataTableClassName } from '@/components/ui/data-table-shell';
+import { RecordAuthorBadge } from '@/components/ui/record-author-badge';
 import { PaymentsLoadingState } from '@/components/layout/page-loading-skeletons';
 import { PageHeader } from '@/components/ui/page-shell';
 import { getApiErrorMessage } from '@/lib/api/client';
 import { getCurrentUser, getPatient, listAllTreatments } from '@/lib/api/dentist';
-import type { ApiPatient, ApiTreatment } from '@/lib/api/types';
+import type { ApiPatient, ApiRecordActor, ApiTreatment } from '@/lib/api/types';
 import { useI18n } from '@/components/providers/i18n-provider';
 import { formatLocalizedDate } from '@/lib/i18n/date';
 import { formatToothList, formatToothNumber } from '@/lib/tooth-numbering';
@@ -137,6 +138,8 @@ interface GlobalLedgerRow {
     debt: number;
     paid: number;
     balanceDelta: number;
+    createdBy?: ApiRecordActor | null;
+    updatedBy?: ApiRecordActor | null;
 }
 
 type PaymentsTab = 'patients' | 'history';
@@ -179,6 +182,7 @@ export default function PaymentsPage() {
     const currentUser = currentUserQuery.data;
     const canViewPayments = canView(currentUser, 'payments');
     const canViewPatients = canView(currentUser, 'patients');
+    const showRecordAuthors = currentUser?.show_record_authors === true;
 
     const accountingQuery = useQuery({
         queryKey: ['payments', 'history-accounting', patientFilterId],
@@ -310,6 +314,8 @@ export default function PaymentsPage() {
                     debt: Number(treatment.debt_amount ?? 0),
                     paid: Number(treatment.paid_amount ?? 0),
                     balanceDelta: Number(treatment.debt_amount ?? 0) - Number(treatment.paid_amount ?? 0),
+                    createdBy: treatment.created_by ?? null,
+                    updatedBy: treatment.updated_by ?? null,
                 }))
             )
             .filter((row) => {
@@ -820,6 +826,13 @@ export default function PaymentsPage() {
                                                                     >
                                                                         {row.comment}
                                                                     </p>
+                                                                ) : null}
+                                                                {showRecordAuthors ? (
+                                                                    <RecordAuthorBadge
+                                                                        className="mt-1"
+                                                                        createdBy={row.createdBy}
+                                                                        updatedBy={row.updatedBy}
+                                                                    />
                                                                 ) : null}
                                                             </div>
                                                         </TableCell>

@@ -206,6 +206,57 @@ describe('PaymentsPage', () => {
         expect(screen.queryByTitle('12')).not.toBeInTheDocument();
     });
 
+    it('shows treatment authors in the global history tab when enabled', async () => {
+        vi.mocked(getCurrentUser).mockResolvedValue({
+            id: 'user-1',
+            name: 'Dr. Test',
+            email: 'doctor@example.test',
+            role: 'dentist',
+            account_status: 'active',
+            show_record_authors: true,
+            subscription: {
+                can_export: true,
+            },
+        } as never);
+        vi.mocked(listAllTreatments).mockResolvedValue([
+            {
+                id: 'tr-author',
+                patient_id: 'patient-1',
+                patient_name: 'Jane Doe',
+                patient_phone: '+998900000001',
+                patient_code: 'PT-1001',
+                tooth_number: 12,
+                teeth: [12],
+                treatment_type: 'Composite filling',
+                description: null,
+                comment: null,
+                treatment_date: '2026-03-14',
+                cost: null,
+                debt_amount: 120000,
+                paid_amount: 70000,
+                balance: 50000,
+                notes: null,
+                images: [],
+                created_by: { id: 'assistant-1', name: 'Front Desk', role: 'assistant' },
+                updated_by: { id: 'assistant-1', name: 'Front Desk', role: 'assistant' },
+                created_at: '2026-03-14T09:00:00Z',
+                updated_at: '2026-03-14T09:00:00Z',
+            },
+        ] as never);
+        renderPage();
+
+        await waitFor(() => {
+            expect(screen.getByRole('button', { name: 'History' })).toBeInTheDocument();
+        });
+
+        fireEvent.click(screen.getByRole('button', { name: 'History' }));
+
+        await waitFor(() => {
+            expect(screen.getByText('by Front Desk')).toBeInTheDocument();
+        });
+        expect(screen.getByTitle('Created by Front Desk')).toBeInTheDocument();
+    });
+
     it('filters payments to patients with outstanding debt and exports the filtered rows', async () => {
         renderPage();
 
