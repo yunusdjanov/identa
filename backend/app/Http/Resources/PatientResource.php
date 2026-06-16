@@ -17,6 +17,7 @@ class PatientResource extends JsonResource
         Patient $resource,
         private readonly PatientPhotoService $photos,
         private readonly PatientClinicalPhotoService $clinicalPhotos,
+        private readonly bool $includeClinicalPhotos = true,
     ) {
         parent::__construct($resource);
     }
@@ -31,11 +32,7 @@ class PatientResource extends JsonResource
         $photoDisk = is_string($patient->photo_disk) && $patient->photo_disk !== ''
             ? $patient->photo_disk
             : $this->photos->disk();
-        $patient->loadMissing('oralPhotos');
-        $oralPhotos = $this->clinicalPhotos->resourceCollectionPayload($patient, $patient->oralPhotos, $request);
-        $oralPhotoGalleries = $this->clinicalPhotos->resourceGalleryPayload($patient, $patient->oralPhotos, $request);
-
-        return [
+        $payload = [
             'id' => (string) $patient->id,
             'patient_id' => $patient->patient_id,
             'full_name' => $patient->full_name,
@@ -61,9 +58,6 @@ class PatientResource extends JsonResource
                 $patient,
                 PatientPhotoService::IMAGE_VARIANT_PREVIEW
             ),
-            'oral_photo' => $oralPhotos['smile'] ?? null,
-            'oral_photos' => $oralPhotos,
-            'oral_photo_galleries' => $oralPhotoGalleries,
             'created_at' => $patient->created_at?->toIso8601String(),
             'updated_at' => $patient->updated_at?->toIso8601String(),
             'created_by' => $this->actorSummary($patient, 'createdBy'),
@@ -81,6 +75,20 @@ class PatientResource extends JsonResource
                     'sort_order' => (int) $category->sort_order,
                 ])
                 ->all(),
+        ];
+
+        if (! $this->includeClinicalPhotos) {
+            return $payload;
+        }
+
+        $patient->loadMissing('oralPhotos');
+        $oralPhotos = $this->clinicalPhotos->resourceCollectionPayload($patient, $patient->oralPhotos, $request);
+        $oralPhotoGalleries = $this->clinicalPhotos->resourceGalleryPayload($patient, $patient->oralPhotos, $request);
+
+        return $payload + [
+            'oral_photo' => $oralPhotos['smile'] ?? null,
+            'oral_photos' => $oralPhotos,
+            'oral_photo_galleries' => $oralPhotoGalleries,
         ];
     }
 

@@ -53,7 +53,6 @@ class PatientService
                     'categories:id,name,color,sort_order',
                     'createdBy:id,name,role',
                     'updatedBy:id,name,role',
-                    'oralPhotos',
                 ])
         );
 

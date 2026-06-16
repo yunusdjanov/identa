@@ -136,6 +136,55 @@ class PatientApiTest extends TestCase
             ->assertJsonPath('data.0.last_visit_at', '2026-06-13');
     }
 
+    public function test_patient_list_omits_oral_photo_gallery_payload_but_detail_includes_it(): void
+    {
+        $dentist = User::factory()->create();
+        $patient = Patient::factory()->create([
+            'dentist_id' => $dentist->id,
+        ]);
+        $photo = PatientClinicalPhoto::query()->create([
+            'dentist_id' => $dentist->id,
+            'patient_id' => $patient->id,
+            'view_type' => PatientClinicalPhoto::VIEW_TYPE_SMILE,
+            'is_primary' => true,
+            'sort_order' => 1,
+            'disk' => 'local',
+            'path' => 'approved/patients/oral-list-should-not-inline.jpg',
+            'mime_type' => 'image/jpeg',
+            'file_size' => 10,
+            'scan_status' => 'approved',
+            'approved_at' => now(),
+        ]);
+        PatientClinicalPhoto::query()->create([
+            'dentist_id' => $dentist->id,
+            'patient_id' => $patient->id,
+            'view_type' => PatientClinicalPhoto::VIEW_TYPE_SMILE,
+            'is_primary' => false,
+            'sort_order' => 2,
+            'disk' => 'local',
+            'path' => 'quarantine/patients/rejected-oral-list.jpg',
+            'mime_type' => 'image/jpeg',
+            'file_size' => 10,
+            'scan_status' => PatientClinicalPhoto::SCAN_STATUS_REJECTED,
+            'rejected_at' => now(),
+        ]);
+
+        $listResponse = $this->actingAs($dentist, 'web')
+            ->getJson('/api/v1/patients')
+            ->assertOk()
+            ->assertJsonPath('data.0.id', (string) $patient->id);
+
+        $this->assertArrayNotHasKey('oral_photo', $listResponse->json('data.0'));
+        $this->assertArrayNotHasKey('oral_photos', $listResponse->json('data.0'));
+        $this->assertArrayNotHasKey('oral_photo_galleries', $listResponse->json('data.0'));
+
+        $this->actingAs($dentist, 'web')
+            ->getJson("/api/v1/patients/{$patient->id}")
+            ->assertOk()
+            ->assertJsonPath('data.oral_photos.smile.id', (string) $photo->id)
+            ->assertJsonCount(1, 'data.oral_photo_galleries.smile');
+    }
+
     public function test_patient_overview_counts_completed_appointments_and_history_as_visits(): void
     {
         $dentist = User::factory()->create();

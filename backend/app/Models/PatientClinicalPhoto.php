@@ -22,6 +22,8 @@ class PatientClinicalPhoto extends Model implements TenantOwned
 
     public const VIEW_TYPE_BOTTOM = 'bottom';
 
+    public const SCAN_STATUS_REJECTED = 'rejected';
+
     /**
      * @var list<string>
      */

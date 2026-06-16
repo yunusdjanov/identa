@@ -33,7 +33,7 @@ class PatientController extends Controller
         return response()->json([
             'data' => $patients
                 ->getCollection()
-                ->map(fn (Patient $patient): array => $this->transformPatient($patient, $request))
+                ->map(fn (Patient $patient): array => $this->transformPatient($patient, $request, false))
                 ->values()
                 ->all(),
             'meta' => [
@@ -421,8 +421,13 @@ class PatientController extends Controller
     /**
      * @return array<string, mixed>
      */
-    private function transformPatient(Patient $patient, ?Request $request = null): array
+    private function transformPatient(Patient $patient, ?Request $request = null, bool $includeClinicalPhotos = true): array
     {
-        return (new PatientResource($patient, $this->photos, $this->clinicalPhotos))->resolve($request ?? request());
+        return (new PatientResource(
+            $patient,
+            $this->photos,
+            $this->clinicalPhotos,
+            $includeClinicalPhotos
+        ))->resolve($request ?? request());
     }
 }

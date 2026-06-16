@@ -284,7 +284,8 @@ class PatientClinicalPhotoService
     {
         ProcessUploadedMedia::dispatchSync(PatientClinicalPhoto::class, (string) $photo->id, (int) $owner->id);
         $photo->refresh();
-        if ((string) $photo->scan_status === 'rejected') {
+        if ((string) $photo->scan_status === PatientClinicalPhoto::SCAN_STATUS_REJECTED) {
+            $this->delete($photo);
             throw ValidationException::withMessages(['photo' => [$message]]);
         }
 
@@ -367,7 +368,8 @@ class PatientClinicalPhotoService
     {
         $query = PatientClinicalPhoto::query()
             ->where('dentist_id', $dentistId)
-            ->where('patient_id', $patientId);
+            ->where('patient_id', $patientId)
+            ->where('scan_status', '!=', PatientClinicalPhoto::SCAN_STATUS_REJECTED);
 
         if ($viewType === PatientClinicalPhoto::VIEW_TYPE_SMILE) {
             return $query->whereIn('view_type', [

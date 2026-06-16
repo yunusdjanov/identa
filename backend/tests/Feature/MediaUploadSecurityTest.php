@@ -391,6 +391,27 @@ class MediaUploadSecurityTest extends TestCase
         ));
     }
 
+    public function test_infected_patient_oral_photo_upload_cleans_rejected_record(): void
+    {
+        Storage::fake('local');
+        $this->bindInfectedScanner();
+
+        $dentist = User::factory()->create();
+        $patient = Patient::factory()->create(['dentist_id' => $dentist->id]);
+
+        $this->actingAs($dentist, 'web')
+            ->post("/api/v1/patients/{$patient->id}/oral-photos/top", [
+                'photo' => UploadedFile::fake()->image('infected-oral.jpg', 800, 600),
+            ], ['Accept' => 'application/json'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['photo']);
+
+        $this->assertDatabaseCount('patient_clinical_photos', 0);
+        $this->assertFalse(collect(Storage::disk('local')->allFiles())->contains(
+            fn (string $path): bool => str_starts_with($path, 'quarantine/')
+        ));
+    }
+
     public function test_infected_treatment_image_upload_is_rejected(): void
     {
         Storage::fake('local');
@@ -664,6 +685,36 @@ class MediaUploadSecurityTest extends TestCase
         $this->assertStringStartsWith('approved/patients/', $patient->photo_path);
         Storage::disk('local')->assertMissing($path);
         Storage::disk('local')->assertExists((string) $patient->photo_path);
+    }
+
+    public function test_infected_patient_oral_photo_direct_upload_cleans_rejected_record(): void
+    {
+        Storage::fake('local');
+        $this->bindInfectedScanner();
+
+        $dentist = User::factory()->create();
+        $patient = Patient::factory()->create(['dentist_id' => $dentist->id]);
+        $uploadId = 'patient-oral-photo-direct-infected';
+        $path = 'quarantine/patients/direct-infected-oral.jpg';
+        $image = UploadedFile::fake()->image('direct-infected-oral.jpg', 800, 600);
+        Storage::disk('local')->put($path, file_get_contents((string) $image->getRealPath()));
+        Cache::put("patient-oral-photo-upload:{$uploadId}", [
+            'dentist_id' => $dentist->id,
+            'patient_id' => (string) $patient->id,
+            'view_type' => PatientClinicalPhoto::VIEW_TYPE_BOTTOM,
+            'disk' => 'local',
+            'path' => $path,
+            'mime_type' => 'image/jpeg',
+            'file_size' => Storage::disk('local')->size($path),
+        ]);
+
+        $this->actingAs($dentist, 'web')
+            ->postJson("/api/v1/patients/{$patient->id}/oral-photos/bottom/direct-upload/{$uploadId}/complete")
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['photo']);
+
+        $this->assertDatabaseCount('patient_clinical_photos', 0);
+        Storage::disk('local')->assertMissing($path);
     }
 
     public function test_infected_treatment_image_direct_upload_is_rejected(): void

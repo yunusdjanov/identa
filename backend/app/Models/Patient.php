@@ -215,6 +215,7 @@ class Patient extends Model implements TenantOwned
     {
         return $this->hasMany(PatientClinicalPhoto::class)
             ->whereIn('view_type', PatientClinicalPhoto::READABLE_VIEW_TYPES)
+            ->where('scan_status', '!=', PatientClinicalPhoto::SCAN_STATUS_REJECTED)
             ->orderByDesc('is_primary')
             ->orderBy('sort_order')
             ->orderBy('created_at');
