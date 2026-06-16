@@ -83,6 +83,61 @@ describe('dentist api pagination aggregation', () => {
         });
     });
 
+    it('limits collect-all pagination fanout to small batches', async () => {
+        const pendingPages = new Map<number, () => void>();
+        const pageResponse = (page: number, totalPages: number) => ({
+            data: {
+                data: [
+                    {
+                        id: `p-${page}`,
+                        patient_id: `PT-${page}`,
+                        full_name: `Patient ${page}`,
+                        phone: `+1000000000${page}`,
+                    },
+                ],
+                meta: {
+                    pagination: {
+                        page,
+                        per_page: 500,
+                        total: totalPages,
+                        total_pages: totalPages,
+                    },
+                },
+            },
+        });
+
+        apiGetMock.mockImplementation((_, config) => {
+            const page = Number(config?.params?.page ?? 1);
+            if (page === 1) {
+                return Promise.resolve(pageResponse(page, 6));
+            }
+
+            return new Promise((resolve) => {
+                pendingPages.set(page, () => resolve(pageResponse(page, 6)));
+            });
+        });
+
+        const resultPromise = listAllPatients({ sort: 'full_name' });
+        await Promise.resolve();
+        await Promise.resolve();
+
+        expect(apiGetMock).toHaveBeenCalledTimes(4);
+        expect(apiGetMock.mock.calls.map((call) => call[1]?.params?.page)).toEqual([1, 2, 3, 4]);
+
+        pendingPages.get(2)?.();
+        pendingPages.get(3)?.();
+        pendingPages.get(4)?.();
+        await vi.waitFor(() => {
+            expect(apiGetMock).toHaveBeenCalledTimes(6);
+        });
+
+        expect(apiGetMock.mock.calls.map((call) => call[1]?.params?.page)).toEqual([1, 2, 3, 4, 5, 6]);
+
+        pendingPages.get(5)?.();
+        pendingPages.get(6)?.();
+        await expect(resultPromise).resolves.toHaveLength(6);
+    });
+
     it('passes query filters for patient odontogram aggregation', async () => {
         apiGetMock.mockResolvedValueOnce({
             data: {

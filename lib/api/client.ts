@@ -291,9 +291,25 @@ export function getDisplayableApiMessage(
     return trimmed;
 }
 
+const SKIP_AUTH_EXPIRY_BROADCAST_CONFIG_KEY = '__identaSkipAuthExpiryBroadcast';
+
+let suppressAuthExpiryBroadcastDepth = 0;
+
+function shouldSkipAuthExpiryBroadcast(config: unknown): boolean {
+    return Boolean(
+        config
+        && typeof config === 'object'
+        && (config as Record<string, unknown>)[SKIP_AUTH_EXPIRY_BROADCAST_CONFIG_KEY] === true
+    );
+}
+
 apiClient.interceptors.request.use((config) => {
     if (typeof window !== 'undefined') {
         config.baseURL = `${resolveApiRootUrl()}/v1`;
+    }
+
+    if (suppressAuthExpiryBroadcastDepth > 0) {
+        (config as unknown as Record<string, unknown>)[SKIP_AUTH_EXPIRY_BROADCAST_CONFIG_KEY] = true;
     }
 
     const locale = resolveApiLocale();
@@ -320,7 +336,9 @@ apiClient.interceptors.response.use(
     (response) => response,
     (error) => {
         if (axios.isAxiosError(error)) {
-            handleAuthExpiry(error.response?.status, error.config?.url ?? error.response?.config?.url);
+            if (!shouldSkipAuthExpiryBroadcast(error.config)) {
+                handleAuthExpiry(error.response?.status, error.config?.url ?? error.response?.config?.url);
+            }
 
             // When the backend returns 403 with code `subscription_read_only`
             // (admin revoked, refund cascade, sub expired mid-session), notify
@@ -430,7 +448,12 @@ export async function withCsrfRetry<T>(operation: () => Promise<T>): Promise<T> 
     await ensureCsrfCookie();
 
     try {
-        return await operation();
+        suppressAuthExpiryBroadcastDepth += 1;
+        try {
+            return await operation();
+        } finally {
+            suppressAuthExpiryBroadcastDepth = Math.max(0, suppressAuthExpiryBroadcastDepth - 1);
+        }
     }
     catch (error) {
         if (axios.isAxiosError(error) && (error.response?.status === 401 || error.response?.status === 419)) {

@@ -7,7 +7,9 @@ use App\Jobs\ProcessUploadedMedia;
 use App\Models\Treatment;
 use App\Models\TreatmentImage;
 use App\Models\User;
+use App\Support\MediaPathCache;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Lang;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -130,14 +132,6 @@ class TreatmentImageDirectUploadService
         $disk = (string) $ticket['disk'];
         $path = (string) $ticket['path'];
 
-        try {
-            $this->planLimitService->ensureEntryImageUploadAllowed($owner, $treatment->images()->count());
-        } catch (\Throwable $exception) {
-            $this->deleteDirectUploadObject($disk, $path);
-
-            throw $exception;
-        }
-
         if (! Storage::disk($disk)->exists($path)) {
             throw ValidationException::withMessages([
                 'image' => [$this->treatmentMessage(
@@ -171,15 +165,21 @@ class TreatmentImageDirectUploadService
             throw $exception;
         }
 
-        $image = $treatment->images()->create([
-            'dentist_id' => $dentistId,
-            'disk' => $disk,
-            'path' => $path,
-            'mime_type' => (string) ($ticket['mime_type'] ?? 'image/jpeg'),
-            'file_size' => $storedSize,
-            'scan_status' => 'pending',
-            'quarantine_path' => $path,
-        ]);
+        try {
+            $image = $this->createPendingImage(
+                treatment: $treatment,
+                owner: $owner,
+                dentistId: $dentistId,
+                disk: $disk,
+                path: $path,
+                mimeType: (string) ($ticket['mime_type'] ?? 'image/jpeg'),
+                fileSize: $storedSize,
+            );
+        } catch (\Throwable $exception) {
+            $this->deleteDirectUploadObject($disk, $path);
+
+            throw $exception;
+        }
 
         ProcessUploadedMedia::dispatch(TreatmentImage::class, (string) $image->id, (int) $owner->id);
         $image->refresh();
@@ -287,11 +287,6 @@ class TreatmentImageDirectUploadService
         $completed = [];
         $failed = [];
         $owner = User::query()->whereKey($dentistId)->firstOrFail();
-        $availableSlots = $this->planLimitService->availableEntryImageSlots(
-            $owner,
-            $treatment->images()->count()
-        );
-        $availableSlots ??= count($uploadIds);
         $cacheKeysByUploadId = [];
 
         foreach ($uploadIds as $uploadId) {
@@ -326,13 +321,6 @@ class TreatmentImageDirectUploadService
                 continue;
             }
 
-            if (count($completed) >= $availableSlots) {
-                $this->deleteDirectUploadObject($disk, $path);
-                $failed[] = ['upload_id' => $uploadId, 'reason' => 'max_images'];
-
-                continue;
-            }
-
             if ($disk === '' || $path === '') {
                 $failed[] = ['upload_id' => $uploadId, 'reason' => 'missing'];
 
@@ -359,16 +347,29 @@ class TreatmentImageDirectUploadService
                 throw $exception;
             }
 
-            $image = TreatmentImage::query()->create([
-                'dentist_id' => $dentistId,
-                'treatment_id' => (string) $treatment->id,
-                'disk' => $disk,
-                'path' => $path,
-                'mime_type' => (string) ($ticket['mime_type'] ?? 'image/jpeg'),
-                'file_size' => $storedSize,
-                'scan_status' => 'pending',
-                'quarantine_path' => $path,
-            ]);
+            try {
+                $image = $this->createPendingImage(
+                    treatment: $treatment,
+                    owner: $owner,
+                    dentistId: $dentistId,
+                    disk: $disk,
+                    path: $path,
+                    mimeType: (string) ($ticket['mime_type'] ?? 'image/jpeg'),
+                    fileSize: $storedSize,
+                    returnNullWhenFull: true,
+                );
+            } catch (\Throwable $exception) {
+                $this->deleteDirectUploadObject($disk, $path);
+
+                throw $exception;
+            }
+
+            if ($image === null) {
+                $this->deleteDirectUploadObject($disk, $path);
+                $failed[] = ['upload_id' => $uploadId, 'reason' => 'max_images'];
+
+                continue;
+            }
 
             ProcessUploadedMedia::dispatch(TreatmentImage::class, (string) $image->id, $owner->id);
             $image->refresh();
@@ -419,6 +420,43 @@ class TreatmentImageDirectUploadService
             paths: array_values(array_unique($paths)),
             logContext: $logContext
         )->afterResponse();
+    }
+
+    private function createPendingImage(
+        Treatment $treatment,
+        User $owner,
+        int $dentistId,
+        string $disk,
+        string $path,
+        string $mimeType,
+        int $fileSize,
+        bool $returnNullWhenFull = false,
+    ): ?TreatmentImage {
+        return DB::transaction(function () use ($treatment, $owner, $dentistId, $disk, $path, $mimeType, $fileSize, $returnNullWhenFull): ?TreatmentImage {
+            $lockedTreatment = Treatment::query()
+                ->whereKey((string) $treatment->id)
+                ->where('dentist_id', $dentistId)
+                ->lockForUpdate()
+                ->firstOrFail();
+            $currentCount = $lockedTreatment->images()->count();
+            $availableSlots = $this->planLimitService->availableEntryImageSlots($owner, $currentCount);
+
+            if ($returnNullWhenFull && $availableSlots !== null && $availableSlots <= 0) {
+                return null;
+            }
+
+            $this->planLimitService->ensureEntryImageUploadAllowed($owner, $currentCount);
+
+            return $lockedTreatment->images()->create([
+                'dentist_id' => $dentistId,
+                'disk' => $disk,
+                'path' => $path,
+                'mime_type' => $mimeType,
+                'file_size' => $fileSize,
+                'scan_status' => 'pending',
+                'quarantine_path' => $path,
+            ]);
+        });
     }
 
     private function mediaDisk(): string

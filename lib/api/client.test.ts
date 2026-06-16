@@ -1,6 +1,6 @@
-import { AxiosError } from 'axios';
+import axios, { AxiosError } from 'axios';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { apiClient, apiMutationRequest, getApiErrorMessage, invalidateCsrfCookie } from '@/lib/api/client';
+import { apiClient, apiMutationRequest, getApiErrorMessage, invalidateCsrfCookie, withCsrfRetry } from '@/lib/api/client';
 import {
     AUTH_SESSION_EXPIRED_EVENT,
     consumeAuthRedirectReason,
@@ -311,5 +311,81 @@ describe('apiMutationRequest', () => {
                 method: 'POST',
             })
         ).rejects.toThrow('Image limit reached.');
+    });
+});
+
+describe('withCsrfRetry', () => {
+    beforeEach(() => {
+        vi.spyOn(axios, 'get').mockResolvedValue({ data: { token: 'fresh-csrf-token' } });
+    });
+
+    it('does not broadcast session expiry when a CSRF retry succeeds', async () => {
+        const dispatchSpy = vi.spyOn(window, 'dispatchEvent');
+        let attempts = 0;
+
+        await expect(withCsrfRetry(() =>
+            apiClient.post('/protected', {}, {
+                adapter: async (config) => {
+                    attempts += 1;
+                    if (attempts === 1) {
+                        throw new AxiosError(
+                            'Request failed with status code 419',
+                            'ERR_BAD_REQUEST',
+                            config,
+                            undefined,
+                            {
+                                data: { message: 'csrf expired' },
+                                status: 419,
+                                statusText: 'Page Expired',
+                                headers: {},
+                                config,
+                            }
+                        );
+                    }
+
+                    return {
+                        data: { ok: true },
+                        status: 200,
+                        statusText: 'OK',
+                        headers: {},
+                        config,
+                    };
+                },
+            })
+        )).resolves.toMatchObject({ data: { ok: true } });
+
+        expect(attempts).toBe(2);
+        expect(dispatchSpy).not.toHaveBeenCalledWith(expect.objectContaining({ type: AUTH_SESSION_EXPIRED_EVENT }));
+        expect(consumeAuthRedirectReason()).toBeNull();
+    });
+
+    it('broadcasts session expiry when the CSRF retry also fails', async () => {
+        const dispatchSpy = vi.spyOn(window, 'dispatchEvent');
+        let attempts = 0;
+
+        await expect(withCsrfRetry(() =>
+            apiClient.post('/protected', {}, {
+                adapter: async (config) => {
+                    attempts += 1;
+                    throw new AxiosError(
+                        'Request failed with status code 419',
+                        'ERR_BAD_REQUEST',
+                        config,
+                        undefined,
+                        {
+                            data: { message: 'auth expired' },
+                            status: 419,
+                            statusText: 'Page Expired',
+                            headers: {},
+                            config,
+                        }
+                    );
+                },
+            })
+        )).rejects.toThrow('Request failed with status code 419');
+
+        expect(attempts).toBe(2);
+        expect(dispatchSpy).toHaveBeenCalledWith(expect.objectContaining({ type: AUTH_SESSION_EXPIRED_EVENT }));
+        expect(consumeAuthRedirectReason()).toBe('session-expired');
     });
 });

@@ -90,6 +90,7 @@ export type AdminDentistSubscriptionAction =
     | 'cancel_now';
 
 const MAX_API_PER_PAGE = 500;
+const MAX_COLLECT_ALL_PAGES_CONCURRENCY = 3;
 
 function buildQueryParams(options?: QueryOptions): Record<string, unknown> {
     const params: Record<string, unknown> = {};
@@ -139,11 +140,15 @@ async function collectAllPages<T>(
     }
 
     const remainingPages = Array.from({ length: totalPages - 1 }, (_, index) => index + 2);
-    const responses = await Promise.all(remainingPages.map((page) => fetchPage(page)));
 
-    responses.forEach((response) => {
-        results.push(...response.data);
-    });
+    for (let index = 0; index < remainingPages.length; index += MAX_COLLECT_ALL_PAGES_CONCURRENCY) {
+        const pageBatch = remainingPages.slice(index, index + MAX_COLLECT_ALL_PAGES_CONCURRENCY);
+        const responses = await Promise.all(pageBatch.map((page) => fetchPage(page)));
+
+        responses.forEach((response) => {
+            results.push(...response.data);
+        });
+    }
 
     return results;
 }

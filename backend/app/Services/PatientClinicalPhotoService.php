@@ -53,7 +53,7 @@ class PatientClinicalPhotoService
             throw ValidationException::withMessages(['photo' => [__('api.patients.photo_store_failed')]]);
         }
 
-        return $this->queueScanOrFail($this->startPendingPhoto(
+        return $this->queueScanOrFail($this->startPendingPhotoOrDelete(
             patient: $patient,
             viewType: $viewType,
             disk: $disk,
@@ -175,7 +175,7 @@ class PatientClinicalPhotoService
             throw $exception;
         }
 
-        return $this->queueScanOrFail($this->startPendingPhoto(
+        return $this->queueScanOrFail($this->startPendingPhotoOrDelete(
             patient: $patient,
             viewType: $viewType,
             disk: $disk,
@@ -309,9 +309,14 @@ class PatientClinicalPhotoService
     ): PatientClinicalPhoto
     {
         return DB::transaction(function () use ($patient, $viewType, $disk, $path, $mimeType, $fileSize): PatientClinicalPhoto {
-            $this->ensurePhotoLimitAvailable($patient, $viewType);
-            $isPrimary = ! $this->slotPhotoQuery($patient, $viewType)->exists();
-            $sortOrder = ((int) $this->slotPhotoQuery($patient, $viewType)->max('sort_order')) + 1;
+            $lockedPatient = Patient::query()
+                ->whereKey((string) $patient->id)
+                ->where('dentist_id', (int) $patient->dentist_id)
+                ->lockForUpdate()
+                ->firstOrFail();
+            $this->ensurePhotoLimitAvailable($lockedPatient, $viewType);
+            $isPrimary = ! $this->slotPhotoQuery($lockedPatient, $viewType)->exists();
+            $sortOrder = ((int) $this->slotPhotoQuery($lockedPatient, $viewType)->max('sort_order')) + 1;
 
             $photo = new PatientClinicalPhoto();
             $photo->forceFill([
@@ -335,6 +340,23 @@ class PatientClinicalPhotoService
 
             return $photo;
         });
+    }
+
+    private function startPendingPhotoOrDelete(
+        Patient $patient,
+        string $viewType,
+        string $disk,
+        string $path,
+        string $mimeType,
+        int $fileSize
+    ): PatientClinicalPhoto {
+        try {
+            return $this->startPendingPhoto($patient, $viewType, $disk, $path, $mimeType, $fileSize);
+        } catch (\Throwable $exception) {
+            Storage::disk($disk)->delete($path);
+            MediaPathCache::forgetPaths($disk, [$path]);
+            throw $exception;
+        }
     }
 
     private function ensurePhotoLimitAvailable(Patient $patient, string $viewType): void

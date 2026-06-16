@@ -3,6 +3,7 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-li
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import PaymentsPage from '@/app/payments/page';
 import { getCurrentUser, listPaymentLedgerHistory, listPaymentLedgerPatients } from '@/lib/api/dentist';
+import type { ApiSubscriptionSummary } from '@/lib/api/types';
 import { I18nProvider } from '@/components/providers/i18n-provider';
 import { DICTIONARIES } from '@/lib/i18n/dictionaries';
 import { exportRowsToPdf } from '@/lib/export/pdf';
@@ -77,6 +78,32 @@ function renderPage() {
 function normalizeText(value: string | null | undefined) {
     return (value ?? '').replace(/\u00A0/g, ' ').replace(/\s+/g, ' ').trim();
 }
+
+const EXPORT_ENABLED_SUBSCRIPTION: ApiSubscriptionSummary = {
+    is_configured: true,
+    plan: 'pro',
+    plan_name: 'Pro',
+    billing_period: 'monthly',
+    status: 'active',
+    access_mode: 'full',
+    starts_at: '2026-01-01T00:00:00.000000Z',
+    ends_at: null,
+    trial_ends_at: null,
+    grace_ends_at: null,
+    cancel_at_period_end: false,
+    cancelled_at: null,
+    days_remaining: null,
+    staff_limit: 5,
+    active_staff_count: 1,
+    entry_image_limit: 10,
+    upload_max_mb: 8,
+    stored_image_max_mb: 8,
+    can_export: true,
+    is_read_only: false,
+    payment_method: null,
+    payment_amount: null,
+    note: null,
+};
 
 function paginateRows<T>(rows: T[], options?: MockLedgerOptions) {
     const perPage = options?.perPage ?? 10;
@@ -200,9 +227,7 @@ describe('PaymentsPage', () => {
             email: 'doctor@example.test',
             role: 'dentist',
             account_status: 'active',
-            subscription: {
-                can_export: true,
-            },
+            subscription: EXPORT_ENABLED_SUBSCRIPTION,
         });
         patientLedgerRows = [
             {
@@ -356,9 +381,7 @@ describe('PaymentsPage', () => {
             role: 'dentist',
             account_status: 'active',
             show_record_authors: true,
-            subscription: {
-                can_export: true,
-            },
+            subscription: EXPORT_ENABLED_SUBSCRIPTION,
         } as never);
         patientLedgerRows = [
             {

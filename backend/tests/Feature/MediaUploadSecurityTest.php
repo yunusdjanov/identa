@@ -890,6 +890,50 @@ class MediaUploadSecurityTest extends TestCase
         $this->assertDatabaseCount('patient_clinical_photos', 0);
     }
 
+    public function test_patient_oral_photo_direct_upload_cleans_object_when_slot_limit_is_reached_late(): void
+    {
+        Storage::fake('local');
+
+        $dentist = User::factory()->create();
+        $patient = Patient::factory()->create(['dentist_id' => $dentist->id]);
+
+        foreach (range(1, 6) as $sortOrder) {
+            PatientClinicalPhoto::query()->create([
+                'dentist_id' => $dentist->id,
+                'patient_id' => $patient->id,
+                'view_type' => PatientClinicalPhoto::VIEW_TYPE_TOP,
+                'is_primary' => $sortOrder === 1,
+                'sort_order' => $sortOrder,
+                'disk' => 'local',
+                'path' => "approved/patients/oral-{$sortOrder}.jpg",
+                'mime_type' => 'image/jpeg',
+                'file_size' => 123,
+                'scan_status' => 'approved',
+            ]);
+        }
+
+        $uploadId = 'patient-oral-photo-limit-late';
+        $path = 'quarantine/patients/oral-limit-late.jpg';
+        Storage::disk('local')->put($path, str_repeat('x', 1_000));
+        Cache::put("patient-oral-photo-upload:{$uploadId}", [
+            'dentist_id' => $dentist->id,
+            'patient_id' => (string) $patient->id,
+            'view_type' => PatientClinicalPhoto::VIEW_TYPE_TOP,
+            'disk' => 'local',
+            'path' => $path,
+            'mime_type' => 'image/jpeg',
+            'file_size' => 1_000,
+        ]);
+
+        $this->actingAs($dentist, 'web')
+            ->postJson("/api/v1/patients/{$patient->id}/oral-photos/top/direct-upload/{$uploadId}/complete")
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['photo']);
+
+        Storage::disk('local')->assertMissing($path);
+        $this->assertDatabaseCount('patient_clinical_photos', 6);
+    }
+
     public function test_treatment_direct_upload_enforces_actual_stored_size(): void
     {
         Storage::fake('local');
@@ -920,6 +964,48 @@ class MediaUploadSecurityTest extends TestCase
 
         Storage::disk('local')->assertMissing($path);
         $this->assertDatabaseCount('treatment_images', 0);
+    }
+
+    public function test_treatment_direct_upload_cleans_object_when_image_limit_is_reached_late(): void
+    {
+        Storage::fake('local');
+
+        $dentist = $this->createDentistWithEntryImageLimit(1);
+        $patient = Patient::factory()->create(['dentist_id' => $dentist->id]);
+        $treatment = Treatment::factory()->create([
+            'dentist_id' => $dentist->id,
+            'patient_id' => $patient->id,
+        ]);
+        TreatmentImage::query()->create([
+            'dentist_id' => $dentist->id,
+            'treatment_id' => $treatment->id,
+            'disk' => 'local',
+            'path' => 'approved/treatments/existing.jpg',
+            'mime_type' => 'image/jpeg',
+            'file_size' => 123,
+            'scan_status' => 'approved',
+        ]);
+
+        $uploadId = 'treatment-limit-late';
+        $path = 'quarantine/treatments/limit-late.jpg';
+        Storage::disk('local')->put($path, str_repeat('x', 1_000));
+        Cache::put("treatment-image-upload:{$uploadId}", [
+            'dentist_id' => $dentist->id,
+            'patient_id' => (string) $patient->id,
+            'treatment_id' => (string) $treatment->id,
+            'disk' => 'local',
+            'path' => $path,
+            'mime_type' => 'image/jpeg',
+            'file_size' => 1_000,
+        ]);
+
+        $this->actingAs($dentist, 'web')
+            ->postJson("/api/v1/patients/{$patient->id}/treatments/{$treatment->id}/images/direct-upload/{$uploadId}/complete")
+            ->assertForbidden()
+            ->assertJsonPath('error.code', 'plan_entry_image_limit_reached');
+
+        Storage::disk('local')->assertMissing($path);
+        $this->assertDatabaseCount('treatment_images', 1);
     }
 
     public function test_treatment_batch_direct_upload_enforces_actual_stored_size(): void
@@ -1015,6 +1101,42 @@ class MediaUploadSecurityTest extends TestCase
             'entry_image_limit' => 10,
             'upload_max_mb' => 0.01,
             'stored_image_max_mb' => 1,
+            'can_export' => false,
+            'is_active' => true,
+            'sort_order' => 999,
+        ]);
+
+        $dentist->subscriptions()->create([
+            'plan_id' => $plan->id,
+            'plan_code' => $plan->code,
+            'plan_name' => $plan->name,
+            'billing_period' => Subscription::PERIOD_MONTHLY,
+            'status' => Subscription::STATUS_ACTIVE,
+            'starts_at' => now(),
+            'ends_at' => now()->addMonth(),
+            'cancel_at_period_end' => false,
+        ]);
+
+        return $dentist->refresh();
+    }
+
+    private function createDentistWithEntryImageLimit(int $entryImageLimit): User
+    {
+        $dentist = User::factory()->create();
+        $plan = Plan::query()->forceCreate([
+            'code' => 'entry-image-limit-'.$dentist->id,
+            'name' => 'Entry image limit test plan',
+            'description' => null,
+            'is_trial' => false,
+            'is_paid' => true,
+            'trial_days' => null,
+            'monthly_price' => 0,
+            'yearly_price' => null,
+            'currency' => 'UZS',
+            'staff_limit' => 1,
+            'entry_image_limit' => $entryImageLimit,
+            'upload_max_mb' => 5,
+            'stored_image_max_mb' => 5,
             'can_export' => false,
             'is_active' => true,
             'sort_order' => 999,

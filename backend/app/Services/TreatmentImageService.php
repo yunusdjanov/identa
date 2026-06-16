@@ -13,6 +13,7 @@ use App\Support\MediaPathCache;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -80,15 +81,22 @@ class TreatmentImageService
             ]);
         }
 
-        $image = $treatment->images()->create([
-            'dentist_id' => $dentistId,
-            'disk' => $disk,
-            'path' => $quarantinePath,
-            'mime_type' => $mimeType,
-            'file_size' => max((int) Storage::disk($disk)->size($quarantinePath), 0),
-            'scan_status' => 'pending',
-            'quarantine_path' => $quarantinePath,
-        ]);
+        try {
+            $image = $this->createPendingImage(
+                treatment: $treatment,
+                owner: $owner,
+                dentistId: $dentistId,
+                disk: $disk,
+                path: $quarantinePath,
+                mimeType: $mimeType,
+                fileSize: max((int) Storage::disk($disk)->size($quarantinePath), 0),
+            );
+        } catch (\Throwable $exception) {
+            Storage::disk($disk)->delete($quarantinePath);
+            MediaPathCache::forgetPaths($disk, [$quarantinePath]);
+
+            throw $exception;
+        }
 
         ProcessUploadedMedia::dispatch(TreatmentImage::class, (string) $image->id, (int) $owner->id);
         $image->refresh();
@@ -433,6 +441,37 @@ class TreatmentImageService
     private function mediaDisk(): string
     {
         return (string) config('filesystems.media_disk', 'local');
+    }
+
+    private function createPendingImage(
+        Treatment $treatment,
+        User $owner,
+        int $dentistId,
+        string $disk,
+        string $path,
+        string $mimeType,
+        int $fileSize,
+    ): TreatmentImage {
+        return DB::transaction(function () use ($treatment, $owner, $dentistId, $disk, $path, $mimeType, $fileSize): TreatmentImage {
+            $lockedTreatment = Treatment::query()
+                ->whereKey((string) $treatment->id)
+                ->where('dentist_id', $dentistId)
+                ->lockForUpdate()
+                ->firstOrFail();
+            $currentCount = $lockedTreatment->images()->count();
+
+            $this->planLimitService->ensureEntryImageUploadAllowed($owner, $currentCount);
+
+            return $lockedTreatment->images()->create([
+                'dentist_id' => $dentistId,
+                'disk' => $disk,
+                'path' => $path,
+                'mime_type' => $mimeType,
+                'file_size' => $fileSize,
+                'scan_status' => 'pending',
+                'quarantine_path' => $path,
+            ]);
+        });
     }
 
     private function extensionForMimeType(string $contentType): string
