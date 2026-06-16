@@ -131,7 +131,7 @@ export default function AdminPaymentsPage() {
     const router = useRouter();
     const queryClient = useQueryClient();
     const { locale, t } = useI18n();
-    const handleLogout = useInstantLogout('/login');
+    const handleLogout = useInstantLogout('/admin/login');
 
     const [searchInput, setSearchInput] = useState('');
     const [statusFilter, setStatusFilter] = useState<PaymentStatusFilter>('all');
@@ -150,7 +150,7 @@ export default function AdminPaymentsPage() {
 
     useEffect(() => {
         if (authQuery.isError && !authQuery.isLoading) {
-            router.replace('/login');
+            router.replace('/admin/login');
             return;
         }
         if (authQuery.data && authQuery.data.role !== 'admin') {

@@ -90,10 +90,10 @@ describe('AdminPaymentsPage', () => {
         await waitFor(() => expect(replaceMock).toHaveBeenCalledWith('/'));
     });
 
-    it('redirects to login when the admin session is invalid', async () => {
+    it('redirects to the admin login when the admin session is invalid', async () => {
         vi.mocked(getCurrentUser).mockRejectedValue(new Error('Unauthenticated'));
         renderPage();
-        await waitFor(() => expect(replaceMock).toHaveBeenCalledWith('/login'));
+        await waitFor(() => expect(replaceMock).toHaveBeenCalledWith('/admin/login'));
     });
 
     it('shows an error state with retry when payments fail to load', async () => {

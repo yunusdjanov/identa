@@ -304,7 +304,7 @@ export default function AdminBillingDetailPage() {
     const router = useRouter();
     const queryClient = useQueryClient();
     const { locale, t } = useI18n();
-    const handleLogout = useInstantLogout('/login');
+    const handleLogout = useInstantLogout('/admin/login');
 
     const [subscriptionDialog, setSubscriptionDialog] = useState<SubscriptionDialogState | null>(null);
     const [subscriptionForm, setSubscriptionForm] = useState<ManageSubscriptionForm>(createEmptySubscriptionForm());
@@ -443,7 +443,7 @@ export default function AdminBillingDetailPage() {
 
     useEffect(() => {
         if (authQuery.isError && !authQuery.isLoading) {
-            router.replace('/login');
+            router.replace('/admin/login');
             return;
         }
         if (authQuery.data && authQuery.data.role !== 'admin') {

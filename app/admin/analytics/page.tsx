@@ -104,7 +104,7 @@ function computeMrr(
 export default function AdminAnalyticsPage() {
     const router = useRouter();
     const { t, locale } = useI18n();
-    const handleLogout = useInstantLogout('/login');
+    const handleLogout = useInstantLogout('/admin/login');
     const [range, setRange] = useState<AnalyticsRange>(DEFAULT_ANALYTICS_RANGE);
 
     const authQuery = useQuery({
