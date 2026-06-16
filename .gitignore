@@ -35,6 +35,7 @@ yarn-error.log*
 # ...but DO track the secret-free templates so required vars are documented
 !.env.example
 !backend/.env.example
+!backend/.env.testing
 
 # vercel
 .vercel
