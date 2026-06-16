@@ -72,13 +72,12 @@ declare global {
     }
 }
 
-const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ?? '';
-
 export default function LoginPage() {
     const router = useRouter();
     const queryClient = useQueryClient();
     const { isAuthenticated, login } = useAuthStore();
     const { t, locale } = useI18n();
+    const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ?? '';
     const googleButtonRef = useRef<HTMLDivElement | null>(null);
     // Guards the one-time GSI initialize()+renderButton(). Without it, the
     // effect below re-runs whenever `t`/`locale`/the mutation object change
@@ -92,6 +91,7 @@ export default function LoginPage() {
     const [remember, setRemember] = useState(true);
     const [isSubmitted, setIsSubmitted] = useState(false);
     const [isLogoutRedirect, setIsLogoutRedirect] = useState(() => isClientLogoutInProgress());
+    const [isGoogleLoadRequested, setIsGoogleLoadRequested] = useState(false);
     const [googleReady, setGoogleReady] = useState(false);
     const emailError = getEmailValidationMessage(email, { required: true });
     const passwordError = password ? null : t('login.passwordRequired');
@@ -203,7 +203,7 @@ export default function LoginPage() {
     }, [currentUserQuery.data, isLogoutRedirect, router]);
 
     useEffect(() => {
-        if (!googleClientId || typeof window === 'undefined' || isLogoutRedirect) {
+        if (!googleClientId || typeof window === 'undefined' || isLogoutRedirect || !isGoogleLoadRequested) {
             return;
         }
 
@@ -288,7 +288,7 @@ export default function LoginPage() {
             window.clearTimeout(pollHandle);
             script.removeEventListener('load', initializeGoogle);
         };
-    }, [googleMutation, isLogoutRedirect, t, locale]);
+    }, [googleMutation, isGoogleLoadRequested, isLogoutRedirect, t, locale, googleClientId]);
 
     const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault();
@@ -397,6 +397,8 @@ export default function LoginPage() {
                             isPending={loginMutation.isPending || googleMutation.isPending}
                             label={t('register.googleContinue')}
                             unavailableLabel={t('register.googleNotConfigured')}
+                            isLoadRequested={isGoogleLoadRequested}
+                            onLoadRequest={() => setIsGoogleLoadRequested(true)}
                         />
 
                         <p className="text-center text-sm leading-6 text-slate-600">

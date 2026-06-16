@@ -63,13 +63,12 @@ declare global {
     }
 }
 
-const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ?? '';
-
 export default function RegisterPage() {
     const router = useRouter();
     const queryClient = useQueryClient();
     const { login } = useAuthStore();
     const { t, locale } = useI18n();
+    const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ?? '';
     const googleButtonRef = useRef<HTMLDivElement | null>(null);
     // One-time GSI init guard — see login/page.tsx. Without it the effect
     // re-runs on t/locale/mutation identity changes and re-initializes the
@@ -82,6 +81,7 @@ export default function RegisterPage() {
     const [password, setPassword] = useState('');
     const [passwordConfirmation, setPasswordConfirmation] = useState('');
     const [isSubmitted, setIsSubmitted] = useState(false);
+    const [isGoogleLoadRequested, setIsGoogleLoadRequested] = useState(false);
     const [googleReady, setGoogleReady] = useState(false);
 
     const nameError = name.trim() ? null : t('register.nameRequired');
@@ -141,7 +141,7 @@ export default function RegisterPage() {
     });
 
     useEffect(() => {
-        if (!googleClientId || typeof window === 'undefined') {
+        if (!googleClientId || typeof window === 'undefined' || !isGoogleLoadRequested) {
             return;
         }
 
@@ -217,7 +217,7 @@ export default function RegisterPage() {
             window.clearTimeout(pollHandle);
             script.removeEventListener('load', initializeGoogle);
         };
-    }, [googleMutation, t, locale]);
+    }, [googleMutation, isGoogleLoadRequested, t, locale, googleClientId]);
 
     const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault();
@@ -356,6 +356,8 @@ export default function RegisterPage() {
                             isPending={registerMutation.isPending || googleMutation.isPending}
                             label={t('register.googleContinue')}
                             unavailableLabel={t('register.googleNotConfigured')}
+                            isLoadRequested={isGoogleLoadRequested}
+                            onLoadRequest={() => setIsGoogleLoadRequested(true)}
                         />
 
                         <p className="text-center text-sm leading-6 text-slate-600">

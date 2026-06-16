@@ -42,6 +42,8 @@ interface GoogleAuthButtonProps {
     isPending: boolean;
     label: string;
     unavailableLabel: string;
+    isLoadRequested?: boolean;
+    onLoadRequest?: () => void;
 }
 
 export function GoogleAuthButton({
@@ -51,6 +53,8 @@ export function GoogleAuthButton({
     isPending,
     label,
     unavailableLabel,
+    isLoadRequested = true,
+    onLoadRequest,
 }: GoogleAuthButtonProps) {
     // !isConfigured means the deploy lacks NEXT_PUBLIC_GOOGLE_CLIENT_ID
     // (preview/local dev only — production sets it). We still render a
@@ -66,6 +70,22 @@ export function GoogleAuthButton({
                 disabled
                 aria-label={`${label}. ${unavailableLabel}`}
                 title={unavailableLabel}
+            >
+                <GoogleMark />
+                <span className="truncate">{label}</span>
+            </Button>
+        );
+    }
+
+    if (!isLoadRequested) {
+        return (
+            <Button
+                type="button"
+                variant="outline"
+                className="h-10 w-full justify-center gap-3 rounded-full border-slate-300/80 bg-white px-4 text-sm font-semibold text-slate-800 shadow-sm shadow-teal-950/5 backdrop-blur transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-70"
+                disabled={isPending}
+                onClick={onLoadRequest}
+                aria-label={label}
             >
                 <GoogleMark />
                 <span className="truncate">{label}</span>

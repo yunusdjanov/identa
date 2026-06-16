@@ -1,11 +1,14 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import LoginPage from '@/app/login/page';
 import { I18nProvider } from '@/components/providers/i18n-provider';
 import { DICTIONARIES } from '@/lib/i18n/dictionaries';
 import { useAuthStore } from '@/lib/store';
 import { getCurrentUser } from '@/lib/api/dentist';
+
+const GOOGLE_GSI_SCRIPT_SELECTOR = 'script[src="https://accounts.google.com/gsi/client"]';
 
 vi.mock('next/navigation', () => ({
     useRouter: () => ({
@@ -53,6 +56,8 @@ describe('LoginPage', () => {
 
     afterEach(() => {
         cleanup();
+        document.querySelectorAll(GOOGLE_GSI_SCRIPT_SELECTOR).forEach((script) => script.remove());
+        vi.unstubAllEnvs();
     });
 
     it('does not probe the current session for a guest login page visit', async () => {
@@ -63,5 +68,19 @@ describe('LoginPage', () => {
         await new Promise((resolve) => window.setTimeout(resolve, 25));
 
         expect(getCurrentUser).not.toHaveBeenCalled();
+    });
+
+    it('loads the Google sign-in script only after the Google button is requested', async () => {
+        vi.stubEnv('NEXT_PUBLIC_GOOGLE_CLIENT_ID', 'google-client-id');
+        const user = userEvent.setup();
+        renderLoginPage();
+
+        expect(document.querySelector(GOOGLE_GSI_SCRIPT_SELECTOR)).not.toBeInTheDocument();
+
+        await user.click(screen.getByRole('button', { name: 'Continue with Google' }));
+
+        await waitFor(() => {
+            expect(document.querySelector(GOOGLE_GSI_SCRIPT_SELECTOR)).toBeInTheDocument();
+        });
     });
 });
