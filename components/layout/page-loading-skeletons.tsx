@@ -265,6 +265,8 @@ export function PatientsLoadingState() {
 }
 
 export function PaymentsLoadingState() {
+    const ledgerColumnCount = 8;
+
     // The real page (`app/payments/page.tsx`) keeps the toolbar (tab group +
     // search) AND the ledger table inside ONE `overflow-hidden rounded-2xl`
     // card. The earlier skeleton split them into three free-floating blocks
@@ -276,21 +278,35 @@ export function PaymentsLoadingState() {
             <MetricCardsSkeleton count={4} />
             <Card data-testid="ledger-table-skeleton" className="overflow-hidden rounded-2xl bg-white shadow-sm">
                 <CardContent className="space-y-5 p-4 sm:p-5">
-                    {/* Toolbar: 2-tab segmented control (left) + search (right) */}
+                    {/* Toolbar: tabs, search, and outstanding-debt filter. */}
                     <div className="flex flex-col gap-4 rounded-2xl border border-teal-100/80 bg-white p-3 lg:flex-row lg:items-center lg:justify-between">
                         <div className="inline-flex w-full items-center gap-1 rounded-xl border border-slate-200/80 bg-slate-100/70 p-1 sm:w-auto">
                             <Skeleton className="h-9 flex-1 rounded-lg sm:w-28 sm:flex-none" />
                             <Skeleton className="h-9 flex-1 rounded-lg sm:w-28 sm:flex-none" />
                         </div>
-                        <Skeleton className="h-9 w-full rounded-xl sm:w-[22rem]" />
+                        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
+                            <Skeleton className="h-9 w-full rounded-xl sm:w-[22rem]" />
+                            <Skeleton
+                                data-testid="payments-outstanding-filter-skeleton"
+                                className="h-9 w-full rounded-xl sm:w-28"
+                            />
+                        </div>
+                    </div>
+                    <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-slate-50/70 p-4">
+                        <div className="space-y-2">
+                            <Skeleton className="h-5 w-36 rounded-xl" />
+                            <Skeleton className="h-4 w-56 max-w-full rounded-xl" />
+                        </div>
+                        <Skeleton className="h-8 w-28 rounded-full" />
                     </div>
                     {/* Ledger rows */}
                     <div className="space-y-3">
                         <div
                             className="hidden gap-3 md:grid"
-                            style={{ gridTemplateColumns: 'repeat(6, minmax(0, 1fr))' }}
+                            data-testid="payments-ledger-header-skeleton"
+                            style={{ gridTemplateColumns: `repeat(${ledgerColumnCount}, minmax(0, 1fr))` }}
                         >
-                            {Array.from({ length: 6 }).map((_, index) => (
+                            {Array.from({ length: ledgerColumnCount }).map((_, index) => (
                                 <Skeleton key={index} className="h-4 w-full rounded-xl" />
                             ))}
                         </div>
@@ -298,9 +314,10 @@ export function PaymentsLoadingState() {
                             <div
                                 key={rowIndex}
                                 className="grid gap-3 rounded-xl border border-slate-100 bg-white p-3 md:border-0 md:bg-transparent md:p-0"
-                                style={{ gridTemplateColumns: 'repeat(6, minmax(0, 1fr))' }}
+                                data-testid="payments-ledger-row-skeleton"
+                                style={{ gridTemplateColumns: `repeat(${ledgerColumnCount}, minmax(0, 1fr))` }}
                             >
-                                {Array.from({ length: 6 }).map((__, columnIndex) => (
+                                {Array.from({ length: ledgerColumnCount }).map((__, columnIndex) => (
                                     <Skeleton key={columnIndex} className="h-4 min-w-0 rounded-xl" />
                                 ))}
                             </div>

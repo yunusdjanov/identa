@@ -41,6 +41,9 @@ describe('page loading skeletons', () => {
             expect(screen.getByTestId('payments-loading')).toBeInTheDocument();
             expect(screen.getAllByTestId('metric-card-skeleton')).toHaveLength(4);
             expect(screen.getByTestId('ledger-table-skeleton')).toBeInTheDocument();
+            expect(screen.getByTestId('payments-outstanding-filter-skeleton')).toBeInTheDocument();
+            expect(screen.getByTestId('payments-ledger-header-skeleton').children).toHaveLength(8);
+            expect(screen.getAllByTestId('payments-ledger-row-skeleton')[0].children).toHaveLength(8);
         });
 
         it('renders the patient detail oral photo panel skeleton', () => {

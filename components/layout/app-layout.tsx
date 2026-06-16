@@ -57,6 +57,8 @@ const navigation = [
     },
 ];
 
+const navigationSkeletonLabelWidths = ['lg:w-28', 'lg:w-24', 'lg:w-32', 'lg:w-24', 'lg:w-28'] as const;
+
 function useIsHydrated() {
     return useSyncExternalStore(
         () => () => undefined,
@@ -271,10 +273,13 @@ function AppLayoutBody({ children }: { children: React.ReactNode }) {
                             <>
                                 <Skeleton className="h-9 w-32 rounded-md" />
                                 <div className="hidden md:flex items-center gap-2">
-                                    <Skeleton className="h-9 w-28 rounded-md" />
-                                    <Skeleton className="h-9 w-24 rounded-md" />
-                                    <Skeleton className="h-9 w-32 rounded-md" />
-                                    <Skeleton className="h-9 w-24 rounded-md" />
+                                    {navigation.map((item, index) => (
+                                        <Skeleton
+                                            key={item.href}
+                                            data-testid="app-header-desktop-nav-skeleton-item"
+                                            className={`h-9 w-9 ${navigationSkeletonLabelWidths[index] ?? 'lg:w-24'} rounded-md`}
+                                        />
+                                    ))}
                                 </div>
                                 <div className="flex items-center gap-2">
                                     <Skeleton className="h-8 w-16 rounded-md" />
@@ -343,11 +348,14 @@ function AppLayoutBody({ children }: { children: React.ReactNode }) {
                 {/* Mobile Navigation */}
                 {showHeaderSkeleton ? (
                     <div className="md:hidden border-t border-slate-200/70 bg-white">
-                        <div className="flex justify-around py-2 px-2">
-                            <Skeleton className="h-12 w-16 rounded-md" />
-                            <Skeleton className="h-12 w-16 rounded-md" />
-                            <Skeleton className="h-12 w-16 rounded-md" />
-                            <Skeleton className="h-12 w-16 rounded-md" />
+                        <div className="flex justify-center gap-1 overflow-x-auto overflow-y-hidden px-2 py-2 no-scrollbar">
+                            {navigation.map((item) => (
+                                <Skeleton
+                                    key={item.href}
+                                    data-testid="app-header-mobile-nav-skeleton-item"
+                                    className="h-12 w-[72px] shrink-0 rounded-xl"
+                                />
+                            ))}
                         </div>
                     </div>
                 ) : (
