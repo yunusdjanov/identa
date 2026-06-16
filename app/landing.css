@@ -507,6 +507,22 @@
   line-height: 1.35;
   padding-top: 7px;
 }
+/* Cold visits can briefly measure Cyrillic copy with wider fallback metrics
+   before the cached Geist Mono face is available. On desktop, keep this
+   compact eyebrow in one row so first paint matches the cache-warm refresh. */
+@media (min-width: 1280px) {
+  .identa-landing .hero-eyebrow {
+    flex-wrap: nowrap;
+    max-width: none;
+  }
+  .identa-landing .hero-eyebrow .chip,
+  .identa-landing .hero-eyebrow .eyebrow {
+    flex: 0 0 auto;
+  }
+  .identa-landing .hero-eyebrow .eyebrow {
+    white-space: nowrap;
+  }
+}
 .identa-landing .hero h1 { margin-top: 24px; }
 .identa-landing .hero p.lede { margin-top: 24px; }
 .identa-landing .hero-actions {

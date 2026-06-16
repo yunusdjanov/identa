@@ -1,7 +1,11 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { cleanup, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it } from 'vitest';
 import { Landing } from '@/components/landing/landing';
+
+const landingCss = readFileSync(join(process.cwd(), 'app', 'landing.css'), 'utf8');
 
 // The marketing landing is now a native, server-rendered React tree (no iframe,
 // no CDN bundle). next/font is wired in app/page.tsx, so the component itself is
@@ -54,5 +58,11 @@ describe('Landing', () => {
         appEntryLinks.forEach((link) => {
             expect(link).toHaveAttribute('data-navigation', 'document');
         });
+    });
+
+    it('keeps the desktop hero eyebrow stable before font cache warms', () => {
+        expect(landingCss).toContain('@media (min-width: 1280px)');
+        expect(landingCss).toContain('flex-wrap: nowrap');
+        expect(landingCss).toContain('white-space: nowrap');
     });
 });
