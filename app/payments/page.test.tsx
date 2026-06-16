@@ -2,15 +2,15 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import PaymentsPage from '@/app/payments/page';
-import { getCurrentUser, getPatient, listAllTreatments } from '@/lib/api/dentist';
+import { getCurrentUser, listPaymentLedgerHistory, listPaymentLedgerPatients } from '@/lib/api/dentist';
 import { I18nProvider } from '@/components/providers/i18n-provider';
 import { DICTIONARIES } from '@/lib/i18n/dictionaries';
 import { exportRowsToPdf } from '@/lib/export/pdf';
 
 vi.mock('@/lib/api/dentist', () => ({
     getCurrentUser: vi.fn(),
-    listAllTreatments: vi.fn(),
-    getPatient: vi.fn(),
+    listPaymentLedgerHistory: vi.fn(),
+    listPaymentLedgerPatients: vi.fn(),
 }));
 
 vi.mock('@/lib/export/pdf', () => ({
@@ -19,6 +19,44 @@ vi.mock('@/lib/export/pdf', () => ({
 }));
 
 vi.mock('sonner', () => ({ toast: { error: vi.fn(), success: vi.fn() } }));
+
+interface MockLedgerOptions {
+    page?: number;
+    perPage?: number;
+    filter?: {
+        patient_id?: string;
+        outstanding?: string;
+        search?: string;
+    };
+}
+
+let patientLedgerRows: Array<{
+    patient_id: string;
+    patient_code: string;
+    patient_name: string;
+    patient_phone: string;
+    total_debt: number;
+    total_paid: number;
+    balance: number;
+    entry_count: number;
+    last_entry_date: string | null;
+}>;
+
+let historyLedgerRows: Array<{
+    id: string;
+    patient_id: string;
+    patient_name: string;
+    patient_phone: string;
+    date: string;
+    teeth: number[];
+    work_done: string;
+    comment: string | null;
+    debt: number;
+    paid: number;
+    balance_delta: number;
+    created_by?: { id: string; name: string; role: 'assistant' | 'dentist' | 'admin' } | null;
+    updated_by?: { id: string; name: string; role: 'assistant' | 'dentist' | 'admin' } | null;
+}>;
 
 function renderPage() {
     const queryClient = new QueryClient({
@@ -40,15 +78,119 @@ function normalizeText(value: string | null | undefined) {
     return (value ?? '').replace(/\u00A0/g, ' ').replace(/\s+/g, ' ').trim();
 }
 
+function paginateRows<T>(rows: T[], options?: MockLedgerOptions) {
+    const perPage = options?.perPage ?? 10;
+    const page = options?.page ?? 1;
+    const start = (page - 1) * perPage;
+
+    return {
+        data: rows.slice(start, start + perPage),
+        meta: {
+            pagination: {
+                page,
+                per_page: perPage,
+                total: rows.length,
+                total_pages: Math.max(1, Math.ceil(rows.length / perPage)),
+            },
+        },
+    };
+}
+
+function filteredPatientRows(options?: MockLedgerOptions) {
+    const search = options?.filter?.search?.trim().toLowerCase() ?? '';
+
+    return patientLedgerRows
+        .filter((row) => (options?.filter?.patient_id ? row.patient_id === options.filter.patient_id : true))
+        .filter((row) => (options?.filter?.outstanding === '1' ? row.balance > 0 : true))
+        .filter((row) => {
+            if (!search) {
+                return true;
+            }
+
+            return [row.patient_name, row.patient_phone, row.patient_code].join(' ').toLowerCase().includes(search);
+        });
+}
+
+function filteredHistoryRows(options?: MockLedgerOptions) {
+    const search = options?.filter?.search?.trim().toLowerCase() ?? '';
+    const outstandingPatientIds = new Set(patientLedgerRows.filter((row) => row.balance > 0).map((row) => row.patient_id));
+
+    return historyLedgerRows
+        .filter((row) => (options?.filter?.patient_id ? row.patient_id === options.filter.patient_id : true))
+        .filter((row) => (options?.filter?.outstanding === '1' ? outstandingPatientIds.has(row.patient_id) : true))
+        .filter((row) => {
+            if (!search) {
+                return true;
+            }
+
+            return [
+                row.patient_name,
+                row.patient_phone,
+                row.work_done,
+                row.comment ?? '',
+                row.teeth.join(' '),
+            ].join(' ').toLowerCase().includes(search);
+        });
+}
+
+function patientSummary(rows: typeof patientLedgerRows) {
+    return rows.reduce(
+        (summary, row) => {
+            summary.total_debt += row.total_debt;
+            summary.total_paid += row.total_paid;
+            summary.total_balance += row.balance;
+            summary.total_entries += row.entry_count;
+            summary.total_patients += 1;
+            return summary;
+        },
+        {
+            total_debt: 0,
+            total_paid: 0,
+            total_balance: 0,
+            total_entries: 0,
+            total_patients: 0,
+        }
+    );
+}
+
+function setupLedgerMocks() {
+    vi.mocked(listPaymentLedgerPatients).mockImplementation(async (options?: MockLedgerOptions) => {
+        const rows = filteredPatientRows(options);
+        return {
+            ...paginateRows(rows, options),
+            meta: {
+                ...paginateRows(rows, options).meta,
+                summary: patientSummary(rows),
+            },
+        } as never;
+    });
+    vi.mocked(listPaymentLedgerHistory).mockImplementation(async (options?: MockLedgerOptions) => {
+        const rows = filteredHistoryRows(options);
+        const page = paginateRows(rows, options);
+        return {
+            ...page,
+            meta: {
+                ...page.meta,
+                summary: {
+                    total_debt: rows.reduce((sum, row) => sum + row.debt, 0),
+                    total_paid: rows.reduce((sum, row) => sum + row.paid, 0),
+                    total_balance: rows.reduce((sum, row) => sum + row.balance_delta, 0),
+                    total_entries: rows.length,
+                },
+            },
+        } as never;
+    });
+}
+
 describe('PaymentsPage', () => {
     afterEach(() => {
         cleanup();
     });
 
     beforeEach(() => {
-        vi.mocked(listAllTreatments).mockReset();
+        vi.mocked(listPaymentLedgerPatients).mockReset();
+        vi.mocked(listPaymentLedgerHistory).mockReset();
         vi.mocked(getCurrentUser).mockReset();
-        vi.mocked(getPatient).mockReset();
         vi.mocked(exportRowsToPdf).mockClear();
         window.history.replaceState({}, '', '/payments');
 
@@ -62,50 +204,59 @@ describe('PaymentsPage', () => {
                 can_export: true,
             },
         });
-        vi.mocked(listAllTreatments).mockResolvedValue([
+        patientLedgerRows = [
+            {
+                patient_id: 'patient-1',
+                patient_code: 'PT-1001',
+                patient_name: 'Jane Doe',
+                patient_phone: '+998900000001',
+                total_debt: 120000,
+                total_paid: 70000,
+                balance: 50000,
+                entry_count: 1,
+                last_entry_date: '2026-03-14',
+            },
+            {
+                patient_id: 'patient-2',
+                patient_code: 'PT-1002',
+                patient_name: 'John Smith',
+                patient_phone: '+998900000002',
+                total_debt: 50000,
+                total_paid: 50000,
+                balance: 0,
+                entry_count: 1,
+                last_entry_date: '2026-03-10',
+            },
+        ];
+        historyLedgerRows = [
             {
                 id: 'tr-1',
                 patient_id: 'patient-1',
                 patient_name: 'Jane Doe',
                 patient_phone: '+998900000001',
-                patient_code: 'PT-1001',
-                tooth_number: 12,
+                date: '2026-03-14',
                 teeth: [12],
-                treatment_type: 'Composite filling',
-                description: null,
+                work_done: 'Composite filling',
                 comment: 'Upper left premolar',
-                treatment_date: '2026-03-14',
-                cost: null,
-                debt_amount: 120000,
-                paid_amount: 70000,
-                balance: 50000,
-                notes: null,
-                images: [],
-                created_at: '2026-03-14T09:00:00Z',
-                updated_at: '2026-03-14T09:00:00Z',
+                debt: 120000,
+                paid: 70000,
+                balance_delta: 50000,
             },
             {
                 id: 'tr-2',
                 patient_id: 'patient-2',
                 patient_name: 'John Smith',
                 patient_phone: '+998900000002',
-                patient_code: 'PT-1002',
-                tooth_number: null,
+                date: '2026-03-10',
                 teeth: [],
-                treatment_type: 'Teeth cleaning',
-                description: null,
+                work_done: 'Teeth cleaning',
                 comment: null,
-                treatment_date: '2026-03-10',
-                cost: null,
-                debt_amount: 50000,
-                paid_amount: 50000,
-                balance: 0,
-                notes: null,
-                images: [],
-                created_at: '2026-03-10T10:00:00Z',
-                updated_at: '2026-03-10T10:00:00Z',
+                debt: 50000,
+                paid: 50000,
+                balance_delta: 0,
             },
-        ] as never);
+        ];
+        setupLedgerMocks();
     });
 
     it('renders patient balances and links to patient history page', async () => {
@@ -147,29 +298,20 @@ describe('PaymentsPage', () => {
     });
 
     it('labels a negative remaining summary as advance without a minus sign', async () => {
-        vi.mocked(listAllTreatments).mockResolvedValue([
+        patientLedgerRows = [
             {
-                id: 'tr-advance',
                 patient_id: 'patient-advance',
+                patient_code: 'PT-1009',
                 patient_name: 'Advance Patient',
                 patient_phone: '+998900000009',
-                patient_code: 'PT-1009',
-                tooth_number: null,
-                teeth: [],
-                treatment_type: 'Prepayment',
-                description: null,
-                comment: null,
-                treatment_date: '2026-03-18',
-                cost: null,
-                debt_amount: 0,
-                paid_amount: 250000,
+                total_debt: 0,
+                total_paid: 250000,
                 balance: -250000,
-                notes: null,
-                images: [],
-                created_at: '2026-03-18T09:00:00Z',
-                updated_at: '2026-03-18T09:00:00Z',
+                entry_count: 1,
+                last_entry_date: '2026-03-18',
             },
-        ] as never);
+        ];
+        historyLedgerRows = [];
 
         renderPage();
 
@@ -218,31 +360,36 @@ describe('PaymentsPage', () => {
                 can_export: true,
             },
         } as never);
-        vi.mocked(listAllTreatments).mockResolvedValue([
+        patientLedgerRows = [
+            {
+                patient_id: 'patient-1',
+                patient_code: 'PT-1001',
+                patient_name: 'Jane Doe',
+                patient_phone: '+998900000001',
+                total_debt: 120000,
+                total_paid: 70000,
+                balance: 50000,
+                entry_count: 1,
+                last_entry_date: '2026-03-14',
+            },
+        ];
+        historyLedgerRows = [
             {
                 id: 'tr-author',
                 patient_id: 'patient-1',
                 patient_name: 'Jane Doe',
                 patient_phone: '+998900000001',
-                patient_code: 'PT-1001',
-                tooth_number: 12,
+                date: '2026-03-14',
                 teeth: [12],
-                treatment_type: 'Composite filling',
-                description: null,
+                work_done: 'Composite filling',
                 comment: null,
-                treatment_date: '2026-03-14',
-                cost: null,
-                debt_amount: 120000,
-                paid_amount: 70000,
-                balance: 50000,
-                notes: null,
-                images: [],
+                debt: 120000,
+                paid: 70000,
+                balance_delta: 50000,
                 created_by: { id: 'assistant-1', name: 'Front Desk', role: 'assistant' },
                 updated_by: { id: 'assistant-1', name: 'Front Desk', role: 'assistant' },
-                created_at: '2026-03-14T09:00:00Z',
-                updated_at: '2026-03-14T09:00:00Z',
             },
-        ] as never);
+        ];
         renderPage();
 
         await waitFor(() => {
@@ -292,7 +439,9 @@ describe('PaymentsPage', () => {
 
         fireEvent.click(screen.getByRole('button', { name: 'Download PDF' }));
 
-        expect(exportRowsToPdf).toHaveBeenCalledTimes(1);
+        await waitFor(() => {
+            expect(exportRowsToPdf).toHaveBeenCalledTimes(1);
+        });
         expect(vi.mocked(exportRowsToPdf).mock.calls[0]?.[0].rows).toHaveLength(1);
         expect(vi.mocked(exportRowsToPdf).mock.calls[0]?.[0].rows[0]?.[0]).toBe('Jane Doe');
     });

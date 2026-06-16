@@ -15,7 +15,13 @@ vi.mock('@/lib/api/client', () => ({
     ensureCsrfCookie: vi.fn(),
 }));
 
-import { getPatientOdontogramSummary, listAllPatientOdontogram, listAllPatients } from '@/lib/api/dentist';
+import {
+    getPatientOdontogramSummary,
+    listAllPatientOdontogram,
+    listAllPatients,
+    listPaymentLedgerHistory,
+    listPaymentLedgerPatients,
+} from '@/lib/api/dentist';
 
 describe('dentist api pagination aggregation', () => {
     beforeEach(() => {
@@ -137,6 +143,72 @@ describe('dentist api pagination aggregation', () => {
         expect(result.total_entries).toBe(3);
         expect(apiGetMock).toHaveBeenCalledWith('/patients/p-1/odontogram/summary', {
             params: { limit: 5 },
+        });
+    });
+
+    it('loads payment patient ledger with pagination and filters', async () => {
+        apiGetMock.mockResolvedValueOnce({
+            data: {
+                data: [],
+                meta: {
+                    pagination: { page: 2, per_page: 10, total: 0, total_pages: 1 },
+                    summary: { total_debt: 0, total_paid: 0, total_balance: 0, total_patients: 0, total_entries: 0 },
+                },
+            },
+        });
+
+        await listPaymentLedgerPatients({
+            page: 2,
+            perPage: 10,
+            filter: {
+                patient_id: 'p-1',
+                outstanding: true,
+                search: 'ali',
+            },
+        });
+
+        expect(apiGetMock).toHaveBeenCalledWith('/payments/ledger/patients', {
+            params: {
+                page: 2,
+                per_page: 10,
+                filter: {
+                    patient_id: 'p-1',
+                    outstanding: true,
+                    search: 'ali',
+                },
+            },
+        });
+    });
+
+    it('loads payment history ledger with pagination and filters', async () => {
+        apiGetMock.mockResolvedValueOnce({
+            data: {
+                data: [],
+                meta: {
+                    pagination: { page: 1, per_page: 10, total: 0, total_pages: 1 },
+                    summary: { total_debt: 0, total_paid: 0, total_balance: 0, total_entries: 0 },
+                },
+            },
+        });
+
+        await listPaymentLedgerHistory({
+            page: 1,
+            perPage: 10,
+            filter: {
+                outstanding: true,
+                search: 'root',
+            },
+        });
+
+        expect(apiGetMock).toHaveBeenCalledWith('/payments/ledger/history', {
+            params: {
+                page: 1,
+                per_page: 10,
+                filter: {
+                    outstanding: true,
+                    search: 'root',
+                },
+            },
         });
     });
 });

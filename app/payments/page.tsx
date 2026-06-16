@@ -1,7 +1,7 @@
 ﻿'use client';
 
 import Link from 'next/link';
-import { useMemo, useState, useSyncExternalStore } from 'react';
+import { useDeferredValue, useMemo, useState, useSyncExternalStore } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -19,8 +19,8 @@ import { RecordAuthorBadge } from '@/components/ui/record-author-badge';
 import { PaymentsLoadingState } from '@/components/layout/page-loading-skeletons';
 import { PageHeader } from '@/components/ui/page-shell';
 import { getApiErrorMessage } from '@/lib/api/client';
-import { getCurrentUser, getPatient, listAllTreatments } from '@/lib/api/dentist';
-import type { ApiPatient, ApiRecordActor, ApiTreatment } from '@/lib/api/types';
+import { getCurrentUser, listPaymentLedgerHistory, listPaymentLedgerPatients } from '@/lib/api/dentist';
+import type { ApiPaymentPatientLedgerRow, ApiRecordActor } from '@/lib/api/types';
 import { useI18n } from '@/components/providers/i18n-provider';
 import { formatLocalizedDate } from '@/lib/i18n/date';
 import { formatToothList, formatToothNumber } from '@/lib/tooth-numbering';
@@ -36,6 +36,7 @@ import { toast } from 'sonner';
 const PAGE_SIZE = 10;
 const OUTSTANDING_FILTER_PARAM = 'outstanding';
 const OUTSTANDING_FILTER_VALUE = '1';
+const LEDGER_EXPORT_PAGE_SIZE = 100;
 const URL_SEARCH_CHANGE_EVENT = 'identa:payments-url-search-change';
 const NET_BALANCE_SUMMARY_VARIANTS = {
     advance: {
@@ -109,16 +110,10 @@ function getNetBalanceSummary(balance: number) {
     return { ...NET_BALANCE_SUMMARY_VARIANTS.debt, amount: balance };
 }
 
-interface PatientTreatmentGroup {
-    patient: ApiPatient;
-    treatments: ApiTreatment[];
-}
-
 interface PatientBalanceRow {
     patientId: string;
     patientName: string;
     patientPhone: string;
-    treatments: ApiTreatment[];
     totalDebt: number;
     totalPaid: number;
     balance: number;
@@ -148,13 +143,21 @@ function formatTeeth(teeth: number[]) {
     return formatToothList(teeth);
 }
 
-function paginate<T>(items: T[], page: number) {
-    const startIndex = (page - 1) * PAGE_SIZE;
-    return items.slice(startIndex, startIndex + PAGE_SIZE);
-}
-
 function parsePaymentsTab(value: string | null): PaymentsTab {
     return value === 'history' ? 'history' : 'patients';
+}
+
+function toPatientBalanceRow(row: ApiPaymentPatientLedgerRow): PatientBalanceRow {
+    return {
+        patientId: row.patient_id,
+        patientName: row.patient_name,
+        patientPhone: extractPrimaryPhone(row.patient_phone ?? '') || '-',
+        totalDebt: Number(row.total_debt ?? 0),
+        totalPaid: Number(row.total_paid ?? 0),
+        balance: Number(row.balance ?? 0),
+        entryCount: Number(row.entry_count ?? 0),
+        lastEntryDate: row.last_entry_date ?? null,
+    };
 }
 
 export default function PaymentsPage() {
@@ -173,7 +176,10 @@ export default function PaymentsPage() {
     const [patientPage, setPatientPage] = useState(1);
     const [historyPage, setHistoryPage] = useState(1);
     const [isUrlPatientFilterDismissed, setIsUrlPatientFilterDismissed] = useState(false);
+    const [isExporting, setIsExporting] = useState(false);
     const patientFilterId = isUrlPatientFilterDismissed ? '' : patientIdFromUrl;
+    const deferredPatientSearch = useDeferredValue(patientSearch.trim());
+    const deferredHistorySearch = useDeferredValue(historySearch.trim());
     const currentUserQuery = useQuery({
         queryKey: ['auth', 'me'],
         queryFn: getCurrentUser,
@@ -184,56 +190,54 @@ export default function PaymentsPage() {
     const canViewPatients = canView(currentUser, 'patients');
     const showRecordAuthors = currentUser?.show_record_authors === true;
 
-    const accountingQuery = useQuery({
-        queryKey: ['payments', 'history-accounting', patientFilterId],
+    const patientLedgerQuery = useQuery({
+        queryKey: [
+            'payments',
+            'ledger',
+            'patients',
+            patientFilterId,
+            showOutstandingOnly,
+            deferredPatientSearch,
+            patientPage,
+        ],
         enabled: canViewPayments,
-        queryFn: async (): Promise<PatientTreatmentGroup[]> => {
-            const treatments = await listAllTreatments({
-                sort: '-treatment_date,-created_at',
-                includeImages: false,
+        queryFn: () =>
+            listPaymentLedgerPatients({
+                page: patientPage,
+                perPage: PAGE_SIZE,
                 filter: {
                     patient_id: patientFilterId || undefined,
+                    outstanding: showOutstandingOnly ? OUTSTANDING_FILTER_VALUE : undefined,
+                    search: deferredPatientSearch || undefined,
                 },
-            });
-            const groups = new Map<string, PatientTreatmentGroup>();
-
-            treatments.forEach((treatment) => {
-                const group = groups.get(treatment.patient_id);
-                if (group) {
-                    group.treatments.push(treatment);
-                    return;
-                }
-
-                const patient: ApiPatient = {
-                    id: treatment.patient_id,
-                    patient_id: treatment.patient_code ?? '',
-                    full_name: treatment.patient_name ?? 'Unknown patient',
-                    phone: treatment.patient_phone ?? treatment.patient_secondary_phone ?? '',
-                    secondary_phone: treatment.patient_secondary_phone ?? null,
-                };
-
-                groups.set(treatment.patient_id, {
-                    patient,
-                    treatments: [treatment],
-                });
-            });
-
-            if (patientFilterId !== '' && !groups.has(patientFilterId) && canViewPatients) {
-                try {
-                    const patient = await getPatient(patientFilterId);
-                    groups.set(patient.id, {
-                        patient,
-                        treatments: [],
-                    });
-                } catch {
-                    // Ignore stale URL filter pointing to an unavailable patient.
-                }
-            }
-
-            return Array.from(groups.values()).sort((left, right) =>
-                left.patient.full_name.localeCompare(right.patient.full_name)
-            );
-        },
+            }),
+        placeholderData: (previousData) => previousData,
+        staleTime: 300000,
+        gcTime: 900000,
+        refetchOnWindowFocus: false,
+        refetchOnReconnect: false,
+    });
+    const historyLedgerQuery = useQuery({
+        queryKey: [
+            'payments',
+            'ledger',
+            'history',
+            patientFilterId,
+            showOutstandingOnly,
+            deferredHistorySearch,
+            historyPage,
+        ],
+        enabled: canViewPayments && activeTab === 'history',
+        queryFn: () =>
+            listPaymentLedgerHistory({
+                page: historyPage,
+                perPage: PAGE_SIZE,
+                filter: {
+                    patient_id: patientFilterId || undefined,
+                    outstanding: showOutstandingOnly ? OUTSTANDING_FILTER_VALUE : undefined,
+                    search: deferredHistorySearch || undefined,
+                },
+            }),
         placeholderData: (previousData) => previousData,
         staleTime: 300000,
         gcTime: 900000,
@@ -253,126 +257,50 @@ export default function PaymentsPage() {
         });
     };
 
-    const patientRows = useMemo(() => {
-        const normalizedSearch = patientSearch.trim().toLowerCase();
-
-        return (accountingQuery.data ?? [])
-            .map(({ patient, treatments }): PatientBalanceRow => {
-                const totalDebt = treatments.reduce((sum, treatment) => sum + Number(treatment.debt_amount ?? 0), 0);
-                const totalPaid = treatments.reduce((sum, treatment) => sum + Number(treatment.paid_amount ?? 0), 0);
-
-                return {
-                    patientId: patient.id,
-                    patientName: patient.full_name,
-                    patientPhone: extractPrimaryPhone(patient.phone) || '-',
-                    treatments,
-                    totalDebt,
-                    totalPaid,
-                    balance: totalDebt - totalPaid,
-                    entryCount: treatments.length,
-                    lastEntryDate: treatments[0]?.treatment_date ?? null,
-                };
-            })
-            .filter((row) => row.entryCount > 0 || row.patientId === patientFilterId)
-            .filter((row) => (patientFilterId ? row.patientId === patientFilterId : true))
-            .filter((row) => (showOutstandingOnly ? row.balance > 0 : true))
-            .filter((row) => {
-                if (!normalizedSearch) {
-                    return true;
-                }
-
-                const searchable = [row.patientName, row.patientPhone].join(' ').toLowerCase();
-                return searchable.includes(normalizedSearch);
-            })
-            .sort((left, right) => {
-                if (Math.abs(right.balance) !== Math.abs(left.balance)) {
-                    return Math.abs(right.balance) - Math.abs(left.balance);
-                }
-
-                if ((right.lastEntryDate ?? '') !== (left.lastEntryDate ?? '')) {
-                    return (right.lastEntryDate ?? '').localeCompare(left.lastEntryDate ?? '');
-                }
-
-                return left.patientName.localeCompare(right.patientName);
-            });
-    }, [accountingQuery.data, patientFilterId, patientSearch, showOutstandingOnly]);
+    const patientRows = useMemo(
+        () => (patientLedgerQuery.data?.data ?? []).map(toPatientBalanceRow),
+        [patientLedgerQuery.data]
+    );
 
     const globalHistoryRows = useMemo(() => {
-        const normalizedSearch = historySearch.trim().toLowerCase();
-
-        return patientRows
-            .flatMap((row) =>
-                row.treatments.map((treatment): GlobalLedgerRow => ({
-                    id: treatment.id,
-                    patientId: row.patientId,
-                    patientName: row.patientName,
-                    patientPhone: row.patientPhone,
-                    date: treatment.treatment_date,
-                    teeth: treatment.teeth ?? [],
-                    workDone: treatment.treatment_type,
-                    comment: treatment.comment,
-                    debt: Number(treatment.debt_amount ?? 0),
-                    paid: Number(treatment.paid_amount ?? 0),
-                    balanceDelta: Number(treatment.debt_amount ?? 0) - Number(treatment.paid_amount ?? 0),
-                    createdBy: treatment.created_by ?? null,
-                    updatedBy: treatment.updated_by ?? null,
-                }))
-            )
-            .filter((row) => {
-                if (!normalizedSearch) {
-                    return true;
-                }
-
-                const searchable = [
-                    row.patientName,
-                    row.patientPhone,
-                    row.workDone,
-                    row.comment ?? '',
-                    formatTeeth(row.teeth),
-                ]
-                    .join(' ')
-                    .toLowerCase();
-
-                return searchable.includes(normalizedSearch);
-            })
-            .sort((left, right) => {
-                if (right.date !== left.date) {
-                    return right.date.localeCompare(left.date);
-                }
-
-                return right.id.localeCompare(left.id);
-            });
-    }, [historySearch, patientRows]);
+        return (historyLedgerQuery.data?.data ?? []).map((row): GlobalLedgerRow => ({
+            id: row.id,
+            patientId: row.patient_id,
+            patientName: row.patient_name ?? 'Unknown patient',
+            patientPhone: extractPrimaryPhone(row.patient_phone ?? '') || '-',
+            date: row.date ?? '',
+            teeth: row.teeth ?? [],
+            workDone: row.work_done,
+            comment: row.comment,
+            debt: Number(row.debt ?? 0),
+            paid: Number(row.paid ?? 0),
+            balanceDelta: Number(row.balance_delta ?? 0),
+            createdBy: row.created_by ?? null,
+            updatedBy: row.updated_by ?? null,
+        }));
+    }, [historyLedgerQuery.data]);
 
     const overallSummary = useMemo(() => {
-        const totals = patientRows.reduce(
-            (sum, row) => {
-                sum.totalDebt += row.totalDebt;
-                sum.totalPaid += row.totalPaid;
-                sum.totalBalance += row.balance;
-                sum.totalEntries += row.entryCount;
-                return sum;
-            },
-            {
-                totalDebt: 0,
-                totalPaid: 0,
-                totalBalance: 0,
-                totalEntries: 0,
-            }
-        );
-
+        const summary = patientLedgerQuery.data?.meta?.summary;
         return {
-            ...totals,
-            totalPatients: patientRows.length,
+            totalDebt: Number(summary?.total_debt ?? 0),
+            totalPaid: Number(summary?.total_paid ?? 0),
+            totalBalance: Number(summary?.total_balance ?? 0),
+            totalEntries: Number(summary?.total_entries ?? 0),
+            totalPatients: Number(summary?.total_patients ?? 0),
         };
-    }, [patientRows]);
+    }, [patientLedgerQuery.data]);
 
-    const patientTotalPages = Math.max(1, Math.ceil(patientRows.length / PAGE_SIZE));
-    const historyTotalPages = Math.max(1, Math.ceil(globalHistoryRows.length / PAGE_SIZE));
+    const patientPagination = patientLedgerQuery.data?.meta?.pagination;
+    const historyPagination = historyLedgerQuery.data?.meta?.pagination;
+    const patientTotalCount = patientPagination?.total ?? 0;
+    const historyTotalCount = historyPagination?.total ?? 0;
+    const patientTotalPages = Math.max(1, patientPagination?.total_pages ?? 1);
+    const historyTotalPages = Math.max(1, historyPagination?.total_pages ?? 1);
     const effectivePatientPage = Math.min(patientPage, patientTotalPages);
     const effectiveHistoryPage = Math.min(historyPage, historyTotalPages);
-    const paginatedPatientRows = paginate(patientRows, effectivePatientPage);
-    const paginatedHistoryRows = paginate(globalHistoryRows, effectiveHistoryPage);
+    const paginatedPatientRows = patientRows;
+    const paginatedHistoryRows = globalHistoryRows;
 
     const updateUrlSearch = (update: (params: URLSearchParams) => void) => {
         if (typeof window === 'undefined') {
@@ -417,7 +345,80 @@ export default function PaymentsPage() {
         });
     };
 
-    if (currentUserQuery.isLoading || (accountingQuery.isLoading && !accountingQuery.data)) {
+    const handleExportPayments = async () => {
+        if (overallSummary.totalPatients === 0) {
+            toast.error(t('export.empty'));
+            return;
+        }
+
+        setIsExporting(true);
+        try {
+            const rows: PatientBalanceRow[] = [];
+            let page = 1;
+            let totalPages = 1;
+
+            do {
+                const response = await listPaymentLedgerPatients({
+                    page,
+                    perPage: LEDGER_EXPORT_PAGE_SIZE,
+                    filter: {
+                        patient_id: patientFilterId || undefined,
+                        outstanding: showOutstandingOnly ? OUTSTANDING_FILTER_VALUE : undefined,
+                        search: patientSearch.trim() || undefined,
+                    },
+                });
+                rows.push(...response.data.map(toPatientBalanceRow));
+                totalPages = response.meta?.pagination?.total_pages ?? 1;
+                page += 1;
+            } while (page <= totalPages);
+
+            if (rows.length === 0) {
+                toast.error(t('export.empty'));
+                return;
+            }
+
+            exportRowsToPdf({
+                filename: buildPdfFilename('payments'),
+                title: t('payments.title'),
+                subtitle: t('payments.subtitle'),
+                columns: [
+                    t('payments.table.patient') ?? 'Patient',
+                    t('patients.table.phone') ?? 'Phone',
+                    t('payments.table.entries') ?? 'Entries',
+                    t('payments.table.debt') ?? 'Debt',
+                    t('payments.table.paid') ?? 'Paid',
+                    t('payments.table.balance') ?? 'Balance',
+                    t('payments.table.lastEntry') ?? 'Last entry',
+                ],
+                rows: rows.map((row) => [
+                    row.patientName,
+                    row.patientPhone,
+                    String(row.entryCount),
+                    formatCurrency(row.totalDebt),
+                    formatCurrency(row.totalPaid),
+                    formatCurrency(row.balance),
+                    row.lastEntryDate ? formatLocalizedDate(row.lastEntryDate, locale, { year: 'numeric', month: 'short', day: 'numeric' }) : '-',
+                ]),
+                summary: [
+                    { label: t('payments.summary.totalDebt') ?? 'Debt', value: formatCurrency(overallSummary.totalDebt) },
+                    { label: t('payments.summary.totalPaid') ?? 'Paid', value: formatCurrency(overallSummary.totalPaid) },
+                    { label: t('payments.summary.totalBalance') ?? 'Balance', value: formatCurrency(overallSummary.totalBalance) },
+                ],
+                orientation: 'landscape',
+            });
+            toast.success(t('export.downloaded'));
+        } catch (error) {
+            toast.error(getApiErrorMessage(error, t('payments.error.loadFailed')));
+        } finally {
+            setIsExporting(false);
+        }
+    };
+
+    if (
+        currentUserQuery.isLoading
+        || (patientLedgerQuery.isLoading && !patientLedgerQuery.data)
+        || (activeTab === 'history' && historyLedgerQuery.isLoading && !historyLedgerQuery.data)
+    ) {
         return <PaymentsLoadingState />;
     }
 
@@ -435,17 +436,27 @@ export default function PaymentsPage() {
         );
     }
 
-    if ((currentUserQuery.isError || accountingQuery.isError) && !accountingQuery.data) {
+    if (
+        (
+            currentUserQuery.isError
+            || (patientLedgerQuery.isError && !patientLedgerQuery.data)
+            || (activeTab === 'history' && historyLedgerQuery.isError && !historyLedgerQuery.data)
+        )
+    ) {
         return (
             <div className="space-y-6">
                 <PageHeader title={t('payments.title')} description={t('payments.subtitle')} />
                 <AppErrorState
                     title={t('common.loadErrorTitle')}
-                    description={getApiErrorMessage(currentUserQuery.error || accountingQuery.error, t('payments.error.loadFailed'))}
+                    description={getApiErrorMessage(
+                        currentUserQuery.error || patientLedgerQuery.error || historyLedgerQuery.error,
+                        t('payments.error.loadFailed')
+                    )}
                     retryLabel={t('common.retry')}
                     onRetry={() => {
                         currentUserQuery.refetch();
-                        accountingQuery.refetch();
+                        patientLedgerQuery.refetch();
+                        historyLedgerQuery.refetch();
                     }}
                     className="min-h-[20rem] px-0 py-0"
                 />
@@ -453,7 +464,7 @@ export default function PaymentsPage() {
         );
     }
 
-    const isAccountingLoading = accountingQuery.isLoading && !accountingQuery.data;
+    const isAccountingLoading = patientLedgerQuery.isLoading && !patientLedgerQuery.data;
     const netBalanceSummary = getNetBalanceSummary(overallSummary.totalBalance);
 
     return (
@@ -465,47 +476,8 @@ export default function PaymentsPage() {
                     <Button
                         variant="outline"
                         className="w-full sm:w-auto"
-                        disabled={patientRows.length === 0}
-                        onClick={() => {
-                            if (patientRows.length === 0) {
-                                toast.error(t('export.empty'));
-                                return;
-                            }
-                            const totalDebt = patientRows.reduce((s, r) => s + r.totalDebt, 0);
-                            const totalPaid = patientRows.reduce((s, r) => s + r.totalPaid, 0);
-                            const totalBalance = patientRows.reduce((s, r) => s + r.balance, 0);
-                            const rows = patientRows.map((row) => [
-                                row.patientName,
-                                row.patientPhone,
-                                String(row.entryCount),
-                                formatCurrency(row.totalDebt),
-                                formatCurrency(row.totalPaid),
-                                formatCurrency(row.balance),
-                                row.lastEntryDate ? formatLocalizedDate(row.lastEntryDate, locale, { year: 'numeric', month: 'short', day: 'numeric' }) : '-',
-                            ]);
-                            exportRowsToPdf({
-                                filename: buildPdfFilename('payments'),
-                                title: t('payments.title'),
-                                subtitle: t('payments.subtitle'),
-                                columns: [
-                                    t('payments.table.patient') ?? 'Patient',
-                                    t('patients.table.phone') ?? 'Phone',
-                                    t('payments.table.entries') ?? 'Entries',
-                                    t('payments.table.debt') ?? 'Debt',
-                                    t('payments.table.paid') ?? 'Paid',
-                                    t('payments.table.balance') ?? 'Balance',
-                                    t('payments.table.lastEntry') ?? 'Last entry',
-                                ],
-                                rows,
-                                summary: [
-                                    { label: t('payments.summary.totalDebt') ?? 'Debt', value: formatCurrency(totalDebt) },
-                                    { label: t('payments.summary.totalPaid') ?? 'Paid', value: formatCurrency(totalPaid) },
-                                    { label: t('payments.summary.totalBalance') ?? 'Balance', value: formatCurrency(totalBalance) },
-                                ],
-                                orientation: 'landscape',
-                            });
-                            toast.success(t('export.downloaded'));
-                        }}
+                        disabled={overallSummary.totalPatients === 0 || isExporting}
+                        onClick={handleExportPayments}
                     >
                         <Download className="mr-2 h-4 w-4" />
                         {t('common.export')}
@@ -657,10 +629,10 @@ export default function PaymentsPage() {
                                     <h2 className="text-lg font-semibold text-slate-900">{t('payments.patientsTitle')}</h2>
                                     <p className="text-sm text-slate-500">{t('payments.patientsSubtitle')}</p>
                                 </div>
-                                <p className="rounded-full border border-slate-200 bg-white px-3 py-1 text-sm text-slate-500 shadow-xs">{t('payments.summary.filteredPatients', { count: patientRows.length })}</p>
+                                <p className="rounded-full border border-slate-200 bg-white px-3 py-1 text-sm text-slate-500 shadow-xs">{t('payments.summary.filteredPatients', { count: patientTotalCount })}</p>
                             </div>
 
-                            {patientRows.length === 0 ? (
+                            {patientTotalCount === 0 ? (
                                 <div className="rounded-2xl border border-dashed border-slate-200">
                                     <EmptyState
                                         icon={Wallet}
@@ -686,7 +658,7 @@ export default function PaymentsPage() {
                                             <TableBody>
                                                 {paginatedPatientRows.map((row, index) => (
                                                     <TableRow key={row.patientId}>
-                                                        <TableCell>{(patientPage - 1) * PAGE_SIZE + index + 1}</TableCell>
+                                                        <TableCell>{(effectivePatientPage - 1) * PAGE_SIZE + index + 1}</TableCell>
                                                         <TableCell>
                                                             <div className="space-y-1">
                                                                 <p className="font-medium text-slate-900">{row.patientName}</p>
@@ -760,10 +732,10 @@ export default function PaymentsPage() {
                                     <h2 className="text-lg font-semibold text-slate-900">{t('payments.historyTitle')}</h2>
                                     <p className="text-sm text-slate-500">{t('payments.historySubtitle')}</p>
                                 </div>
-                                <p className="rounded-full border border-slate-200 bg-white px-3 py-1 text-sm text-slate-500 shadow-xs">{t('payments.summary.filteredEntries', { count: globalHistoryRows.length })}</p>
+                                <p className="rounded-full border border-slate-200 bg-white px-3 py-1 text-sm text-slate-500 shadow-xs">{t('payments.summary.filteredEntries', { count: historyTotalCount })}</p>
                             </div>
 
-                            {globalHistoryRows.length === 0 ? (
+                            {historyTotalCount === 0 ? (
                                 <div className="rounded-xl border border-dashed border-slate-200 px-6 py-10 text-center">
                                     <History className="mx-auto h-10 w-10 text-slate-300" />
                                     <p className="mt-4 text-sm text-slate-500">{showOutstandingOnly ? t('payments.empty.outstandingHistory') : t('payments.empty.history')}</p>

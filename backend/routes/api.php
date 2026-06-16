@@ -15,6 +15,7 @@ use App\Http\Controllers\Api\PatientController;
 use App\Http\Controllers\Api\PatientOdontogramController;
 use App\Http\Controllers\Api\PatientTreatmentController;
 use App\Http\Controllers\Api\PaymentController;
+use App\Http\Controllers\Api\PaymentLedgerController;
 use App\Http\Controllers\Api\QuickPaymentController;
 use App\Http\Controllers\Api\SettingsProfileController;
 use App\Http\Controllers\Api\TeamAssistantController;
@@ -325,6 +326,10 @@ Route::prefix('v1')->group(function (): void {
         Route::delete('invoices/{id}', [InvoiceController::class, 'destroy'])
             ->middleware('permission:'.User::PERMISSION_PAYMENTS_MANAGE);
 
+        Route::get('payments/ledger/patients', [PaymentLedgerController::class, 'patients'])
+            ->middleware('permission:'.User::PERMISSION_PAYMENTS_VIEW);
+        Route::get('payments/ledger/history', [PaymentLedgerController::class, 'history'])
+            ->middleware('permission:'.User::PERMISSION_PAYMENTS_VIEW);
         Route::get('payments', [PaymentController::class, 'index'])
             ->middleware('permission:'.User::PERMISSION_PAYMENTS_VIEW);
         Route::post('payments', [PaymentController::class, 'store'])

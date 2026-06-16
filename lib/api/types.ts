@@ -306,6 +306,45 @@ export interface ApiTreatment {
     updated_by?: ApiRecordActor | null;
 }
 
+export interface ApiPaymentLedgerSummary {
+    total_debt: number;
+    total_paid: number;
+    total_balance: number;
+    total_patients?: number;
+    total_entries: number;
+}
+
+export interface ApiPaymentPatientLedgerRow {
+    patient_id: string;
+    patient_code?: string | null;
+    patient_name: string;
+    patient_phone?: string | null;
+    patient_secondary_phone?: string | null;
+    total_debt: number;
+    total_paid: number;
+    balance: number;
+    entry_count: number;
+    last_entry_date: string | null;
+}
+
+export interface ApiPaymentHistoryLedgerRow {
+    id: string;
+    patient_id: string;
+    patient_name?: string | null;
+    patient_phone?: string | null;
+    patient_secondary_phone?: string | null;
+    patient_code?: string | null;
+    date: string | null;
+    teeth: number[];
+    work_done: string;
+    comment: string | null;
+    debt: number;
+    paid: number;
+    balance_delta: number;
+    created_by?: ApiRecordActor | null;
+    updated_by?: ApiRecordActor | null;
+}
+
 export interface ApiTreatmentImage {
     id: string;
     mime_type: string;

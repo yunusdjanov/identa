@@ -132,11 +132,6 @@ class TreatmentImageDirectUploadService
 
         try {
             $this->planLimitService->ensureEntryImageUploadAllowed($owner, $treatment->images()->count());
-            $this->planLimitService->ensureUploadFileAllowed(
-                $owner,
-                (int) ($ticket['file_size'] ?? 0),
-                (string) ($ticket['mime_type'] ?? '')
-            );
         } catch (\Throwable $exception) {
             $this->deleteDirectUploadObject($disk, $path);
 
@@ -162,6 +157,18 @@ class TreatmentImageDirectUploadService
                     'The uploaded image could not be found in storage. Please retry the upload.'
                 )],
             ]);
+        }
+
+        try {
+            $this->planLimitService->ensureUploadFileAllowed(
+                $owner,
+                $storedSize,
+                (string) ($ticket['mime_type'] ?? '')
+            );
+        } catch (\Throwable $exception) {
+            $this->deleteDirectUploadObject($disk, $path);
+
+            throw $exception;
         }
 
         $image = $treatment->images()->create([
@@ -343,7 +350,7 @@ class TreatmentImageDirectUploadService
             try {
                 $this->planLimitService->ensureUploadFileAllowed(
                     $owner,
-                    (int) ($ticket['file_size'] ?? $storedSize),
+                    $storedSize,
                     (string) ($ticket['mime_type'] ?? '')
                 );
             } catch (\Throwable $exception) {
@@ -491,8 +498,8 @@ class TreatmentImageDirectUploadService
 
     private function resolveUploadedObjectSize(string $disk, string $path, int $expectedSize): int
     {
-        if (! (bool) config('filesystems.verify_direct_uploads_on_finalize', false)) {
-            return $expectedSize;
+        if (! (bool) config('filesystems.verify_direct_uploads_on_finalize', true)) {
+            return max($expectedSize, 0);
         }
 
         try {

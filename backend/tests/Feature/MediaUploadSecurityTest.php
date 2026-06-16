@@ -7,6 +7,8 @@ use App\Models\OdontogramEntry;
 use App\Models\OdontogramEntryImage;
 use App\Models\Patient;
 use App\Models\PatientClinicalPhoto;
+use App\Models\Plan;
+use App\Models\Subscription;
 use App\Models\Treatment;
 use App\Models\TreatmentImage;
 use App\Models\User;
@@ -832,6 +834,161 @@ class MediaUploadSecurityTest extends TestCase
         Storage::disk('local')->assertMissing($path);
     }
 
+    public function test_patient_photo_direct_upload_enforces_actual_stored_size(): void
+    {
+        Storage::fake('local');
+
+        $dentist = $this->createDentistWithTinyUploadLimit();
+        $patient = Patient::factory()->create(['dentist_id' => $dentist->id]);
+        $uploadId = 'patient-photo-underreported-size';
+        $path = 'quarantine/patients/underreported-profile.jpg';
+        Storage::disk('local')->put($path, str_repeat('x', 20_000));
+        Cache::put("patient-photo-upload:{$uploadId}", [
+            'dentist_id' => $dentist->id,
+            'patient_id' => (string) $patient->id,
+            'disk' => 'local',
+            'path' => $path,
+            'mime_type' => 'image/jpeg',
+            'file_size' => 1,
+        ]);
+
+        $this->actingAs($dentist, 'web')
+            ->postJson("/api/v1/patients/{$patient->id}/photo/direct-upload/{$uploadId}/complete")
+            ->assertForbidden()
+            ->assertJsonPath('error.code', 'plan_upload_size_exceeded');
+
+        Storage::disk('local')->assertMissing($path);
+        $patient->refresh();
+        $this->assertNull($patient->photo_path);
+    }
+
+    public function test_patient_oral_photo_direct_upload_enforces_actual_stored_size(): void
+    {
+        Storage::fake('local');
+
+        $dentist = $this->createDentistWithTinyUploadLimit();
+        $patient = Patient::factory()->create(['dentist_id' => $dentist->id]);
+        $uploadId = 'patient-oral-photo-underreported-size';
+        $path = 'quarantine/patients/underreported-oral.jpg';
+        Storage::disk('local')->put($path, str_repeat('x', 20_000));
+        Cache::put("patient-oral-photo-upload:{$uploadId}", [
+            'dentist_id' => $dentist->id,
+            'patient_id' => (string) $patient->id,
+            'view_type' => PatientClinicalPhoto::VIEW_TYPE_SMILE,
+            'disk' => 'local',
+            'path' => $path,
+            'mime_type' => 'image/jpeg',
+            'file_size' => 1,
+        ]);
+
+        $this->actingAs($dentist, 'web')
+            ->postJson("/api/v1/patients/{$patient->id}/oral-photos/smile/direct-upload/{$uploadId}/complete")
+            ->assertForbidden()
+            ->assertJsonPath('error.code', 'plan_upload_size_exceeded');
+
+        Storage::disk('local')->assertMissing($path);
+        $this->assertDatabaseCount('patient_clinical_photos', 0);
+    }
+
+    public function test_treatment_direct_upload_enforces_actual_stored_size(): void
+    {
+        Storage::fake('local');
+
+        $dentist = $this->createDentistWithTinyUploadLimit();
+        $patient = Patient::factory()->create(['dentist_id' => $dentist->id]);
+        $treatment = Treatment::factory()->create([
+            'dentist_id' => $dentist->id,
+            'patient_id' => $patient->id,
+        ]);
+        $uploadId = 'treatment-underreported-size';
+        $path = 'quarantine/treatments/underreported.jpg';
+        Storage::disk('local')->put($path, str_repeat('x', 20_000));
+        Cache::put("treatment-image-upload:{$uploadId}", [
+            'dentist_id' => $dentist->id,
+            'patient_id' => (string) $patient->id,
+            'treatment_id' => (string) $treatment->id,
+            'disk' => 'local',
+            'path' => $path,
+            'mime_type' => 'image/jpeg',
+            'file_size' => 1,
+        ]);
+
+        $this->actingAs($dentist, 'web')
+            ->postJson("/api/v1/patients/{$patient->id}/treatments/{$treatment->id}/images/direct-upload/{$uploadId}/complete")
+            ->assertForbidden()
+            ->assertJsonPath('error.code', 'plan_upload_size_exceeded');
+
+        Storage::disk('local')->assertMissing($path);
+        $this->assertDatabaseCount('treatment_images', 0);
+    }
+
+    public function test_treatment_batch_direct_upload_enforces_actual_stored_size(): void
+    {
+        Storage::fake('local');
+
+        $dentist = $this->createDentistWithTinyUploadLimit();
+        $patient = Patient::factory()->create(['dentist_id' => $dentist->id]);
+        $treatment = Treatment::factory()->create([
+            'dentist_id' => $dentist->id,
+            'patient_id' => $patient->id,
+        ]);
+        $uploadId = '22222222-2222-4222-8222-222222222222';
+        $path = 'quarantine/treatments/batch-underreported.jpg';
+        Storage::disk('local')->put($path, str_repeat('x', 20_000));
+        Cache::put("treatment-image-upload:{$uploadId}", [
+            'dentist_id' => $dentist->id,
+            'patient_id' => (string) $patient->id,
+            'treatment_id' => (string) $treatment->id,
+            'disk' => 'local',
+            'path' => $path,
+            'mime_type' => 'image/jpeg',
+            'file_size' => 1,
+        ]);
+
+        $this->actingAs($dentist, 'web')
+            ->postJson("/api/v1/patients/{$patient->id}/treatments/{$treatment->id}/images/direct-upload-batch/complete", [
+                'upload_ids' => [$uploadId],
+            ])
+            ->assertForbidden()
+            ->assertJsonPath('error.code', 'plan_upload_size_exceeded');
+
+        Storage::disk('local')->assertMissing($path);
+        $this->assertDatabaseCount('treatment_images', 0);
+    }
+
+    public function test_odontogram_direct_upload_enforces_actual_stored_size(): void
+    {
+        Storage::fake('local');
+
+        $dentist = $this->createDentistWithTinyUploadLimit();
+        $patient = Patient::factory()->create(['dentist_id' => $dentist->id]);
+        $entry = OdontogramEntry::factory()->create([
+            'dentist_id' => $dentist->id,
+            'patient_id' => $patient->id,
+        ]);
+        $uploadId = 'odontogram-underreported-size';
+        $path = 'quarantine/odontogram/underreported.jpg';
+        Storage::disk('local')->put($path, str_repeat('x', 20_000));
+        Cache::put("odontogram-image-upload:{$uploadId}", [
+            'dentist_id' => $dentist->id,
+            'patient_id' => (string) $patient->id,
+            'entry_id' => (string) $entry->id,
+            'stage' => 'before',
+            'disk' => 'local',
+            'path' => $path,
+            'mime_type' => 'image/jpeg',
+            'file_size' => 1,
+        ]);
+
+        $this->actingAs($dentist, 'web')
+            ->postJson("/api/v1/patients/{$patient->id}/odontogram/{$entry->id}/images/direct-upload/{$uploadId}/complete")
+            ->assertForbidden()
+            ->assertJsonPath('error.code', 'plan_upload_size_exceeded');
+
+        Storage::disk('local')->assertMissing($path);
+        $this->assertDatabaseCount('odontogram_entry_images', 0);
+    }
+
     private function variantPath(string $path, string $variant): string
     {
         $directory = pathinfo($path, PATHINFO_DIRNAME);
@@ -839,6 +996,42 @@ class MediaUploadSecurityTest extends TestCase
         $extension = pathinfo($path, PATHINFO_EXTENSION) ?: 'jpg';
 
         return sprintf('%s/variants/%s-%s.%s', $directory, $filename, $variant, $extension);
+    }
+
+    private function createDentistWithTinyUploadLimit(): User
+    {
+        $dentist = User::factory()->create();
+        $plan = Plan::query()->forceCreate([
+            'code' => 'tiny-upload-'.$dentist->id,
+            'name' => 'Tiny upload test plan',
+            'description' => null,
+            'is_trial' => false,
+            'is_paid' => true,
+            'trial_days' => null,
+            'monthly_price' => 0,
+            'yearly_price' => null,
+            'currency' => 'UZS',
+            'staff_limit' => 1,
+            'entry_image_limit' => 10,
+            'upload_max_mb' => 0.01,
+            'stored_image_max_mb' => 1,
+            'can_export' => false,
+            'is_active' => true,
+            'sort_order' => 999,
+        ]);
+
+        $dentist->subscriptions()->create([
+            'plan_id' => $plan->id,
+            'plan_code' => $plan->code,
+            'plan_name' => $plan->name,
+            'billing_period' => Subscription::PERIOD_MONTHLY,
+            'status' => Subscription::STATUS_ACTIVE,
+            'starts_at' => now(),
+            'ends_at' => now()->addMonth(),
+            'cancel_at_period_end' => false,
+        ]);
+
+        return $dentist->refresh();
     }
 
     private function bindInfectedScanner(): void

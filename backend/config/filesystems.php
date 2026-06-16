@@ -33,13 +33,14 @@ return [
     | Direct Upload Finalization
     |--------------------------------------------------------------------------
     |
-    | Browser direct uploads already receive a successful response from the
-    | storage provider before finalization is called. Keeping this disabled in
-    | production avoids extra R2 HEAD requests on every saved clinical image.
+    | Browser direct uploads receive their upload ticket from the client, so
+    | finalization must verify the actual object size in storage before the
+    | app accepts the file. This adds one remote metadata request per saved
+    | direct upload, but prevents clients from under-reporting file_size.
     |
     */
 
-    'verify_direct_uploads_on_finalize' => env('MEDIA_VERIFY_DIRECT_UPLOADS_ON_FINALIZE', false),
+    'verify_direct_uploads_on_finalize' => env('MEDIA_VERIFY_DIRECT_UPLOADS_ON_FINALIZE', true),
 
     /*
     |--------------------------------------------------------------------------

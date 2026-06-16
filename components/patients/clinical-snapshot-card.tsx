@@ -23,6 +23,18 @@ interface ClinicalSnapshotCardProps {
 
 const SNAPSHOT_ODONTOGRAM_OPEN_KEY = 'identa:patient-history-snapshot-odontogram-open';
 
+function readStoredOdontogramOpenPreference() {
+    if (typeof window === 'undefined') {
+        return false;
+    }
+
+    try {
+        return window.localStorage.getItem(SNAPSHOT_ODONTOGRAM_OPEN_KEY) === '1';
+    } catch {
+        return false;
+    }
+}
+
 function getBalanceStatusKey(balance: number) {
     if (balance < 0) {
         return 'patientHistory.balanceStatus.advance';
@@ -70,8 +82,7 @@ export function ClinicalSnapshotCard({
     isTreatmentsError = false,
 }: ClinicalSnapshotCardProps) {
     const { t } = useI18n();
-    const [isOdontogramOpen, setIsOdontogramOpen] = useState(false);
-    const [isPreferenceLoaded, setIsPreferenceLoaded] = useState(false);
+    const [isOdontogramOpen, setIsOdontogramOpen] = useState(readStoredOdontogramOpenPreference);
     const [selectedTooth, setSelectedTooth] = useState<number | null>(null);
     // The net-balance chip leaks the same financial signal as the
     // treatment-history-card summary trio. Gate on payments.view so an
@@ -86,30 +97,11 @@ export function ClinicalSnapshotCard({
 
     useEffect(() => {
         try {
-            const saved = window.localStorage.getItem(SNAPSHOT_ODONTOGRAM_OPEN_KEY);
-            if (saved === '0') {
-                setIsOdontogramOpen(false);
-            } else if (saved === '1') {
-                setIsOdontogramOpen(true);
-            }
-        } catch {
-            // Ignore localStorage access errors.
-        } finally {
-            setIsPreferenceLoaded(true);
-        }
-    }, []);
-
-    useEffect(() => {
-        if (!isPreferenceLoaded) {
-            return;
-        }
-
-        try {
             window.localStorage.setItem(SNAPSHOT_ODONTOGRAM_OPEN_KEY, isOdontogramOpen ? '1' : '0');
         } catch {
             // Ignore localStorage access errors.
         }
-    }, [isPreferenceLoaded, isOdontogramOpen]);
+    }, [isOdontogramOpen]);
 
     const toothCounts = useMemo(() => {
         const counts = new Map<number, number>();

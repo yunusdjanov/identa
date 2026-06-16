@@ -250,12 +250,20 @@ class OdontogramImageService
             if (! $existingImage) {
                 $this->planLimitService->ensureEntryImageUploadAllowed($owner, $entry->images()->count());
             }
+            $storedSize = $this->resolveUploadedObjectSize($disk, $path, (int) ($ticket['file_size'] ?? 0));
+            if ($storedSize <= 0) {
+                throw ValidationException::withMessages([
+                    'image' => [$this->message(
+                        'direct_upload_missing',
+                        'The uploaded image could not be found in storage. Please retry the upload.'
+                    )],
+                ]);
+            }
             $this->planLimitService->ensureUploadFileAllowed(
                 $owner,
-                (int) ($ticket['file_size'] ?? 0),
+                $storedSize,
                 (string) ($ticket['mime_type'] ?? '')
             );
-            $storedSize = $this->resolveUploadedObjectSize($disk, $path, (int) ($ticket['file_size'] ?? 0));
         } catch (\Throwable $exception) {
             Storage::disk($disk)->delete($path);
             MediaPathCache::forgetPaths($disk, [$path]);
@@ -604,8 +612,8 @@ class OdontogramImageService
 
     private function resolveUploadedObjectSize(string $disk, string $path, int $expectedSize): int
     {
-        if (! (bool) config('filesystems.verify_direct_uploads_on_finalize', false)) {
-            return $expectedSize;
+        if (! (bool) config('filesystems.verify_direct_uploads_on_finalize', true)) {
+            return max($expectedSize, 0);
         }
 
         try {

@@ -21,6 +21,8 @@ import type {
     ApiPatientOverview,
     ApiPatientCategory,
     ApiPatientClinicalPhotoViewType,
+    ApiPaymentHistoryLedgerRow,
+    ApiPaymentPatientLedgerRow,
     ApiPlan,
     ApiPayment,
     ApiProfile,
@@ -819,6 +821,38 @@ export async function listTreatments(options?: QueryOptions): Promise<ApiCollect
     const { data } = await apiClient.get<ApiCollectionEnvelope<ApiTreatment>>('/treatments', {
         params: buildQueryParams(options),
     });
+
+    return data;
+}
+
+/**
+ * Fetches server-aggregated patient balances for the payments page.
+ */
+export async function listPaymentLedgerPatients(
+    options?: QueryOptions
+): Promise<ApiCollectionEnvelope<ApiPaymentPatientLedgerRow>> {
+    const { data } = await apiClient.get<ApiCollectionEnvelope<ApiPaymentPatientLedgerRow>>(
+        '/payments/ledger/patients',
+        {
+            params: buildQueryParams(options),
+        }
+    );
+
+    return data;
+}
+
+/**
+ * Fetches paginated treatment-ledger rows for the payments history tab.
+ */
+export async function listPaymentLedgerHistory(
+    options?: QueryOptions
+): Promise<ApiCollectionEnvelope<ApiPaymentHistoryLedgerRow>> {
+    const { data } = await apiClient.get<ApiCollectionEnvelope<ApiPaymentHistoryLedgerRow>>(
+        '/payments/ledger/history',
+        {
+            params: buildQueryParams(options),
+        }
+    );
 
     return data;
 }

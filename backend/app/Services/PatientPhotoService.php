@@ -200,10 +200,22 @@ class PatientPhotoService
         }
 
         $storedSize = $this->resolveUploadedObjectSize($disk, $path, (int) ($ticket['file_size'] ?? 0));
+        if ($storedSize <= 0) {
+            Storage::disk($disk)->delete($path);
+            MediaPathCache::forgetPaths($disk, [$path]);
+
+            throw ValidationException::withMessages([
+                'photo' => [$this->message(
+                    'direct_upload_missing',
+                    'The uploaded patient photo could not be found in storage. Please retry the upload.'
+                )],
+            ]);
+        }
+
         try {
             $this->planLimitService->ensureUploadFileAllowed(
                 $owner,
-                (int) ($ticket['file_size'] ?? $storedSize),
+                $storedSize,
                 (string) ($ticket['mime_type'] ?? '')
             );
         } catch (\Throwable $exception) {
@@ -381,14 +393,14 @@ class PatientPhotoService
 
     private function resolveUploadedObjectSize(string $disk, string $path, int $expectedSize): int
     {
-        if ($expectedSize > 0 && $this->shouldSkipRemoteMediaPathLookup($disk)) {
-            return $expectedSize;
+        if (! (bool) config('filesystems.verify_direct_uploads_on_finalize', true)) {
+            return max($expectedSize, 0);
         }
 
         try {
             return max((int) Storage::disk($disk)->size($path), 0);
         } catch (\Throwable) {
-            return $expectedSize;
+            return 0;
         }
     }
 
