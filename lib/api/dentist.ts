@@ -91,6 +91,7 @@ export type AdminDentistSubscriptionAction =
 
 const MAX_API_PER_PAGE = 500;
 const MAX_COLLECT_ALL_PAGES_CONCURRENCY = 3;
+const MAX_TREATMENT_IMAGE_UPLOAD_CONCURRENCY = 3;
 
 function buildQueryParams(options?: QueryOptions): Record<string, unknown> {
     const params: Record<string, unknown> = {};
@@ -149,6 +150,41 @@ async function collectAllPages<T>(
             results.push(...response.data);
         });
     }
+
+    return results;
+}
+
+async function mapSettledWithConcurrency<T, R>(
+    items: T[],
+    concurrency: number,
+    mapper: (item: T, index: number) => Promise<R>
+): Promise<PromiseSettledResult<R>[]> {
+    const results = new Array<PromiseSettledResult<R>>(items.length);
+    const workerCount = Math.max(1, Math.min(concurrency, items.length));
+    let currentIndex = 0;
+
+    await Promise.all(Array.from({ length: workerCount }, async () => {
+        while (true) {
+            const nextIndex = currentIndex;
+            currentIndex += 1;
+
+            if (nextIndex >= items.length) {
+                return;
+            }
+
+            try {
+                results[nextIndex] = {
+                    status: 'fulfilled',
+                    value: await mapper(items[nextIndex], nextIndex),
+                };
+            } catch (reason) {
+                results[nextIndex] = {
+                    status: 'rejected',
+                    reason,
+                };
+            }
+        }
+    }));
 
     return results;
 }
@@ -1045,15 +1081,17 @@ export async function uploadPatientTreatmentImages(
             queuedFallbackFiles.add(image);
             fallbackFiles.push(image);
         };
-        const uploadResults = await Promise.allSettled(
-            directUpload.uploads.map((upload) => {
+        const uploadResults = await mapSettledWithConcurrency(
+            directUpload.uploads,
+            MAX_TREATMENT_IMAGE_UPLOAD_CONCURRENCY,
+            (upload) => {
                 const image = filesByClientId.get(upload.client_id);
                 if (!image) {
                     throw new Error('Missing file for direct upload ticket');
                 }
 
                 return performDirectSignedUpload(image, upload);
-            })
+            }
         );
         const completedUploads = directUpload.uploads
             .filter((_, index) => uploadResults[index]?.status === 'fulfilled');
@@ -1100,8 +1138,10 @@ async function uploadPatientTreatmentImagesViaApi(
     treatmentId: string,
     images: File[]
 ): Promise<number> {
-    const fallbackResults = await Promise.allSettled(
-        images.map((image) => uploadPatientTreatmentImageViaApi(patientId, treatmentId, image))
+    const fallbackResults = await mapSettledWithConcurrency(
+        images,
+        MAX_TREATMENT_IMAGE_UPLOAD_CONCURRENCY,
+        (image) => uploadPatientTreatmentImageViaApi(patientId, treatmentId, image)
     );
 
     return fallbackResults.filter((result) => result.status === 'rejected').length;
