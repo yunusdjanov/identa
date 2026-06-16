@@ -95,7 +95,7 @@ export const LANDING_CONTENT: Record<LandingLocale, LandingDictionary> = {
         hero: {
             eyebrow: 'Пациенты · Приёмы · Оплаты · Снимки',
             status: '30 дней бесплатно',
-            title: ['Стоматология, ', 'собранная', ' в ', 'одной системе.'],
+            title: ['Стоматология, ', 'собранная в\u00a0одной системе.', '', ''],
             lede: '',
             ctaPrimary: 'Начать бесплатно',
             ctaSecondary: 'Войти',

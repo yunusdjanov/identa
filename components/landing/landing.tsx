@@ -206,6 +206,8 @@ function Calendar({ days, appts }: { days: string[]; appts: { txt: string; c: st
 
 function Hero({ t }: { t: T }) {
     const d = t.hero.dash;
+    const [titleLead, titleAccent, titleBridge, titleTail] = t.hero.title;
+
     return (
         <section className="hero" id="top">
             <div className="container hero-grid">
@@ -215,7 +217,10 @@ function Hero({ t }: { t: T }) {
                         <span className="eyebrow hide-mobile">{t.hero.eyebrow}</span>
                     </div>
                     <h1 className="h-display reveal in">
-                        {t.hero.title[0]}<em>{t.hero.title[1]}</em>{t.hero.title[2]}<em>{t.hero.title[3]}</em>
+                        {titleLead}
+                        {titleAccent ? <em>{titleAccent}</em> : null}
+                        {titleBridge}
+                        {titleTail ? <em>{titleTail}</em> : null}
                     </h1>
                     {t.hero.lede ? <p className="lede reveal in">{t.hero.lede}</p> : null}
                     <div className="hero-actions reveal in">

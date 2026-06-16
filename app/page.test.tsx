@@ -32,6 +32,17 @@ describe('Landing', () => {
         expect(registerLinks[0]).toHaveAttribute('href', '/register');
     });
 
+    it('keeps the Russian hero accent as one balanced phrase', () => {
+        render(<Landing />);
+
+        const heading = screen.getByRole('heading', { level: 1 });
+        const accentParts = heading.querySelectorAll('em');
+
+        expect(accentParts).toHaveLength(1);
+        expect(accentParts[0].textContent).toBe('собранная в\u00a0одной системе.');
+        expect(heading.textContent).toBe('Стоматология, собранная в\u00a0одной системе.');
+    });
+
     it('switches all content when another language is selected', async () => {
         const user = userEvent.setup();
         render(<Landing />);
