@@ -10,9 +10,10 @@ import {
 } from '@/components/ui/dialog';
 import { getProtectedMediaCrossOrigin } from '@/lib/protected-media';
 import { useI18n } from '@/components/providers/i18n-provider';
-import { ChevronLeft, ChevronRight, Download, Loader2, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Download, Loader2, Trash2, X } from 'lucide-react';
 
 export interface PreviewGalleryImage {
+    id?: string;
     src: string;
     alt: string;
     title?: string;
@@ -40,6 +41,8 @@ interface PatientPhotoPreviewDialogProps {
     title: string;
     images?: PreviewGalleryImage[];
     startIndex?: number;
+    onDeleteImage?: (image: PreviewGalleryImage) => void;
+    isDeletePending?: boolean;
 }
 
 export function PatientPhotoPreviewDialog({
@@ -50,6 +53,8 @@ export function PatientPhotoPreviewDialog({
     title,
     images,
     startIndex = 0,
+    onDeleteImage,
+    isDeletePending = false,
 }: PatientPhotoPreviewDialogProps) {
     const { t } = useI18n();
     const resolvedImages = useMemo<PreviewGalleryImage[]>(() => {
@@ -193,6 +198,21 @@ export function PatientPhotoPreviewDialog({
                             aria-label={t('gallery.download')}
                         >
                             <Download className="h-4 w-4" />
+                        </button>
+                    ) : null}
+                    {activeImage && onDeleteImage ? (
+                        <button
+                            type="button"
+                            onClick={() => onDeleteImage(activeImage)}
+                            disabled={isDeletePending}
+                            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-red-100 bg-white text-red-500 shadow-xs transition hover:-translate-y-0.5 hover:bg-red-50 hover:text-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-100 disabled:cursor-not-allowed disabled:opacity-60"
+                            aria-label={t('common.delete')}
+                        >
+                            {isDeletePending ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                                <Trash2 className="h-4 w-4" />
+                            )}
                         </button>
                     ) : null}
                     <DialogClose className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-slate-200/90 bg-white text-slate-500 shadow-xs transition hover:-translate-y-0.5 hover:border-teal-100 hover:bg-teal-50 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-100">

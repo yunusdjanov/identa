@@ -291,6 +291,9 @@ class PatientApiTest extends TestCase
             ->assertJsonPath('data.oral_photos.smile.view_type', 'smile')
             ->assertJsonPath('data.oral_photos.top', null)
             ->assertJsonPath('data.oral_photos.bottom', null)
+            ->assertJsonCount(1, 'data.oral_photo_galleries.smile')
+            ->assertJsonCount(0, 'data.oral_photo_galleries.top')
+            ->assertJsonCount(0, 'data.oral_photo_galleries.bottom')
             ->assertJsonStructure([
                 'data' => [
                     'oral_photo' => [
@@ -328,7 +331,8 @@ class PatientApiTest extends TestCase
             ->assertJsonPath('data.oral_photos.top.view_type', 'top')
             ->assertJsonPath('data.oral_photos.top.scan_status', 'approved')
             ->assertJsonPath('data.oral_photos.smile', null)
-            ->assertJsonPath('data.oral_photos.bottom', null);
+            ->assertJsonPath('data.oral_photos.bottom', null)
+            ->assertJsonCount(1, 'data.oral_photo_galleries.top');
 
         $this->assertDatabaseHas('patient_clinical_photos', [
             'dentist_id' => $dentist->id,
@@ -336,6 +340,88 @@ class PatientApiTest extends TestCase
             'view_type' => 'top',
             'scan_status' => 'approved',
         ]);
+    }
+
+    public function test_dentist_can_store_multiple_patient_oral_photos_per_slot(): void
+    {
+        Storage::fake('local');
+        $dentist = User::factory()->create();
+        $patient = Patient::factory()->create([
+            'dentist_id' => $dentist->id,
+        ]);
+        $firstPhoto = PatientClinicalPhoto::query()->create([
+            'dentist_id' => $dentist->id,
+            'patient_id' => $patient->id,
+            'view_type' => PatientClinicalPhoto::VIEW_TYPE_SMILE,
+            'is_primary' => true,
+            'sort_order' => 0,
+            'disk' => 'local',
+            'path' => 'approved/patients/oral-first.jpg',
+            'mime_type' => 'image/jpeg',
+            'file_size' => 10,
+            'scan_status' => 'approved',
+            'approved_at' => now(),
+        ]);
+
+        $response = $this->actingAs($dentist, 'web')
+            ->post("/api/v1/patients/{$patient->id}/oral-photos/smile", [
+                'photo' => UploadedFile::fake()->image('oral-second.jpg', 1200, 900),
+            ], ['Accept' => 'application/json'])
+            ->assertOk()
+            ->assertJsonPath('data.oral_photos.smile.id', (string) $firstPhoto->id)
+            ->assertJsonCount(2, 'data.oral_photo_galleries.smile');
+
+        $gallery = $response->json('data.oral_photo_galleries.smile');
+        $secondPhotoId = (string) $gallery[1]['id'];
+
+        $this->assertDatabaseCount('patient_clinical_photos', 2);
+
+        $this->actingAs($dentist, 'web')
+            ->deleteJson("/api/v1/patients/{$patient->id}/oral-photos/smile/{$secondPhotoId}")
+            ->assertOk()
+            ->assertJsonCount(1, 'data.oral_photo_galleries.smile')
+            ->assertJsonPath('data.oral_photos.smile.id', (string) $firstPhoto->id);
+
+        $this->assertDatabaseMissing('patient_clinical_photos', [
+            'id' => $secondPhotoId,
+        ]);
+    }
+
+    public function test_patient_oral_photo_slot_limit_is_enforced(): void
+    {
+        Storage::fake('local');
+        $dentist = User::factory()->create();
+        $patient = Patient::factory()->create([
+            'dentist_id' => $dentist->id,
+        ]);
+
+        foreach (range(1, 6) as $index) {
+            PatientClinicalPhoto::query()->create([
+                'dentist_id' => $dentist->id,
+                'patient_id' => $patient->id,
+                'view_type' => PatientClinicalPhoto::VIEW_TYPE_BOTTOM,
+                'is_primary' => $index === 1,
+                'sort_order' => $index,
+                'disk' => 'local',
+                'path' => "approved/patients/oral-bottom-{$index}.jpg",
+                'mime_type' => 'image/jpeg',
+                'file_size' => 10,
+                'scan_status' => 'approved',
+                'approved_at' => now(),
+            ]);
+        }
+
+        $this->actingAs($dentist, 'web')
+            ->post("/api/v1/patients/{$patient->id}/oral-photos/bottom", [
+                'photo' => UploadedFile::fake()->image('oral-bottom-extra.jpg', 1200, 900),
+            ], ['Accept' => 'application/json'])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('photo');
+
+        $this->assertSame(6, PatientClinicalPhoto::query()
+            ->where('patient_id', $patient->id)
+            ->where('view_type', PatientClinicalPhoto::VIEW_TYPE_BOTTOM)
+            ->count());
     }
 
     public function test_patient_oral_photo_upload_is_processed_before_response_when_queue_is_async(): void

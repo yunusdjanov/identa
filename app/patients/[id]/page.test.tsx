@@ -16,6 +16,8 @@ vi.mock('@/lib/api/dentist', () => ({
     getCurrentUser: vi.fn(),
     getPatient: vi.fn(),
     getPatientOverview: vi.fn(),
+    uploadPatientOralPhoto: vi.fn(),
+    deletePatientOralPhoto: vi.fn(),
     archivePatient: vi.fn(),
     restorePatient: vi.fn(),
     permanentlyDeletePatient: vi.fn(),
@@ -159,6 +161,8 @@ describe('PatientDetailPage', () => {
         expect(screen.getByText('Top')).toBeInTheDocument();
         expect(screen.getByText('Bottom')).toBeInTheDocument();
         expect(screen.getAllByText('No photo')).toHaveLength(3);
+        expect(screen.getByText('0/18')).toBeInTheDocument();
+        expect(screen.getAllByText('0/6')).toHaveLength(3);
         expect(screen.getAllByTitle('Upload')).toHaveLength(3);
         expect(oralPhotoTitle.compareDocumentPosition(detailCard) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
         expect(detailCard.compareDocumentPosition(appointmentsTitle) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
@@ -204,7 +208,9 @@ describe('PatientDetailPage', () => {
         expect(await screen.findByText('Oral photo')).toBeInTheDocument();
         expect(screen.queryByText('Ready')).not.toBeInTheDocument();
         expect(screen.queryByText('No photo')).not.toBeInTheDocument();
-        expect(screen.getAllByTitle('Replace')).toHaveLength(3);
+        expect(screen.getByText('3/18')).toBeInTheDocument();
+        expect(screen.getAllByText('1/6')).toHaveLength(3);
+        expect(screen.getAllByTitle('Upload')).toHaveLength(3);
         expect(screen.getAllByTitle('View')).toHaveLength(3);
     });
 

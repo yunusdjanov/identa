@@ -161,6 +161,8 @@ export interface ApiPatientClinicalPhoto {
     preview_url?: string | null;
     thumbnail_ready?: boolean;
     preview_ready?: boolean;
+    is_primary?: boolean;
+    sort_order?: number;
     created_at?: string | null;
     updated_at?: string | null;
 }
@@ -185,6 +187,7 @@ export interface ApiPatient {
     photo_scan_status?: ApiMediaScanStatus | null;
     oral_photo?: ApiPatientClinicalPhoto | null;
     oral_photos?: Partial<Record<ApiPatientClinicalPhotoViewType, ApiPatientClinicalPhoto | null>>;
+    oral_photo_galleries?: Partial<Record<ApiPatientClinicalPhotoViewType, ApiPatientClinicalPhoto[]>>;
     created_at?: string | null;
     updated_at?: string | null;
     created_by?: ApiRecordActor | null;

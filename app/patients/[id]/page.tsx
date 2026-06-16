@@ -50,7 +50,6 @@ import {
     MapPin,
     Maximize2,
     Phone,
-    Pencil,
     Pill,
     Plus,
     Upload,
@@ -66,8 +65,9 @@ import { INPUT_LIMITS } from '@/lib/input-validation';
 import { optimizeImageFileForUpload } from '@/lib/browser-image';
 import type { ApiPatient, ApiPatientClinicalPhotoViewType } from '@/lib/api/types';
 import {
-    getPatientOralPhoto,
+    getPatientOralPhotoGallery,
     hasPendingOralPhotoProcessing,
+    ORAL_PHOTO_MAX_PER_SLOT,
     ORAL_PHOTO_POLL_INTERVAL_MS,
     ORAL_PHOTO_SLOTS,
 } from '@/lib/patients/oral-photos';
@@ -287,8 +287,14 @@ export default function PatientDetailPage({
     const [isArchivePatientDialogOpen, setIsArchivePatientDialogOpen] = useState(false);
     const [isRestorePatientDialogOpen, setIsRestorePatientDialogOpen] = useState(false);
     const [isPermanentDeletePatientDialogOpen, setIsPermanentDeletePatientDialogOpen] = useState(false);
-    const [oralPhotoPreviewViewType, setOralPhotoPreviewViewType] = useState<ApiPatientClinicalPhotoViewType | null>(null);
-    const [deleteOralPhotoViewType, setDeleteOralPhotoViewType] = useState<ApiPatientClinicalPhotoViewType | null>(null);
+    const [oralPhotoPreviewTarget, setOralPhotoPreviewTarget] = useState<{
+        viewType: ApiPatientClinicalPhotoViewType;
+        photoId: string;
+    } | null>(null);
+    const [deleteOralPhotoTarget, setDeleteOralPhotoTarget] = useState<{
+        viewType: ApiPatientClinicalPhotoViewType;
+        photoId: string;
+    } | null>(null);
     const [oralPhotoInputKey, setOralPhotoInputKey] = useState(0);
     const todayDateKey = toLocalDateKey();
     const currentUserQuery = useQuery({
@@ -393,11 +399,12 @@ export default function PatientDetailPage({
     });
 
     const deleteOralPhotoMutation = useMutation({
-        mutationFn: (viewType: ApiPatientClinicalPhotoViewType) => deletePatientOralPhoto(id, viewType),
+        mutationFn: ({ viewType, photoId }: { viewType: ApiPatientClinicalPhotoViewType; photoId: string }) =>
+            deletePatientOralPhoto(id, viewType, photoId),
         onSuccess: (updatedPatient) => {
             toast.success(t('patientDetail.toast.oralPhotoDeleted'));
-            setDeleteOralPhotoViewType(null);
-            setOralPhotoPreviewViewType(null);
+            setDeleteOralPhotoTarget(null);
+            setOralPhotoPreviewTarget(null);
             queryClient.setQueryData(['patients', 'detail', id], updatedPatient);
             queryClient.invalidateQueries({ queryKey: ['patients'] });
             queryClient.invalidateQueries({ queryKey: ['patients', 'detail', id] });
@@ -486,38 +493,77 @@ export default function PatientDetailPage({
         allowFullFallback: true,
     }) ?? undefined;
     const oralPhotoSlots = ORAL_PHOTO_SLOTS.map((slot) => {
-        const photo = getPatientOralPhoto(patient, slot.viewType);
-        const thumbnailUrl = getProtectedMediaThumbnailUrl({
-            scanStatus: photo?.scan_status,
-            thumbnailUrl: photo?.thumbnail_url,
-            thumbnailReady: photo?.thumbnail_ready,
-            previewUrl: photo?.preview_url,
-            previewReady: photo?.preview_ready,
-            url: photo?.url,
-            allowFullFallback: true,
+        const photos = getPatientOralPhotoGallery(patient, slot.viewType).map((photo, index) => {
+            const thumbnailUrl = getProtectedMediaThumbnailUrl({
+                scanStatus: photo.scan_status,
+                thumbnailUrl: photo.thumbnail_url,
+                thumbnailReady: photo.thumbnail_ready,
+                previewUrl: photo.preview_url,
+                previewReady: photo.preview_ready,
+                url: photo.url,
+                allowFullFallback: true,
+            });
+            const previewUrl = getProtectedMediaPreviewUrl({
+                scanStatus: photo.scan_status,
+                previewUrl: photo.preview_url,
+                url: photo.url,
+            }) ?? thumbnailUrl;
+
+            return {
+                photo,
+                index,
+                thumbnailUrl,
+                previewUrl,
+                hasPhoto: Boolean(thumbnailUrl),
+                isProcessing: photo.scan_status === 'pending' && !thumbnailUrl,
+                isRejected: photo.scan_status === 'rejected',
+            };
         });
-        const previewUrl = getProtectedMediaPreviewUrl({
-            scanStatus: photo?.scan_status,
-            previewUrl: photo?.preview_url,
-            url: photo?.url,
-        }) ?? thumbnailUrl;
+        const displayPhoto = photos.find((photo) => photo.thumbnailUrl) ?? photos[0] ?? null;
 
         return {
             ...slot,
-            photo,
-            thumbnailUrl,
-            previewUrl,
-            hasPhoto: Boolean(thumbnailUrl),
-            isProcessing: photo?.scan_status === 'pending' && !thumbnailUrl,
-            isRejected: photo?.scan_status === 'rejected',
+            photos,
+            photo: displayPhoto?.photo ?? null,
+            thumbnailUrl: displayPhoto?.thumbnailUrl ?? null,
+            previewUrl: displayPhoto?.previewUrl ?? null,
+            hasPhoto: photos.some((photo) => photo.hasPhoto),
+            isProcessing: photos.some((photo) => photo.isProcessing),
+            isRejected: photos.some((photo) => photo.isRejected),
         };
     });
-    const oralPhotoReadyCount = oralPhotoSlots.filter((slot) => slot.hasPhoto).length;
-    const oralPhotoPreviewSlot = oralPhotoSlots.find((slot) => slot.viewType === oralPhotoPreviewViewType) ?? null;
-    const deleteOralPhotoSlot = oralPhotoSlots.find((slot) => slot.viewType === deleteOralPhotoViewType) ?? null;
+    const oralPhotoReadyCount = oralPhotoSlots.reduce(
+        (total, slot) => total + slot.photos.filter((photo) => photo.hasPhoto).length,
+        0
+    );
+    const oralPhotoCapacity = ORAL_PHOTO_SLOTS.length * ORAL_PHOTO_MAX_PER_SLOT;
+    const oralPhotoPreviewSlot = oralPhotoSlots.find((slot) => slot.viewType === oralPhotoPreviewTarget?.viewType) ?? null;
+    const oralPhotoPreviewLabel = oralPhotoPreviewSlot
+        ? t(oralPhotoPreviewSlot.labelKey)
+        : t('patientDetail.oralPhoto.title');
+    const oralPhotoPreviewImages = oralPhotoPreviewSlot?.photos
+        .filter((photo) => photo.previewUrl)
+        .map((photo) => ({
+            id: photo.photo.id,
+            src: photo.previewUrl ?? '',
+            thumbnailSrc: photo.thumbnailUrl ?? photo.previewUrl ?? undefined,
+            alt: `${oralPhotoPreviewLabel} ${photo.index + 1}`,
+            title: `${oralPhotoPreviewLabel} ${photo.index + 1}`,
+        })) ?? [];
+    const oralPhotoPreviewStartIndex = Math.max(
+        oralPhotoPreviewImages.findIndex((photo) => photo.id === oralPhotoPreviewTarget?.photoId),
+        0
+    );
+    const deleteOralPhotoSlot = oralPhotoSlots.find((slot) => slot.viewType === deleteOralPhotoTarget?.viewType) ?? null;
     const oralPhotoUploadMaxMb = currentUser?.subscription?.upload_max_mb ?? DEFAULT_ORAL_PHOTO_UPLOAD_MAX_MB;
     const oralPhotoUploadMaxBytes = oralPhotoUploadMaxMb * 1024 * 1024;
+    const isOralPhotoMutationPending = uploadOralPhotoMutation.isPending || deleteOralPhotoMutation.isPending;
     const pickOralPhoto = (viewType: ApiPatientClinicalPhotoViewType) => {
+        const slot = oralPhotoSlots.find((candidate) => candidate.viewType === viewType);
+        if ((slot?.photos.length ?? 0) >= ORAL_PHOTO_MAX_PER_SLOT) {
+            return;
+        }
+
         oralPhotoUploadViewTypeRef.current = viewType;
         oralPhotoInputRef.current?.click();
     };
@@ -525,6 +571,11 @@ export default function PatientDetailPage({
         const selectedPhoto = event.target.files?.[0] ?? null;
         const viewType = oralPhotoUploadViewTypeRef.current;
         if (!selectedPhoto || uploadOralPhotoMutation.isPending || isPatientArchived) {
+            return;
+        }
+        const uploadSlot = oralPhotoSlots.find((slot) => slot.viewType === viewType);
+        if ((uploadSlot?.photos.length ?? 0) >= ORAL_PHOTO_MAX_PER_SLOT) {
+            setOralPhotoInputKey((value) => value + 1);
             return;
         }
 
@@ -845,7 +896,7 @@ export default function PatientDetailPage({
                         </div>
                         <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-slate-50 px-2 py-0.5 text-[11px] font-semibold text-slate-600 ring-1 ring-slate-100">
                             <span className="h-1.5 w-1.5 rounded-full bg-slate-400" />
-                            <span className="tabular-nums">{oralPhotoReadyCount}/{ORAL_PHOTO_SLOTS.length}</span>
+                            <span className="tabular-nums">{oralPhotoReadyCount}/{oralPhotoCapacity}</span>
                         </span>
                     </header>
                     <div className="divide-y divide-slate-100 px-3 pb-2">
@@ -853,8 +904,11 @@ export default function PatientDetailPage({
                             const isUploadingSlot = uploadOralPhotoMutation.isPending
                                 && uploadOralPhotoMutation.variables?.viewType === slot.viewType;
                             const isDeletingSlot = deleteOralPhotoMutation.isPending
-                                && deleteOralPhotoMutation.variables === slot.viewType;
-                            const canUploadOralPhoto = canManagePatients && !isPatientArchived && !isUploadingSlot && !isDeletingSlot;
+                                && deleteOralPhotoMutation.variables?.viewType === slot.viewType;
+                            const canUploadOralPhoto = canManagePatients
+                                && !isPatientArchived
+                                && !isOralPhotoMutationPending
+                                && slot.photos.length < ORAL_PHOTO_MAX_PER_SLOT;
                             const slotLabel = t(slot.labelKey);
                             const shouldShowSlotStatus = !slot.hasPhoto || slot.isProcessing || slot.isRejected;
                             const slotStatusKey = slot.isProcessing
@@ -867,6 +921,11 @@ export default function PatientDetailPage({
                                 : slot.isProcessing
                                     ? 'text-sky-600'
                                     : 'text-slate-500';
+                            const previewPhoto = slot.photos.find((photo) => photo.previewUrl);
+                            const deletePhoto = slot.photos.find((photo) => photo.photo.id === previewPhoto?.photo.id)
+                                ?? slot.photos[0]
+                                ?? null;
+                            const slotCountLabel = `${slot.photos.length}/${ORAL_PHOTO_MAX_PER_SLOT}`;
 
                             return (
                                 <section key={slot.viewType} className="flex min-w-0 items-center gap-2 py-1.5">
@@ -874,8 +933,11 @@ export default function PatientDetailPage({
                                         type="button"
                                         disabled={!slot.hasPhoto && !canUploadOralPhoto}
                                         onClick={() => {
-                                            if (slot.previewUrl) {
-                                                setOralPhotoPreviewViewType(slot.viewType);
+                                            if (previewPhoto?.previewUrl) {
+                                                setOralPhotoPreviewTarget({
+                                                    viewType: slot.viewType,
+                                                    photoId: previewPhoto.photo.id,
+                                                });
                                                 return;
                                             }
                                             if (canUploadOralPhoto) {
@@ -916,6 +978,9 @@ export default function PatientDetailPage({
                                             </p>
                                         ) : null}
                                     </div>
+                                    <span className="shrink-0 rounded-full bg-slate-50 px-2 py-0.5 text-[11px] font-semibold tabular-nums text-slate-500 ring-1 ring-slate-100">
+                                        {slotCountLabel}
+                                    </span>
                                     <div className="flex shrink-0 items-center gap-1">
                                         {canManagePatients ? (
                                             <Button
@@ -925,15 +990,13 @@ export default function PatientDetailPage({
                                                 className="h-7 w-7 rounded-full text-slate-500 hover:bg-slate-100 hover:text-slate-900"
                                                 disabled={!canUploadOralPhoto}
                                                 onClick={() => pickOralPhoto(slot.viewType)}
-                                                aria-label={slot.hasPhoto ? t('patientDetail.oralPhoto.replace') : t('patientDetail.oralPhoto.upload')}
-                                                title={slot.hasPhoto ? t('patientDetail.oralPhoto.replace') : t('patientDetail.oralPhoto.upload')}
+                                                aria-label={t('patientDetail.oralPhoto.upload')}
+                                                title={t('patientDetail.oralPhoto.upload')}
                                             >
                                                 {isUploadingSlot ? (
                                                     <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                                ) : slot.hasPhoto ? (
-                                                    <Pencil className="h-3.5 w-3.5" />
                                                 ) : (
-                                                    <Upload className="h-3.5 w-3.5" />
+                                                    <Plus className="h-3.5 w-3.5" />
                                                 )}
                                             </Button>
                                         ) : isSubscriptionReadOnly(currentUser) && canViewPatients ? (
@@ -944,24 +1007,23 @@ export default function PatientDetailPage({
                                                 className="h-7 w-7 rounded-full text-slate-400"
                                                 disabled
                                                 onClick={denyManageAction}
-                                                aria-label={slot.hasPhoto ? t('patientDetail.oralPhoto.replace') : t('patientDetail.oralPhoto.upload')}
-                                                title={slot.hasPhoto ? t('patientDetail.oralPhoto.replace') : t('patientDetail.oralPhoto.upload')}
+                                                aria-label={t('patientDetail.oralPhoto.upload')}
+                                                title={t('patientDetail.oralPhoto.upload')}
                                             >
-                                                {slot.hasPhoto ? (
-                                                    <Pencil className="h-3.5 w-3.5" />
-                                                ) : (
-                                                    <Upload className="h-3.5 w-3.5" />
-                                                )}
+                                                <Plus className="h-3.5 w-3.5" />
                                             </Button>
                                         ) : null}
-                                        {canManagePatients && slot.photo ? (
+                                        {canManagePatients && deletePhoto ? (
                                             <Button
                                                 type="button"
                                                 variant="ghost"
                                                 size="icon"
                                                 className="h-7 w-7 rounded-full text-red-500 hover:bg-red-50 hover:text-red-700"
-                                                disabled={isPatientArchived || isUploadingSlot || isDeletingSlot}
-                                                onClick={() => setDeleteOralPhotoViewType(slot.viewType)}
+                                                disabled={isPatientArchived || isOralPhotoMutationPending}
+                                                onClick={() => setDeleteOralPhotoTarget({
+                                                    viewType: slot.viewType,
+                                                    photoId: deletePhoto.photo.id,
+                                                })}
                                                 aria-label={t('common.delete')}
                                                 title={t('common.delete')}
                                             >
@@ -1137,25 +1199,36 @@ export default function PatientDetailPage({
                 />
             ) : null}
 
-            {oralPhotoPreviewSlot?.previewUrl ? (
+            {oralPhotoPreviewImages.length > 0 ? (
                 <PatientPhotoPreviewDialog
-                    open={oralPhotoPreviewViewType !== null}
+                    open={oralPhotoPreviewTarget !== null}
                     onOpenChange={(open) => {
                         if (!open) {
-                            setOralPhotoPreviewViewType(null);
+                            setOralPhotoPreviewTarget(null);
                         }
                     }}
-                    src={oralPhotoPreviewSlot.previewUrl}
-                    alt={t(oralPhotoPreviewSlot.labelKey)}
-                    title={t(oralPhotoPreviewSlot.labelKey)}
+                    images={oralPhotoPreviewImages}
+                    startIndex={oralPhotoPreviewStartIndex}
+                    alt={oralPhotoPreviewLabel}
+                    title={oralPhotoPreviewLabel}
+                    onDeleteImage={(image) => {
+                        if (image.id && oralPhotoPreviewTarget) {
+                            setOralPhotoPreviewTarget(null);
+                            setDeleteOralPhotoTarget({
+                                viewType: oralPhotoPreviewTarget.viewType,
+                                photoId: image.id,
+                            });
+                        }
+                    }}
+                    isDeletePending={deleteOralPhotoMutation.isPending}
                 />
             ) : null}
 
             <ConfirmActionDialog
-                open={deleteOralPhotoViewType !== null}
+                open={deleteOralPhotoTarget !== null}
                 onOpenChange={(open) => {
                     if (!open) {
-                        setDeleteOralPhotoViewType(null);
+                        setDeleteOralPhotoTarget(null);
                     }
                 }}
                 title={t('patientDetail.oralPhoto.deleteTitle')}
@@ -1168,8 +1241,8 @@ export default function PatientDetailPage({
                 confirmVariant="destructive"
                 isPending={deleteOralPhotoMutation.isPending}
                 onConfirm={() => {
-                    if (deleteOralPhotoViewType) {
-                        deleteOralPhotoMutation.mutate(deleteOralPhotoViewType);
+                    if (deleteOralPhotoTarget) {
+                        deleteOralPhotoMutation.mutate(deleteOralPhotoTarget);
                     }
                 }}
             />

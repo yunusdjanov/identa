@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getPatientOralPhoto, hasPendingOralPhotoProcessing } from '@/lib/patients/oral-photos';
+import { getPatientOralPhoto, getPatientOralPhotoGallery, hasPendingOralPhotoProcessing } from '@/lib/patients/oral-photos';
 import type { ApiPatient } from '@/lib/api/types';
 
 const basePatient = {
@@ -19,7 +19,41 @@ describe('oral photo helpers', () => {
         } as ApiPatient;
 
         expect(getPatientOralPhoto(patient, 'smile')?.id).toBe('photo-1');
+        expect(getPatientOralPhotoGallery(patient, 'smile')).toHaveLength(1);
         expect(getPatientOralPhoto(patient, 'top')).toBeNull();
+    });
+
+    it('prefers gallery photos over the legacy slot map', () => {
+        const patient = {
+            ...basePatient,
+            oral_photos: {
+                smile: {
+                    id: 'legacy-smile',
+                    view_type: 'smile',
+                    scan_status: 'approved',
+                },
+            },
+            oral_photo_galleries: {
+                smile: [
+                    {
+                        id: 'gallery-smile-1',
+                        view_type: 'smile',
+                        scan_status: 'approved',
+                    },
+                    {
+                        id: 'gallery-smile-2',
+                        view_type: 'smile',
+                        scan_status: 'approved',
+                    },
+                ],
+            },
+        } as ApiPatient;
+
+        expect(getPatientOralPhoto(patient, 'smile')?.id).toBe('gallery-smile-1');
+        expect(getPatientOralPhotoGallery(patient, 'smile').map((photo) => photo.id)).toEqual([
+            'gallery-smile-1',
+            'gallery-smile-2',
+        ]);
     });
 
     it('detects pending processing across all oral photo slots', () => {
@@ -27,12 +61,14 @@ describe('oral photo helpers', () => {
         expect(hasPendingOralPhotoProcessing(basePatient)).toBe(false);
         expect(hasPendingOralPhotoProcessing({
             ...basePatient,
-            oral_photos: {
-                top: {
-                    id: 'top-photo',
-                    view_type: 'top',
-                    scan_status: 'pending',
-                },
+            oral_photo_galleries: {
+                top: [
+                    {
+                        id: 'top-photo',
+                        view_type: 'top',
+                        scan_status: 'pending',
+                    },
+                ],
             },
         } as ApiPatient)).toBe(true);
         expect(hasPendingOralPhotoProcessing({

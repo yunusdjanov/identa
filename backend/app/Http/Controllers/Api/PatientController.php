@@ -325,6 +325,22 @@ class PatientController extends Controller
         );
     }
 
+    public function downloadOralPhotoItem(
+        Request $request,
+        string $id,
+        string $viewType,
+        string $photoId
+    ): StreamedResponse {
+        $patient = $this->patients->ownedPatient($request, $id);
+        $variant = $request->query('variant');
+        $viewType = $this->clinicalPhotos->normalizeViewType($viewType);
+
+        return $this->clinicalPhotos->stream(
+            $this->clinicalPhotos->oralPhotoItemOrFail($patient, $viewType, $photoId),
+            is_string($variant) && $variant !== '' ? $variant : null
+        );
+    }
+
     public function deleteOralPhoto(Request $request, string $id, ?string $viewType = null): JsonResponse
     {
         $patient = $this->patients->ownedPatient($request, $id);
@@ -333,7 +349,6 @@ class PatientController extends Controller
         $photo = $this->clinicalPhotos->oralPhotoOrFail($patient, $viewType);
 
         $this->clinicalPhotos->delete($photo);
-        $photo->delete();
 
         $this->auditLogger->logFromRequest(
             request: $request,
@@ -342,6 +357,36 @@ class PatientController extends Controller
             entityId: (string) $patient->id,
             metadata: [
                 'view_type' => $viewType,
+                'photo_id' => (string) $photo->id,
+            ],
+        );
+
+        return response()->json([
+            'data' => $this->transformPatient($this->patients->ownedPatient($request, $id), $request),
+        ]);
+    }
+
+    public function deleteOralPhotoItem(
+        Request $request,
+        string $id,
+        string $viewType,
+        string $photoId
+    ): JsonResponse {
+        $patient = $this->patients->ownedPatient($request, $id);
+        $this->patients->ensureNotArchived($patient, __('api.patients.archived_restore_before_edit'));
+        $viewType = $this->clinicalPhotos->normalizeViewType($viewType);
+        $photo = $this->clinicalPhotos->oralPhotoItemOrFail($patient, $viewType, $photoId);
+
+        $this->clinicalPhotos->delete($photo);
+
+        $this->auditLogger->logFromRequest(
+            request: $request,
+            eventType: 'patient.oral_photo.deleted',
+            entityType: 'patient',
+            entityId: (string) $patient->id,
+            metadata: [
+                'view_type' => $viewType,
+                'photo_id' => $photoId,
             ],
         );
 

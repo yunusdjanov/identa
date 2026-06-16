@@ -1,6 +1,7 @@
 import type { ApiPatient, ApiPatientClinicalPhotoViewType } from '@/lib/api/types';
 
 export const ORAL_PHOTO_POLL_INTERVAL_MS = 2500;
+export const ORAL_PHOTO_MAX_PER_SLOT = 6;
 
 export const ORAL_PHOTO_SLOTS: Array<{
     viewType: ApiPatientClinicalPhotoViewType;
@@ -15,7 +16,20 @@ export const ORAL_PHOTO_SLOTS: Array<{
  * Return the slot photo while preserving the legacy single-photo response alias.
  */
 export function getPatientOralPhoto(patient: ApiPatient, viewType: ApiPatientClinicalPhotoViewType) {
-    return patient.oral_photos?.[viewType] ?? (viewType === 'smile' ? patient.oral_photo ?? null : null);
+    return getPatientOralPhotoGallery(patient, viewType)[0] ?? null;
+}
+
+/**
+ * Return all photos for a slot while preserving the legacy single-photo response.
+ */
+export function getPatientOralPhotoGallery(patient: ApiPatient, viewType: ApiPatientClinicalPhotoViewType) {
+    const gallery = patient.oral_photo_galleries?.[viewType]?.filter(Boolean) ?? [];
+    if (gallery.length > 0) {
+        return gallery;
+    }
+
+    const legacyPhoto = patient.oral_photos?.[viewType] ?? (viewType === 'smile' ? patient.oral_photo ?? null : null);
+    return legacyPhoto ? [legacyPhoto] : [];
 }
 
 /**
@@ -26,5 +40,7 @@ export function hasPendingOralPhotoProcessing(patient: ApiPatient | undefined): 
         return false;
     }
 
-    return ORAL_PHOTO_SLOTS.some((slot) => getPatientOralPhoto(patient, slot.viewType)?.scan_status === 'pending');
+    return ORAL_PHOTO_SLOTS.some((slot) =>
+        getPatientOralPhotoGallery(patient, slot.viewType).some((photo) => photo.scan_status === 'pending')
+    );
 }

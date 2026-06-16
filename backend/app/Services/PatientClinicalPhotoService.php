@@ -10,6 +10,7 @@ use App\Support\MediaPathCache;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Lang;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -20,12 +21,14 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 class PatientClinicalPhotoService
 {
     private const DIRECT_UPLOAD_TTL_MINUTES = 15;
+    private const MAX_ORAL_PHOTOS_PER_VIEW = 6;
+
     public function __construct(
         private readonly PlanLimitService $planLimitService,
         private readonly PatientClinicalPhotoMediaService $media,
     ) {}
 
-    /** Store or replace one of the patient's oral photo slots through the API upload path. */
+    /** Store a new photo in one of the patient's oral photo slots through the API upload path. */
     public function uploadPrimaryOralQueued(
         Patient $patient,
         UploadedFile $uploadedPhoto,
@@ -33,6 +36,7 @@ class PatientClinicalPhotoService
         string $viewType = PatientClinicalPhoto::VIEW_TYPE_SMILE
     ): PatientClinicalPhoto {
         $viewType = $this->normalizeViewType($viewType);
+        $this->ensurePhotoLimitAvailable($patient, $viewType);
         $this->planLimitService->ensureUploadFileAllowed(
             $owner,
             max((int) $uploadedPhoto->getSize(), 0),
@@ -49,7 +53,7 @@ class PatientClinicalPhotoService
             throw ValidationException::withMessages(['photo' => [__('api.patients.photo_store_failed')]]);
         }
 
-        return $this->queueScanOrFail($this->startPendingReplacement(
+        return $this->queueScanOrFail($this->startPendingPhoto(
             patient: $patient,
             viewType: $viewType,
             disk: $disk,
@@ -60,7 +64,7 @@ class PatientClinicalPhotoService
     }
 
     /**
-     * Prepare a signed direct-upload ticket for the primary oral photo.
+     * Prepare a signed direct-upload ticket for a new oral photo.
      *
      * @param  array<string, mixed>  $validated
      * @return array<string, mixed>
@@ -73,6 +77,7 @@ class PatientClinicalPhotoService
         string $viewType = PatientClinicalPhoto::VIEW_TYPE_SMILE
     ): array {
         $viewType = $this->normalizeViewType($viewType);
+        $this->ensurePhotoLimitAvailable($patient, $viewType);
         $disk = $this->disk();
         if (! $this->mediaDiskSupportsDirectUpload($disk)) {
             return ['supported' => false];
@@ -142,6 +147,13 @@ class PatientClinicalPhotoService
         if ($disk === '' || $path === '') {
             throw ValidationException::withMessages(['photo' => [$this->message('direct_upload_missing', 'The uploaded oral photo could not be found in storage. Please retry the upload.')]]);
         }
+        try {
+            $this->ensurePhotoLimitAvailable($patient, $viewType);
+        } catch (\Throwable $exception) {
+            Storage::disk($disk)->delete($path);
+            MediaPathCache::forgetPaths($disk, [$path]);
+            throw $exception;
+        }
 
         $storedSize = $this->resolveUploadedObjectSize($disk, $path, (int) ($ticket['file_size'] ?? 0));
         try {
@@ -156,7 +168,7 @@ class PatientClinicalPhotoService
             throw $exception;
         }
 
-        return $this->queueScanOrFail($this->startPendingReplacement(
+        return $this->queueScanOrFail($this->startPendingPhoto(
             patient: $patient,
             viewType: $viewType,
             disk: $disk,
@@ -170,21 +182,32 @@ class PatientClinicalPhotoService
     public function oralPhotoOrFail(Patient $patient, string $viewType = PatientClinicalPhoto::VIEW_TYPE_SMILE): PatientClinicalPhoto
     {
         $viewType = $this->normalizeViewType($viewType);
-        $query = $patient->oralPhotos();
+        $query = $this->slotPhotoQuery($patient, $viewType);
         if ($viewType === PatientClinicalPhoto::VIEW_TYPE_SMILE) {
-            return $query
-                ->whereIn('view_type', [
-                    PatientClinicalPhoto::VIEW_TYPE_SMILE,
-                    PatientClinicalPhoto::VIEW_TYPE_LEGACY_ORAL_PRIMARY,
-                ])
-                ->orderByRaw(
-                    'case when view_type = ? then 0 else 1 end',
-                    [PatientClinicalPhoto::VIEW_TYPE_SMILE]
-                )
-                ->firstOrFail();
+            $query->orderByRaw(
+                'case when view_type = ? then 0 else 1 end',
+                [PatientClinicalPhoto::VIEW_TYPE_SMILE]
+            );
         }
 
-        return $query->where('view_type', $viewType)->firstOrFail();
+        return $query
+            ->orderByDesc('is_primary')
+            ->orderBy('sort_order')
+            ->orderBy('created_at')
+            ->firstOrFail();
+    }
+
+    /** Return one gallery photo by id, constrained to the requested patient and slot. */
+    public function oralPhotoItemOrFail(
+        Patient $patient,
+        string $viewType,
+        string $photoId
+    ): PatientClinicalPhoto {
+        $viewType = $this->normalizeViewType($viewType);
+
+        return $this->slotPhotoQuery($patient, $viewType)
+            ->whereKey($photoId)
+            ->firstOrFail();
     }
 
     /** Stream the original or requested variant through the protected API route. */
@@ -193,10 +216,17 @@ class PatientClinicalPhotoService
         return $this->media->stream($photo, $variant);
     }
 
-    /** Queue deletion for the source object and generated variants. */
+    /** Delete the photo record and queue deletion for the source object and generated variants. */
     public function delete(PatientClinicalPhoto $photo): void
     {
+        $wasPrimary = (bool) $photo->is_primary;
+
         $this->media->delete($photo);
+        $photo->delete();
+
+        if ($wasPrimary) {
+            $this->promotePrimaryAfterDelete($photo);
+        }
     }
 
     /**
@@ -218,6 +248,17 @@ class PatientClinicalPhotoService
     public function resourceCollectionPayload(Patient $patient, iterable $photos, Request $request): array
     {
         return $this->media->resourceCollectionPayload($patient, $photos, $request);
+    }
+
+    /**
+     * Build all oral-photo gallery payloads keyed by slot name.
+     *
+     * @param  iterable<PatientClinicalPhoto>  $photos
+     * @return array<string, list<array<string, mixed>>>
+     */
+    public function resourceGalleryPayload(Patient $patient, iterable $photos, Request $request): array
+    {
+        return $this->media->resourceGalleryPayload($patient, $photos, $request);
     }
 
     /** Return the configured media disk. */
@@ -250,7 +291,7 @@ class PatientClinicalPhotoService
         return $photo;
     }
 
-    private function startPendingReplacement(
+    private function startPendingPhoto(
         Patient $patient,
         string $viewType,
         string $disk,
@@ -259,32 +300,83 @@ class PatientClinicalPhotoService
         int $fileSize
     ): PatientClinicalPhoto
     {
-        $photo = PatientClinicalPhoto::query()->firstOrNew([
-            'patient_id' => (string) $patient->id,
-            'view_type' => $viewType,
-        ]);
-        $attributes = [
-            'dentist_id' => (int) $patient->dentist_id,
-            'is_primary' => true,
-            'sort_order' => 0,
-            'disk' => $disk,
-            'mime_type' => $mimeType,
-            'file_size' => $fileSize,
-            'scan_status' => 'pending',
-            'scan_result' => null,
-            'scan_provider' => null,
-            'quarantine_path' => $path,
-            'scanned_at' => null,
-            'rejected_at' => null,
-        ];
-        if (! ($photo->exists && $this->media->isDisplayable($photo))) {
-            $attributes['path'] = $path;
-            $attributes['approved_at'] = null;
+        return DB::transaction(function () use ($patient, $viewType, $disk, $path, $mimeType, $fileSize): PatientClinicalPhoto {
+            $this->ensurePhotoLimitAvailable($patient, $viewType);
+            $isPrimary = ! $this->slotPhotoQuery($patient, $viewType)->exists();
+            $sortOrder = ((int) $this->slotPhotoQuery($patient, $viewType)->max('sort_order')) + 1;
+
+            $photo = new PatientClinicalPhoto();
+            $photo->forceFill([
+                'dentist_id' => (int) $patient->dentist_id,
+                'patient_id' => (string) $patient->id,
+                'view_type' => $viewType,
+                'is_primary' => $isPrimary,
+                'sort_order' => $sortOrder,
+                'disk' => $disk,
+                'path' => $path,
+                'mime_type' => $mimeType,
+                'file_size' => $fileSize,
+                'scan_status' => 'pending',
+                'scan_result' => null,
+                'scan_provider' => null,
+                'quarantine_path' => $path,
+                'approved_at' => null,
+                'scanned_at' => null,
+                'rejected_at' => null,
+            ])->save();
+
+            return $photo;
+        });
+    }
+
+    private function ensurePhotoLimitAvailable(Patient $patient, string $viewType): void
+    {
+        if ($this->slotPhotoQuery($patient, $viewType)->count() < self::MAX_ORAL_PHOTOS_PER_VIEW) {
+            return;
         }
 
-        $photo->forceFill($attributes)->save();
+        throw ValidationException::withMessages([
+            'photo' => [$this->message('oral_photo_limit_reached', 'Each oral photo section can contain up to 6 images.')],
+        ]);
+    }
 
-        return $photo;
+    private function promotePrimaryAfterDelete(PatientClinicalPhoto $deletedPhoto): void
+    {
+        $viewType = $this->normalizeViewType((string) $deletedPhoto->view_type);
+        $replacement = $this->slotPhotoQueryFor(
+            (int) $deletedPhoto->dentist_id,
+            (string) $deletedPhoto->patient_id,
+            $viewType
+        )
+            ->whereKeyNot((string) $deletedPhoto->id)
+            ->orderBy('sort_order')
+            ->orderBy('created_at')
+            ->first();
+
+        if ($replacement !== null) {
+            $replacement->forceFill(['is_primary' => true])->save();
+        }
+    }
+
+    private function slotPhotoQuery(Patient $patient, string $viewType)
+    {
+        return $this->slotPhotoQueryFor((int) $patient->dentist_id, (string) $patient->id, $viewType);
+    }
+
+    private function slotPhotoQueryFor(int $dentistId, string $patientId, string $viewType)
+    {
+        $query = PatientClinicalPhoto::query()
+            ->where('dentist_id', $dentistId)
+            ->where('patient_id', $patientId);
+
+        if ($viewType === PatientClinicalPhoto::VIEW_TYPE_SMILE) {
+            return $query->whereIn('view_type', [
+                PatientClinicalPhoto::VIEW_TYPE_SMILE,
+                PatientClinicalPhoto::VIEW_TYPE_LEGACY_ORAL_PRIMARY,
+            ]);
+        }
+
+        return $query->where('view_type', $viewType);
     }
 
     /** @param array<string, mixed> $ticket */

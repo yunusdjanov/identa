@@ -85,6 +85,8 @@ class PatientClinicalPhotoMediaService
             'preview_url' => $this->url($patient, $photo, $request, self::IMAGE_VARIANT_PREVIEW),
             'thumbnail_ready' => $this->variantReady($photo, self::IMAGE_VARIANT_THUMBNAIL),
             'preview_ready' => $this->variantReady($photo, self::IMAGE_VARIANT_PREVIEW),
+            'is_primary' => (bool) $photo->is_primary,
+            'sort_order' => (int) $photo->sort_order,
             'created_at' => $photo->created_at?->toIso8601String(),
             'updated_at' => $photo->updated_at?->toIso8601String(),
         ];
@@ -105,19 +107,45 @@ class PatientClinicalPhotoMediaService
                 continue;
             }
 
-            $isCurrentViewType = (string) $photo->view_type === $viewType;
-            if (! array_key_exists($viewType, $photosByViewType) || $isCurrentViewType) {
-                $photosByViewType[$viewType] = $photo;
-            }
+            $photosByViewType[$viewType][] = $photo;
         }
 
         $payload = [];
         foreach (PatientClinicalPhoto::VIEW_TYPES as $viewType) {
             $payload[$viewType] = $this->resourcePayload(
                 $patient,
-                $photosByViewType[$viewType] ?? null,
+                $this->primaryPhoto($this->sortedPhotos($photosByViewType[$viewType] ?? [])),
                 $request
             );
+        }
+
+        return $payload;
+    }
+
+    /**
+     * Build gallery payloads keyed by oral-photo slot.
+     *
+     * @param  iterable<PatientClinicalPhoto>  $photos
+     * @return array<string, list<array<string, mixed>>>
+     */
+    public function resourceGalleryPayload(Patient $patient, iterable $photos, Request $request): array
+    {
+        $photosByViewType = [];
+        foreach ($photos as $photo) {
+            $viewType = PatientClinicalPhoto::normalizeViewType((string) $photo->view_type);
+            if ($viewType === null) {
+                continue;
+            }
+
+            $photosByViewType[$viewType][] = $photo;
+        }
+
+        $payload = [];
+        foreach (PatientClinicalPhoto::VIEW_TYPES as $viewType) {
+            $payload[$viewType] = array_values(array_filter(array_map(
+                fn (PatientClinicalPhoto $photo): ?array => $this->resourcePayload($patient, $photo, $request),
+                $this->sortedPhotos($photosByViewType[$viewType] ?? [])
+            )));
         }
 
         return $payload;
@@ -134,10 +162,11 @@ class PatientClinicalPhotoMediaService
 
         $viewType = PatientClinicalPhoto::normalizeViewType((string) $photo->view_type) ?? (string) $photo->view_type;
         $url = sprintf(
-            '%s/api/v1/patients/%s/oral-photos/%s?v=%s',
+            '%s/api/v1/patients/%s/oral-photos/%s/%s?v=%s',
             $request->getSchemeAndHttpHost(),
             (string) $patient->id,
             $viewType,
+            (string) $photo->id,
             (string) ($photo->updated_at?->getTimestamp() ?? 0)
         );
 
@@ -214,5 +243,38 @@ class PatientClinicalPhotoMediaService
         $extension = pathinfo($path, PATHINFO_EXTENSION) ?: 'jpg';
 
         return sprintf('%s/variants/%s-%s.%s', $directory, $filename, $variant, $extension);
+    }
+
+    /**
+     * @param  list<PatientClinicalPhoto>  $photos
+     * @return list<PatientClinicalPhoto>
+     */
+    private function sortedPhotos(array $photos): array
+    {
+        usort($photos, static function (PatientClinicalPhoto $left, PatientClinicalPhoto $right): int {
+            return [
+                (bool) $left->is_primary ? 0 : 1,
+                (string) $left->view_type === PatientClinicalPhoto::VIEW_TYPE_SMILE ? 0 : 1,
+                (int) $left->sort_order,
+                (int) ($left->created_at?->getTimestamp() ?? 0),
+                (string) $left->id,
+            ] <=> [
+                (bool) $right->is_primary ? 0 : 1,
+                (string) $right->view_type === PatientClinicalPhoto::VIEW_TYPE_SMILE ? 0 : 1,
+                (int) $right->sort_order,
+                (int) ($right->created_at?->getTimestamp() ?? 0),
+                (string) $right->id,
+            ];
+        });
+
+        return $photos;
+    }
+
+    /**
+     * @param  list<PatientClinicalPhoto>  $photos
+     */
+    private function primaryPhoto(array $photos): ?PatientClinicalPhoto
+    {
+        return $photos[0] ?? null;
     }
 }

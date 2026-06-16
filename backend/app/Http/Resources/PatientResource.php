@@ -33,6 +33,7 @@ class PatientResource extends JsonResource
             : $this->photos->disk();
         $patient->loadMissing('oralPhotos');
         $oralPhotos = $this->clinicalPhotos->resourceCollectionPayload($patient, $patient->oralPhotos, $request);
+        $oralPhotoGalleries = $this->clinicalPhotos->resourceGalleryPayload($patient, $patient->oralPhotos, $request);
 
         return [
             'id' => (string) $patient->id,
@@ -62,6 +63,7 @@ class PatientResource extends JsonResource
             ),
             'oral_photo' => $oralPhotos['smile'] ?? null,
             'oral_photos' => $oralPhotos,
+            'oral_photo_galleries' => $oralPhotoGalleries,
             'created_at' => $patient->created_at?->toIso8601String(),
             'updated_at' => $patient->updated_at?->toIso8601String(),
             'created_by' => $this->actorSummary($patient, 'createdBy'),

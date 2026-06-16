@@ -1,10 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { apiClient } from '@/lib/api/client';
-import { uploadPatientOralPhoto, uploadPatientPhoto } from '@/lib/api/dentist';
+import { deletePatientOralPhoto, uploadPatientOralPhoto, uploadPatientPhoto } from '@/lib/api/dentist';
 
 vi.mock('@/lib/api/client', () => ({
     apiClient: {
         post: vi.fn(),
+        delete: vi.fn(),
     },
     ensureCsrfCookie: vi.fn(),
     invalidateCsrfCookie: vi.fn(),
@@ -173,5 +174,27 @@ describe('uploadPatientOralPhoto', () => {
             '/patients/patient-1/oral-photos/smile',
             expect.any(FormData)
         );
+    });
+});
+
+describe('deletePatientOralPhoto', () => {
+    beforeEach(() => {
+        vi.mocked(apiClient.delete).mockReset();
+    });
+
+    it('deletes a specific oral gallery photo when a photo id is provided', async () => {
+        vi.mocked(apiClient.delete).mockResolvedValueOnce({ data: { data: patient } });
+
+        await expect(deletePatientOralPhoto('patient-1', 'top', 'photo-2')).resolves.toEqual(patient);
+
+        expect(apiClient.delete).toHaveBeenCalledWith('/patients/patient-1/oral-photos/top/photo-2');
+    });
+
+    it('keeps the legacy slot delete endpoint when no photo id is provided', async () => {
+        vi.mocked(apiClient.delete).mockResolvedValueOnce({ data: { data: patient } });
+
+        await expect(deletePatientOralPhoto('patient-1', 'smile')).resolves.toEqual(patient);
+
+        expect(apiClient.delete).toHaveBeenCalledWith('/patients/patient-1/oral-photos/smile');
     });
 });

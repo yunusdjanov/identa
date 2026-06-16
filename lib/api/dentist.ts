@@ -466,10 +466,14 @@ export async function deletePatientPhoto(id: string): Promise<ApiPatient> {
  */
 export async function deletePatientOralPhoto(
     id: string,
-    viewType: ApiPatientClinicalPhotoViewType = 'smile'
+    viewType: ApiPatientClinicalPhotoViewType = 'smile',
+    photoId?: string
 ): Promise<ApiPatient> {
+    const endpoint = photoId
+        ? `${patientOralPhotoEndpoint(id, viewType)}/${photoId}`
+        : patientOralPhotoEndpoint(id, viewType);
     const { data } = await withCsrfRetry(() =>
-        apiClient.delete<ApiEnvelope<ApiPatient>>(patientOralPhotoEndpoint(id, viewType))
+        apiClient.delete<ApiEnvelope<ApiPatient>>(endpoint)
     );
 
     return data.data;
