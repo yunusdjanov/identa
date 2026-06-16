@@ -903,8 +903,6 @@ export default function PatientDetailPage({
                         {oralPhotoSlots.map((slot) => {
                             const isUploadingSlot = uploadOralPhotoMutation.isPending
                                 && uploadOralPhotoMutation.variables?.viewType === slot.viewType;
-                            const isDeletingSlot = deleteOralPhotoMutation.isPending
-                                && deleteOralPhotoMutation.variables?.viewType === slot.viewType;
                             const canUploadOralPhoto = canManagePatients
                                 && !isPatientArchived
                                 && !isOralPhotoMutationPending
@@ -922,10 +920,11 @@ export default function PatientDetailPage({
                                     ? 'text-sky-600'
                                     : 'text-slate-500';
                             const previewPhoto = slot.photos.find((photo) => photo.previewUrl);
-                            const deletePhoto = slot.photos.find((photo) => photo.photo.id === previewPhoto?.photo.id)
-                                ?? slot.photos[0]
-                                ?? null;
                             const slotCountLabel = `${slot.photos.length}/${ORAL_PHOTO_MAX_PER_SLOT}`;
+                            const canEditOralPhoto = canManagePatients
+                                && !isPatientArchived
+                                && Boolean(previewPhoto?.previewUrl);
+                            const editSlotLabel = `${t('common.edit')} ${slotLabel}`;
 
                             return (
                                 <section key={slot.viewType} className="flex min-w-0 items-center gap-2 py-1.5">
@@ -1013,25 +1012,21 @@ export default function PatientDetailPage({
                                                 <Plus className="h-3.5 w-3.5" />
                                             </Button>
                                         ) : null}
-                                        {canManagePatients && deletePhoto ? (
+                                        {canEditOralPhoto ? (
                                             <Button
                                                 type="button"
                                                 variant="ghost"
                                                 size="icon"
-                                                className="h-7 w-7 rounded-full text-red-500 hover:bg-red-50 hover:text-red-700"
-                                                disabled={isPatientArchived || isOralPhotoMutationPending}
-                                                onClick={() => setDeleteOralPhotoTarget({
+                                                className="h-7 w-7 rounded-full text-slate-500 hover:bg-slate-100 hover:text-slate-900"
+                                                disabled={isOralPhotoMutationPending}
+                                                onClick={() => previewPhoto && setOralPhotoPreviewTarget({
                                                     viewType: slot.viewType,
-                                                    photoId: deletePhoto.photo.id,
+                                                    photoId: previewPhoto.photo.id,
                                                 })}
-                                                aria-label={t('common.delete')}
-                                                title={t('common.delete')}
+                                                aria-label={editSlotLabel}
+                                                title={t('common.edit')}
                                             >
-                                                {isDeletingSlot ? (
-                                                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                                ) : (
-                                                    <Trash2 className="h-3.5 w-3.5" />
-                                                )}
+                                                <Edit className="h-3.5 w-3.5" />
                                             </Button>
                                         ) : null}
                                     </div>

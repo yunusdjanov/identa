@@ -212,6 +212,45 @@ describe('PatientDetailPage', () => {
         expect(screen.getAllByText('1/6')).toHaveLength(3);
         expect(screen.getAllByTitle('Upload')).toHaveLength(3);
         expect(screen.getAllByTitle('View')).toHaveLength(3);
+        expect(screen.getAllByTitle('Edit')).toHaveLength(3);
+        expect(screen.queryAllByTitle('Delete')).toHaveLength(0);
+    });
+
+    it('opens the oral photo gallery from the edit action', async () => {
+        vi.mocked(getCurrentUser).mockResolvedValue(dentist as never);
+        vi.mocked(getPatient).mockResolvedValue({
+            ...patient,
+            oral_photo_galleries: {
+                smile: [
+                    {
+                        id: 'smile-photo-1',
+                        view_type: 'smile',
+                        scan_status: 'approved',
+                        thumbnail_url: 'https://media.identa.test/smile-1-thumb.webp',
+                        preview_url: 'https://media.identa.test/smile-1-preview.webp',
+                        thumbnail_ready: true,
+                        preview_ready: true,
+                    },
+                    {
+                        id: 'smile-photo-2',
+                        view_type: 'smile',
+                        scan_status: 'approved',
+                        thumbnail_url: 'https://media.identa.test/smile-2-thumb.webp',
+                        preview_url: 'https://media.identa.test/smile-2-preview.webp',
+                        thumbnail_ready: true,
+                        preview_ready: true,
+                    },
+                ],
+            },
+        } as never);
+        await renderPage();
+        const user = userEvent.setup();
+
+        await user.click(await screen.findByRole('button', { name: 'Edit Smile' }));
+
+        expect(await screen.findByRole('dialog')).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Delete' })).toBeInTheDocument();
+        expect(screen.getByText('1 / 2')).toBeInTheDocument();
     });
 
     it('archives the patient through the confirm dialog', async () => {
