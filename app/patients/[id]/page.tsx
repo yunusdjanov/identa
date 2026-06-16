@@ -481,7 +481,7 @@ export default function PatientDetailPage({
     }
 
     const daysSinceVisit = getDaysSinceLastVisit(latestVisitDate);
-    const isInactive = daysSinceVisit > 180;
+    const isInactive = Number.isFinite(daysSinceVisit) && daysSinceVisit > 180;
     const primaryCategory = patient.categories?.[0] ?? null;
     const patientAvatarUrl = getProtectedMediaThumbnailUrl({
         scanStatus: patient.photo_scan_status,

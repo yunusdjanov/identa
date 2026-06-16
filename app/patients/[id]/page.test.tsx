@@ -146,6 +146,16 @@ describe('PatientDetailPage', () => {
         expect(screen.getByTitle('2')).toBeInTheDocument();
     });
 
+    it('does not show an inactive-days badge when the patient has no last visit', async () => {
+        vi.mocked(getCurrentUser).mockResolvedValue(dentist as never);
+        vi.mocked(getPatient).mockResolvedValue(patient as never);
+
+        await renderPage();
+
+        expect(await screen.findByText('Never')).toBeInTheDocument();
+        expect(screen.queryByText(/Infinityd/i)).not.toBeInTheDocument();
+    });
+
     it('renders the compact oral photo card with the summary cards', async () => {
         vi.mocked(getCurrentUser).mockResolvedValue(dentist as never);
         vi.mocked(getPatient).mockResolvedValue(patient as never);
