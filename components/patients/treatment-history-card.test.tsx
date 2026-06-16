@@ -10,6 +10,7 @@ import {
     deletePatientTreatment,
     deletePatientTreatmentImage,
     getCurrentUser,
+    getPatientTreatment,
     listAllPatientTreatments,
     updatePatientTreatment,
     uploadPatientTreatmentImage,
@@ -21,6 +22,7 @@ vi.mock('@/lib/api/dentist', () => ({
     deletePatientTreatment: vi.fn(),
     deletePatientTreatmentImage: vi.fn(),
     getCurrentUser: vi.fn(),
+    getPatientTreatment: vi.fn(),
     listAllPatientTreatments: vi.fn(),
     updatePatientTreatment: vi.fn(),
     uploadPatientTreatmentImage: vi.fn(),
@@ -50,6 +52,7 @@ describe('TreatmentHistoryCard image controls', () => {
         vi.mocked(deletePatientTreatment).mockReset();
         vi.mocked(deletePatientTreatmentImage).mockReset();
         vi.mocked(getCurrentUser).mockReset();
+        vi.mocked(getPatientTreatment).mockReset();
         vi.mocked(listAllPatientTreatments).mockReset();
         vi.mocked(updatePatientTreatment).mockReset();
         vi.mocked(uploadPatientTreatmentImage).mockReset();
@@ -174,6 +177,82 @@ describe('TreatmentHistoryCard image controls', () => {
 
         await user.click(removeButtons[0]);
         expect(screen.getByRole('button', { name: 'Restore' })).toBeInTheDocument();
+    });
+
+    it('loads full treatment image detail before opening a partial gallery payload', async () => {
+        const user = userEvent.setup();
+        const firstImage = {
+            id: 'image-1',
+            mime_type: 'image/jpeg',
+            file_size: 1024,
+            created_at: '2026-04-05T10:00:00Z',
+            url: 'https://example.com/tooth-1.jpg',
+            thumbnail_url: 'https://example.com/tooth-1-thumb.jpg',
+            preview_url: 'https://example.com/tooth-1-preview.jpg',
+        };
+        const fullImages = Array.from({ length: 4 }).map((_, index) => ({
+            id: `image-${index + 1}`,
+            mime_type: 'image/jpeg',
+            file_size: 1024,
+            created_at: `2026-04-05T10:0${index}:00Z`,
+            url: `https://example.com/tooth-${index + 1}.jpg`,
+            thumbnail_url: `https://example.com/tooth-${index + 1}-thumb.jpg`,
+            preview_url: `https://example.com/tooth-${index + 1}-preview.jpg`,
+        }));
+        const partialTreatment = {
+            id: 'treatment-partial-gallery',
+            patient_id: 'patient-1',
+            patient_name: 'Sardor',
+            patient_phone: '+998 90 123 45 67',
+            patient_secondary_phone: null,
+            patient_code: 'PT-1001',
+            tooth_number: 9,
+            teeth: [9],
+            treatment_type: 'Partial gallery',
+            description: null,
+            comment: null,
+            treatment_date: '2026-04-05',
+            cost: null,
+            debt_amount: 120000,
+            paid_amount: 60000,
+            balance: 60000,
+            notes: null,
+            image_count: 4,
+            primary_image: firstImage,
+            images: [],
+            created_at: '2026-04-05T10:00:00Z',
+            updated_at: '2026-04-05T10:00:00Z',
+        };
+        let resolveDetail: (value: unknown) => void = () => {};
+        const detailPromise = new Promise((resolve) => {
+            resolveDetail = resolve;
+        });
+
+        vi.mocked(listAllPatientTreatments).mockResolvedValue([partialTreatment] as never);
+        vi.mocked(getPatientTreatment).mockReturnValue(detailPromise as never);
+
+        renderCard();
+
+        await waitFor(() => {
+            expect(screen.getAllByText('Partial gallery').length).toBeGreaterThan(0);
+        });
+
+        await user.click(screen.getAllByRole('button', { name: 'Images (4)' })[0]);
+
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+        expect(getPatientTreatment).toHaveBeenCalledWith('patient-1', 'treatment-partial-gallery');
+
+        resolveDetail({
+            ...partialTreatment,
+            images: fullImages,
+        });
+
+        await waitFor(() => {
+            expect(screen.getByRole('dialog')).toBeInTheDocument();
+        });
+        expect(screen.getByRole('heading', { name: 'Image 1 - Apr 5, 2026' })).toBeInTheDocument();
+        expect(screen.getByText('1 / 4')).toBeInTheDocument();
+        expect(document.querySelector('img[src="https://example.com/tooth-4-thumb.jpg"]')).toBeInTheDocument();
     });
 
     it('keeps pending scanned images in processing state without loading full media', async () => {

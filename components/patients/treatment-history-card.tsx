@@ -192,8 +192,45 @@ function delay(ms: number) {
 function getTreatmentImageCount(treatment: ApiTreatment) {
     return Math.max(
         Number(treatment.image_count ?? 0),
-        treatment.images?.length ?? 0
+        treatment.images?.length ?? 0,
+        treatment.primary_image ? 1 : 0
     );
+}
+
+function getKnownTreatmentImages(treatment: ApiTreatment) {
+    if ((treatment.images?.length ?? 0) > 0) {
+        return treatment.images;
+    }
+
+    return treatment.primary_image ? [treatment.primary_image] : [];
+}
+
+function hasCompleteTreatmentImages(treatment: ApiTreatment) {
+    const expectedImageCount = getTreatmentImageCount(treatment);
+
+    if (expectedImageCount === 0) {
+        return true;
+    }
+
+    return getKnownTreatmentImages(treatment).length >= expectedImageCount;
+}
+
+function getPreviewableTreatmentImages(treatment: ApiTreatment) {
+    return getKnownTreatmentImages(treatment).filter((image) => getTreatmentImagePreviewUrl(image));
+}
+
+function buildPreviewGalleryImages(
+    images: ApiTreatmentImage[],
+    patientName: string,
+    imageLabel: string,
+    treatmentDate: string
+) {
+    return images.map((image, index) => ({
+        src: getTreatmentImagePreviewUrl(image) ?? '',
+        thumbnailSrc: getTreatmentImageThumbnailUrl(image) ?? undefined,
+        alt: `${patientName} ${imageLabel} ${index + 1}`,
+        title: `${imageLabel} ${index + 1} - ${formatDate(treatmentDate)}`,
+    }));
 }
 
 function createTreatmentFormState(treatment?: ApiTreatment | null): TreatmentFormState {
@@ -210,11 +247,7 @@ function createTreatmentFormState(treatment?: ApiTreatment | null): TreatmentFor
 }
 
 function getTreatmentPrimaryImage(treatment: ApiTreatment) {
-    if ((treatment.images?.length ?? 0) > 0) {
-        return treatment.images[0];
-    }
-
-    return treatment.primary_image ?? null;
+    return getKnownTreatmentImages(treatment)[0] ?? null;
 }
 
 async function uploadTreatmentImagesInBatches(
@@ -434,14 +467,14 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
     };
 
     const loadTreatmentDetail = async (treatment: ApiTreatment): Promise<ApiTreatment> => {
-        if ((treatment.images?.length ?? 0) > 0 || getTreatmentImageCount(treatment) === 0) {
+        if (hasCompleteTreatmentImages(treatment)) {
             return treatment;
         }
 
         const detailQueryKey = getTreatmentDetailQueryKey(treatment.id);
         const cachedDetail = queryClient.getQueryData<ApiTreatment>(detailQueryKey);
 
-        if (cachedDetail && (cachedDetail.images?.length ?? 0) > 0) {
+        if (cachedDetail && hasCompleteTreatmentImages(cachedDetail)) {
             return cachedDetail;
         }
 
@@ -642,8 +675,7 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
     const isEditingImagePanelLoading = Boolean(
         editingTreatment
         && detailLoadingTreatmentId === editingTreatment.id
-        && getTreatmentImageCount(editingTreatment) > 0
-        && (editingTreatment.images?.length ?? 0) === 0
+        && !hasCompleteTreatmentImages(editingTreatment)
     );
     const maxImagesError =
         submitAttempted && visibleExistingImagesCount + formState.imageFiles.length > maxHistoryImagesPerEntry
@@ -739,7 +771,7 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
         setSubmitAttempted(false);
         setIsDialogOpen(true);
 
-        if ((treatment.images?.length ?? 0) > 0 || getTreatmentImageCount(treatment) === 0) {
+        if (hasCompleteTreatmentImages(treatment)) {
             return;
         }
 
@@ -841,41 +873,28 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
         treatment: ApiTreatment,
         startIndex = 0
     ) => {
-        const knownImages = treatment.images ?? [];
-        const primaryImage = getTreatmentPrimaryImage(treatment);
         const fallbackDate = treatment.treatment_date;
+        const openGallery = (galleryTreatment: ApiTreatment) => {
+            const images = getPreviewableTreatmentImages(galleryTreatment);
 
-        if (knownImages.length > 0) {
-            const previewableImages = knownImages.filter((image) => getTreatmentImagePreviewUrl(image));
-
-            if (previewableImages.length === 0) {
+            if (images.length === 0) {
                 return;
             }
 
             setPreviewGallery({
-                images: previewableImages.map((image, index) => ({
-                    src: getTreatmentImagePreviewUrl(image) ?? '',
-                    thumbnailSrc: getTreatmentImageThumbnailUrl(image) ?? undefined,
-                    alt: `${patientName} ${t('patientHistory.image')} ${index + 1}`,
-                    title: `${t('patientHistory.image')} ${index + 1} - ${formatDate(fallbackDate)}`,
-                })),
-                startIndex: Math.min(startIndex, previewableImages.length - 1),
+                images: buildPreviewGalleryImages(
+                    images,
+                    patientName,
+                    t('patientHistory.image'),
+                    galleryTreatment.treatment_date ?? fallbackDate
+                ),
+                startIndex: Math.min(startIndex, images.length - 1),
                 fallbackTitle: patientName,
             });
-        } else if (primaryImage && getTreatmentImagePreviewUrl(primaryImage)) {
-            setPreviewGallery({
-                images: [{
-                    src: getTreatmentImagePreviewUrl(primaryImage) ?? '',
-                    thumbnailSrc: getTreatmentImageThumbnailUrl(primaryImage) ?? undefined,
-                    alt: `${patientName} ${t('patientHistory.image')} 1`,
-                    title: `${t('patientHistory.image')} 1 - ${formatDate(fallbackDate)}`,
-                }],
-                startIndex: 0,
-                fallbackTitle: patientName,
-            });
-        }
+        };
 
-        if (knownImages.length > 0 || getTreatmentImageCount(treatment) === 0) {
+        if (hasCompleteTreatmentImages(treatment)) {
+            openGallery(treatment);
             return;
         }
 
@@ -889,17 +908,9 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                 return;
             }
 
-            const treatmentDate = detailedTreatment.treatment_date;
-
-            setPreviewGallery({
-                images: images.map((image, index) => ({
-                    src: getTreatmentImagePreviewUrl(image) ?? '',
-                    thumbnailSrc: getTreatmentImageThumbnailUrl(image) ?? undefined,
-                    alt: `${patientName} ${t('patientHistory.image')} ${index + 1}`,
-                    title: `${t('patientHistory.image')} ${index + 1} - ${formatDate(treatmentDate)}`,
-                })),
-                startIndex: Math.min(startIndex, images.length - 1),
-                fallbackTitle: patientName,
+            openGallery({
+                ...detailedTreatment,
+                images,
             });
         } catch (error) {
             toast.error(getApiErrorMessage(error, t('patientHistory.error.loadFailed')));
