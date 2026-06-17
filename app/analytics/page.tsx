@@ -8,16 +8,15 @@ import { toast } from 'sonner';
 import { PageHeader } from '@/components/ui/page-shell';
 import { Button } from '@/components/ui/button';
 import { getApiErrorMessage } from '@/lib/api/client';
-import { apiClient } from '@/lib/api/client';
 import {
     getCurrentUser,
     getDashboardSnapshot,
+    listAllAppointments,
     listAllTreatments,
     listPatients,
 } from '@/lib/api/dentist';
 import type {
     ApiAppointment,
-    ApiEnvelope,
     ApiPatient,
     ApiTreatment,
 } from '@/lib/api/types';
@@ -46,11 +45,12 @@ import { buildChartBuckets } from '@/lib/analytics/chart-buckets';
 import { buildPdfFilename, exportRowsToPdf } from '@/lib/export/pdf';
 import { formatLocalizedDate, getActiveDisplayLocale } from '@/lib/i18n/date';
 
-async function listAllAppointments(): Promise<ApiAppointment[]> {
-    const { data } = await apiClient.get<ApiEnvelope<ApiAppointment[]>>('/appointments', {
-        params: { per_page: 500 },
-    });
-    return data.data ?? [];
+function formatApiDate(date: Date): string {
+    return [
+        date.getFullYear(),
+        String(date.getMonth() + 1).padStart(2, '0'),
+        String(date.getDate()).padStart(2, '0'),
+    ].join('-');
 }
 
 /**
@@ -89,9 +89,29 @@ export default function AnalyticsPage() {
     const canViewPatients = canView(currentUser, 'patients');
     const canViewAppointments = canView(currentUser, 'appointments');
 
+    // `now` re-evaluates on every range change so a long-lived tab that
+    // spans midnight still anchors the window correctly. We deliberately
+    // skip a per-render refresh — it would invalidate every useMemo each
+    // render, which is more expensive than a stale "now" for the seconds
+    // it takes the user to interact.
+    const now = useMemo(() => new Date(), [range]);
+    const bounds = useMemo(() => getRangeBounds(range, now), [range, now]);
+    const previousBounds = useMemo(() => getPreviousRangeBounds(range, now), [range, now]);
+    const analyticsDateFilter = useMemo(
+        () => ({
+            date_from: formatApiDate(previousBounds.start),
+            date_to: formatApiDate(bounds.end),
+        }),
+        [bounds.end, previousBounds.start]
+    );
+
     const treatmentsQuery = useQuery({
-        queryKey: ['analytics', 'treatments'],
-        queryFn: () => listAllTreatments({ sort: '-treatment_date,-created_at', includeImages: false }),
+        queryKey: ['analytics', 'treatments', analyticsDateFilter.date_from, analyticsDateFilter.date_to],
+        queryFn: () => listAllTreatments({
+            sort: '-treatment_date,-created_at',
+            includeImages: false,
+            filter: analyticsDateFilter,
+        }),
         enabled: canViewPayments,
     });
     const patientsQuery = useQuery({
@@ -100,8 +120,8 @@ export default function AnalyticsPage() {
         enabled: canViewPatients,
     });
     const appointmentsQuery = useQuery({
-        queryKey: ['analytics', 'appointments'],
-        queryFn: listAllAppointments,
+        queryKey: ['analytics', 'appointments', analyticsDateFilter.date_from, analyticsDateFilter.date_to],
+        queryFn: () => listAllAppointments({ filter: analyticsDateFilter }),
         enabled: canViewAppointments,
     });
     const snapshotQuery = useQuery({
@@ -114,14 +134,6 @@ export default function AnalyticsPage() {
     const patients = (patientsQuery.data?.data ?? EMPTY_PATIENTS) as readonly ApiPatient[];
     const appointments = appointmentsQuery.data ?? EMPTY_APPOINTMENTS;
 
-    // `now` re-evaluates on every range change so a long-lived tab that
-    // spans midnight still anchors the window correctly. We deliberately
-    // skip a per-render refresh — it would invalidate every useMemo each
-    // render, which is more expensive than a stale "now" for the seconds
-    // it takes the user to interact.
-    const now = useMemo(() => new Date(), [range]);
-    const bounds = useMemo(() => getRangeBounds(range, now), [range, now]);
-    const previousBounds = useMemo(() => getPreviousRangeBounds(range, now), [range, now]);
     const displayLocale = useMemo(() => getActiveDisplayLocale(), [locale]);
     const buckets = useMemo(
         () => buildChartBuckets(range, bounds, displayLocale),

@@ -5,6 +5,7 @@ import AnalyticsPage from '@/app/analytics/page';
 import {
     getCurrentUser,
     getDashboardSnapshot,
+    listAllAppointments,
     listAllTreatments,
     listPatients,
 } from '@/lib/api/dentist';
@@ -14,6 +15,7 @@ import { DICTIONARIES } from '@/lib/i18n/dictionaries';
 vi.mock('@/lib/api/dentist', () => ({
     getCurrentUser: vi.fn(),
     getDashboardSnapshot: vi.fn(),
+    listAllAppointments: vi.fn(),
     listAllTreatments: vi.fn(),
     listPatients: vi.fn(),
 }));
@@ -52,6 +54,7 @@ describe('AnalyticsPage', () => {
     beforeEach(() => {
         vi.mocked(getCurrentUser).mockReset();
         vi.mocked(getDashboardSnapshot).mockResolvedValue({} as never);
+        vi.mocked(listAllAppointments).mockResolvedValue([] as never);
         vi.mocked(listAllTreatments).mockResolvedValue([] as never);
         vi.mocked(listPatients).mockResolvedValue({ data: [] } as never);
     });
@@ -81,5 +84,18 @@ describe('AnalyticsPage', () => {
         expect(
             await screen.findByText('Financial metrics, activity and trends for your clinic.')
         ).toBeInTheDocument();
+        expect(vi.mocked(listAllTreatments)).toHaveBeenCalledWith(expect.objectContaining({
+            filter: expect.objectContaining({
+                date_from: expect.any(String),
+                date_to: expect.any(String),
+            }),
+            includeImages: false,
+        }));
+        expect(vi.mocked(listAllAppointments)).toHaveBeenCalledWith(expect.objectContaining({
+            filter: expect.objectContaining({
+                date_from: expect.any(String),
+                date_to: expect.any(String),
+            }),
+        }));
     });
 });

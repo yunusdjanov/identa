@@ -62,6 +62,12 @@ export function isMockApiPath(pathname: string): boolean {
     return pathname === '/api/v1' || pathname.startsWith('/api/v1/');
 }
 
+export function isCanonicalProductionHost(host: string | null): boolean {
+    const normalizedHost = host?.split(':', 1)[0]?.toLowerCase();
+
+    return normalizedHost === CANONICAL_HOST || normalizedHost === WWW_HOST;
+}
+
 export function normalizeApiRootUrl(): string {
     const configuredApiUrl = process.env.NEXT_PUBLIC_API_URL
         ?? process.env.API_URL
@@ -212,7 +218,7 @@ function resolveAdminGateRedirect(request: NextRequest): URL | null {
 }
 
 export async function proxy(request: NextRequest) {
-    const host = request.headers.get('host');
+    const host = request.headers.get('host') ?? request.nextUrl.host;
 
     if (host === WWW_HOST) {
         const redirectUrl = request.nextUrl.clone();
@@ -222,9 +228,13 @@ export async function proxy(request: NextRequest) {
         return NextResponse.redirect(redirectUrl, 308);
     }
 
-    // Hard-block the development-only mock backend in production so a deployed
-    // build can never expose the fixture data or the password-less mock login.
-    if (!isMockApiEnabled() && isMockApiPath(request.nextUrl.pathname)) {
+    // Hard-block the development-only mock backend on the live host even if a
+    // bad env override is deployed. Preview builds can still opt in via
+    // NEXT_PUBLIC_ENABLE_MOCK_API=true, but identa.uz itself never serves
+    // password-less fixture endpoints.
+    const liveProductionHost = process.env.NODE_ENV === 'production' && isCanonicalProductionHost(host);
+    if (isMockApiPath(request.nextUrl.pathname)
+        && (!isMockApiEnabled() || liveProductionHost)) {
         return new NextResponse(null, { status: 404 });
     }
 

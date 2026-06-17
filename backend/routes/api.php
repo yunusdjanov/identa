@@ -23,6 +23,8 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
+const MEDIA_UPLOAD_THROTTLE = 'throttle:60,1';
+
 Route::prefix('v1')->group(function (): void {
     Route::get('/health', function () {
         return response()->json([
@@ -214,21 +216,21 @@ Route::prefix('v1')->group(function (): void {
         Route::get('patients/{id}/photo', [PatientController::class, 'downloadPhoto'])
             ->middleware('permission:'.User::PERMISSION_PATIENTS_VIEW);
         Route::post('patients/{id}/photo/direct-upload', [PatientController::class, 'preparePhotoUpload'])
-            ->middleware('permission:'.User::PERMISSION_PATIENTS_MANAGE);
+            ->middleware(['permission:'.User::PERMISSION_PATIENTS_MANAGE, MEDIA_UPLOAD_THROTTLE]);
         Route::post('patients/{id}/photo/direct-upload/{uploadId}/complete', [PatientController::class, 'finalizePhotoUpload'])
-            ->middleware('permission:'.User::PERMISSION_PATIENTS_MANAGE);
+            ->middleware(['permission:'.User::PERMISSION_PATIENTS_MANAGE, MEDIA_UPLOAD_THROTTLE]);
         Route::post('patients/{id}/photo', [PatientController::class, 'uploadPhoto'])
-            ->middleware('permission:'.User::PERMISSION_PATIENTS_MANAGE);
+            ->middleware(['permission:'.User::PERMISSION_PATIENTS_MANAGE, MEDIA_UPLOAD_THROTTLE]);
         Route::delete('patients/{id}/photo', [PatientController::class, 'deletePhoto'])
             ->middleware('permission:'.User::PERMISSION_PATIENTS_MANAGE);
         Route::get('patients/{id}/oral-photo', [PatientController::class, 'downloadOralPhoto'])
             ->middleware('permission:'.User::PERMISSION_PATIENTS_VIEW);
         Route::post('patients/{id}/oral-photo/direct-upload', [PatientController::class, 'prepareOralPhotoUpload'])
-            ->middleware('permission:'.User::PERMISSION_PATIENTS_MANAGE);
+            ->middleware(['permission:'.User::PERMISSION_PATIENTS_MANAGE, MEDIA_UPLOAD_THROTTLE]);
         Route::post('patients/{id}/oral-photo/direct-upload/{uploadId}/complete', [PatientController::class, 'finalizeLegacyOralPhotoUpload'])
-            ->middleware('permission:'.User::PERMISSION_PATIENTS_MANAGE);
+            ->middleware(['permission:'.User::PERMISSION_PATIENTS_MANAGE, MEDIA_UPLOAD_THROTTLE]);
         Route::post('patients/{id}/oral-photo', [PatientController::class, 'uploadOralPhoto'])
-            ->middleware('permission:'.User::PERMISSION_PATIENTS_MANAGE);
+            ->middleware(['permission:'.User::PERMISSION_PATIENTS_MANAGE, MEDIA_UPLOAD_THROTTLE]);
         Route::delete('patients/{id}/oral-photo', [PatientController::class, 'deleteOralPhoto'])
             ->middleware('permission:'.User::PERMISSION_PATIENTS_MANAGE);
         Route::get('patients/{id}/oral-photos/{viewType}', [PatientController::class, 'downloadOralPhoto'])
@@ -236,11 +238,11 @@ Route::prefix('v1')->group(function (): void {
         Route::get('patients/{id}/oral-photos/{viewType}/{photoId}', [PatientController::class, 'downloadOralPhotoItem'])
             ->middleware('permission:'.User::PERMISSION_PATIENTS_VIEW);
         Route::post('patients/{id}/oral-photos/{viewType}/direct-upload', [PatientController::class, 'prepareOralPhotoUpload'])
-            ->middleware('permission:'.User::PERMISSION_PATIENTS_MANAGE);
+            ->middleware(['permission:'.User::PERMISSION_PATIENTS_MANAGE, MEDIA_UPLOAD_THROTTLE]);
         Route::post('patients/{id}/oral-photos/{viewType}/direct-upload/{uploadId}/complete', [PatientController::class, 'finalizeOralPhotoUpload'])
-            ->middleware('permission:'.User::PERMISSION_PATIENTS_MANAGE);
+            ->middleware(['permission:'.User::PERMISSION_PATIENTS_MANAGE, MEDIA_UPLOAD_THROTTLE]);
         Route::post('patients/{id}/oral-photos/{viewType}', [PatientController::class, 'uploadOralPhoto'])
-            ->middleware('permission:'.User::PERMISSION_PATIENTS_MANAGE);
+            ->middleware(['permission:'.User::PERMISSION_PATIENTS_MANAGE, MEDIA_UPLOAD_THROTTLE]);
         Route::delete('patients/{id}/oral-photos/{viewType}', [PatientController::class, 'deleteOralPhoto'])
             ->middleware('permission:'.User::PERMISSION_PATIENTS_MANAGE);
         Route::delete('patients/{id}/oral-photos/{viewType}/{photoId}', [PatientController::class, 'deleteOralPhotoItem'])
@@ -265,11 +267,11 @@ Route::prefix('v1')->group(function (): void {
         Route::delete('patients/{id}/odontogram/{entryId}', [PatientOdontogramController::class, 'destroy'])
             ->middleware('permission:'.User::PERMISSION_PATIENTS_MANAGE);
         Route::post('patients/{id}/odontogram/{entryId}/images/direct-upload', [PatientOdontogramController::class, 'prepareImageUpload'])
-            ->middleware('permission:'.User::PERMISSION_PATIENTS_MANAGE);
+            ->middleware(['permission:'.User::PERMISSION_PATIENTS_MANAGE, MEDIA_UPLOAD_THROTTLE]);
         Route::post('patients/{id}/odontogram/{entryId}/images/direct-upload/{uploadId}/complete', [PatientOdontogramController::class, 'finalizeImageUpload'])
-            ->middleware('permission:'.User::PERMISSION_PATIENTS_MANAGE);
+            ->middleware(['permission:'.User::PERMISSION_PATIENTS_MANAGE, MEDIA_UPLOAD_THROTTLE]);
         Route::post('patients/{id}/odontogram/{entryId}/images', [PatientOdontogramController::class, 'uploadImage'])
-            ->middleware('permission:'.User::PERMISSION_PATIENTS_MANAGE);
+            ->middleware(['permission:'.User::PERMISSION_PATIENTS_MANAGE, MEDIA_UPLOAD_THROTTLE]);
         Route::get('patients/{id}/odontogram/{entryId}/images/{imageId}', [PatientOdontogramController::class, 'downloadImage'])
             ->middleware('permission:'.User::PERMISSION_PATIENTS_VIEW);
         Route::delete('patients/{id}/odontogram/{entryId}/images/{imageId}', [PatientOdontogramController::class, 'deleteImage'])
@@ -288,15 +290,15 @@ Route::prefix('v1')->group(function (): void {
         Route::delete('patients/{id}/treatments/{treatmentId}', [PatientTreatmentController::class, 'destroy'])
             ->middleware('permission:'.User::PERMISSION_PATIENTS_MANAGE);
         Route::post('patients/{id}/treatments/{treatmentId}/images/direct-upload', [PatientTreatmentController::class, 'prepareImageUpload'])
-            ->middleware('permission:'.User::PERMISSION_PATIENTS_MANAGE);
+            ->middleware(['permission:'.User::PERMISSION_PATIENTS_MANAGE, MEDIA_UPLOAD_THROTTLE]);
         Route::post('patients/{id}/treatments/{treatmentId}/images/direct-upload/{uploadId}/complete', [PatientTreatmentController::class, 'finalizeImageUpload'])
-            ->middleware('permission:'.User::PERMISSION_PATIENTS_MANAGE);
+            ->middleware(['permission:'.User::PERMISSION_PATIENTS_MANAGE, MEDIA_UPLOAD_THROTTLE]);
         Route::post('patients/{id}/treatments/{treatmentId}/images/direct-upload-batch', [PatientTreatmentController::class, 'prepareImageBatchUpload'])
-            ->middleware('permission:'.User::PERMISSION_PATIENTS_MANAGE);
+            ->middleware(['permission:'.User::PERMISSION_PATIENTS_MANAGE, MEDIA_UPLOAD_THROTTLE]);
         Route::post('patients/{id}/treatments/{treatmentId}/images/direct-upload-batch/complete', [PatientTreatmentController::class, 'finalizeImageBatchUpload'])
-            ->middleware('permission:'.User::PERMISSION_PATIENTS_MANAGE);
+            ->middleware(['permission:'.User::PERMISSION_PATIENTS_MANAGE, MEDIA_UPLOAD_THROTTLE]);
         Route::post('patients/{id}/treatments/{treatmentId}/images', [PatientTreatmentController::class, 'uploadImage'])
-            ->middleware('permission:'.User::PERMISSION_PATIENTS_MANAGE);
+            ->middleware(['permission:'.User::PERMISSION_PATIENTS_MANAGE, MEDIA_UPLOAD_THROTTLE]);
         Route::get('patients/{id}/treatments/{treatmentId}/images/{imageId}', [PatientTreatmentController::class, 'downloadImage'])
             ->middleware('permission:'.User::PERMISSION_PATIENTS_VIEW);
         Route::delete('patients/{id}/treatments/{treatmentId}/images/{imageId}', [PatientTreatmentController::class, 'deleteImage'])

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { NextRequest } from 'next/server';
-import { isAuthCookieName, isMockApiEnabled, isMockApiPath, normalizeApiRootUrl, proxy } from './proxy';
+import { isAuthCookieName, isCanonicalProductionHost, isMockApiEnabled, isMockApiPath, normalizeApiRootUrl, proxy } from './proxy';
 
 describe('proxy auth redirects', () => {
     afterEach(() => {
@@ -60,6 +60,14 @@ describe('proxy auth redirects', () => {
         expect(isMockApiPath('/dashboard')).toBe(false);
     });
 
+    it('recognizes the canonical production host with or without a port', () => {
+        expect(isCanonicalProductionHost('identa.uz')).toBe(true);
+        expect(isCanonicalProductionHost('www.identa.uz')).toBe(true);
+        expect(isCanonicalProductionHost('identa.uz:443')).toBe(true);
+        expect(isCanonicalProductionHost('preview-identa.vercel.app')).toBe(false);
+        expect(isCanonicalProductionHost(null)).toBe(false);
+    });
+
     it('enables the mock API outside production and honours the explicit opt-in', () => {
         vi.stubEnv('NODE_ENV', 'development');
         expect(isMockApiEnabled()).toBe(true);
@@ -85,6 +93,29 @@ describe('proxy auth redirects', () => {
         expect(response.status).toBe(404);
         // The gate must short-circuit before any backend round-trip.
         expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it('still blocks mock /api/v1 routes on the live host when the mock opt-in is misconfigured', async () => {
+        vi.stubEnv('NODE_ENV', 'production');
+        vi.stubEnv('NEXT_PUBLIC_ENABLE_MOCK_API', 'true');
+        const fetchMock = vi.spyOn(globalThis, 'fetch');
+
+        const response = await proxy(new NextRequest('https://identa.uz/api/v1/auth/login', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+        }));
+
+        expect(response.status).toBe(404);
+        expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it('allows explicit mock opt-in on non-live preview hosts', async () => {
+        vi.stubEnv('NODE_ENV', 'production');
+        vi.stubEnv('NEXT_PUBLIC_ENABLE_MOCK_API', 'true');
+
+        const response = await proxy(new NextRequest('https://preview-identa.vercel.app/api/v1/auth/me'));
+
+        expect(response.status).toBe(200);
     });
 
     it('leaves the real i18n route reachable in production', async () => {
