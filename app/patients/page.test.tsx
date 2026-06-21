@@ -1,5 +1,5 @@
 ﻿import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import PatientsPage from '@/app/patients/page';
@@ -220,6 +220,60 @@ describe('PatientsPage', () => {
         await user.click(viewDetailsButtons[0]);
 
         expect(pushMock).toHaveBeenCalledWith('/patients/patient-followup');
+    });
+
+    it('opens patient photo preview from the avatar without navigating away', async () => {
+        vi.mocked(listPatients).mockResolvedValue(buildPatientsResponse([
+            {
+                id: 'patient-photo',
+                patient_id: 'PT-4001AA',
+                full_name: 'Photo Preview Patient',
+                phone: '+10000000007',
+                created_at: '2026-02-01T10:00:00Z',
+                last_visit_at: null,
+                address: null,
+                date_of_birth: null,
+                gender: null,
+                medical_history: null,
+                allergies: null,
+                current_medications: null,
+                photo_url: 'https://media.example.test/patients/photo-original.webp',
+                photo_thumbnail_url: 'https://media.example.test/patients/photo-thumb.webp',
+                photo_preview_url: 'https://media.example.test/patients/photo-preview.webp',
+                photo_thumbnail_ready: true,
+                photo_preview_ready: true,
+                photo_scan_status: 'approved',
+            },
+            {
+                id: 'patient-without-photo',
+                patient_id: 'PT-4002BB',
+                full_name: 'No Photo Patient',
+                phone: '+10000000008',
+                created_at: '2026-02-02T10:00:00Z',
+                last_visit_at: null,
+                address: null,
+                date_of_birth: null,
+                gender: null,
+                medical_history: null,
+                allergies: null,
+                current_medications: null,
+            },
+        ]));
+
+        renderPage();
+        const user = userEvent.setup();
+
+        const photoTrigger = await screen.findByRole('button', {
+            name: 'Patient Photo: Photo Preview Patient',
+        });
+        expect(screen.queryByRole('button', { name: 'Patient Photo: No Photo Patient' })).not.toBeInTheDocument();
+
+        await user.click(photoTrigger);
+
+        expect(pushMock).not.toHaveBeenCalled();
+        const dialog = await screen.findByRole('dialog');
+        const previewImage = within(dialog).getByRole('img', { name: 'Photo Preview Patient' });
+        expect(previewImage).toHaveAttribute('src', 'https://media.example.test/patients/photo-preview.webp');
     });
 
     it('shows record authors when the display preference is enabled', async () => {

@@ -30,13 +30,13 @@ import { getCurrentUser, listPatientCategories, listPatients, restorePatient } f
 import { getApiErrorMessage } from '@/lib/api/client';
 import type { ApiPatient, ApiRecordActor } from '@/lib/api/types';
 import { cn, extractPrimaryPhone, formatDate, toLocalDateKey, truncateForUi } from '@/lib/utils';
-import { Plus, Search, Phone, Users, CalendarPlus, ArrowRight, Tags, FileText, FilterX, Download } from 'lucide-react';
+import { Plus, Search, Phone, Users, CalendarPlus, ArrowRight, Tags, FileText, FilterX, Download, Maximize2 } from 'lucide-react';
 import { buildPdfFilename, exportRowsToPdf } from '@/lib/export/pdf';
 import { EmptyState } from '@/components/ui/empty-state';
 import { useI18n } from '@/components/providers/i18n-provider';
 import { useDebouncedValue } from '@/lib/hooks/use-debounced-value';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { getProtectedMediaCrossOrigin, getProtectedMediaThumbnailUrl } from '@/lib/protected-media';
+import { getProtectedMediaCrossOrigin, getProtectedMediaPreviewUrl, getProtectedMediaThumbnailUrl } from '@/lib/protected-media';
 import { toast } from 'sonner';
 import { AppErrorState } from '@/components/error/app-error-state';
 import { AccessDeniedState } from '@/components/error/access-denied-state';
@@ -51,6 +51,10 @@ const ManageCategoriesDialog = dynamic(
     () => import('@/components/patients/manage-categories-dialog').then((module) => module.ManageCategoriesDialog),
     { ssr: false }
 );
+const PatientPhotoPreviewDialog = dynamic(
+    () => import('@/components/patients/patient-photo-preview-dialog').then((module) => module.PatientPhotoPreviewDialog),
+    { ssr: false }
+);
 
 const noopSubscribe = () => () => undefined;
 const PAGE_SIZE = 10;
@@ -61,6 +65,7 @@ interface PatientRow {
     id: string;
     fullName: string;
     photoThumbnailUrl?: string;
+    photoPreviewUrl?: string;
     phone: string;
     secondaryPhone?: string;
     dateOfBirth?: string;
@@ -81,11 +86,17 @@ function mapPatientRow(patient: ApiPatient): PatientRow {
         url: patient.photo_url,
         allowFullFallback: true,
     }) ?? undefined;
+    const photoPreviewUrl = getProtectedMediaPreviewUrl({
+        scanStatus: patient.photo_scan_status,
+        previewUrl: patient.photo_preview_url,
+        url: patient.photo_url,
+    }) ?? photoThumbnailUrl;
 
     return {
         id: patient.id,
         fullName: patient.full_name,
         photoThumbnailUrl,
+        photoPreviewUrl,
         phone: extractPrimaryPhone(patient.phone),
         secondaryPhone: patient.secondary_phone ?? undefined,
         dateOfBirth: patient.date_of_birth ?? undefined,
@@ -147,6 +158,7 @@ export default function PatientsPage() {
     });
     const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
     const [isManageCategoriesOpen, setIsManageCategoriesOpen] = useState(false);
+    const [patientPhotoPreview, setPatientPhotoPreview] = useState<PatientRow | null>(null);
     const [dismissedUrlDialog, setDismissedUrlDialog] = useState(false);
     const shouldOpenFromUrl =
         isClient && new URLSearchParams(urlSearch).get('action') === 'new' && !dismissedUrlDialog;
@@ -563,21 +575,38 @@ export default function PatientsPage() {
                                             <TableCell className="text-slate-500">
                                                 {rowNumber}
                                             </TableCell>
-                                            <TableCell>
+                                            <TableCell className="w-20">
                                                 {patient.photoThumbnailUrl ? (
-                                                    <Avatar className="h-9 w-9">
-                                                        <AvatarImage
-                                                            src={patient.photoThumbnailUrl}
-                                                            alt={patient.fullName}
-                                                            crossOrigin={getProtectedMediaCrossOrigin(patient.photoThumbnailUrl)}
-                                                        />
-                                                        <AvatarFallback className="bg-slate-100 text-slate-700 text-xs font-semibold">
-                                                            {getPatientInitials(patient.fullName)}
-                                                        </AvatarFallback>
-                                                    </Avatar>
+                                                    <button
+                                                        type="button"
+                                                        className="group/photo relative inline-flex h-12 w-12 items-center justify-center overflow-hidden rounded-xl border border-slate-200 bg-white p-0 shadow-xs transition hover:border-teal-200 hover:shadow-md hover:shadow-teal-100/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-200"
+                                                        aria-label={`${t('patients.form.photo')}: ${patient.fullName}`}
+                                                        onClick={(event) => {
+                                                            event.stopPropagation();
+                                                            setPatientPhotoPreview(patient);
+                                                        }}
+                                                        onKeyDown={(event) => {
+                                                            event.stopPropagation();
+                                                        }}
+                                                    >
+                                                        <Avatar className="h-full w-full rounded-xl">
+                                                            <AvatarImage
+                                                                src={patient.photoThumbnailUrl}
+                                                                alt={patient.fullName}
+                                                                crossOrigin={getProtectedMediaCrossOrigin(patient.photoThumbnailUrl)}
+                                                                className="rounded-xl"
+                                                            />
+                                                            <AvatarFallback className="rounded-xl bg-slate-100 text-xs font-semibold text-slate-700">
+                                                                {getPatientInitials(patient.fullName)}
+                                                            </AvatarFallback>
+                                                        </Avatar>
+                                                        <span className="pointer-events-none absolute inline-flex h-6 w-6 items-center justify-center rounded-full bg-slate-950/70 text-white opacity-0 shadow-sm backdrop-blur transition group-hover/photo:opacity-100 group-focus-visible/photo:opacity-100">
+                                                            <Maximize2 className="h-3.5 w-3.5" />
+                                                        </span>
+                                                    </button>
                                                 ) : (
-                                                    <Avatar className="h-9 w-9">
-                                                        <AvatarFallback className="bg-slate-100 text-slate-700 text-xs font-semibold">
+                                                    <Avatar className="h-12 w-12 rounded-xl border border-dashed border-slate-200 bg-slate-50">
+                                                        <AvatarFallback className="rounded-xl bg-slate-50 text-xs font-semibold text-slate-500">
                                                             {getPatientInitials(patient.fullName)}
                                                         </AvatarFallback>
                                                     </Avatar>
@@ -777,6 +806,20 @@ export default function PatientsPage() {
                 <ManageCategoriesDialog
                     open={isManageCategoriesOpen}
                     onOpenChange={setIsManageCategoriesOpen}
+                />
+            ) : null}
+
+            {patientPhotoPreview?.photoPreviewUrl ? (
+                <PatientPhotoPreviewDialog
+                    open
+                    onOpenChange={(open) => {
+                        if (!open) {
+                            setPatientPhotoPreview(null);
+                        }
+                    }}
+                    src={patientPhotoPreview.photoPreviewUrl}
+                    alt={patientPhotoPreview.fullName}
+                    title={patientPhotoPreview.fullName}
                 />
             ) : null}
         </div>
