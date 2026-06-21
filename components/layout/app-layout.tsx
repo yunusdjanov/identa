@@ -179,7 +179,7 @@ function AppLayoutBody({ children }: { children: React.ReactNode }) {
         ) {
             router.replace('/settings?forceReset=1');
         }
-    }, [currentUser, isUserError, isUserLoading, pathname, router, userError]);
+    }, [currentUser, isUserError, isUserLoading, logout, pathname, queryClient, router, userError]);
 
     useEffect(() => {
         if (!isMounted) {

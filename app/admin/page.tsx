@@ -121,6 +121,7 @@ interface SubscriptionDialogState {
 const ADMIN_DENTISTS_PER_PAGE = 10;
 const ADMIN_NAME_UI_LIMIT = 25;
 const ADMIN_EMAIL_UI_LIMIT = 30;
+const EMPTY_ADMIN_DENTISTS: readonly ApiAdminDentist[] = Object.freeze([]);
 const BILLING_SUBSCRIPTION_ACTIONS = new Set<AdminDentistSubscriptionAction>([
     'apply_monthly',
     'apply_yearly',
@@ -554,7 +555,7 @@ export default function AdminDashboardPage() {
         },
     });
 
-    const accounts = accountsQuery.data?.data ?? [];
+    const accounts = accountsQuery.data?.data ?? EMPTY_ADMIN_DENTISTS;
     const pagination = accountsQuery.data?.meta?.pagination;
     const summary = accountsQuery.data?.meta?.summary;
 

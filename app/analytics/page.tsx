@@ -94,7 +94,8 @@ export default function AnalyticsPage() {
     // skip a per-render refresh — it would invalidate every useMemo each
     // render, which is more expensive than a stale "now" for the seconds
     // it takes the user to interact.
-    const now = useMemo(() => new Date(), [range]);
+    const rangeAnchor = useMemo(() => ({ range, now: new Date() }), [range]);
+    const now = rangeAnchor.now;
     const bounds = useMemo(() => getRangeBounds(range, now), [range, now]);
     const previousBounds = useMemo(() => getPreviousRangeBounds(range, now), [range, now]);
     const analyticsDateFilter = useMemo(
@@ -134,7 +135,7 @@ export default function AnalyticsPage() {
     const patients = (patientsQuery.data?.data ?? EMPTY_PATIENTS) as readonly ApiPatient[];
     const appointments = appointmentsQuery.data ?? EMPTY_APPOINTMENTS;
 
-    const displayLocale = useMemo(() => getActiveDisplayLocale(), [locale]);
+    const displayLocale = getActiveDisplayLocale();
     const buckets = useMemo(
         () => buildChartBuckets(range, bounds, displayLocale),
         [range, bounds, displayLocale]
@@ -333,10 +334,10 @@ export default function AnalyticsPage() {
         locale,
         range,
         revenueByBucket,
-        revenueKpi.current,
-        debtKpi.current,
-        patientsKpi.current,
-        completionKpi.current,
+        revenueKpi,
+        debtKpi,
+        patientsKpi,
+        completionKpi,
     ]);
 
     if (currentUserQuery.isLoading) {

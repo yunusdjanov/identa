@@ -148,11 +148,12 @@ export default function AdminAnalyticsPage() {
 
     const dentists = dentistsQuery.data ?? EMPTY_DENTISTS;
     const plans = plansQuery.data ?? EMPTY_PLANS;
-    const displayLocale = useMemo(() => getActiveDisplayLocale(), [locale]);
+    const displayLocale = getActiveDisplayLocale();
     // `now` re-evaluates whenever the range changes so a long-lived tab
     // crossing midnight still anchors fresh windows. We deliberately skip
     // per-render refresh — it would invalidate every useMemo each render.
-    const now = useMemo(() => new Date(), [range]);
+    const rangeAnchor = useMemo(() => ({ range, now: new Date() }), [range]);
+    const now = rangeAnchor.now;
     const bounds = useMemo(() => getRangeBounds(range, now), [range, now]);
     const previousBounds = useMemo(() => getPreviousRangeBounds(range, now), [range, now]);
     const buckets = useMemo(
@@ -201,7 +202,7 @@ export default function AdminAnalyticsPage() {
             delta: computeDelta(currentAmount, previous),
             currency,
         };
-    }, [dentists, plans, activeKpi.current, activeKpi.previous]);
+    }, [dentists, plans, activeKpi]);
 
     // KPI #3 — Sign-ups in the selected range, with delta vs the prior
     // window of the same length. This is the cleanest range-based metric
@@ -245,7 +246,7 @@ export default function AdminAnalyticsPage() {
             previous,
             delta: previous > 0 ? computeDelta(current, previous) : null,
         };
-    }, [dentists, bounds, previousBounds]);
+    }, [dentists, bounds, previousBounds, now]);
 
     // (Plan-mix donut was removed — same data is already on /admin/plans
     // and Subscription Health is the more actionable donut for this page.)
