@@ -273,7 +273,7 @@ describe('PatientsPage', () => {
 
         expect(pushMock).not.toHaveBeenCalled();
         expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-        expect(photoTrigger).toHaveClass('h-14', 'w-14');
+        expect(photoTrigger).toHaveClass('h-16', 'w-16');
     });
 
     it('shows record authors when the display preference is enabled', async () => {

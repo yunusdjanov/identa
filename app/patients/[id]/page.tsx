@@ -610,7 +610,7 @@ export default function PatientDetailPage({
                     <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => router.push('/patients')}>
                         <ArrowLeft className="h-4 w-4" />
                     </Button>
-                    <Avatar className="h-10 w-10 shrink-0 border border-white shadow-sm shadow-slate-200">
+                    <Avatar className="h-12 w-12 shrink-0 border border-white shadow-sm shadow-slate-200">
                         {patientAvatarUrl ? (
                             <AvatarImage
                                 src={patientAvatarUrl}

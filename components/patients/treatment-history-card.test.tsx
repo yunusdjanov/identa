@@ -437,8 +437,8 @@ describe('TreatmentHistoryCard image controls', () => {
         await user.clear(screen.getByLabelText(/^Date/i));
         await user.type(screen.getByLabelText(/^Date/i), '2026-04-05');
         await user.type(screen.getByLabelText(/^Entry/i), 'Advance payment');
-        await user.clear(screen.getByLabelText(/^Debt/i));
-        await user.type(screen.getByLabelText(/^Debt/i), '0');
+        await user.clear(screen.getByLabelText(/^Work total/i));
+        await user.type(screen.getByLabelText(/^Work total/i), '0');
         await user.clear(screen.getByLabelText(/^Paid/i));
         await user.type(screen.getByLabelText(/^Paid/i), '60000');
 

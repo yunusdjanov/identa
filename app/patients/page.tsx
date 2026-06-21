@@ -562,12 +562,12 @@ export default function PatientsPage() {
                                             <TableCell className="text-slate-500">
                                                 {rowNumber}
                                             </TableCell>
-                                            <TableCell className="w-24">
+                                            <TableCell className="w-28">
                                                 {patient.photoThumbnailUrl ? (
                                                     <button
                                                         type="button"
                                                         disabled
-                                                        className="inline-flex h-14 w-14 cursor-default items-center justify-center overflow-hidden rounded-xl border border-slate-200 bg-white p-0 shadow-xs disabled:opacity-100"
+                                                        className="inline-flex h-16 w-16 cursor-default items-center justify-center overflow-hidden rounded-xl border border-slate-200 bg-white p-0 shadow-xs disabled:opacity-100"
                                                         aria-label={`${t('patients.form.photo')}: ${patient.fullName}`}
                                                     >
                                                         <Avatar className="h-full w-full rounded-xl">
@@ -583,7 +583,7 @@ export default function PatientsPage() {
                                                         </Avatar>
                                                     </button>
                                                 ) : (
-                                                    <Avatar className="h-14 w-14 rounded-xl border border-dashed border-slate-200 bg-slate-50">
+                                                    <Avatar className="h-16 w-16 rounded-xl border border-dashed border-slate-200 bg-slate-50">
                                                         <AvatarFallback className="rounded-xl bg-slate-50 text-xs font-semibold text-slate-500">
                                                             {getPatientInitials(patient.fullName)}
                                                         </AvatarFallback>

@@ -292,7 +292,7 @@ describe('PaymentsPage', () => {
             expect(screen.getByText('John Smith')).toBeInTheDocument();
         });
 
-        expect(screen.getByText('Total Debt')).toBeInTheDocument();
+        expect(screen.getAllByText('Work total').length).toBeGreaterThan(0);
         expect(screen.getByText('Total Paid')).toBeInTheDocument();
         expect(
             screen.getByText((_, element) => normalizeText(element?.textContent) === '170 000 UZS')
@@ -345,7 +345,7 @@ describe('PaymentsPage', () => {
         });
 
         expect(screen.getByText('Advance')).toBeInTheDocument();
-        const netBalanceCard = screen.getByText('Paid amount exceeds debt.').closest('.interactive-card') as HTMLElement;
+        const netBalanceCard = screen.getByText('Paid amount exceeds work total.').closest('.interactive-card') as HTMLElement;
         expect(netBalanceCard).not.toBeNull();
         expect(within(netBalanceCard).getByText('Advance')).toBeInTheDocument();
         expect(
