@@ -184,17 +184,17 @@ export function PatientPhotoPreviewDialog({
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent
                 showCloseButton={false}
-                className="grid h-[min(88dvh,720px)] max-h-[calc(100dvh-1.5rem)] w-[min(94vw,920px)] max-w-[calc(100vw-1rem)] grid-rows-[auto_minmax(0,1fr)] gap-0 overflow-hidden rounded-2xl border border-slate-200/90 bg-white p-0 text-slate-900 shadow-2xl shadow-slate-900/15 sm:max-w-[920px]"
+                className="!fixed !inset-0 !left-0 !top-0 grid !h-[100dvh] !max-h-none !w-screen !max-w-none !translate-x-0 !translate-y-0 grid-rows-[auto_minmax(0,1fr)_auto] gap-0 overflow-hidden !rounded-none !border-0 bg-slate-950 p-0 text-white !shadow-none sm:!max-w-none"
             >
-                <div className="flex min-w-0 items-center gap-3 border-b border-slate-100 bg-white px-5 py-4">
-                    <DialogTitle className="min-w-0 flex-1 truncate text-lg font-semibold tracking-tight text-slate-900">
+                <div className="z-20 flex min-w-0 items-center gap-2 border-b border-white/10 bg-slate-950/90 px-3 py-3 backdrop-blur sm:px-5">
+                    <DialogTitle className="min-w-0 flex-1 truncate text-sm font-semibold tracking-normal text-white sm:text-base">
                         {activeImage?.title ?? title}
                     </DialogTitle>
                     {activeImage ? (
                         <button
                             type="button"
                             onClick={handleDownload}
-                            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-slate-200/90 bg-white text-slate-500 shadow-xs transition hover:-translate-y-0.5 hover:border-teal-100 hover:bg-teal-50 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-100"
+                            className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/10 text-white/80 shadow-sm backdrop-blur transition hover:bg-white/15 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-300"
                             aria-label={t('gallery.download')}
                         >
                             <Download className="h-4 w-4" />
@@ -205,7 +205,7 @@ export function PatientPhotoPreviewDialog({
                             type="button"
                             onClick={() => onDeleteImage(activeImage)}
                             disabled={isDeletePending}
-                            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-red-100 bg-white text-red-500 shadow-xs transition hover:-translate-y-0.5 hover:bg-red-50 hover:text-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-100 disabled:cursor-not-allowed disabled:opacity-60"
+                            className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-red-300/20 bg-red-500/10 text-red-200 shadow-sm backdrop-blur transition hover:bg-red-500/20 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300 disabled:cursor-not-allowed disabled:opacity-60"
                             aria-label={t('common.delete')}
                         >
                             {isDeletePending ? (
@@ -215,7 +215,7 @@ export function PatientPhotoPreviewDialog({
                             )}
                         </button>
                     ) : null}
-                    <DialogClose className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-slate-200/90 bg-white text-slate-500 shadow-xs transition hover:-translate-y-0.5 hover:border-teal-100 hover:bg-teal-50 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-100">
+                    <DialogClose className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/10 text-white/80 shadow-sm backdrop-blur transition hover:bg-white/15 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-300">
                         <X className="h-4 w-4" />
                         <span className="sr-only">{t('common.close')}</span>
                     </DialogClose>
@@ -224,9 +224,9 @@ export function PatientPhotoPreviewDialog({
                     {title}
                 </DialogDescription>
                 {activeImage ? (
-                    <div className="flex min-h-0 flex-col gap-3 px-5 py-4">
+                    <>
                         <div
-                            className="relative flex min-h-0 min-w-0 flex-1 touch-pan-y items-center justify-center overflow-hidden rounded-2xl border border-slate-100 bg-slate-50/80 p-3 sm:p-4"
+                            className="relative flex min-h-0 min-w-0 touch-pan-y select-none items-center justify-center overflow-hidden bg-slate-950 px-3 py-3 sm:px-16 sm:py-6"
                             onTouchStart={canNavigate ? handleTouchStart : undefined}
                             onTouchEnd={canNavigate ? handleTouchEnd : undefined}
                         >
@@ -236,7 +236,7 @@ export function PatientPhotoPreviewDialog({
                                 src={activeImage.src}
                                 alt={activeImage.alt}
                                 crossOrigin={getProtectedMediaCrossOrigin(activeImage.src)}
-                                className="h-auto max-h-full w-auto max-w-full rounded-lg object-contain shadow-sm motion-safe:animate-in motion-safe:fade-in-0 motion-safe:duration-200"
+                                className="h-auto max-h-full w-auto max-w-full rounded-md object-contain shadow-2xl shadow-black/40 motion-safe:animate-in motion-safe:fade-in-0 motion-safe:duration-200"
                                 decoding="async"
                                 fetchPriority="high"
                             />
@@ -244,30 +244,30 @@ export function PatientPhotoPreviewDialog({
                                 <>
                                     <button
                                         type="button"
-                                        className="absolute left-3 top-1/2 z-10 inline-flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:scale-105 hover:bg-white hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-200"
+                                        className="absolute left-3 top-1/2 z-10 inline-flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-white/10 bg-white/10 text-white/80 shadow-lg backdrop-blur transition hover:bg-white/15 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-300 sm:left-5"
                                         onClick={goToPrevious}
                                         aria-label={t('gallery.previous')}
                                     >
-                                        <ChevronLeft className="h-5 w-5" />
+                                        <ChevronLeft className="h-6 w-6" />
                                     </button>
                                     <button
                                         type="button"
-                                        className="absolute right-3 top-1/2 z-10 inline-flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:scale-105 hover:bg-white hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-200"
+                                        className="absolute right-3 top-1/2 z-10 inline-flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-white/10 bg-white/10 text-white/80 shadow-lg backdrop-blur transition hover:bg-white/15 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-300 sm:right-5"
                                         onClick={goToNext}
                                         aria-label={t('gallery.next')}
                                     >
-                                        <ChevronRight className="h-5 w-5" />
+                                        <ChevronRight className="h-6 w-6" />
                                     </button>
-                                    <span className="pointer-events-none absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full bg-slate-900/70 px-2.5 py-1 text-[11px] font-semibold tabular-nums text-white backdrop-blur">
+                                    <span className="pointer-events-none absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full bg-black/55 px-3 py-1 text-xs font-semibold tabular-nums text-white backdrop-blur">
                                         {currentIndex + 1} / {resolvedImages.length}
                                     </span>
                                 </>
                             ) : null}
                         </div>
                         {canNavigate ? (
-                            <div className="flex max-w-full shrink-0 justify-center overflow-hidden">
+                            <div className="z-20 flex max-w-full shrink-0 justify-center overflow-hidden border-t border-white/10 bg-slate-950/90 px-3 py-3 backdrop-blur">
                                 <div
-                                    className="flex w-fit max-w-full items-center justify-start gap-2 overflow-x-auto px-1 pb-1"
+                                    className="flex w-fit max-w-full items-center justify-start gap-2 overflow-x-auto px-1 py-1"
                                     aria-label={t('gallery.thumbnails')}
                                 >
                                     {resolvedImages.map((image, index) => {
@@ -278,10 +278,10 @@ export function PatientPhotoPreviewDialog({
                                             key={`${image.src}-${index}`}
                                             type="button"
                                             aria-current={index === currentIndex}
-                                            className={`inline-flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl border bg-white shadow-xs transition-all ${
+                                            className={`inline-flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl border bg-white/5 shadow-sm transition-all ${
                                                 index === currentIndex
-                                                    ? 'border-teal-300 ring-2 ring-teal-200'
-                                                    : 'border-slate-200 opacity-65 hover:opacity-100 hover:border-slate-300'
+                                                    ? 'border-teal-300 opacity-100 ring-2 ring-teal-300'
+                                                    : 'border-white/15 opacity-55 hover:border-white/40 hover:opacity-100'
                                             }`}
                                             onClick={() => updateCurrentIndex(index)}
                                             title={image.title ?? `${title} ${index + 1}`}
@@ -297,7 +297,7 @@ export function PatientPhotoPreviewDialog({
                                                     decoding="async"
                                                 />
                                             ) : (
-                                                <span className="inline-flex h-full w-full items-center justify-center bg-slate-50 text-slate-400">
+                                                <span className="inline-flex h-full w-full items-center justify-center bg-white/5 text-white/50">
                                                     <Loader2 className="h-3.5 w-3.5 animate-spin opacity-60" />
                                                 </span>
                                             )}
@@ -307,7 +307,7 @@ export function PatientPhotoPreviewDialog({
                                 </div>
                             </div>
                         ) : null}
-                    </div>
+                    </>
                 ) : null}
             </DialogContent>
         </Dialog>

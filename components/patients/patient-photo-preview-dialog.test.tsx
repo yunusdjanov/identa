@@ -43,12 +43,14 @@ describe('PatientPhotoPreviewDialog', () => {
             { wrapper }
         );
 
-        expect(screen.getByRole('dialog').className).toContain('h-[min(88dvh,720px)]');
+        expect(screen.getByRole('dialog').className).toContain('!h-[100dvh]');
+        expect(screen.getByRole('dialog').className).toContain('bg-slate-950');
         expect(screen.getByRole('heading', { name: 'Image 1' })).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Close' })).toBeInTheDocument();
         expect(screen.getByText('1 / 10')).toBeInTheDocument();
         expect(screen.getByLabelText('Image thumbnails').className).toContain('w-fit');
         expect(screen.getByLabelText('Image thumbnails').className).toContain('overflow-x-auto');
+        expect(screen.getByLabelText('Image thumbnails').parentElement?.className).toContain('border-white/10');
         expect(document.querySelector('img[src="https://example.com/image-1.jpg"]')).toBeInTheDocument();
         expect(document.querySelector('img[src="https://example.com/image-1-thumb.jpg"]')).toBeInTheDocument();
 
