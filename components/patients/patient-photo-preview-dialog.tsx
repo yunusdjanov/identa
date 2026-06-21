@@ -10,7 +10,7 @@ import {
 } from '@/components/ui/dialog';
 import { getProtectedMediaCrossOrigin } from '@/lib/protected-media';
 import { useI18n } from '@/components/providers/i18n-provider';
-import { ChevronLeft, ChevronRight, Download, Loader2, Trash2, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Download, Loader2, Trash2, X, ZoomIn, ZoomOut } from 'lucide-react';
 
 export interface PreviewGalleryImage {
     id?: string;
@@ -43,6 +43,14 @@ interface PatientPhotoPreviewDialogProps {
     startIndex?: number;
     onDeleteImage?: (image: PreviewGalleryImage) => void;
     isDeletePending?: boolean;
+}
+
+const MIN_ZOOM_SCALE = 1;
+const MAX_ZOOM_SCALE = 3;
+const ZOOM_STEP = 0.25;
+
+function clampZoomScale(scale: number): number {
+    return Math.min(MAX_ZOOM_SCALE, Math.max(MIN_ZOOM_SCALE, Number(scale.toFixed(2))));
 }
 
 export function PatientPhotoPreviewDialog({
@@ -80,6 +88,13 @@ export function PatientPhotoPreviewDialog({
         : clampedStartIndex;
     const activeImage = resolvedImages[currentIndex];
     const canNavigate = resolvedImages.length > 1;
+    const [zoomState, setZoomState] = useState({ signature: '', imageSrc: '', scale: MIN_ZOOM_SCALE });
+    const activeImageSrc = activeImage?.src ?? '';
+    const zoomScale = zoomState.signature === gallerySignature && zoomState.imageSrc === activeImageSrc
+        ? zoomState.scale
+        : MIN_ZOOM_SCALE;
+    const canZoomOut = zoomScale > MIN_ZOOM_SCALE;
+    const canZoomIn = zoomScale < MAX_ZOOM_SCALE;
 
     const updateCurrentIndex = (getNextIndex: number | ((currentIndex: number) => number)) => {
         if (resolvedImages.length === 0) {
@@ -93,6 +108,22 @@ export function PatientPhotoPreviewDialog({
         setSelectedImage({
             signature: gallerySignature,
             index: Math.min(Math.max(nextIndex, 0), resolvedImages.length - 1),
+        });
+    };
+
+    const updateZoomScale = (getNextScale: number | ((currentScale: number) => number)) => {
+        if (!activeImageSrc) {
+            return;
+        }
+
+        const nextScale = typeof getNextScale === 'function'
+            ? getNextScale(zoomScale)
+            : getNextScale;
+
+        setZoomState({
+            signature: gallerySignature,
+            imageSrc: activeImageSrc,
+            scale: clampZoomScale(nextScale),
         });
     };
 
@@ -191,6 +222,35 @@ export function PatientPhotoPreviewDialog({
                         {activeImage?.title ?? title}
                     </DialogTitle>
                     {activeImage ? (
+                        <div className="inline-flex h-10 shrink-0 items-center overflow-hidden rounded-full border border-white/10 bg-white/10 text-white/80 shadow-sm backdrop-blur">
+                            <button
+                                type="button"
+                                onClick={() => updateZoomScale((scale) => scale - ZOOM_STEP)}
+                                disabled={!canZoomOut}
+                                className="inline-flex h-10 w-10 items-center justify-center transition hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-teal-300 disabled:cursor-not-allowed disabled:opacity-35"
+                                aria-label={t('gallery.zoomOut')}
+                            >
+                                <ZoomOut className="h-4 w-4" />
+                            </button>
+                            <span
+                                className="min-w-12 px-1 text-center text-xs font-semibold tabular-nums text-white/85"
+                                aria-label={t('gallery.zoomLevel')}
+                                aria-live="polite"
+                            >
+                                {Math.round(zoomScale * 100)}%
+                            </span>
+                            <button
+                                type="button"
+                                onClick={() => updateZoomScale((scale) => scale + ZOOM_STEP)}
+                                disabled={!canZoomIn}
+                                className="inline-flex h-10 w-10 items-center justify-center transition hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-teal-300 disabled:cursor-not-allowed disabled:opacity-35"
+                                aria-label={t('gallery.zoomIn')}
+                            >
+                                <ZoomIn className="h-4 w-4" />
+                            </button>
+                        </div>
+                    ) : null}
+                    {activeImage ? (
                         <button
                             type="button"
                             onClick={handleDownload}
@@ -236,7 +296,8 @@ export function PatientPhotoPreviewDialog({
                                 src={activeImage.src}
                                 alt={activeImage.alt}
                                 crossOrigin={getProtectedMediaCrossOrigin(activeImage.src)}
-                                className="h-auto max-h-full w-auto max-w-full rounded-md object-contain shadow-2xl shadow-black/40 motion-safe:animate-in motion-safe:fade-in-0 motion-safe:duration-200"
+                                className="h-auto max-h-full w-auto max-w-full rounded-md object-contain shadow-2xl shadow-black/40 transition-transform duration-150 motion-safe:animate-in motion-safe:fade-in-0 motion-safe:duration-200"
+                                style={{ transform: `scale(${zoomScale})`, transformOrigin: 'center center' }}
                                 decoding="async"
                                 fetchPriority="high"
                             />

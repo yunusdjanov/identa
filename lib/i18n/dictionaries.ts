@@ -4713,6 +4713,9 @@ Object.assign(ru, {
     'gallery.previous': 'Предыдущее изображение',
     'gallery.next': 'Следующее изображение',
     'gallery.thumbnails': 'Миниатюры изображений',
+    'gallery.zoomIn': 'Увеличить',
+    'gallery.zoomOut': 'Уменьшить',
+    'gallery.zoomLevel': 'Масштаб',
     'billing.loadFailed': 'Не удалось загрузить данные тарифа и оплат.',
 });
 
@@ -4721,6 +4724,9 @@ Object.assign(uz, {
     'gallery.previous': 'Oldingi rasm',
     'gallery.next': 'Keyingi rasm',
     'gallery.thumbnails': 'Rasm eskizlari',
+    'gallery.zoomIn': 'Kattalashtirish',
+    'gallery.zoomOut': 'Kichraytirish',
+    'gallery.zoomLevel': 'Masshtab',
     'billing.loadFailed': 'Tarif va toʻlov maʼlumotlarini yuklab boʻlmadi.',
 });
 
@@ -4729,6 +4735,9 @@ Object.assign(en, {
     'gallery.previous': 'Previous image',
     'gallery.next': 'Next image',
     'gallery.thumbnails': 'Image thumbnails',
+    'gallery.zoomIn': 'Zoom in',
+    'gallery.zoomOut': 'Zoom out',
+    'gallery.zoomLevel': 'Zoom level',
     'billing.loadFailed': 'Failed to load billing data.',
 });
 

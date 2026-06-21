@@ -47,6 +47,9 @@ describe('PatientPhotoPreviewDialog', () => {
         expect(screen.getByRole('dialog').className).toContain('bg-slate-950');
         expect(screen.getByRole('heading', { name: 'Image 1' })).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Close' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Zoom out' })).toBeDisabled();
+        expect(screen.getByRole('button', { name: 'Zoom in' })).toBeEnabled();
+        expect(screen.getByText('100%')).toBeInTheDocument();
         expect(screen.getByText('1 / 10')).toBeInTheDocument();
         expect(screen.getByLabelText('Image thumbnails').className).toContain('w-fit');
         expect(screen.getByLabelText('Image thumbnails').className).toContain('overflow-x-auto');
@@ -60,6 +63,39 @@ describe('PatientPhotoPreviewDialog', () => {
 
         await user.click(screen.getByRole('button', { name: /previous image/i }));
         expect(screen.getByRole('heading', { name: 'Image 1' })).toBeInTheDocument();
+    });
+
+    it('zooms the active image and resets zoom when navigating', async () => {
+        const user = userEvent.setup();
+        const images = buildImages(2);
+
+        render(
+            <PatientPhotoPreviewDialog
+                open={true}
+                onOpenChange={() => {}}
+                alt="Image"
+                title="Gallery"
+                images={images}
+                startIndex={0}
+            />,
+            { wrapper }
+        );
+
+        const activeImage = document.querySelector('img[src="https://example.com/image-1.jpg"]');
+        expect(activeImage).toHaveStyle({ transform: 'scale(1)' });
+
+        await user.click(screen.getByRole('button', { name: 'Zoom in' }));
+
+        expect(screen.getByText('125%')).toBeInTheDocument();
+        expect(activeImage).toHaveStyle({ transform: 'scale(1.25)' });
+        expect(screen.getByRole('button', { name: 'Zoom out' })).toBeEnabled();
+
+        await user.click(screen.getByRole('button', { name: /next image/i }));
+
+        expect(screen.getByRole('heading', { name: 'Image 2' })).toBeInTheDocument();
+        expect(screen.getByText('100%')).toBeInTheDocument();
+        expect(document.querySelector('img[src="https://example.com/image-2.jpg"]'))
+            .toHaveStyle({ transform: 'scale(1)' });
     });
 
     it('jumps to selected thumbnail', async () => {
