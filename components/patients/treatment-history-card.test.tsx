@@ -168,6 +168,7 @@ describe('TreatmentHistoryCard image controls', () => {
 
         await user.click(screen.getByRole('button', { name: 'Image 2' }));
         expect(screen.getByRole('heading', { name: 'Image 2 - Apr 5, 2026' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Edit' })).toBeInTheDocument();
         expect(document.querySelector('img[src="https://example.com/tooth-2-preview.jpg"]')).toBeInTheDocument();
         expect(screen.getByText('2 / 2')).toBeInTheDocument();
         await user.click(screen.getByRole('button', { name: 'Close' }));

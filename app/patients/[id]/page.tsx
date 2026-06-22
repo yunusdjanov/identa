@@ -601,6 +601,28 @@ export default function PatientDetailPage({
             setOralPhotoInputKey((value) => value + 1);
         }
     };
+    const saveEditedOralPhoto = async (editedPhoto: File) => {
+        const viewType = oralPhotoPreviewTarget?.viewType;
+        if (!viewType || isPatientArchived || !canManagePatients) {
+            return;
+        }
+
+        const uploadSlot = oralPhotoSlots.find((slot) => slot.viewType === viewType);
+        if ((uploadSlot?.photos.length ?? 0) >= ORAL_PHOTO_MAX_PER_SLOT) {
+            throw new Error(t('patientDetail.oralPhoto.limitReached'));
+        }
+
+        const optimizedPhoto = await optimizeImageFileForUpload(editedPhoto, {
+            maxEdge: ORAL_PHOTO_UPLOAD_MAX_EDGE,
+            targetMaxBytes: oralPhotoUploadMaxBytes,
+        });
+
+        if (optimizedPhoto.size > oralPhotoUploadMaxBytes) {
+            throw new Error(t('patients.toast.photoTooLarge', { sizeMb: oralPhotoUploadMaxMb }));
+        }
+
+        await uploadOralPhotoMutation.mutateAsync({ photo: optimizedPhoto, viewType });
+    };
 
     return (
         <div className="space-y-4">
@@ -1215,7 +1237,11 @@ export default function PatientDetailPage({
                             });
                         }
                     }}
+                    onSaveEditedImage={canManagePatients && !isPatientArchived ? async (_image, file) => {
+                        await saveEditedOralPhoto(file);
+                    } : undefined}
                     isDeletePending={deleteOralPhotoMutation.isPending}
+                    isEditPending={uploadOralPhotoMutation.isPending}
                 />
             ) : null}
 

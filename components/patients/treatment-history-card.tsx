@@ -226,6 +226,7 @@ function buildPreviewGalleryImages(
     treatmentDate: string
 ) {
     return images.map((image, index) => ({
+        id: image.id,
         src: getTreatmentImagePreviewUrl(image) ?? '',
         thumbnailSrc: getTreatmentImageThumbnailUrl(image) ?? undefined,
         alt: `${patientName} ${imageLabel} ${index + 1}`,
@@ -370,6 +371,8 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
         images: PreviewGalleryImage[];
         startIndex: number;
         fallbackTitle: string;
+        treatmentId: string;
+        treatmentDate: string;
     } | null>(null);
     const [mediaSyncingTreatmentIds, setMediaSyncingTreatmentIds] = useState<string[]>([]);
     const [formState, setFormState] = useState<TreatmentFormState>(createEmptyFormState);
@@ -724,6 +727,81 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                 ? 'disabled-readonly'
                 : 'hidden';
 
+    const saveEditedTreatmentImageMutation = useMutation({
+        mutationFn: async ({
+            treatmentId,
+            file,
+            currentImageCount,
+        }: {
+            treatmentId: string;
+            file: File;
+            currentImageCount: number;
+        }) => {
+            if (!canManageHistory) {
+                throw new Error(manageDeniedMessage);
+            }
+
+            if (currentImageCount >= maxHistoryImagesPerEntry) {
+                throw new Error(t('patientHistory.validation.maxImages', { max: maxHistoryImagesPerEntry }));
+            }
+
+            const [optimizedFile] = await optimizeImageFilesForUpload([file], {
+                concurrency: 1,
+                targetMaxBytes: maxHistoryUploadBytes,
+            });
+
+            if (!optimizedFile || optimizedFile.size > maxHistoryUploadBytes) {
+                throw new Error(t('patientHistory.validation.imageSize', { sizeMb: maxHistoryUploadMb }));
+            }
+
+            const failedUploadCount = await uploadPatientTreatmentImages(patientId, treatmentId, [optimizedFile]);
+            if (failedUploadCount > 0) {
+                throw new Error(t('patientHistory.toast.imagesSyncFailed'));
+            }
+
+            return waitForTreatmentMediaReady(treatmentId, currentImageCount + 1);
+        },
+        onMutate: ({ treatmentId }) => {
+            setMediaSyncingTreatmentIds((current) => (
+                current.includes(treatmentId) ? current : [...current, treatmentId]
+            ));
+        },
+        onSuccess: (updatedTreatment) => {
+            mergeTreatmentIntoCaches(updatedTreatment);
+
+            const images = getPreviewableTreatmentImages(updatedTreatment);
+            setPreviewGallery((current) => {
+                if (!current || current.treatmentId !== updatedTreatment.id || images.length === 0) {
+                    return current;
+                }
+
+                const treatmentDate = updatedTreatment.treatment_date ?? current.treatmentDate;
+
+                return {
+                    ...current,
+                    images: buildPreviewGalleryImages(
+                        images,
+                        patientName,
+                        t('patientHistory.image'),
+                        treatmentDate
+                    ),
+                    startIndex: Math.max(images.length - 1, 0),
+                    treatmentDate,
+                };
+            });
+            toast.success(t('patientHistory.toast.imageEdited'));
+            invalidateHistory();
+        },
+        onError: (error) => {
+            toast.error(getApiErrorMessage(error, t('patientHistory.toast.imagesSyncFailed')));
+        },
+        onSettled: (_data, _error, variables) => {
+            setMediaSyncingTreatmentIds((current) => (
+                current.filter((id) => id !== variables?.treatmentId)
+            ));
+        },
+    });
+
     const handleSubmit = () => {
         setSubmitAttempted(true);
         if (!canManageHistory) {
@@ -890,6 +968,8 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                 ),
                 startIndex: Math.min(startIndex, images.length - 1),
                 fallbackTitle: patientName,
+                treatmentId: galleryTreatment.id,
+                treatmentDate: galleryTreatment.treatment_date ?? fallbackDate,
             });
         };
 
@@ -1726,6 +1806,7 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
 
                                                             setPreviewGallery({
                                                                 images: previewableImages.map((existingImage, imageIndex) => ({
+                                                                    id: existingImage.id,
                                                                     src: getTreatmentImagePreviewUrl(existingImage) ?? '',
                                                                     thumbnailSrc: getTreatmentImageThumbnailUrl(existingImage) ?? undefined,
                                                                     alt: `${patientName} ${t('patientHistory.image')} ${imageIndex + 1}`,
@@ -1733,6 +1814,8 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                                                 })),
                                                                 startIndex: Math.min(index, Math.max(previewableImages.length - 1, 0)),
                                                                 fallbackTitle: patientName,
+                                                                treatmentId: editingTreatment.id,
+                                                                treatmentDate: formState.treatmentDate,
                                                             });
                                                         }
                                                     }
@@ -1753,12 +1836,15 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                         onPreview={() => {
                                             setPreviewGallery({
                                                 images: selectedImagePreviews.map((item, imageIndex) => ({
+                                                    id: item.id,
                                                     src: item.url,
                                                     alt: `${t('patientHistory.image')} ${imageIndex + 1}`,
                                                     title: `${t('patientHistory.image')} ${imageIndex + 1}`,
                                                 })),
                                                 startIndex: index,
                                                 fallbackTitle: patientName,
+                                                treatmentId: '',
+                                                treatmentDate: formState.treatmentDate,
                                             });
                                         }}
                                         onToggleRemove={() => removeSelectedImage(index)}
@@ -1815,6 +1901,14 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                     src={previewGallery.images[0]?.src ?? null}
                     alt={previewGallery.images[0]?.alt ?? ''}
                     title={previewGallery.images[0]?.title ?? previewGallery.fallbackTitle ?? patientName}
+                    onSaveEditedImage={historyManageDisplayMode === 'enabled' && previewGallery.treatmentId ? async (_image, file) => {
+                        await saveEditedTreatmentImageMutation.mutateAsync({
+                            treatmentId: previewGallery.treatmentId,
+                            file,
+                            currentImageCount: previewGallery.images.length,
+                        });
+                    } : undefined}
+                    isEditPending={saveEditedTreatmentImageMutation.isPending}
                 />
             ) : null}
         </>

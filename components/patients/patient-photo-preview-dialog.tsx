@@ -8,9 +8,10 @@ import {
     DialogDescription,
     DialogTitle,
 } from '@/components/ui/dialog';
+import { GalleryImageEditor } from '@/components/patients/gallery-image-editor';
 import { getProtectedMediaCrossOrigin } from '@/lib/protected-media';
 import { useI18n } from '@/components/providers/i18n-provider';
-import { ChevronLeft, ChevronRight, Download, Loader2, Trash2, X, ZoomIn, ZoomOut } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Download, Loader2, Pencil, Trash2, X, ZoomIn, ZoomOut } from 'lucide-react';
 
 export interface PreviewGalleryImage {
     id?: string;
@@ -42,7 +43,9 @@ interface PatientPhotoPreviewDialogProps {
     images?: PreviewGalleryImage[];
     startIndex?: number;
     onDeleteImage?: (image: PreviewGalleryImage) => void;
+    onSaveEditedImage?: (image: PreviewGalleryImage, file: File) => Promise<void> | void;
     isDeletePending?: boolean;
+    isEditPending?: boolean;
 }
 
 const MIN_ZOOM_SCALE = 1;
@@ -62,7 +65,9 @@ export function PatientPhotoPreviewDialog({
     images,
     startIndex = 0,
     onDeleteImage,
+    onSaveEditedImage,
     isDeletePending = false,
+    isEditPending = false,
 }: PatientPhotoPreviewDialogProps) {
     const { t } = useI18n();
     const resolvedImages = useMemo<PreviewGalleryImage[]>(() => {
@@ -88,6 +93,7 @@ export function PatientPhotoPreviewDialog({
         : clampedStartIndex;
     const activeImage = resolvedImages[currentIndex];
     const canNavigate = resolvedImages.length > 1;
+    const [isEditing, setIsEditing] = useState(false);
     const [zoomState, setZoomState] = useState({ signature: '', imageSrc: '', scale: MIN_ZOOM_SCALE });
     const activeImageSrc = activeImage?.src ?? '';
     const zoomScale = zoomState.signature === gallerySignature && zoomState.imageSrc === activeImageSrc
@@ -95,6 +101,16 @@ export function PatientPhotoPreviewDialog({
         : MIN_ZOOM_SCALE;
     const canZoomOut = zoomScale > MIN_ZOOM_SCALE;
     const canZoomIn = zoomScale < MAX_ZOOM_SCALE;
+
+    useEffect(() => {
+        if (!open) {
+            setIsEditing(false);
+        }
+    }, [open]);
+
+    useEffect(() => {
+        setIsEditing(false);
+    }, [activeImageSrc]);
 
     const updateCurrentIndex = (getNextIndex: number | ((currentIndex: number) => number)) => {
         if (resolvedImages.length === 0) {
@@ -143,7 +159,7 @@ export function PatientPhotoPreviewDialog({
 
     // Arrow-key navigation, like any standard image viewer (Esc is handled by the Dialog).
     useEffect(() => {
-        if (!open || !canNavigate) {
+        if (!open || !canNavigate || isEditing) {
             return;
         }
 
@@ -160,7 +176,16 @@ export function PatientPhotoPreviewDialog({
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [open, canNavigate, currentIndex, gallerySignature]);
+    }, [open, canNavigate, currentIndex, gallerySignature, isEditing]);
+
+    const handleSaveEditedImage = async (file: File) => {
+        if (!activeImage || !onSaveEditedImage) {
+            return;
+        }
+
+        await onSaveEditedImage(activeImage, file);
+        setIsEditing(false);
+    };
 
     const handleDownload = async () => {
         if (!activeImage) {
@@ -250,6 +275,21 @@ export function PatientPhotoPreviewDialog({
                             </button>
                         </div>
                     ) : null}
+                    {activeImage && onSaveEditedImage ? (
+                        <button
+                            type="button"
+                            onClick={() => setIsEditing((value) => !value)}
+                            disabled={isDeletePending || isEditPending}
+                            className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/10 text-white/80 shadow-sm backdrop-blur transition hover:bg-white/15 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-300 disabled:cursor-not-allowed disabled:opacity-60"
+                            aria-label={t('common.edit')}
+                        >
+                            {isEditPending ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                                <Pencil className="h-4 w-4" />
+                            )}
+                        </button>
+                    ) : null}
                     {activeImage ? (
                         <button
                             type="button"
@@ -284,6 +324,14 @@ export function PatientPhotoPreviewDialog({
                     {title}
                 </DialogDescription>
                 {activeImage ? (
+                    isEditing && onSaveEditedImage ? (
+                        <GalleryImageEditor
+                            image={activeImage}
+                            isSaving={isEditPending}
+                            onCancel={() => setIsEditing(false)}
+                            onSave={handleSaveEditedImage}
+                        />
+                    ) : (
                     <>
                         <div
                             className="relative flex min-h-0 min-w-0 touch-pan-y select-none items-center justify-center overflow-hidden bg-slate-950 px-3 py-3 sm:px-16 sm:py-6"
@@ -369,6 +417,7 @@ export function PatientPhotoPreviewDialog({
                             </div>
                         ) : null}
                     </>
+                    )
                 ) : null}
             </DialogContent>
         </Dialog>

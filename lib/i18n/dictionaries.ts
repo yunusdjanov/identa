@@ -1353,6 +1353,7 @@ Object.assign(ru, {
     'patientDetail.oralPhoto.upload': 'Загрузить',
     'patientDetail.oralPhoto.replace': 'Заменить',
     'patientDetail.oralPhoto.view': 'Открыть',
+    'patientDetail.oralPhoto.limitReached': 'В этом разделе уже 6 фото. Удалите одно фото перед сохранением копии.',
     'patientDetail.oralPhoto.deleteTitle': 'Удалить оральное фото',
     'patientDetail.oralPhoto.deleteDescription': 'Удалить фото "{{slot}}" пациента {{patientName}}?',
     'patientDetail.contactInfo': 'Контактная информация',
@@ -1528,6 +1529,7 @@ Object.assign(uz, {
     'patientDetail.oralPhoto.upload': 'Yuklash',
     'patientDetail.oralPhoto.replace': 'Almashtirish',
     'patientDetail.oralPhoto.view': "Ko'rish",
+    'patientDetail.oralPhoto.limitReached': 'Bu bo‘limda 6 ta rasm bor. Nusxani saqlashdan oldin bittasini o‘chiring.',
     'patientDetail.oralPhoto.deleteTitle': "Og'iz rasmini o'chirish",
     'patientDetail.oralPhoto.deleteDescription': '{{patientName}} bemorining "{{slot}}" rasmi o\'chirilsinmi?',
     'patientDetail.contactInfo': "Aloqa maʼlumotlari",
@@ -1703,6 +1705,7 @@ Object.assign(en, {
     'patientDetail.oralPhoto.upload': 'Upload',
     'patientDetail.oralPhoto.replace': 'Replace',
     'patientDetail.oralPhoto.view': 'View',
+    'patientDetail.oralPhoto.limitReached': 'This section already has 6 photos. Delete one photo before saving a copy.',
     'patientDetail.oralPhoto.deleteTitle': 'Delete oral photo',
     'patientDetail.oralPhoto.deleteDescription': 'Delete the "{{slot}}" oral photo for {{patientName}}?',
     'patientDetail.contactInfo': 'Contact Information',
@@ -4739,6 +4742,42 @@ Object.assign(en, {
     'gallery.zoomOut': 'Zoom out',
     'gallery.zoomLevel': 'Zoom level',
     'billing.loadFailed': 'Failed to load billing data.',
+});
+
+Object.assign(ru, {
+    'gallery.edit.rotateLeft': 'Влево',
+    'gallery.edit.rotateRight': 'Вправо',
+    'gallery.edit.brightness': 'Яркость',
+    'gallery.edit.contrast': 'Контраст',
+    'gallery.edit.reset': 'Сбросить',
+    'gallery.edit.saveCopy': 'Сохранить копию',
+    'gallery.edit.saving': 'Сохранение...',
+    'gallery.edit.failed': 'Не удалось сохранить отредактированное фото.',
+    'patientHistory.toast.imageEdited': 'Отредактированная копия добавлена.',
+});
+
+Object.assign(uz, {
+    'gallery.edit.rotateLeft': 'Chapga',
+    'gallery.edit.rotateRight': 'Oʻngga',
+    'gallery.edit.brightness': 'Yorqinlik',
+    'gallery.edit.contrast': 'Kontrast',
+    'gallery.edit.reset': 'Tiklash',
+    'gallery.edit.saveCopy': 'Nusxani saqlash',
+    'gallery.edit.saving': 'Saqlanmoqda...',
+    'gallery.edit.failed': 'Tahrirlangan rasmni saqlab boʻlmadi.',
+    'patientHistory.toast.imageEdited': 'Tahrirlangan nusxa qoʻshildi.',
+});
+
+Object.assign(en, {
+    'gallery.edit.rotateLeft': 'Left',
+    'gallery.edit.rotateRight': 'Right',
+    'gallery.edit.brightness': 'Brightness',
+    'gallery.edit.contrast': 'Contrast',
+    'gallery.edit.reset': 'Reset',
+    'gallery.edit.saveCopy': 'Save copy',
+    'gallery.edit.saving': 'Saving...',
+    'gallery.edit.failed': 'Could not save the edited photo.',
+    'patientHistory.toast.imageEdited': 'Edited copy added.',
 });
 
 export const DICTIONARIES: Record<AppLocale, TranslationDictionary> = {

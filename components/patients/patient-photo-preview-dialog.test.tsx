@@ -1,6 +1,6 @@
 import { cleanup, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { PatientPhotoPreviewDialog } from '@/components/patients/patient-photo-preview-dialog';
 import { I18nProvider } from '@/components/providers/i18n-provider';
 import { DICTIONARIES } from '@/lib/i18n/dictionaries';
@@ -142,5 +142,48 @@ describe('PatientPhotoPreviewDialog', () => {
 
         expect(screen.getByRole('heading', { name: 'Image 5' })).toBeInTheDocument();
         expect(screen.getByText('5 / 10')).toBeInTheDocument();
+    });
+
+    it('opens edit controls only when an edit save handler is available', async () => {
+        const user = userEvent.setup();
+        const images = buildImages(1);
+
+        const { rerender } = render(
+            <PatientPhotoPreviewDialog
+                open={true}
+                onOpenChange={() => {}}
+                alt="Image"
+                title="Gallery"
+                images={images}
+                startIndex={0}
+            />,
+            { wrapper }
+        );
+
+        expect(screen.queryByRole('button', { name: 'Edit' })).not.toBeInTheDocument();
+
+        rerender(
+            <I18nProvider initialLocale="en" initialDictionary={DICTIONARIES.en}>
+                <PatientPhotoPreviewDialog
+                    open={true}
+                    onOpenChange={() => {}}
+                    alt="Image"
+                    title="Gallery"
+                    images={images}
+                    startIndex={0}
+                    onSaveEditedImage={vi.fn()}
+                />
+            </I18nProvider>
+        );
+
+        await user.click(screen.getByRole('button', { name: 'Edit' }));
+
+        expect(screen.getByText('Brightness: 100%')).toBeInTheDocument();
+        expect(screen.getByText('Contrast: 100%')).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Left' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Right' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Reset' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Cancel' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Save copy' })).toBeInTheDocument();
     });
 });
