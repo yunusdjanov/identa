@@ -180,10 +180,14 @@ describe('PatientPhotoPreviewDialog', () => {
 
         expect(screen.getByText('Brightness: 100%')).toBeInTheDocument();
         expect(screen.getByText('Contrast: 100%')).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Adjust' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Crop' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Draw' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Text' })).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Left' })).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Right' })).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Reset' })).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Cancel' })).toBeInTheDocument();
-        expect(screen.getByRole('button', { name: 'Save copy' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Save' })).toBeInTheDocument();
     });
 });

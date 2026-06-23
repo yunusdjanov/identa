@@ -63,6 +63,72 @@ class PatientClinicalPhotoService
         ), $owner, __('api.patients.photo_store_failed'));
     }
 
+    /** Replace one existing oral photo while retaining the previous image if scanning rejects the edit. */
+    public function replaceQueued(
+        Patient $patient,
+        PatientClinicalPhoto $photo,
+        UploadedFile $uploadedPhoto,
+        User $owner
+    ): PatientClinicalPhoto {
+        $this->planLimitService->ensureUploadFileAllowed(
+            $owner,
+            max((int) $uploadedPhoto->getSize(), 0),
+            $uploadedPhoto->getMimeType() ?: $uploadedPhoto->getClientMimeType()
+        );
+
+        $viewType = $this->normalizeViewType((string) $photo->view_type);
+        $disk = $this->disk();
+        $mimeType = (string) ($uploadedPhoto->getMimeType() ?: $uploadedPhoto->getClientMimeType());
+        $path = $this->buildStoragePath((int) $patient->dentist_id, (string) $patient->id, $viewType, $this->extensionForMimeType($mimeType));
+        $contents = file_get_contents((string) $uploadedPhoto->getRealPath());
+        $stored = is_string($contents) && $contents !== '' ? Storage::disk($disk)->put($path, $contents) : false;
+
+        if (! $stored) {
+            throw ValidationException::withMessages(['photo' => [__('api.patients.photo_store_failed')]]);
+        }
+
+        try {
+            $photo = DB::transaction(function () use ($patient, $photo, $disk, $path, $mimeType): PatientClinicalPhoto {
+                $lockedPhoto = PatientClinicalPhoto::query()
+                    ->whereKey((string) $photo->id)
+                    ->where('dentist_id', (int) $patient->dentist_id)
+                    ->where('patient_id', (string) $patient->id)
+                    ->lockForUpdate()
+                    ->firstOrFail();
+
+                $attributes = [
+                    'disk' => $disk,
+                    'scan_status' => 'pending',
+                    'scan_result' => null,
+                    'scan_provider' => null,
+                    'quarantine_path' => $path,
+                    'scanned_at' => null,
+                    'rejected_at' => null,
+                ];
+
+                if (trim((string) $lockedPhoto->path) === '') {
+                    $attributes += [
+                        'path' => $path,
+                        'mime_type' => $mimeType,
+                        'file_size' => max((int) Storage::disk($disk)->size($path), 0),
+                        'approved_at' => null,
+                    ];
+                }
+
+                $lockedPhoto->forceFill($attributes)->save();
+
+                return $lockedPhoto;
+            });
+        } catch (\Throwable $exception) {
+            Storage::disk($disk)->delete($path);
+            MediaPathCache::forgetPaths($disk, [$path]);
+
+            throw $exception;
+        }
+
+        return $this->queueScanOrFail($photo, $owner, __('api.patients.photo_store_failed'));
+    }
+
     /**
      * Prepare a signed direct-upload ticket for a new oral photo.
      *

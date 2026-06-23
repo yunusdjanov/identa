@@ -296,6 +296,47 @@ class OdontogramTreatmentApiTest extends TestCase
             ->assertJsonPath('error.code', 'plan_entry_image_limit_reached');
     }
 
+    public function test_treatment_image_can_be_replaced_when_entry_image_limit_is_reached(): void
+    {
+        Storage::fake('local');
+
+        $dentist = User::factory()->create();
+        $dentist->activatePaidSubscription(User::SUBSCRIPTION_PLAN_YEARLY);
+        $patient = Patient::factory()->create(['dentist_id' => $dentist->id]);
+        $treatment = Treatment::factory()->create([
+            'dentist_id' => $dentist->id,
+            'patient_id' => $patient->id,
+        ]);
+        $firstImageId = null;
+
+        for ($index = 1; $index <= 10; $index++) {
+            $response = $this->actingAs($dentist, 'web')
+                ->post("/api/v1/patients/{$patient->id}/treatments/{$treatment->id}/images", [
+                    'image' => UploadedFile::fake()->image("image-{$index}.jpg", 800, 600),
+                ], ['Accept' => 'application/json'])
+                ->assertCreated();
+
+            $firstImageId ??= (string) $response->json('data.images.0.id');
+        }
+
+        $this->actingAs($dentist, 'web')
+            ->post("/api/v1/patients/{$patient->id}/treatments/{$treatment->id}/images/{$firstImageId}/replace", [
+                'image' => UploadedFile::fake()->image('edited-image.jpg', 1000, 700),
+            ], ['Accept' => 'application/json'])
+            ->assertOk()
+            ->assertJsonCount(10, 'data.images')
+            ->assertJsonPath('data.images.0.id', $firstImageId);
+
+        $this->assertSame(10, TreatmentImage::query()
+            ->where('treatment_id', $treatment->id)
+            ->count());
+        $this->assertDatabaseHas('treatment_images', [
+            'id' => $firstImageId,
+            'scan_status' => 'approved',
+            'quarantine_path' => null,
+        ]);
+    }
+
     public function test_prepare_treatment_image_upload_reports_fallback_when_disk_does_not_support_direct_upload(): void
     {
         Storage::fake('local');

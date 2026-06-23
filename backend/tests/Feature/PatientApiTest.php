@@ -473,6 +473,52 @@ class PatientApiTest extends TestCase
             ->count());
     }
 
+    public function test_patient_oral_photo_can_be_replaced_when_slot_limit_is_reached(): void
+    {
+        Storage::fake('local');
+        $dentist = User::factory()->create();
+        $patient = Patient::factory()->create([
+            'dentist_id' => $dentist->id,
+        ]);
+        $firstPhotoId = null;
+
+        foreach (range(1, 6) as $index) {
+            $photo = PatientClinicalPhoto::query()->create([
+                'dentist_id' => $dentist->id,
+                'patient_id' => $patient->id,
+                'view_type' => PatientClinicalPhoto::VIEW_TYPE_BOTTOM,
+                'is_primary' => $index === 1,
+                'sort_order' => $index,
+                'disk' => 'local',
+                'path' => "approved/patients/oral-bottom-{$index}.jpg",
+                'mime_type' => 'image/jpeg',
+                'file_size' => 10,
+                'scan_status' => 'approved',
+                'approved_at' => now(),
+            ]);
+            Storage::disk('local')->put((string) $photo->path, 'original');
+            $firstPhotoId ??= (string) $photo->id;
+        }
+
+        $this->actingAs($dentist, 'web')
+            ->post("/api/v1/patients/{$patient->id}/oral-photos/bottom/{$firstPhotoId}/replace", [
+                'photo' => UploadedFile::fake()->image('edited-bottom.jpg', 1200, 900),
+            ], ['Accept' => 'application/json'])
+            ->assertOk()
+            ->assertJsonCount(6, 'data.oral_photo_galleries.bottom')
+            ->assertJsonPath('data.oral_photo_galleries.bottom.0.id', $firstPhotoId);
+
+        $this->assertSame(6, PatientClinicalPhoto::query()
+            ->where('patient_id', $patient->id)
+            ->where('view_type', PatientClinicalPhoto::VIEW_TYPE_BOTTOM)
+            ->count());
+        $this->assertDatabaseHas('patient_clinical_photos', [
+            'id' => $firstPhotoId,
+            'scan_status' => 'approved',
+            'quarantine_path' => null,
+        ]);
+    }
+
     public function test_patient_oral_photo_upload_is_processed_before_response_when_queue_is_async(): void
     {
         Config::set('queue.default', 'database');

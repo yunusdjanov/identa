@@ -395,6 +395,46 @@ class PatientController extends Controller
         ]);
     }
 
+    public function replaceOralPhotoItem(
+        Request $request,
+        string $id,
+        string $viewType,
+        string $photoId
+    ): JsonResponse {
+        $patient = $this->patients->ownedPatient($request, $id);
+        $this->patients->ensureNotArchived($patient, __('api.patients.archived_restore_before_edit'));
+        $viewType = $this->clinicalPhotos->normalizeViewType($viewType);
+
+        $validated = $request->validate([
+            'photo' => ['required', 'file', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
+        ]);
+
+        /** @var UploadedFile $uploadedPhoto */
+        $uploadedPhoto = $validated['photo'];
+        $photo = $this->clinicalPhotos->oralPhotoItemOrFail($patient, $viewType, $photoId);
+        $this->clinicalPhotos->replaceQueued(
+            $patient,
+            $photo,
+            $uploadedPhoto,
+            $this->patients->subscriptionOwner($request)
+        );
+
+        $this->auditLogger->logFromRequest(
+            request: $request,
+            eventType: 'patient.oral_photo.replaced',
+            entityType: 'patient',
+            entityId: (string) $patient->id,
+            metadata: [
+                'view_type' => $viewType,
+                'photo_id' => $photoId,
+            ],
+        );
+
+        return response()->json([
+            'data' => $this->transformPatient($this->patients->ownedPatient($request, $id), $request),
+        ]);
+    }
+
     public function destroy(Request $request, string $id): JsonResponse
     {
         $this->patients->archive($request, $id);

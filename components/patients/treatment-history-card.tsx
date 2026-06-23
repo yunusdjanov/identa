@@ -10,6 +10,7 @@ import {
     getCurrentUser,
     getPatientTreatment,
     listAllPatientTreatments,
+    replacePatientTreatmentImage,
     updatePatientTreatment,
     uploadPatientTreatmentImages,
 } from '@/lib/api/dentist';
@@ -730,19 +731,15 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
     const saveEditedTreatmentImageMutation = useMutation({
         mutationFn: async ({
             treatmentId,
+            imageId,
             file,
-            currentImageCount,
         }: {
             treatmentId: string;
+            imageId: string;
             file: File;
-            currentImageCount: number;
         }) => {
             if (!canManageHistory) {
                 throw new Error(manageDeniedMessage);
-            }
-
-            if (currentImageCount >= maxHistoryImagesPerEntry) {
-                throw new Error(t('patientHistory.validation.maxImages', { max: maxHistoryImagesPerEntry }));
             }
 
             const [optimizedFile] = await optimizeImageFilesForUpload([file], {
@@ -754,19 +751,16 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                 throw new Error(t('patientHistory.validation.imageSize', { sizeMb: maxHistoryUploadMb }));
             }
 
-            const failedUploadCount = await uploadPatientTreatmentImages(patientId, treatmentId, [optimizedFile]);
-            if (failedUploadCount > 0) {
-                throw new Error(t('patientHistory.toast.imagesSyncFailed'));
-            }
+            const updatedTreatment = await replacePatientTreatmentImage(patientId, treatmentId, imageId, optimizedFile);
 
-            return waitForTreatmentMediaReady(treatmentId, currentImageCount + 1);
+            return waitForTreatmentMediaReady(treatmentId, Math.max(getTreatmentImageCount(updatedTreatment), 1));
         },
         onMutate: ({ treatmentId }) => {
             setMediaSyncingTreatmentIds((current) => (
                 current.includes(treatmentId) ? current : [...current, treatmentId]
             ));
         },
-        onSuccess: (updatedTreatment) => {
+        onSuccess: (updatedTreatment, variables) => {
             mergeTreatmentIntoCaches(updatedTreatment);
 
             const images = getPreviewableTreatmentImages(updatedTreatment);
@@ -785,7 +779,7 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                         t('patientHistory.image'),
                         treatmentDate
                     ),
-                    startIndex: Math.max(images.length - 1, 0),
+                    startIndex: Math.max(images.findIndex((image) => image.id === variables.imageId), 0),
                     treatmentDate,
                 };
             });
@@ -1901,11 +1895,15 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                     src={previewGallery.images[0]?.src ?? null}
                     alt={previewGallery.images[0]?.alt ?? ''}
                     title={previewGallery.images[0]?.title ?? previewGallery.fallbackTitle ?? patientName}
-                    onSaveEditedImage={historyManageDisplayMode === 'enabled' && previewGallery.treatmentId ? async (_image, file) => {
+                    onSaveEditedImage={historyManageDisplayMode === 'enabled' && previewGallery.treatmentId ? async (image, file) => {
+                        if (!image.id) {
+                            throw new Error(t('gallery.edit.failed'));
+                        }
+
                         await saveEditedTreatmentImageMutation.mutateAsync({
                             treatmentId: previewGallery.treatmentId,
+                            imageId: image.id,
                             file,
-                            currentImageCount: previewGallery.images.length,
                         });
                     } : undefined}
                     isEditPending={saveEditedTreatmentImageMutation.isPending}

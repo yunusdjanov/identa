@@ -2,6 +2,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { apiClient } from '@/lib/api/client';
 import {
     deletePatientOralPhoto,
+    replacePatientOralPhoto,
+    replacePatientTreatmentImage,
     uploadPatientOralPhoto,
     uploadPatientPhoto,
     uploadPatientTreatmentImages,
@@ -205,6 +207,43 @@ describe('deletePatientOralPhoto', () => {
         await expect(deletePatientOralPhoto('patient-1', 'smile')).resolves.toEqual(patient);
 
         expect(apiClient.delete).toHaveBeenCalledWith('/patients/patient-1/oral-photos/smile');
+    });
+});
+
+describe('replacePatientOralPhoto', () => {
+    beforeEach(() => {
+        vi.mocked(apiClient.post).mockReset();
+    });
+
+    it('replaces one oral gallery photo through the replace endpoint', async () => {
+        vi.mocked(apiClient.post).mockResolvedValueOnce({ data: { data: patient } });
+
+        await expect(replacePatientOralPhoto('patient-1', 'bottom', 'photo-1', makePhoto()))
+            .resolves.toEqual(patient);
+
+        expect(apiClient.post).toHaveBeenCalledWith(
+            '/patients/patient-1/oral-photos/bottom/photo-1/replace',
+            expect.any(FormData)
+        );
+    });
+});
+
+describe('replacePatientTreatmentImage', () => {
+    beforeEach(() => {
+        vi.mocked(apiClient.post).mockReset();
+    });
+
+    it('replaces one treatment image through the replace endpoint', async () => {
+        const treatment = { id: 'treatment-1', images: [] };
+        vi.mocked(apiClient.post).mockResolvedValueOnce({ data: { data: treatment } });
+
+        await expect(replacePatientTreatmentImage('patient-1', 'treatment-1', 'image-1', makePhoto()))
+            .resolves.toEqual(treatment);
+
+        expect(apiClient.post).toHaveBeenCalledWith(
+            '/patients/patient-1/treatments/treatment-1/images/image-1/replace',
+            expect.any(FormData)
+        );
     });
 });
 

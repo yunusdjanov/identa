@@ -109,6 +109,91 @@ class TreatmentImageService
         return $image;
     }
 
+    public function replaceQueued(
+        int $dentistId,
+        Patient $patient,
+        Treatment $treatment,
+        TreatmentImage $image,
+        UploadedFile $uploadedFile,
+        User $owner
+    ): TreatmentImage {
+        $this->planLimitService->ensureUploadFileAllowed(
+            $owner,
+            max((int) $uploadedFile->getSize(), 0),
+            $uploadedFile->getMimeType() ?: $uploadedFile->getClientMimeType()
+        );
+
+        $disk = $this->mediaDisk();
+        $mimeType = (string) ($uploadedFile->getMimeType() ?: $uploadedFile->getClientMimeType());
+        $extension = $this->extensionForMimeType($mimeType);
+        $directory = sprintf(
+            'quarantine/treatments/%d/%s/%s',
+            $dentistId,
+            (string) $patient->id,
+            (string) $treatment->id
+        );
+        $quarantinePath = sprintf('%s/%s.%s', $directory, Str::uuid()->toString(), $extension);
+        $contents = file_get_contents((string) $uploadedFile->getRealPath());
+        $stored = is_string($contents) && $contents !== ''
+            ? Storage::disk($disk)->put($quarantinePath, $contents)
+            : false;
+
+        if (! $stored) {
+            throw ValidationException::withMessages([
+                'image' => [__('api.treatments.image_store_failed')],
+            ]);
+        }
+
+        try {
+            $image = DB::transaction(function () use ($image, $treatment, $dentistId, $disk, $quarantinePath, $mimeType): TreatmentImage {
+                $lockedImage = TreatmentImage::query()
+                    ->whereKey((string) $image->id)
+                    ->where('treatment_id', (string) $treatment->id)
+                    ->where('dentist_id', $dentistId)
+                    ->lockForUpdate()
+                    ->firstOrFail();
+
+                $attributes = [
+                    'disk' => $disk,
+                    'scan_status' => 'pending',
+                    'scan_result' => null,
+                    'scan_provider' => null,
+                    'quarantine_path' => $quarantinePath,
+                    'scanned_at' => null,
+                    'rejected_at' => null,
+                ];
+
+                if (trim((string) $lockedImage->path) === '') {
+                    $attributes += [
+                        'path' => $quarantinePath,
+                        'mime_type' => $mimeType,
+                        'file_size' => max((int) Storage::disk($disk)->size($quarantinePath), 0),
+                        'approved_at' => null,
+                    ];
+                }
+
+                $lockedImage->forceFill($attributes)->save();
+
+                return $lockedImage;
+            });
+        } catch (\Throwable $exception) {
+            Storage::disk($disk)->delete($quarantinePath);
+            MediaPathCache::forgetPaths($disk, [$quarantinePath]);
+
+            throw $exception;
+        }
+
+        ProcessUploadedMedia::dispatchSync(TreatmentImage::class, (string) $image->id, (int) $owner->id);
+        $image->refresh();
+        if ((string) $image->scan_status === 'rejected') {
+            throw ValidationException::withMessages([
+                'image' => [__('api.treatments.image_store_failed')],
+            ]);
+        }
+
+        return $image;
+    }
+
     /**
      * @return array<string, int|string|null|bool>
      */
@@ -116,7 +201,7 @@ class TreatmentImageService
     {
         $disk = trim((string) $image->disk) !== '' ? trim((string) $image->disk) : $this->mediaDisk();
         $originalPath = trim((string) $image->path);
-        $isApproved = (string) $image->scan_status === 'approved';
+        $isApproved = $this->isDisplayable($image);
         $thumbnailPath = $this->variantPath($originalPath, self::IMAGE_VARIANT_THUMBNAIL);
         $previewPath = $this->variantPath($originalPath, self::IMAGE_VARIANT_PREVIEW);
 
@@ -127,7 +212,7 @@ class TreatmentImageService
             'id' => (string) $image->id,
             'mime_type' => $image->mime_type,
             'file_size' => (int) $image->file_size,
-            'scan_status' => (string) ($image->scan_status ?? 'approved'),
+            'scan_status' => $isApproved ? 'approved' : (string) ($image->scan_status ?? 'approved'),
             'created_at' => $image->created_at?->toIso8601String(),
             'url' => $isApproved ? $this->url($treatment, $image) : null,
             'thumbnail_url' => $isApproved ? $this->url(
@@ -164,10 +249,9 @@ class TreatmentImageService
         string $treatmentId,
         string $imageId
     ): TreatmentImage {
-        return TreatmentImage::query()
+        $image = TreatmentImage::query()
             ->where('id', $imageId)
             ->where('dentist_id', $dentistId)
-            ->where('scan_status', 'approved')
             ->whereHas('treatment', function (Builder $query) use ($dentistId, $patientId, $treatmentId): void {
                 $query
                     ->where('id', $treatmentId)
@@ -175,6 +259,12 @@ class TreatmentImageService
                     ->where('dentist_id', $dentistId);
             })
             ->firstOrFail();
+
+        if (! $this->isDisplayable($image)) {
+            abort(404);
+        }
+
+        return $image;
     }
 
     public function stream(Request $request, TreatmentImage $image): StreamedResponse
@@ -323,6 +413,22 @@ class TreatmentImageService
         }
 
         return $apiUrl.'?variant='.$variant;
+    }
+
+    private function isDisplayable(TreatmentImage $image): bool
+    {
+        $path = trim((string) $image->path);
+        if ($path === '') {
+            return false;
+        }
+
+        if ((string) $image->scan_status === 'approved') {
+            return true;
+        }
+
+        $quarantinePath = trim((string) $image->quarantine_path);
+
+        return $quarantinePath !== '' && $path !== $quarantinePath;
     }
 
     private function resolvePath(string $path, ?string $variant): string

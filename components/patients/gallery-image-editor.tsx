@@ -1,17 +1,24 @@
 'use client';
 
-import { useMemo, useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
-import { getProtectedMediaCrossOrigin } from '@/lib/protected-media';
-import { RotateCcw, RotateCw, Save } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import { useI18n } from '@/components/providers/i18n-provider';
-
-interface EditableGalleryImage {
-    src: string;
-    alt: string;
-    title?: string;
-}
+import { GalleryImageEditorControls } from './gallery-image-editor-controls';
+import { createEditedImageFile, loadEditableImage, normalizeRect, renderEditedCanvas } from './gallery-image-editor-canvas';
+import {
+    DEFAULT_BRIGHTNESS,
+    DEFAULT_CONTRAST,
+    DEFAULT_DRAW_COLOR,
+    DEFAULT_DRAW_SIZE,
+    DEFAULT_TEXT_SIZE,
+    MIN_CROP_SIZE,
+    ROTATION_STEP_DEGREES,
+    type CropRect,
+    type DrawStroke,
+    type EditableGalleryImage,
+    type EditMode,
+    type Point,
+    type TextAnnotation,
+} from './gallery-image-editor-types';
 
 interface GalleryImageEditorProps {
     image: EditableGalleryImage;
@@ -20,146 +27,207 @@ interface GalleryImageEditorProps {
     onSave: (file: File) => Promise<void> | void;
 }
 
-const DEFAULT_BRIGHTNESS = 100;
-const DEFAULT_CONTRAST = 100;
-const MIN_ADJUSTMENT_PERCENT = 60;
-const MAX_ADJUSTMENT_PERCENT = 140;
-const ADJUSTMENT_STEP_PERCENT = 5;
-const ROTATION_STEP_DEGREES = 90;
-const EXPORT_MIME_TYPE = 'image/jpeg';
-const EXPORT_QUALITY = 0.92;
-
-function sanitizeBaseName(value: string): string {
-    return value
-        .trim()
-        .replace(/[\\/:*?"<>|]+/g, '')
-        .replace(/\s+/g, '-')
-        .replace(/-+/g, '-')
-        .replace(/^-|-$/g, '')
-        .toLowerCase() || 'edited-photo';
-}
-
-function loadEditableImage(src: string): Promise<HTMLImageElement> {
-    return new Promise((resolve, reject) => {
-        const image = new Image();
-        const crossOrigin = getProtectedMediaCrossOrigin(src);
-        if (crossOrigin) {
-            image.crossOrigin = crossOrigin;
-        }
-        image.decoding = 'async';
-        image.onload = () => resolve(image);
-        image.onerror = () => reject(new Error('Image decode failed.'));
-        image.src = src;
-    });
-}
-
-function canvasToBlob(canvas: HTMLCanvasElement): Promise<Blob> {
-    return new Promise((resolve, reject) => {
-        canvas.toBlob((blob) => {
-            if (blob) {
-                resolve(blob);
-                return;
-            }
-            reject(new Error('Image export failed.'));
-        }, EXPORT_MIME_TYPE, EXPORT_QUALITY);
-    });
-}
-
-async function createEditedImageFile({
-    image,
-    rotation,
-    brightness,
-    contrast,
-}: {
-    image: EditableGalleryImage;
-    rotation: number;
-    brightness: number;
-    contrast: number;
-}): Promise<File> {
-    const source = await loadEditableImage(image.src);
-    const normalizedRotation = ((rotation % 360) + 360) % 360;
-    const naturalWidth = source.naturalWidth || source.width;
-    const naturalHeight = source.naturalHeight || source.height;
-    const swapsDimensions = normalizedRotation === 90 || normalizedRotation === 270;
-    const canvas = document.createElement('canvas');
-    canvas.width = swapsDimensions ? naturalHeight : naturalWidth;
-    canvas.height = swapsDimensions ? naturalWidth : naturalHeight;
-
-    const context = canvas.getContext('2d');
-    if (!context) {
-        throw new Error('Canvas is unavailable.');
-    }
-
-    context.save();
-    context.fillStyle = '#ffffff';
-    context.fillRect(0, 0, canvas.width, canvas.height);
-    context.filter = `brightness(${brightness}%) contrast(${contrast}%)`;
-
-    if (normalizedRotation === 90) {
-        context.translate(canvas.width, 0);
-        context.rotate(Math.PI / 2);
-    } else if (normalizedRotation === 180) {
-        context.translate(canvas.width, canvas.height);
-        context.rotate(Math.PI);
-    } else if (normalizedRotation === 270) {
-        context.translate(0, canvas.height);
-        context.rotate((Math.PI * 3) / 2);
-    }
-
-    context.drawImage(source, 0, 0, naturalWidth, naturalHeight);
-    context.restore();
-
-    const blob = await canvasToBlob(canvas);
-    const baseName = sanitizeBaseName(image.title ?? image.alt);
-
-    return new File([blob], `${baseName}-edited.jpg`, {
-        type: EXPORT_MIME_TYPE,
-        lastModified: Date.now(),
-    });
-}
-
 /**
- * Lightweight clinical-photo editor used inside the fullscreen gallery.
- * It exports a new image file and leaves the original media untouched.
+ * Canvas-based clinical-photo editor used inside the fullscreen gallery.
+ * Save exports a replacement image for the original media record.
  */
-export function GalleryImageEditor({
-    image,
-    isSaving = false,
-    onCancel,
-    onSave,
-}: GalleryImageEditorProps) {
+export function GalleryImageEditor({ image, isSaving = false, onCancel, onSave }: GalleryImageEditorProps) {
     const { t } = useI18n();
+    const canvasRef = useRef<HTMLCanvasElement | null>(null);
+    const cropStartRef = useRef<Point | null>(null);
+    const activeStrokeRef = useRef<DrawStroke | null>(null);
+    const [source, setSource] = useState<HTMLImageElement | null>(null);
+    const [mode, setMode] = useState<EditMode>('adjust');
     const [rotation, setRotation] = useState(0);
     const [brightness, setBrightness] = useState(DEFAULT_BRIGHTNESS);
     const [contrast, setContrast] = useState(DEFAULT_CONTRAST);
+    const [cropRect, setCropRect] = useState<CropRect | null>(null);
+    const [draftCropRect, setDraftCropRect] = useState<CropRect | null>(null);
+    const [strokes, setStrokes] = useState<DrawStroke[]>([]);
+    const [activeStroke, setActiveStroke] = useState<DrawStroke | null>(null);
+    const [textAnnotations, setTextAnnotations] = useState<TextAnnotation[]>([]);
+    const [drawColor, setDrawColor] = useState(DEFAULT_DRAW_COLOR);
+    const [drawSize, setDrawSize] = useState(DEFAULT_DRAW_SIZE);
+    const [textDraft, setTextDraft] = useState('');
+    const [textSize, setTextSize] = useState(DEFAULT_TEXT_SIZE);
     const [isRendering, setIsRendering] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const isBusy = isSaving || isRendering;
-    const imageStyle = useMemo(
-        () => ({
-            transform: `rotate(${rotation}deg)`,
-            filter: `brightness(${brightness}%) contrast(${contrast}%)`,
-        }),
-        [brightness, contrast, rotation]
-    );
+    const isSaveBusy = isSaving || isRendering;
+    const isEditingDisabled = isSaveBusy || !source;
+    const allStrokes = useMemo(() => (activeStroke ? [...strokes, activeStroke] : strokes), [activeStroke, strokes]);
+
+    useEffect(() => {
+        let isMounted = true;
+        setSource(null);
+        setError(null);
+
+        loadEditableImage(image.src)
+            .then((loadedImage) => {
+                if (isMounted) {
+                    setSource(loadedImage);
+                }
+            })
+            .catch(() => {
+                if (isMounted) {
+                    setError(t('gallery.edit.loadFailed'));
+                }
+            });
+
+        return () => {
+            isMounted = false;
+        };
+    }, [image.src, t]);
+
+    useEffect(() => {
+        const canvas = canvasRef.current;
+        if (!canvas || !source) {
+            return;
+        }
+
+        renderEditedCanvas({
+            canvas,
+            source,
+            rotation,
+            brightness,
+            contrast,
+            cropRect,
+            draftCropRect,
+            strokes: allStrokes,
+            textAnnotations,
+        });
+    }, [allStrokes, brightness, contrast, cropRect, draftCropRect, rotation, source, textAnnotations]);
+
+    const canvasPoint = (event: ReactPointerEvent<HTMLCanvasElement>): Point => {
+        const canvas = event.currentTarget;
+        const bounds = canvas.getBoundingClientRect();
+
+        return {
+            x: ((event.clientX - bounds.left) / Math.max(bounds.width, 1)) * canvas.width,
+            y: ((event.clientY - bounds.top) / Math.max(bounds.height, 1)) * canvas.height,
+        };
+    };
+
+    const toBasePoint = (point: Point): Point => ({
+        x: point.x + (cropRect?.x ?? 0),
+        y: point.y + (cropRect?.y ?? 0),
+    });
 
     const reset = () => {
         setRotation(0);
         setBrightness(DEFAULT_BRIGHTNESS);
         setContrast(DEFAULT_CONTRAST);
+        setCropRect(null);
+        setDraftCropRect(null);
+        setStrokes([]);
+        setActiveStroke(null);
+        setTextAnnotations([]);
         setError(null);
     };
 
-    const handleSave = async () => {
+    const handlePointerDown = (event: ReactPointerEvent<HTMLCanvasElement>) => {
+        if (isEditingDisabled) {
+            return;
+        }
+
+        const point = canvasPoint(event);
+        event.currentTarget.setPointerCapture(event.pointerId);
+
+        if (mode === 'crop') {
+            cropStartRef.current = point;
+            setDraftCropRect({ x: point.x, y: point.y, width: 0, height: 0 });
+            return;
+        }
+
+        if (mode === 'draw') {
+            const stroke = { points: [toBasePoint(point)], color: drawColor, size: drawSize };
+            activeStrokeRef.current = stroke;
+            setActiveStroke(stroke);
+            return;
+        }
+
+        if (mode === 'text' && textDraft.trim() !== '') {
+            setTextAnnotations((current) => [
+                ...current,
+                { ...toBasePoint(point), text: textDraft.trim(), color: drawColor, size: textSize },
+            ]);
+            setTextDraft('');
+        }
+    };
+
+    const handlePointerMove = (event: ReactPointerEvent<HTMLCanvasElement>) => {
+        if (isEditingDisabled) {
+            return;
+        }
+
+        const point = canvasPoint(event);
+        const canvas = event.currentTarget;
+
+        if (mode === 'crop' && cropStartRef.current) {
+            setDraftCropRect(normalizeRect(cropStartRef.current, point, canvas.width, canvas.height));
+            return;
+        }
+
+        if (mode === 'draw' && activeStrokeRef.current) {
+            const nextStroke = {
+                ...activeStrokeRef.current,
+                points: [...activeStrokeRef.current.points, toBasePoint(point)],
+            };
+            activeStrokeRef.current = nextStroke;
+            setActiveStroke(nextStroke);
+        }
+    };
+
+    const handlePointerUp = (event: ReactPointerEvent<HTMLCanvasElement>) => {
+        if (mode === 'draw' && activeStrokeRef.current) {
+            setStrokes((current) => [...current, activeStrokeRef.current as DrawStroke]);
+            activeStrokeRef.current = null;
+            setActiveStroke(null);
+        }
+
+        if (mode === 'crop') {
+            cropStartRef.current = null;
+        }
+
+        if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+            event.currentTarget.releasePointerCapture(event.pointerId);
+        }
+    };
+
+    const applyCrop = () => {
+        if (!draftCropRect || draftCropRect.width < MIN_CROP_SIZE || draftCropRect.height < MIN_CROP_SIZE) {
+            return;
+        }
+
+        setCropRect({
+            x: draftCropRect.x + (cropRect?.x ?? 0),
+            y: draftCropRect.y + (cropRect?.y ?? 0),
+            width: draftCropRect.width,
+            height: draftCropRect.height,
+        });
+        setDraftCropRect(null);
+    };
+
+    const undoAnnotation = () => {
+        setError(null);
+        if (mode === 'text' && textAnnotations.length > 0) {
+            setTextAnnotations((current) => current.slice(0, -1));
+            return;
+        }
+
+        if (strokes.length > 0) {
+            setStrokes((current) => current.slice(0, -1));
+        }
+    };
+
+    const saveEditedImage = async () => {
+        if (!source) {
+            return;
+        }
+
         setError(null);
         setIsRendering(true);
         try {
-            const file = await createEditedImageFile({
-                image,
-                rotation,
-                brightness,
-                contrast,
-            });
+            const file = await createEditedImageFile({ source, image, rotation, brightness, contrast, cropRect, strokes, textAnnotations });
             await onSave(file);
         } catch {
             setError(t('gallery.edit.failed'));
@@ -171,112 +239,51 @@ export function GalleryImageEditor({
     return (
         <div className="grid min-h-0 min-w-0 grid-rows-[minmax(0,1fr)_auto] bg-slate-950">
             <div className="flex min-h-0 items-center justify-center overflow-hidden px-3 py-3 sm:px-16 sm:py-6">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                    key={image.src}
-                    src={image.src}
-                    alt={image.alt}
-                    crossOrigin={getProtectedMediaCrossOrigin(image.src)}
-                    className="h-auto max-h-full w-auto max-w-full rounded-md object-contain shadow-2xl shadow-black/40 transition duration-150"
-                    style={imageStyle}
-                    decoding="async"
+                <canvas
+                    ref={canvasRef}
+                    className={`h-auto max-h-full w-auto max-w-full rounded-md bg-slate-100 object-contain shadow-2xl shadow-black/40 ${
+                        mode === 'crop' || mode === 'draw' ? 'cursor-crosshair' : mode === 'text' ? 'cursor-text' : 'cursor-default'
+                    }`}
+                    aria-label={image.alt}
+                    onPointerDown={handlePointerDown}
+                    onPointerMove={handlePointerMove}
+                    onPointerUp={handlePointerUp}
+                    onPointerCancel={handlePointerUp}
                 />
             </div>
-            <div className="border-t border-white/10 bg-slate-950/95 px-4 py-3 backdrop-blur">
-                <div className="mx-auto flex max-w-5xl flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                    <div className="grid min-w-0 flex-1 grid-cols-1 gap-3 sm:grid-cols-2">
-                        <div className="space-y-1.5">
-                            <Label className="text-xs font-semibold text-white/75">
-                                {t('gallery.edit.brightness')}: {brightness}%
-                            </Label>
-                            <input
-                                type="range"
-                                value={brightness}
-                                min={MIN_ADJUSTMENT_PERCENT}
-                                max={MAX_ADJUSTMENT_PERCENT}
-                                step={ADJUSTMENT_STEP_PERCENT}
-                                onChange={(event) => setBrightness(Number(event.target.value))}
-                                disabled={isBusy}
-                                className="h-2 w-full cursor-pointer accent-teal-400 disabled:cursor-not-allowed disabled:opacity-50"
-                            />
-                        </div>
-                        <div className="space-y-1.5">
-                            <Label className="text-xs font-semibold text-white/75">
-                                {t('gallery.edit.contrast')}: {contrast}%
-                            </Label>
-                            <input
-                                type="range"
-                                value={contrast}
-                                min={MIN_ADJUSTMENT_PERCENT}
-                                max={MAX_ADJUSTMENT_PERCENT}
-                                step={ADJUSTMENT_STEP_PERCENT}
-                                onChange={(event) => setContrast(Number(event.target.value))}
-                                disabled={isBusy}
-                                className="h-2 w-full cursor-pointer accent-teal-400 disabled:cursor-not-allowed disabled:opacity-50"
-                            />
-                        </div>
-                    </div>
-                    <div className="flex shrink-0 flex-wrap items-center gap-2">
-                        <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            className="border-white/10 bg-white/10 text-white hover:bg-white/15 hover:text-white"
-                            onClick={() => setRotation((value) => value - ROTATION_STEP_DEGREES)}
-                            disabled={isBusy}
-                        >
-                            <RotateCcw className="mr-1.5 h-4 w-4" />
-                            {t('gallery.edit.rotateLeft')}
-                        </Button>
-                        <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            className="border-white/10 bg-white/10 text-white hover:bg-white/15 hover:text-white"
-                            onClick={() => setRotation((value) => value + ROTATION_STEP_DEGREES)}
-                            disabled={isBusy}
-                        >
-                            <RotateCw className="mr-1.5 h-4 w-4" />
-                            {t('gallery.edit.rotateRight')}
-                        </Button>
-                        <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            className="text-white/75 hover:bg-white/10 hover:text-white"
-                            onClick={reset}
-                            disabled={isBusy}
-                        >
-                            {t('gallery.edit.reset')}
-                        </Button>
-                        <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            className="text-white/75 hover:bg-white/10 hover:text-white"
-                            onClick={onCancel}
-                            disabled={isBusy}
-                        >
-                            {t('common.cancel')}
-                        </Button>
-                        <Button
-                            type="button"
-                            size="sm"
-                            className="bg-teal-500 text-slate-950 hover:bg-teal-400"
-                            onClick={handleSave}
-                            disabled={isBusy}
-                        >
-                            <Save className="mr-1.5 h-4 w-4" />
-                            {isBusy ? t('gallery.edit.saving') : t('gallery.edit.saveCopy')}
-                        </Button>
-                    </div>
-                </div>
-                {error ? (
-                    <p className="mx-auto mt-2 max-w-5xl text-xs font-medium text-red-200">
-                        {error}
-                    </p>
-                ) : null}
-            </div>
+            <GalleryImageEditorControls
+                mode={mode}
+                onModeChange={(nextMode) => {
+                    setMode(nextMode);
+                    setDraftCropRect(null);
+                }}
+                brightness={brightness}
+                onBrightnessChange={setBrightness}
+                contrast={contrast}
+                onContrastChange={setContrast}
+                drawSize={drawSize}
+                onDrawSizeChange={setDrawSize}
+                textSize={textSize}
+                onTextSizeChange={setTextSize}
+                drawColor={drawColor}
+                onDrawColorChange={setDrawColor}
+                draftCropRect={draftCropRect}
+                cropRect={cropRect}
+                onApplyCrop={applyCrop}
+                onResetCrop={() => { setCropRect(null); setDraftCropRect(null); }}
+                textDraft={textDraft}
+                onTextDraftChange={setTextDraft}
+                canUndo={strokes.length > 0 || textAnnotations.length > 0}
+                onUndo={undoAnnotation}
+                onReset={reset}
+                onCancel={onCancel}
+                onSave={saveEditedImage}
+                onRotateLeft={() => setRotation((value) => value - ROTATION_STEP_DEGREES)}
+                onRotateRight={() => setRotation((value) => value + ROTATION_STEP_DEGREES)}
+                isEditingDisabled={isEditingDisabled}
+                isSaveBusy={isSaveBusy}
+            />
+            {error ? <p className="mx-auto w-full max-w-6xl bg-slate-950 px-4 pb-3 text-xs font-medium text-red-200">{error}</p> : null}
         </div>
     );
 }

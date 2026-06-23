@@ -345,6 +345,55 @@ class PatientTreatmentController extends Controller
         return response()->json([], 204);
     }
 
+    public function replaceImage(
+        UploadTreatmentImageRequest $request,
+        string $id,
+        string $treatmentId,
+        string $imageId
+    ): JsonResponse {
+        $patient = $this->findOwnedPatient($request, $id);
+        if ($patient->trashed()) {
+            throw ValidationException::withMessages([
+                'patient' => [__('api.treatments.archived_restore_before_upload_images')],
+            ]);
+        }
+
+        $treatment = $this->findOwnedTreatment($request, (string) $patient->id, $treatmentId);
+        $image = $this->treatmentImages->findOwnedImage($treatment, $imageId);
+        $uploadedFile = $request->file('image');
+        if (! $uploadedFile instanceof UploadedFile) {
+            throw ValidationException::withMessages([
+                'image' => [__('api.treatments.image_required')],
+            ]);
+        }
+
+        $this->treatmentImages->replaceQueued(
+            dentistId: $this->resolveDentistId($request),
+            patient: $patient,
+            treatment: $treatment,
+            image: $image,
+            uploadedFile: $uploadedFile,
+            owner: $this->resolveSubscriptionOwner($request)
+        );
+
+        $this->auditLogger->logFromRequest(
+            request: $request,
+            eventType: 'patient.treatment.image.replaced',
+            entityType: 'treatment',
+            entityId: (string) $treatment->id,
+            metadata: [
+                'patient_id' => (string) $patient->id,
+                'image_id' => (string) $image->id,
+            ],
+        );
+
+        $treatment->load('images');
+
+        return response()->json([
+            'data' => $this->treatmentPayload($request, $treatment, true),
+        ]);
+    }
+
     private function findOwnedPatient(Request $request, string $id): Patient
     {
         return $this->treatments->ownedPatient($request, $id);

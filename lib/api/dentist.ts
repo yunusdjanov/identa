@@ -522,6 +522,25 @@ export async function deletePatientOralPhoto(
     return data.data;
 }
 
+export async function replacePatientOralPhoto(
+    id: string,
+    viewType: ApiPatientClinicalPhotoViewType,
+    photoId: string,
+    photo: File
+): Promise<ApiPatient> {
+    const formData = new FormData();
+    formData.append('photo', photo);
+
+    const { data } = await withCsrfRetry(() =>
+        apiClient.post<ApiEnvelope<ApiPatient>>(
+            `${patientOralPhotoEndpoint(id, viewType)}/${photoId}/replace`,
+            formData
+        )
+    );
+
+    return data.data;
+}
+
 export async function archivePatient(id: string): Promise<void> {
     await withCsrfRetry(() => apiClient.delete(`/patients/${id}`));
 }
@@ -1313,6 +1332,25 @@ export async function deletePatientTreatmentImage(
             `/patients/${patientId}/treatments/${treatmentId}/images/${imageId}`
         )
     );
+}
+
+export async function replacePatientTreatmentImage(
+    patientId: string,
+    treatmentId: string,
+    imageId: string,
+    image: File
+): Promise<ApiTreatment> {
+    const formData = new FormData();
+    formData.append('image', image);
+
+    const { data } = await withCsrfRetry(() =>
+        apiClient.post<ApiEnvelope<ApiTreatment>>(
+            `/patients/${patientId}/treatments/${treatmentId}/images/${imageId}/replace`,
+            formData
+        )
+    );
+
+    return data.data;
 }
 
 export async function downloadPatientTreatmentImage(

@@ -43,6 +43,7 @@ class UploadRouteThrottleTest extends TestCase
             'api/v1/patients/{id}/oral-photos/{viewType}/direct-upload',
             'api/v1/patients/{id}/oral-photos/{viewType}/direct-upload/{uploadId}/complete',
             'api/v1/patients/{id}/oral-photos/{viewType}',
+            'api/v1/patients/{id}/oral-photos/{viewType}/{photoId}/replace',
             'api/v1/patients/{id}/odontogram/{entryId}/images/direct-upload',
             'api/v1/patients/{id}/odontogram/{entryId}/images/direct-upload/{uploadId}/complete',
             'api/v1/patients/{id}/odontogram/{entryId}/images',
@@ -51,6 +52,7 @@ class UploadRouteThrottleTest extends TestCase
             'api/v1/patients/{id}/treatments/{treatmentId}/images/direct-upload-batch',
             'api/v1/patients/{id}/treatments/{treatmentId}/images/direct-upload-batch/complete',
             'api/v1/patients/{id}/treatments/{treatmentId}/images',
+            'api/v1/patients/{id}/treatments/{treatmentId}/images/{imageId}/replace',
         ];
     }
 }

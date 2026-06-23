@@ -17,6 +17,7 @@ import {
     getPatient,
     getPatientOverview,
     permanentlyDeletePatient,
+    replacePatientOralPhoto,
     restorePatient,
     uploadPatientOralPhoto,
 } from '@/lib/api/dentist';
@@ -64,6 +65,7 @@ import { getProtectedMediaCrossOrigin, getProtectedMediaPreviewUrl, getProtected
 import { INPUT_LIMITS } from '@/lib/input-validation';
 import { optimizeImageFileForUpload } from '@/lib/browser-image';
 import type { ApiPatient, ApiPatientClinicalPhotoViewType } from '@/lib/api/types';
+import type { PreviewGalleryImage } from '@/components/patients/patient-photo-preview-dialog';
 import {
     getPatientOralPhotoGallery,
     hasPendingOralPhotoProcessing,
@@ -398,6 +400,24 @@ export default function PatientDetailPage({
         },
     });
 
+    const replaceOralPhotoMutation = useMutation({
+        mutationFn: ({ photo, viewType, photoId }: { photo: File; viewType: ApiPatientClinicalPhotoViewType; photoId: string }) =>
+            replacePatientOralPhoto(id, viewType, photoId, photo),
+        onSuccess: (updatedPatient) => {
+            toast.success(t(
+                hasPendingOralPhotoProcessing(updatedPatient)
+                    ? 'patientDetail.toast.oralPhotoProcessing'
+                    : 'patientHistory.toast.imageEdited'
+            ));
+            queryClient.setQueryData(['patients', 'detail', id], updatedPatient);
+            queryClient.invalidateQueries({ queryKey: ['patients'] });
+            queryClient.invalidateQueries({ queryKey: ['patients', 'detail', id] });
+        },
+        onError: (error) => {
+            toast.error(getApiErrorMessage(error, t('patients.toast.photoUploadFailed')));
+        },
+    });
+
     const deleteOralPhotoMutation = useMutation({
         mutationFn: ({ viewType, photoId }: { viewType: ApiPatientClinicalPhotoViewType; photoId: string }) =>
             deletePatientOralPhoto(id, viewType, photoId),
@@ -601,15 +621,14 @@ export default function PatientDetailPage({
             setOralPhotoInputKey((value) => value + 1);
         }
     };
-    const saveEditedOralPhoto = async (editedPhoto: File) => {
+    const saveEditedOralPhoto = async (image: PreviewGalleryImage, editedPhoto: File) => {
         const viewType = oralPhotoPreviewTarget?.viewType;
         if (!viewType || isPatientArchived || !canManagePatients) {
             return;
         }
 
-        const uploadSlot = oralPhotoSlots.find((slot) => slot.viewType === viewType);
-        if ((uploadSlot?.photos.length ?? 0) >= ORAL_PHOTO_MAX_PER_SLOT) {
-            throw new Error(t('patientDetail.oralPhoto.limitReached'));
+        if (!image.id) {
+            throw new Error(t('gallery.edit.failed'));
         }
 
         const optimizedPhoto = await optimizeImageFileForUpload(editedPhoto, {
@@ -621,7 +640,11 @@ export default function PatientDetailPage({
             throw new Error(t('patients.toast.photoTooLarge', { sizeMb: oralPhotoUploadMaxMb }));
         }
 
-        await uploadOralPhotoMutation.mutateAsync({ photo: optimizedPhoto, viewType });
+        await replaceOralPhotoMutation.mutateAsync({
+            photo: optimizedPhoto,
+            viewType,
+            photoId: image.id,
+        });
     };
 
     return (
@@ -1237,11 +1260,11 @@ export default function PatientDetailPage({
                             });
                         }
                     }}
-                    onSaveEditedImage={canManagePatients && !isPatientArchived ? async (_image, file) => {
-                        await saveEditedOralPhoto(file);
+                    onSaveEditedImage={canManagePatients && !isPatientArchived ? async (image, file) => {
+                        await saveEditedOralPhoto(image, file);
                     } : undefined}
                     isDeletePending={deleteOralPhotoMutation.isPending}
-                    isEditPending={uploadOralPhotoMutation.isPending}
+                    isEditPending={replaceOralPhotoMutation.isPending}
                 />
             ) : null}
 
