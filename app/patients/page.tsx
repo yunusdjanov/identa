@@ -30,13 +30,13 @@ import { getCurrentUser, listPatientCategories, listPatients, restorePatient } f
 import { getApiErrorMessage } from '@/lib/api/client';
 import type { ApiPatient, ApiRecordActor } from '@/lib/api/types';
 import { cn, extractPrimaryPhone, formatDate, toLocalDateKey, truncateForUi } from '@/lib/utils';
-import { Plus, Search, Phone, Users, CalendarPlus, ArrowRight, Tags, FileText, FilterX, Download } from 'lucide-react';
+import { Plus, Search, Phone, Users, CalendarPlus, ArrowRight, Tags, FileText, FilterX, Download, Maximize2 } from 'lucide-react';
 import { buildPdfFilename, exportRowsToPdf } from '@/lib/export/pdf';
 import { EmptyState } from '@/components/ui/empty-state';
 import { useI18n } from '@/components/providers/i18n-provider';
 import { useDebouncedValue } from '@/lib/hooks/use-debounced-value';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { getProtectedMediaCrossOrigin, getProtectedMediaThumbnailUrl } from '@/lib/protected-media';
+import { getProtectedMediaCrossOrigin, getProtectedMediaPreviewUrl, getProtectedMediaThumbnailUrl } from '@/lib/protected-media';
 import { toast } from 'sonner';
 import { AppErrorState } from '@/components/error/app-error-state';
 import { AccessDeniedState } from '@/components/error/access-denied-state';
@@ -51,6 +51,10 @@ const ManageCategoriesDialog = dynamic(
     () => import('@/components/patients/manage-categories-dialog').then((module) => module.ManageCategoriesDialog),
     { ssr: false }
 );
+const PatientPhotoPreviewDialog = dynamic(
+    () => import('@/components/patients/patient-photo-preview-dialog').then((module) => module.PatientPhotoPreviewDialog),
+    { ssr: false }
+);
 
 const noopSubscribe = () => () => undefined;
 const PAGE_SIZE = 10;
@@ -61,6 +65,7 @@ interface PatientRow {
     id: string;
     fullName: string;
     photoThumbnailUrl?: string;
+    photoPreviewUrl?: string;
     phone: string;
     secondaryPhone?: string;
     dateOfBirth?: string;
@@ -81,10 +86,17 @@ function mapPatientRow(patient: ApiPatient): PatientRow {
         url: patient.photo_url,
         allowFullFallback: true,
     }) ?? undefined;
+    const photoPreviewUrl = getProtectedMediaPreviewUrl({
+        scanStatus: patient.photo_scan_status,
+        previewUrl: patient.photo_preview_url,
+        url: patient.photo_url,
+    }) ?? photoThumbnailUrl;
+
     return {
         id: patient.id,
         fullName: patient.full_name,
         photoThumbnailUrl,
+        photoPreviewUrl,
         phone: extractPrimaryPhone(patient.phone),
         secondaryPhone: patient.secondary_phone ?? undefined,
         dateOfBirth: patient.date_of_birth ?? undefined,
@@ -146,6 +158,12 @@ export default function PatientsPage() {
     });
     const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
     const [isManageCategoriesOpen, setIsManageCategoriesOpen] = useState(false);
+    const [photoPreview, setPhotoPreview] = useState<{
+        src: string;
+        thumbnailSrc?: string;
+        alt: string;
+        title: string;
+    } | null>(null);
     const [dismissedUrlDialog, setDismissedUrlDialog] = useState(false);
     const shouldOpenFromUrl =
         isClient && new URLSearchParams(urlSearch).get('action') === 'new' && !dismissedUrlDialog;
@@ -543,6 +561,8 @@ export default function PatientsPage() {
                                         const categoryToDisplay = filteredCategory ?? patient.categories[0];
                                         const rowNumber =
                                             (pageNumber - 1) * (pagination?.per_page ?? PAGE_SIZE) + index + 1;
+                                        const patientPhotoThumbnailUrl = patient.photoThumbnailUrl ?? '';
+                                        const patientPhotoPreviewUrl = patient.photoPreviewUrl ?? patientPhotoThumbnailUrl;
 
                                         return (
                                         <TableRow
@@ -563,24 +583,36 @@ export default function PatientsPage() {
                                                 {rowNumber}
                                             </TableCell>
                                             <TableCell className="w-28">
-                                                {patient.photoThumbnailUrl ? (
+                                                {patientPhotoThumbnailUrl !== '' ? (
                                                     <button
                                                         type="button"
-                                                        disabled
-                                                        className="inline-flex h-16 w-16 cursor-default items-center justify-center overflow-hidden rounded-xl border border-slate-200 bg-white p-0 shadow-xs disabled:opacity-100"
+                                                        className="group relative inline-flex h-16 w-16 items-center justify-center overflow-hidden rounded-xl border border-slate-200 bg-white p-0 shadow-xs transition hover:border-teal-200 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-300"
                                                         aria-label={`${t('patients.form.photo')}: ${patient.fullName}`}
+                                                        onClick={(event) => {
+                                                            event.stopPropagation();
+                                                            setPhotoPreview({
+                                                                src: patientPhotoPreviewUrl,
+                                                                thumbnailSrc: patientPhotoThumbnailUrl,
+                                                                alt: patient.fullName,
+                                                                title: patient.fullName,
+                                                            });
+                                                        }}
+                                                        onKeyDown={(event) => event.stopPropagation()}
                                                     >
                                                         <Avatar className="h-full w-full rounded-xl">
                                                             <AvatarImage
-                                                                src={patient.photoThumbnailUrl}
+                                                                src={patientPhotoThumbnailUrl}
                                                                 alt={patient.fullName}
-                                                                crossOrigin={getProtectedMediaCrossOrigin(patient.photoThumbnailUrl)}
+                                                                crossOrigin={getProtectedMediaCrossOrigin(patientPhotoThumbnailUrl)}
                                                                 className="rounded-xl"
                                                             />
                                                             <AvatarFallback className="rounded-xl bg-slate-100 text-xs font-semibold text-slate-700">
                                                                 {getPatientInitials(patient.fullName)}
                                                             </AvatarFallback>
                                                         </Avatar>
+                                                        <span className="pointer-events-none absolute inset-0 flex items-center justify-center bg-slate-950/0 text-white opacity-0 transition group-hover:bg-slate-950/35 group-hover:opacity-100 group-focus-visible:bg-slate-950/35 group-focus-visible:opacity-100">
+                                                            <Maximize2 className="h-4 w-4" />
+                                                        </span>
                                                     </button>
                                                 ) : (
                                                     <Avatar className="h-16 w-16 rounded-xl border border-dashed border-slate-200 bg-slate-50">
@@ -784,6 +816,20 @@ export default function PatientsPage() {
                 <ManageCategoriesDialog
                     open={isManageCategoriesOpen}
                     onOpenChange={setIsManageCategoriesOpen}
+                />
+            ) : null}
+
+            {photoPreview ? (
+                <PatientPhotoPreviewDialog
+                    open={photoPreview !== null}
+                    onOpenChange={(open) => {
+                        if (!open) {
+                            setPhotoPreview(null);
+                        }
+                    }}
+                    images={[photoPreview]}
+                    alt={photoPreview.alt}
+                    title={photoPreview.title}
                 />
             ) : null}
         </div>

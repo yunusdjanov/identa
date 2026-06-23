@@ -1,6 +1,6 @@
 import { Suspense } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { act, cleanup, render, screen } from '@testing-library/react';
+import { act, cleanup, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import PatientDetailPage from '@/app/patients/[id]/page';
@@ -116,6 +116,30 @@ describe('PatientDetailPage', () => {
         await renderPage();
 
         expect(await screen.findByText('John Smith')).toBeInTheDocument();
+    });
+
+    it('opens a read-only preview from the patient header photo', async () => {
+        vi.mocked(getCurrentUser).mockResolvedValue(dentist as never);
+        vi.mocked(getPatient).mockResolvedValue({
+            ...patient,
+            photo_url: 'https://media.identa.test/patient-original.webp',
+            photo_thumbnail_url: 'https://media.identa.test/patient-thumb.webp',
+            photo_preview_url: 'https://media.identa.test/patient-preview.webp',
+            photo_thumbnail_ready: true,
+            photo_preview_ready: true,
+            photo_scan_status: 'approved',
+        } as never);
+        await renderPage();
+        const user = userEvent.setup();
+
+        const photoTrigger = await screen.findByRole('button', { name: 'Patient Photo: John Smith' });
+        expect(photoTrigger).toHaveClass('h-16', 'w-16');
+
+        await user.click(photoTrigger);
+
+        const dialog = await screen.findByRole('dialog');
+        expect(dialog).toBeInTheDocument();
+        expect(within(dialog).queryByRole('button', { name: 'Edit' })).not.toBeInTheDocument();
     });
 
     it('keeps long address values clamped in the contact card', async () => {

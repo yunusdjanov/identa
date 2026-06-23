@@ -1,5 +1,5 @@
 ﻿import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import PatientsPage from '@/app/patients/page';
@@ -222,7 +222,7 @@ describe('PatientsPage', () => {
         expect(pushMock).toHaveBeenCalledWith('/patients/patient-followup');
     });
 
-    it('renders patient photo as a larger static thumbnail without opening preview', async () => {
+    it('opens a read-only preview from the patient photo thumbnail', async () => {
         vi.mocked(listPatients).mockResolvedValue(buildPatientsResponse([
             {
                 id: 'patient-photo',
@@ -267,13 +267,15 @@ describe('PatientsPage', () => {
             name: 'Patient Photo: Photo Preview Patient',
         });
         expect(screen.queryByRole('button', { name: 'Patient Photo: No Photo Patient' })).not.toBeInTheDocument();
-        expect(photoTrigger).toBeDisabled();
+        expect(photoTrigger).toBeEnabled();
 
         await user.click(photoTrigger);
 
         expect(pushMock).not.toHaveBeenCalled();
-        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
         expect(photoTrigger).toHaveClass('h-16', 'w-16');
+        const dialog = await screen.findByRole('dialog');
+        expect(dialog).toBeInTheDocument();
+        expect(within(dialog).queryByRole('button', { name: 'Edit' })).not.toBeInTheDocument();
     });
 
     it('shows record authors when the display preference is enabled', async () => {

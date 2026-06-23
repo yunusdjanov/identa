@@ -289,6 +289,7 @@ export default function PatientDetailPage({
     const [isArchivePatientDialogOpen, setIsArchivePatientDialogOpen] = useState(false);
     const [isRestorePatientDialogOpen, setIsRestorePatientDialogOpen] = useState(false);
     const [isPermanentDeletePatientDialogOpen, setIsPermanentDeletePatientDialogOpen] = useState(false);
+    const [isPatientPhotoPreviewOpen, setIsPatientPhotoPreviewOpen] = useState(false);
     const [oralPhotoPreviewTarget, setOralPhotoPreviewTarget] = useState<{
         viewType: ApiPatientClinicalPhotoViewType;
         photoId: string;
@@ -512,6 +513,11 @@ export default function PatientDetailPage({
         url: patient.photo_url,
         allowFullFallback: true,
     }) ?? undefined;
+    const patientAvatarPreviewUrl = getProtectedMediaPreviewUrl({
+        scanStatus: patient.photo_scan_status,
+        previewUrl: patient.photo_preview_url,
+        url: patient.photo_url,
+    }) ?? patientAvatarUrl;
     const oralPhotoSlots = ORAL_PHOTO_SLOTS.map((slot) => {
         const photos = getPatientOralPhotoGallery(patient, slot.viewType).map((photo, index) => {
             const thumbnailUrl = getProtectedMediaThumbnailUrl({
@@ -655,18 +661,34 @@ export default function PatientDetailPage({
                     <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => router.push('/patients')}>
                         <ArrowLeft className="h-4 w-4" />
                     </Button>
-                    <Avatar className="h-12 w-12 shrink-0 border border-white shadow-sm shadow-slate-200">
-                        {patientAvatarUrl ? (
-                            <AvatarImage
-                                src={patientAvatarUrl}
-                                alt={patient.full_name}
-                                crossOrigin={getProtectedMediaCrossOrigin(patientAvatarUrl)}
-                            />
-                        ) : null}
-                        <AvatarFallback className="bg-slate-100 text-xs font-semibold text-slate-700">
-                            {getPatientInitials(patient.full_name)}
-                        </AvatarFallback>
-                    </Avatar>
+                    {patientAvatarUrl ? (
+                        <button
+                            type="button"
+                            className="group relative h-16 w-16 shrink-0 overflow-hidden rounded-full border border-white bg-white p-0 shadow-sm shadow-slate-200 transition hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-300"
+                            aria-label={`${t('patients.form.photo')}: ${patient.full_name}`}
+                            onClick={() => setIsPatientPhotoPreviewOpen(true)}
+                        >
+                            <Avatar className="h-full w-full">
+                                <AvatarImage
+                                    src={patientAvatarUrl}
+                                    alt={patient.full_name}
+                                    crossOrigin={getProtectedMediaCrossOrigin(patientAvatarUrl)}
+                                />
+                                <AvatarFallback className="bg-slate-100 text-sm font-semibold text-slate-700">
+                                    {getPatientInitials(patient.full_name)}
+                                </AvatarFallback>
+                            </Avatar>
+                            <span className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-full bg-slate-950/0 text-white opacity-0 transition group-hover:bg-slate-950/35 group-hover:opacity-100 group-focus-visible:bg-slate-950/35 group-focus-visible:opacity-100">
+                                <Maximize2 className="h-4 w-4" />
+                            </span>
+                        </button>
+                    ) : (
+                        <Avatar className="h-16 w-16 shrink-0 border border-white bg-slate-100 shadow-sm shadow-slate-200">
+                            <AvatarFallback className="bg-slate-100 text-sm font-semibold text-slate-700">
+                                {getPatientInitials(patient.full_name)}
+                            </AvatarFallback>
+                        </Avatar>
+                    )}
                     <div className="min-w-0">
                         <h1
                             className="max-w-full truncate text-lg font-bold tracking-[-0.02em] text-slate-950"
@@ -1236,6 +1258,21 @@ export default function PatientDetailPage({
                     onOpenChange={setIsEditDialogOpen}
                     patient={patient}
                     uploadMaxMb={currentUser?.subscription?.upload_max_mb}
+                />
+            ) : null}
+
+            {patientAvatarPreviewUrl ? (
+                <PatientPhotoPreviewDialog
+                    open={isPatientPhotoPreviewOpen}
+                    onOpenChange={setIsPatientPhotoPreviewOpen}
+                    images={[{
+                        src: patientAvatarPreviewUrl,
+                        thumbnailSrc: patientAvatarUrl,
+                        alt: patient.full_name,
+                        title: patient.full_name,
+                    }]}
+                    alt={patient.full_name}
+                    title={patient.full_name}
                 />
             ) : null}
 
