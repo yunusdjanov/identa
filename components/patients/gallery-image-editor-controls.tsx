@@ -2,7 +2,6 @@
 
 import type { ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useI18n } from '@/components/providers/i18n-provider';
 import { Crop, MousePointer2, PenLine, RotateCcw, RotateCw, Save, Type, Undo2 } from 'lucide-react';
@@ -33,8 +32,6 @@ interface GalleryImageEditorControlsProps {
     cropRect: CropRect | null;
     onApplyCrop: () => void;
     onResetCrop: () => void;
-    textDraft: string;
-    onTextDraftChange: (value: string) => void;
     canUndo: boolean;
     onUndo: () => void;
     onReset: () => void;
@@ -101,8 +98,6 @@ export function GalleryImageEditorControls({
     cropRect,
     onApplyCrop,
     onResetCrop,
-    textDraft,
-    onTextDraftChange,
     canUndo,
     onUndo,
     onReset,
@@ -223,15 +218,6 @@ export function GalleryImageEditorControls({
                                     {t('gallery.edit.resetCrop')}
                                 </Button>
                             </>
-                        ) : null}
-                        {mode === 'text' ? (
-                            <Input
-                                value={textDraft}
-                                onChange={(event) => onTextDraftChange(event.target.value)}
-                                placeholder={t('gallery.edit.textPlaceholder')}
-                                disabled={isEditingDisabled}
-                                className="h-9 w-56 border-white/10 bg-white/10 text-white placeholder:text-white/40"
-                            />
                         ) : null}
                         {(mode === 'draw' || mode === 'text') ? (
                             <Button type="button" variant="ghost" size="sm" className="text-white/75 hover:bg-white/10 hover:text-white" onClick={onUndo} disabled={isEditingDisabled || !canUndo}>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from 'react';
 import { useI18n } from '@/components/providers/i18n-provider';
 import { GalleryImageEditorControls } from './gallery-image-editor-controls';
 import { createEditedImageFile, loadEditableImage, normalizeRect, renderEditedCanvas } from './gallery-image-editor-canvas';
@@ -27,6 +27,14 @@ interface GalleryImageEditorProps {
     onSave: (file: File) => Promise<void> | void;
 }
 
+interface InlineTextDraft {
+    id: number;
+    basePoint: Point;
+    leftPercent: number;
+    topPercent: number;
+    value: string;
+}
+
 /**
  * Canvas-based clinical-photo editor used inside the fullscreen gallery.
  * Save exports a replacement image for the original media record.
@@ -36,6 +44,9 @@ export function GalleryImageEditor({ image, isSaving = false, onCancel, onSave }
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
     const cropStartRef = useRef<Point | null>(null);
     const activeStrokeRef = useRef<DrawStroke | null>(null);
+    const textInputRef = useRef<HTMLInputElement | null>(null);
+    const textDraftRef = useRef<InlineTextDraft | null>(null);
+    const textDraftIdRef = useRef(0);
     const [source, setSource] = useState<HTMLImageElement | null>(null);
     const [mode, setMode] = useState<EditMode>('adjust');
     const [rotation, setRotation] = useState(0);
@@ -48,13 +59,21 @@ export function GalleryImageEditor({ image, isSaving = false, onCancel, onSave }
     const [textAnnotations, setTextAnnotations] = useState<TextAnnotation[]>([]);
     const [drawColor, setDrawColor] = useState(DEFAULT_DRAW_COLOR);
     const [drawSize, setDrawSize] = useState(DEFAULT_DRAW_SIZE);
-    const [textDraft, setTextDraft] = useState('');
+    const [textDraft, setTextDraft] = useState<InlineTextDraft | null>(null);
     const [textSize, setTextSize] = useState(DEFAULT_TEXT_SIZE);
     const [isRendering, setIsRendering] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const isSaveBusy = isSaving || isRendering;
     const isEditingDisabled = isSaveBusy || !source;
     const allStrokes = useMemo(() => (activeStroke ? [...strokes, activeStroke] : strokes), [activeStroke, strokes]);
+
+    useEffect(() => {
+        textDraftRef.current = textDraft;
+    }, [textDraft]);
+
+    useEffect(() => {
+        textInputRef.current?.focus();
+    }, [textDraft?.id]);
 
     useEffect(() => {
         let isMounted = true;
@@ -121,7 +140,56 @@ export function GalleryImageEditor({ image, isSaving = false, onCancel, onSave }
         setStrokes([]);
         setActiveStroke(null);
         setTextAnnotations([]);
+        textDraftRef.current = null;
+        setTextDraft(null);
         setError(null);
+    };
+
+    const buildTextAnnotation = (draft: InlineTextDraft): TextAnnotation | null => {
+        const text = draft.value.trim();
+        if (text === '') {
+            return null;
+        }
+
+        return {
+            ...draft.basePoint,
+            text,
+            color: drawColor,
+            size: textSize,
+        };
+    };
+
+    const commitTextDraft = () => {
+        const currentDraft = textDraftRef.current ?? textDraft;
+        if (!currentDraft) {
+            return;
+        }
+
+        textDraftRef.current = null;
+        const annotation = buildTextAnnotation(currentDraft);
+        if (annotation) {
+            setTextAnnotations((current) => [...current, annotation]);
+        }
+        setTextDraft(null);
+    };
+
+    const cancelTextDraft = () => {
+        textDraftRef.current = null;
+        setTextDraft(null);
+    };
+
+    const startTextDraft = (point: Point, canvas: HTMLCanvasElement) => {
+        commitTextDraft();
+        textDraftIdRef.current += 1;
+        const nextDraft = {
+            id: textDraftIdRef.current,
+            basePoint: toBasePoint(point),
+            leftPercent: (point.x / Math.max(canvas.width, 1)) * 100,
+            topPercent: (point.y / Math.max(canvas.height, 1)) * 100,
+            value: '',
+        };
+        textDraftRef.current = nextDraft;
+        setTextDraft(nextDraft);
     };
 
     const handlePointerDown = (event: ReactPointerEvent<HTMLCanvasElement>) => {
@@ -145,12 +213,8 @@ export function GalleryImageEditor({ image, isSaving = false, onCancel, onSave }
             return;
         }
 
-        if (mode === 'text' && textDraft.trim() !== '') {
-            setTextAnnotations((current) => [
-                ...current,
-                { ...toBasePoint(point), text: textDraft.trim(), color: drawColor, size: textSize },
-            ]);
-            setTextDraft('');
+        if (mode === 'text') {
+            startTextDraft(point, event.currentTarget);
         }
     };
 
@@ -227,7 +291,17 @@ export function GalleryImageEditor({ image, isSaving = false, onCancel, onSave }
         setError(null);
         setIsRendering(true);
         try {
-            const file = await createEditedImageFile({ source, image, rotation, brightness, contrast, cropRect, strokes, textAnnotations });
+            const pendingTextDraft = textDraftRef.current ?? textDraft;
+            const pendingTextAnnotation = pendingTextDraft ? buildTextAnnotation(pendingTextDraft) : null;
+            const committedTextAnnotations = pendingTextAnnotation
+                ? [...textAnnotations, pendingTextAnnotation]
+                : textAnnotations;
+            const file = await createEditedImageFile({ source, image, rotation, brightness, contrast, cropRect, strokes, textAnnotations: committedTextAnnotations });
+            if (pendingTextAnnotation) {
+                setTextAnnotations(committedTextAnnotations);
+                textDraftRef.current = null;
+                setTextDraft(null);
+            }
             await onSave(file);
         } catch {
             setError(t('gallery.edit.failed'));
@@ -239,21 +313,66 @@ export function GalleryImageEditor({ image, isSaving = false, onCancel, onSave }
     return (
         <div className="grid min-h-0 min-w-0 grid-rows-[minmax(0,1fr)_auto] bg-slate-950">
             <div className="flex min-h-0 items-center justify-center overflow-hidden px-3 py-3 sm:px-16 sm:py-6">
-                <canvas
-                    ref={canvasRef}
-                    className={`h-auto max-h-full w-auto max-w-full rounded-md bg-slate-100 object-contain shadow-2xl shadow-black/40 ${
-                        mode === 'crop' || mode === 'draw' ? 'cursor-crosshair' : mode === 'text' ? 'cursor-text' : 'cursor-default'
-                    }`}
-                    aria-label={image.alt}
-                    onPointerDown={handlePointerDown}
-                    onPointerMove={handlePointerMove}
-                    onPointerUp={handlePointerUp}
-                    onPointerCancel={handlePointerUp}
-                />
+                <div className="relative inline-flex max-h-full max-w-full">
+                    <canvas
+                        ref={canvasRef}
+                        className={`h-auto max-h-full w-auto max-w-full rounded-md bg-slate-900 object-contain shadow-2xl shadow-black/40 ${
+                            mode === 'crop' || mode === 'draw' ? 'cursor-crosshair' : mode === 'text' ? 'cursor-text' : 'cursor-default'
+                        }`}
+                        aria-label={image.alt}
+                        onPointerDown={handlePointerDown}
+                        onPointerMove={handlePointerMove}
+                        onPointerUp={handlePointerUp}
+                        onPointerCancel={handlePointerUp}
+                    />
+                    {textDraft ? (
+                        <input
+                            ref={textInputRef}
+                            value={textDraft.value}
+                            onChange={(event) => {
+                                const { value } = event.target;
+                                setTextDraft((current) => {
+                                    if (!current) {
+                                        return current;
+                                    }
+
+                                    const nextDraft = { ...current, value };
+                                    textDraftRef.current = nextDraft;
+
+                                    return nextDraft;
+                                });
+                            }}
+                            onBlur={commitTextDraft}
+                            onKeyDown={(event: ReactKeyboardEvent<HTMLInputElement>) => {
+                                if (event.key === 'Enter') {
+                                    event.preventDefault();
+                                    commitTextDraft();
+                                } else if (event.key === 'Escape') {
+                                    event.preventDefault();
+                                    cancelTextDraft();
+                                }
+                            }}
+                            disabled={isSaveBusy}
+                            placeholder={t('gallery.edit.textPlaceholder')}
+                            aria-label={t('gallery.edit.text')}
+                            className="absolute z-10 h-10 min-w-40 max-w-[min(20rem,80vw)] rounded-lg border border-teal-300 bg-slate-950/90 px-3 text-sm font-semibold text-white shadow-xl shadow-black/30 outline-none ring-2 ring-teal-300/40 placeholder:text-white/45 disabled:opacity-70"
+                            style={{
+                                left: `${textDraft.leftPercent}%`,
+                                top: `${textDraft.topPercent}%`,
+                                transform: 'translate(-0.25rem, -0.25rem)',
+                                color: drawColor,
+                                fontSize: `${Math.max(14, Math.min(textSize, 32))}px`,
+                            }}
+                        />
+                    ) : null}
+                </div>
             </div>
             <GalleryImageEditorControls
                 mode={mode}
                 onModeChange={(nextMode) => {
+                    if (mode === 'text' && nextMode !== 'text') {
+                        commitTextDraft();
+                    }
                     setMode(nextMode);
                     setDraftCropRect(null);
                 }}
@@ -271,8 +390,6 @@ export function GalleryImageEditor({ image, isSaving = false, onCancel, onSave }
                 cropRect={cropRect}
                 onApplyCrop={applyCrop}
                 onResetCrop={() => { setCropRect(null); setDraftCropRect(null); }}
-                textDraft={textDraft}
-                onTextDraftChange={setTextDraft}
                 canUndo={strokes.length > 0 || textAnnotations.length > 0}
                 onUndo={undoAnnotation}
                 onReset={reset}

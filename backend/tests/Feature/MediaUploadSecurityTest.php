@@ -934,6 +934,46 @@ class MediaUploadSecurityTest extends TestCase
         $this->assertDatabaseCount('patient_clinical_photos', 6);
     }
 
+    public function test_rejected_oral_photo_replacement_retains_previous_approved_photo(): void
+    {
+        Storage::fake('local');
+        $this->bindInfectedScanner();
+
+        $dentist = User::factory()->create();
+        $patient = Patient::factory()->create(['dentist_id' => $dentist->id]);
+        $approvedPath = 'approved/patients/oral-bottom-original.jpg';
+        Storage::disk('local')->put($approvedPath, 'original');
+        $photo = PatientClinicalPhoto::query()->create([
+            'dentist_id' => $dentist->id,
+            'patient_id' => $patient->id,
+            'view_type' => PatientClinicalPhoto::VIEW_TYPE_BOTTOM,
+            'is_primary' => true,
+            'sort_order' => 1,
+            'disk' => 'local',
+            'path' => $approvedPath,
+            'mime_type' => 'image/jpeg',
+            'file_size' => 8,
+            'scan_status' => 'approved',
+            'approved_at' => now(),
+        ]);
+
+        $this->actingAs($dentist, 'web')
+            ->post("/api/v1/patients/{$patient->id}/oral-photos/bottom/{$photo->id}/replace", [
+                'photo' => UploadedFile::fake()->image('infected-edit.jpg', 800, 600),
+            ], ['Accept' => 'application/json'])
+            ->assertOk()
+            ->assertJsonPath('data.oral_photo_galleries.bottom.0.id', (string) $photo->id)
+            ->assertJsonPath('data.oral_photo_galleries.bottom.0.scan_status', 'approved');
+
+        Storage::disk('local')->assertExists($approvedPath);
+        $this->assertDatabaseHas('patient_clinical_photos', [
+            'id' => (string) $photo->id,
+            'path' => $approvedPath,
+            'scan_status' => 'approved',
+            'quarantine_path' => null,
+        ]);
+    }
+
     public function test_treatment_direct_upload_enforces_actual_stored_size(): void
     {
         Storage::fake('local');
@@ -1006,6 +1046,47 @@ class MediaUploadSecurityTest extends TestCase
 
         Storage::disk('local')->assertMissing($path);
         $this->assertDatabaseCount('treatment_images', 1);
+    }
+
+    public function test_rejected_treatment_image_replacement_retains_previous_approved_image(): void
+    {
+        Storage::fake('local');
+        $this->bindInfectedScanner();
+
+        $dentist = User::factory()->create();
+        $patient = Patient::factory()->create(['dentist_id' => $dentist->id]);
+        $treatment = Treatment::factory()->create([
+            'dentist_id' => $dentist->id,
+            'patient_id' => $patient->id,
+        ]);
+        $approvedPath = 'approved/treatments/original.jpg';
+        Storage::disk('local')->put($approvedPath, 'original');
+        $image = TreatmentImage::query()->create([
+            'dentist_id' => $dentist->id,
+            'treatment_id' => $treatment->id,
+            'disk' => 'local',
+            'path' => $approvedPath,
+            'mime_type' => 'image/jpeg',
+            'file_size' => 8,
+            'scan_status' => 'approved',
+            'approved_at' => now(),
+        ]);
+
+        $this->actingAs($dentist, 'web')
+            ->post("/api/v1/patients/{$patient->id}/treatments/{$treatment->id}/images/{$image->id}/replace", [
+                'image' => UploadedFile::fake()->image('infected-edit.jpg', 800, 600),
+            ], ['Accept' => 'application/json'])
+            ->assertOk()
+            ->assertJsonPath('data.images.0.id', (string) $image->id)
+            ->assertJsonPath('data.images.0.scan_status', 'approved');
+
+        Storage::disk('local')->assertExists($approvedPath);
+        $this->assertDatabaseHas('treatment_images', [
+            'id' => (string) $image->id,
+            'path' => $approvedPath,
+            'scan_status' => 'approved',
+            'quarantine_path' => null,
+        ]);
     }
 
     public function test_treatment_batch_direct_upload_enforces_actual_stored_size(): void

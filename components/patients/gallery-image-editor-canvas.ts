@@ -216,15 +216,32 @@ export function renderEditedCanvas({
     context.restore();
 
     if (draftCropRect && draftCropRect.width >= MIN_CROP_SIZE && draftCropRect.height >= MIN_CROP_SIZE) {
-        context.save();
-        context.fillStyle = 'rgba(15, 23, 42, 0.35)';
-        context.fillRect(0, 0, canvas.width, canvas.height);
-        context.clearRect(draftCropRect.x, draftCropRect.y, draftCropRect.width, draftCropRect.height);
-        context.strokeStyle = '#2dd4bf';
-        context.lineWidth = Math.max(2, canvas.width * 0.002);
-        context.strokeRect(draftCropRect.x, draftCropRect.y, draftCropRect.width, draftCropRect.height);
-        context.restore();
+        drawCropOverlay(context, canvas.width, canvas.height, draftCropRect);
     }
+}
+
+/** Draws crop selection chrome while keeping the selected image area visible. */
+export function drawCropOverlay(
+    context: CanvasRenderingContext2D,
+    canvasWidth: number,
+    canvasHeight: number,
+    crop: CropRect
+) {
+    const left = clamp(crop.x, 0, canvasWidth);
+    const top = clamp(crop.y, 0, canvasHeight);
+    const right = clamp(crop.x + crop.width, 0, canvasWidth);
+    const bottom = clamp(crop.y + crop.height, 0, canvasHeight);
+
+    context.save();
+    context.fillStyle = 'rgba(15, 23, 42, 0.42)';
+    context.fillRect(0, 0, canvasWidth, top);
+    context.fillRect(0, bottom, canvasWidth, Math.max(0, canvasHeight - bottom));
+    context.fillRect(0, top, left, Math.max(0, bottom - top));
+    context.fillRect(right, top, Math.max(0, canvasWidth - right), Math.max(0, bottom - top));
+    context.strokeStyle = '#2dd4bf';
+    context.lineWidth = Math.max(2, canvasWidth * 0.002);
+    context.strokeRect(left, top, Math.max(0, right - left), Math.max(0, bottom - top));
+    context.restore();
 }
 
 /** Exports the edited state as a JPEG file suitable for replacement upload. */
