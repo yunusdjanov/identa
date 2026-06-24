@@ -117,6 +117,9 @@ describe('PatientsPage', () => {
         await user.click(searchInput);
 
         expect(await screen.findByText('Recent patients')).toBeInTheDocument();
+        const recentMenu = screen.getByTestId('patients-recent-menu');
+        expect(recentMenu).toHaveClass('left-0', 'w-full');
+        expect(recentMenu.className).not.toContain('max-w');
         await user.click(screen.getByRole('button', { name: 'Recent Patient One' }));
 
         expect(pushMock).toHaveBeenCalledWith('/patients/recent-patient-1');

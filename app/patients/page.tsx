@@ -538,7 +538,8 @@ export default function PatientsPage() {
                             {shouldShowRecentMenu ? (
                                 <div
                                     id={recentMenuId}
-                                    className="absolute left-0 top-full z-40 mt-2 w-full overflow-hidden rounded-2xl border border-slate-200/90 bg-white/95 shadow-xl shadow-slate-200/70 backdrop-blur sm:max-w-md"
+                                    data-testid="patients-recent-menu"
+                                    className="absolute left-0 top-full z-40 mt-2 w-full overflow-hidden rounded-2xl border border-slate-200/90 bg-white/95 shadow-xl shadow-slate-200/70 backdrop-blur"
                                 >
                                     <div className="flex h-10 items-center justify-between border-b border-slate-100 px-3">
                                         <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">
