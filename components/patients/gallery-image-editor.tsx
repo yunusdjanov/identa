@@ -1,6 +1,8 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
+import type Konva from 'konva';
+import { Image as KonvaImage, Layer, Line, Rect, Stage, Text as KonvaText, Transformer } from 'react-konva';
 import { useI18n } from '@/components/providers/i18n-provider';
 import { GalleryImageEditorControls } from './gallery-image-editor-controls';
 import { createEditedImageFile, loadEditableImage, normalizeRect, renderEditedCanvas } from './gallery-image-editor-canvas';
@@ -30,138 +32,138 @@ interface GalleryImageEditorProps {
 interface InlineTextDraft {
     id: number;
     basePoint: Point;
-    leftPercent: number;
-    topPercent: number;
     value: string;
 }
 
-type CropHandle = 'n' | 'e' | 's' | 'w' | 'ne' | 'nw' | 'se' | 'sw';
-
-type CropInteraction =
-    | { type: 'create'; startPoint: Point }
-    | { type: 'move'; startPoint: Point; originRect: CropRect }
-    | { type: 'resize'; handle: CropHandle; originRect: CropRect };
-
-const CROP_HANDLE_HIT_SIZE_PX = 24;
-const CROP_HANDLES: Array<{ handle: CropHandle; xPercent: number; yPercent: number; cursor: string }> = [
-    { handle: 'nw', xPercent: 0, yPercent: 0, cursor: 'cursor-nwse-resize' },
-    { handle: 'n', xPercent: 50, yPercent: 0, cursor: 'cursor-ns-resize' },
-    { handle: 'ne', xPercent: 100, yPercent: 0, cursor: 'cursor-nesw-resize' },
-    { handle: 'e', xPercent: 100, yPercent: 50, cursor: 'cursor-ew-resize' },
-    { handle: 'se', xPercent: 100, yPercent: 100, cursor: 'cursor-nwse-resize' },
-    { handle: 's', xPercent: 50, yPercent: 100, cursor: 'cursor-ns-resize' },
-    { handle: 'sw', xPercent: 0, yPercent: 100, cursor: 'cursor-nesw-resize' },
-    { handle: 'w', xPercent: 0, yPercent: 50, cursor: 'cursor-ew-resize' },
-];
-
-function isFinitePoint(point: Point): boolean {
-    return Number.isFinite(point.x) && Number.isFinite(point.y);
+interface EditorViewportSize {
+    width: number;
+    height: number;
 }
+
+interface StageMetrics {
+    width: number;
+    height: number;
+    scale: number;
+}
+
+type KonvaPointerEvent = Konva.KonvaEventObject<MouseEvent | TouchEvent>;
+
+const DEFAULT_EDITOR_VIEWPORT: EditorViewportSize = { width: 760, height: 520 };
+const MIN_STAGE_SIZE_PX = 220;
+const STAGE_HORIZONTAL_PADDING_PX = 72;
+const STAGE_VERTICAL_RESERVED_PX = 220;
+const TOUCH_STAGE_HORIZONTAL_PADDING_PX = 24;
+const TOUCH_STAGE_VERTICAL_RESERVED_PX = 260;
+const CROP_ANCHORS = [
+    'top-left',
+    'top-center',
+    'top-right',
+    'middle-right',
+    'bottom-right',
+    'bottom-center',
+    'bottom-left',
+    'middle-left',
+];
 
 function clamp(value: number, min: number, max: number): number {
     return Math.min(max, Math.max(min, value));
 }
 
-function pointInRect(point: Point, rect: CropRect): boolean {
-    return point.x >= rect.x
-        && point.x <= rect.x + rect.width
-        && point.y >= rect.y
-        && point.y <= rect.y + rect.height;
+function isFinitePoint(point: Point | null): point is Point {
+    return point !== null && Number.isFinite(point.x) && Number.isFinite(point.y);
 }
 
-function canvasUnitsForCssPixels(surface: HTMLElement, canvas: HTMLCanvasElement, cssPixels: number): number {
-    const bounds = surface.getBoundingClientRect();
-    const scaleX = canvas.width / Math.max(bounds.width, 1);
-    const scaleY = canvas.height / Math.max(bounds.height, 1);
-
-    return cssPixels * Math.max(scaleX, scaleY);
-}
-
-function cropHandleAtPoint(point: Point, rect: CropRect, hitRadius: number): CropHandle | null {
-    const left = rect.x;
-    const right = rect.x + rect.width;
-    const top = rect.y;
-    const bottom = rect.y + rect.height;
-    const nearLeft = Math.abs(point.x - left) <= hitRadius;
-    const nearRight = Math.abs(point.x - right) <= hitRadius;
-    const nearTop = Math.abs(point.y - top) <= hitRadius;
-    const nearBottom = Math.abs(point.y - bottom) <= hitRadius;
-    const withinX = point.x >= left - hitRadius && point.x <= right + hitRadius;
-    const withinY = point.y >= top - hitRadius && point.y <= bottom + hitRadius;
-
-    if (nearLeft && nearTop) return 'nw';
-    if (nearRight && nearTop) return 'ne';
-    if (nearLeft && nearBottom) return 'sw';
-    if (nearRight && nearBottom) return 'se';
-    if (nearTop && withinX) return 'n';
-    if (nearBottom && withinX) return 's';
-    if (nearLeft && withinY) return 'w';
-    if (nearRight && withinY) return 'e';
-
-    return null;
-}
-
-function moveCropRect(origin: CropRect, startPoint: Point, point: Point, canvasWidth: number, canvasHeight: number): CropRect {
-    const nextX = clamp(origin.x + point.x - startPoint.x, 0, Math.max(0, canvasWidth - origin.width));
-    const nextY = clamp(origin.y + point.y - startPoint.y, 0, Math.max(0, canvasHeight - origin.height));
-
-    return { ...origin, x: nextX, y: nextY };
-}
-
-function resizeCropRect(origin: CropRect, handle: CropHandle, point: Point, canvasWidth: number, canvasHeight: number): CropRect {
-    let left = origin.x;
-    let right = origin.x + origin.width;
-    let top = origin.y;
-    let bottom = origin.y + origin.height;
-
-    if (handle.includes('w')) left = clamp(point.x, 0, right - MIN_CROP_SIZE);
-    if (handle.includes('e')) right = clamp(point.x, left + MIN_CROP_SIZE, canvasWidth);
-    if (handle.includes('n')) top = clamp(point.y, 0, bottom - MIN_CROP_SIZE);
-    if (handle.includes('s')) bottom = clamp(point.y, top + MIN_CROP_SIZE, canvasHeight);
-
-    return {
-        x: left,
-        y: top,
-        width: Math.max(MIN_CROP_SIZE, right - left),
-        height: Math.max(MIN_CROP_SIZE, bottom - top),
-    };
-}
-
-function cropRectStyle(rect: CropRect, canvas: HTMLCanvasElement | null): CSSProperties {
-    if (!canvas || canvas.width <= 0 || canvas.height <= 0) {
-        return {};
+function measureEditorViewport(): EditorViewportSize {
+    if (typeof window === 'undefined') {
+        return DEFAULT_EDITOR_VIEWPORT;
     }
 
+    const isTouchWidth = window.innerWidth < 640;
+    const horizontalPadding = isTouchWidth ? TOUCH_STAGE_HORIZONTAL_PADDING_PX : STAGE_HORIZONTAL_PADDING_PX;
+    const verticalReserved = isTouchWidth ? TOUCH_STAGE_VERTICAL_RESERVED_PX : STAGE_VERTICAL_RESERVED_PX;
+
     return {
-        left: `${(rect.x / canvas.width) * 100}%`,
-        top: `${(rect.y / canvas.height) * 100}%`,
-        width: `${(rect.width / canvas.width) * 100}%`,
-        height: `${(rect.height / canvas.height) * 100}%`,
+        width: Math.max(MIN_STAGE_SIZE_PX, window.innerWidth - horizontalPadding),
+        height: Math.max(MIN_STAGE_SIZE_PX, window.innerHeight - verticalReserved),
     };
 }
 
-function cropHandleCursor(handle: CropHandle | null): string {
-    if (!handle) {
+function stageCursorClass(mode: EditMode): string {
+    if (mode === 'draw') {
         return 'cursor-crosshair';
     }
 
-    return CROP_HANDLES.find((candidate) => candidate.handle === handle)?.cursor ?? 'cursor-crosshair';
+    if (mode === 'text') {
+        return 'cursor-text';
+    }
+
+    if (mode === 'crop') {
+        return 'cursor-crosshair';
+    }
+
+    return 'cursor-default';
+}
+
+function cropWithinVisibleRect(start: Point, end: Point, visibleRect: CropRect): CropRect {
+    const localStart = {
+        x: start.x - visibleRect.x,
+        y: start.y - visibleRect.y,
+    };
+    const localEnd = {
+        x: end.x - visibleRect.x,
+        y: end.y - visibleRect.y,
+    };
+    const localRect = normalizeRect(localStart, localEnd, visibleRect.width, visibleRect.height);
+
+    return {
+        x: localRect.x + visibleRect.x,
+        y: localRect.y + visibleRect.y,
+        width: localRect.width,
+        height: localRect.height,
+    };
+}
+
+function clampStageRect(rect: CropRect, stageWidth: number, stageHeight: number, minimumSize: number): CropRect {
+    const width = clamp(rect.width, minimumSize, stageWidth);
+    const height = clamp(rect.height, minimumSize, stageHeight);
+
+    return {
+        x: clamp(rect.x, 0, Math.max(0, stageWidth - width)),
+        y: clamp(rect.y, 0, Math.max(0, stageHeight - height)),
+        width,
+        height,
+    };
+}
+
+function textStrokeColor(fillColor: string): string {
+    return fillColor === '#ffffff' ? 'rgba(15, 23, 42, 0.7)' : 'rgba(255, 255, 255, 0.75)';
+}
+
+function isEditableImageTarget(event: KonvaPointerEvent, stage: Konva.Stage | null): boolean {
+    if (event.target === stage) {
+        return true;
+    }
+
+    return event.target.name() === 'base-image';
 }
 
 /**
- * Canvas-based clinical-photo editor used inside the fullscreen gallery.
- * Save exports a replacement image for the original media record.
+ * Clinical-photo editor for the fullscreen gallery.
+ * Konva owns interactive editing, while the existing canvas exporter keeps the upload contract stable.
  */
 export function GalleryImageEditor({ image, isSaving = false, onCancel, onSave }: GalleryImageEditorProps) {
     const { t } = useI18n();
-    const canvasRef = useRef<HTMLCanvasElement | null>(null);
-    const hitLayerRef = useRef<HTMLDivElement | null>(null);
-    const cropInteractionRef = useRef<CropInteraction | null>(null);
+    const stageRef = useRef<Konva.Stage | null>(null);
+    const cropRectRef = useRef<Konva.Rect | null>(null);
+    const cropTransformerRef = useRef<Konva.Transformer | null>(null);
     const activeStrokeRef = useRef<DrawStroke | null>(null);
+    const cropStartRef = useRef<Point | null>(null);
     const textInputRef = useRef<HTMLInputElement | null>(null);
     const textDraftRef = useRef<InlineTextDraft | null>(null);
     const textDraftIdRef = useRef(0);
+    const [viewportSize, setViewportSize] = useState<EditorViewportSize>(DEFAULT_EDITOR_VIEWPORT);
     const [source, setSource] = useState<HTMLImageElement | null>(null);
+    const [previewCanvas, setPreviewCanvas] = useState<HTMLCanvasElement | null>(null);
     const [mode, setMode] = useState<EditMode>('adjust');
     const [rotation, setRotation] = useState(0);
     const [brightness, setBrightness] = useState(DEFAULT_BRIGHTNESS);
@@ -175,12 +177,117 @@ export function GalleryImageEditor({ image, isSaving = false, onCancel, onSave }
     const [drawSize, setDrawSize] = useState(DEFAULT_DRAW_SIZE);
     const [textDraft, setTextDraft] = useState<InlineTextDraft | null>(null);
     const [textSize, setTextSize] = useState(DEFAULT_TEXT_SIZE);
-    const [hoveredCropHandle, setHoveredCropHandle] = useState<CropHandle | null>(null);
     const [isRendering, setIsRendering] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const isSaveBusy = isSaving || isRendering;
-    const isEditingDisabled = isSaveBusy || !source;
+    const isEditingDisabled = isSaveBusy || !source || !previewCanvas;
+
+    const visibleRect = useMemo<CropRect>(() => ({
+        x: cropRect?.x ?? 0,
+        y: cropRect?.y ?? 0,
+        width: previewCanvas?.width ?? source?.naturalWidth ?? 1,
+        height: previewCanvas?.height ?? source?.naturalHeight ?? 1,
+    }), [cropRect?.x, cropRect?.y, previewCanvas?.height, previewCanvas?.width, source?.naturalHeight, source?.naturalWidth]);
+
+    const stageMetrics = useMemo<StageMetrics>(() => {
+        const scale = Math.min(
+            viewportSize.width / Math.max(visibleRect.width, 1),
+            viewportSize.height / Math.max(visibleRect.height, 1),
+            1
+        );
+
+        return {
+            scale,
+            width: Math.max(1, Math.round(visibleRect.width * scale)),
+            height: Math.max(1, Math.round(visibleRect.height * scale)),
+        };
+    }, [visibleRect.height, visibleRect.width, viewportSize.height, viewportSize.width]);
+
     const allStrokes = useMemo(() => (activeStroke ? [...strokes, activeStroke] : strokes), [activeStroke, strokes]);
+
+    const basePointToStagePoint = useCallback((point: Point): Point => ({
+        x: (point.x - visibleRect.x) * stageMetrics.scale,
+        y: (point.y - visibleRect.y) * stageMetrics.scale,
+    }), [stageMetrics.scale, visibleRect.x, visibleRect.y]);
+
+    const stagePointToBasePoint = useCallback((point: Point): Point => ({
+        x: point.x / Math.max(stageMetrics.scale, 0.001) + visibleRect.x,
+        y: point.y / Math.max(stageMetrics.scale, 0.001) + visibleRect.y,
+    }), [stageMetrics.scale, visibleRect.x, visibleRect.y]);
+
+    const baseRectToStageRect = useCallback((rect: CropRect): CropRect => {
+        const stagePoint = basePointToStagePoint(rect);
+
+        return {
+            x: stagePoint.x,
+            y: stagePoint.y,
+            width: rect.width * stageMetrics.scale,
+            height: rect.height * stageMetrics.scale,
+        };
+    }, [basePointToStagePoint, stageMetrics.scale]);
+
+    const stageRectToBaseRect = useCallback((rect: CropRect): CropRect => ({
+        x: rect.x / Math.max(stageMetrics.scale, 0.001) + visibleRect.x,
+        y: rect.y / Math.max(stageMetrics.scale, 0.001) + visibleRect.y,
+        width: rect.width / Math.max(stageMetrics.scale, 0.001),
+        height: rect.height / Math.max(stageMetrics.scale, 0.001),
+    }), [stageMetrics.scale, visibleRect.x, visibleRect.y]);
+
+    const pointerPosition = useCallback((): Point | null => {
+        const position = stageRef.current?.getPointerPosition();
+        if (!position) {
+            return null;
+        }
+
+        return {
+            x: clamp(position.x, 0, stageMetrics.width),
+            y: clamp(position.y, 0, stageMetrics.height),
+        };
+    }, [stageMetrics.height, stageMetrics.width]);
+
+    const screenSizeToBaseSize = useCallback((size: number): number => size / Math.max(stageMetrics.scale, 0.001), [stageMetrics.scale]);
+
+    const buildTextAnnotation = useCallback((draft: InlineTextDraft): TextAnnotation | null => {
+        const text = draft.value.trim();
+        if (text === '') {
+            return null;
+        }
+
+        return {
+            ...draft.basePoint,
+            text,
+            color: drawColor,
+            size: screenSizeToBaseSize(textSize),
+        };
+    }, [drawColor, screenSizeToBaseSize, textSize]);
+
+    const commitTextDraft = useCallback(() => {
+        const currentDraft = textDraftRef.current ?? textDraft;
+        if (!currentDraft) {
+            return;
+        }
+
+        textDraftRef.current = null;
+        const annotation = buildTextAnnotation(currentDraft);
+        if (annotation) {
+            setTextAnnotations((current) => [...current, annotation]);
+        }
+        setTextDraft(null);
+    }, [buildTextAnnotation, textDraft]);
+
+    const cancelTextDraft = useCallback(() => {
+        textDraftRef.current = null;
+        setTextDraft(null);
+    }, []);
+
+    useEffect(() => {
+        setViewportSize(measureEditorViewport());
+
+        const handleResize = () => setViewportSize(measureEditorViewport());
+        window.addEventListener('resize', handleResize);
+
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
 
     useEffect(() => {
         textDraftRef.current = textDraft;
@@ -193,6 +300,7 @@ export function GalleryImageEditor({ image, isSaving = false, onCancel, onSave }
     useEffect(() => {
         let isMounted = true;
         setSource(null);
+        setPreviewCanvas(null);
         setError(null);
 
         loadEditableImage(image.src)
@@ -213,12 +321,13 @@ export function GalleryImageEditor({ image, isSaving = false, onCancel, onSave }
     }, [image.src, t]);
 
     useEffect(() => {
-        const canvas = canvasRef.current;
-        if (!canvas || !source) {
+        if (!source) {
+            setPreviewCanvas(null);
             return;
         }
 
         try {
+            const canvas = document.createElement('canvas');
             renderEditedCanvas({
                 canvas,
                 source,
@@ -226,32 +335,25 @@ export function GalleryImageEditor({ image, isSaving = false, onCancel, onSave }
                 brightness,
                 contrast,
                 cropRect,
-                draftCropRect,
-                strokes: allStrokes,
-                textAnnotations,
+                draftCropRect: null,
+                strokes: [],
+                textAnnotations: [],
             });
+            setPreviewCanvas(canvas);
         } catch {
             setError(t('gallery.edit.failed'));
         }
-    }, [allStrokes, brightness, contrast, cropRect, draftCropRect, rotation, source, textAnnotations, t]);
+    }, [brightness, contrast, cropRect, rotation, source, t]);
 
-    const canvasPoint = (event: ReactPointerEvent<HTMLElement>): Point | null => {
-        const canvas = canvasRef.current;
-        if (!canvas) {
-            return null;
+    useEffect(() => {
+        if (mode !== 'crop' || !draftCropRect || !cropRectRef.current || !cropTransformerRef.current) {
+            cropTransformerRef.current?.nodes([]);
+            return;
         }
 
-        const bounds = event.currentTarget.getBoundingClientRect();
-        return {
-            x: ((event.clientX - bounds.left) / Math.max(bounds.width, 1)) * canvas.width,
-            y: ((event.clientY - bounds.top) / Math.max(bounds.height, 1)) * canvas.height,
-        };
-    };
-
-    const toBasePoint = (point: Point): Point => ({
-        x: point.x + (cropRect?.x ?? 0),
-        y: point.y + (cropRect?.y ?? 0),
-    });
+        cropTransformerRef.current.nodes([cropRectRef.current]);
+        cropTransformerRef.current.getLayer()?.batchDraw();
+    }, [draftCropRect, mode, stageMetrics.height, stageMetrics.width]);
 
     const reset = () => {
         setRotation(0);
@@ -267,148 +369,106 @@ export function GalleryImageEditor({ image, isSaving = false, onCancel, onSave }
         setError(null);
     };
 
-    const buildTextAnnotation = (draft: InlineTextDraft): TextAnnotation | null => {
-        const text = draft.value.trim();
-        if (text === '') {
-            return null;
-        }
-
-        return {
-            ...draft.basePoint,
-            text,
-            color: drawColor,
-            size: textSize,
-        };
-    };
-
-    const commitTextDraft = () => {
-        const currentDraft = textDraftRef.current ?? textDraft;
-        if (!currentDraft) {
+    const updateCropFromNode = useCallback(() => {
+        const node = cropRectRef.current;
+        if (!node) {
             return;
         }
 
-        textDraftRef.current = null;
-        const annotation = buildTextAnnotation(currentDraft);
-        if (annotation) {
-            setTextAnnotations((current) => [...current, annotation]);
-        }
-        setTextDraft(null);
-    };
+        const minimumStageSize = MIN_CROP_SIZE * stageMetrics.scale;
+        const nextStageRect = clampStageRect({
+            x: node.x(),
+            y: node.y(),
+            width: Math.max(minimumStageSize, node.width() * node.scaleX()),
+            height: Math.max(minimumStageSize, node.height() * node.scaleY()),
+        }, stageMetrics.width, stageMetrics.height, minimumStageSize);
 
-    const cancelTextDraft = () => {
-        textDraftRef.current = null;
-        setTextDraft(null);
-    };
+        node.scaleX(1);
+        node.scaleY(1);
+        setDraftCropRect(stageRectToBaseRect(nextStageRect));
+    }, [stageMetrics.height, stageMetrics.scale, stageMetrics.width, stageRectToBaseRect]);
 
-    const startTextDraft = (point: Point, canvas: HTMLCanvasElement) => {
+    const startTextDraft = (basePoint: Point) => {
         commitTextDraft();
         textDraftIdRef.current += 1;
         const nextDraft = {
             id: textDraftIdRef.current,
-            basePoint: toBasePoint(point),
-            leftPercent: (point.x / Math.max(canvas.width, 1)) * 100,
-            topPercent: (point.y / Math.max(canvas.height, 1)) * 100,
+            basePoint,
             value: '',
         };
         textDraftRef.current = nextDraft;
         setTextDraft(nextDraft);
     };
 
-    const handlePointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const handleStagePointerDown = (event: KonvaPointerEvent) => {
         if (isEditingDisabled) {
             return;
         }
 
-        const point = canvasPoint(event);
-        const canvas = canvasRef.current;
-        if (!point || !isFinitePoint(point) || !canvas) {
+        const stagePoint = pointerPosition();
+        if (!isFinitePoint(stagePoint)) {
             return;
         }
+        const basePoint = stagePointToBasePoint(stagePoint);
 
         if (mode === 'crop') {
-            const currentDraft = draftCropRect && draftCropRect.width >= MIN_CROP_SIZE && draftCropRect.height >= MIN_CROP_SIZE
-                ? draftCropRect
-                : null;
-
-            if (currentDraft) {
-                const hitRadius = canvasUnitsForCssPixels(event.currentTarget, canvas, CROP_HANDLE_HIT_SIZE_PX);
-                const handle = cropHandleAtPoint(point, currentDraft, hitRadius);
-                if (handle) {
-                    cropInteractionRef.current = { type: 'resize', handle, originRect: currentDraft };
-                    event.currentTarget.setPointerCapture(event.pointerId);
-                    return;
-                }
-
-                if (pointInRect(point, currentDraft)) {
-                    cropInteractionRef.current = { type: 'move', startPoint: point, originRect: currentDraft };
-                    event.currentTarget.setPointerCapture(event.pointerId);
-                    return;
-                }
+            if (!isEditableImageTarget(event, stageRef.current)) {
+                return;
             }
 
-            cropInteractionRef.current = { type: 'create', startPoint: point };
-            setDraftCropRect({ x: point.x, y: point.y, width: 0, height: 0 });
-            event.currentTarget.setPointerCapture(event.pointerId);
+            cropStartRef.current = basePoint;
+            setDraftCropRect({ x: basePoint.x, y: basePoint.y, width: 0, height: 0 });
+            event.evt.preventDefault();
             return;
         }
 
         if (mode === 'draw') {
-            const stroke = { points: [toBasePoint(point)], color: drawColor, size: drawSize };
+            const stroke = {
+                points: [basePoint],
+                color: drawColor,
+                size: screenSizeToBaseSize(drawSize),
+            };
             activeStrokeRef.current = stroke;
             setActiveStroke(stroke);
-            event.currentTarget.setPointerCapture(event.pointerId);
+            event.evt.preventDefault();
             return;
         }
 
         if (mode === 'text') {
-            startTextDraft(point, canvas);
+            startTextDraft(basePoint);
+            event.evt.preventDefault();
         }
     };
 
-    const handlePointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const handleStagePointerMove = (event: KonvaPointerEvent) => {
         if (isEditingDisabled) {
             return;
         }
 
-        const point = canvasPoint(event);
-        const canvas = canvasRef.current;
-        if (!point || !isFinitePoint(point) || !canvas) {
+        const stagePoint = pointerPosition();
+        if (!isFinitePoint(stagePoint)) {
             return;
         }
+        const basePoint = stagePointToBasePoint(stagePoint);
 
-        if (mode === 'crop' && cropInteractionRef.current) {
-            const interaction = cropInteractionRef.current;
-            if (interaction.type === 'create') {
-                setDraftCropRect(normalizeRect(interaction.startPoint, point, canvas.width, canvas.height));
-            } else if (interaction.type === 'move') {
-                setDraftCropRect(moveCropRect(interaction.originRect, interaction.startPoint, point, canvas.width, canvas.height));
-            } else {
-                setDraftCropRect(resizeCropRect(interaction.originRect, interaction.handle, point, canvas.width, canvas.height));
-            }
-            return;
-        }
-
-        if (mode === 'crop') {
-            const hitRadius = canvasUnitsForCssPixels(event.currentTarget, canvas, CROP_HANDLE_HIT_SIZE_PX);
-            setHoveredCropHandle(
-                draftCropRect && draftCropRect.width >= MIN_CROP_SIZE && draftCropRect.height >= MIN_CROP_SIZE
-                    ? cropHandleAtPoint(point, draftCropRect, hitRadius)
-                    : null
-            );
+        if (mode === 'crop' && cropStartRef.current) {
+            setDraftCropRect(cropWithinVisibleRect(cropStartRef.current, basePoint, visibleRect));
+            event.evt.preventDefault();
             return;
         }
 
         if (mode === 'draw' && activeStrokeRef.current) {
             const nextStroke = {
                 ...activeStrokeRef.current,
-                points: [...activeStrokeRef.current.points, toBasePoint(point)],
+                points: [...activeStrokeRef.current.points, basePoint],
             };
             activeStrokeRef.current = nextStroke;
             setActiveStroke(nextStroke);
+            event.evt.preventDefault();
         }
     };
 
-    const handlePointerUp = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const handleStagePointerUp = () => {
         if (mode === 'draw' && activeStrokeRef.current) {
             const completedStroke = activeStrokeRef.current;
             setStrokes((current) => [...current, completedStroke]);
@@ -416,13 +476,7 @@ export function GalleryImageEditor({ image, isSaving = false, onCancel, onSave }
             setActiveStroke(null);
         }
 
-        if (mode === 'crop') {
-            cropInteractionRef.current = null;
-        }
-
-        if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-            event.currentTarget.releasePointerCapture(event.pointerId);
-        }
+        cropStartRef.current = null;
     };
 
     const applyCrop = () => {
@@ -430,12 +484,7 @@ export function GalleryImageEditor({ image, isSaving = false, onCancel, onSave }
             return;
         }
 
-        setCropRect({
-            x: draftCropRect.x + (cropRect?.x ?? 0),
-            y: draftCropRect.y + (cropRect?.y ?? 0),
-            width: draftCropRect.width,
-            height: draftCropRect.height,
-        });
+        setCropRect(draftCropRect);
         setDraftCropRect(null);
     };
 
@@ -477,50 +526,148 @@ export function GalleryImageEditor({ image, isSaving = false, onCancel, onSave }
             setIsRendering(false);
         }
     };
-    const cropOverlayStyle = draftCropRect ? cropRectStyle(draftCropRect, canvasRef.current) : null;
-    const hitLayerCursorClass = mode === 'crop'
-        ? cropHandleCursor(hoveredCropHandle)
-        : mode === 'draw'
-            ? 'cursor-crosshair'
-            : mode === 'text'
-                ? 'cursor-text'
-                : 'cursor-default';
+
+    const resetCrop = () => {
+        setCropRect(null);
+        setDraftCropRect(null);
+        cropStartRef.current = null;
+    };
+
+    const changeMode = (nextMode: EditMode) => {
+        if (mode === 'text' && nextMode !== 'text') {
+            commitTextDraft();
+        }
+        setMode(nextMode);
+        cropStartRef.current = null;
+        if (nextMode !== 'crop') {
+            setDraftCropRect(null);
+        }
+    };
+
+    const stageCropRect = draftCropRect ? baseRectToStageRect(draftCropRect) : null;
+    const inlineTextPoint = textDraft ? basePointToStagePoint(textDraft.basePoint) : null;
+    const cursorClass = stageCursorClass(mode);
 
     return (
         <div className="grid min-h-0 min-w-0 grid-rows-[minmax(0,1fr)_auto] bg-slate-950">
-            <div className="flex min-h-0 items-center justify-center overflow-hidden px-3 py-3 sm:px-16 sm:py-6">
-                <div className="relative inline-flex max-h-full max-w-full">
-                    <canvas
-                        ref={canvasRef}
-                        className="h-auto max-h-full w-auto max-w-full rounded-md bg-slate-900 object-contain shadow-2xl shadow-black/40"
+            <div className="flex min-h-0 items-center justify-center overflow-hidden px-3 py-3 sm:px-12 sm:py-6">
+                <div className={`relative inline-flex max-h-full max-w-full touch-none rounded-md bg-slate-900 shadow-2xl shadow-black/40 ${cursorClass}`}>
+                    <Stage
+                        ref={stageRef}
+                        data-testid="gallery-image-editor-stage"
+                        width={stageMetrics.width}
+                        height={stageMetrics.height}
+                        onMouseDown={handleStagePointerDown}
+                        onMouseMove={handleStagePointerMove}
+                        onMouseUp={handleStagePointerUp}
+                        onMouseLeave={handleStagePointerUp}
+                        onTouchStart={handleStagePointerDown}
+                        onTouchMove={handleStagePointerMove}
+                        onTouchEnd={handleStagePointerUp}
                         aria-label={image.alt}
-                    />
-                    <div
-                        ref={hitLayerRef}
-                        data-testid="gallery-image-editor-hit-layer"
-                        className={`absolute inset-0 z-10 touch-none rounded-md ${hitLayerCursorClass}`}
-                        onPointerDown={handlePointerDown}
-                        onPointerMove={handlePointerMove}
-                        onPointerUp={handlePointerUp}
-                        onPointerCancel={handlePointerUp}
-                        onPointerLeave={() => setHoveredCropHandle(null)}
                     >
-                        {cropOverlayStyle ? (
-                            <div
-                                className="pointer-events-none absolute border border-teal-300 shadow-[0_0_0_1px_rgba(15,118,110,0.55)]"
-                                style={cropOverlayStyle}
-                            >
-                                {CROP_HANDLES.map((handle) => (
-                                    <span
-                                        key={handle.handle}
-                                        className={`absolute h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rounded-sm border border-teal-700 bg-teal-100 shadow-sm shadow-slate-950/40 ${handle.cursor}`}
-                                        style={{ left: `${handle.xPercent}%`, top: `${handle.yPercent}%` }}
+                        <Layer>
+                            {previewCanvas ? (
+                                <KonvaImage
+                                    name="base-image"
+                                    image={previewCanvas}
+                                    width={stageMetrics.width}
+                                    height={stageMetrics.height}
+                                />
+                            ) : null}
+                            {allStrokes.map((stroke, index) => (
+                                <Line
+                                    key={`stroke-${index}`}
+                                    points={stroke.points.flatMap((point) => {
+                                        const stagePoint = basePointToStagePoint(point);
+                                        return [stagePoint.x, stagePoint.y];
+                                    })}
+                                    stroke={stroke.color}
+                                    strokeWidth={Math.max(1, stroke.size * stageMetrics.scale)}
+                                    lineCap="round"
+                                    lineJoin="round"
+                                    tension={0.35}
+                                    listening={false}
+                                />
+                            ))}
+                            {textAnnotations.map((annotation, index) => {
+                                const stagePoint = basePointToStagePoint(annotation);
+                                const stageFontSize = Math.max(12, annotation.size * stageMetrics.scale);
+
+                                return (
+                                    <KonvaText
+                                        key={`text-${index}`}
+                                        x={stagePoint.x}
+                                        y={stagePoint.y}
+                                        text={annotation.text}
+                                        fill={annotation.color}
+                                        fontFamily="Arial, sans-serif"
+                                        fontSize={stageFontSize}
+                                        fontStyle="bold"
+                                        stroke={textStrokeColor(annotation.color)}
+                                        strokeWidth={Math.max(2, stageFontSize * 0.08)}
+                                        listening={false}
                                     />
-                                ))}
-                            </div>
-                        ) : null}
-                    </div>
-                    {textDraft ? (
+                                );
+                            })}
+                            {stageCropRect ? (
+                                <>
+                                    <Rect x={0} y={0} width={stageMetrics.width} height={stageCropRect.y} fill="rgba(2, 6, 23, 0.48)" listening={false} />
+                                    <Rect x={0} y={stageCropRect.y + stageCropRect.height} width={stageMetrics.width} height={Math.max(0, stageMetrics.height - stageCropRect.y - stageCropRect.height)} fill="rgba(2, 6, 23, 0.48)" listening={false} />
+                                    <Rect x={0} y={stageCropRect.y} width={stageCropRect.x} height={stageCropRect.height} fill="rgba(2, 6, 23, 0.48)" listening={false} />
+                                    <Rect x={stageCropRect.x + stageCropRect.width} y={stageCropRect.y} width={Math.max(0, stageMetrics.width - stageCropRect.x - stageCropRect.width)} height={stageCropRect.height} fill="rgba(2, 6, 23, 0.48)" listening={false} />
+                                    <Rect
+                                        ref={cropRectRef}
+                                        name="crop-rect"
+                                        x={stageCropRect.x}
+                                        y={stageCropRect.y}
+                                        width={stageCropRect.width}
+                                        height={stageCropRect.height}
+                                        fill="rgba(45, 212, 191, 0.08)"
+                                        stroke="#5eead4"
+                                        strokeWidth={1.5}
+                                        draggable={!isEditingDisabled}
+                                        dragBoundFunc={(position) => ({
+                                            x: clamp(position.x, 0, Math.max(0, stageMetrics.width - stageCropRect.width)),
+                                            y: clamp(position.y, 0, Math.max(0, stageMetrics.height - stageCropRect.height)),
+                                        })}
+                                        onMouseDown={(event) => {
+                                            event.cancelBubble = true;
+                                            cropStartRef.current = null;
+                                        }}
+                                        onTouchStart={(event) => {
+                                            event.cancelBubble = true;
+                                            cropStartRef.current = null;
+                                        }}
+                                        onDragEnd={updateCropFromNode}
+                                        onTransformEnd={updateCropFromNode}
+                                    />
+                                    <Transformer
+                                        ref={cropTransformerRef}
+                                        rotateEnabled={false}
+                                        keepRatio={false}
+                                        enabledAnchors={CROP_ANCHORS}
+                                        anchorFill="#ccfbf1"
+                                        anchorStroke="#0f766e"
+                                        anchorSize={12}
+                                        borderStroke="#5eead4"
+                                        borderStrokeWidth={1.5}
+                                        boundBoxFunc={(oldBox, newBox) => {
+                                            const minimumStageSize = MIN_CROP_SIZE * stageMetrics.scale;
+                                            const isTooSmall = newBox.width < minimumStageSize || newBox.height < minimumStageSize;
+                                            const isOutOfBounds = newBox.x < 0
+                                                || newBox.y < 0
+                                                || newBox.x + newBox.width > stageMetrics.width
+                                                || newBox.y + newBox.height > stageMetrics.height;
+
+                                            return isTooSmall || isOutOfBounds ? oldBox : newBox;
+                                        }}
+                                    />
+                                </>
+                            ) : null}
+                        </Layer>
+                    </Stage>
+                    {textDraft && inlineTextPoint ? (
                         <input
                             ref={textInputRef}
                             value={textDraft.value}
@@ -552,8 +699,8 @@ export function GalleryImageEditor({ image, isSaving = false, onCancel, onSave }
                             aria-label={t('gallery.edit.text')}
                             className="absolute z-20 h-10 min-w-40 max-w-[min(20rem,80vw)] rounded-lg border border-teal-300 bg-slate-950/90 px-3 text-sm font-semibold text-white shadow-xl shadow-black/30 outline-none ring-2 ring-teal-300/40 placeholder:text-white/45 disabled:opacity-70"
                             style={{
-                                left: `${textDraft.leftPercent}%`,
-                                top: `${textDraft.topPercent}%`,
+                                left: `${inlineTextPoint.x}px`,
+                                top: `${inlineTextPoint.y}px`,
                                 transform: 'translate(-0.25rem, -0.25rem)',
                                 color: drawColor,
                                 fontSize: `${Math.max(14, Math.min(textSize, 32))}px`,
@@ -564,14 +711,7 @@ export function GalleryImageEditor({ image, isSaving = false, onCancel, onSave }
             </div>
             <GalleryImageEditorControls
                 mode={mode}
-                onModeChange={(nextMode) => {
-                    if (mode === 'text' && nextMode !== 'text') {
-                        commitTextDraft();
-                    }
-                    setMode(nextMode);
-                    setHoveredCropHandle(null);
-                    setDraftCropRect(null);
-                }}
+                onModeChange={changeMode}
                 brightness={brightness}
                 onBrightnessChange={setBrightness}
                 contrast={contrast}
@@ -585,7 +725,7 @@ export function GalleryImageEditor({ image, isSaving = false, onCancel, onSave }
                 draftCropRect={draftCropRect}
                 cropRect={cropRect}
                 onApplyCrop={applyCrop}
-                onResetCrop={() => { setCropRect(null); setDraftCropRect(null); setHoveredCropHandle(null); }}
+                onResetCrop={resetCrop}
                 canUndo={strokes.length > 0 || textAnnotations.length > 0}
                 onUndo={undoAnnotation}
                 onReset={reset}

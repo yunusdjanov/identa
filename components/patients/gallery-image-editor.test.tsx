@@ -9,6 +9,133 @@ const loadEditableImageMock = vi.hoisted(() => vi.fn());
 const renderEditedCanvasMock = vi.hoisted(() => vi.fn());
 const createEditedImageFileMock = vi.hoisted(() => vi.fn());
 
+vi.mock('react-konva', async () => {
+    const React = await vi.importActual<typeof import('react')>('react');
+
+    type MockKonvaEventHandler = (event: {
+        evt: MouseEvent;
+        cancelBubble: boolean;
+        target: { name: () => string };
+    }) => void;
+
+    interface MockStageProps {
+        width: number;
+        height: number;
+        children?: React.ReactNode;
+        'data-testid'?: string;
+        onMouseDown?: MockKonvaEventHandler;
+        onMouseMove?: MockKonvaEventHandler;
+        onMouseUp?: () => void;
+        onMouseLeave?: () => void;
+    }
+
+    interface MockRectProps {
+        x?: number;
+        y?: number;
+        width?: number;
+        height?: number;
+        name?: string;
+        onMouseDown?: MockKonvaEventHandler;
+        onDragEnd?: () => void;
+        onTransformEnd?: () => void;
+    }
+
+    const Stage = React.forwardRef(function MockStage(
+        { children, height, onMouseDown, onMouseLeave, onMouseMove, onMouseUp, width, ...props }: MockStageProps,
+        ref: React.ForwardedRef<{ getPointerPosition: () => { x: number; y: number } | null }>
+    ) {
+        const pointerRef = React.useRef<{ x: number; y: number } | null>(null);
+        const stageApi = {
+            getPointerPosition: () => pointerRef.current,
+            name: () => '',
+        };
+        React.useImperativeHandle(ref, () => stageApi);
+
+        const toKonvaEvent = (event: React.MouseEvent<HTMLDivElement>): Parameters<MockKonvaEventHandler>[0] => {
+            pointerRef.current = { x: event.clientX, y: event.clientY };
+            return {
+                evt: event.nativeEvent,
+                cancelBubble: false,
+                target: stageApi,
+            };
+        };
+
+        return (
+            <div
+                data-testid={props['data-testid']}
+                style={{ height, width }}
+                onMouseDown={(event) => onMouseDown?.(toKonvaEvent(event))}
+                onMouseMove={(event) => onMouseMove?.(toKonvaEvent(event))}
+                onMouseUp={onMouseUp}
+                onMouseLeave={onMouseLeave}
+            >
+                {children}
+            </div>
+        );
+    });
+
+    const Rect = React.forwardRef(function MockRect(
+        { name, onDragEnd, onMouseDown, onTransformEnd, ...props }: MockRectProps,
+        ref: React.ForwardedRef<{
+            x: () => number;
+            y: () => number;
+            width: () => number;
+            height: () => number;
+            scaleX: () => number;
+            scaleY: () => number;
+        }>
+    ) {
+        React.useImperativeHandle(ref, () => ({
+            x: () => props.x ?? 0,
+            y: () => props.y ?? 0,
+            width: () => props.width ?? 0,
+            height: () => props.height ?? 0,
+            scaleX: () => 1,
+            scaleY: () => 1,
+        }));
+
+        return (
+            <div
+                data-testid={name === 'crop-rect' ? 'konva-crop-rect' : 'konva-rect'}
+                onMouseDown={(event) => onMouseDown?.({
+                    evt: event.nativeEvent,
+                    cancelBubble: false,
+                    target: { name: () => name ?? '' },
+                })}
+                onDoubleClick={() => {
+                    onDragEnd?.();
+                    onTransformEnd?.();
+                }}
+            />
+        );
+    });
+
+    const Transformer = React.forwardRef(function MockTransformer(
+        _props: Record<string, unknown>,
+        ref: React.ForwardedRef<{
+            nodes: (nodes: unknown[]) => void;
+            getLayer: () => { batchDraw: () => void };
+        }>
+    ) {
+        React.useImperativeHandle(ref, () => ({
+            nodes: vi.fn(),
+            getLayer: () => ({ batchDraw: vi.fn() }),
+        }));
+
+        return <div data-testid="konva-transformer" />;
+    });
+
+    return {
+        Image: ({ name }: { name?: string }) => <div data-testid={name === 'base-image' ? 'konva-base-image' : 'konva-image'} />,
+        Layer: ({ children }: { children?: React.ReactNode }) => <div data-testid="konva-layer">{children}</div>,
+        Line: ({ points }: { points: number[] }) => <div data-testid="konva-line" data-points={JSON.stringify(points)} />,
+        Rect,
+        Stage,
+        Text: ({ text }: { text: string }) => <div data-testid="konva-text">{text}</div>,
+        Transformer,
+    };
+});
+
 vi.mock('@/components/patients/gallery-image-editor-canvas', async () => {
     const actual = await vi.importActual<typeof import('@/components/patients/gallery-image-editor-canvas')>(
         '@/components/patients/gallery-image-editor-canvas'
@@ -60,55 +187,11 @@ describe('GalleryImageEditor', () => {
         });
         createEditedImageFileMock.mockResolvedValue(new File(['edited'], 'edited.jpg', { type: 'image/jpeg' }));
 
-        Object.defineProperty(HTMLCanvasElement.prototype, 'getBoundingClientRect', {
-            configurable: true,
-            value: () => ({
-                left: 0,
-                top: 0,
-                right: 300,
-                bottom: 150,
-                width: 300,
-                height: 150,
-                x: 0,
-                y: 0,
-                toJSON: () => ({}),
-            }),
-        });
-        Object.defineProperty(HTMLElement.prototype, 'getBoundingClientRect', {
-            configurable: true,
-            value: () => ({
-                left: 0,
-                top: 0,
-                right: 300,
-                bottom: 150,
-                width: 300,
-                height: 150,
-                x: 0,
-                y: 0,
-                toJSON: () => ({}),
-            }),
-        });
-        if (!('setPointerCapture' in HTMLElement.prototype)) {
-            Object.defineProperty(HTMLElement.prototype, 'setPointerCapture', {
-                configurable: true,
-                value: vi.fn(),
-            });
-        }
-        if (!('releasePointerCapture' in HTMLElement.prototype)) {
-            Object.defineProperty(HTMLElement.prototype, 'releasePointerCapture', {
-                configurable: true,
-                value: vi.fn(),
-            });
-        }
-        if (!('hasPointerCapture' in HTMLElement.prototype)) {
-            Object.defineProperty(HTMLElement.prototype, 'hasPointerCapture', {
-                configurable: true,
-                value: () => true,
-            });
-        }
+        Object.defineProperty(window, 'innerWidth', { configurable: true, value: 900 });
+        Object.defineProperty(window, 'innerHeight', { configurable: true, value: 700 });
     });
 
-    it('adds text directly on the canvas instead of using a toolbar text field', async () => {
+    it('adds text directly where the user clicks on the image', async () => {
         const user = userEvent.setup();
         const onSave = vi.fn();
         renderEditor(onSave);
@@ -119,8 +202,8 @@ describe('GalleryImageEditor', () => {
 
         expect(screen.queryByRole('textbox', { name: 'Text' })).not.toBeInTheDocument();
 
-        const hitLayer = screen.getByTestId('gallery-image-editor-hit-layer');
-        fireEvent.pointerDown(hitLayer, { pointerId: 1, clientX: 75, clientY: 30 });
+        const stage = screen.getByTestId('gallery-image-editor-stage');
+        fireEvent.mouseDown(stage, { clientX: 75, clientY: 30 });
 
         const inlineTextInput = screen.getByRole('textbox', { name: 'Text' });
         await user.type(inlineTextInput, 'Plaque');
@@ -146,10 +229,10 @@ describe('GalleryImageEditor', () => {
         await waitFor(() => expect(drawModeButton).toBeEnabled());
         await user.click(drawModeButton);
 
-        const hitLayer = screen.getByTestId('gallery-image-editor-hit-layer');
-        fireEvent.pointerDown(hitLayer, { pointerId: 1, clientX: 40, clientY: 20 });
-        fireEvent.pointerMove(hitLayer, { pointerId: 1, clientX: 90, clientY: 70 });
-        fireEvent.pointerUp(hitLayer, { pointerId: 1, clientX: 90, clientY: 70 });
+        const stage = screen.getByTestId('gallery-image-editor-stage');
+        fireEvent.mouseDown(stage, { clientX: 40, clientY: 20 });
+        fireEvent.mouseMove(stage, { clientX: 90, clientY: 70 });
+        fireEvent.mouseUp(stage, { clientX: 90, clientY: 70 });
 
         await user.click(screen.getByRole('button', { name: 'Save' }));
 
@@ -165,7 +248,7 @@ describe('GalleryImageEditor', () => {
         }));
     });
 
-    it('allows resizing a crop selection before applying it', async () => {
+    it('uses a transformer-backed crop selection before applying it', async () => {
         const user = userEvent.setup();
         renderEditor();
 
@@ -173,22 +256,23 @@ describe('GalleryImageEditor', () => {
         await waitFor(() => expect(cropModeButton).toBeEnabled());
         await user.click(cropModeButton);
 
-        const hitLayer = screen.getByTestId('gallery-image-editor-hit-layer');
-        fireEvent.pointerDown(hitLayer, { pointerId: 1, clientX: 30, clientY: 30 });
-        fireEvent.pointerMove(hitLayer, { pointerId: 1, clientX: 180, clientY: 100 });
-        fireEvent.pointerUp(hitLayer, { pointerId: 1, clientX: 180, clientY: 100 });
+        const stage = screen.getByTestId('gallery-image-editor-stage');
+        fireEvent.mouseDown(stage, { clientX: 30, clientY: 30 });
+        fireEvent.mouseMove(stage, { clientX: 180, clientY: 100 });
+        fireEvent.mouseUp(stage, { clientX: 180, clientY: 100 });
 
-        fireEvent.pointerDown(hitLayer, { pointerId: 2, clientX: 180, clientY: 100 });
-        fireEvent.pointerMove(hitLayer, { pointerId: 2, clientX: 220, clientY: 120 });
-        fireEvent.pointerUp(hitLayer, { pointerId: 2, clientX: 220, clientY: 120 });
+        expect(screen.getByTestId('konva-transformer')).toBeInTheDocument();
 
         await user.click(screen.getByRole('button', { name: 'Apply crop' }));
         await user.click(screen.getByRole('button', { name: 'Save' }));
 
-        const savePayload = createEditedImageFileMock.mock.calls[0][0];
-        expect(savePayload.cropRect.x).toBe(30);
-        expect(savePayload.cropRect.y).toBe(30);
-        expect(savePayload.cropRect.width).toBeCloseTo(190);
-        expect(savePayload.cropRect.height).toBe(90);
+        expect(createEditedImageFileMock).toHaveBeenCalledWith(expect.objectContaining({
+            cropRect: expect.objectContaining({
+                x: 30,
+                y: 30,
+                width: 150,
+                height: 70,
+            }),
+        }));
     });
 });
