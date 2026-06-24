@@ -36,7 +36,7 @@ import {
     restorePatient,
 } from '@/lib/api/dentist';
 import { getApiErrorMessage } from '@/lib/api/client';
-import type { ApiPatient, ApiRecordActor } from '@/lib/api/types';
+import type { ApiPatient, ApiRecentPatient, ApiRecordActor } from '@/lib/api/types';
 import { cn, extractPrimaryPhone, formatDate, toLocalDateKey, truncateForUi } from '@/lib/utils';
 import { Plus, Search, Phone, Users, CalendarPlus, ArrowRight, Tags, FileText, FilterX, Download, Maximize2, X } from 'lucide-react';
 import { buildPdfFilename, exportRowsToPdf } from '@/lib/export/pdf';
@@ -167,6 +167,7 @@ export default function PatientsPage() {
     const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
     const [isManageCategoriesOpen, setIsManageCategoriesOpen] = useState(false);
     const [isRecentMenuOpen, setIsRecentMenuOpen] = useState(false);
+    const [optimisticRecentPatients, setOptimisticRecentPatients] = useState<ApiRecentPatient[] | null>(null);
     const [photoPreview, setPhotoPreview] = useState<{
         src: string;
         thumbnailSrc?: string;
@@ -257,6 +258,7 @@ export default function PatientsPage() {
         enabled: canViewPatients,
         staleTime: 60_000,
         gcTime: 5 * 60_000,
+        refetchOnMount: 'always',
         refetchOnWindowFocus: false,
         refetchOnReconnect: false,
     });
@@ -288,27 +290,66 @@ export default function PatientsPage() {
     });
     const forgetRecentMutation = useMutation({
         mutationFn: (patientId: string) => forgetRecentPatient(patientId),
-        onSuccess: () => {
+        onMutate: async (patientId: string) => {
+            const previous = queryClient.getQueryData<ApiRecentPatient[]>(['patients', 'recent']);
+            const previousOptimistic = optimisticRecentPatients;
+            setOptimisticRecentPatients((current) => {
+                const source = current ?? previous ?? [];
+
+                return source.filter((patient) => patient.id !== patientId);
+            });
+            queryClient.setQueryData<ApiRecentPatient[]>(['patients', 'recent'], (current = []) =>
+                current.filter((patient) => patient.id !== patientId)
+            );
+            await queryClient.cancelQueries({ queryKey: ['patients', 'recent'] }, { revert: false });
+
+            return { previous, previousOptimistic };
+        },
+        onSettled: () => {
             queryClient.invalidateQueries({ queryKey: ['patients', 'recent'] });
         },
-        onError: (error) => {
+        onError: (error, _patientId, context) => {
+            setOptimisticRecentPatients(context?.previousOptimistic ?? context?.previous ?? null);
+            queryClient.setQueryData(['patients', 'recent'], context?.previous ?? []);
             toast.error(getApiErrorMessage(error, t('patients.recent.removeFailed')));
         },
     });
     const clearRecentMutation = useMutation({
         mutationFn: clearRecentPatients,
-        onSuccess: () => {
+        onMutate: async () => {
+            const previous = queryClient.getQueryData<ApiRecentPatient[]>(['patients', 'recent']);
+            const previousOptimistic = optimisticRecentPatients;
+            setOptimisticRecentPatients([]);
+            queryClient.setQueryData<ApiRecentPatient[]>(['patients', 'recent'], []);
             setIsRecentMenuOpen(false);
+            await queryClient.cancelQueries({ queryKey: ['patients', 'recent'] }, { revert: false });
+
+            return { previous, previousOptimistic };
+        },
+        onSettled: () => {
             queryClient.invalidateQueries({ queryKey: ['patients', 'recent'] });
         },
-        onError: (error) => {
+        onError: (error, _variables, context) => {
+            setOptimisticRecentPatients(context?.previousOptimistic ?? context?.previous ?? null);
+            queryClient.setQueryData(['patients', 'recent'], context?.previous ?? []);
             toast.error(getApiErrorMessage(error, t('patients.recent.clearFailed')));
         },
     });
-    const openPatientDetails = (patientId: string) => {
+    const openPatientDetails = (patientId: string, patientName?: string) => {
+        if (patientName) {
+            setOptimisticRecentPatients((current) => [
+                { id: patientId, full_name: patientName },
+                ...(current ?? recentPatientsQuery.data ?? []).filter((patient) => patient.id !== patientId),
+            ].slice(0, 5));
+            queryClient.setQueryData<ApiRecentPatient[]>(['patients', 'recent'], (current = []) => [
+                { id: patientId, full_name: patientName },
+                ...current.filter((patient) => patient.id !== patientId),
+            ].slice(0, 5));
+        }
+
         router.push(`/patients/${patientId}`);
     };
-    const recentPatients = recentPatientsQuery.data ?? [];
+    const recentPatients = optimisticRecentPatients ?? recentPatientsQuery.data ?? [];
     const shouldShowRecentMenu = isRecentMenuOpen && searchQuery.trim() === '' && recentPatients.length > 0;
     const resetFilters = () => {
         setSearchQuery('');
@@ -507,7 +548,7 @@ export default function PatientsPage() {
                                                 <button
                                                     type="button"
                                                     className="min-w-0 flex-1 truncate text-left font-medium text-slate-800 focus-visible:outline-none"
-                                                    onClick={() => openPatientDetails(patient.id)}
+                                                    onClick={() => openPatientDetails(patient.id, patient.full_name)}
                                                 >
                                                     {patient.full_name}
                                                 </button>
@@ -672,11 +713,11 @@ export default function PatientsPage() {
                                             role="button"
                                             tabIndex={0}
                                             aria-label={t('patients.aria.openDetailsFor', { patientName: patient.fullName })}
-                                            onClick={() => openPatientDetails(patient.id)}
+                                            onClick={() => openPatientDetails(patient.id, patient.fullName)}
                                             onKeyDown={(event) => {
                                                 if (event.key === 'Enter' || event.key === ' ') {
                                                     event.preventDefault();
-                                                    openPatientDetails(patient.id);
+                                                    openPatientDetails(patient.id, patient.fullName);
                                                 }
                                             }}
                                         >
@@ -858,7 +899,7 @@ export default function PatientsPage() {
                                                         className="h-8 rounded-lg border-slate-200 text-slate-700 hover:bg-slate-50"
                                                         onClick={(event) => {
                                                             event.stopPropagation();
-                                                            openPatientDetails(patient.id);
+                                                            openPatientDetails(patient.id, patient.fullName);
                                                         }}
                                                     >
                                                         {t('patients.viewDetails')}

@@ -108,6 +108,7 @@ describe('PatientsPage', () => {
         vi.mocked(listRecentPatients).mockResolvedValue([
             { id: 'recent-patient-1', full_name: 'Recent Patient One' },
         ]);
+        vi.mocked(forgetRecentPatient).mockReturnValue(new Promise<void>(() => {}));
 
         renderPage();
         const user = userEvent.setup();
@@ -137,6 +138,9 @@ describe('PatientsPage', () => {
 
         await user.click(screen.getByRole('button', { name: 'Remove Recent Patient One from recent patients' }));
         expect(forgetRecentPatient).toHaveBeenCalledWith('recent-patient-1');
+        await waitFor(() => {
+            expect(screen.queryByText('Recent Patient One')).not.toBeInTheDocument();
+        });
 
         await user.clear(searchInput);
         await user.type(searchInput, 'Ali');
@@ -148,6 +152,7 @@ describe('PatientsPage', () => {
         vi.mocked(listRecentPatients).mockResolvedValue([
             { id: 'recent-patient-1', full_name: 'Recent Patient One' },
         ]);
+        vi.mocked(clearRecentPatients).mockReturnValue(new Promise<void>(() => {}));
 
         renderPage();
         const user = userEvent.setup();
@@ -159,6 +164,9 @@ describe('PatientsPage', () => {
         await user.click(within(recentMenu.parentElement as HTMLElement).getByRole('button', { name: 'Clear' }));
 
         expect(clearRecentPatients).toHaveBeenCalledTimes(1);
+        await waitFor(() => {
+            expect(screen.queryByText('Recent patients')).not.toBeInTheDocument();
+        });
     });
 
     it('shows inactive filter results and quick-schedule action', async () => {
