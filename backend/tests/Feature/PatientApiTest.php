@@ -136,6 +136,101 @@ class PatientApiTest extends TestCase
             ->assertJsonPath('data.0.last_visit_at', '2026-06-13');
     }
 
+    public function test_patient_detail_updates_profile_based_recent_patients(): void
+    {
+        $dentist = User::factory()->create();
+        $assistant = User::factory()->assistant($dentist)->create([
+            'assistant_permissions' => [User::PERMISSION_PATIENTS_VIEW],
+            'must_change_password' => false,
+        ]);
+        $firstPatient = Patient::factory()->create([
+            'dentist_id' => $dentist->id,
+            'full_name' => 'First Recent Patient',
+        ]);
+        $secondPatient = Patient::factory()->create([
+            'dentist_id' => $dentist->id,
+            'full_name' => 'Second Recent Patient',
+        ]);
+        $assistantPatient = Patient::factory()->create([
+            'dentist_id' => $dentist->id,
+            'full_name' => 'Assistant Recent Patient',
+        ]);
+
+        $this->actingAs($dentist, 'web')
+            ->getJson("/api/v1/patients/{$firstPatient->id}")
+            ->assertOk();
+        $this->travel(1)->second();
+        $this->actingAs($dentist, 'web')
+            ->getJson("/api/v1/patients/{$secondPatient->id}")
+            ->assertOk();
+        $this->travel(1)->second();
+        $this->actingAs($dentist, 'web')
+            ->getJson("/api/v1/patients/{$firstPatient->id}")
+            ->assertOk();
+        $this->flushSession();
+        $this->app['auth']->forgetGuards();
+        $this->actingAs($assistant, 'web')
+            ->getJson("/api/v1/patients/{$assistantPatient->id}")
+            ->assertOk();
+
+        $this->flushSession();
+        $this->app['auth']->forgetGuards();
+        $this->actingAs($dentist, 'web')
+            ->getJson('/api/v1/patients/recent')
+            ->assertOk()
+            ->assertJsonCount(2, 'data')
+            ->assertJsonPath('data.0.id', (string) $firstPatient->id)
+            ->assertJsonPath('data.0.full_name', 'First Recent Patient')
+            ->assertJsonPath('data.1.id', (string) $secondPatient->id);
+
+        $this->flushSession();
+        $this->app['auth']->forgetGuards();
+        $this->actingAs($assistant, 'web')
+            ->getJson('/api/v1/patients/recent')
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', (string) $assistantPatient->id);
+    }
+
+    public function test_dentist_can_remove_and_clear_recent_patients(): void
+    {
+        $dentist = User::factory()->create();
+        $firstPatient = Patient::factory()->create([
+            'dentist_id' => $dentist->id,
+            'full_name' => 'Clear First Patient',
+        ]);
+        $secondPatient = Patient::factory()->create([
+            'dentist_id' => $dentist->id,
+            'full_name' => 'Clear Second Patient',
+        ]);
+
+        $this->actingAs($dentist, 'web')
+            ->getJson("/api/v1/patients/{$firstPatient->id}")
+            ->assertOk();
+        $this->actingAs($dentist, 'web')
+            ->getJson("/api/v1/patients/{$secondPatient->id}")
+            ->assertOk();
+
+        $this->actingAs($dentist, 'web')
+            ->deleteJson("/api/v1/patients/recent/{$firstPatient->id}")
+            ->assertNoContent();
+
+        $this->actingAs($dentist, 'web')
+            ->getJson('/api/v1/patients/recent')
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', (string) $secondPatient->id);
+
+        $this->actingAs($dentist, 'web')
+            ->deleteJson('/api/v1/patients/recent')
+            ->assertNoContent();
+
+        $this->actingAs($dentist, 'web')
+            ->getJson('/api/v1/patients/recent')
+            ->assertOk()
+            ->assertJsonCount(0, 'data');
+    }
+
     public function test_patient_list_omits_oral_photo_gallery_payload_but_detail_includes_it(): void
     {
         $dentist = User::factory()->create();

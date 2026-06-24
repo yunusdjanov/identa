@@ -3,7 +3,15 @@ import { cleanup, render, screen, waitFor, within } from '@testing-library/react
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import PatientsPage from '@/app/patients/page';
-import { getCurrentUser, listPatientCategories, listPatients, restorePatient } from '@/lib/api/dentist';
+import {
+    clearRecentPatients,
+    forgetRecentPatient,
+    getCurrentUser,
+    listPatientCategories,
+    listPatients,
+    listRecentPatients,
+    restorePatient,
+} from '@/lib/api/dentist';
 import { I18nProvider } from '@/components/providers/i18n-provider';
 import { DICTIONARIES } from '@/lib/i18n/dictionaries';
 
@@ -16,9 +24,12 @@ vi.mock('next/navigation', () => ({
 }));
 
 vi.mock('@/lib/api/dentist', () => ({
+    clearRecentPatients: vi.fn(),
+    forgetRecentPatient: vi.fn(),
     getCurrentUser: vi.fn(),
     listPatients: vi.fn(),
     listPatientCategories: vi.fn(),
+    listRecentPatients: vi.fn(),
     restorePatient: vi.fn(),
 }));
 
@@ -67,8 +78,11 @@ describe('PatientsPage', () => {
     beforeEach(() => {
         pushMock.mockReset();
         vi.mocked(getCurrentUser).mockReset();
+        vi.mocked(clearRecentPatients).mockReset();
+        vi.mocked(forgetRecentPatient).mockReset();
         vi.mocked(listPatients).mockReset();
         vi.mocked(listPatientCategories).mockReset();
+        vi.mocked(listRecentPatients).mockReset();
         vi.mocked(restorePatient).mockReset();
         vi.mocked(getCurrentUser).mockResolvedValue({
             id: 'user-1',
@@ -78,12 +92,73 @@ describe('PatientsPage', () => {
             account_status: 'active',
         });
         vi.mocked(listPatientCategories).mockResolvedValue([]);
+        vi.mocked(listRecentPatients).mockResolvedValue([]);
+        vi.mocked(forgetRecentPatient).mockResolvedValue(undefined);
+        vi.mocked(clearRecentPatients).mockResolvedValue(undefined);
         vi.mocked(restorePatient).mockResolvedValue({
             id: 'restored',
             patient_id: 'PT-REST',
             full_name: 'Restored',
             phone: '+10000000000',
         } as never);
+    });
+
+    it('shows profile-based recent patients on empty search focus', async () => {
+        vi.mocked(listPatients).mockResolvedValue(buildPatientsResponse([]));
+        vi.mocked(listRecentPatients).mockResolvedValue([
+            { id: 'recent-patient-1', full_name: 'Recent Patient One' },
+        ]);
+
+        renderPage();
+        const user = userEvent.setup();
+
+        const searchInput = await screen.findByLabelText('Search patients by name, phone, or patient ID');
+        await user.click(searchInput);
+
+        expect(await screen.findByText('Recent patients')).toBeInTheDocument();
+        await user.click(screen.getByRole('button', { name: 'Recent Patient One' }));
+
+        expect(pushMock).toHaveBeenCalledWith('/patients/recent-patient-1');
+    });
+
+    it('hides recent patients while searching and can remove recent shortcuts', async () => {
+        vi.mocked(listPatients).mockResolvedValue(buildPatientsResponse([]));
+        vi.mocked(listRecentPatients).mockResolvedValue([
+            { id: 'recent-patient-1', full_name: 'Recent Patient One' },
+        ]);
+
+        renderPage();
+        const user = userEvent.setup();
+
+        const searchInput = await screen.findByLabelText('Search patients by name, phone, or patient ID');
+        await user.click(searchInput);
+        const menu = await screen.findByText('Recent patients');
+        expect(menu).toBeInTheDocument();
+
+        await user.click(screen.getByRole('button', { name: 'Remove Recent Patient One from recent patients' }));
+        expect(forgetRecentPatient).toHaveBeenCalledWith('recent-patient-1');
+
+        await user.clear(searchInput);
+        await user.type(searchInput, 'Ali');
+        expect(screen.queryByText('Recent patients')).not.toBeInTheDocument();
+    });
+
+    it('clears all recent patient shortcuts from the search menu', async () => {
+        vi.mocked(listPatients).mockResolvedValue(buildPatientsResponse([]));
+        vi.mocked(listRecentPatients).mockResolvedValue([
+            { id: 'recent-patient-1', full_name: 'Recent Patient One' },
+        ]);
+
+        renderPage();
+        const user = userEvent.setup();
+
+        const searchInput = await screen.findByLabelText('Search patients by name, phone, or patient ID');
+        await user.click(searchInput);
+
+        const recentMenu = await screen.findByText('Recent patients');
+        await user.click(within(recentMenu.parentElement as HTMLElement).getByRole('button', { name: 'Clear' }));
+
+        expect(clearRecentPatients).toHaveBeenCalledTimes(1);
     });
 
     it('shows inactive filter results and quick-schedule action', async () => {

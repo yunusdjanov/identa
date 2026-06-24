@@ -209,6 +209,12 @@ Route::prefix('v1')->group(function (): void {
             ->middleware('permission:'.User::PERMISSION_PATIENTS_VIEW);
         Route::post('patients', [PatientController::class, 'store'])
             ->middleware('permission:'.User::PERMISSION_PATIENTS_MANAGE);
+        Route::get('patients/recent', [PatientController::class, 'recent'])
+            ->middleware('permission:'.User::PERMISSION_PATIENTS_VIEW);
+        Route::delete('patients/recent', [PatientController::class, 'clearRecent'])
+            ->middleware('permission:'.User::PERMISSION_PATIENTS_VIEW);
+        Route::delete('patients/recent/{id}', [PatientController::class, 'forgetRecent'])
+            ->middleware('permission:'.User::PERMISSION_PATIENTS_VIEW);
         Route::get('patients/{id}', [PatientController::class, 'show'])
             ->middleware('permission:'.User::PERMISSION_PATIENTS_VIEW);
         Route::get('patients/{id}/overview', [PatientController::class, 'overview'])

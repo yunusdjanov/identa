@@ -8,6 +8,7 @@ use App\Jobs\DeleteStoredMediaPaths;
 use App\Models\Appointment;
 use App\Models\OdontogramEntry;
 use App\Models\Patient;
+use App\Models\PatientRecentView;
 use App\Models\Treatment;
 use App\Models\User;
 use App\Support\AuditLogger;
@@ -16,6 +17,7 @@ use App\Support\Search;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -25,6 +27,8 @@ class PatientService
     private const DEFAULT_PER_PAGE = 15;
 
     private const MAX_PER_PAGE = 100;
+
+    private const RECENT_PATIENT_LIMIT = 5;
 
     /**
      * @var list<string>
@@ -131,6 +135,94 @@ class PatientService
             'phone',
             'secondary_phone',
         ]);
+    }
+
+    /**
+     * Return the current user's most recently opened patients inside the tenant.
+     *
+     * @return Collection<int, Patient>
+     */
+    public function recent(Request $request): Collection
+    {
+        $dentistId = $this->dentistId($request);
+        $actorId = $this->actorId($request);
+
+        return Patient::query()
+            ->join('patient_recent_views', 'patients.id', '=', 'patient_recent_views.patient_id')
+            ->where('patient_recent_views.user_id', $actorId)
+            ->where('patient_recent_views.dentist_id', $dentistId)
+            ->where('patients.dentist_id', $dentistId)
+            ->whereNull('patients.deleted_at')
+            ->orderByDesc('patient_recent_views.viewed_at')
+            ->orderByDesc('patient_recent_views.id')
+            ->limit(self::RECENT_PATIENT_LIMIT)
+            ->get([
+                'patients.id',
+                'patients.full_name',
+            ]);
+    }
+
+    /**
+     * Store one patient detail view as a profile-scoped recent shortcut.
+     */
+    public function rememberRecent(Request $request, Patient $patient): void
+    {
+        if ($patient->trashed()) {
+            return;
+        }
+
+        $dentistId = $this->dentistId($request);
+        $actorId = $this->actorId($request);
+
+        PatientRecentView::query()->updateOrCreate(
+            [
+                'user_id' => $actorId,
+                'patient_id' => (string) $patient->id,
+            ],
+            [
+                'dentist_id' => $dentistId,
+                'viewed_at' => now(),
+            ]
+        );
+
+        $latestIds = PatientRecentView::query()
+            ->where('user_id', $actorId)
+            ->where('dentist_id', $dentistId)
+            ->orderByDesc('viewed_at')
+            ->orderByDesc('id')
+            ->limit(self::RECENT_PATIENT_LIMIT)
+            ->pluck('id');
+
+        if ($latestIds->isNotEmpty()) {
+            PatientRecentView::query()
+                ->where('user_id', $actorId)
+                ->where('dentist_id', $dentistId)
+                ->whereNotIn('id', $latestIds)
+                ->delete();
+        }
+    }
+
+    /**
+     * Remove one recent-patient shortcut for the current user.
+     */
+    public function forgetRecent(Request $request, string $patientId): void
+    {
+        PatientRecentView::query()
+            ->where('user_id', $this->actorId($request))
+            ->where('dentist_id', $this->dentistId($request))
+            ->where('patient_id', $patientId)
+            ->delete();
+    }
+
+    /**
+     * Clear all recent-patient shortcuts for the current user.
+     */
+    public function clearRecent(Request $request): void
+    {
+        PatientRecentView::query()
+            ->where('user_id', $this->actorId($request))
+            ->where('dentist_id', $this->dentistId($request))
+            ->delete();
     }
 
     public function create(StorePatientRequest $request): Patient

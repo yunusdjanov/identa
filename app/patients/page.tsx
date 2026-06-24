@@ -26,11 +26,19 @@ import {
 } from '@/components/ui/table';
 import { DataTableShell, getDataTableClassName } from '@/components/ui/data-table-shell';
 import { PageHeader } from '@/components/ui/page-shell';
-import { getCurrentUser, listPatientCategories, listPatients, restorePatient } from '@/lib/api/dentist';
+import {
+    clearRecentPatients,
+    forgetRecentPatient,
+    getCurrentUser,
+    listPatientCategories,
+    listPatients,
+    listRecentPatients,
+    restorePatient,
+} from '@/lib/api/dentist';
 import { getApiErrorMessage } from '@/lib/api/client';
 import type { ApiPatient, ApiRecordActor } from '@/lib/api/types';
 import { cn, extractPrimaryPhone, formatDate, toLocalDateKey, truncateForUi } from '@/lib/utils';
-import { Plus, Search, Phone, Users, CalendarPlus, ArrowRight, Tags, FileText, FilterX, Download, Maximize2 } from 'lucide-react';
+import { Plus, Search, Phone, Users, CalendarPlus, ArrowRight, Tags, FileText, FilterX, Download, Maximize2, X } from 'lucide-react';
 import { buildPdfFilename, exportRowsToPdf } from '@/lib/export/pdf';
 import { EmptyState } from '@/components/ui/empty-state';
 import { useI18n } from '@/components/providers/i18n-provider';
@@ -158,6 +166,7 @@ export default function PatientsPage() {
     });
     const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
     const [isManageCategoriesOpen, setIsManageCategoriesOpen] = useState(false);
+    const [isRecentMenuOpen, setIsRecentMenuOpen] = useState(false);
     const [photoPreview, setPhotoPreview] = useState<{
         src: string;
         thumbnailSrc?: string;
@@ -242,6 +251,15 @@ export default function PatientsPage() {
         refetchOnWindowFocus: false,
         refetchOnReconnect: false,
     });
+    const recentPatientsQuery = useQuery({
+        queryKey: ['patients', 'recent'],
+        queryFn: listRecentPatients,
+        enabled: canViewPatients,
+        staleTime: 60_000,
+        gcTime: 5 * 60_000,
+        refetchOnWindowFocus: false,
+        refetchOnReconnect: false,
+    });
     const patientRows = useMemo(
         () => (patientsQuery.data?.data ?? []).map((patient) => mapPatientRow(patient)),
         [patientsQuery.data]
@@ -268,9 +286,30 @@ export default function PatientsPage() {
             toast.error(getApiErrorMessage(error, t('patients.restoreFailed')));
         },
     });
+    const forgetRecentMutation = useMutation({
+        mutationFn: (patientId: string) => forgetRecentPatient(patientId),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['patients', 'recent'] });
+        },
+        onError: (error) => {
+            toast.error(getApiErrorMessage(error, t('patients.recent.removeFailed')));
+        },
+    });
+    const clearRecentMutation = useMutation({
+        mutationFn: clearRecentPatients,
+        onSuccess: () => {
+            setIsRecentMenuOpen(false);
+            queryClient.invalidateQueries({ queryKey: ['patients', 'recent'] });
+        },
+        onError: (error) => {
+            toast.error(getApiErrorMessage(error, t('patients.recent.clearFailed')));
+        },
+    });
     const openPatientDetails = (patientId: string) => {
         router.push(`/patients/${patientId}`);
     };
+    const recentPatients = recentPatientsQuery.data ?? [];
+    const shouldShowRecentMenu = isRecentMenuOpen && searchQuery.trim() === '' && recentPatients.length > 0;
     const resetFilters = () => {
         setSearchQuery('');
         setSelectedCategoryId('all');
@@ -415,18 +454,80 @@ export default function PatientsPage() {
             <Card className="rounded-2xl border-teal-100/80 bg-white shadow-sm shadow-teal-100/50">
                 <CardContent className="p-4 sm:p-5">
                     <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
-                        <div className="relative flex-1">
+                        <div
+                            className="relative flex-1"
+                            onBlur={(event) => {
+                                const nextFocus = event.relatedTarget;
+                                if (!(nextFocus instanceof Node) || !event.currentTarget.contains(nextFocus)) {
+                                    setIsRecentMenuOpen(false);
+                                }
+                            }}
+                        >
                             <Search aria-hidden="true" className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                             <Input
                                 placeholder={t('patients.searchPlaceholder')}
                                 aria-label={t('patients.searchAria')}
                                 value={searchQuery}
+                                onFocus={() => {
+                                    if (searchQuery.trim() === '') {
+                                        setIsRecentMenuOpen(true);
+                                    }
+                                }}
                                 onChange={(event) => {
-                                    setSearchQuery(event.target.value);
+                                    const value = event.target.value;
+                                    setSearchQuery(value);
+                                    setIsRecentMenuOpen(value.trim() === '');
                                     setCurrentPage(1);
                                 }}
                                 className="h-9 rounded-xl border-slate-200 bg-white pl-10 shadow-xs"
                             />
+                            {shouldShowRecentMenu ? (
+                                <div className="absolute left-0 right-0 top-full z-40 mt-2 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg shadow-slate-200/80">
+                                    <div className="flex items-center justify-between border-b border-slate-100 px-3 py-2">
+                                        <p className="text-xs font-semibold uppercase tracking-[0.08em] text-slate-500">
+                                            {t('patients.recent.title')}
+                                        </p>
+                                        <Button
+                                            type="button"
+                                            variant="ghost"
+                                            size="sm"
+                                            className="h-7 px-2 text-xs text-slate-500 hover:bg-slate-50 hover:text-slate-900"
+                                            disabled={clearRecentMutation.isPending}
+                                            onClick={() => clearRecentMutation.mutate()}
+                                        >
+                                            {t('common.clear')}
+                                        </Button>
+                                    </div>
+                                    <div className="py-1">
+                                        {recentPatients.map((patient) => (
+                                            <div
+                                                key={patient.id}
+                                                className="group flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm transition hover:bg-teal-50/70 focus-visible:bg-teal-50/70 focus-visible:outline-none"
+                                            >
+                                                <button
+                                                    type="button"
+                                                    className="min-w-0 flex-1 truncate text-left font-medium text-slate-800 focus-visible:outline-none"
+                                                    onClick={() => openPatientDetails(patient.id)}
+                                                >
+                                                    {patient.full_name}
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    aria-label={t('patients.recent.removeAria', { patientName: patient.full_name })}
+                                                    className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-slate-400 opacity-100 transition hover:bg-white hover:text-slate-700 focus-visible:bg-white focus-visible:text-slate-700 focus-visible:outline-none sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100"
+                                                    disabled={forgetRecentMutation.isPending}
+                                                    onClick={(event) => {
+                                                        event.stopPropagation();
+                                                        forgetRecentMutation.mutate(patient.id);
+                                                    }}
+                                                >
+                                                    <X className="h-3.5 w-3.5" />
+                                                </button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            ) : null}
                         </div>
                         <div className="flex flex-wrap items-center gap-2.5 lg:justify-end">
                             <Select

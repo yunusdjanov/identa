@@ -74,6 +74,42 @@ class PatientController extends Controller
         ]);
     }
 
+    /**
+     * Return profile-scoped recently opened patients for the current user.
+     */
+    public function recent(Request $request): JsonResponse
+    {
+        return response()->json([
+            'data' => $this->patients->recent($request)
+                ->map(static fn (Patient $patient): array => [
+                    'id' => (string) $patient->id,
+                    'full_name' => $patient->full_name,
+                ])
+                ->values()
+                ->all(),
+        ]);
+    }
+
+    /**
+     * Clear all recent patient shortcuts for the current user.
+     */
+    public function clearRecent(Request $request): JsonResponse
+    {
+        $this->patients->clearRecent($request);
+
+        return response()->json([], 204);
+    }
+
+    /**
+     * Remove one recent patient shortcut for the current user.
+     */
+    public function forgetRecent(Request $request, string $id): JsonResponse
+    {
+        $this->patients->forgetRecent($request, $id);
+
+        return response()->json([], 204);
+    }
+
     public function store(StorePatientRequest $request): JsonResponse
     {
         $patient = $this->patients->create($request);
@@ -86,6 +122,7 @@ class PatientController extends Controller
     public function show(Request $request, string $id): JsonResponse
     {
         $patient = $this->patients->ownedPatient($request, $id);
+        $this->patients->rememberRecent($request, $patient);
 
         return response()->json([
             'data' => $this->transformPatient($patient, $request),

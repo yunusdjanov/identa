@@ -206,6 +206,14 @@ export interface ApiPatientLookup {
     secondary_phone?: string | null;
 }
 
+/**
+ * Compact patient shape used by the profile-scoped recent search menu.
+ */
+export interface ApiRecentPatient {
+    id: string;
+    full_name: string;
+}
+
 export interface ApiPatientOverview {
     appointment_count: number;
     visit_count?: number;

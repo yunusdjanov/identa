@@ -17,6 +17,8 @@ export const PATIENTS = [
     { id: 'pat-6', patient_id: 'P-006', full_name: 'Dilnoza Ergasheva', phone: '+998901006006', gender: 'female', date_of_birth: '2000-04-18', created_at: '2026-01-15T10:00:00Z', last_visit_at: '2026-05-20T10:00:00Z', is_archived: false, archived_at: null, categories: [CATEGORIES[2]], photo_url: null, photo_thumbnail_url: null, photo_preview_url: null, photo_thumbnail_ready: false, photo_preview_ready: false, photo_scan_status: null },
 ];
 
+export const RECENT_PATIENT_IDS: string[] = [];
+
 export const APPOINTMENTS = [
     { id: 'apt-1', patient_id: 'pat-1', patient_name: 'Alisher Karimov', appointment_date: '2026-05-23', start_time: '10:00', end_time: '10:45', status: 'scheduled', notes: "Tish tekshiruvi" },
     { id: 'apt-2', patient_id: 'pat-2', patient_name: 'Malika Yusupova', appointment_date: '2026-05-23', start_time: '11:30', end_time: '12:30', status: 'completed', notes: 'Tish tozalash' },

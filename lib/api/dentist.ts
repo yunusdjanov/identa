@@ -18,6 +18,7 @@ import type {
     ApiBillingPayment,
     ApiPatient,
     ApiPatientLookup,
+    ApiRecentPatient,
     ApiPatientOverview,
     ApiPatientCategory,
     ApiPatientClinicalPhotoViewType,
@@ -408,6 +409,29 @@ export async function getPatient(id: string): Promise<ApiPatient> {
     const { data } = await apiClient.get<ApiEnvelope<ApiPatient>>(`/patients/${id}`);
 
     return data.data;
+}
+
+/**
+ * Loads the current user's profile-scoped recently opened patients.
+ */
+export async function listRecentPatients(): Promise<ApiRecentPatient[]> {
+    const { data } = await apiClient.get<ApiCollectionEnvelope<ApiRecentPatient>>('/patients/recent');
+
+    return data.data;
+}
+
+/**
+ * Removes one patient from the current user's recent-patient shortcuts.
+ */
+export async function forgetRecentPatient(id: string): Promise<void> {
+    await withCsrfRetry(() => apiClient.delete(`/patients/recent/${id}`));
+}
+
+/**
+ * Clears all recent-patient shortcuts for the current user.
+ */
+export async function clearRecentPatients(): Promise<void> {
+    await withCsrfRetry(() => apiClient.delete('/patients/recent'));
 }
 
 export async function getPatientOverview(id: string): Promise<ApiPatientOverview> {
