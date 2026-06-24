@@ -1,7 +1,7 @@
 ﻿'use client';
 
 import dynamic from 'next/dynamic';
-import { useMemo, useState, useSyncExternalStore } from 'react';
+import { useId, useMemo, useState, useSyncExternalStore } from 'react';
 import { useRouter } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -137,6 +137,7 @@ export default function PatientsPage() {
     const { t } = useI18n();
     const router = useRouter();
     const queryClient = useQueryClient();
+    const recentMenuId = useId();
     const isClient = useSyncExternalStore(
         noopSubscribe,
         () => true,
@@ -514,40 +515,55 @@ export default function PatientsPage() {
                                         setIsRecentMenuOpen(true);
                                     }
                                 }}
+                                onClick={() => {
+                                    if (searchQuery.trim() === '') {
+                                        setIsRecentMenuOpen(true);
+                                    }
+                                }}
                                 onChange={(event) => {
                                     const value = event.target.value;
                                     setSearchQuery(value);
                                     setIsRecentMenuOpen(value.trim() === '');
                                     setCurrentPage(1);
                                 }}
+                                onKeyDown={(event) => {
+                                    if (event.key === 'Escape') {
+                                        setIsRecentMenuOpen(false);
+                                    }
+                                }}
+                                aria-controls={shouldShowRecentMenu ? recentMenuId : undefined}
+                                aria-expanded={shouldShowRecentMenu}
                                 className="h-9 rounded-xl border-slate-200 bg-white pl-10 shadow-xs"
                             />
                             {shouldShowRecentMenu ? (
-                                <div className="absolute left-0 right-0 top-full z-40 mt-2 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg shadow-slate-200/80">
-                                    <div className="flex items-center justify-between border-b border-slate-100 px-3 py-2">
-                                        <p className="text-xs font-semibold uppercase tracking-[0.08em] text-slate-500">
+                                <div
+                                    id={recentMenuId}
+                                    className="absolute left-0 top-full z-40 mt-2 w-full overflow-hidden rounded-2xl border border-slate-200/90 bg-white/95 shadow-xl shadow-slate-200/70 backdrop-blur sm:max-w-md"
+                                >
+                                    <div className="flex h-10 items-center justify-between border-b border-slate-100 px-3">
+                                        <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">
                                             {t('patients.recent.title')}
                                         </p>
                                         <Button
                                             type="button"
                                             variant="ghost"
                                             size="sm"
-                                            className="h-7 px-2 text-xs text-slate-500 hover:bg-slate-50 hover:text-slate-900"
+                                            className="h-7 rounded-full px-2.5 text-xs font-medium text-slate-500 hover:bg-slate-100 hover:text-slate-900"
                                             disabled={clearRecentMutation.isPending}
                                             onClick={() => clearRecentMutation.mutate()}
                                         >
                                             {t('common.clear')}
                                         </Button>
                                     </div>
-                                    <div className="py-1">
+                                    <ul className="max-h-60 overflow-y-auto p-1" role="list">
                                         {recentPatients.map((patient) => (
-                                            <div
+                                            <li
                                                 key={patient.id}
-                                                className="group flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm transition hover:bg-teal-50/70 focus-visible:bg-teal-50/70 focus-visible:outline-none"
+                                                className="group flex min-h-10 items-center gap-1 rounded-xl text-sm transition hover:bg-teal-50/80 focus-within:bg-teal-50/80"
                                             >
                                                 <button
                                                     type="button"
-                                                    className="min-w-0 flex-1 truncate text-left font-medium text-slate-800 focus-visible:outline-none"
+                                                    className="min-w-0 flex-1 truncate rounded-xl px-3 py-2 text-left font-medium text-slate-800 focus-visible:outline-none"
                                                     onClick={() => openPatientDetails(patient.id, patient.full_name)}
                                                 >
                                                     {patient.full_name}
@@ -555,7 +571,7 @@ export default function PatientsPage() {
                                                 <button
                                                     type="button"
                                                     aria-label={t('patients.recent.removeAria', { patientName: patient.full_name })}
-                                                    className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-slate-400 opacity-100 transition hover:bg-white hover:text-slate-700 focus-visible:bg-white focus-visible:text-slate-700 focus-visible:outline-none sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100"
+                                                    className="mr-1 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-slate-400 opacity-100 transition hover:bg-white hover:text-slate-700 focus-visible:bg-white focus-visible:text-slate-700 focus-visible:outline-none sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100"
                                                     disabled={forgetRecentMutation.isPending}
                                                     onClick={(event) => {
                                                         event.stopPropagation();
@@ -564,9 +580,9 @@ export default function PatientsPage() {
                                                 >
                                                     <X className="h-3.5 w-3.5" />
                                                 </button>
-                                            </div>
+                                            </li>
                                         ))}
-                                    </div>
+                                    </ul>
                                 </div>
                             ) : null}
                         </div>

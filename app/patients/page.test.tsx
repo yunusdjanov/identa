@@ -135,6 +135,13 @@ describe('PatientsPage', () => {
         await user.click(searchInput);
         const menu = await screen.findByText('Recent patients');
         expect(menu).toBeInTheDocument();
+        expect(searchInput).toHaveAttribute('aria-expanded', 'true');
+
+        await user.keyboard('{Escape}');
+        expect(screen.queryByText('Recent patients')).not.toBeInTheDocument();
+
+        await user.click(searchInput);
+        expect(await screen.findByText('Recent patients')).toBeInTheDocument();
 
         await user.click(screen.getByRole('button', { name: 'Remove Recent Patient One from recent patients' }));
         expect(forgetRecentPatient).toHaveBeenCalledWith('recent-patient-1');
