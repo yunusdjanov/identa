@@ -26,10 +26,9 @@ import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { getBalanceMetricTone, MetricSummaryCard } from '@/components/ui/metric-summary-card';
 import type { PreviewGalleryImage } from '@/components/patients/patient-photo-preview-dialog';
-import { ClinicalSnapshotCard } from '@/components/patients/clinical-snapshot-card';
 import { optimizeImageFilesForUpload } from '@/lib/browser-image';
 import { getProtectedMediaCrossOrigin, getProtectedMediaPreviewUrl, getProtectedMediaThumbnailUrl, isProtectedMediaApproved } from '@/lib/protected-media';
-import { formatToothList, formatToothNumber, TOOTH_LAYOUT } from '@/lib/tooth-numbering';
+import { formatToothList, formatToothNumber } from '@/lib/tooth-numbering';
 import { formatCurrency, formatDate, toLocalDateKey } from '@/lib/utils';
 import { toast } from 'sonner';
 import { CalendarDays, Download, Loader2, Lock, Pencil, Plus, RotateCcw, Trash2, X } from 'lucide-react';
@@ -264,26 +263,6 @@ async function uploadTreatmentImagesInBatches(
     }
 
     return failedCount;
-}
-
-function ToothCell({
-    selected,
-    label,
-}: {
-    selected: boolean;
-    label: string | number;
-}) {
-    return (
-        <div
-            className={`flex h-full w-full items-center justify-center rounded-md border text-xs font-semibold transition-colors ${
-                selected
-                    ? 'border-teal-600 bg-teal-500 text-white shadow-sm shadow-teal-200 ring-2 ring-teal-200'
-                    : 'border-slate-200 bg-white text-slate-600 hover:border-teal-300 hover:bg-teal-50'
-            }`}
-        >
-            {label}
-        </div>
-    );
 }
 
 function HistoryImageTile({
@@ -1098,13 +1077,6 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                     </div>
                 </CardHeader>
                 <CardContent className="space-y-6">
-                    <ClinicalSnapshotCard
-                        patientId={patientId}
-                        treatments={treatments}
-                        isTreatmentsLoading={treatmentsQuery.isLoading}
-                        isTreatmentsError={treatmentsQuery.isError}
-                    />
-
                     {/* When the viewer lacks payments.view the three financial
                         cards are kept in the layout but rendered as locked
                         placeholders (Lock icon + "No access"). The grid
@@ -1588,137 +1560,6 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                 <Input id="historyWorkDone" required value={formState.treatmentType} onChange={(event) => setFormState((current) => ({ ...current, treatmentType: event.target.value }))} placeholder={t('patientHistory.workDonePlaceholder')} />
                                 {treatmentTypeError ? <p className="text-xs text-red-600">{treatmentTypeError}</p> : null}
                             </div>
-                        </div>
-                        <div className="space-y-2">
-                            <Label>{t('patientHistory.teethLabel')}</Label>
-                            <div>
-                                <div className="space-y-4">
-                                    <div className="space-y-2">
-                                        <p className="text-center text-sm font-medium text-slate-700">{t('odontogram.upperJaw')}</p>
-                                        <div className="flex justify-center gap-3 md:gap-4 max-md:flex-col max-md:items-center max-md:gap-2">
-                                            <div>
-                                                <p className="mb-0.5 text-center text-xs text-slate-500">{t('odontogram.upperRight')}</p>
-                                                <div className="flex gap-1 md:gap-0.5">
-                                                    {TOOTH_LAYOUT.upperRight.map((toothNumber) => {
-                                                        const isSelected = formState.teeth.includes(toothNumber);
-                                                        const toothLabel = formatToothNumber(toothNumber);
-                                                        return (
-                                                            <button
-                                                                key={toothNumber}
-                                                                type="button"
-                                                                className="h-9 w-7 rounded-md p-0 transition-colors md:w-6"
-                                                                onClick={() =>
-                                                                    setFormState((current) => ({
-                                                                        ...current,
-                                                                        teeth: isSelected
-                                                                            ? current.teeth.filter((value) => value !== toothNumber)
-                                                                            : [...current.teeth, toothNumber].sort((a, b) => a - b),
-                                                                    }))
-                                                                }
-                                                                aria-pressed={isSelected}
-                                                                title={t('odontogram.toothTitle', { toothNumber: toothLabel })}
-                                                            >
-                                                                <ToothCell selected={isSelected} label={toothLabel} />
-                                                            </button>
-                                                        );
-                                                    })}
-                                                </div>
-                                            </div>
-                                            <div>
-                                                <p className="mb-0.5 text-center text-xs text-slate-500">{t('odontogram.upperLeft')}</p>
-                                                <div className="flex gap-1 md:gap-0.5">
-                                                    {TOOTH_LAYOUT.upperLeft.map((toothNumber) => {
-                                                        const isSelected = formState.teeth.includes(toothNumber);
-                                                        const toothLabel = formatToothNumber(toothNumber);
-                                                        return (
-                                                            <button
-                                                                key={toothNumber}
-                                                                type="button"
-                                                                className="h-9 w-7 rounded-md p-0 transition-colors md:w-6"
-                                                                onClick={() =>
-                                                                    setFormState((current) => ({
-                                                                        ...current,
-                                                                        teeth: isSelected
-                                                                            ? current.teeth.filter((value) => value !== toothNumber)
-                                                                            : [...current.teeth, toothNumber].sort((a, b) => a - b),
-                                                                    }))
-                                                                }
-                                                                aria-pressed={isSelected}
-                                                                title={t('odontogram.toothTitle', { toothNumber: toothLabel })}
-                                                            >
-                                                                <ToothCell selected={isSelected} label={toothLabel} />
-                                                            </button>
-                                                        );
-                                                    })}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div className="space-y-2">
-                                        <p className="text-center text-sm font-medium text-slate-700">{t('odontogram.lowerJaw')}</p>
-                                        <div className="flex justify-center gap-3 md:gap-4 max-md:flex-col max-md:items-center max-md:gap-2">
-                                            <div>
-                                                <p className="mb-0.5 text-center text-xs text-slate-500">{t('odontogram.lowerRight')}</p>
-                                                <div className="flex gap-1 md:gap-0.5">
-                                                    {TOOTH_LAYOUT.lowerRight.map((toothNumber) => {
-                                                        const isSelected = formState.teeth.includes(toothNumber);
-                                                        const toothLabel = formatToothNumber(toothNumber);
-                                                        return (
-                                                            <button
-                                                                key={toothNumber}
-                                                                type="button"
-                                                                className="h-9 w-7 rounded-md p-0 transition-colors md:w-6"
-                                                                onClick={() =>
-                                                                    setFormState((current) => ({
-                                                                        ...current,
-                                                                        teeth: isSelected
-                                                                            ? current.teeth.filter((value) => value !== toothNumber)
-                                                                            : [...current.teeth, toothNumber].sort((a, b) => a - b),
-                                                                    }))
-                                                                }
-                                                                aria-pressed={isSelected}
-                                                                title={t('odontogram.toothTitle', { toothNumber: toothLabel })}
-                                                            >
-                                                                <ToothCell selected={isSelected} label={toothLabel} />
-                                                            </button>
-                                                        );
-                                                    })}
-                                                </div>
-                                            </div>
-                                            <div>
-                                                <p className="mb-0.5 text-center text-xs text-slate-500">{t('odontogram.lowerLeft')}</p>
-                                                <div className="flex gap-1 md:gap-0.5">
-                                                    {TOOTH_LAYOUT.lowerLeft.map((toothNumber) => {
-                                                        const isSelected = formState.teeth.includes(toothNumber);
-                                                        const toothLabel = formatToothNumber(toothNumber);
-                                                        return (
-                                                            <button
-                                                                key={toothNumber}
-                                                                type="button"
-                                                                className="h-9 w-7 rounded-md p-0 transition-colors md:w-6"
-                                                                onClick={() =>
-                                                                    setFormState((current) => ({
-                                                                        ...current,
-                                                                        teeth: isSelected
-                                                                            ? current.teeth.filter((value) => value !== toothNumber)
-                                                                            : [...current.teeth, toothNumber].sort((a, b) => a - b),
-                                                                    }))
-                                                                }
-                                                                aria-pressed={isSelected}
-                                                                title={t('odontogram.toothTitle', { toothNumber: toothLabel })}
-                                                            >
-                                                                <ToothCell selected={isSelected} label={toothLabel} />
-                                                            </button>
-                                                        );
-                                                    })}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <p className="text-xs text-slate-500">{t('patientHistory.teethHint')}</p>
                         </div>
                         {/* Financial inputs are gated on payments.view —
                             see TreatmentService::payload backend gate.

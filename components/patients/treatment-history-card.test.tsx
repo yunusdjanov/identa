@@ -159,7 +159,7 @@ describe('TreatmentHistoryCard image controls', () => {
         // dialog (same handler), so the first one is fine.
         await user.click(screen.getAllByRole('button', { name: 'Edit Entry' })[0]);
 
-        expect(screen.getAllByTitle('Tooth #21').length).toBeGreaterThan(0);
+        expect(screen.queryByTitle('Tooth #21')).not.toBeInTheDocument();
         expect(screen.queryByTitle('Tooth #9')).not.toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Image 1' })).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Image 2' })).toBeInTheDocument();
@@ -167,7 +167,7 @@ describe('TreatmentHistoryCard image controls', () => {
         expect(screen.getByAltText('Image 1')).toHaveAttribute('src', 'https://example.com/tooth-1-thumb.jpg');
 
         await user.click(screen.getByRole('button', { name: 'Image 2' }));
-        expect(screen.getByRole('heading', { name: 'Image 2 - Apr 5, 2026' })).toBeInTheDocument();
+        expect(await screen.findByRole('heading', { name: 'Image 2 - Apr 5, 2026' })).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Edit' })).toBeInTheDocument();
         expect(document.querySelector('img[src="https://example.com/tooth-2-preview.jpg"]')).toBeInTheDocument();
         expect(screen.getByText('2 / 2')).toBeInTheDocument();
@@ -367,6 +367,24 @@ describe('TreatmentHistoryCard image controls', () => {
         renderCard();
 
         expect((await screen.findAllByText('by Hygienist')).length).toBeGreaterThan(0);
+    });
+
+    it('keeps the odontogram snapshot and tooth selector hidden', async () => {
+        const user = userEvent.setup();
+
+        renderCard();
+
+        await waitFor(() => {
+            expect(screen.getAllByText('Davalash').length).toBeGreaterThan(0);
+        });
+
+        expect(screen.queryByRole('button', { name: 'Show Snapshot' })).not.toBeInTheDocument();
+
+        await user.click(screen.getByRole('button', { name: 'Add Entry' }));
+
+        expect(screen.getByRole('dialog')).toBeInTheDocument();
+        expect(screen.queryByTitle('Tooth #18')).not.toBeInTheDocument();
+        expect(screen.queryByTitle('Tooth #48')).not.toBeInTheDocument();
     });
 
     it('labels overpaid remaining summary as an advance without a negative amount', async () => {
