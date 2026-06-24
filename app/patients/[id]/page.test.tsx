@@ -188,18 +188,17 @@ describe('PatientDetailPage', () => {
 
         const detailCard = await screen.findByText('Detail');
         const oralPhotoTitle = screen.getByText('Oral photo');
-        const appointmentsTitle = screen.getByText('Appointments');
 
         expect(screen.getAllByText('Oral photo')).toHaveLength(1);
-        expect(screen.getByText('Smile')).toBeInTheDocument();
+        expect(screen.queryByText('Smile')).not.toBeInTheDocument();
         expect(screen.queryByText('Top')).not.toBeInTheDocument();
         expect(screen.queryByText('Bottom')).not.toBeInTheDocument();
         expect(screen.queryByText('No photo')).not.toBeInTheDocument();
+        expect(screen.queryByText('Appointments')).not.toBeInTheDocument();
         expect(screen.getByText('0/6')).toBeInTheDocument();
         expect(screen.getAllByTestId('oral-photo-smile-slot')).toHaveLength(6);
         expect(screen.getAllByTitle('Upload')).toHaveLength(6);
         expect(oralPhotoTitle.compareDocumentPosition(detailCard) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-        expect(detailCard.compareDocumentPosition(appointmentsTitle) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     });
 
     it('hides ready status copy for completed oral photos', async () => {
@@ -247,7 +246,8 @@ describe('PatientDetailPage', () => {
         expect(screen.getByText('1/6')).toBeInTheDocument();
         expect(screen.getAllByTestId('oral-photo-smile-slot')).toHaveLength(6);
         expect(screen.getAllByTitle('Upload')).toHaveLength(5);
-        expect(screen.getByTitle('Edit Smile 1')).toBeInTheDocument();
+        expect(screen.getByTitle('View')).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Edit Smile 1' })).toBeInTheDocument();
         expect(screen.queryAllByTitle('Delete')).toHaveLength(0);
     });
 

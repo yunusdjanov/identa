@@ -472,12 +472,8 @@ export function PatientDetailLoadingState() {
                         </div>
                         <Skeleton className="h-5 w-12 shrink-0 rounded-full" />
                     </div>
-                    <div className="px-4 pb-4">
-                        <div className="flex items-center justify-between gap-3 pb-2 pt-1">
-                            <Skeleton className="h-3.5 w-20 rounded-xl" />
-                            <Skeleton className="h-5 w-9 shrink-0 rounded-full" />
-                        </div>
-                        <div className="grid grid-cols-3 gap-2">
+                    <div className="px-2.5 pb-3">
+                        <div className="grid grid-cols-3 gap-1.5">
                             {Array.from({ length: 6 }).map((_, index) => (
                                 <Skeleton
                                     key={index}
@@ -504,28 +500,6 @@ export function PatientDetailLoadingState() {
                 </div>
             </div>
 
-            {/* Appointments card — rounded-2xl, border, h-8 w-8 icon badge, time pill rows */}
-            <div className="overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm shadow-slate-100/80">
-                <div className="flex items-center justify-between border-b border-slate-100 px-4 py-1.5">
-                    <div className="flex items-center gap-2.5">
-                        <Skeleton className="h-7 w-7 shrink-0 rounded-lg" />
-                        <Skeleton className="h-[14px] w-20 rounded-xl" />
-                    </div>
-                    <Skeleton className="h-7 w-36 rounded-full" />
-                </div>
-                <div className="divide-y divide-slate-100">
-                    {Array.from({ length: 3 }).map((_, i) => (
-                        <div key={i} className="flex items-center gap-3 px-4 py-3">
-                            <Skeleton className="h-8 w-[3.25rem] shrink-0 rounded-lg" />
-                            <div className="flex-1 space-y-1.5">
-                                <Skeleton className="h-3.5 w-40 rounded-xl" />
-                                <Skeleton className="h-3 w-24 rounded-xl" />
-                            </div>
-                            <Skeleton className="h-5 w-20 shrink-0 rounded-full" />
-                        </div>
-                    ))}
-                </div>
-            </div>
         </div>
     );
 }

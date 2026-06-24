@@ -1,10 +1,9 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { use, useMemo, useRef, useState } from 'react';
+import { use, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ConfirmActionDialog } from '@/components/ui/confirm-action-dialog';
@@ -29,17 +28,13 @@ import {
     toLocalDateKey,
     truncateForUi,
 } from '@/lib/utils';
-import { formatLocalizedDate } from '@/lib/i18n/date';
 import {
     Activity,
     AlertCircle,
     ArrowLeft,
-    ArrowRight,
     Calendar,
     CalendarCheck,
-    CalendarClock,
     Camera,
-    ClipboardList,
     Clock3,
     Contact,
     Edit,
@@ -47,7 +42,6 @@ import {
     Hash,
     HeartPulse,
     Loader2,
-    Lock,
     MapPin,
     Maximize2,
     Phone,
@@ -75,7 +69,6 @@ import {
 import { AppErrorState } from '@/components/error/app-error-state';
 import { AccessDeniedState } from '@/components/error/access-denied-state';
 import { canManage, canView, getManageDeniedMessage, isSubscriptionReadOnly } from '@/lib/auth/permissions';
-import { getStatusTone } from '@/lib/appointments/status-tone';
 
 const EditPatientDialog = dynamic(
     () => import('@/components/patients/edit-patient-dialog').then((module) => module.EditPatientDialog),
@@ -308,8 +301,6 @@ export default function PatientDetailPage({
     const currentUser = currentUserQuery.data;
     const canViewPatients = canView(currentUser, 'patients');
     const canManagePatients = canManage(currentUser, 'patients');
-    const canViewAppointments = canView(currentUser, 'appointments');
-    const canManageAppointments = canManage(currentUser, 'appointments');
     const canViewPayments = canView(currentUser, 'payments');
     // AF5: shared deny-toast for buttons we keep disabled because the
     // subscription is read-only (vs. hidden when the assistant simply
@@ -438,10 +429,6 @@ export default function PatientDetailPage({
     const patient = patientQuery.data;
     const patientVisitCount = overviewQuery.data?.visit_count ?? overviewQuery.data?.appointment_count ?? 0;
     const latestVisitDate = patient?.last_visit_at ?? undefined;
-    const upcomingAppointments = useMemo(
-        () => overviewQuery.data?.upcoming_appointments ?? [],
-        [overviewQuery.data]
-    );
     const totalBalance = overviewQuery.data?.total_balance ?? 0;
     const isPatientArchived = Boolean(patient?.is_archived);
 
@@ -964,7 +951,7 @@ export default function PatientDetailPage({
                             <span className="tabular-nums">{oralPhotoCardReadyCount}/{oralPhotoCapacity}</span>
                         </span>
                     </header>
-                    <div className="px-4 pb-4">
+                    <div className="px-2.5 pb-3">
                         {oralPhotoCardSlot ? (() => {
                             const slot = oralPhotoCardSlot;
                             const isUploadingSlot = uploadOralPhotoMutation.isPending
@@ -979,12 +966,7 @@ export default function PatientDetailPage({
 
                             return (
                                 <section className="min-w-0">
-                                    <div className="flex items-center gap-3 pb-2 pt-1">
-                                        <p className="truncate text-[13px] font-semibold text-slate-950">
-                                            {slotLabel}
-                                        </p>
-                                    </div>
-                                    <div className="grid grid-cols-3 gap-2">
+                                    <div className="grid grid-cols-3 gap-1.5">
                                         {slotCells.map((photoItem, index) => {
                                             const hasPhoto = Boolean(photoItem?.thumbnailUrl);
                                             const canOpenPhoto = Boolean(photoItem?.previewUrl);
@@ -993,8 +975,11 @@ export default function PatientDetailPage({
                                             const isRejected = Boolean(photoItem?.isRejected);
                                             const canUseEmptySlot = !photoItem && canUploadOralPhoto;
                                             const disabled = isProcessing || (!canOpenPhoto && !canUseEmptySlot);
-                                            const titleText = canOpenPhoto
+                                            const ariaLabel = canOpenPhoto
                                                 ? `${t('common.edit')} ${slotLabel} ${index + 1}`
+                                                : `${t('patientDetail.oralPhoto.upload')} ${index + 1}`;
+                                            const titleText = canOpenPhoto
+                                                ? t('patientDetail.oralPhoto.view')
                                                 : t('patientDetail.oralPhoto.upload');
 
                                             return (
@@ -1018,7 +1003,7 @@ export default function PatientDetailPage({
                                                         }
                                                     }}
                                                     className={`group/thumb relative aspect-square w-full min-w-0 overflow-hidden rounded-xl border text-slate-400 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 focus-visible:ring-offset-1 disabled:cursor-default disabled:opacity-75 ${hasPhoto ? 'border-slate-200 bg-slate-50 hover:border-slate-300 hover:bg-slate-100' : isRejected ? 'border-dashed border-rose-200 bg-rose-50 text-rose-500 hover:border-rose-300' : 'border-dashed border-slate-300 bg-white hover:border-slate-400 hover:bg-slate-50'}`}
-                                                    aria-label={titleText}
+                                                    aria-label={ariaLabel}
                                                     title={titleText}
                                                 >
                                                     {hasPhoto && photoItem?.thumbnailUrl ? (
@@ -1097,110 +1082,6 @@ export default function PatientDetailPage({
                 </article>
 
             </div>
-
-            {/* ───────────────────────────────────────────────────────────
-                APPOINTMENTS — sister card to the triad
-                Same shape language (gradient strip · hexagon icon · hover lift)
-                but with its own indigo→violet color story for "scheduling".
-            ─────────────────────────────────────────────────────────── */}
-            <article className="group/card relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm shadow-slate-200/40 transition-all hover:shadow-md hover:shadow-slate-200/70">
-                <div className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-sky-400 via-indigo-400 to-violet-400" />
-                <header className="flex flex-col gap-3 border-b border-slate-100/80 px-4 pt-4 pb-3 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="flex items-center gap-2.5">
-                        <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-sky-50 to-indigo-50 text-indigo-600 ring-1 ring-indigo-100/80 shadow-sm shadow-indigo-100/40">
-                            <CalendarClock className="h-4 w-4" strokeWidth={2.25} />
-                        </span>
-                        <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-700">{t('appointments.title')}</p>
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                        <Link
-                            href={`/patients/${id}/history?from=patients`}
-                            className="group/link inline-flex h-8 items-center gap-1.5 rounded-full border border-slate-200/80 bg-white px-3 text-[11px] font-semibold text-slate-700 transition-all hover:border-slate-300 hover:bg-slate-50 hover:shadow-sm"
-                        >
-                            <ClipboardList className="h-3.5 w-3.5 text-slate-500" />
-                            {t('patientHistory.title')}
-                            <ArrowRight className="h-3.5 w-3.5 text-slate-400 transition-transform group-hover/link:translate-x-0.5" />
-                        </Link>
-                        {/* AF5 — schedule CTA hidden for view-only assistants
-                            (no canManageAppointments). The Link wrapper used
-                            to ship even when disabled, which kept the URL
-                            reachable via Cmd-click; conditionally rendering
-                            the entire affordance closes that escape hatch.
-                            Subscription read-only keeps the disabled
-                            button + toast pattern. */}
-                        {canManageAppointments ? (
-                            <Link href={`/appointments?action=new&patientId=${encodeURIComponent(id)}`}>
-                                <Button size="sm" className="h-8 rounded-full px-3 text-[11px] font-semibold shadow-sm shadow-slate-900/10">
-                                    <Plus className="mr-1 h-3.5 w-3.5" />
-                                    {t('dashboard.scheduleAppointment')}
-                                </Button>
-                            </Link>
-                        ) : isSubscriptionReadOnly(currentUser) && canViewAppointments ? (
-                            <Button
-                                size="sm"
-                                className="h-8 rounded-full px-3 text-[11px] font-semibold shadow-sm shadow-slate-900/10"
-                                disabled
-                                onClick={denyManageAction}
-                            >
-                                <Plus className="mr-1 h-3.5 w-3.5" />
-                                {t('dashboard.scheduleAppointment')}
-                            </Button>
-                        ) : null}
-                    </div>
-                </header>
-                <div>
-                    {!canViewAppointments ? (
-                        <EmptyState icon={Lock} title={t('permissions.deniedTitle')} size="sm" />
-                    ) : upcomingAppointments.length === 0 ? (
-                        <EmptyState icon={CalendarCheck} title={t('patientDetail.noUpcomingAppointments')} size="sm" />
-                    ) : (
-                        <ul className="divide-y divide-slate-100/70">
-                            {upcomingAppointments.map((appointment) => {
-                                const translatedStatus = t(`status.${appointment.status}`);
-                                const statusLabel = translatedStatus.startsWith('status.') ? appointment.status : translatedStatus;
-                                const statusTone = getStatusTone(appointment.status);
-                                const treatmentTitle = appointment.notes?.split('|')[0]?.trim() || t('appointments.general');
-                                return (
-                                    <li
-                                        key={appointment.id}
-                                        className="group/row relative flex items-center gap-3 px-4 py-3 transition-colors hover:bg-slate-50/60"
-                                    >
-                                        {/* Accent rail — slim status-toned bar on the left edge */}
-                                        <span className={`absolute inset-y-2 left-0 w-[3px] rounded-r-full opacity-0 transition-opacity group-hover/row:opacity-100 ${statusTone.dot}`} />
-
-                                        {/* Time chip — gradient + ring + tabular nums */}
-                                        <time className="flex h-11 w-14 shrink-0 flex-col items-center justify-center rounded-xl bg-gradient-to-br from-sky-50 to-indigo-50 ring-1 ring-indigo-100/80 shadow-sm shadow-indigo-100/30">
-                                            <span className="text-[13px] font-bold tabular-nums leading-none text-indigo-700">
-                                                {appointment.start_time?.slice(0, 5)}
-                                            </span>
-                                            <span className="mt-0.5 text-[9px] font-semibold uppercase tracking-wider text-indigo-400">
-                                                {formatLocalizedDate(appointment.appointment_date, locale, { month: 'short', day: 'numeric' })}
-                                            </span>
-                                        </time>
-
-                                        {/* Treatment + meta */}
-                                        <div className="min-w-0 flex-1">
-                                            <p className="truncate text-[13px] font-semibold text-slate-900" title={treatmentTitle}>
-                                                {treatmentTitle}
-                                            </p>
-                                            <p className="mt-0.5 flex items-center gap-1.5 text-[10px] font-medium text-slate-400">
-                                                <Calendar className="h-3 w-3" />
-                                                <span className="tabular-nums">{formatDate(appointment.appointment_date)}</span>
-                                            </p>
-                                        </div>
-
-                                        {/* Status pill — dotted, soft */}
-                                        <span className={`inline-flex shrink-0 items-center gap-1.5 rounded-full bg-slate-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.08em] ring-1 ring-slate-100 ${statusTone.text}`}>
-                                            <span className={`h-1.5 w-1.5 rounded-full ${statusTone.dot}`} />
-                                            {statusLabel}
-                                        </span>
-                                    </li>
-                                );
-                            })}
-                        </ul>
-                    )}
-                </div>
-            </article>
 
             {isEditDialogOpen && canManagePatients ? (
                 <EditPatientDialog
