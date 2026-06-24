@@ -256,24 +256,6 @@ export function drawCropOverlay(
     context.strokeStyle = '#2dd4bf';
     context.lineWidth = Math.max(2, canvasWidth * 0.002);
     context.strokeRect(left, top, Math.max(0, right - left), Math.max(0, bottom - top));
-    const handleSize = Math.max(8, Math.min(canvasWidth, canvasHeight) * 0.018);
-    const halfHandle = handleSize / 2;
-    const handlePoints = [
-        [left, top],
-        [left + (right - left) / 2, top],
-        [right, top],
-        [right, top + (bottom - top) / 2],
-        [right, bottom],
-        [left + (right - left) / 2, bottom],
-        [left, bottom],
-        [left, top + (bottom - top) / 2],
-    ];
-    context.fillStyle = '#ccfbf1';
-    context.strokeStyle = '#0f766e';
-    handlePoints.forEach(([x, y]) => {
-        context.fillRect(x - halfHandle, y - halfHandle, handleSize, handleSize);
-        context.strokeRect(x - halfHandle, y - halfHandle, handleSize, handleSize);
-    });
     context.restore();
 }
 

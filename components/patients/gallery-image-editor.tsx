@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from 'react';
 import { useI18n } from '@/components/providers/i18n-provider';
 import { GalleryImageEditorControls } from './gallery-image-editor-controls';
 import { createEditedImageFile, loadEditableImage, normalizeRect, renderEditedCanvas } from './gallery-image-editor-canvas';
@@ -42,7 +42,17 @@ type CropInteraction =
     | { type: 'move'; startPoint: Point; originRect: CropRect }
     | { type: 'resize'; handle: CropHandle; originRect: CropRect };
 
-const CROP_HANDLE_HIT_SIZE_PX = 14;
+const CROP_HANDLE_HIT_SIZE_PX = 24;
+const CROP_HANDLES: Array<{ handle: CropHandle; xPercent: number; yPercent: number; cursor: string }> = [
+    { handle: 'nw', xPercent: 0, yPercent: 0, cursor: 'cursor-nwse-resize' },
+    { handle: 'n', xPercent: 50, yPercent: 0, cursor: 'cursor-ns-resize' },
+    { handle: 'ne', xPercent: 100, yPercent: 0, cursor: 'cursor-nesw-resize' },
+    { handle: 'e', xPercent: 100, yPercent: 50, cursor: 'cursor-ew-resize' },
+    { handle: 'se', xPercent: 100, yPercent: 100, cursor: 'cursor-nwse-resize' },
+    { handle: 's', xPercent: 50, yPercent: 100, cursor: 'cursor-ns-resize' },
+    { handle: 'sw', xPercent: 0, yPercent: 100, cursor: 'cursor-nesw-resize' },
+    { handle: 'w', xPercent: 0, yPercent: 50, cursor: 'cursor-ew-resize' },
+];
 
 function isFinitePoint(point: Point): boolean {
     return Number.isFinite(point.x) && Number.isFinite(point.y);
@@ -59,8 +69,8 @@ function pointInRect(point: Point, rect: CropRect): boolean {
         && point.y <= rect.y + rect.height;
 }
 
-function canvasUnitsForCssPixels(canvas: HTMLCanvasElement, cssPixels: number): number {
-    const bounds = canvas.getBoundingClientRect();
+function canvasUnitsForCssPixels(surface: HTMLElement, canvas: HTMLCanvasElement, cssPixels: number): number {
+    const bounds = surface.getBoundingClientRect();
     const scaleX = canvas.width / Math.max(bounds.width, 1);
     const scaleY = canvas.height / Math.max(bounds.height, 1);
 
@@ -117,6 +127,27 @@ function resizeCropRect(origin: CropRect, handle: CropHandle, point: Point, canv
     };
 }
 
+function cropRectStyle(rect: CropRect, canvas: HTMLCanvasElement | null): CSSProperties {
+    if (!canvas || canvas.width <= 0 || canvas.height <= 0) {
+        return {};
+    }
+
+    return {
+        left: `${(rect.x / canvas.width) * 100}%`,
+        top: `${(rect.y / canvas.height) * 100}%`,
+        width: `${(rect.width / canvas.width) * 100}%`,
+        height: `${(rect.height / canvas.height) * 100}%`,
+    };
+}
+
+function cropHandleCursor(handle: CropHandle | null): string {
+    if (!handle) {
+        return 'cursor-crosshair';
+    }
+
+    return CROP_HANDLES.find((candidate) => candidate.handle === handle)?.cursor ?? 'cursor-crosshair';
+}
+
 /**
  * Canvas-based clinical-photo editor used inside the fullscreen gallery.
  * Save exports a replacement image for the original media record.
@@ -124,6 +155,7 @@ function resizeCropRect(origin: CropRect, handle: CropHandle, point: Point, canv
 export function GalleryImageEditor({ image, isSaving = false, onCancel, onSave }: GalleryImageEditorProps) {
     const { t } = useI18n();
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
+    const hitLayerRef = useRef<HTMLDivElement | null>(null);
     const cropInteractionRef = useRef<CropInteraction | null>(null);
     const activeStrokeRef = useRef<DrawStroke | null>(null);
     const textInputRef = useRef<HTMLInputElement | null>(null);
@@ -143,6 +175,7 @@ export function GalleryImageEditor({ image, isSaving = false, onCancel, onSave }
     const [drawSize, setDrawSize] = useState(DEFAULT_DRAW_SIZE);
     const [textDraft, setTextDraft] = useState<InlineTextDraft | null>(null);
     const [textSize, setTextSize] = useState(DEFAULT_TEXT_SIZE);
+    const [hoveredCropHandle, setHoveredCropHandle] = useState<CropHandle | null>(null);
     const [isRendering, setIsRendering] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const isSaveBusy = isSaving || isRendering;
@@ -202,20 +235,13 @@ export function GalleryImageEditor({ image, isSaving = false, onCancel, onSave }
         }
     }, [allStrokes, brightness, contrast, cropRect, draftCropRect, rotation, source, textAnnotations, t]);
 
-    const canvasPoint = (event: ReactPointerEvent<HTMLCanvasElement>): Point => {
-        const canvas = event.currentTarget;
-        const bounds = canvas.getBoundingClientRect();
-        const nativeEvent = event.nativeEvent;
-        const offsetX = nativeEvent.offsetX;
-        const offsetY = nativeEvent.offsetY;
-
-        if (Number.isFinite(offsetX) && Number.isFinite(offsetY)) {
-            return {
-                x: (offsetX / Math.max(bounds.width, 1)) * canvas.width,
-                y: (offsetY / Math.max(bounds.height, 1)) * canvas.height,
-            };
+    const canvasPoint = (event: ReactPointerEvent<HTMLElement>): Point | null => {
+        const canvas = canvasRef.current;
+        if (!canvas) {
+            return null;
         }
 
+        const bounds = event.currentTarget.getBoundingClientRect();
         return {
             x: ((event.clientX - bounds.left) / Math.max(bounds.width, 1)) * canvas.width,
             y: ((event.clientY - bounds.top) / Math.max(bounds.height, 1)) * canvas.height,
@@ -288,13 +314,14 @@ export function GalleryImageEditor({ image, isSaving = false, onCancel, onSave }
         setTextDraft(nextDraft);
     };
 
-    const handlePointerDown = (event: ReactPointerEvent<HTMLCanvasElement>) => {
+    const handlePointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
         if (isEditingDisabled) {
             return;
         }
 
         const point = canvasPoint(event);
-        if (!isFinitePoint(point)) {
+        const canvas = canvasRef.current;
+        if (!point || !isFinitePoint(point) || !canvas) {
             return;
         }
 
@@ -304,7 +331,7 @@ export function GalleryImageEditor({ image, isSaving = false, onCancel, onSave }
                 : null;
 
             if (currentDraft) {
-                const hitRadius = canvasUnitsForCssPixels(event.currentTarget, CROP_HANDLE_HIT_SIZE_PX);
+                const hitRadius = canvasUnitsForCssPixels(event.currentTarget, canvas, CROP_HANDLE_HIT_SIZE_PX);
                 const handle = cropHandleAtPoint(point, currentDraft, hitRadius);
                 if (handle) {
                     cropInteractionRef.current = { type: 'resize', handle, originRect: currentDraft };
@@ -334,18 +361,18 @@ export function GalleryImageEditor({ image, isSaving = false, onCancel, onSave }
         }
 
         if (mode === 'text') {
-            startTextDraft(point, event.currentTarget);
+            startTextDraft(point, canvas);
         }
     };
 
-    const handlePointerMove = (event: ReactPointerEvent<HTMLCanvasElement>) => {
+    const handlePointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
         if (isEditingDisabled) {
             return;
         }
 
         const point = canvasPoint(event);
-        const canvas = event.currentTarget;
-        if (!isFinitePoint(point)) {
+        const canvas = canvasRef.current;
+        if (!point || !isFinitePoint(point) || !canvas) {
             return;
         }
 
@@ -361,6 +388,16 @@ export function GalleryImageEditor({ image, isSaving = false, onCancel, onSave }
             return;
         }
 
+        if (mode === 'crop') {
+            const hitRadius = canvasUnitsForCssPixels(event.currentTarget, canvas, CROP_HANDLE_HIT_SIZE_PX);
+            setHoveredCropHandle(
+                draftCropRect && draftCropRect.width >= MIN_CROP_SIZE && draftCropRect.height >= MIN_CROP_SIZE
+                    ? cropHandleAtPoint(point, draftCropRect, hitRadius)
+                    : null
+            );
+            return;
+        }
+
         if (mode === 'draw' && activeStrokeRef.current) {
             const nextStroke = {
                 ...activeStrokeRef.current,
@@ -371,7 +408,7 @@ export function GalleryImageEditor({ image, isSaving = false, onCancel, onSave }
         }
     };
 
-    const handlePointerUp = (event: ReactPointerEvent<HTMLCanvasElement>) => {
+    const handlePointerUp = (event: ReactPointerEvent<HTMLDivElement>) => {
         if (mode === 'draw' && activeStrokeRef.current) {
             const completedStroke = activeStrokeRef.current;
             setStrokes((current) => [...current, completedStroke]);
@@ -440,6 +477,14 @@ export function GalleryImageEditor({ image, isSaving = false, onCancel, onSave }
             setIsRendering(false);
         }
     };
+    const cropOverlayStyle = draftCropRect ? cropRectStyle(draftCropRect, canvasRef.current) : null;
+    const hitLayerCursorClass = mode === 'crop'
+        ? cropHandleCursor(hoveredCropHandle)
+        : mode === 'draw'
+            ? 'cursor-crosshair'
+            : mode === 'text'
+                ? 'cursor-text'
+                : 'cursor-default';
 
     return (
         <div className="grid min-h-0 min-w-0 grid-rows-[minmax(0,1fr)_auto] bg-slate-950">
@@ -447,15 +492,34 @@ export function GalleryImageEditor({ image, isSaving = false, onCancel, onSave }
                 <div className="relative inline-flex max-h-full max-w-full">
                     <canvas
                         ref={canvasRef}
-                        className={`h-auto max-h-full w-auto max-w-full rounded-md bg-slate-900 object-contain shadow-2xl shadow-black/40 ${
-                            mode === 'crop' || mode === 'draw' ? 'cursor-crosshair' : mode === 'text' ? 'cursor-text' : 'cursor-default'
-                        }`}
+                        className="h-auto max-h-full w-auto max-w-full rounded-md bg-slate-900 object-contain shadow-2xl shadow-black/40"
                         aria-label={image.alt}
+                    />
+                    <div
+                        ref={hitLayerRef}
+                        data-testid="gallery-image-editor-hit-layer"
+                        className={`absolute inset-0 z-10 touch-none rounded-md ${hitLayerCursorClass}`}
                         onPointerDown={handlePointerDown}
                         onPointerMove={handlePointerMove}
                         onPointerUp={handlePointerUp}
                         onPointerCancel={handlePointerUp}
-                    />
+                        onPointerLeave={() => setHoveredCropHandle(null)}
+                    >
+                        {cropOverlayStyle ? (
+                            <div
+                                className="pointer-events-none absolute border border-teal-300 shadow-[0_0_0_1px_rgba(15,118,110,0.55)]"
+                                style={cropOverlayStyle}
+                            >
+                                {CROP_HANDLES.map((handle) => (
+                                    <span
+                                        key={handle.handle}
+                                        className={`absolute h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rounded-sm border border-teal-700 bg-teal-100 shadow-sm shadow-slate-950/40 ${handle.cursor}`}
+                                        style={{ left: `${handle.xPercent}%`, top: `${handle.yPercent}%` }}
+                                    />
+                                ))}
+                            </div>
+                        ) : null}
+                    </div>
                     {textDraft ? (
                         <input
                             ref={textInputRef}
@@ -486,7 +550,7 @@ export function GalleryImageEditor({ image, isSaving = false, onCancel, onSave }
                             disabled={isSaveBusy}
                             placeholder={t('gallery.edit.textPlaceholder')}
                             aria-label={t('gallery.edit.text')}
-                            className="absolute z-10 h-10 min-w-40 max-w-[min(20rem,80vw)] rounded-lg border border-teal-300 bg-slate-950/90 px-3 text-sm font-semibold text-white shadow-xl shadow-black/30 outline-none ring-2 ring-teal-300/40 placeholder:text-white/45 disabled:opacity-70"
+                            className="absolute z-20 h-10 min-w-40 max-w-[min(20rem,80vw)] rounded-lg border border-teal-300 bg-slate-950/90 px-3 text-sm font-semibold text-white shadow-xl shadow-black/30 outline-none ring-2 ring-teal-300/40 placeholder:text-white/45 disabled:opacity-70"
                             style={{
                                 left: `${textDraft.leftPercent}%`,
                                 top: `${textDraft.topPercent}%`,
@@ -505,6 +569,7 @@ export function GalleryImageEditor({ image, isSaving = false, onCancel, onSave }
                         commitTextDraft();
                     }
                     setMode(nextMode);
+                    setHoveredCropHandle(null);
                     setDraftCropRect(null);
                 }}
                 brightness={brightness}
@@ -520,7 +585,7 @@ export function GalleryImageEditor({ image, isSaving = false, onCancel, onSave }
                 draftCropRect={draftCropRect}
                 cropRect={cropRect}
                 onApplyCrop={applyCrop}
-                onResetCrop={() => { setCropRect(null); setDraftCropRect(null); }}
+                onResetCrop={() => { setCropRect(null); setDraftCropRect(null); setHoveredCropHandle(null); }}
                 canUndo={strokes.length > 0 || textAnnotations.length > 0}
                 onUndo={undoAnnotation}
                 onReset={reset}

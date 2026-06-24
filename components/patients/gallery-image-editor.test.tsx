@@ -74,18 +74,38 @@ describe('GalleryImageEditor', () => {
                 toJSON: () => ({}),
             }),
         });
-        Object.defineProperty(HTMLCanvasElement.prototype, 'setPointerCapture', {
+        Object.defineProperty(HTMLElement.prototype, 'getBoundingClientRect', {
             configurable: true,
-            value: vi.fn(),
+            value: () => ({
+                left: 0,
+                top: 0,
+                right: 300,
+                bottom: 150,
+                width: 300,
+                height: 150,
+                x: 0,
+                y: 0,
+                toJSON: () => ({}),
+            }),
         });
-        Object.defineProperty(HTMLCanvasElement.prototype, 'releasePointerCapture', {
-            configurable: true,
-            value: vi.fn(),
-        });
-        Object.defineProperty(HTMLCanvasElement.prototype, 'hasPointerCapture', {
-            configurable: true,
-            value: () => true,
-        });
+        if (!('setPointerCapture' in HTMLElement.prototype)) {
+            Object.defineProperty(HTMLElement.prototype, 'setPointerCapture', {
+                configurable: true,
+                value: vi.fn(),
+            });
+        }
+        if (!('releasePointerCapture' in HTMLElement.prototype)) {
+            Object.defineProperty(HTMLElement.prototype, 'releasePointerCapture', {
+                configurable: true,
+                value: vi.fn(),
+            });
+        }
+        if (!('hasPointerCapture' in HTMLElement.prototype)) {
+            Object.defineProperty(HTMLElement.prototype, 'hasPointerCapture', {
+                configurable: true,
+                value: () => true,
+            });
+        }
     });
 
     it('adds text directly on the canvas instead of using a toolbar text field', async () => {
@@ -99,8 +119,8 @@ describe('GalleryImageEditor', () => {
 
         expect(screen.queryByRole('textbox', { name: 'Text' })).not.toBeInTheDocument();
 
-        const canvas = screen.getByLabelText('Clinical photo');
-        fireEvent.pointerDown(canvas, { pointerId: 1, clientX: 75, clientY: 30, offsetX: 75, offsetY: 30 });
+        const hitLayer = screen.getByTestId('gallery-image-editor-hit-layer');
+        fireEvent.pointerDown(hitLayer, { pointerId: 1, clientX: 75, clientY: 30 });
 
         const inlineTextInput = screen.getByRole('textbox', { name: 'Text' });
         await user.type(inlineTextInput, 'Plaque');
@@ -126,10 +146,10 @@ describe('GalleryImageEditor', () => {
         await waitFor(() => expect(drawModeButton).toBeEnabled());
         await user.click(drawModeButton);
 
-        const canvas = screen.getByLabelText('Clinical photo');
-        fireEvent.pointerDown(canvas, { pointerId: 1, clientX: 40, clientY: 20, offsetX: 40, offsetY: 20 });
-        fireEvent.pointerMove(canvas, { pointerId: 1, clientX: 90, clientY: 70, offsetX: 90, offsetY: 70 });
-        fireEvent.pointerUp(canvas, { pointerId: 1, clientX: 90, clientY: 70, offsetX: 90, offsetY: 70 });
+        const hitLayer = screen.getByTestId('gallery-image-editor-hit-layer');
+        fireEvent.pointerDown(hitLayer, { pointerId: 1, clientX: 40, clientY: 20 });
+        fireEvent.pointerMove(hitLayer, { pointerId: 1, clientX: 90, clientY: 70 });
+        fireEvent.pointerUp(hitLayer, { pointerId: 1, clientX: 90, clientY: 70 });
 
         await user.click(screen.getByRole('button', { name: 'Save' }));
 
@@ -153,14 +173,14 @@ describe('GalleryImageEditor', () => {
         await waitFor(() => expect(cropModeButton).toBeEnabled());
         await user.click(cropModeButton);
 
-        const canvas = screen.getByLabelText('Clinical photo');
-        fireEvent.pointerDown(canvas, { pointerId: 1, clientX: 30, clientY: 30, offsetX: 30, offsetY: 30 });
-        fireEvent.pointerMove(canvas, { pointerId: 1, clientX: 180, clientY: 100, offsetX: 180, offsetY: 100 });
-        fireEvent.pointerUp(canvas, { pointerId: 1, clientX: 180, clientY: 100, offsetX: 180, offsetY: 100 });
+        const hitLayer = screen.getByTestId('gallery-image-editor-hit-layer');
+        fireEvent.pointerDown(hitLayer, { pointerId: 1, clientX: 30, clientY: 30 });
+        fireEvent.pointerMove(hitLayer, { pointerId: 1, clientX: 180, clientY: 100 });
+        fireEvent.pointerUp(hitLayer, { pointerId: 1, clientX: 180, clientY: 100 });
 
-        fireEvent.pointerDown(canvas, { pointerId: 2, clientX: 180, clientY: 100, offsetX: 180, offsetY: 100 });
-        fireEvent.pointerMove(canvas, { pointerId: 2, clientX: 220, clientY: 120, offsetX: 220, offsetY: 120 });
-        fireEvent.pointerUp(canvas, { pointerId: 2, clientX: 220, clientY: 120, offsetX: 220, offsetY: 120 });
+        fireEvent.pointerDown(hitLayer, { pointerId: 2, clientX: 180, clientY: 100 });
+        fireEvent.pointerMove(hitLayer, { pointerId: 2, clientX: 220, clientY: 120 });
+        fireEvent.pointerUp(hitLayer, { pointerId: 2, clientX: 220, clientY: 120 });
 
         await user.click(screen.getByRole('button', { name: 'Apply crop' }));
         await user.click(screen.getByRole('button', { name: 'Save' }));
