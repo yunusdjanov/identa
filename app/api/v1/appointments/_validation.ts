@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 const VALID_STATUSES = ['scheduled', 'completed', 'cancelled', 'no_show'] as const;
 const TIME_RX = /^\d{2}:\d{2}$/;
 const DATE_RX = /^\d{4}-\d{2}-\d{2}$/;
+const PHONE_RX = /^\+\d{9,15}$/;
 
 // Mirrors StoreAppointmentRequest/UpdateAppointmentRequest::rules() so
 // the mock rejects payloads the backend would 422 on. Returns the
@@ -17,8 +18,26 @@ export function validateAppointmentPayload(
 ): Record<string, string[]> | null {
     const errors: Record<string, string[]> = {};
 
-    if (typeof body.patient_id !== 'string' || body.patient_id.trim() === '') {
-        errors.patient_id = ['Patient is required.'];
+    const hasPatientId = typeof body.patient_id === 'string' && body.patient_id.trim() !== '';
+    const hasGuestName = typeof body.guest_name === 'string' && body.guest_name.trim() !== '';
+    const hasGuestPhone = typeof body.guest_phone === 'string' && body.guest_phone.trim() !== '';
+
+    if (!hasPatientId && !hasGuestName) {
+        errors.patient_id = ['Patient or visitor name is required.'];
+        errors.guest_name = ['Visitor name is required.'];
+    }
+    if (hasPatientId && (hasGuestName || hasGuestPhone)) {
+        errors.patient_id = ['Choose either an existing patient or a new visitor.'];
+    }
+    if (!hasPatientId) {
+        if (!hasGuestPhone) {
+            errors.guest_phone = ['Visitor phone is required.'];
+        } else if (!PHONE_RX.test(String(body.guest_phone))) {
+            errors.guest_phone = ['Visitor phone must be a valid +998... number.'];
+        }
+    }
+    if (hasGuestName && String(body.guest_name).trim().length < 3) {
+        errors.guest_name = ['Visitor name must be at least 3 characters.'];
     }
     if (typeof body.appointment_date !== 'string' || !DATE_RX.test(body.appointment_date)) {
         errors.appointment_date = ['Date must be YYYY-MM-DD.'];

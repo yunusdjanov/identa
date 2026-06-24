@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AddAppointmentDialog } from '@/components/appointments/add-appointment-dialog';
 import { createAppointment, listAppointments, lookupPatients } from '@/lib/api/dentist';
 import { toast } from 'sonner';
@@ -182,6 +182,10 @@ describe('AddAppointmentDialog', () => {
         vi.mocked(listAppointments).mockResolvedValue(buildAppointmentsResponse([]));
     });
 
+    afterEach(() => {
+        cleanup();
+    });
+
     it('prefills date and time from dialog props', async () => {
         const queryClient = new QueryClient({
             defaultOptions: {
@@ -338,6 +342,174 @@ describe('AddAppointmentDialog', () => {
                 reason: undefined,
             });
         });
+    });
+
+    it('creates an appointment for a new visitor without linking it to an existing patient', async () => {
+        const user = userEvent.setup();
+        const queryClient = new QueryClient({
+            defaultOptions: {
+                queries: { retry: false },
+                mutations: { retry: false },
+            },
+        });
+        const onOpenChange = vi.fn();
+
+        vi.mocked(lookupPatients).mockResolvedValue(buildPatientsResponse([]));
+        vi.mocked(createAppointment).mockResolvedValue({
+            id: 'guest-appointment',
+            patient_id: null,
+            patient_name: 'New Visitor',
+            guest_name: 'New Visitor',
+            guest_phone: '+998901234567',
+            is_guest: true,
+            appointment_date: '2099-01-01',
+            start_time: '09:00',
+            end_time: '09:30',
+            status: 'scheduled',
+            notes: null,
+        });
+
+        render(
+            <Providers client={queryClient}>
+                <AddAppointmentDialog
+                    open={true}
+                    onOpenChange={onOpenChange}
+                    prefillDate="2099-01-01"
+                    prefillStartTime="09:00"
+                />
+            </Providers>
+        );
+
+        const patientInputs = screen.getAllByPlaceholderText(/Search by name or phone/i);
+        const patientInput = patientInputs[patientInputs.length - 1] as HTMLInputElement;
+        await user.click(patientInput);
+        await user.type(patientInput, 'New Visitor');
+        await user.click(await screen.findByRole('button', { name: /\+ Unregistered patient: New Visitor/i }));
+        await user.type(screen.getByPlaceholderText('+998901234567'), '+998901234567');
+
+        const submitButtons = screen.getAllByRole('button', { name: /Schedule Appointment/i });
+        await user.click(submitButtons[submitButtons.length - 1]);
+
+        await waitFor(() => {
+            expect(vi.mocked(createAppointment)).toHaveBeenCalledWith({
+                patient_id: null,
+                guest_name: 'New Visitor',
+                guest_phone: '+998901234567',
+                appointment_date: '2099-01-01',
+                start_time: '09:00',
+                end_time: '09:30',
+                status: 'scheduled',
+                reason: undefined,
+            });
+        });
+        expect(onOpenChange).toHaveBeenCalledWith(false);
+    });
+
+    it('promotes typed unknown patient text to new visitor mode on submit', async () => {
+        const user = userEvent.setup();
+        const queryClient = new QueryClient({
+            defaultOptions: {
+                queries: { retry: false },
+                mutations: { retry: false },
+            },
+        });
+
+        vi.mocked(lookupPatients).mockResolvedValue(buildPatientsResponse([]));
+        vi.mocked(createAppointment).mockResolvedValue({
+            id: 'typed-guest-appointment',
+            patient_id: null,
+            patient_name: 'Typed Visitor',
+            guest_name: 'Typed Visitor',
+            guest_phone: '+998901234567',
+            is_guest: true,
+            appointment_date: '2099-01-01',
+            start_time: '09:00',
+            end_time: '09:30',
+            status: 'scheduled',
+            notes: null,
+        });
+
+        render(
+            <Providers client={queryClient}>
+                <AddAppointmentDialog
+                    open={true}
+                    onOpenChange={vi.fn()}
+                    prefillDate="2099-01-01"
+                    prefillStartTime="09:00"
+                />
+            </Providers>
+        );
+
+        const patientInputs = screen.getAllByPlaceholderText(/Search by name or phone/i);
+        const patientInput = patientInputs[patientInputs.length - 1] as HTMLInputElement;
+        await user.type(patientInput, 'Typed Visitor');
+
+        const submitButtons = screen.getAllByRole('button', { name: /Schedule Appointment/i });
+        await user.click(submitButtons[submitButtons.length - 1]);
+
+        expect(await screen.findByLabelText(/Phone/i)).toBeInTheDocument();
+        expect(vi.mocked(createAppointment)).not.toHaveBeenCalled();
+        expect(vi.mocked(toast.error)).not.toHaveBeenCalled();
+        expect(screen.queryByText('Enter a phone number like +998901234567.')).not.toBeInTheDocument();
+
+        await user.click(submitButtons[submitButtons.length - 1]);
+
+        expect(vi.mocked(toast.error)).toHaveBeenCalledWith('Enter a phone number like +998901234567.');
+        expect(await screen.findByText('Enter a phone number like +998901234567.')).toBeInTheDocument();
+
+        const guestPhoneInput = screen.getByPlaceholderText('+998901234567') as HTMLInputElement;
+        await user.type(guestPhoneInput, '+998998885455555');
+        expect(guestPhoneInput.value).toBe('+998 99 888 54 55');
+        await user.click(submitButtons[submitButtons.length - 1]);
+
+        await waitFor(() => {
+            expect(vi.mocked(createAppointment)).toHaveBeenCalledWith({
+                patient_id: null,
+                guest_name: 'Typed Visitor',
+                guest_phone: '+998998885455',
+                appointment_date: '2099-01-01',
+                start_time: '09:00',
+                end_time: '09:30',
+                status: 'scheduled',
+                reason: undefined,
+            });
+        });
+    });
+
+    it('hides patient search while editing a guest visitor and restores it from the guest card', async () => {
+        const user = userEvent.setup();
+        const queryClient = new QueryClient({
+            defaultOptions: {
+                queries: { retry: false },
+                mutations: { retry: false },
+            },
+        });
+
+        vi.mocked(lookupPatients).mockResolvedValue(buildPatientsResponse([]));
+
+        render(
+            <Providers client={queryClient}>
+                <AddAppointmentDialog
+                    open={true}
+                    onOpenChange={vi.fn()}
+                    prefillDate="2099-01-01"
+                    prefillStartTime="09:00"
+                />
+            </Providers>
+        );
+
+        const patientInput = screen.getAllByPlaceholderText(/Search by name or phone/i).at(-1) as HTMLInputElement;
+        await user.type(patientInput, 'Guest Visitor');
+        const submitButtons = screen.getAllByRole('button', { name: /Schedule Appointment/i });
+        await user.click(submitButtons[submitButtons.length - 1]);
+
+        expect(await screen.findByText('Unregistered patient')).toBeInTheDocument();
+        expect(screen.queryByPlaceholderText(/Search by name or phone/i)).not.toBeInTheDocument();
+
+        await user.click(screen.getByRole('button', { name: /Search patients/i }));
+
+        expect(await screen.findByPlaceholderText(/Search by name or phone/i)).toBeInTheDocument();
+        expect(screen.queryByText('Unregistered patient')).not.toBeInTheDocument();
     });
 
     it('moves a booked prefilled slot to the next available time before submission', async () => {
@@ -606,6 +778,73 @@ describe('AddAppointmentDialog', () => {
 
         await waitFor(() => {
             expect(vi.mocked(lookupPatients).mock.calls.some((call) => call[0]?.filter?.search === '2222')).toBe(true);
+        });
+    });
+
+    it('hides stale unmatched patient options while searching', async () => {
+        const user = userEvent.setup();
+        const allPatients = [
+            {
+                id: 'patient-1',
+                patient_id: 'PT-0001',
+                full_name: 'Alisher Karimov',
+                phone: '+998901001001',
+                secondary_phone: null,
+                address: null,
+                date_of_birth: null,
+                gender: null,
+                medical_history: null,
+                allergies: null,
+                current_medications: null,
+                created_at: null,
+                last_visit_at: null,
+                categories: [],
+            },
+            {
+                id: 'patient-2',
+                patient_id: 'PT-0002',
+                full_name: 'Malika Yusupova',
+                phone: '+998901002002',
+                secondary_phone: null,
+                address: null,
+                date_of_birth: null,
+                gender: null,
+                medical_history: null,
+                allergies: null,
+                current_medications: null,
+                created_at: null,
+                last_visit_at: null,
+                categories: [],
+            },
+        ];
+
+        vi.mocked(lookupPatients).mockResolvedValue(buildPatientsResponse(allPatients));
+
+        const queryClient = new QueryClient({
+            defaultOptions: {
+                queries: { retry: false },
+                mutations: { retry: false },
+            },
+        });
+
+        render(
+            <Providers client={queryClient}>
+                <AddAppointmentDialog open={true} onOpenChange={vi.fn()} />
+            </Providers>
+        );
+
+        const patientInputs = screen.getAllByPlaceholderText(/Search by name or phone/i);
+        const patientInput = patientInputs[patientInputs.length - 1] as HTMLInputElement;
+        await user.click(patientInput);
+        await user.type(patientInput, 'Sarvar Hasanov');
+
+        await waitFor(() => {
+            const listboxes = screen.getAllByRole('listbox');
+            const activeListbox = listboxes[listboxes.length - 1];
+            const scoped = within(activeListbox);
+            expect(scoped.queryByText(/Alisher Karimov/)).not.toBeInTheDocument();
+            expect(scoped.queryByText(/Malika Yusupova/)).not.toBeInTheDocument();
+            expect(scoped.getByRole('button', { name: /\+ Unregistered patient: Sarvar Hasanov/i })).toBeInTheDocument();
         });
     });
 

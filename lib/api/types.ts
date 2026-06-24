@@ -217,8 +217,11 @@ export interface ApiPatientOverview {
 
 export interface ApiAppointment {
     id: string;
-    patient_id: string;
+    patient_id: string | null;
     patient_name?: string | null;
+    guest_name?: string | null;
+    guest_phone?: string | null;
+    is_guest?: boolean;
     appointment_date: string;
     start_time: string;
     end_time: string;
@@ -233,6 +236,8 @@ export interface ApiAppointmentLookup {
     appointment_date: string;
     start_time: string;
     patient_name?: string | null;
+    guest_phone?: string | null;
+    is_guest?: boolean;
     status: ApiAppointment['status'];
 }
 

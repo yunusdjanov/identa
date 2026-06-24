@@ -18,11 +18,13 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import {
+    createPatientCardFromGuestAppointment,
     deleteAppointment,
     getCurrentUser,
     getProfile,
     listAllAppointments,
     updateAppointment,
+    type CreatePatientPayload,
 } from '@/lib/api/dentist';
 import {
     getAppointmentApiErrorMessage,
@@ -40,7 +42,7 @@ import {
     type NormalizedAppointmentWorkingHours,
 } from '@/lib/appointments/time-slots';
 import { formatLocalizedDate } from '@/lib/i18n/date';
-import { Plus, Calendar as CalendarIcon, ChevronLeft, ChevronRight, Pencil, Trash2, Download } from 'lucide-react';
+import { Plus, Calendar as CalendarIcon, ChevronLeft, ChevronRight, Pencil, Trash2, Download, UserPlus } from 'lucide-react';
 import { buildPdfFilename, exportRowsToPdf } from '@/lib/export/pdf';
 import { AppointmentTimePicker } from '@/components/appointments/appointment-time-picker';
 import { ConfirmActionDialog } from '@/components/ui/confirm-action-dialog';
@@ -62,6 +64,10 @@ import type { ApiRecordActor } from '@/lib/api/types';
 
 const AddAppointmentDialog = dynamic(
     () => import('@/components/appointments/add-appointment-dialog').then((module) => module.AddAppointmentDialog),
+    { ssr: false }
+);
+const AddPatientDialog = dynamic(
+    () => import('@/components/patients/add-patient-dialog').then((module) => module.AddPatientDialog),
     { ssr: false }
 );
 
@@ -215,8 +221,11 @@ function getSlotOrderPriority(status: AppointmentRow['status']): number {
 
 interface AppointmentRow {
     id: string;
-    patientId: string;
+    patientId: string | null;
     patientName: string;
+    guestName?: string | null;
+    guestPhone?: string | null;
+    isGuest: boolean;
     appointmentDate: string;
     startTime: string;
     endTime: string;
@@ -225,6 +234,22 @@ interface AppointmentRow {
     reason?: string;
     createdBy?: ApiRecordActor | null;
     updatedBy?: ApiRecordActor | null;
+}
+
+function getAppointmentIdentityPayload(appointment: AppointmentRow): {
+    patient_id: string | null;
+    guest_name?: string;
+    guest_phone?: string;
+} {
+    if (appointment.patientId) {
+        return { patient_id: appointment.patientId };
+    }
+
+    return {
+        patient_id: null,
+        guest_name: appointment.guestName ?? appointment.patientName,
+        guest_phone: appointment.guestPhone ?? '',
+    };
 }
 
 interface WeekInlineEditFormData {
@@ -321,6 +346,7 @@ export default function AppointmentsPage() {
     const [dialogVersion, setDialogVersion] = useState(0);
     const [editDialogVersion, setEditDialogVersion] = useState(0);
     const [editingAppointment, setEditingAppointment] = useState<AppointmentRow | null>(null);
+    const [patientCardAppointment, setPatientCardAppointment] = useState<AppointmentRow | null>(null);
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
     const [appointmentToDelete, setAppointmentToDelete] = useState<AppointmentRow | null>(null);
     const [draggedAppointmentId, setDraggedAppointmentId] = useState<string | null>(null);
@@ -378,6 +404,8 @@ export default function AppointmentsPage() {
     const currentUser = currentUserQuery.data;
     const canViewAppointments = canView(currentUser, 'appointments');
     const canManageAppointments = canManage(currentUser, 'appointments');
+    const canManagePatients = canManage(currentUser, 'patients');
+    const canCreatePatientCards = canManageAppointments && canManagePatients;
     const showRecordAuthors = currentUser?.show_record_authors === true;
     const isDialogOpen = canManageAppointments && (isAddDialogOpen || shouldOpenFromUrl);
     const denyPermission = () => toast.error(getManageDeniedMessage(currentUser, t));
@@ -429,6 +457,43 @@ export default function AppointmentsPage() {
         if (!open) {
             setEditingAppointment(null);
         }
+    };
+
+    const openPatientCardDialog = (appointment: AppointmentRow) => {
+        if (!canCreatePatientCards) {
+            denyPermission();
+            return;
+        }
+
+        if (!appointment.isGuest) {
+            return;
+        }
+
+        setPatientCardAppointment(appointment);
+    };
+
+    const handlePatientCardDialogOpenChange = (open: boolean) => {
+        if (open && !canCreatePatientCards) {
+            denyPermission();
+            return;
+        }
+
+        if (!open) {
+            setPatientCardAppointment(null);
+        }
+    };
+
+    const createPatientCardForGuestAppointment = async (payload: CreatePatientPayload) => {
+        if (!patientCardAppointment) {
+            throw new Error(t('appointments.toast.patientCardMissingAppointment'));
+        }
+
+        const result = await createPatientCardFromGuestAppointment(patientCardAppointment.id, payload);
+        queryClient.invalidateQueries({ queryKey: ['appointments'] });
+        queryClient.invalidateQueries({ queryKey: ['patients'] });
+        queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+
+        return result.patient;
     };
 
     const openDeleteDialog = (appointment: AppointmentRow) => {
@@ -530,6 +595,9 @@ export default function AppointmentsPage() {
                 id: appointment.id,
                 patientId: appointment.patient_id,
                 patientName: appointment.patient_name ?? t('appointments.unknownPatient'),
+                guestName: appointment.guest_name ?? null,
+                guestPhone: appointment.guest_phone ?? null,
+                isGuest: appointment.is_guest === true || appointment.patient_id === null,
                 appointmentDate: appointment.appointment_date,
                 startTime: appointment.start_time,
                 endTime: appointment.end_time,
@@ -689,7 +757,7 @@ export default function AppointmentsPage() {
             }
 
             return updateAppointment(payload.appointment.id, {
-                patient_id: payload.appointment.patientId,
+                ...getAppointmentIdentityPayload(payload.appointment),
                 appointment_date: payload.nextDate,
                 start_time: payload.nextStartTime,
                 end_time: payload.nextEndTime,
@@ -744,7 +812,7 @@ export default function AppointmentsPage() {
             const reasonPayload = payload.formData.reason.trim() || undefined;
 
             return updateAppointment(payload.appointment.id, {
-                patient_id: payload.appointment.patientId,
+                ...getAppointmentIdentityPayload(payload.appointment),
                 appointment_date: payload.appointment.appointmentDate,
                 start_time: payload.formData.startTime,
                 end_time: endTime,
@@ -1523,6 +1591,18 @@ export default function AppointmentsPage() {
                                                                         disabled for subscription read-only. */}
                                                                     {canManageAppointments ? (
                                                                         <>
+                                                                            {appointment.isGuest && canCreatePatientCards ? (
+                                                                                <Button
+                                                                                    type="button"
+                                                                                    size="xs"
+                                                                                    variant="outline"
+                                                                                    draggable={false}
+                                                                                    onClick={() => openPatientCardDialog(appointment)}
+                                                                                >
+                                                                                    <UserPlus className="w-3 h-3" />
+                                                                                    {t('appointments.createPatientCard')}
+                                                                                </Button>
+                                                                            ) : null}
                                                                             <Button
                                                                                 type="button"
                                                                                 size="xs"
@@ -1740,6 +1820,19 @@ export default function AppointmentsPage() {
                                                     {/* AF5 week-modal row actions. */}
                                                     {canManageAppointments ? (
                                                         <>
+                                                            {appointment.isGuest && canCreatePatientCards ? (
+                                                                <Button
+                                                                    type="button"
+                                                                    size="icon"
+                                                                    variant="outline"
+                                                                    className="h-8 w-8 rounded-full bg-white"
+                                                                    onClick={() => openPatientCardDialog(appointment)}
+                                                                    aria-label={t('appointments.createPatientCard')}
+                                                                    title={t('appointments.createPatientCard')}
+                                                                >
+                                                                    <UserPlus className="h-3.5 w-3.5" />
+                                                                </Button>
+                                                            ) : null}
                                                             <Button
                                                                 type="button"
                                                                 size="icon"
@@ -2009,6 +2102,9 @@ export default function AppointmentsPage() {
                         id: editingAppointment.id,
                         patientId: editingAppointment.patientId,
                         patientName: editingAppointment.patientName,
+                        guestName: editingAppointment.guestName,
+                        guestPhone: editingAppointment.guestPhone,
+                        isGuest: editingAppointment.isGuest,
                         appointmentDate: editingAppointment.appointmentDate,
                         startTime: editingAppointment.startTime,
                         durationMinutes: editingAppointment.durationMinutes,
@@ -2016,6 +2112,20 @@ export default function AppointmentsPage() {
                         reason: editingAppointment.reason,
                     }}
                     workingHours={workingHours}
+                />
+            ) : null}
+            {patientCardAppointment ? (
+                <AddPatientDialog
+                    key={`guest-patient-card-${patientCardAppointment.id}`}
+                    open={true}
+                    onOpenChange={handlePatientCardDialogOpenChange}
+                    initialValues={{
+                        full_name: patientCardAppointment.guestName ?? patientCardAppointment.patientName,
+                        phone: patientCardAppointment.guestPhone ?? '',
+                    }}
+                    submitPatient={createPatientCardForGuestAppointment}
+                    successMessage={(patient) =>
+                        t('appointments.toast.patientCardCreated', { patientName: patient.full_name })}
                 />
             ) : null}
             <ConfirmActionDialog

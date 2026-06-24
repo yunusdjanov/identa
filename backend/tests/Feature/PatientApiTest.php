@@ -220,7 +220,7 @@ class PatientApiTest extends TestCase
             ->getJson("/api/v1/patients/{$patient->id}/overview")
             ->assertOk()
             ->assertJsonPath('data.appointment_count', 2)
-            ->assertJsonPath('data.visit_count', 3);
+            ->assertJsonPath('data.visit_count', 2);
     }
 
     public function test_patient_create_validates_name_phone_and_optional_text_lengths(): void

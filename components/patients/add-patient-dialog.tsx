@@ -22,8 +22,14 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { createPatient, listPatientCategories, uploadPatientPhoto } from '@/lib/api/dentist';
+import {
+    createPatient,
+    listPatientCategories,
+    uploadPatientPhoto,
+    type CreatePatientPayload,
+} from '@/lib/api/dentist';
 import { getApiErrorMessage } from '@/lib/api/client';
+import type { ApiPatient } from '@/lib/api/types';
 import { optimizeImageFileForUpload } from '@/lib/browser-image';
 import { useI18n } from '@/components/providers/i18n-provider';
 import {
@@ -40,19 +46,33 @@ interface AddPatientDialogProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     uploadMaxMb?: number | null;
+    /**
+     * Prefills the reusable patient form. Used by appointment conversion so the
+     * clinician can review and correct guest name/phone before creating a card.
+     */
+    initialValues?: Partial<Pick<CreatePatientPayload, 'full_name' | 'phone'>>;
+    /**
+     * Optional submit override for flows that need a transactional backend action.
+     * Defaults to regular patient creation.
+     */
+    submitPatient?: (payload: CreatePatientPayload) => Promise<ApiPatient>;
+    /** Custom success copy for contextual creation flows. */
+    successMessage?: (patient: ApiPatient) => string;
 }
 
-const initialFormData = {
-    fullName: '',
-    phone: '',
-    secondaryPhone: '',
-    categoryId: '',
-    address: '',
-    dateOfBirth: '',
-    medicalHistory: '',
-    allergies: '',
-    currentMedications: '',
-};
+function createInitialFormData(initialValues?: AddPatientDialogProps['initialValues']) {
+    return {
+        fullName: initialValues?.full_name ?? '',
+        phone: initialValues?.phone ? formatPhoneInputValue(initialValues.phone) : '',
+        secondaryPhone: '',
+        categoryId: '',
+        address: '',
+        dateOfBirth: '',
+        medicalHistory: '',
+        allergies: '',
+        currentMedications: '',
+    };
+}
 const NO_CATEGORY_VALUE = '__none__';
 const DEFAULT_PATIENT_PHOTO_UPLOAD_MAX_MB = 1;
 
@@ -60,11 +80,14 @@ export function AddPatientDialog({
     open,
     onOpenChange,
     uploadMaxMb = DEFAULT_PATIENT_PHOTO_UPLOAD_MAX_MB,
+    initialValues,
+    submitPatient = createPatient,
+    successMessage,
 }: AddPatientDialogProps) {
     const { t } = useI18n();
     const queryClient = useQueryClient();
     const photoInputRef = useRef<HTMLInputElement | null>(null);
-    const [formData, setFormData] = useState(initialFormData);
+    const [formData, setFormData] = useState(() => createInitialFormData(initialValues));
     const [photoFile, setPhotoFile] = useState<File | null>(null);
     const [photoInputKey, setPhotoInputKey] = useState(0);
     const [isSubmitted, setIsSubmitted] = useState(false);
@@ -115,7 +138,7 @@ export function AddPatientDialog({
 
     const mutation = useMutation({
         mutationFn: async () => {
-            const createdPatient = await createPatient({
+            const patientPayload: CreatePatientPayload = {
                 full_name: fullName,
                 phone: normalizePhoneForApi(formData.phone),
                 secondary_phone: formData.secondaryPhone ? normalizePhoneForApi(formData.secondaryPhone) : undefined,
@@ -125,7 +148,8 @@ export function AddPatientDialog({
                 medical_history: formData.medicalHistory.trim() || undefined,
                 allergies: formData.allergies.trim() || undefined,
                 current_medications: formData.currentMedications.trim() || undefined,
-            });
+            };
+            const createdPatient = await submitPatient(patientPayload);
 
             let photoUploadError: string | null = null;
             if (photoFile) {
@@ -139,11 +163,11 @@ export function AddPatientDialog({
             return { createdPatient, photoUploadError };
         },
         onSuccess: ({ createdPatient, photoUploadError }) => {
-            toast.success(t('patients.toast.addSuccess', { patientName: createdPatient.full_name }));
+            toast.success(successMessage?.(createdPatient) ?? t('patients.toast.addSuccess', { patientName: createdPatient.full_name }));
             if (photoUploadError) {
                 toast.error(photoUploadError);
             }
-            setFormData(initialFormData);
+            setFormData(createInitialFormData(initialValues));
             setPhotoFile(null);
             setPhotoInputKey((value) => value + 1);
             setIsSubmitted(false);

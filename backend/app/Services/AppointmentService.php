@@ -3,8 +3,10 @@
 namespace App\Services;
 
 use App\Http\Requests\StoreAppointmentRequest;
+use App\Http\Requests\StorePatientRequest;
 use App\Http\Requests\UpdateAppointmentRequest;
 use App\Models\Appointment;
+use App\Models\Patient;
 use App\Models\User;
 use App\Support\AuditLogger;
 use App\Support\Search;
@@ -97,16 +99,22 @@ class AppointmentService
 
         $search = $request->input('filter.search');
         if (is_string($search) && $search !== '') {
-            $query->whereHas('patient', function (Builder $builder) use ($search): void {
-                // Case-insensitive across all DB drivers (Postgres LIKE is
-                // case-sensitive; mobile keyboards default to lowercase).
-                Search::ciLike($builder, 'full_name', $search);
+            $query->where(function (Builder $builder) use ($search): void {
+                $builder->whereHas('patient', function (Builder $patientQuery) use ($search): void {
+                    // Case-insensitive across all DB drivers (Postgres LIKE is
+                    // case-sensitive; mobile keyboards default to lowercase).
+                    Search::ciLike($patientQuery, 'full_name', $search);
+                });
+                Search::ciLike($builder, 'guest_name', $search, 'or');
+                Search::ciLike($builder, 'guest_phone', $search, 'or');
             });
         }
 
         return $query->paginate(min($this->perPage($request), 50), [
             'id',
             'patient_id',
+            'guest_name',
+            'guest_phone',
             'appointment_date',
             'start_time',
             'status',
@@ -130,7 +138,8 @@ class AppointmentService
             );
 
             return Appointment::create([
-                ...$validated,
+                ...collect($validated)->except(['reason', 'patient_id', 'guest_name', 'guest_phone'])->all(),
+                ...$this->identityAttributes($validated),
                 'dentist_id' => $dentistId,
                 'created_by_user_id' => $actorId,
                 'updated_by_user_id' => $actorId,
@@ -149,7 +158,8 @@ class AppointmentService
             entityType: 'appointment',
             entityId: (string) $appointment->id,
             metadata: [
-                'patient_id' => (string) $appointment->patient_id,
+                'patient_id' => $appointment->patient_id !== null ? (string) $appointment->patient_id : null,
+                'is_guest' => $appointment->patient_id === null,
                 'appointment_date' => $appointment->appointment_date?->toDateString(),
                 'status' => $appointment->status,
             ],
@@ -193,7 +203,8 @@ class AppointmentService
             );
 
             $appointment->update([
-                ...$validated,
+                ...collect($validated)->except(['reason', 'patient_id', 'guest_name', 'guest_phone'])->all(),
+                ...$this->identityAttributes($validated),
                 'updated_by_user_id' => $actorId,
                 'status' => $status,
                 'notes' => $validated['reason'] ?? null,
@@ -212,7 +223,8 @@ class AppointmentService
             entityType: 'appointment',
             entityId: (string) $appointment->id,
             metadata: [
-                'patient_id' => (string) $appointment->patient_id,
+                'patient_id' => $appointment->patient_id !== null ? (string) $appointment->patient_id : null,
+                'is_guest' => $appointment->patient_id === null,
                 'appointment_date' => $appointment->appointment_date?->toDateString(),
                 'status' => $appointment->status,
             ],
@@ -221,11 +233,99 @@ class AppointmentService
         return $appointment;
     }
 
+    /**
+     * @return array{appointment: Appointment, patient: Patient}
+     */
+    public function createPatientCardFromGuest(StorePatientRequest $request, string $id): array
+    {
+        $validated = $request->validated();
+        $dentistId = $this->dentistId($request);
+        $actorId = $this->actorId($request);
+        $patientAttributes = collect($validated)
+            ->except(['category_id'])
+            ->all();
+
+        $result = DB::transaction(function () use ($id, $dentistId, $actorId, $patientAttributes, $validated): array {
+            $appointment = Appointment::query()
+                ->where('id', $id)
+                ->where('dentist_id', $dentistId)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if ($appointment->patient_id !== null) {
+                throw ValidationException::withMessages([
+                    'appointment' => [__('api.appointments.already_linked_to_patient')],
+                ]);
+            }
+
+            $patient = Patient::create([
+                ...$patientAttributes,
+                'dentist_id' => $dentistId,
+                'created_by_user_id' => $actorId,
+                'updated_by_user_id' => $actorId,
+                'patient_id' => $this->generatePatientId($dentistId),
+            ]);
+            $this->syncPatientCategory($patient, $validated);
+
+            $appointment->update([
+                'patient_id' => $patient->id,
+                'guest_name' => null,
+                'guest_phone' => null,
+                'updated_by_user_id' => $actorId,
+            ]);
+
+            return [
+                'appointment' => $appointment->fresh()->load([
+                    'patient:id,full_name',
+                    'createdBy:id,name,role',
+                    'updatedBy:id,name,role',
+                ]),
+                'patient' => $patient->fresh()->load([
+                    'categories:id,name,color,sort_order',
+                    'createdBy:id,name,role',
+                    'updatedBy:id,name,role',
+                    'oralPhotos',
+                ]),
+            ];
+        });
+
+        $patient = $result['patient'];
+        $appointment = $result['appointment'];
+
+        $this->auditLogger->logFromRequest(
+            request: $request,
+            eventType: 'patient.created',
+            entityType: 'patient',
+            entityId: (string) $patient->id,
+            metadata: [
+                'patient_id' => $patient->patient_id,
+                'source' => 'guest_appointment',
+                'appointment_id' => (string) $appointment->id,
+            ],
+        );
+        $this->auditLogger->logFromRequest(
+            request: $request,
+            eventType: 'appointment.updated',
+            entityType: 'appointment',
+            entityId: (string) $appointment->id,
+            metadata: [
+                'patient_id' => (string) $appointment->patient_id,
+                'is_guest' => false,
+                'appointment_date' => $appointment->appointment_date?->toDateString(),
+                'status' => $appointment->status,
+                'source' => 'guest_appointment_patient_card',
+            ],
+        );
+
+        return $result;
+    }
+
     public function delete(Request $request, string $id): void
     {
         $appointment = $this->ownedAppointment($request, $id);
         $metadata = [
-            'patient_id' => (string) $appointment->patient_id,
+            'patient_id' => $appointment->patient_id !== null ? (string) $appointment->patient_id : null,
+            'is_guest' => $appointment->patient_id === null,
             'appointment_date' => $appointment->appointment_date?->toDateString(),
             'status' => $appointment->status,
         ];
@@ -315,6 +415,61 @@ class AppointmentService
         [$hour, $minute] = array_pad(explode(':', $value), 2, 0);
 
         return ((int) $hour * 60) + (int) $minute;
+    }
+
+    /**
+     * @param  array<string, mixed>  $validated
+     * @return array{patient_id: string|null, guest_name: string|null, guest_phone: string|null}
+     */
+    private function identityAttributes(array $validated): array
+    {
+        $patientId = $validated['patient_id'] ?? null;
+        if (is_string($patientId) && $patientId !== '') {
+            return [
+                'patient_id' => $patientId,
+                'guest_name' => null,
+                'guest_phone' => null,
+            ];
+        }
+
+        return [
+            'patient_id' => null,
+            'guest_name' => is_string($validated['guest_name'] ?? null)
+                ? trim($validated['guest_name'])
+                : null,
+            'guest_phone' => is_string($validated['guest_phone'] ?? null)
+                ? trim($validated['guest_phone'])
+                : null,
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $validated
+     */
+    private function syncPatientCategory(Patient $patient, array $validated): void
+    {
+        if (! array_key_exists('category_id', $validated)) {
+            return;
+        }
+
+        $categoryId = $validated['category_id'];
+        $patient->categories()->sync(is_string($categoryId) && $categoryId !== '' ? [$categoryId] : []);
+    }
+
+    private function generatePatientId(int $dentistId): string
+    {
+        do {
+            $numericPart = str_pad((string) random_int(0, 9999), 4, '0', STR_PAD_LEFT);
+            $suffix = chr(random_int(65, 90)).chr(random_int(65, 90));
+            $candidate = "PT-{$numericPart}{$suffix}";
+        } while (
+            Patient::query()
+                ->where('dentist_id', $dentistId)
+                ->where('patient_id', $candidate)
+                ->exists()
+        );
+
+        return $candidate;
     }
 
     private function perPage(Request $request): int

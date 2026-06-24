@@ -22,6 +22,7 @@ return [
         'conflict' => 'Appointment time conflicts with an existing appointment.',
         'past_slot' => 'Cannot schedule or move an appointment into a past time slot.',
         'finalized_cannot_be_edited' => 'Finalized appointments cannot be edited.',
+        'already_linked_to_patient' => 'This appointment is already linked to a patient.',
     ],
     'invoices' => [
         'total_lower_than_paid' => 'Total amount cannot be lower than already paid amount.',

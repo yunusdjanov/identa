@@ -250,17 +250,11 @@ class PatientService
             now()->addSeconds(10),
             function () use ($dentistId, $id, $includeAppointments, $includePayments): array {
                 $appointmentCount = 0;
-                $completedAppointmentCount = 0;
                 $upcomingAppointments = [];
                 if ($includeAppointments) {
                     $appointmentCount = (int) Appointment::query()
                         ->where('dentist_id', $dentistId)
                         ->where('patient_id', $id)
-                        ->count();
-                    $completedAppointmentCount = (int) Appointment::query()
-                        ->where('dentist_id', $dentistId)
-                        ->where('patient_id', $id)
-                        ->where('status', Appointment::STATUS_COMPLETED)
                         ->count();
 
                     $upcomingAppointments = Appointment::query()
@@ -291,15 +285,36 @@ class PatientService
                         ->all();
                 }
 
-                $treatmentCount = (int) Treatment::query()
-                    ->where('dentist_id', $dentistId)
-                    ->where('patient_id', $id)
+                $visitDates = collect();
+                if ($includeAppointments) {
+                    $visitDates = $visitDates->merge(
+                        Appointment::query()
+                            ->where('dentist_id', $dentistId)
+                            ->where('patient_id', $id)
+                            ->where('status', Appointment::STATUS_COMPLETED)
+                            ->pluck('appointment_date')
+                            ->map(static fn ($date): string => substr((string) $date, 0, 10))
+                    );
+                }
+                $visitDates = $visitDates
+                    ->merge(
+                        Treatment::query()
+                            ->where('dentist_id', $dentistId)
+                            ->where('patient_id', $id)
+                            ->pluck('treatment_date')
+                            ->map(static fn ($date): string => substr((string) $date, 0, 10))
+                    )
+                    ->merge(
+                        OdontogramEntry::query()
+                            ->where('dentist_id', $dentistId)
+                            ->where('patient_id', $id)
+                            ->pluck('condition_date')
+                            ->map(static fn ($date): string => substr((string) $date, 0, 10))
+                    );
+                $visitCount = $visitDates
+                    ->filter(static fn (string $date): bool => preg_match('/^\d{4}-\d{2}-\d{2}$/', $date) === 1)
+                    ->unique()
                     ->count();
-                $odontogramEntryCount = (int) OdontogramEntry::query()
-                    ->where('dentist_id', $dentistId)
-                    ->where('patient_id', $id)
-                    ->count();
-                $visitCount = $completedAppointmentCount + $treatmentCount + $odontogramEntryCount;
 
                 $totalDebt = 0.0;
                 $totalPaid = 0.0;

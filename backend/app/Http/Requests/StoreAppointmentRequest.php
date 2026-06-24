@@ -13,6 +13,18 @@ class StoreAppointmentRequest extends FormRequest
         return true;
     }
 
+    protected function prepareForValidation(): void
+    {
+        $this->merge([
+            'guest_name' => is_string($this->input('guest_name'))
+                ? trim($this->input('guest_name'))
+                : $this->input('guest_name'),
+            'guest_phone' => is_string($this->input('guest_phone'))
+                ? trim($this->input('guest_phone'))
+                : $this->input('guest_phone'),
+        ]);
+    }
+
     /**
      * @return array<string, mixed>
      */
@@ -22,13 +34,30 @@ class StoreAppointmentRequest extends FormRequest
 
         return [
             'patient_id' => [
-                'required',
+                'nullable',
+                'required_without:guest_name',
                 'uuid',
                 Rule::exists('patients', 'id')->where(
                     fn ($query) => $query
                         ->where('dentist_id', $dentistId)
                         ->whereNull('deleted_at')
                 ),
+            ],
+            'guest_name' => [
+                'nullable',
+                'required_without:patient_id',
+                Rule::prohibitedIf($this->filled('patient_id')),
+                'string',
+                'min:3',
+                'max:255',
+            ],
+            'guest_phone' => [
+                'nullable',
+                'required_without:patient_id',
+                Rule::prohibitedIf($this->filled('patient_id')),
+                'string',
+                'max:50',
+                'regex:/^\+\d{9,15}$/',
             ],
             // Server-side guard against past-date booking. UI already
             // blocks via the date picker, but the API used to accept any

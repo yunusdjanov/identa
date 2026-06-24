@@ -19,6 +19,7 @@ return [
         'google_unlink_needs_password' => 'Google’ni uzishdan oldin parol o‘rnating — aks holda kira olmay qolasiz.',
     ],
     'appointments' => [
+        'already_linked_to_patient' => 'Bu qabul allaqachon bemorga boglangan.',
         'conflict' => 'Qabul vaqti mavjud qabul bilan to‘qnashmoqda.',
         'past_slot' => 'Qabulni o‘tgan vaqtga yaratish yoki ko‘chirish mumkin emas.',
         'finalized_cannot_be_edited' => 'Yakunlangan, bekor qilingan va kelmagan qabullarni tahrirlab bo‘lmaydi.',

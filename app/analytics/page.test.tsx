@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import AnalyticsPage from '@/app/analytics/page';
 import {
@@ -36,6 +36,15 @@ const assistantNoAccess = {
     account_status: 'active' as const,
     permissions: [],
 };
+
+function todayDateKey(): string {
+    const today = new Date();
+    return [
+        today.getFullYear(),
+        String(today.getMonth() + 1).padStart(2, '0'),
+        String(today.getDate()).padStart(2, '0'),
+    ].join('-');
+}
 
 function renderPage() {
     const queryClient = new QueryClient({
@@ -97,5 +106,81 @@ describe('AnalyticsPage', () => {
                 date_to: expect.any(String),
             }),
         }));
+    });
+
+    it('counts unique visits from completed appointments and treatment history without double-counting patient days', async () => {
+        const today = todayDateKey();
+        vi.mocked(getCurrentUser).mockResolvedValue(dentist as never);
+        vi.mocked(listAllAppointments).mockResolvedValue([
+            {
+                id: 'appointment-1',
+                patient_id: 'patient-1',
+                patient_name: 'Patient One',
+                appointment_date: today,
+                start_time: '09:00',
+                end_time: '09:30',
+                status: 'completed',
+                notes: null,
+            },
+            {
+                id: 'appointment-2',
+                patient_id: 'patient-3',
+                patient_name: 'Patient Three',
+                appointment_date: today,
+                start_time: '10:00',
+                end_time: '10:30',
+                status: 'scheduled',
+                notes: null,
+            },
+        ] as never);
+        vi.mocked(listAllTreatments).mockResolvedValue([
+            {
+                id: 'treatment-1',
+                patient_id: 'patient-1',
+                patient_name: 'Patient One',
+                treatment_date: today,
+                tooth_number: null,
+                teeth: [],
+                treatment_type: 'Consultation',
+                description: null,
+                comment: null,
+                cost: null,
+                debt_amount: 0,
+                paid_amount: 0,
+                balance: 0,
+                notes: null,
+                image_count: 0,
+                images: [],
+                created_at: null,
+                updated_at: null,
+            },
+            {
+                id: 'treatment-2',
+                patient_id: 'patient-2',
+                patient_name: 'Patient Two',
+                treatment_date: today,
+                tooth_number: null,
+                teeth: [],
+                treatment_type: 'Filling',
+                description: null,
+                comment: null,
+                cost: null,
+                debt_amount: 0,
+                paid_amount: 0,
+                balance: 0,
+                notes: null,
+                image_count: 0,
+                images: [],
+                created_at: null,
+                updated_at: null,
+            },
+        ] as never);
+
+        renderPage();
+
+        const label = await screen.findByText('Visits');
+        const card = label.closest('div.relative');
+        expect(card).not.toBeNull();
+        expect(within(card as HTMLElement).getByText('2')).toBeInTheDocument();
     });
 });

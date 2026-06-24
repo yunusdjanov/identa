@@ -47,6 +47,126 @@ class AppointmentApiTest extends TestCase
         );
     }
 
+    public function test_dentist_can_create_guest_appointment_without_patient_record(): void
+    {
+        $dentist = User::factory()->create();
+        $appointmentDate = now()->addDay()->toDateString();
+
+        $this->actingAs($dentist, 'web')
+            ->postJson('/api/v1/appointments', [
+                'guest_name' => 'New Visitor',
+                'guest_phone' => '+998901234567',
+                'appointment_date' => $appointmentDate,
+                'start_time' => '10:00',
+                'end_time' => '10:30',
+                'status' => Appointment::STATUS_SCHEDULED,
+                'reason' => 'Consultation',
+            ])
+            ->assertCreated()
+            ->assertJsonPath('data.patient_id', null)
+            ->assertJsonPath('data.patient_name', 'New Visitor')
+            ->assertJsonPath('data.guest_name', 'New Visitor')
+            ->assertJsonPath('data.guest_phone', '+998901234567')
+            ->assertJsonPath('data.is_guest', true);
+
+        $this->assertTrue(
+            Appointment::query()
+                ->where('dentist_id', $dentist->id)
+                ->whereNull('patient_id')
+                ->where('guest_name', 'New Visitor')
+                ->where('guest_phone', '+998901234567')
+                ->whereDate('appointment_date', $appointmentDate)
+                ->exists()
+        );
+    }
+
+    public function test_dentist_can_create_patient_card_from_guest_appointment_with_corrected_identity(): void
+    {
+        $dentist = User::factory()->create();
+        $appointment = Appointment::create([
+            'dentist_id' => $dentist->id,
+            'patient_id' => null,
+            'guest_name' => 'Jamal Hasanov',
+            'guest_phone' => '+998901111111',
+            'appointment_date' => now()->addDay()->toDateString(),
+            'start_time' => '10:00',
+            'end_time' => '10:30',
+            'status' => Appointment::STATUS_SCHEDULED,
+            'notes' => 'Consultation',
+        ]);
+
+        $this->actingAs($dentist, 'web')
+            ->postJson("/api/v1/appointments/{$appointment->id}/patient-card", [
+                'full_name' => 'Jamol Hasanov',
+                'phone' => '+998902222222',
+                'medical_history' => 'No known conditions',
+            ])
+            ->assertCreated()
+            ->assertJsonPath('data.patient.full_name', 'Jamol Hasanov')
+            ->assertJsonPath('data.patient.phone', '+998902222222')
+            ->assertJsonPath('data.appointment.guest_name', null)
+            ->assertJsonPath('data.appointment.guest_phone', null)
+            ->assertJsonPath('data.appointment.is_guest', false);
+
+        $createdPatient = Patient::query()
+            ->where('dentist_id', $dentist->id)
+            ->where('full_name', 'Jamol Hasanov')
+            ->where('phone', '+998902222222')
+            ->firstOrFail();
+
+        $this->assertDatabaseHas('appointments', [
+            'id' => $appointment->id,
+            'patient_id' => $createdPatient->id,
+            'guest_name' => null,
+            'guest_phone' => null,
+            'updated_by_user_id' => $dentist->id,
+        ]);
+    }
+
+    public function test_patient_card_creation_does_not_duplicate_already_linked_appointment(): void
+    {
+        $dentist = User::factory()->create();
+        $patient = Patient::factory()->create([
+            'dentist_id' => $dentist->id,
+        ]);
+        $appointment = Appointment::create([
+            'dentist_id' => $dentist->id,
+            'patient_id' => $patient->id,
+            'appointment_date' => now()->addDay()->toDateString(),
+            'start_time' => '11:00',
+            'end_time' => '11:30',
+            'status' => Appointment::STATUS_SCHEDULED,
+        ]);
+
+        $patientsBefore = Patient::query()->count();
+
+        $this->actingAs($dentist, 'web')
+            ->postJson("/api/v1/appointments/{$appointment->id}/patient-card", [
+                'full_name' => 'Duplicate Candidate',
+                'phone' => '+998903333333',
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['appointment']);
+
+        $this->assertSame($patientsBefore, Patient::query()->count());
+    }
+
+    public function test_guest_appointment_requires_name_and_phone_when_patient_is_missing(): void
+    {
+        $dentist = User::factory()->create();
+        $appointmentDate = now()->addDay()->toDateString();
+
+        $this->actingAs($dentist, 'web')
+            ->postJson('/api/v1/appointments', [
+                'guest_name' => 'New Visitor',
+                'appointment_date' => $appointmentDate,
+                'start_time' => '10:00',
+                'end_time' => '10:30',
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['guest_phone']);
+    }
+
     public function test_dentist_cannot_create_appointment_for_other_dentist_patient(): void
     {
         $dentist = User::factory()->create();

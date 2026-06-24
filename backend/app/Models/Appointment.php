@@ -40,6 +40,8 @@ class Appointment extends Model implements TenantOwned
         'created_by_user_id',
         'updated_by_user_id',
         'patient_id',
+        'guest_name',
+        'guest_phone',
         'appointment_date',
         'start_time',
         'end_time',

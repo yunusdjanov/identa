@@ -42,6 +42,7 @@ import {
 } from '@/components/analytics/time-range-selector';
 import { withinLocalBounds } from '@/lib/analytics/date-bounds';
 import { buildChartBuckets } from '@/lib/analytics/chart-buckets';
+import { countUniqueVisits } from '@/lib/analytics/visits';
 import { buildPdfFilename, exportRowsToPdf } from '@/lib/export/pdf';
 import { formatLocalizedDate, getActiveDisplayLocale } from '@/lib/i18n/date';
 
@@ -88,6 +89,7 @@ export default function AnalyticsPage() {
     const canViewPayments = canView(currentUser, 'payments');
     const canViewPatients = canView(currentUser, 'patients');
     const canViewAppointments = canView(currentUser, 'appointments');
+    const canViewVisits = canViewAppointments || canViewPayments;
 
     // `now` re-evaluates on every range change so a long-lived tab that
     // spans midnight still anchors the window correctly. We deliberately
@@ -182,44 +184,19 @@ export default function AnalyticsPage() {
         return { current, previous, delta: computeDelta(current, previous) };
     }, [patients, bounds, previousBounds]);
 
-    // KPI #4 — Completion rate = completed / appointments_already_past.
-    // We exclude appointments still in the future from the denominator so
-    // a dentist booking out several months doesn't appear to have a 5%
-    // completion rate; only appointments whose time has passed count.
-    const completionKpi = useMemo(() => {
-        function calc(start: Date, end: Date): { completed: number; total: number; rate: number } {
-            let completed = 0;
-            let total = 0;
-            const cutoff = now.getTime();
-            for (const apt of appointments) {
-                if (!withinLocalBounds(apt.appointment_date, start, end)) continue;
-                // Skip future appointments: they haven't had a chance to be
-                // completed or marked no-show yet. We compare appointment_date
-                // (date-only) parsed locally against `now`.
-                const aptDate = apt.appointment_date
-                    ? new Date(
-                        Number(apt.appointment_date.slice(0, 4)),
-                        Number(apt.appointment_date.slice(5, 7)) - 1,
-                        Number(apt.appointment_date.slice(8, 10)),
-                        23, 59, 59
-                    ).getTime()
-                    : 0;
-                if (aptDate > cutoff) continue;
-                total += 1;
-                if (apt.status === 'completed') completed += 1;
-            }
-            const rate = total > 0 ? (completed / total) * 100 : 0;
-            return { completed, total, rate };
-        }
-        const c = calc(bounds.start, bounds.end);
-        const p = calc(previousBounds.start, previousBounds.end);
+    // KPI #4: real visits, not just appointment rows. A completed
+    // appointment and a treatment/history entry on the same patient/day
+    // represent one clinical visit.
+    const visitsKpi = useMemo(() => {
+        const current = countUniqueVisits(appointments, treatments, bounds.start, bounds.end);
+        const previous = countUniqueVisits(appointments, treatments, previousBounds.start, previousBounds.end);
+
         return {
-            current: c.rate,
-            previous: p.rate,
-            delta: c.total > 0 && p.total > 0 ? computeDelta(c.rate, p.rate) : null,
-            counts: c,
+            current,
+            previous,
+            delta: computeDelta(current, previous),
         };
-    }, [appointments, bounds, previousBounds, now]);
+    }, [appointments, treatments, bounds, previousBounds]);
 
     const revenueByBucket = useMemo(() => {
         return buckets.map((bucket) => {
@@ -320,8 +297,8 @@ export default function AnalyticsPage() {
                     { label: t('analytics.kpi.debt'), value: formatCurrency(debtKpi.current) },
                     { label: t('analytics.kpi.patients'), value: String(patientsKpi.current) },
                     {
-                        label: t('analytics.kpi.completion'),
-                        value: `${Math.round(completionKpi.current)}%`,
+                        label: t('analytics.kpi.visits'),
+                        value: String(visitsKpi.current),
                     },
                 ],
             });
@@ -337,7 +314,7 @@ export default function AnalyticsPage() {
         revenueKpi,
         debtKpi,
         patientsKpi,
-        completionKpi,
+        visitsKpi,
     ]);
 
     if (currentUserQuery.isLoading) {
@@ -379,7 +356,7 @@ export default function AnalyticsPage() {
     // fraction of the row width. Count the visible cells in each row and
     // pick a grid template that fills cleanly for any permission shape.
     const visibleKpiCount =
-        (canViewPayments ? 2 : 0) + (canViewPatients ? 1 : 0) + (canViewAppointments ? 1 : 0);
+        (canViewPayments ? 2 : 0) + (canViewPatients ? 1 : 0) + (canViewVisits ? 1 : 0);
     const kpiGridClass =
         visibleKpiCount <= 1
             ? 'grid grid-cols-1 gap-4'
@@ -458,12 +435,12 @@ export default function AnalyticsPage() {
                         accent="blue"
                     />
                 ) : null}
-                {canViewAppointments ? (
+                {canViewVisits ? (
                     <KpiCard
-                        label={t('analytics.kpi.completion')}
-                        description={t('analytics.kpi.completion.descr')}
-                        value={`${Math.round(completionKpi.current)}%`}
-                        deltaPercent={completionKpi.delta}
+                        label={t('analytics.kpi.visits')}
+                        description={t('analytics.kpi.visits.descr')}
+                        value={String(visitsKpi.current)}
+                        deltaPercent={visitsKpi.delta}
                         tone="positive"
                         icon={CheckCircle2}
                         accent="emerald"

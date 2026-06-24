@@ -24,6 +24,8 @@ class AppointmentFactory extends Factory
             'patient_id' => fn (array $attributes): string => Patient::factory()
                 ->create(['dentist_id' => $attributes['dentist_id']])
                 ->id,
+            'guest_name' => null,
+            'guest_phone' => null,
             'appointment_date' => fake()->date(),
             'start_time' => '10:00',
             'end_time' => '10:30',

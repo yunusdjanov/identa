@@ -2,15 +2,24 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import AppointmentsPage from '@/app/appointments/page';
-import { deleteAppointment, getCurrentUser, getProfile, listAllAppointments, updateAppointment } from '@/lib/api/dentist';
+import {
+    createPatientCardFromGuestAppointment,
+    deleteAppointment,
+    getCurrentUser,
+    getProfile,
+    listAllAppointments,
+    updateAppointment,
+} from '@/lib/api/dentist';
 import { toLocalDateKey } from '@/lib/utils';
 import { toast } from 'sonner';
 import { I18nProvider } from '@/components/providers/i18n-provider';
 import { DICTIONARIES } from '@/lib/i18n/dictionaries';
 
 const addAppointmentDialogSpy = vi.fn();
+const addPatientDialogSpy = vi.fn();
 
 vi.mock('@/lib/api/dentist', () => ({
+    createPatientCardFromGuestAppointment: vi.fn(),
     getCurrentUser: vi.fn(),
     getProfile: vi.fn(),
     listAllAppointments: vi.fn(),
@@ -29,6 +38,36 @@ vi.mock('@/components/appointments/add-appointment-dialog', () => ({
     AddAppointmentDialog: (props: unknown) => {
         addAppointmentDialogSpy(props);
         return null;
+    },
+}));
+
+vi.mock('@/components/patients/add-patient-dialog', () => ({
+    AddPatientDialog: (props: {
+        open: boolean;
+        initialValues?: { full_name?: string; phone?: string };
+        submitPatient: (payload: { full_name: string; phone: string }) => Promise<unknown>;
+    }) => {
+        addPatientDialogSpy(props);
+        if (!props.open) {
+            return null;
+        }
+
+        return (
+            <div data-testid="create-patient-card-dialog">
+                <span>{props.initialValues?.full_name}</span>
+                <span>{props.initialValues?.phone}</span>
+                <button
+                    type="button"
+                    onClick={() =>
+                        props.submitPatient({
+                            full_name: 'Jamol Hasanov',
+                            phone: '+998902222222',
+                        })}
+                >
+                    Submit corrected patient
+                </button>
+            </div>
+        );
     },
 }));
 
@@ -101,6 +140,7 @@ describe('AppointmentsPage drag and drop', () => {
         vi.mocked(getCurrentUser).mockReset();
         vi.mocked(getProfile).mockReset();
         vi.mocked(updateAppointment).mockReset();
+        vi.mocked(createPatientCardFromGuestAppointment).mockReset();
         vi.mocked(deleteAppointment).mockReset();
         vi.mocked(toast.error).mockReset();
         vi.mocked(toast.success).mockReset();
@@ -525,5 +565,61 @@ describe('AppointmentsPage drag and drop', () => {
         renderPage('/appointments?view=day');
 
         expect(await screen.findByText('by Scheduler')).toBeInTheDocument();
+    });
+
+    it('creates a patient card from a guest appointment using corrected form values', async () => {
+        vi.mocked(listAllAppointments).mockResolvedValue([
+            {
+                id: 'appointment-guest',
+                patient_id: null,
+                patient_name: 'Jamal Hasanov',
+                guest_name: 'Jamal Hasanov',
+                guest_phone: '+998901111111',
+                is_guest: true,
+                appointment_date: today,
+                start_time: '08:00',
+                end_time: '08:30',
+                status: 'scheduled',
+                notes: 'Consultation',
+            },
+        ]);
+        vi.mocked(createPatientCardFromGuestAppointment).mockResolvedValue({
+            appointment: {
+                id: 'appointment-guest',
+                patient_id: 'patient-created',
+                patient_name: 'Jamol Hasanov',
+                guest_name: null,
+                guest_phone: null,
+                is_guest: false,
+                appointment_date: today,
+                start_time: '08:00',
+                end_time: '08:30',
+                status: 'scheduled',
+                notes: 'Consultation',
+            },
+            patient: {
+                id: 'patient-created',
+                patient_id: 'PT-1234AA',
+                full_name: 'Jamol Hasanov',
+                phone: '+998902222222',
+            },
+        });
+
+        renderPage('/appointments?view=day');
+
+        await screen.findByTestId('appointment-card-appointment-guest');
+        await fireEvent.click(screen.getByRole('button', { name: /Create patient card/i }));
+
+        expect(await screen.findByTestId('create-patient-card-dialog')).toHaveTextContent('Jamal Hasanov');
+        expect(screen.getByTestId('create-patient-card-dialog')).toHaveTextContent('+998901111111');
+
+        await fireEvent.click(screen.getByRole('button', { name: /Submit corrected patient/i }));
+
+        await waitFor(() => {
+            expect(createPatientCardFromGuestAppointment).toHaveBeenCalledWith('appointment-guest', {
+                full_name: 'Jamol Hasanov',
+                phone: '+998902222222',
+            });
+        });
     });
 });

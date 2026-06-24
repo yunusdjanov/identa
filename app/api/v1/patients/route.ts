@@ -118,5 +118,7 @@ export async function POST(request: Request) {
         last_visit_at: null,
         ...body,
     };
+    (PATIENTS as Array<Record<string, unknown>>).push(patient);
+
     return NextResponse.json({ data: patient }, { status: 201 });
 }

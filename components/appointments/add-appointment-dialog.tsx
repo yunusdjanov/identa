@@ -26,7 +26,11 @@ import { createAppointment, listAppointments, lookupPatients, updateAppointment 
 import {
     getAppointmentApiErrorMessage,
 } from '@/lib/appointments/messages';
-import { INPUT_LIMITS } from '@/lib/input-validation';
+import {
+    INPUT_LIMITS,
+    formatPhoneInputValue,
+    normalizePhoneForApi,
+} from '@/lib/input-validation';
 import { isValidTimeInput, toLocalDateKey, truncateForUi } from '@/lib/utils';
 import {
     createAppointmentStartSlots,
@@ -46,13 +50,17 @@ const PATIENT_LOOKUP_DEBOUNCE_MS = 250;
 const APPOINTMENT_LOOKUP_NAME_UI_LIMIT = 25;
 const APPOINTMENT_LOOKUP_PHONE_UI_LIMIT = 20;
 const APPOINTMENT_SELECTED_PATIENT_UI_LIMIT = 40;
+const GUEST_PHONE_RX = /^\+\d{9,15}$/;
 
 type PatientLookupOption = ApiPatientLookup;
 
 interface EditableAppointment {
     id: string;
-    patientId: string;
+    patientId: string | null;
     patientName: string;
+    guestName?: string | null;
+    guestPhone?: string | null;
+    isGuest?: boolean;
     appointmentDate: string;
     startTime: string;
     durationMinutes: number;
@@ -71,7 +79,7 @@ interface AddAppointmentDialogProps {
 }
 
 function createEditingPatientSnapshot(editingAppointment?: EditableAppointment): PatientLookupOption | null {
-    if (!editingAppointment) {
+    if (!editingAppointment?.patientId) {
         return null;
     }
 
@@ -96,6 +104,8 @@ function createInitialFormData(
     if (editingAppointment) {
         return {
             patientId: editingAppointment.patientId,
+            guestName: editingAppointment.guestName ?? '',
+            guestPhone: editingAppointment.guestPhone ?? '',
             appointmentDate: editingAppointment.appointmentDate,
             startTime: editingAppointment.startTime,
             durationMinutes: editingAppointment.durationMinutes,
@@ -111,6 +121,8 @@ function createInitialFormData(
 
     return {
         patientId: prefillPatientId ?? '',
+        guestName: '',
+        guestPhone: '',
         appointmentDate,
         startTime,
         durationMinutes: 30,
@@ -129,6 +141,28 @@ function isValidDateInput(value: string | undefined): value is string {
 
 function formatPatientLabel(patient: { full_name: string; patient_id?: string | null }): string {
     return patient.full_name;
+}
+
+function normalizeLookupText(value: string | null | undefined): string {
+    return String(value ?? '').toLowerCase().replace(/\s+/g, ' ').trim();
+}
+
+function patientMatchesLookupSearch(patient: PatientLookupOption, search: string): boolean {
+    const normalizedSearch = normalizeLookupText(search);
+    if (!normalizedSearch) {
+        return true;
+    }
+
+    const digitsSearch = normalizedSearch.replace(/\D/g, '');
+    const haystack = normalizeLookupText([
+        patient.full_name,
+        patient.phone,
+        patient.secondary_phone ?? '',
+        patient.patient_id ?? '',
+    ].join(' '));
+    const digitHaystack = haystack.replace(/\D/g, '');
+
+    return haystack.includes(normalizedSearch) || (digitsSearch !== '' && digitHaystack.includes(digitsSearch));
 }
 
 function hasAppointmentConflict(
@@ -264,6 +298,7 @@ export function AddAppointmentDialog({
     const [isPatientMenuOpen, setIsPatientMenuOpen] = useState(false);
     const [submitAttempted, setSubmitAttempted] = useState(false);
     const [selectedPatientSnapshot, setSelectedPatientSnapshot] = useState<PatientLookupOption | null>(createEditingPatientSnapshot(editingAppointment));
+    const [isGuestMode, setIsGuestMode] = useState(Boolean(editingAppointment?.isGuest));
     // Dirty detection: compare formData to the initial snapshot. Browser-
     // tab warning fires when the user has any unsaved change (selected a
     // patient, picked a date, etc.) so a tab close doesn't silently drop
@@ -305,13 +340,13 @@ export function AddAppointmentDialog({
     );
     const selectedPatientQuery = useQuery({
         queryKey: ['patients', 'lookup', 'selected', formData.patientId],
-        enabled: open && formData.patientId !== '' && !selectedPatientFromList,
+        enabled: open && Boolean(formData.patientId) && !selectedPatientFromList,
         queryFn: async () => {
             const response = await lookupPatients({
                 page: 1,
                 perPage: 1,
                 filter: {
-                    id: formData.patientId,
+                    id: formData.patientId ?? '',
                 },
             });
 
@@ -321,7 +356,10 @@ export function AddAppointmentDialog({
     const selectedPatient = selectedPatientFromList
         ?? selectedPatientQuery.data
         ?? (selectedPatientSnapshot?.id === formData.patientId ? selectedPatientSnapshot : undefined);
-    const patientOptions = patients;
+    const patientOptions = useMemo(
+        () => patients.filter((patient) => patientMatchesLookupSearch(patient, patientSearch)),
+        [patientSearch, patients]
+    );
     const dayAppointmentsQuery = useQuery({
         queryKey: ['appointments', 'availability', formData.appointmentDate],
         enabled: open && formData.appointmentDate !== '',
@@ -352,6 +390,12 @@ export function AddAppointmentDialog({
     const isEffectiveTimeAvailable = availableStartTimes.includes(effectiveStartTime);
     const reasonError = formData.reason.trim().length > INPUT_LIMITS.shortText
         ? t('appointments.dialog.reasonMax', { max: INPUT_LIMITS.shortText })
+        : null;
+    const guestNameError = isGuestMode && formData.guestName.trim().length < 3
+        ? t('appointments.dialog.guestNameRequired')
+        : null;
+    const guestPhoneError = isGuestMode && !GUEST_PHONE_RX.test(normalizePhoneForApi(formData.guestPhone))
+        ? t('appointments.dialog.guestPhoneInvalid')
         : null;
     const timeError = !isValidTimeInput(effectiveStartTime)
         ? t('appointments.dialog.timeInvalid')
@@ -392,10 +436,19 @@ export function AddAppointmentDialog({
                 throw new Error(t('appointments.toast.endOfDay'));
             }
             const reasonPayload = formData.reason.trim() || undefined;
+            const identityPayload = isGuestMode
+                ? {
+                    patient_id: null,
+                    guest_name: formData.guestName.trim(),
+                    guest_phone: normalizePhoneForApi(formData.guestPhone),
+                }
+                : {
+                    patient_id: formData.patientId || null,
+                };
 
             if (editingAppointment) {
                 return updateAppointment(editingAppointment.id, {
-                    patient_id: formData.patientId,
+                    ...identityPayload,
                     appointment_date: formData.appointmentDate,
                     start_time: effectiveStartTime,
                     end_time: endTime,
@@ -405,7 +458,7 @@ export function AddAppointmentDialog({
             }
 
             return createAppointment({
-                patient_id: formData.patientId,
+                ...identityPayload,
                 appointment_date: formData.appointmentDate,
                 start_time: effectiveStartTime,
                 end_time: endTime,
@@ -430,6 +483,7 @@ export function AddAppointmentDialog({
             setDebouncedPatientSearch(editingAppointment?.patientName ?? '');
             setSubmitAttempted(false);
             setSelectedPatientSnapshot(createEditingPatientSnapshot(editingAppointment));
+            setIsGuestMode(Boolean(editingAppointment?.isGuest));
             setIsPatientMenuOpen(false);
             onOpenChange(false);
             queryClient.invalidateQueries({ queryKey: ['appointments'] });
@@ -449,8 +503,28 @@ export function AddAppointmentDialog({
         event.preventDefault();
         setSubmitAttempted(true);
 
-        if (!formData.patientId) {
-            toast.error(t('appointments.dialog.toast.selectPatient'));
+        if (!isGuestMode && !formData.patientId) {
+            const guestName = patientSearch.trim();
+            if (guestName.length >= 3) {
+                setFormData((current) => ({
+                    ...current,
+                    patientId: '',
+                    guestName,
+                    guestPhone: current.guestPhone,
+                }));
+                setSelectedPatientSnapshot(null);
+                setIsGuestMode(true);
+                setIsPatientMenuOpen(false);
+                setSubmitAttempted(false);
+                return;
+            }
+
+            toast.error(t('appointments.dialog.toast.selectPatientOrVisitor'));
+            return;
+        }
+
+        if (guestNameError || guestPhoneError) {
+            toast.error(guestNameError ?? guestPhoneError);
             return;
         }
 
@@ -494,6 +568,7 @@ export function AddAppointmentDialog({
     const handlePatientInputChange = (value: string) => {
         setPatientSearch(value);
         setIsPatientMenuOpen(true);
+        setIsGuestMode(false);
         if (!selectedPatient || value !== formatPatientLabel(selectedPatient)) {
             setSelectedPatientSnapshot(null);
         }
@@ -511,6 +586,8 @@ export function AddAppointmentDialog({
             return {
                 ...current,
                 patientId: '',
+                guestName: '',
+                guestPhone: '',
             };
         });
     };
@@ -527,7 +604,40 @@ export function AddAppointmentDialog({
         }));
         setPatientSearch(formatPatientLabel(patient));
         setSelectedPatientSnapshot(patient);
+        setIsGuestMode(false);
         setIsPatientMenuOpen(false);
+    };
+
+    const handleGuestSelect = () => {
+        const guestName = patientSearch.trim();
+        if (guestName.length < 3) {
+            toast.error(t('appointments.dialog.guestNameRequired'));
+            return;
+        }
+
+        setFormData((current) => ({
+            ...current,
+            patientId: '',
+            guestName,
+            guestPhone: current.guestPhone,
+        }));
+        setSelectedPatientSnapshot(null);
+        setIsGuestMode(true);
+        setIsPatientMenuOpen(false);
+        setSubmitAttempted(false);
+    };
+
+    const handleGuestSearchReset = () => {
+        setIsGuestMode(false);
+        setPatientSearch('');
+        setSelectedPatientSnapshot(null);
+        setSubmitAttempted(false);
+        setFormData((current) => ({
+            ...current,
+            patientId: '',
+            guestName: '',
+            guestPhone: '',
+        }));
     };
 
     return (
@@ -544,72 +654,152 @@ export function AddAppointmentDialog({
 
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <div className="space-y-2">
-                        <Label htmlFor="patient">
-                            {t('appointments.dialog.patient')} <span className="text-red-500">*</span>
-                        </Label>
-                        <div ref={patientComboboxRef} className="relative">
-                            <Input
-                                id="patient"
-                                role="combobox"
-                                aria-expanded={isPatientMenuOpen}
-                                aria-controls="patient-options"
-                                aria-haspopup="listbox"
-                                aria-autocomplete="list"
-                                value={patientSearch || (selectedPatient ? formatPatientLabel(selectedPatient) : '')}
-                                onClick={() => setIsPatientMenuOpen(true)}
-                                onChange={(event) => handlePatientInputChange(event.target.value)}
-                                onKeyDown={(event) => {
-                                    if (event.key === 'Escape') {
-                                        setIsPatientMenuOpen(false);
-                                    }
-                                }}
-                                placeholder={t('appointments.dialog.patientSearchPlaceholder')}
-                                autoComplete="off"
-                                maxLength={INPUT_LIMITS.shortText}
-                            />
-                            {isPatientMenuOpen ? (
-                                <div
-                                    id="patient-options"
-                                    role="listbox"
-                                    className="absolute z-50 mt-1 max-h-56 w-full overflow-y-auto rounded-md border border-slate-200 bg-white shadow-md"
-                                >
-                                    {patientsQuery.isLoading || (patientsQuery.isFetching && patientOptions.length === 0) ? (
-                                        <p className="px-3 py-2 text-sm text-slate-500">{t('appointments.dialog.loadingPatients')}</p>
-                                    ) : patientsQuery.isError ? (
-                                        <p className="px-3 py-2 text-sm text-red-600">{t('appointments.dialog.patientsLoadFailed')}</p>
-                                    ) : patientOptions.length === 0 ? (
-                                        <p className="px-3 py-2 text-sm text-slate-500">{t('appointments.dialog.noPatientsFound')}</p>
-                                    ) : (
-                                        patientOptions.map((patient) => (
-                                            <button
-                                                key={patient.id}
-                                                type="button"
-                                                role="option"
-                                                aria-selected={patient.id === formData.patientId}
-                                                onClick={() => handlePatientSelect(patient.id)}
-                                                className="w-full px-3 py-2 text-left hover:bg-slate-50"
-                                            >
-                                                <p className="text-sm font-medium text-slate-900 truncate" title={patient.full_name}>
-                                                    {truncateForUi(patient.full_name, APPOINTMENT_LOOKUP_NAME_UI_LIMIT)}
-                                                </p>
-                                                <p className="text-xs text-slate-500 truncate" title={patient.phone}>
-                                                    {truncateForUi(patient.phone, APPOINTMENT_LOOKUP_PHONE_UI_LIMIT)}
-                                                </p>
-                                            </button>
-                                        ))
-                                    )}
+                        {!isGuestMode ? (
+                            <>
+                                <Label htmlFor="patient">
+                                    {t('appointments.dialog.patient')} <span className="text-red-500">*</span>
+                                </Label>
+                                <div ref={patientComboboxRef} className="relative">
+                                    <Input
+                                        id="patient"
+                                        role="combobox"
+                                        aria-expanded={isPatientMenuOpen}
+                                        aria-controls="patient-options"
+                                        aria-haspopup="listbox"
+                                        aria-autocomplete="list"
+                                        value={patientSearch || (selectedPatient ? formatPatientLabel(selectedPatient) : '')}
+                                        onClick={() => setIsPatientMenuOpen(true)}
+                                        onChange={(event) => handlePatientInputChange(event.target.value)}
+                                        onKeyDown={(event) => {
+                                            if (event.key === 'Escape') {
+                                                setIsPatientMenuOpen(false);
+                                            }
+                                        }}
+                                        placeholder={t('appointments.dialog.patientSearchPlaceholder')}
+                                        autoComplete="off"
+                                        maxLength={INPUT_LIMITS.shortText}
+                                    />
+                                    {isPatientMenuOpen ? (
+                                        <div
+                                            id="patient-options"
+                                            role="listbox"
+                                            className="absolute z-50 mt-1 max-h-56 w-full overflow-y-auto rounded-md border border-slate-200 bg-white shadow-md"
+                                        >
+                                            {patientsQuery.isLoading || (patientsQuery.isFetching && patientOptions.length === 0) ? (
+                                                <p className="px-3 py-2 text-sm text-slate-500">{t('appointments.dialog.loadingPatients')}</p>
+                                            ) : patientsQuery.isError ? (
+                                                <p className="px-3 py-2 text-sm text-red-600">{t('appointments.dialog.patientsLoadFailed')}</p>
+                                            ) : patientOptions.length === 0 ? (
+                                                <div className="space-y-2 px-3 py-2">
+                                                    <p className="text-sm text-slate-500">{t('appointments.dialog.noPatientsFound')}</p>
+                                                    {patientSearch.trim().length >= 3 ? (
+                                                        <button
+                                                            type="button"
+                                                            onClick={handleGuestSelect}
+                                                            className="w-full rounded-lg border border-dashed border-teal-200 bg-teal-50/60 px-3 py-2 text-left text-sm font-semibold text-teal-700 transition hover:bg-teal-50"
+                                                        >
+                                                            {t('appointments.dialog.addGuestVisitor', {
+                                                                name: truncateForUi(patientSearch.trim(), APPOINTMENT_LOOKUP_NAME_UI_LIMIT),
+                                                            })}
+                                                        </button>
+                                                    ) : null}
+                                                </div>
+                                            ) : (
+                                                patientOptions.map((patient) => (
+                                                    <button
+                                                        key={patient.id}
+                                                        type="button"
+                                                        role="option"
+                                                        aria-selected={patient.id === formData.patientId}
+                                                        onClick={() => handlePatientSelect(patient.id)}
+                                                        className="w-full px-3 py-2 text-left hover:bg-slate-50"
+                                                    >
+                                                        <p className="text-sm font-medium text-slate-900 truncate" title={patient.full_name}>
+                                                            {truncateForUi(patient.full_name, APPOINTMENT_LOOKUP_NAME_UI_LIMIT)}
+                                                        </p>
+                                                        <p className="text-xs text-slate-500 truncate" title={patient.phone}>
+                                                            {truncateForUi(patient.phone, APPOINTMENT_LOOKUP_PHONE_UI_LIMIT)}
+                                                        </p>
+                                                    </button>
+                                                ))
+                                            )}
+                                        </div>
+                                    ) : null}
                                 </div>
-                            ) : null}
-                        </div>
-                        {selectedPatient ? (
-                            <p
-                                className="text-xs text-slate-500 [overflow-wrap:anywhere] break-words"
-                                title={t('appointments.dialog.selectedPatient', { patient: formatPatientLabel(selectedPatient) })}
-                            >
-                                {t('appointments.dialog.selectedPatient', {
-                                    patient: truncateForUi(formatPatientLabel(selectedPatient), APPOINTMENT_SELECTED_PATIENT_UI_LIMIT),
-                                })}
-                            </p>
+                                {selectedPatient ? (
+                                    <p
+                                        className="text-xs text-slate-500 [overflow-wrap:anywhere] break-words"
+                                        title={t('appointments.dialog.selectedPatient', { patient: formatPatientLabel(selectedPatient) })}
+                                    >
+                                        {t('appointments.dialog.selectedPatient', {
+                                            patient: truncateForUi(formatPatientLabel(selectedPatient), APPOINTMENT_SELECTED_PATIENT_UI_LIMIT),
+                                        })}
+                                    </p>
+                                ) : null}
+                            </>
+                        ) : null}
+                        {isGuestMode ? (
+                            <div className="rounded-xl border border-teal-100 bg-teal-50/60 p-3">
+                                <div className="mb-3 flex items-center justify-between gap-2">
+                                    <div>
+                                        <p className="text-xs font-bold uppercase tracking-wide text-teal-700">
+                                            {t('appointments.dialog.guestVisitor')}
+                                        </p>
+                                        <p className="text-xs text-teal-700/80">{t('appointments.dialog.guestVisitorHint')}</p>
+                                    </div>
+                                    <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-8 px-2 text-xs text-slate-600"
+                                        onClick={handleGuestSearchReset}
+                                    >
+                                        {t('appointments.dialog.searchExisting')}
+                                    </Button>
+                                </div>
+                                <div className="grid gap-3 sm:grid-cols-2">
+                                    <div className="space-y-1.5">
+                                        <Label htmlFor="guest-name">
+                                            {t('appointments.dialog.guestName')} <span className="text-red-500">*</span>
+                                        </Label>
+                                        <Input
+                                            id="guest-name"
+                                            value={formData.guestName}
+                                            onChange={(event) => {
+                                                setFormData({ ...formData, guestName: event.target.value });
+                                                setPatientSearch(event.target.value);
+                                            }}
+                                            maxLength={INPUT_LIMITS.shortText}
+                                            aria-invalid={Boolean(submitAttempted && guestNameError)}
+                                        />
+                                        {submitAttempted && guestNameError ? (
+                                            <p className="text-xs text-red-600">{guestNameError}</p>
+                                        ) : null}
+                                    </div>
+                                    <div className="space-y-1.5">
+                                        <Label htmlFor="guest-phone">
+                                            {t('appointments.dialog.guestPhone')} <span className="text-red-500">*</span>
+                                        </Label>
+                                        <Input
+                                            id="guest-phone"
+                                            value={formData.guestPhone}
+                                            onChange={(event) =>
+                                                setFormData({
+                                                    ...formData,
+                                                    guestPhone: formatPhoneInputValue(event.target.value),
+                                                })
+                                            }
+                                            placeholder="+998901234567"
+                                            inputMode="tel"
+                                            maxLength={INPUT_LIMITS.phoneFormatted}
+                                            aria-invalid={Boolean(submitAttempted && guestPhoneError)}
+                                        />
+                                        {submitAttempted && guestPhoneError ? (
+                                            <p className="text-xs text-red-600">{guestPhoneError}</p>
+                                        ) : null}
+                                    </div>
+                                </div>
+                            </div>
                         ) : null}
                     </div>
 

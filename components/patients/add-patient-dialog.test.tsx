@@ -214,4 +214,68 @@ describe('AddPatientDialog', () => {
             });
         });
     });
+
+    it('prefills guest identity and submits corrected values through a custom patient creator', async () => {
+        const submitPatient = vi.fn().mockResolvedValue({
+            id: 'patient-created',
+            patient_id: 'PT-20260214-0100',
+            full_name: 'Jamol Hasanov',
+            phone: '+998902222222',
+            address: null,
+            date_of_birth: null,
+            gender: null,
+            medical_history: null,
+            allergies: null,
+            current_medications: null,
+        });
+        const queryClient = new QueryClient({
+            defaultOptions: {
+                queries: { retry: false },
+                mutations: { retry: false },
+            },
+        });
+        const user = userEvent.setup();
+
+        render(
+            <I18nProvider initialLocale="en" initialDictionary={DICTIONARIES.en}>
+                <QueryClientProvider client={queryClient}>
+                    <AddPatientDialog
+                        open={true}
+                        onOpenChange={vi.fn()}
+                        initialValues={{
+                            full_name: 'Jamal Hasanov',
+                            phone: '+998901111111',
+                        }}
+                        submitPatient={submitPatient}
+                    />
+                </QueryClientProvider>
+            </I18nProvider>
+        );
+
+        const fullNameInput = screen.getByLabelText(/Full Name/i);
+        const phoneInput = screen.getByLabelText(/^Phone Number\b/i);
+
+        expect(fullNameInput).toHaveValue('Jamal Hasanov');
+        expect(phoneInput).toHaveValue('+998 90 111 11 11');
+
+        await user.clear(fullNameInput);
+        await user.type(fullNameInput, 'Jamol Hasanov');
+        await user.clear(phoneInput);
+        await user.type(phoneInput, '+998902222222');
+        await user.click(screen.getByRole('button', { name: /Add Patient/i }));
+
+        await waitFor(() => {
+            expect(submitPatient).toHaveBeenCalledWith({
+                full_name: 'Jamol Hasanov',
+                phone: '+998902222222',
+                secondary_phone: undefined,
+                address: undefined,
+                date_of_birth: undefined,
+                medical_history: undefined,
+                allergies: undefined,
+                current_medications: undefined,
+            });
+            expect(createPatient).not.toHaveBeenCalled();
+        });
+    });
 });

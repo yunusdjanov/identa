@@ -416,7 +416,7 @@ export async function getPatientOverview(id: string): Promise<ApiPatientOverview
     return data.data;
 }
 
-export async function createPatient(payload: {
+export interface CreatePatientPayload {
     full_name: string;
     phone: string;
     secondary_phone?: string;
@@ -427,9 +427,30 @@ export async function createPatient(payload: {
     medical_history?: string;
     allergies?: string;
     current_medications?: string;
-}): Promise<ApiPatient> {
+}
+
+export interface GuestAppointmentPatientCardResult {
+    appointment: ApiAppointment;
+    patient: ApiPatient;
+}
+
+export async function createPatient(payload: CreatePatientPayload): Promise<ApiPatient> {
     const { data } = await withCsrfRetry(() =>
         apiClient.post<ApiEnvelope<ApiPatient>>('/patients', payload)
+    );
+
+    return data.data;
+}
+
+export async function createPatientCardFromGuestAppointment(
+    appointmentId: string,
+    payload: CreatePatientPayload
+): Promise<GuestAppointmentPatientCardResult> {
+    const { data } = await withCsrfRetry(() =>
+        apiClient.post<ApiEnvelope<GuestAppointmentPatientCardResult>>(
+            `/appointments/${appointmentId}/patient-card`,
+            payload
+        )
     );
 
     return data.data;
@@ -1389,7 +1410,9 @@ export async function lookupAppointments(options?: QueryOptions): Promise<ApiCol
 }
 
 export async function createAppointment(payload: {
-    patient_id: string;
+    patient_id?: string | null;
+    guest_name?: string;
+    guest_phone?: string;
     appointment_date: string;
     start_time: string;
     end_time: string;
@@ -1406,7 +1429,9 @@ export async function createAppointment(payload: {
 export async function updateAppointment(
     id: string,
     payload: {
-        patient_id: string;
+        patient_id?: string | null;
+        guest_name?: string;
+        guest_phone?: string;
         appointment_date: string;
         start_time: string;
         end_time: string;

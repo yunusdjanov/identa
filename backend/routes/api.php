@@ -23,7 +23,7 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
-const MEDIA_UPLOAD_THROTTLE = 'throttle:60,1';
+defined('MEDIA_UPLOAD_THROTTLE') || define('MEDIA_UPLOAD_THROTTLE', 'throttle:60,1');
 
 Route::prefix('v1')->group(function (): void {
     Route::get('/health', function () {
@@ -316,6 +316,11 @@ Route::prefix('v1')->group(function (): void {
             ->middleware('permission:'.User::PERMISSION_APPOINTMENTS_VIEW);
         Route::put('appointments/{id}', [AppointmentController::class, 'update'])
             ->middleware('permission:'.User::PERMISSION_APPOINTMENTS_MANAGE);
+        Route::post('appointments/{id}/patient-card', [AppointmentController::class, 'createPatientCard'])
+            ->middleware([
+                'permission:'.User::PERMISSION_APPOINTMENTS_MANAGE,
+                'permission:'.User::PERMISSION_PATIENTS_MANAGE,
+            ]);
         Route::delete('appointments/{id}', [AppointmentController::class, 'destroy'])
             ->middleware('permission:'.User::PERMISSION_APPOINTMENTS_MANAGE);
 
