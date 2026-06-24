@@ -25,6 +25,14 @@ vi.mock('@/lib/api/dentist', () => ({
 
 vi.mock('sonner', () => ({ toast: { error: vi.fn(), success: vi.fn() } }));
 
+vi.mock('@/components/patients/treatment-history-card', () => ({
+    TreatmentHistoryCard: ({ patientId, patientName }: { patientId: string; patientName: string }) => (
+        <section data-testid="patient-detail-work-history" data-patient-id={patientId}>
+            Work History for {patientName}
+        </section>
+    ),
+}));
+
 const dentist = {
     id: '1',
     name: 'Demo Dentist',
@@ -195,6 +203,8 @@ describe('PatientDetailPage', () => {
         expect(screen.queryByText('Bottom')).not.toBeInTheDocument();
         expect(screen.queryByText('No photo')).not.toBeInTheDocument();
         expect(screen.queryByText('Appointments')).not.toBeInTheDocument();
+        expect(await screen.findByTestId('patient-detail-work-history')).toHaveAttribute('data-patient-id', 'p-1');
+        expect(screen.getByTestId('patient-detail-work-history')).toHaveTextContent('Work History for John Smith');
         expect(screen.getByText('0/6')).toBeInTheDocument();
         expect(screen.getAllByTestId('oral-photo-smile-slot')).toHaveLength(6);
         expect(screen.getAllByTitle('Upload')).toHaveLength(6);

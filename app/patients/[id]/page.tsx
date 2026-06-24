@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { ConfirmActionDialog } from '@/components/ui/confirm-action-dialog';
 import { PatientDetailLoadingState } from '@/components/layout/page-loading-skeletons';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
     archivePatient,
     deletePatientOralPhoto,
@@ -78,6 +79,14 @@ const EditPatientDialog = dynamic(
 const PatientPhotoPreviewDialog = dynamic(
     () => import('@/components/patients/patient-photo-preview-dialog').then((module) => module.PatientPhotoPreviewDialog),
     { ssr: false }
+);
+
+const TreatmentHistoryCard = dynamic(
+    () => import('@/components/patients/treatment-history-card').then((module) => module.TreatmentHistoryCard),
+    {
+        ssr: false,
+        loading: () => <Skeleton className="h-[28rem] w-full rounded-2xl" />,
+    }
 );
 
 const PATIENT_HEADER_NAME_UI_LIMIT = 25;
@@ -1082,6 +1091,8 @@ export default function PatientDetailPage({
                 </article>
 
             </div>
+
+            <TreatmentHistoryCard patientId={id} patientName={patient.full_name} />
 
             {isEditDialogOpen && canManagePatients ? (
                 <EditPatientDialog

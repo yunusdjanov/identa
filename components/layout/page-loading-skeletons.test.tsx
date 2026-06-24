@@ -51,6 +51,7 @@ describe('page loading skeletons', () => {
 
             expect(screen.getByTestId('patient-detail-oral-photo-skeleton')).toBeInTheDocument();
             expect(screen.getAllByTestId('patient-detail-oral-photo-slot-skeleton')).toHaveLength(6);
+            expect(screen.getByTestId('patient-detail-work-history-skeleton')).toBeInTheDocument();
         });
     });
 

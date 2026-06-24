@@ -500,6 +500,37 @@ export function PatientDetailLoadingState() {
                 </div>
             </div>
 
+            <div
+                data-testid="patient-detail-work-history-skeleton"
+                className="overflow-hidden rounded-2xl border border-slate-200/60 bg-white p-4 shadow-sm shadow-slate-100/80"
+            >
+                <div className="flex items-center justify-between gap-3">
+                    <Skeleton className="h-5 w-28 rounded-xl" />
+                    <Skeleton className="h-10 w-32 rounded-full" />
+                </div>
+                <div className="mt-8 rounded-2xl border border-slate-200 p-4">
+                    <div className="flex flex-wrap items-center gap-6">
+                        {Array.from({ length: 4 }).map((_, index) => (
+                            <Skeleton key={index} className="h-4 w-28 rounded-xl" />
+                        ))}
+                    </div>
+                </div>
+                <div className="mt-8 grid grid-cols-1 gap-3 md:grid-cols-3">
+                    {Array.from({ length: 3 }).map((_, index) => (
+                        <Skeleton key={index} className="h-24 rounded-2xl" />
+                    ))}
+                </div>
+                <div className="mt-8 overflow-hidden rounded-2xl border border-slate-200">
+                    {Array.from({ length: 3 }).map((_, index) => (
+                        <div key={index} className="grid grid-cols-4 gap-4 border-b border-slate-100 px-4 py-5 last:border-0">
+                            {Array.from({ length: 4 }).map((__, cellIndex) => (
+                                <Skeleton key={cellIndex} className="h-4 rounded-xl" />
+                            ))}
+                        </div>
+                    ))}
+                </div>
+            </div>
+
         </div>
     );
 }
