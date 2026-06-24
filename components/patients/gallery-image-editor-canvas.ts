@@ -28,6 +28,10 @@ function clamp(value: number, min: number, max: number): number {
     return Math.min(max, Math.max(min, value));
 }
 
+function isFinitePoint(point: Point | undefined): point is Point {
+    return point !== undefined && Number.isFinite(point.x) && Number.isFinite(point.y);
+}
+
 /** Builds a bounded crop rectangle from two canvas-space pointer positions. */
 export function normalizeRect(start: Point, end: Point, width: number, height: number): CropRect {
     const left = clamp(Math.min(start.x, end.x), 0, width);
@@ -133,25 +137,36 @@ function drawAnnotations(
     context.lineJoin = 'round';
 
     strokes.forEach((stroke) => {
-        if (stroke.points.length === 0) {
+        const points = stroke.points.filter(isFinitePoint);
+        const strokeSize = Number.isFinite(stroke.size) ? Math.max(1, stroke.size) : 1;
+        if (points.length === 0) {
             return;
         }
 
         context.beginPath();
         context.strokeStyle = stroke.color;
-        context.lineWidth = stroke.size;
-        context.moveTo(stroke.points[0].x, stroke.points[0].y);
-        stroke.points.slice(1).forEach((point) => context.lineTo(point.x, point.y));
+        context.lineWidth = strokeSize;
+        context.moveTo(points[0].x, points[0].y);
+        if (points.length === 1) {
+            context.lineTo(points[0].x + 0.1, points[0].y + 0.1);
+        } else {
+            points.slice(1).forEach((point) => context.lineTo(point.x, point.y));
+        }
         context.stroke();
     });
 
     textAnnotations.forEach((annotation) => {
-        context.font = `600 ${annotation.size}px Arial, sans-serif`;
+        if (!isFinitePoint(annotation)) {
+            return;
+        }
+
+        const annotationSize = Number.isFinite(annotation.size) ? Math.max(12, annotation.size) : 12;
+        context.font = `600 ${annotationSize}px Arial, sans-serif`;
         context.fillStyle = annotation.color;
         context.textBaseline = 'top';
         context.lineJoin = 'round';
         context.strokeStyle = annotation.color === '#ffffff' ? 'rgba(15, 23, 42, 0.7)' : 'rgba(255, 255, 255, 0.75)';
-        context.lineWidth = Math.max(3, annotation.size * 0.12);
+        context.lineWidth = Math.max(3, annotationSize * 0.12);
         context.strokeText(annotation.text, annotation.x, annotation.y);
         context.fillText(annotation.text, annotation.x, annotation.y);
     });
@@ -233,7 +248,7 @@ export function drawCropOverlay(
     const bottom = clamp(crop.y + crop.height, 0, canvasHeight);
 
     context.save();
-    context.fillStyle = 'rgba(15, 23, 42, 0.42)';
+    context.fillStyle = 'rgba(2, 6, 23, 0.5)';
     context.fillRect(0, 0, canvasWidth, top);
     context.fillRect(0, bottom, canvasWidth, Math.max(0, canvasHeight - bottom));
     context.fillRect(0, top, left, Math.max(0, bottom - top));
@@ -241,6 +256,24 @@ export function drawCropOverlay(
     context.strokeStyle = '#2dd4bf';
     context.lineWidth = Math.max(2, canvasWidth * 0.002);
     context.strokeRect(left, top, Math.max(0, right - left), Math.max(0, bottom - top));
+    const handleSize = Math.max(8, Math.min(canvasWidth, canvasHeight) * 0.018);
+    const halfHandle = handleSize / 2;
+    const handlePoints = [
+        [left, top],
+        [left + (right - left) / 2, top],
+        [right, top],
+        [right, top + (bottom - top) / 2],
+        [right, bottom],
+        [left + (right - left) / 2, bottom],
+        [left, bottom],
+        [left, top + (bottom - top) / 2],
+    ];
+    context.fillStyle = '#ccfbf1';
+    context.strokeStyle = '#0f766e';
+    handlePoints.forEach(([x, y]) => {
+        context.fillRect(x - halfHandle, y - halfHandle, handleSize, handleSize);
+        context.strokeRect(x - halfHandle, y - halfHandle, handleSize, handleSize);
+    });
     context.restore();
 }
 

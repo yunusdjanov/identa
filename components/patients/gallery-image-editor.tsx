@@ -35,6 +35,88 @@ interface InlineTextDraft {
     value: string;
 }
 
+type CropHandle = 'n' | 'e' | 's' | 'w' | 'ne' | 'nw' | 'se' | 'sw';
+
+type CropInteraction =
+    | { type: 'create'; startPoint: Point }
+    | { type: 'move'; startPoint: Point; originRect: CropRect }
+    | { type: 'resize'; handle: CropHandle; originRect: CropRect };
+
+const CROP_HANDLE_HIT_SIZE_PX = 14;
+
+function isFinitePoint(point: Point): boolean {
+    return Number.isFinite(point.x) && Number.isFinite(point.y);
+}
+
+function clamp(value: number, min: number, max: number): number {
+    return Math.min(max, Math.max(min, value));
+}
+
+function pointInRect(point: Point, rect: CropRect): boolean {
+    return point.x >= rect.x
+        && point.x <= rect.x + rect.width
+        && point.y >= rect.y
+        && point.y <= rect.y + rect.height;
+}
+
+function canvasUnitsForCssPixels(canvas: HTMLCanvasElement, cssPixels: number): number {
+    const bounds = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / Math.max(bounds.width, 1);
+    const scaleY = canvas.height / Math.max(bounds.height, 1);
+
+    return cssPixels * Math.max(scaleX, scaleY);
+}
+
+function cropHandleAtPoint(point: Point, rect: CropRect, hitRadius: number): CropHandle | null {
+    const left = rect.x;
+    const right = rect.x + rect.width;
+    const top = rect.y;
+    const bottom = rect.y + rect.height;
+    const nearLeft = Math.abs(point.x - left) <= hitRadius;
+    const nearRight = Math.abs(point.x - right) <= hitRadius;
+    const nearTop = Math.abs(point.y - top) <= hitRadius;
+    const nearBottom = Math.abs(point.y - bottom) <= hitRadius;
+    const withinX = point.x >= left - hitRadius && point.x <= right + hitRadius;
+    const withinY = point.y >= top - hitRadius && point.y <= bottom + hitRadius;
+
+    if (nearLeft && nearTop) return 'nw';
+    if (nearRight && nearTop) return 'ne';
+    if (nearLeft && nearBottom) return 'sw';
+    if (nearRight && nearBottom) return 'se';
+    if (nearTop && withinX) return 'n';
+    if (nearBottom && withinX) return 's';
+    if (nearLeft && withinY) return 'w';
+    if (nearRight && withinY) return 'e';
+
+    return null;
+}
+
+function moveCropRect(origin: CropRect, startPoint: Point, point: Point, canvasWidth: number, canvasHeight: number): CropRect {
+    const nextX = clamp(origin.x + point.x - startPoint.x, 0, Math.max(0, canvasWidth - origin.width));
+    const nextY = clamp(origin.y + point.y - startPoint.y, 0, Math.max(0, canvasHeight - origin.height));
+
+    return { ...origin, x: nextX, y: nextY };
+}
+
+function resizeCropRect(origin: CropRect, handle: CropHandle, point: Point, canvasWidth: number, canvasHeight: number): CropRect {
+    let left = origin.x;
+    let right = origin.x + origin.width;
+    let top = origin.y;
+    let bottom = origin.y + origin.height;
+
+    if (handle.includes('w')) left = clamp(point.x, 0, right - MIN_CROP_SIZE);
+    if (handle.includes('e')) right = clamp(point.x, left + MIN_CROP_SIZE, canvasWidth);
+    if (handle.includes('n')) top = clamp(point.y, 0, bottom - MIN_CROP_SIZE);
+    if (handle.includes('s')) bottom = clamp(point.y, top + MIN_CROP_SIZE, canvasHeight);
+
+    return {
+        x: left,
+        y: top,
+        width: Math.max(MIN_CROP_SIZE, right - left),
+        height: Math.max(MIN_CROP_SIZE, bottom - top),
+    };
+}
+
 /**
  * Canvas-based clinical-photo editor used inside the fullscreen gallery.
  * Save exports a replacement image for the original media record.
@@ -42,7 +124,7 @@ interface InlineTextDraft {
 export function GalleryImageEditor({ image, isSaving = false, onCancel, onSave }: GalleryImageEditorProps) {
     const { t } = useI18n();
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
-    const cropStartRef = useRef<Point | null>(null);
+    const cropInteractionRef = useRef<CropInteraction | null>(null);
     const activeStrokeRef = useRef<DrawStroke | null>(null);
     const textInputRef = useRef<HTMLInputElement | null>(null);
     const textDraftRef = useRef<InlineTextDraft | null>(null);
@@ -103,22 +185,36 @@ export function GalleryImageEditor({ image, isSaving = false, onCancel, onSave }
             return;
         }
 
-        renderEditedCanvas({
-            canvas,
-            source,
-            rotation,
-            brightness,
-            contrast,
-            cropRect,
-            draftCropRect,
-            strokes: allStrokes,
-            textAnnotations,
-        });
-    }, [allStrokes, brightness, contrast, cropRect, draftCropRect, rotation, source, textAnnotations]);
+        try {
+            renderEditedCanvas({
+                canvas,
+                source,
+                rotation,
+                brightness,
+                contrast,
+                cropRect,
+                draftCropRect,
+                strokes: allStrokes,
+                textAnnotations,
+            });
+        } catch {
+            setError(t('gallery.edit.failed'));
+        }
+    }, [allStrokes, brightness, contrast, cropRect, draftCropRect, rotation, source, textAnnotations, t]);
 
     const canvasPoint = (event: ReactPointerEvent<HTMLCanvasElement>): Point => {
         const canvas = event.currentTarget;
         const bounds = canvas.getBoundingClientRect();
+        const nativeEvent = event.nativeEvent;
+        const offsetX = nativeEvent.offsetX;
+        const offsetY = nativeEvent.offsetY;
+
+        if (Number.isFinite(offsetX) && Number.isFinite(offsetY)) {
+            return {
+                x: (offsetX / Math.max(bounds.width, 1)) * canvas.width,
+                y: (offsetY / Math.max(bounds.height, 1)) * canvas.height,
+            };
+        }
 
         return {
             x: ((event.clientX - bounds.left) / Math.max(bounds.width, 1)) * canvas.width,
@@ -198,11 +294,34 @@ export function GalleryImageEditor({ image, isSaving = false, onCancel, onSave }
         }
 
         const point = canvasPoint(event);
-        event.currentTarget.setPointerCapture(event.pointerId);
+        if (!isFinitePoint(point)) {
+            return;
+        }
 
         if (mode === 'crop') {
-            cropStartRef.current = point;
+            const currentDraft = draftCropRect && draftCropRect.width >= MIN_CROP_SIZE && draftCropRect.height >= MIN_CROP_SIZE
+                ? draftCropRect
+                : null;
+
+            if (currentDraft) {
+                const hitRadius = canvasUnitsForCssPixels(event.currentTarget, CROP_HANDLE_HIT_SIZE_PX);
+                const handle = cropHandleAtPoint(point, currentDraft, hitRadius);
+                if (handle) {
+                    cropInteractionRef.current = { type: 'resize', handle, originRect: currentDraft };
+                    event.currentTarget.setPointerCapture(event.pointerId);
+                    return;
+                }
+
+                if (pointInRect(point, currentDraft)) {
+                    cropInteractionRef.current = { type: 'move', startPoint: point, originRect: currentDraft };
+                    event.currentTarget.setPointerCapture(event.pointerId);
+                    return;
+                }
+            }
+
+            cropInteractionRef.current = { type: 'create', startPoint: point };
             setDraftCropRect({ x: point.x, y: point.y, width: 0, height: 0 });
+            event.currentTarget.setPointerCapture(event.pointerId);
             return;
         }
 
@@ -210,6 +329,7 @@ export function GalleryImageEditor({ image, isSaving = false, onCancel, onSave }
             const stroke = { points: [toBasePoint(point)], color: drawColor, size: drawSize };
             activeStrokeRef.current = stroke;
             setActiveStroke(stroke);
+            event.currentTarget.setPointerCapture(event.pointerId);
             return;
         }
 
@@ -225,9 +345,19 @@ export function GalleryImageEditor({ image, isSaving = false, onCancel, onSave }
 
         const point = canvasPoint(event);
         const canvas = event.currentTarget;
+        if (!isFinitePoint(point)) {
+            return;
+        }
 
-        if (mode === 'crop' && cropStartRef.current) {
-            setDraftCropRect(normalizeRect(cropStartRef.current, point, canvas.width, canvas.height));
+        if (mode === 'crop' && cropInteractionRef.current) {
+            const interaction = cropInteractionRef.current;
+            if (interaction.type === 'create') {
+                setDraftCropRect(normalizeRect(interaction.startPoint, point, canvas.width, canvas.height));
+            } else if (interaction.type === 'move') {
+                setDraftCropRect(moveCropRect(interaction.originRect, interaction.startPoint, point, canvas.width, canvas.height));
+            } else {
+                setDraftCropRect(resizeCropRect(interaction.originRect, interaction.handle, point, canvas.width, canvas.height));
+            }
             return;
         }
 
@@ -243,13 +373,14 @@ export function GalleryImageEditor({ image, isSaving = false, onCancel, onSave }
 
     const handlePointerUp = (event: ReactPointerEvent<HTMLCanvasElement>) => {
         if (mode === 'draw' && activeStrokeRef.current) {
-            setStrokes((current) => [...current, activeStrokeRef.current as DrawStroke]);
+            const completedStroke = activeStrokeRef.current;
+            setStrokes((current) => [...current, completedStroke]);
             activeStrokeRef.current = null;
             setActiveStroke(null);
         }
 
         if (mode === 'crop') {
-            cropStartRef.current = null;
+            cropInteractionRef.current = null;
         }
 
         if (event.currentTarget.hasPointerCapture(event.pointerId)) {
