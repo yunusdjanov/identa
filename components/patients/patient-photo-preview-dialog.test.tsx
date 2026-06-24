@@ -5,6 +5,24 @@ import { PatientPhotoPreviewDialog } from '@/components/patients/patient-photo-p
 import { I18nProvider } from '@/components/providers/i18n-provider';
 import { DICTIONARIES } from '@/lib/i18n/dictionaries';
 
+vi.mock('@/components/patients/gallery-image-editor', () => ({
+    GalleryImageEditor: () => (
+        <div data-testid="mock-gallery-image-editor">
+            <p>Brightness: 100%</p>
+            <p>Contrast: 100%</p>
+            <button type="button">Adjust</button>
+            <button type="button">Crop</button>
+            <button type="button">Draw</button>
+            <button type="button">Text</button>
+            <button type="button">Left</button>
+            <button type="button">Right</button>
+            <button type="button">Reset</button>
+            <button type="button">Cancel</button>
+            <button type="button">Save</button>
+        </div>
+    ),
+}));
+
 function buildImages(count: number) {
     return Array.from({ length: count }).map((_, index) => ({
         src: `https://example.com/image-${index + 1}.jpg`,
