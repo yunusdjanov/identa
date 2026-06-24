@@ -249,6 +249,8 @@ describe('PatientsPage', () => {
         });
 
         await user.click(screen.getByRole('combobox', { name: /(Filter patients by visit gap|Фильтр пациентов по периоду без визита)/i }));
+        const selectContent = document.querySelector('[data-slot="select-content"]') as HTMLElement | null;
+        expect(selectContent).toHaveClass('w-[var(--radix-select-trigger-width)]');
         await user.click(screen.getByRole('option', { name: /(No Visit 1Y|Без визита 1Г)/i }));
 
         await waitFor(() => {

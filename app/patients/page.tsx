@@ -601,7 +601,11 @@ export default function PatientsPage() {
                                 >
                                     <SelectValue placeholder={t('patients.allCategories')} />
                                 </SelectTrigger>
-                                <SelectContent>
+                                <SelectContent
+                                    position="popper"
+                                    align="start"
+                                    className="w-[var(--radix-select-trigger-width)]"
+                                >
                                     <SelectItem value="all">{t('patients.allCategories')}</SelectItem>
                                     {(categoriesQuery.data ?? []).map((category) => (
                                         <SelectItem key={category.id} value={category.id}>
@@ -624,7 +628,11 @@ export default function PatientsPage() {
                                 >
                                     <SelectValue placeholder={t('patients.visitFilterLabel')} />
                                 </SelectTrigger>
-                                <SelectContent>
+                                <SelectContent
+                                    position="popper"
+                                    align="start"
+                                    className="w-[var(--radix-select-trigger-width)]"
+                                >
                                     <SelectItem value="none">{t('patients.visitFilterAll')}</SelectItem>
                                     <SelectItem value="6m">{t('patients.noVisit6m')}</SelectItem>
                                     <SelectItem value="1y">{t('patients.noVisit1y')}</SelectItem>
