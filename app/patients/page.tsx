@@ -38,7 +38,7 @@ import {
 import { getApiErrorMessage } from '@/lib/api/client';
 import type { ApiPatient, ApiRecentPatient, ApiRecordActor } from '@/lib/api/types';
 import { cn, extractPrimaryPhone, formatDate, toLocalDateKey, truncateForUi } from '@/lib/utils';
-import { Plus, Search, Phone, Users, CalendarPlus, ArrowRight, Tags, FileText, FilterX, Download, Maximize2, X } from 'lucide-react';
+import { Plus, Search, Phone, Users, CalendarPlus, ArrowRight, Tags, FilterX, Download, Maximize2, X } from 'lucide-react';
 import { buildPdfFilename, exportRowsToPdf } from '@/lib/export/pdf';
 import { EmptyState } from '@/components/ui/empty-state';
 import { useI18n } from '@/components/providers/i18n-provider';
@@ -844,8 +844,8 @@ export default function PatientsPage() {
                                                 <div className="flex justify-end gap-2">
                                                     {/* AF5 row-action gating: hide for view-only assistants,
                                                         keep disabled+toast for subscription read-only so the
-                                                        dentist owner sees what's paused. View Details and
-                                                        History below are read-only actions — always shown. */}
+                                                        dentist owner sees what's paused. View Details below is
+                                                        a read-only action — always shown. */}
                                                     {showArchivedOnly ? (
                                                         canManagePatients ? (
                                                             <Button
@@ -906,18 +906,6 @@ export default function PatientsPage() {
                                                             </Button>
                                                         ) : null
                                                     ) : null}
-                                                    <Button
-                                                        variant="outline"
-                                                        size="sm"
-                                                        className="h-8 rounded-lg"
-                                                        onClick={(event) => {
-                                                            event.stopPropagation();
-                                                            router.push(`/patients/${patient.id}/history?from=patients`);
-                                                        }}
-                                                    >
-                                                        <FileText className="w-3 h-3 mr-1" />
-                                                        {t('payments.tabs.history')}
-                                                    </Button>
                                                     <Button
                                                         variant="outline"
                                                         size="sm"

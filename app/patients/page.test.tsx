@@ -311,6 +311,8 @@ describe('PatientsPage', () => {
             expect(screen.getByText('Healthy Active')).toBeInTheDocument();
         });
 
+        expect(screen.queryByRole('button', { name: /^History$/i })).not.toBeInTheDocument();
+
         const viewDetailsButtons = screen.getAllByRole('button', { name: /(Open|Открыть|Ko‘rish|Ko'rish)/i });
         await user.click(viewDetailsButtons[0]);
 
