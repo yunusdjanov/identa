@@ -24,11 +24,12 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Textarea } from '@/components/ui/textarea';
 import { getBalanceMetricTone, MetricSummaryCard } from '@/components/ui/metric-summary-card';
 import type { PreviewGalleryImage } from '@/components/patients/patient-photo-preview-dialog';
 import { optimizeImageFilesForUpload } from '@/lib/browser-image';
 import { getProtectedMediaCrossOrigin, getProtectedMediaPreviewUrl, getProtectedMediaThumbnailUrl, isProtectedMediaApproved } from '@/lib/protected-media';
-import { formatToothList, formatToothNumber } from '@/lib/tooth-numbering';
+import { formatToothList } from '@/lib/tooth-numbering';
 import { formatCurrency, formatDate, toLocalDateKey } from '@/lib/utils';
 import { toast } from 'sonner';
 import { CalendarDays, Download, Loader2, Lock, Pencil, Plus, RotateCcw, Trash2, X } from 'lucide-react';
@@ -64,15 +65,7 @@ const ALLOWED_HISTORY_IMAGE_TYPES = new Set([
 const HISTORY_IMAGE_UPLOAD_CONCURRENCY = 10;
 const MEDIA_READINESS_POLL_INTERVAL_MS = 1200;
 const MEDIA_READINESS_TIMEOUT_MS = 8000;
-// Single 8-column grid template. The financial columns (debt / paid /
-// remaining) stay in the layout regardless of permission — viewers
-// without payments.view see locked-state placeholders (Lock icon +
-// dash) in those cells, never an absence. Keeping the columns visible
-// communicates "this metric exists, you don't have access" instead of
-// silently dropping the column and leaving users wondering whether the
-// data is missing or hidden.
-const HISTORY_TABLE_GRID_CLASS = 'hidden lg:grid lg:min-w-[980px] lg:grid-cols-[120px_96px_minmax(220px,1.4fr)_116px_116px_120px_160px_84px] lg:gap-3';
-const HISTORY_HEADER_GRID_CLASS = HISTORY_TABLE_GRID_CLASS;
+const HISTORY_TIMELINE_IMAGE_LIMIT = 6;
 
 const PatientPhotoPreviewDialog = dynamic(
     () => import('@/components/patients/patient-photo-preview-dialog').then((module) => module.PatientPhotoPreviewDialog),
@@ -89,20 +82,6 @@ function getBalanceStatusKey(balance: number) {
     }
 
     return 'patientHistory.balanceStatus.debt';
-}
-
-function getBalanceTextClass(balance: number) {
-    const tone = getBalanceMetricTone(balance);
-
-    if (tone === 'blue') {
-        return 'text-blue-700';
-    }
-
-    if (tone === 'slate') {
-        return 'text-slate-700';
-    }
-
-    return 'text-yellow-800';
 }
 
 function getBalanceExportTone(balance: number): 'yellow' | 'blue' | 'neutral' {
@@ -247,10 +226,6 @@ function createTreatmentFormState(treatment?: ApiTreatment | null): TreatmentFor
     };
 }
 
-function getTreatmentPrimaryImage(treatment: ApiTreatment) {
-    return getKnownTreatmentImages(treatment)[0] ?? null;
-}
-
 async function uploadTreatmentImagesInBatches(
     imageFiles: File[],
     uploadFiles: (files: File[]) => Promise<number>
@@ -337,6 +312,193 @@ function HistoryImageTile({
                 {markedForRemoval ? <RotateCcw className="h-3 w-3" /> : <X className="h-3 w-3" />}
             </button>
         </div>
+    );
+}
+
+function HistoryFinanceChip({
+    label,
+    value,
+    tone,
+    locked,
+    valueClassName,
+}: {
+    label: string;
+    value: string;
+    tone: 'red' | 'green' | 'balance';
+    locked: boolean;
+    valueClassName?: string;
+}) {
+    const toneClass = tone === 'red'
+        ? 'text-red-700'
+        : tone === 'green'
+            ? 'text-green-700'
+            : 'text-slate-800';
+
+    return (
+        <div className="min-w-0 rounded-lg border border-slate-200 bg-slate-50/80 px-2.5 py-1.5">
+            <p className="truncate text-[9px] font-semibold uppercase tracking-wider text-slate-400">{label}</p>
+            {locked ? (
+                <span className="mt-0.5 inline-flex max-w-full items-center gap-1 text-xs font-semibold text-slate-300">
+                    <Lock className="h-3 w-3 shrink-0" aria-hidden="true" />
+                    <span className="truncate">{value}</span>
+                </span>
+            ) : (
+                <p className={`mt-0.5 truncate text-xs font-bold tabular-nums ${valueClassName ?? toneClass}`}>{value}</p>
+            )}
+        </div>
+    );
+}
+
+function HistoryImageStrip({
+    treatment,
+    patientName,
+    imageLabel,
+    emptyLabel,
+    addImageLabel,
+    uploadingLabel,
+    processingLabel,
+    isDetailLoading,
+    isSyncing,
+    canAddImages,
+    onOpen,
+    onAddImage,
+}: {
+    treatment: ApiTreatment;
+    patientName: string;
+    imageLabel: string;
+    emptyLabel: string;
+    addImageLabel: string;
+    uploadingLabel: string;
+    processingLabel: string;
+    isDetailLoading: boolean;
+    isSyncing: boolean;
+    canAddImages: boolean;
+    onOpen: (startIndex: number) => void;
+    onAddImage: () => void;
+}) {
+    const imageCount = getTreatmentImageCount(treatment);
+    const knownImages = getKnownTreatmentImages(treatment);
+    const visibleImages = knownImages.slice(0, HISTORY_TIMELINE_IMAGE_LIMIT);
+
+    if (isSyncing) {
+        return <HistoryImageStatus label={uploadingLabel} />;
+    }
+
+    if (imageCount === 0) {
+        return (
+            <div className="flex min-w-0 items-center gap-2">
+                {canAddImages ? (
+                    <HistoryAddImageButton label={addImageLabel} onClick={onAddImage} />
+                ) : (
+                    <p className="text-xs font-medium text-slate-400">{emptyLabel}</p>
+                )}
+            </div>
+        );
+    }
+
+    if (visibleImages.length === 0) {
+        return <HistoryImageStatus label={processingLabel} />;
+    }
+
+    return (
+        <div className="flex min-w-0 gap-2 overflow-x-auto pb-1">
+            {visibleImages.map((image, index) => (
+                <HistoryTimelineImageButton
+                    key={image.id}
+                    image={image}
+                    index={index}
+                    hiddenCount={index === visibleImages.length - 1 ? Math.max(imageCount - visibleImages.length, 0) : 0}
+                    patientName={patientName}
+                    imageLabel={imageLabel}
+                    processingLabel={processingLabel}
+                    disabled={isDetailLoading}
+                    onOpen={onOpen}
+                />
+            ))}
+            {canAddImages ? <HistoryAddImageButton label={addImageLabel} onClick={onAddImage} /> : null}
+        </div>
+    );
+}
+
+function HistoryImageStatus({ label }: { label: string }) {
+    return (
+        <span
+            className="inline-flex h-28 w-48 shrink-0 items-center justify-center rounded-xl border border-teal-200 bg-teal-50 text-teal-700 lg:h-32 lg:w-56"
+            title={label}
+            aria-label={label}
+        >
+            <Loader2 className="h-4 w-4 animate-spin" />
+        </span>
+    );
+}
+
+function HistoryTimelineImageButton({
+    image,
+    index,
+    hiddenCount,
+    patientName,
+    imageLabel,
+    processingLabel,
+    disabled,
+    onOpen,
+}: {
+    image: ApiTreatmentImage;
+    index: number;
+    hiddenCount: number;
+    patientName: string;
+    imageLabel: string;
+    processingLabel: string;
+    disabled: boolean;
+    onOpen: (startIndex: number) => void;
+}) {
+    const thumbnailUrl = getTreatmentImageThumbnailUrl(image);
+    const isReady = isProtectedMediaApproved(image.scan_status) && Boolean(thumbnailUrl);
+
+    if (!isReady || !thumbnailUrl) {
+        return <HistoryImageStatus label={processingLabel} />;
+    }
+
+    return (
+        <button
+            type="button"
+            className="group relative h-28 w-48 shrink-0 overflow-hidden rounded-xl border border-slate-200 bg-slate-100 shadow-sm transition-all hover:border-teal-300 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-1 disabled:cursor-wait disabled:opacity-70 lg:h-32 lg:w-56"
+            disabled={disabled}
+            onClick={() => onOpen(index)}
+            aria-label={`${imageLabel} ${index + 1}`}
+            title={`${imageLabel} ${index + 1}`}
+        >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+                src={thumbnailUrl}
+                alt={`${patientName} ${imageLabel} ${index + 1}`}
+                crossOrigin={getProtectedMediaCrossOrigin(thumbnailUrl)}
+                className="h-full w-full object-cover transition-transform group-hover:scale-[1.03]"
+                loading="lazy"
+            />
+            <span className="absolute right-1.5 top-1.5 inline-flex h-5 min-w-5 items-center justify-center rounded-md bg-slate-900/75 px-1.5 text-[10px] font-bold text-white">
+                {hiddenCount > 0 ? `+${hiddenCount}` : index + 1}
+            </span>
+        </button>
+    );
+}
+
+function HistoryAddImageButton({
+    label,
+    onClick,
+}: {
+    label: string;
+    onClick: () => void;
+}) {
+    return (
+        <button
+            type="button"
+            className="group inline-flex h-28 w-48 shrink-0 items-center justify-center rounded-xl border border-dashed border-teal-200 bg-teal-50/60 text-teal-700 transition-all hover:border-teal-300 hover:bg-teal-50 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-1 lg:h-32 lg:w-56"
+            onClick={onClick}
+            aria-label={label}
+            title={label}
+        >
+            <Plus className="h-5 w-5 transition-transform group-hover:scale-110" />
+        </button>
     );
 }
 
@@ -684,16 +846,11 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
     }, [selectedImagePreviews]);
 
     const canManageHistory = canManage(currentUserQuery.data, 'patients');
-    // Read-only financial display (summary cards + jadval debt/paid/
-    // remaining columns + the mobile-card 3-up trio) is gated by
-    // payments.view. A view-only-patients assistant (Madina-style)
-    // sees the financial slots rendered as locked-state placeholders
-    // (Lock icon + "No access") so the page shape stays consistent and
-    // the missing data is explicit, not silently absent. The edit
-    // dialog itself stays gated by canManageHistory (patients.manage)
-    // because creating a treatment inherently involves setting its
-    // price — so the form fields remain available to anyone authorised
-    // to record the treatment.
+    // Read-only financial display is gated by payments.view. A
+    // view-only-patients assistant sees locked placeholders in the summary
+    // and compact finance chips, so hidden money fields are explicit.
+    // The edit dialog stays gated by canManageHistory (patients.manage)
+    // because creating a treatment inherently involves setting its price.
     const canViewFinancials = canView(currentUserQuery.data, 'payments');
     const manageDeniedMessage = getManageDeniedMessage(currentUserQuery.data, t);
     // AF5: subscription-read-only is the one branch where we keep a
@@ -1107,40 +1264,38 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                     </div>
 
                     {isLoading ? (
-                        <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white pb-1">
-                            <div className={`${HISTORY_HEADER_GRID_CLASS} border-b border-slate-200 bg-slate-50 px-4 py-3 text-xs font-medium uppercase tracking-wide text-slate-500`}>
-                                <span>{t('patientHistory.table.date')}</span>
-                                <span>{t('patientHistory.teethLabel')}</span>
-                                <span>{t('patientHistory.table.workDone')}</span>
-                                <span>{t('patientHistory.table.debt')}</span>
-                                <span>{t('patientHistory.table.paid')}</span>
-                                <span>{t('patientHistory.table.remaining')}</span>
-                                <span>{t('patientHistory.images')}</span>
-                                <span className="text-right" />
-                            </div>
-                            <div className="divide-y divide-slate-100">
-                                {Array.from({ length: 3 }).map((_, index) => (
-                                    <div key={index} className={`${HISTORY_TABLE_GRID_CLASS} items-start px-4 py-4`}>
-                                        <Skeleton className="h-4 w-24" />
-                                        <Skeleton className="h-6 w-24 rounded-full" />
-                                        <div className="space-y-2">
-                                            <Skeleton className="h-4 w-40" />
-                                            <Skeleton className="h-3 w-full" />
+                        <div className="relative space-y-3">
+                            <div className="absolute bottom-3 left-[106px] top-3 hidden w-px bg-slate-200 md:block" aria-hidden="true" />
+                            {Array.from({ length: 3 }).map((_, index) => (
+                                <div key={index} className="relative grid gap-2 md:grid-cols-[118px_minmax(0,1fr)]">
+                                    <div className="hidden grid-cols-[1fr_24px] items-start gap-2 pt-5 md:grid">
+                                        <Skeleton className="mt-0.5 h-4 w-20 justify-self-end" />
+                                        <span className="relative z-10 h-3.5 w-3.5 justify-self-center rounded-full border-2 border-white bg-slate-200 shadow-sm" />
+                                    </div>
+                                    <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
+                                        <div className="mb-3 flex items-start justify-between gap-3">
+                                            <div className="min-w-0 flex-1 space-y-2">
+                                                <div className="flex flex-wrap items-center gap-2">
+                                                    <Skeleton className="h-6 w-28 rounded-full md:hidden" />
+                                                    <Skeleton className="h-6 w-20 rounded-full" />
+                                                </div>
+                                                <Skeleton className="h-5 w-52" />
+                                            </div>
+                                            <Skeleton className="h-8 w-16 rounded-lg" />
                                         </div>
-                                        <Skeleton className="h-4 w-20" />
-                                        <Skeleton className="h-4 w-20" />
-                                        <Skeleton className="h-4 w-24" />
-                                        <div className="flex gap-2">
-                                            <Skeleton className="h-7 w-16 rounded-full" />
-                                            <Skeleton className="h-7 w-16 rounded-full" />
+                                        <div className="mb-3 flex gap-2 overflow-hidden">
+                                            {Array.from({ length: 4 }).map((__, imageIndex) => (
+                                                <Skeleton key={imageIndex} className="h-24 w-40 shrink-0 rounded-xl lg:h-28 lg:w-48" />
+                                            ))}
                                         </div>
-                                        <div className="flex justify-end gap-2">
-                                            <Skeleton className="h-8 w-8 rounded-lg" />
-                                            <Skeleton className="h-8 w-8 rounded-lg" />
+                                        <Skeleton className="mb-3 h-4 w-full max-w-lg" />
+                                        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                                            <Skeleton className="h-11 rounded-lg" />
+                                            <Skeleton className="h-11 rounded-lg" />
                                         </div>
                                     </div>
-                                ))}
-                            </div>
+                                </div>
+                            ))}
                         </div>
                     ) : isError ? (
                         <div className="space-y-4 rounded-xl border border-red-100 bg-red-50 px-4 py-4">
@@ -1166,49 +1321,45 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                             />
                         </div>
                     ) : (
-                        <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white pb-1">
-                            <div className={`${HISTORY_HEADER_GRID_CLASS} border-b border-slate-200 bg-slate-50 px-4 py-3 text-xs font-medium uppercase tracking-wide text-slate-500`}>
-                                <span>{t('patientHistory.table.date')}</span>
-                                <span>{t('patientHistory.teethLabel')}</span>
-                                <span>{t('patientHistory.table.workDone')}</span>
-                                <span>{t('patientHistory.table.debt')}</span>
-                                <span>{t('patientHistory.table.paid')}</span>
-                                <span>{t('patientHistory.table.remaining')}</span>
-                                <span>{t('patientHistory.images')}</span>
-                                <span className="text-right" />
-                            </div>
-                            <div className="divide-y divide-slate-100">
-                                {treatments.map((treatment) => {
-                                    const teeth = treatment.teeth ?? [];
-                                    const firstTooth = teeth[0];
-                                    const hiddenToothCount = Math.max(teeth.length - 1, 0);
-                                    const debtAmount = Number(treatment.debt_amount);
-                                    const paidAmount = Number(treatment.paid_amount);
-                                    const balanceAmount = Number(treatment.balance);
-                                    const balanceTextClass = getBalanceTextClass(balanceAmount);
-                                    const treatmentImageCount = getTreatmentImageCount(treatment);
-                                    const primaryImage = getTreatmentPrimaryImage(treatment);
-                                    const primaryImageThumbnailUrl = primaryImage ? getTreatmentImageThumbnailUrl(primaryImage) : null;
+                        <div className="relative space-y-3">
+                            <div className="absolute bottom-3 left-[106px] top-3 hidden w-px bg-slate-200 md:block" aria-hidden="true" />
+                            {treatments.map((treatment) => {
+                                const imageCount = getTreatmentImageCount(treatment);
+                                const debtAmount = Number(treatment.debt_amount);
+                                const paidAmount = Number(treatment.paid_amount);
+                                const description = treatment.comment ?? treatment.description ?? '';
+                                const isDetailLoading = detailLoadingTreatmentId === treatment.id;
+                                const isMediaSyncing = mediaSyncingTreatmentIds.includes(treatment.id);
+                                const canAddImages = historyManageDisplayMode === 'enabled'
+                                    && imageCount < maxHistoryImagesPerEntry;
+                                const isManageReadonly = historyManageDisplayMode === 'disabled-readonly';
+                                const isEditDisabled = isManageReadonly || isDetailLoading;
 
-                                    return (
-                                    <div key={treatment.id}>
-                                        {/* MOBILE COMPACT CARD */}
-                                        <div className="space-y-2.5 px-3 py-3 lg:hidden">
-                                            <div className="flex items-start justify-between gap-2">
-                                                <div className="flex min-w-0 flex-wrap items-center gap-1.5">
-                                                    <span className="text-xs font-semibold tabular-nums text-slate-500">{formatDate(treatment.treatment_date)}</span>
-                                                    {teeth.length === 0 ? null : (
-                                                        <div className="flex flex-wrap items-center gap-1" title={formatTeeth(teeth)}>
-                                                            <span className="inline-flex h-6 min-w-6 items-center justify-center rounded-full border border-slate-200 bg-white px-1.5 text-[11px] font-semibold text-slate-700">
-                                                                {formatToothNumber(firstTooth)}
-                                                            </span>
-                                                            {hiddenToothCount > 0 ? (
-                                                                <span className="inline-flex h-6 items-center justify-center rounded-full border border-teal-200 bg-teal-50 px-1.5 text-[11px] font-semibold text-teal-700">
-                                                                    +{hiddenToothCount}
-                                                                </span>
-                                                            ) : null}
-                                                        </div>
-                                                    )}
+                                return (
+                                    <article key={treatment.id} className="relative grid gap-2 md:grid-cols-[118px_minmax(0,1fr)]">
+                                        <div className="hidden grid-cols-[1fr_24px] items-start gap-2 pt-5 md:grid">
+                                            <span className="text-right text-xs font-semibold leading-4 tabular-nums text-slate-500">
+                                                {formatDate(treatment.treatment_date)}
+                                            </span>
+                                            <span className="relative z-10 mt-0.5 h-3.5 w-3.5 justify-self-center rounded-full border-2 border-white bg-teal-500 shadow-sm ring-4 ring-teal-50" />
+                                        </div>
+                                        <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm transition-shadow hover:shadow-md">
+                                            <div className="flex items-start justify-between gap-3">
+                                                <div className="min-w-0 flex-1">
+                                                    <div className="mb-1.5 flex flex-wrap items-center gap-2">
+                                                        <span className="inline-flex h-6 items-center rounded-full border border-slate-200 bg-slate-50 px-2 text-[11px] font-semibold tabular-nums text-slate-600 md:hidden">
+                                                            {formatDate(treatment.treatment_date)}
+                                                        </span>
+                                                        {showRecordAuthors ? (
+                                                            <RecordAuthorBadge
+                                                                createdBy={treatment.created_by}
+                                                                updatedBy={treatment.updated_by}
+                                                            />
+                                                        ) : null}
+                                                    </div>
+                                                    <h3 className="break-words text-sm font-semibold leading-snug text-slate-950 sm:text-base" title={treatment.treatment_type}>
+                                                        {treatment.treatment_type}
+                                                    </h3>
                                                 </div>
                                                 {historyManageDisplayMode === 'hidden' ? null : (
                                                     <div className="flex shrink-0 items-center gap-1.5">
@@ -1218,12 +1369,9 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                                             size="icon-sm"
                                                             className="h-8 w-8 border-slate-200 bg-white text-slate-700 shadow-sm hover:bg-slate-100"
                                                             aria-label={t('patientHistory.editEntry')}
-                                                            disabled={
-                                                                historyManageDisplayMode === 'disabled-readonly'
-                                                                || detailLoadingTreatmentId === treatment.id
-                                                            }
+                                                            disabled={isEditDisabled}
                                                             onClick={() => {
-                                                                if (historyManageDisplayMode === 'disabled-readonly') {
+                                                                if (isManageReadonly) {
                                                                     toast.error(manageDeniedMessage);
                                                                     return;
                                                                 }
@@ -1238,9 +1386,9 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                                             size="icon-sm"
                                                             className="h-8 w-8 border-red-200 bg-red-50 text-red-600 shadow-sm hover:bg-red-100 hover:text-red-700"
                                                             aria-label={t('patientHistory.deleteEntry')}
-                                                            disabled={historyManageDisplayMode === 'disabled-readonly'}
+                                                            disabled={isManageReadonly}
                                                             onClick={() => {
-                                                                if (historyManageDisplayMode === 'disabled-readonly') {
+                                                                if (isManageReadonly) {
                                                                     toast.error(manageDeniedMessage);
                                                                     return;
                                                                 }
@@ -1252,290 +1400,52 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                                     </div>
                                                 )}
                                             </div>
-                                            <p className="text-sm font-semibold leading-snug text-slate-900 break-words" title={treatment.treatment_type}>
-                                                {treatment.treatment_type}
-                                            </p>
-                                            {showRecordAuthors ? (
-                                                <RecordAuthorBadge
-                                                    createdBy={treatment.created_by}
-                                                    updatedBy={treatment.updated_by}
+                                            <div className="mt-3">
+                                                <HistoryImageStrip
+                                                    treatment={treatment}
+                                                    patientName={patientName}
+                                                    imageLabel={t('patientHistory.image')}
+                                                    emptyLabel={t('patientHistory.imagesEmpty')}
+                                                    addImageLabel={t('odontogram.image.upload')}
+                                                    uploadingLabel={t('patientHistory.imagesUploading')}
+                                                    processingLabel={t('patientHistory.imagesProcessing')}
+                                                    isDetailLoading={isDetailLoading}
+                                                    isSyncing={isMediaSyncing}
+                                                    canAddImages={canAddImages}
+                                                    onOpen={(startIndex) => {
+                                                        void openTreatmentImageGallery(treatment, startIndex);
+                                                    }}
+                                                    onAddImage={() => {
+                                                        void openEditDialog(treatment);
+                                                    }}
                                                 />
-                                            ) : null}
-                                            <div className="grid grid-cols-3 gap-2 border-t border-slate-100 pt-2">
-                                                <div>
-                                                    <p className="text-[9px] font-semibold uppercase tracking-wider text-slate-400">{t('patientHistory.table.debt')}</p>
-                                                    {canViewFinancials ? (
-                                                        <p className="mt-0.5 truncate text-xs font-bold tabular-nums text-red-700">{formatCurrency(debtAmount)}</p>
-                                                    ) : (
-                                                        <span className="mt-0.5 inline-flex items-center gap-1 text-xs font-bold text-slate-300">
-                                                            <Lock className="h-3 w-3 shrink-0" aria-hidden="true" />
-                                                            <span className="truncate">{t('dashboard.lockedKpi.label')}</span>
-                                                        </span>
-                                                    )}
-                                                </div>
-                                                <div>
-                                                    <p className="text-[9px] font-semibold uppercase tracking-wider text-slate-400">{t('patientHistory.table.paid')}</p>
-                                                    {canViewFinancials ? (
-                                                        <p className="mt-0.5 truncate text-xs font-bold tabular-nums text-green-700">{formatCurrency(paidAmount)}</p>
-                                                    ) : (
-                                                        <span className="mt-0.5 inline-flex items-center gap-1 text-xs font-bold text-slate-300">
-                                                            <Lock className="h-3 w-3 shrink-0" aria-hidden="true" />
-                                                            <span className="truncate">{t('dashboard.lockedKpi.label')}</span>
-                                                        </span>
-                                                    )}
-                                                </div>
-                                                <div>
-                                                    <p className="text-[9px] font-semibold uppercase tracking-wider text-slate-400">{t('patientHistory.table.remaining')}</p>
-                                                    {canViewFinancials ? (
-                                                        <p
-                                                            className={`mt-0.5 truncate text-xs font-bold tabular-nums ${balanceTextClass}`}
-                                                            title={t(getBalanceStatusKey(balanceAmount))}
-                                                        >
-                                                            {formatCurrency(Math.abs(balanceAmount))}
-                                                        </p>
-                                                    ) : (
-                                                        <span className="mt-0.5 inline-flex items-center gap-1 text-xs font-bold text-slate-300">
-                                                            <Lock className="h-3 w-3 shrink-0" aria-hidden="true" />
-                                                            <span className="truncate">{t('dashboard.lockedKpi.label')}</span>
-                                                        </span>
-                                                    )}
-                                                </div>
                                             </div>
-                                            {treatmentImageCount > 0 && primaryImageThumbnailUrl ? (
-                                                <button
-                                                    type="button"
-                                                    className="group inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs font-semibold text-slate-700 shadow-sm transition-all hover:border-teal-400 hover:bg-teal-50"
-                                                    onClick={() => { void openTreatmentImageGallery(treatment, 0); }}
-                                                    aria-label={`${t('patientHistory.images')} (${treatmentImageCount})`}
-                                                >
-                                                    <span className="inline-flex h-6 w-6 items-center justify-center overflow-hidden rounded-md border border-slate-200 bg-slate-100">
-                                                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                                                        <img
-                                                            src={primaryImageThumbnailUrl}
-                                                            alt={`${patientName} ${t('patientHistory.image')} 1`}
-                                                            crossOrigin={getProtectedMediaCrossOrigin(primaryImageThumbnailUrl)}
-                                                            className="h-full w-full object-cover"
-                                                            loading="lazy"
-                                                        />
-                                                    </span>
-                                                    <span className="inline-flex h-5 items-center rounded-md bg-teal-100 px-1.5 text-[11px] font-bold text-teal-700">+{treatmentImageCount}</span>
-                                                </button>
-                                            ) : null}
-                                        </div>
-
-                                        {/* DESKTOP GRID ROW */}
-                                        <div className={`${HISTORY_TABLE_GRID_CLASS} items-start px-4 py-4 transition-colors hover:bg-slate-50/50`}>
-                                        <div>
-                                            <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400 lg:sr-only">{t('patientHistory.table.date')}</p>
-                                            <p className="text-sm text-slate-700">{formatDate(treatment.treatment_date)}</p>
-                                        </div>
-                                        <div>
-                                            <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400 lg:sr-only">{t('patientHistory.teethLabel')}</p>
-                                            {(() => {
-                                                const teeth = treatment.teeth ?? [];
-                                                if (teeth.length === 0) {
-                                                    return (
-                                                        <span className="inline-flex h-7 items-center rounded-full border border-dashed border-slate-200 px-3 text-xs font-medium text-slate-400">
-                                                            -
-                                                        </span>
-                                                    );
-                                                }
-
-                                                const firstTooth = teeth[0];
-                                                const hiddenCount = Math.max(teeth.length - 1, 0);
-
-                                                return (
-                                                    <div className="flex flex-wrap items-center gap-1.5" title={formatTeeth(teeth)}>
-                                                        <span
-                                                            className="inline-flex h-7 min-w-7 items-center justify-center rounded-full border border-slate-200 bg-white px-2 text-xs font-semibold text-slate-700"
-                                                        >
-                                                            {formatToothNumber(firstTooth)}
-                                                        </span>
-                                                        {hiddenCount > 0 ? (
-                                                            <span className="inline-flex h-7 items-center justify-center rounded-full border border-teal-200 bg-teal-50 px-2.5 text-xs font-semibold text-teal-700">
-                                                                +{hiddenCount}
-                                                            </span>
-                                                        ) : null}
-                                                    </div>
-                                                );
-                                            })()}
-                                        </div>
-                                        <div className="min-w-0">
-                                            <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400 lg:sr-only">{t('patientHistory.table.workDone')}</p>
-                                            <p
-                                                className="max-w-[220px] truncate text-sm font-semibold text-slate-900 sm:max-w-[260px] lg:max-w-[300px] xl:max-w-[340px]"
-                                                title={treatment.treatment_type}
-                                            >
-                                                {treatment.treatment_type}
-                                            </p>
-                                            {showRecordAuthors ? (
-                                                <RecordAuthorBadge
-                                                    className="mt-1"
-                                                    createdBy={treatment.created_by}
-                                                    updatedBy={treatment.updated_by}
-                                                />
-                                            ) : null}
-                                        </div>
-                                        <div>
-                                            <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400 lg:sr-only">{t('patientHistory.table.debt')}</p>
-                                            {canViewFinancials ? (
-                                                <p className="whitespace-nowrap text-sm font-semibold text-red-700">{formatCurrency(Number(treatment.debt_amount))}</p>
-                                            ) : (
-                                                <span className="inline-flex items-center gap-1 text-sm font-semibold text-slate-300" aria-label={t('dashboard.lockedKpi.label')}>
-                                                    <Lock className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-                                                    <span className="truncate">{t('dashboard.lockedKpi.label')}</span>
-                                                </span>
-                                            )}
-                                        </div>
-                                        <div>
-                                            <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400 lg:sr-only">{t('patientHistory.table.paid')}</p>
-                                            {canViewFinancials ? (
-                                                <p className="whitespace-nowrap text-sm font-semibold text-green-700">{formatCurrency(Number(treatment.paid_amount))}</p>
-                                            ) : (
-                                                <span className="inline-flex items-center gap-1 text-sm font-semibold text-slate-300" aria-label={t('dashboard.lockedKpi.label')}>
-                                                    <Lock className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-                                                    <span className="truncate">{t('dashboard.lockedKpi.label')}</span>
-                                                </span>
-                                            )}
-                                        </div>
-                                        <div>
-                                            <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400 lg:sr-only">{t('patientHistory.table.remaining')}</p>
-                                            {canViewFinancials ? (
-                                                <p
-                                                    className={`whitespace-nowrap text-sm font-semibold ${balanceTextClass}`}
-                                                    title={t(getBalanceStatusKey(balanceAmount))}
-                                                >
-                                                    {formatCurrency(Math.abs(balanceAmount))}
+                                            {description ? (
+                                                <p className="mt-2 line-clamp-2 break-words text-xs leading-5 text-slate-500 sm:text-sm">
+                                                    {description}
                                                 </p>
-                                            ) : (
-                                                <span className="inline-flex items-center gap-1 text-sm font-semibold text-slate-300" aria-label={t('dashboard.lockedKpi.label')}>
-                                                    <Lock className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-                                                    <span className="truncate">{t('dashboard.lockedKpi.label')}</span>
-                                                </span>
-                                            )}
+                                            ) : null}
+                                            <div className="mt-3 grid grid-cols-1 gap-2 border-t border-slate-100 pt-3 sm:grid-cols-2">
+                                                <HistoryFinanceChip
+                                                    label={t('patientHistory.table.debt')}
+                                                    value={canViewFinancials ? formatCurrency(debtAmount) : t('dashboard.lockedKpi.label')}
+                                                    tone="red"
+                                                    locked={!canViewFinancials}
+                                                />
+                                                <HistoryFinanceChip
+                                                    label={t('patientHistory.table.paid')}
+                                                    value={canViewFinancials ? formatCurrency(paidAmount) : t('dashboard.lockedKpi.label')}
+                                                    tone="green"
+                                                    locked={!canViewFinancials}
+                                                />
+                                            </div>
                                         </div>
-                                        <div className="lg:flex lg:items-center">
-                                            <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400 lg:sr-only">{t('patientHistory.images')}</p>
-                                            {(() => {
-                                                const treatmentImageCount = getTreatmentImageCount(treatment);
-                                                const primaryImage = getTreatmentPrimaryImage(treatment);
-                                                const isDetailLoading = detailLoadingTreatmentId === treatment.id;
-                                                const isMediaSyncing = mediaSyncingTreatmentIds.includes(treatment.id);
-                                                const primaryImageThumbnailUrl = primaryImage ? getTreatmentImageThumbnailUrl(primaryImage) : null;
-                                                const hasApprovedPrimaryImage = primaryImage ? isProtectedMediaApproved(primaryImage.scan_status) : false;
-
-                                                if (isMediaSyncing) {
-                                                    return (
-                                                        <span
-                                                            className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-teal-200 bg-teal-50 text-teal-700"
-                                                            title={t('patientHistory.imagesUploading')}
-                                                        >
-                                                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                                        </span>
-                                                    );
-                                                }
-
-                                                if (treatmentImageCount > 0 && primaryImage && (!hasApprovedPrimaryImage || !primaryImageThumbnailUrl)) {
-                                                    return (
-                                                        <span
-                                                            className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-teal-200 bg-teal-50 text-teal-700"
-                                                            title={t('patientHistory.imagesProcessing')}
-                                                            aria-label={t('patientHistory.imagesProcessing')}
-                                                        >
-                                                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                                        </span>
-                                                    );
-                                                }
-
-                                                if (treatmentImageCount === 0 || !primaryImage) {
-                                                    return (
-                                                        <span className="inline-flex h-8 min-w-[74px] items-center justify-center rounded-md border border-dashed border-slate-300 px-2 text-xs font-medium text-slate-400">
-                                                            -
-                                                        </span>
-                                                    );
-                                                }
-
-                                                const primaryImageSrc = primaryImageThumbnailUrl ?? '';
-
-                                                return (
-                                                    <button
-                                                        type="button"
-                                                        disabled={isDetailLoading}
-                                                        className="group inline-flex h-8 min-w-[74px] items-center gap-2 rounded-md border border-slate-300 bg-white px-2 text-xs font-semibold text-slate-700 shadow-sm transition-all hover:border-teal-400 hover:bg-teal-50 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-1 active:translate-y-px active:shadow-sm"
-                                                        onClick={() => {
-                                                            void openTreatmentImageGallery(treatment, 0);
-                                                        }}
-                                                        title={`${t('patientHistory.images')}: ${treatmentImageCount}`}
-                                                        aria-label={`${t('patientHistory.images')} (${treatmentImageCount})`}
-                                                    >
-                                                        <span className="inline-flex h-5 w-5 items-center justify-center overflow-hidden rounded-md border border-slate-200 bg-slate-100">
-                                                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                                                            <img
-                                                                src={primaryImageSrc}
-                                                                alt={`${patientName} ${t('patientHistory.image')} 1`}
-                                                                crossOrigin={getProtectedMediaCrossOrigin(primaryImageSrc)}
-                                                                className="h-full w-full object-cover"
-                                                                loading="lazy"
-                                                            />
-                                                        </span>
-                                                        <span className="inline-flex h-5 min-w-6 items-center justify-center rounded-md bg-teal-100 px-1.5 text-[11px] font-semibold text-teal-700">
-                                                            +{treatmentImageCount}
-                                                        </span>
-                                                    </button>
-                                                );
-                                            })()}
-                                        </div>
-                                        <div className="flex items-center justify-end gap-2">
-                                            {historyManageDisplayMode === 'hidden' ? null : (
-                                                <>
-                                                    <Button
-                                                        type="button"
-                                                        variant="outline"
-                                                        size="icon-sm"
-                                                        className="border-slate-200 bg-white text-slate-700 shadow-sm hover:bg-slate-100"
-                                                        aria-label={t('patientHistory.editEntry')}
-                                                        disabled={
-                                                            historyManageDisplayMode === 'disabled-readonly'
-                                                            || detailLoadingTreatmentId === treatment.id
-                                                        }
-                                                        onClick={() => {
-                                                            if (historyManageDisplayMode === 'disabled-readonly') {
-                                                                toast.error(manageDeniedMessage);
-                                                                return;
-                                                            }
-                                                            void openEditDialog(treatment);
-                                                        }}
-                                                    >
-                                                        <Pencil className="h-4 w-4" />
-                                                    </Button>
-                                                    <Button
-                                                        type="button"
-                                                        variant="outline"
-                                                        size="icon-sm"
-                                                        className="border-red-200 bg-red-50 text-red-600 shadow-sm hover:bg-red-100 hover:text-red-700"
-                                                        aria-label={t('patientHistory.deleteEntry')}
-                                                        disabled={historyManageDisplayMode === 'disabled-readonly'}
-                                                        onClick={() => {
-                                                            if (historyManageDisplayMode === 'disabled-readonly') {
-                                                                toast.error(manageDeniedMessage);
-                                                                return;
-                                                            }
-
-                                                            setTreatmentToDelete(treatment);
-                                                        }}
-                                                    >
-                                                        <Trash2 className="h-4 w-4" />
-                                                    </Button>
-                                                </>
-                                            )}
-                                        </div>
-                                        </div>
-                                    </div>
-                                    );
-                                })}
-                            </div>
+                                    </article>
+                                );
+                            })}
                         </div>
-                    )}                </CardContent>
+                    )}
+                </CardContent>
             </Card>
 
             <Dialog open={isDialogOpen} onOpenChange={handleDialogOpenChange}>
@@ -1560,6 +1470,18 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                 <Input id="historyWorkDone" required value={formState.treatmentType} onChange={(event) => setFormState((current) => ({ ...current, treatmentType: event.target.value }))} placeholder={t('patientHistory.workDonePlaceholder')} />
                                 {treatmentTypeError ? <p className="text-xs text-red-600">{treatmentTypeError}</p> : null}
                             </div>
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="historyComment">{t('patientHistory.commentLabel')}</Label>
+                            <Textarea
+                                id="historyComment"
+                                rows={3}
+                                maxLength={5000}
+                                value={formState.comment}
+                                onChange={(event) => setFormState((current) => ({ ...current, comment: event.target.value }))}
+                                placeholder={t('patientHistory.commentPlaceholder')}
+                                className="min-h-24 resize-y"
+                            />
                         </div>
                         {/* Financial inputs are gated on payments.view —
                             see TreatmentService::payload backend gate.

@@ -140,6 +140,109 @@ describe('TreatmentHistoryCard image controls', () => {
         cleanup();
     });
 
+    it('renders entries as image-forward timeline cards', async () => {
+        vi.mocked(listAllPatientTreatments).mockResolvedValue([
+            {
+                id: 'treatment-timeline',
+                patient_id: 'patient-1',
+                patient_name: 'Sardor',
+                patient_phone: '+998 90 123 45 67',
+                patient_secondary_phone: null,
+                patient_code: 'PT-1001',
+                tooth_number: 9,
+                teeth: [9, 10],
+                treatment_type: 'Timeline treatment',
+                description: 'Clinical description shown under the title',
+                comment: null,
+                treatment_date: '2026-04-05',
+                cost: null,
+                debt_amount: 120000,
+                paid_amount: 60000,
+                balance: 60000,
+                notes: null,
+                images: [
+                    {
+                        id: 'image-1',
+                        mime_type: 'image/jpeg',
+                        file_size: 1024,
+                        created_at: '2026-04-05T10:00:00Z',
+                        url: 'https://example.com/tooth-1.jpg',
+                        thumbnail_url: 'https://example.com/tooth-1-thumb.jpg',
+                        preview_url: 'https://example.com/tooth-1-preview.jpg',
+                    },
+                    {
+                        id: 'image-2',
+                        mime_type: 'image/jpeg',
+                        file_size: 1024,
+                        created_at: '2026-04-05T10:01:00Z',
+                        url: 'https://example.com/tooth-2.jpg',
+                        thumbnail_url: 'https://example.com/tooth-2-thumb.jpg',
+                        preview_url: 'https://example.com/tooth-2-preview.jpg',
+                    },
+                ],
+                created_at: '2026-04-05T10:00:00Z',
+                updated_at: '2026-04-05T10:00:00Z',
+            },
+        ] as never);
+
+        renderCard();
+
+        expect(await screen.findByRole('heading', { name: 'Timeline treatment' })).toBeInTheDocument();
+        expect(screen.getByText('Clinical description shown under the title')).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Image 1' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Image 2' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Upload' })).toBeInTheDocument();
+        expect(screen.queryByText(/^Teeth:/i)).not.toBeInTheDocument();
+        expect(screen.getAllByText('Remaining')).toHaveLength(1);
+    });
+
+    it('limits timeline thumbnails and shows hidden image count with upload affordance', async () => {
+        const images = Array.from({ length: 8 }).map((_, index) => ({
+            id: `image-${index + 1}`,
+            mime_type: 'image/jpeg',
+            file_size: 1024,
+            created_at: `2026-04-05T10:0${index}:00Z`,
+            url: `https://example.com/tooth-${index + 1}.jpg`,
+            thumbnail_url: `https://example.com/tooth-${index + 1}-thumb.jpg`,
+            preview_url: `https://example.com/tooth-${index + 1}-preview.jpg`,
+        }));
+
+        vi.mocked(listAllPatientTreatments).mockResolvedValue([
+            {
+                id: 'treatment-many-images',
+                patient_id: 'patient-1',
+                patient_name: 'Sardor',
+                patient_phone: '+998 90 123 45 67',
+                patient_secondary_phone: null,
+                patient_code: 'PT-1001',
+                tooth_number: null,
+                teeth: [],
+                treatment_type: 'Many images',
+                description: null,
+                comment: null,
+                treatment_date: '2026-04-05',
+                cost: null,
+                debt_amount: 120000,
+                paid_amount: 60000,
+                balance: 60000,
+                notes: null,
+                image_count: images.length,
+                primary_image: images[0],
+                images,
+                created_at: '2026-04-05T10:00:00Z',
+                updated_at: '2026-04-05T10:00:00Z',
+            },
+        ] as never);
+
+        renderCard();
+
+        expect(await screen.findByRole('heading', { name: 'Many images' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Image 6' })).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Image 7' })).not.toBeInTheDocument();
+        expect(screen.getByText('+2')).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Upload' })).toBeInTheDocument();
+    });
+
     it('uses compact thumbnails with icon remove and restore controls in edit mode', async () => {
         const user = userEvent.setup();
 
@@ -154,9 +257,6 @@ describe('TreatmentHistoryCard image controls', () => {
             expect(screen.getAllByText('Davalash').length).toBeGreaterThan(0);
         });
 
-        // Same responsive duplication for the per-row action buttons.
-        // Both mobile and desktop "Edit Entry" buttons mount the same edit
-        // dialog (same handler), so the first one is fine.
         await user.click(screen.getAllByRole('button', { name: 'Edit Entry' })[0]);
 
         expect(screen.queryByTitle('Tooth #21')).not.toBeInTheDocument();
@@ -238,7 +338,7 @@ describe('TreatmentHistoryCard image controls', () => {
             expect(screen.getAllByText('Partial gallery').length).toBeGreaterThan(0);
         });
 
-        await user.click(screen.getAllByRole('button', { name: 'Images (4)' })[0]);
+        await user.click(screen.getByRole('button', { name: 'Image 1' }));
 
         expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
         expect(getPatientTreatment).toHaveBeenCalledWith('patient-1', 'treatment-partial-gallery');
@@ -317,7 +417,6 @@ describe('TreatmentHistoryCard image controls', () => {
         expect(screen.getByTitle('Images processing')).toBeInTheDocument();
         expect(document.querySelector('img[src]')).not.toBeInTheDocument();
 
-        // Multiple Edit Entry buttons in the responsive layout — first is fine.
         await user.click(screen.getAllByRole('button', { name: 'Edit Entry' })[0]);
 
         const pendingPreviewButton = screen.getByRole('button', { name: 'Image 1' });
@@ -456,6 +555,7 @@ describe('TreatmentHistoryCard image controls', () => {
         await user.clear(screen.getByLabelText(/^Date/i));
         await user.type(screen.getByLabelText(/^Date/i), '2026-04-05');
         await user.type(screen.getByLabelText(/^Entry/i), 'Advance payment');
+        await user.type(screen.getByLabelText(/^Description \/ comment/i), 'Paid ahead of treatment');
         await user.clear(screen.getByLabelText(/^Work total/i));
         await user.type(screen.getByLabelText(/^Work total/i), '0');
         await user.clear(screen.getByLabelText(/^Paid/i));
@@ -467,6 +567,7 @@ describe('TreatmentHistoryCard image controls', () => {
             expect(createPatientTreatment).toHaveBeenCalledWith('patient-1', expect.objectContaining({
                 debt_amount: 0,
                 paid_amount: 60000,
+                comment: 'Paid ahead of treatment',
                 treatment_type: 'Advance payment',
             }));
         });
