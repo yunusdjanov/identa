@@ -67,9 +67,11 @@ const ALLOWED_HISTORY_IMAGE_TYPES = new Set([
 const HISTORY_IMAGE_UPLOAD_CONCURRENCY = 10;
 const MEDIA_READINESS_POLL_INTERVAL_MS = 1200;
 const MEDIA_READINESS_TIMEOUT_MS = 8000;
-const HISTORY_TIMELINE_IMAGE_LIMIT = 6;
+const HISTORY_TIMELINE_IMAGE_LIMIT = 4;
 const HISTORY_PAGE_SIZE = 10;
 const HISTORY_SORT = '-treatment_date,-created_at';
+const HISTORY_TIMELINE_IMAGE_TILE_CLASS = 'h-36 w-64 lg:h-40 lg:w-72';
+const HISTORY_TIMELINE_ADD_TILE_CLASS = 'h-24 w-40 lg:h-28 lg:w-44';
 
 type TreatmentHistoryPages = InfiniteData<ApiCollectionEnvelope<ApiTreatment>, number>;
 
@@ -438,7 +440,7 @@ function HistoryImageStrip({
 function HistoryImageStatus({ label }: { label: string }) {
     return (
         <span
-            className="inline-flex h-28 w-48 shrink-0 snap-start items-center justify-center rounded-xl border border-teal-200 bg-teal-50 text-teal-700 lg:h-32 lg:w-56"
+            className={`inline-flex ${HISTORY_TIMELINE_IMAGE_TILE_CLASS} shrink-0 snap-start items-center justify-center rounded-xl border border-teal-200 bg-teal-50 text-teal-700`}
             title={label}
             aria-label={label}
         >
@@ -476,7 +478,7 @@ function HistoryTimelineImageButton({
     return (
         <button
             type="button"
-            className="group relative h-28 w-48 shrink-0 snap-start overflow-hidden rounded-xl border border-slate-200 bg-slate-100 shadow-sm transition-all hover:border-teal-300 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-1 disabled:cursor-wait disabled:opacity-70 lg:h-32 lg:w-56"
+            className={`group relative ${HISTORY_TIMELINE_IMAGE_TILE_CLASS} shrink-0 snap-start overflow-hidden rounded-xl border border-slate-200 bg-slate-100 shadow-sm transition-all hover:border-teal-300 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-1 disabled:cursor-wait disabled:opacity-70`}
             disabled={disabled}
             onClick={() => onOpen(index)}
             aria-label={`${imageLabel} ${index + 1}`}
@@ -507,7 +509,7 @@ function HistoryAddImageButton({
     return (
         <button
             type="button"
-            className="group inline-flex h-28 w-48 shrink-0 snap-start items-center justify-center rounded-xl border border-dashed border-teal-200 bg-teal-50/60 text-teal-700 transition-all hover:border-teal-300 hover:bg-teal-50 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-1 lg:h-32 lg:w-56"
+            className={`group inline-flex ${HISTORY_TIMELINE_ADD_TILE_CLASS} shrink-0 snap-start items-center justify-center self-center rounded-xl border border-dashed border-teal-200 bg-teal-50/60 text-teal-700 transition-all hover:border-teal-300 hover:bg-teal-50 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-1`}
             onClick={onClick}
             aria-label={label}
             title={label}
@@ -1265,17 +1267,21 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                         shape stays consistent so the page doesn't visually
                         collapse — users see WHICH metric they don't have
                         access to, not just empty space. */}
-                    <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                    <div className="grid grid-cols-1 gap-2.5 md:grid-cols-3">
                         <MetricSummaryCard
                             label={t('patientHistory.totalDebt')}
                             value={formatCurrency(summary.totalDebt)}
                             tone="red"
+                            compact
+                            tabular
                             locked={!canViewFinancials}
                         />
                         <MetricSummaryCard
                             label={t('patientHistory.totalPaid')}
                             value={formatCurrency(summary.totalPaid)}
                             tone="emerald"
+                            compact
+                            tabular
                             locked={!canViewFinancials}
                         />
                         <MetricSummaryCard
@@ -1284,6 +1290,8 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                             tone={netBalanceTone}
                             badge={t(getBalanceStatusKey(summary.netBalance))}
                             badgeTone={netBalanceTone}
+                            compact
+                            tabular
                             locked={!canViewFinancials}
                         />
                     </div>

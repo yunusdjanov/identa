@@ -113,7 +113,8 @@ export function MetricSummaryCard({
         return (
             <div
                 className={cn(
-                    'rounded-2xl border border-slate-200/70 bg-white p-3 shadow-sm',
+                    'border border-slate-200/70 bg-white',
+                    compact ? 'min-h-14 rounded-xl px-3 py-2 shadow-xs' : 'rounded-2xl p-3 shadow-sm',
                     className
                 )}
                 aria-label={`${label}: ${t('dashboard.lockedKpi.label')}`}
@@ -133,12 +134,18 @@ export function MetricSummaryCard({
     return (
         <div
             className={cn(
-                'interactive-card metric-hover-card rounded-2xl border bg-white p-3 shadow-sm',
+                compact
+                    ? 'interactive-card min-h-14 rounded-xl border bg-white px-3 py-2 shadow-xs'
+                    : 'interactive-card metric-hover-card rounded-2xl border bg-white p-3 shadow-sm',
                 toneClasses[tone].card,
                 className
             )}
         >
-            <div className={cn('flex flex-wrap items-center gap-1.5 text-xs font-medium uppercase tracking-wide', toneClasses[tone].label)}>
+            <div className={cn(
+                'flex flex-wrap items-center gap-1.5 font-medium uppercase tracking-wide',
+                compact ? 'text-[10px]' : 'text-xs',
+                toneClasses[tone].label
+            )}>
                 <span>{label}</span>
                 {badge ? (
                     <span className={cn(
@@ -151,8 +158,8 @@ export function MetricSummaryCard({
             </div>
             <p
                 className={cn(
-                    'mt-1 font-semibold',
-                    compact ? 'text-sm' : 'text-lg',
+                    'font-semibold',
+                    compact ? 'mt-0.5 text-base' : 'mt-1 text-lg',
                     tabular && 'whitespace-nowrap tabular-nums',
                     toneClasses[resolvedValueTone].value
                 )}

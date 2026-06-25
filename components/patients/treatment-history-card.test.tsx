@@ -77,6 +77,13 @@ function treatmentsEnvelope(
     } as never;
 }
 
+function getCompactSummaryCard(label: string) {
+    return screen
+        .getAllByText(label)
+        .map((element) => element.closest('.interactive-card'))
+        .find((card): card is HTMLElement => card instanceof HTMLElement && card.classList.contains('min-h-14'));
+}
+
 describe('TreatmentHistoryCard image controls', () => {
     beforeEach(() => {
         vi.mocked(createPatientTreatment).mockReset();
@@ -225,8 +232,32 @@ describe('TreatmentHistoryCard image controls', () => {
         expect(screen.getByRole('button', { name: 'Image 1' })).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Image 2' })).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Upload' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Image 1' })).toHaveClass('h-36', 'w-64', 'lg:h-40', 'lg:w-72');
+        expect(screen.getByRole('button', { name: 'Upload' })).toHaveClass('h-24', 'w-40', 'lg:h-28', 'lg:w-44');
         expect(screen.queryByText(/^Teeth:/i)).not.toBeInTheDocument();
         expect(screen.getAllByText('Remaining')).toHaveLength(1);
+    });
+
+    it('renders the financial summary as compact secondary cards', async () => {
+        renderCard();
+
+        await waitFor(() => {
+            expect(getCompactSummaryCard('Work total')).toHaveClass('min-h-14');
+        });
+
+        const workTotalCard = getCompactSummaryCard('Work total') as HTMLElement;
+        const paidCard = getCompactSummaryCard('Paid') as HTMLElement;
+        const remainingCard = getCompactSummaryCard('Remaining') as HTMLElement;
+
+        expect(workTotalCard).toHaveClass('min-h-14', 'rounded-xl', 'px-3', 'py-2');
+        expect(paidCard).toHaveClass('min-h-14', 'rounded-xl', 'px-3', 'py-2');
+        expect(remainingCard).toHaveClass('min-h-14', 'rounded-xl', 'px-3', 'py-2');
+        expect(workTotalCard).not.toHaveClass('metric-hover-card');
+        expect(paidCard).not.toHaveClass('metric-hover-card');
+        expect(remainingCard).not.toHaveClass('metric-hover-card');
+        expect(workTotalCard).not.toHaveTextContent('Debt');
+        expect(paidCard).not.toHaveTextContent('Debt');
+        expect(remainingCard).toHaveTextContent('Debt');
     });
 
     it('loads the newest page first and fetches older entries on demand', async () => {
@@ -387,10 +418,10 @@ describe('TreatmentHistoryCard image controls', () => {
         expect(document.querySelector('.snap-x.snap-mandatory')).toBeInTheDocument();
         expect(document.querySelector('.bg-gradient-to-l')).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Image 1' })).toHaveClass('snap-start');
-        expect(screen.getByRole('button', { name: 'Image 6' })).toBeInTheDocument();
-        expect(screen.queryByRole('button', { name: 'Image 7' })).not.toBeInTheDocument();
-        expect(screen.getByText('+2')).toBeInTheDocument();
-        expect(screen.getByRole('button', { name: 'Upload' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Image 4' })).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Image 5' })).not.toBeInTheDocument();
+        expect(screen.getByText('+4')).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Upload' })).toHaveClass('h-24', 'w-40', 'self-center');
     });
 
     it('uses compact thumbnails with icon remove and restore controls in edit mode', async () => {
