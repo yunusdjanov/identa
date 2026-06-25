@@ -1,7 +1,7 @@
 ﻿'use client';
 
 import type { ReactNode } from 'react';
-import { useSyncExternalStore } from 'react';
+import { useState, useSyncExternalStore } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -10,7 +10,7 @@ import { getCurrentUser, getDashboardSnapshot } from '@/lib/api/dentist';
 import { getApiErrorMessage } from '@/lib/api/client';
 import { formatCurrency, toLocalDateKey, truncateForUi } from '@/lib/utils';
 import { formatLocalizedDate } from '@/lib/i18n/date';
-import { AlertCircle, ArrowRight, Calendar, CheckCircle2, DollarSign, Lock, Plus } from 'lucide-react';
+import { AlertCircle, ArrowRight, Calendar, CheckCircle2, DollarSign, Eye, EyeOff, Lock, Plus } from 'lucide-react';
 import Link from 'next/link';
 import { useI18n } from '@/components/providers/i18n-provider';
 import { AppErrorState } from '@/components/error/app-error-state';
@@ -73,6 +73,7 @@ function DashboardStatCard({
     icon,
     tone,
     action,
+    headerAction,
 }: {
     title: string;
     value: string | number;
@@ -80,6 +81,7 @@ function DashboardStatCard({
     icon: ReactNode;
     tone: DashboardStatTone;
     action?: ReactNode;
+    headerAction?: ReactNode;
 }) {
     const classes = statToneClasses[tone];
 
@@ -88,8 +90,11 @@ function DashboardStatCard({
             <CardContent className="relative px-4 py-3.5">
                 <div className="flex items-center justify-between gap-2">
                     <p className="truncate text-[11px] font-semibold uppercase tracking-[0.07em] text-slate-400">{title}</p>
-                    <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ring-1 ${classes.icon}`}>
-                        {icon}
+                    <div className="flex shrink-0 items-center gap-1.5">
+                        {headerAction}
+                        <div className={`flex h-7 w-7 items-center justify-center rounded-lg ring-1 ${classes.icon}`}>
+                            {icon}
+                        </div>
                     </div>
                 </div>
                 <p className={`mt-1.5 truncate text-2xl font-bold leading-none tracking-tight ${classes.value}`}>
@@ -101,6 +106,30 @@ function DashboardStatCard({
                 </div>
             </CardContent>
         </Card>
+    );
+}
+
+function FinancialPrivacyToggle({
+    isHidden,
+    label,
+    onToggle,
+}: {
+    isHidden: boolean;
+    label: string;
+    onToggle: () => void;
+}) {
+    const Icon = isHidden ? EyeOff : Eye;
+
+    return (
+        <button
+            type="button"
+            aria-label={label}
+            title={label}
+            onClick={onToggle}
+            className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-white/75 text-slate-500 ring-1 ring-white/80 transition hover:bg-white hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-200"
+        >
+            <Icon className="h-3.5 w-3.5" aria-hidden="true" />
+        </button>
     );
 }
 
@@ -142,6 +171,7 @@ function LockedStatCard({ title, icon }: { title: string; icon: ReactNode }) {
 
 export default function DashboardPage() {
     const { locale, t } = useI18n();
+    const [areFinancialStatsHidden, setAreFinancialStatsHidden] = useState(false);
     const isClient = useSyncExternalStore(
         noopSubscribe,
         () => true,
@@ -227,6 +257,23 @@ export default function DashboardPage() {
     // so the card stays red even at 0 (product decision).
     const debtTone: DashboardStatTone = 'red';
     const debtActionClassName = 'h-6 rounded-full px-1.5 text-red-700 hover:bg-red-100 hover:text-red-800';
+    const financialPrivacyLabel = areFinancialStatsHidden
+        ? t('dashboard.privacy.showFinancials')
+        : t('dashboard.privacy.hideFinancials');
+    const renderFinancialPrivacyToggle = () => (
+        <FinancialPrivacyToggle
+            isHidden={areFinancialStatsHidden}
+            label={financialPrivacyLabel}
+            onToggle={() => setAreFinancialStatsHidden((current) => !current)}
+        />
+    );
+    const formatFinancialStatValue = (amount?: number) => {
+        if (!stats) {
+            return '...';
+        }
+
+        return areFinancialStatsHidden ? '***' : formatCurrency(amount ?? 0);
+    };
 
     return (
         <div className="space-y-3">
@@ -315,10 +362,11 @@ export default function DashboardPage() {
                 {canViewPayments ? (
                     <DashboardStatCard
                         title={t('dashboard.revenueThisMonth')}
-                        value={stats ? formatCurrency(stats.revenueThisMonth) : '...'}
+                        value={formatFinancialStatValue(stats?.revenueThisMonth)}
                         helper={monthLabel}
                         tone="green"
                         icon={<DollarSign className="h-3.5 w-3.5" />}
+                        headerAction={renderFinancialPrivacyToggle()}
                     />
                 ) : (
                     <LockedStatCard title={t('dashboard.revenueThisMonth')} icon={<DollarSign className="h-3.5 w-3.5" />} />
@@ -327,10 +375,11 @@ export default function DashboardPage() {
                 {canViewPayments ? (
                     <DashboardStatCard
                         title={t('dashboard.outstandingDebts')}
-                        value={stats ? formatCurrency(stats.outstandingDebtTotal) : '...'}
+                        value={formatFinancialStatValue(stats?.outstandingDebtTotal)}
                         helper={viewAllDebtsLabel}
                         tone={debtTone}
                         icon={<AlertCircle className="h-3.5 w-3.5" />}
+                        headerAction={renderFinancialPrivacyToggle()}
                         action={(
                             <Button asChild variant="ghost" size="sm" className={debtActionClassName}>
                                 <Link href="/payments" aria-label={viewAllDebtsLabel}>

@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import DashboardPage from '@/app/dashboard/page';
 import { getCurrentUser, getDashboardSnapshot } from '@/lib/api/dentist';
@@ -124,6 +124,27 @@ describe('DashboardPage', () => {
         expect(screen.queryByText('Early Two')).not.toBeInTheDocument();
         const showAllLink = screen.getByRole('link', { name: /(Show all today|Показать все на сегодня) \(5\)/i });
         expect(showAllLink).toHaveAttribute('href', '/appointments');
+    });
+
+    it('masks dashboard financial KPI amounts behind the privacy toggle', async () => {
+        vi.mocked(getDashboardSnapshot).mockResolvedValue({
+            revenueThisMonth: 1000000,
+            outstandingDebtTotal: 500000,
+            todayAppointments: [],
+        });
+
+        renderPage();
+
+        const hideButtons = await screen.findAllByRole('button', { name: 'Hide amounts' });
+        expect(screen.queryByText('***')).not.toBeInTheDocument();
+
+        fireEvent.click(hideButtons[0]);
+
+        expect(screen.getAllByText('***')).toHaveLength(2);
+
+        fireEvent.click(screen.getAllByRole('button', { name: 'Show amounts' })[0]);
+
+        expect(screen.queryByText('***')).not.toBeInTheDocument();
     });
 
     it('shows "no more upcoming" state when today items are all in the past', async () => {
