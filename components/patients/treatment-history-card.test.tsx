@@ -31,7 +31,7 @@ vi.mock('@/lib/api/dentist', () => ({
     uploadPatientTreatmentImages: vi.fn(),
 }));
 
-function renderCard() {
+function renderCard(locale: keyof typeof DICTIONARIES = 'en') {
     const queryClient = new QueryClient({
         defaultOptions: {
             queries: { retry: false },
@@ -41,7 +41,7 @@ function renderCard() {
 
     return render(
         <QueryClientProvider client={queryClient}>
-            <I18nProvider initialLocale="en" initialDictionary={DICTIONARIES.en}>
+            <I18nProvider initialLocale={locale} initialDictionary={DICTIONARIES[locale]}>
                 <TreatmentHistoryCard patientId="patient-1" patientName="Sardor" />
             </I18nProvider>
         </QueryClientProvider>
@@ -816,8 +816,8 @@ describe('TreatmentHistoryCard image controls', () => {
         const entryInput = screen.getByLabelText(/^Entry/i);
         expect(entryInput).toBeInTheDocument();
         expect(entryInput).toHaveClass('rounded-xl', 'bg-white');
-        await user.click(screen.getByRole('button', { name: 'Реставрация' }));
-        expect(entryInput).toHaveValue('Реставрация');
+        await user.click(screen.getByRole('button', { name: 'Restoration' }));
+        expect(entryInput).toHaveValue('Restoration');
         const uploadTile = screen.getAllByTitle('Upload').find((element) => element.classList.contains('h-24')) as HTMLElement;
         expect(uploadTile).toHaveClass('lg:h-28');
         expect(uploadTile).toHaveTextContent('Upload up to 10 images');
@@ -825,6 +825,22 @@ describe('TreatmentHistoryCard image controls', () => {
         expect(uploadTile.compareDocumentPosition(screen.getByLabelText(/^Description \/ comment/i)) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
         expect(screen.queryByTitle('Tooth #18')).not.toBeInTheDocument();
         expect(screen.queryByTitle('Tooth #48')).not.toBeInTheDocument();
+    });
+
+    it('localizes treatment suggestion chips by active language', async () => {
+        const user = userEvent.setup();
+
+        renderCard('uz');
+
+        await waitFor(() => {
+            expect(screen.getAllByText('Davalash').length).toBeGreaterThan(0);
+        });
+
+        await user.click(screen.getByRole('button', { name: DICTIONARIES.uz['patientHistory.addEntry'] }));
+
+        const localizedSuggestion = DICTIONARIES.uz['patientHistory.workSuggestion.restoration'];
+        expect(screen.getByRole('button', { name: localizedSuggestion })).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Реставрация' })).not.toBeInTheDocument();
     });
 
     it('labels overpaid remaining summary as an advance without a negative amount', async () => {

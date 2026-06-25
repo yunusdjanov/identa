@@ -74,15 +74,15 @@ const HISTORY_TIMELINE_ADD_TILE_CLASS = 'h-36 w-full min-w-0 lg:h-40';
 const HISTORY_TIMELINE_IMAGE_COLUMN_WIDTH = '18.75rem';
 const HISTORY_TIMELINE_IMAGE_COLUMN_MIN_WIDTH = '10rem';
 const HISTORY_TIMELINE_ADD_COLUMN_WIDTH = '3.25rem';
-const HISTORY_WORK_DONE_SUGGESTIONS = [
-    'Реставрация',
-    'Эндодонтия',
-    'Удаления',
-    'Имплантация',
-    'Отбеливания',
-    'Ортопедия',
-    'Чистка',
-];
+const HISTORY_WORK_DONE_SUGGESTION_KEYS = [
+    'patientHistory.workSuggestion.restoration',
+    'patientHistory.workSuggestion.endodontics',
+    'patientHistory.workSuggestion.extraction',
+    'patientHistory.workSuggestion.implantation',
+    'patientHistory.workSuggestion.whitening',
+    'patientHistory.workSuggestion.prosthodontics',
+    'patientHistory.workSuggestion.cleaning',
+] as const;
 
 type TreatmentHistoryPages = InfiniteData<ApiCollectionEnvelope<ApiTreatment>, number>;
 
@@ -1215,12 +1215,13 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                 className="h-11 rounded-xl border-slate-200 bg-white px-4 text-sm font-semibold text-slate-950 shadow-sm transition-colors placeholder:text-slate-400 focus-visible:border-teal-300 focus-visible:ring-2 focus-visible:ring-teal-100 sm:text-base"
                             />
                             <div className="flex flex-wrap gap-1.5" aria-label="Work type suggestions">
-                                {HISTORY_WORK_DONE_SUGGESTIONS.map((suggestion) => {
+                                {HISTORY_WORK_DONE_SUGGESTION_KEYS.map((suggestionKey) => {
+                                    const suggestion = t(suggestionKey);
                                     const isSelected = formState.treatmentType.trim() === suggestion;
 
                                     return (
                                         <Button
-                                            key={suggestion}
+                                            key={suggestionKey}
                                             type="button"
                                             variant="outline"
                                             size="sm"
