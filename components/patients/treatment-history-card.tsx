@@ -1214,9 +1214,6 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                             <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
                                 {t('patientHistory.images')} · {visibleExistingImagesCount + selectedImagePreviews.length} / {maxHistoryImagesPerEntry}
                             </p>
-                            <p className="hidden text-xs text-slate-400 sm:block">
-                                {t('patientHistory.imagesHint', { max: maxHistoryImagesPerEntry, sizeMb: maxHistoryUploadMb })}
-                            </p>
                         </div>
                         <Input
                             id="historyImages"
@@ -1340,7 +1337,7 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                             {visibleExistingImagesCount + selectedImagePreviews.length < maxHistoryImagesPerEntry ? (
                                 <Label
                                     htmlFor={!canManageHistory || isPreparingImages ? undefined : 'historyImages'}
-                                    className={`group inline-flex h-24 min-h-24 items-center justify-center rounded-xl border border-dashed border-teal-200 bg-teal-50/60 text-teal-700 transition-all lg:h-28 ${!canManageHistory || isPreparingImages ? 'cursor-not-allowed opacity-70' : 'cursor-pointer hover:border-teal-300 hover:bg-teal-50 hover:shadow-sm'}`}
+                                    className={`group inline-flex h-24 min-h-24 items-center justify-center rounded-xl border border-dashed border-teal-200 bg-teal-50/60 px-2 text-teal-700 transition-all lg:h-28 ${!canManageHistory || isPreparingImages ? 'cursor-not-allowed opacity-70' : 'cursor-pointer hover:border-teal-300 hover:bg-teal-50 hover:shadow-sm'}`}
                                     onClick={() => {
                                         if (!canManageHistory) {
                                             toast.error(manageDeniedMessage);
@@ -1349,7 +1346,16 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                     aria-label={t('odontogram.image.upload')}
                                     title={t('odontogram.image.upload')}
                                 >
-                                    {isPreparingImages ? <Loader2 className="h-5 w-5 animate-spin" /> : <Plus className="h-5 w-5 transition-transform group-hover:scale-110" />}
+                                    {isPreparingImages ? (
+                                        <Loader2 className="h-5 w-5 animate-spin" />
+                                    ) : (
+                                        <span className="flex flex-col items-center gap-1 text-center">
+                                            <Plus className="h-5 w-5 transition-transform group-hover:scale-110" />
+                                            <span className="max-h-12 overflow-hidden text-[10px] font-medium leading-tight text-teal-700/70">
+                                                {t('patientHistory.imagesHint', { max: maxHistoryImagesPerEntry, sizeMb: maxHistoryUploadMb })}
+                                            </span>
+                                        </span>
+                                    )}
                                 </Label>
                             ) : null}
                             {!hasImages && visibleExistingImagesCount + selectedImagePreviews.length >= maxHistoryImagesPerEntry ? (

@@ -771,6 +771,7 @@ describe('TreatmentHistoryCard image controls', () => {
         expect(entryInput).toHaveValue('Реставрация');
         const uploadTile = screen.getAllByTitle('Upload').find((element) => element.classList.contains('h-24')) as HTMLElement;
         expect(uploadTile).toHaveClass('lg:h-28');
+        expect(uploadTile).toHaveTextContent('Upload up to 10 images');
         expect(entryInput.compareDocumentPosition(uploadTile) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
         expect(uploadTile.compareDocumentPosition(screen.getByLabelText(/^Description \/ comment/i)) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
         expect(screen.queryByTitle('Tooth #18')).not.toBeInTheDocument();
