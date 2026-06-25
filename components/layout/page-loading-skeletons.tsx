@@ -472,16 +472,26 @@ export function PatientDetailLoadingState() {
                         </div>
                         <Skeleton className="h-5 w-12 shrink-0 rounded-full" />
                     </div>
-                    <div className="px-2.5 pb-3">
-                        <div className="grid grid-cols-3 gap-1.5">
-                            {Array.from({ length: 6 }).map((_, index) => (
-                                <Skeleton
-                                    key={index}
-                                    data-testid="patient-detail-oral-photo-slot-skeleton"
-                                    className="aspect-square w-full rounded-xl"
-                                />
-                            ))}
-                        </div>
+                    <div className="divide-y divide-slate-100 px-3 pb-2">
+                        {Array.from({ length: 3 }).map((_, index) => (
+                            <div
+                                key={index}
+                                data-testid="patient-detail-oral-photo-slot-skeleton"
+                                className="py-1.5"
+                            >
+                                <div className="flex min-w-0 items-center gap-2">
+                                    <Skeleton className="h-9 w-9 shrink-0 rounded-lg" />
+                                    <div className="min-w-0 flex-1 space-y-1.5">
+                                        <Skeleton className="h-3.5 w-24 rounded-xl" />
+                                        <Skeleton className="h-3 w-16 rounded-xl" />
+                                    </div>
+                                    <div className="flex shrink-0 items-center gap-1">
+                                        <Skeleton className="h-7 w-7 rounded-full" />
+                                        <Skeleton className="h-7 w-7 rounded-full" />
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
                     </div>
                 </div>
                 <div className="overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm shadow-slate-100/80">
