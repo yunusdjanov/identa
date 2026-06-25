@@ -336,6 +336,9 @@ describe('TreatmentHistoryCard image controls', () => {
         renderCard();
 
         expect(await screen.findByRole('heading', { name: 'Many images' })).toBeInTheDocument();
+        expect(document.querySelector('.snap-x.snap-mandatory')).toBeInTheDocument();
+        expect(document.querySelector('.bg-gradient-to-l')).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Image 1' })).toHaveClass('snap-start');
         expect(screen.getByRole('button', { name: 'Image 6' })).toBeInTheDocument();
         expect(screen.queryByRole('button', { name: 'Image 7' })).not.toBeInTheDocument();
         expect(screen.getByText('+2')).toBeInTheDocument();

@@ -384,6 +384,7 @@ function HistoryImageStrip({
     const imageCount = getTreatmentImageCount(treatment);
     const knownImages = getKnownTreatmentImages(treatment);
     const visibleImages = knownImages.slice(0, HISTORY_TIMELINE_IMAGE_LIMIT);
+    const showOverflowCue = visibleImages.length > 1 || canAddImages;
 
     if (isSyncing) {
         return <HistoryImageStatus label={uploadingLabel} />;
@@ -406,21 +407,29 @@ function HistoryImageStrip({
     }
 
     return (
-        <div className="flex min-w-0 gap-2 overflow-x-auto pb-1">
-            {visibleImages.map((image, index) => (
-                <HistoryTimelineImageButton
-                    key={image.id}
-                    image={image}
-                    index={index}
-                    hiddenCount={index === visibleImages.length - 1 ? Math.max(imageCount - visibleImages.length, 0) : 0}
-                    patientName={patientName}
-                    imageLabel={imageLabel}
-                    processingLabel={processingLabel}
-                    disabled={isDetailLoading}
-                    onOpen={onOpen}
+        <div className="relative min-w-0">
+            <div className="flex min-w-0 snap-x snap-mandatory gap-2 overflow-x-auto overscroll-x-contain scroll-smooth pb-1 pr-8 [scrollbar-width:thin]">
+                {visibleImages.map((image, index) => (
+                    <HistoryTimelineImageButton
+                        key={image.id}
+                        image={image}
+                        index={index}
+                        hiddenCount={index === visibleImages.length - 1 ? Math.max(imageCount - visibleImages.length, 0) : 0}
+                        patientName={patientName}
+                        imageLabel={imageLabel}
+                        processingLabel={processingLabel}
+                        disabled={isDetailLoading}
+                        onOpen={onOpen}
+                    />
+                ))}
+                {canAddImages ? <HistoryAddImageButton label={addImageLabel} onClick={onAddImage} /> : null}
+            </div>
+            {showOverflowCue ? (
+                <div
+                    className="pointer-events-none absolute inset-y-0 right-0 w-10 rounded-r-xl bg-gradient-to-l from-white via-white/85 to-transparent"
+                    aria-hidden="true"
                 />
-            ))}
-            {canAddImages ? <HistoryAddImageButton label={addImageLabel} onClick={onAddImage} /> : null}
+            ) : null}
         </div>
     );
 }
@@ -428,7 +437,7 @@ function HistoryImageStrip({
 function HistoryImageStatus({ label }: { label: string }) {
     return (
         <span
-            className="inline-flex h-28 w-48 shrink-0 items-center justify-center rounded-xl border border-teal-200 bg-teal-50 text-teal-700 lg:h-32 lg:w-56"
+            className="inline-flex h-28 w-48 shrink-0 snap-start items-center justify-center rounded-xl border border-teal-200 bg-teal-50 text-teal-700 lg:h-32 lg:w-56"
             title={label}
             aria-label={label}
         >
@@ -466,7 +475,7 @@ function HistoryTimelineImageButton({
     return (
         <button
             type="button"
-            className="group relative h-28 w-48 shrink-0 overflow-hidden rounded-xl border border-slate-200 bg-slate-100 shadow-sm transition-all hover:border-teal-300 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-1 disabled:cursor-wait disabled:opacity-70 lg:h-32 lg:w-56"
+            className="group relative h-28 w-48 shrink-0 snap-start overflow-hidden rounded-xl border border-slate-200 bg-slate-100 shadow-sm transition-all hover:border-teal-300 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-1 disabled:cursor-wait disabled:opacity-70 lg:h-32 lg:w-56"
             disabled={disabled}
             onClick={() => onOpen(index)}
             aria-label={`${imageLabel} ${index + 1}`}
@@ -497,7 +506,7 @@ function HistoryAddImageButton({
     return (
         <button
             type="button"
-            className="group inline-flex h-28 w-48 shrink-0 items-center justify-center rounded-xl border border-dashed border-teal-200 bg-teal-50/60 text-teal-700 transition-all hover:border-teal-300 hover:bg-teal-50 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-1 lg:h-32 lg:w-56"
+            className="group inline-flex h-28 w-48 shrink-0 snap-start items-center justify-center rounded-xl border border-dashed border-teal-200 bg-teal-50/60 text-teal-700 transition-all hover:border-teal-300 hover:bg-teal-50 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-1 lg:h-32 lg:w-56"
             onClick={onClick}
             aria-label={label}
             title={label}
