@@ -11,6 +11,8 @@ vi.mock('@/lib/api/dentist', () => ({
     getDashboardSnapshot: vi.fn(),
 }));
 
+const DASHBOARD_FINANCIAL_PRIVACY_STORAGE_KEY = 'identa.dashboard.financialPrivacy.v1';
+
 function timeOffsetFromNow(minutes: number): string {
     const now = new Date();
     const nowMinutes = now.getHours() * 60 + now.getMinutes();
@@ -39,6 +41,7 @@ function renderPage() {
 
 describe('DashboardPage', () => {
     beforeEach(() => {
+        window.localStorage.clear();
         vi.mocked(getCurrentUser).mockReset();
         vi.mocked(getDashboardSnapshot).mockReset();
 
@@ -55,6 +58,7 @@ describe('DashboardPage', () => {
     });
 
     afterEach(() => {
+        window.localStorage.clear();
         cleanup();
     });
 
@@ -126,25 +130,48 @@ describe('DashboardPage', () => {
         expect(showAllLink).toHaveAttribute('href', '/appointments');
     });
 
-    it('masks dashboard financial KPI amounts behind the privacy toggle', async () => {
+    it('masks dashboard financial KPI amounts independently and remembers the choice', async () => {
         vi.mocked(getDashboardSnapshot).mockResolvedValue({
             revenueThisMonth: 1000000,
             outstandingDebtTotal: 500000,
             todayAppointments: [],
         });
 
-        renderPage();
+        const firstRender = renderPage();
 
         const hideButtons = await screen.findAllByRole('button', { name: 'Hide amounts' });
         expect(screen.queryByText('***')).not.toBeInTheDocument();
 
         fireEvent.click(hideButtons[0]);
 
+        expect(screen.getAllByText('***')).toHaveLength(1);
+        expect(window.localStorage.getItem(DASHBOARD_FINANCIAL_PRIVACY_STORAGE_KEY)).toBe(JSON.stringify({
+            revenueThisMonth: true,
+            outstandingDebtTotal: false,
+        }));
+
+        fireEvent.click(screen.getAllByRole('button', { name: 'Hide amounts' })[0]);
+
         expect(screen.getAllByText('***')).toHaveLength(2);
+        expect(window.localStorage.getItem(DASHBOARD_FINANCIAL_PRIVACY_STORAGE_KEY)).toBe(JSON.stringify({
+            revenueThisMonth: true,
+            outstandingDebtTotal: true,
+        }));
 
         fireEvent.click(screen.getAllByRole('button', { name: 'Show amounts' })[0]);
 
-        expect(screen.queryByText('***')).not.toBeInTheDocument();
+        expect(screen.getAllByText('***')).toHaveLength(1);
+        expect(window.localStorage.getItem(DASHBOARD_FINANCIAL_PRIVACY_STORAGE_KEY)).toBe(JSON.stringify({
+            revenueThisMonth: false,
+            outstandingDebtTotal: true,
+        }));
+
+        firstRender.unmount();
+        renderPage();
+
+        expect(await screen.findByText('***')).toBeInTheDocument();
+        expect(screen.getAllByRole('button', { name: 'Hide amounts' })).toHaveLength(1);
+        expect(screen.getAllByRole('button', { name: 'Show amounts' })).toHaveLength(1);
     });
 
     it('shows "no more upcoming" state when today items are all in the past', async () => {

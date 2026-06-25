@@ -19,10 +19,18 @@ import { getStatusTone } from '@/lib/appointments/status-tone';
 import { toast } from 'sonner';
 
 const noopSubscribe = () => () => undefined;
+const DASHBOARD_FINANCIAL_PRIVACY_STORAGE_KEY = 'identa.dashboard.financialPrivacy.v1';
 const DASHBOARD_NAME_UI_LIMIT = 25;
 const DASHBOARD_REASON_UI_LIMIT = 40;
 
 type DashboardStatTone = 'teal' | 'green' | 'red' | 'amber';
+type DashboardFinancialStatKey = 'revenueThisMonth' | 'outstandingDebtTotal';
+type DashboardFinancialPrivacyState = Record<DashboardFinancialStatKey, boolean>;
+
+const DEFAULT_DASHBOARD_FINANCIAL_PRIVACY: DashboardFinancialPrivacyState = {
+    revenueThisMonth: false,
+    outstandingDebtTotal: false,
+};
 
 const statToneClasses: Record<DashboardStatTone, {
     card: string;
@@ -55,6 +63,32 @@ const statToneClasses: Record<DashboardStatTone, {
         hover: 'metric-hover-amber',
     },
 };
+
+function readDashboardFinancialPrivacyState(): DashboardFinancialPrivacyState {
+    if (typeof window === 'undefined') {
+        return DEFAULT_DASHBOARD_FINANCIAL_PRIVACY;
+    }
+
+    try {
+        const rawValue = window.localStorage.getItem(DASHBOARD_FINANCIAL_PRIVACY_STORAGE_KEY);
+        const parsedValue = rawValue ? JSON.parse(rawValue) as Partial<DashboardFinancialPrivacyState> : null;
+
+        return {
+            revenueThisMonth: parsedValue?.revenueThisMonth === true,
+            outstandingDebtTotal: parsedValue?.outstandingDebtTotal === true,
+        };
+    } catch {
+        return DEFAULT_DASHBOARD_FINANCIAL_PRIVACY;
+    }
+}
+
+function saveDashboardFinancialPrivacyState(nextState: DashboardFinancialPrivacyState) {
+    try {
+        window.localStorage.setItem(DASHBOARD_FINANCIAL_PRIVACY_STORAGE_KEY, JSON.stringify(nextState));
+    } catch {
+        // Storage can be unavailable in private mode; the in-memory state still works.
+    }
+}
 
 
 function toMinutesFromTime(timeInput: string): number {
@@ -171,7 +205,7 @@ function LockedStatCard({ title, icon }: { title: string; icon: ReactNode }) {
 
 export default function DashboardPage() {
     const { locale, t } = useI18n();
-    const [areFinancialStatsHidden, setAreFinancialStatsHidden] = useState(false);
+    const [hiddenFinancialStats, setHiddenFinancialStats] = useState<DashboardFinancialPrivacyState>(() => readDashboardFinancialPrivacyState());
     const isClient = useSyncExternalStore(
         noopSubscribe,
         () => true,
@@ -257,22 +291,30 @@ export default function DashboardPage() {
     // so the card stays red even at 0 (product decision).
     const debtTone: DashboardStatTone = 'red';
     const debtActionClassName = 'h-6 rounded-full px-1.5 text-red-700 hover:bg-red-100 hover:text-red-800';
-    const financialPrivacyLabel = areFinancialStatsHidden
-        ? t('dashboard.privacy.showFinancials')
-        : t('dashboard.privacy.hideFinancials');
-    const renderFinancialPrivacyToggle = () => (
+    const renderFinancialPrivacyToggle = (statKey: DashboardFinancialStatKey) => (
         <FinancialPrivacyToggle
-            isHidden={areFinancialStatsHidden}
-            label={financialPrivacyLabel}
-            onToggle={() => setAreFinancialStatsHidden((current) => !current)}
+            isHidden={hiddenFinancialStats[statKey]}
+            label={hiddenFinancialStats[statKey]
+                ? t('dashboard.privacy.showFinancials')
+                : t('dashboard.privacy.hideFinancials')}
+            onToggle={() => setHiddenFinancialStats((current) => {
+                const nextState = {
+                    ...current,
+                    [statKey]: !current[statKey],
+                };
+
+                saveDashboardFinancialPrivacyState(nextState);
+
+                return nextState;
+            })}
         />
     );
-    const formatFinancialStatValue = (amount?: number) => {
+    const formatFinancialStatValue = (statKey: DashboardFinancialStatKey, amount?: number) => {
         if (!stats) {
             return '...';
         }
 
-        return areFinancialStatsHidden ? '***' : formatCurrency(amount ?? 0);
+        return hiddenFinancialStats[statKey] ? '***' : formatCurrency(amount ?? 0);
     };
 
     return (
@@ -362,11 +404,11 @@ export default function DashboardPage() {
                 {canViewPayments ? (
                     <DashboardStatCard
                         title={t('dashboard.revenueThisMonth')}
-                        value={formatFinancialStatValue(stats?.revenueThisMonth)}
+                        value={formatFinancialStatValue('revenueThisMonth', stats?.revenueThisMonth)}
                         helper={monthLabel}
                         tone="green"
                         icon={<DollarSign className="h-3.5 w-3.5" />}
-                        headerAction={renderFinancialPrivacyToggle()}
+                        headerAction={renderFinancialPrivacyToggle('revenueThisMonth')}
                     />
                 ) : (
                     <LockedStatCard title={t('dashboard.revenueThisMonth')} icon={<DollarSign className="h-3.5 w-3.5" />} />
@@ -375,11 +417,11 @@ export default function DashboardPage() {
                 {canViewPayments ? (
                     <DashboardStatCard
                         title={t('dashboard.outstandingDebts')}
-                        value={formatFinancialStatValue(stats?.outstandingDebtTotal)}
+                        value={formatFinancialStatValue('outstandingDebtTotal', stats?.outstandingDebtTotal)}
                         helper={viewAllDebtsLabel}
                         tone={debtTone}
                         icon={<AlertCircle className="h-3.5 w-3.5" />}
-                        headerAction={renderFinancialPrivacyToggle()}
+                        headerAction={renderFinancialPrivacyToggle('outstandingDebtTotal')}
                         action={(
                             <Button asChild variant="ghost" size="sm" className={debtActionClassName}>
                                 <Link href="/payments" aria-label={viewAllDebtsLabel}>
