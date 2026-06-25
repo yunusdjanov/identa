@@ -147,6 +147,9 @@ describe('PatientDetailPage', () => {
         await renderPage();
 
         expect(await screen.findByText('John Smith')).toBeInTheDocument();
+        const scheduleButton = screen.getByRole('button', { name: 'Schedule Appointment' });
+        const editButton = screen.getByRole('button', { name: 'Edit Patient' });
+        expect(scheduleButton.compareDocumentPosition(editButton) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     });
 
     it('opens appointment scheduling with the current patient preselected', async () => {

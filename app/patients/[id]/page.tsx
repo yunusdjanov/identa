@@ -744,6 +744,28 @@ export default function PatientDetailPage({
                         The archive/restore/delete trio follow the same
                         pattern with their respective mutation-pending
                         guards retained on the enabled branch. */}
+                    {!isPatientArchived && canManageAppointments ? (
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-7 rounded-full px-3 text-xs"
+                            onClick={() => setIsAppointmentDialogOpen(true)}
+                        >
+                            <CalendarPlus className="mr-1.5 h-3 w-3" />
+                            {t('appointments.dialog.newTitle')}
+                        </Button>
+                    ) : !isPatientArchived && isSubscriptionReadOnly(currentUser) && canViewAppointments ? (
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-7 rounded-full px-3 text-xs"
+                            disabled
+                            onClick={denyManageAction}
+                        >
+                            <CalendarPlus className="mr-1.5 h-3 w-3" />
+                            {t('appointments.dialog.newTitle')}
+                        </Button>
+                    ) : null}
                     {canManagePatients ? (
                         <Button
                             variant="outline"
@@ -765,28 +787,6 @@ export default function PatientDetailPage({
                         >
                             <Edit className="mr-1.5 h-3 w-3" />
                             {t('patientDetail.editPatient')}
-                        </Button>
-                    ) : null}
-                    {!isPatientArchived && canManageAppointments ? (
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            className="h-7 rounded-full px-3 text-xs"
-                            onClick={() => setIsAppointmentDialogOpen(true)}
-                        >
-                            <CalendarPlus className="mr-1.5 h-3 w-3" />
-                            {t('appointments.dialog.newTitle')}
-                        </Button>
-                    ) : !isPatientArchived && isSubscriptionReadOnly(currentUser) && canViewAppointments ? (
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            className="h-7 rounded-full px-3 text-xs"
-                            disabled
-                            onClick={denyManageAction}
-                        >
-                            <CalendarPlus className="mr-1.5 h-3 w-3" />
-                            {t('appointments.dialog.newTitle')}
                         </Button>
                     ) : null}
                     {isPatientArchived ? (
