@@ -70,7 +70,8 @@ const HISTORY_TIMELINE_IMAGE_LIMIT = 4;
 const HISTORY_PAGE_SIZE = 10;
 const HISTORY_SORT = '-treatment_date,-created_at';
 const HISTORY_TIMELINE_IMAGE_TILE_CLASS = 'h-36 w-full min-w-0 lg:h-40';
-const HISTORY_TIMELINE_ADD_TILE_CLASS = 'h-36 w-20 lg:h-40 lg:w-24';
+const HISTORY_TIMELINE_ADD_TILE_CLASS = 'h-36 w-full min-w-0 lg:h-40';
+const HISTORY_TIMELINE_ADD_COLUMN_WIDTH = '3.75rem';
 
 type TreatmentHistoryPages = InfiniteData<ApiCollectionEnvelope<ApiTreatment>, number>;
 
@@ -205,6 +206,14 @@ function getPreviewableTreatmentImages(treatment: ApiTreatment) {
     return getKnownTreatmentImages(treatment).filter((image) => getTreatmentImagePreviewUrl(image));
 }
 
+function getHistoryImageGridTemplateColumns(canAddImages: boolean) {
+    const imageColumns = `repeat(${HISTORY_TIMELINE_IMAGE_LIMIT}, minmax(0, 1fr))`;
+
+    return canAddImages
+        ? `${imageColumns} ${HISTORY_TIMELINE_ADD_COLUMN_WIDTH}`
+        : imageColumns;
+}
+
 function buildPreviewGalleryImages(
     images: ApiTreatmentImage[],
     patientName: string,
@@ -311,28 +320,31 @@ function HistoryImageStrip({
     const imageCount = getTreatmentImageCount(treatment);
     const knownImages = getKnownTreatmentImages(treatment);
     const visibleImages = knownImages.slice(0, HISTORY_TIMELINE_IMAGE_LIMIT);
-    const gridTemplateColumns = canAddImages
-        ? `repeat(${visibleImages.length}, minmax(0, 1fr)) minmax(5rem, 6rem)`
-        : `repeat(${visibleImages.length}, minmax(0, 1fr))`;
+    const gridTemplateColumns = getHistoryImageGridTemplateColumns(canAddImages);
 
     if (isSyncing) {
         return <HistoryImageStatus label={uploadingLabel} />;
     }
 
     if (imageCount === 0) {
-        return (
-            <div className="flex min-w-0 items-center gap-2">
-                {canAddImages ? (
-                    <HistoryAddImageButton label={addImageLabel} onClick={onAddImage} />
-                ) : (
-                    <p className="text-xs font-medium text-slate-400">{emptyLabel}</p>
-                )}
+        return canAddImages ? (
+            <div className="grid min-w-0 items-stretch gap-2 pb-1" style={{ gridTemplateColumns: HISTORY_TIMELINE_ADD_COLUMN_WIDTH }}>
+                <HistoryAddImageButton label={addImageLabel} onClick={onAddImage} />
             </div>
+        ) : (
+            <p className="text-xs font-medium text-slate-400">{emptyLabel}</p>
         );
     }
 
     if (visibleImages.length === 0) {
-        return <HistoryImageStatus label={processingLabel} />;
+        return canAddImages ? (
+            <div className="grid min-w-0 items-stretch gap-2 pb-1" style={{ gridTemplateColumns: `${HISTORY_TIMELINE_ADD_COLUMN_WIDTH} ${HISTORY_TIMELINE_ADD_COLUMN_WIDTH}` }}>
+                <HistoryImageStatus label={processingLabel} />
+                <HistoryAddImageButton label={addImageLabel} onClick={onAddImage} />
+            </div>
+        ) : (
+            <HistoryImageStatus label={processingLabel} />
+        );
     }
 
     return (
