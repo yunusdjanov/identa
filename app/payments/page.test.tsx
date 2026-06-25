@@ -303,6 +303,11 @@ describe('PaymentsPage', () => {
 
         const janeRow = screen.getByText('Jane Doe').closest('tr');
         expect(janeRow).not.toBeNull();
+        const janeBalanceCell = within(janeRow as HTMLElement).getAllByRole('cell')[6];
+        expect(within(janeBalanceCell).getByText('Debt')).toBeInTheDocument();
+        expect(
+            within(janeBalanceCell).getByText((_, element) => normalizeText(element?.textContent) === '50 000 UZS')
+        ).toBeInTheDocument();
 
         const historyLink = within(janeRow as HTMLElement).getByRole('link', { name: 'History' });
         expect(historyLink).toHaveAttribute('href', '/patients/patient-1/history?from=payments');
@@ -344,7 +349,7 @@ describe('PaymentsPage', () => {
             expect(screen.getByText('Advance Patient')).toBeInTheDocument();
         });
 
-        expect(screen.getByText('Advance')).toBeInTheDocument();
+        expect(screen.getAllByText('Advance').length).toBeGreaterThanOrEqual(2);
         const netBalanceCard = screen.getByText('Paid amount exceeds work total.').closest('.interactive-card') as HTMLElement;
         expect(netBalanceCard).not.toBeNull();
         expect(within(netBalanceCard).getByText('Advance')).toBeInTheDocument();
@@ -352,6 +357,14 @@ describe('PaymentsPage', () => {
             within(netBalanceCard).getByText((_, element) => normalizeText(element?.textContent) === '250 000 UZS')
         ).toBeInTheDocument();
         expect(normalizeText(netBalanceCard.textContent)).not.toContain('-250 000 UZS');
+
+        const advanceRow = screen.getByText('Advance Patient').closest('tr') as HTMLElement;
+        const advanceBalanceCell = within(advanceRow).getAllByRole('cell')[6];
+        expect(within(advanceBalanceCell).getByText('Advance')).toBeInTheDocument();
+        expect(
+            within(advanceBalanceCell).getByText((_, element) => normalizeText(element?.textContent) === '250 000 UZS')
+        ).toBeInTheDocument();
+        expect(normalizeText(advanceRow.textContent)).not.toContain('-250 000 UZS');
     });
 
     it('switches to the global history tab and shows treatment rows', async () => {
@@ -371,6 +384,10 @@ describe('PaymentsPage', () => {
 
         expect(screen.getByTitle('24')).toBeInTheDocument();
         expect(screen.queryByTitle('12')).not.toBeInTheDocument();
+
+        const compositeRow = screen.getAllByText('Composite filling')[0].closest('tr') as HTMLElement;
+        const compositeBalanceCell = within(compositeRow).getAllByRole('cell')[6];
+        expect(within(compositeBalanceCell).getByText('Debt')).toBeInTheDocument();
     });
 
     it('shows treatment authors in the global history tab when enabled', async () => {

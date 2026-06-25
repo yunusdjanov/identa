@@ -110,6 +110,22 @@ function getNetBalanceSummary(balance: number) {
     return { ...NET_BALANCE_SUMMARY_VARIANTS.debt, amount: balance };
 }
 
+function BalanceAmount({ balance }: { balance: number }) {
+    const { t } = useI18n();
+    const summary = getNetBalanceSummary(balance);
+
+    return (
+        <div className="flex min-w-[128px] flex-col items-start gap-1">
+            <span className={`font-semibold tabular-nums ${summary.valueClassName}`}>
+                {formatCurrency(summary.amount)}
+            </span>
+            <span className={`inline-flex items-center rounded-full border px-1.5 py-0.5 text-[10px] font-semibold leading-none ${summary.badgeClassName}`}>
+                {t(summary.statusKey)}
+            </span>
+        </div>
+    );
+}
+
 interface PatientBalanceRow {
     patientId: string;
     patientName: string;
@@ -672,7 +688,9 @@ export default function PaymentsPage() {
                                                         <TableCell>{row.entryCount}</TableCell>
                                                         <TableCell className="text-red-700">{formatCurrency(row.totalDebt)}</TableCell>
                                                         <TableCell className="text-green-700">{formatCurrency(row.totalPaid)}</TableCell>
-                                                        <TableCell className={row.balance > 0 ? 'text-red-700' : 'text-green-700'}>{formatCurrency(row.balance)}</TableCell>
+                                                        <TableCell>
+                                                            <BalanceAmount balance={row.balance} />
+                                                        </TableCell>
                                                         <TableCell className="text-right">
                                                             {canViewPatients ? (
                                                                 <Button asChild variant="outline" size="sm">
@@ -810,7 +828,9 @@ export default function PaymentsPage() {
                                                         </TableCell>
                                                         <TableCell className="text-red-700">{formatCurrency(row.debt)}</TableCell>
                                                         <TableCell className="text-green-700">{formatCurrency(row.paid)}</TableCell>
-                                                        <TableCell className={row.balanceDelta > 0 ? 'text-red-700' : 'text-green-700'}>{formatCurrency(row.balanceDelta)}</TableCell>
+                                                        <TableCell>
+                                                            <BalanceAmount balance={row.balanceDelta} />
+                                                        </TableCell>
                                                     </TableRow>
                                                 ))}
                                             </TableBody>
