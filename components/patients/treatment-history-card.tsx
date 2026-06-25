@@ -206,6 +206,18 @@ function getPreviewableTreatmentImages(treatment: ApiTreatment) {
     return getKnownTreatmentImages(treatment).filter((image) => getTreatmentImagePreviewUrl(image));
 }
 
+function formatAmountInput(value: string | number | null | undefined) {
+    const digits = String(value ?? '').replace(/\D/g, '');
+
+    return digits.replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+}
+
+function parseAmountInput(value: string) {
+    const digits = value.replace(/\D/g, '');
+
+    return digits ? Number(digits) : 0;
+}
+
 function getHistoryImageGridTemplateColumns(canAddImages: boolean) {
     const imageColumns = `repeat(${HISTORY_TIMELINE_IMAGE_LIMIT}, minmax(0, 1fr))`;
 
@@ -234,8 +246,8 @@ function createTreatmentFormState(treatment?: ApiTreatment | null): TreatmentFor
         treatmentDate: treatment?.treatment_date ?? toLocalDateKey(),
         treatmentType: treatment?.treatment_type ?? '',
         comment: treatment?.comment ?? treatment?.description ?? '',
-        debtAmount: treatment?.debt_amount ? String(Number(treatment.debt_amount)) : '',
-        paidAmount: treatment?.paid_amount ? String(Number(treatment.paid_amount)) : '',
+        debtAmount: treatment?.debt_amount ? formatAmountInput(Number(treatment.debt_amount)) : '',
+        paidAmount: treatment?.paid_amount ? formatAmountInput(Number(treatment.paid_amount)) : '',
         teeth: treatment?.teeth ?? [],
         imageFiles: [],
         removeImageIds: [],
@@ -629,8 +641,8 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                 teeth: formState.teeth,
                 tooth_number: formState.teeth[0] ?? null,
                 ...(canViewFinancials ? {
-                    debt_amount: Number(formState.debtAmount || 0),
-                    paid_amount: Number(formState.paidAmount || 0),
+                    debt_amount: parseAmountInput(formState.debtAmount),
+                    paid_amount: parseAmountInput(formState.paidAmount),
                 } : {}),
             };
             const treatment = editingTreatment
@@ -755,7 +767,7 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
     const treatmentTypeError = submitAttempted && formState.treatmentType.trim().length < 2 ? t('patientHistory.validation.workDone') : '';
     const dateError = submitAttempted && !formState.treatmentDate ? t('patientHistory.validation.date') : '';
     const amountError =
-        submitAttempted && [formState.debtAmount, formState.paidAmount].some((value) => Number(value || 0) < 0)
+        submitAttempted && [formState.debtAmount, formState.paidAmount].some((value) => parseAmountInput(value) < 0)
             ? t('patientHistory.validation.amount')
             : '';
     const imageValidationError =
@@ -1160,19 +1172,6 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                         </Button>
                     </div>
 
-                    <div className="mt-2">
-                        <Label htmlFor="historyComment" className="sr-only">{t('patientHistory.commentLabel')}</Label>
-                        <Textarea
-                            id="historyComment"
-                            rows={2}
-                            maxLength={5000}
-                            value={formState.comment}
-                            onChange={(event) => setFormState((current) => ({ ...current, comment: event.target.value }))}
-                            placeholder={t('patientHistory.commentPlaceholder')}
-                            className="min-h-16 resize-y rounded-xl border-slate-200 bg-slate-50/60 text-sm shadow-none"
-                        />
-                    </div>
-
                     <div className="mt-3">
                         <div className="mb-2 flex items-center justify-between gap-3">
                             <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
@@ -1191,10 +1190,13 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                             disabled={!canManageHistory || isPreparingImages}
                             className="sr-only"
                         />
-                        <div className="grid gap-2 sm:grid-cols-[repeat(auto-fit,minmax(10rem,1fr))]">
+                        <div
+                            className="grid gap-2"
+                            style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(8rem, 8rem))' }}
+                        >
                             {isEditingImagePanelLoading ? (
                                 Array.from({ length: Math.min(editingTreatment ? getTreatmentImageCount(editingTreatment) : 0, 4) }).map((_, index) => (
-                                    <Skeleton key={`image-loading-${index}`} className="h-32 rounded-xl lg:h-36" />
+                                    <Skeleton key={`image-loading-${index}`} className="h-24 rounded-xl lg:h-28" />
                                 ))
                             ) : (
                                 existingImages.map((image, index) => {
@@ -1206,7 +1208,7 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                     return (
                                         <div
                                             key={image.id}
-                                            className={`group relative h-32 overflow-hidden rounded-xl border bg-slate-100 shadow-sm transition-all lg:h-36 ${
+                                            className={`group relative h-24 overflow-hidden rounded-xl border bg-slate-100 shadow-sm transition-all lg:h-28 ${
                                                 isMarkedForRemoval
                                                     ? 'border-red-200 opacity-70 ring-1 ring-red-100'
                                                     : 'border-slate-200 hover:border-teal-300 hover:shadow-md'
@@ -1273,7 +1275,7 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                 })
                             )}
                             {selectedImagePreviews.map((preview, index) => (
-                                <div key={preview.id} className="group relative h-32 overflow-hidden rounded-xl border border-teal-200 bg-slate-100 shadow-sm transition-all hover:border-teal-300 hover:shadow-md lg:h-36">
+                                <div key={preview.id} className="group relative h-24 overflow-hidden rounded-xl border border-teal-200 bg-slate-100 shadow-sm transition-all hover:border-teal-300 hover:shadow-md lg:h-28">
                                     <button
                                         type="button"
                                         className="block h-full w-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-1"
@@ -1301,7 +1303,7 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                             {visibleExistingImagesCount + selectedImagePreviews.length < maxHistoryImagesPerEntry ? (
                                 <Label
                                     htmlFor={!canManageHistory || isPreparingImages ? undefined : 'historyImages'}
-                                    className={`group inline-flex h-32 min-h-32 items-center justify-center rounded-xl border border-dashed border-teal-200 bg-teal-50/60 text-teal-700 transition-all lg:h-36 ${!canManageHistory || isPreparingImages ? 'cursor-not-allowed opacity-70' : 'cursor-pointer hover:border-teal-300 hover:bg-teal-50 hover:shadow-sm'}`}
+                                    className={`group inline-flex h-24 min-h-24 items-center justify-center rounded-xl border border-dashed border-teal-200 bg-teal-50/60 text-teal-700 transition-all lg:h-28 ${!canManageHistory || isPreparingImages ? 'cursor-not-allowed opacity-70' : 'cursor-pointer hover:border-teal-300 hover:bg-teal-50 hover:shadow-sm'}`}
                                     onClick={() => {
                                         if (!canManageHistory) {
                                             toast.error(manageDeniedMessage);
@@ -1323,6 +1325,19 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                         {maxImagesError ? <p className="mt-2 text-xs text-red-600">{maxImagesError}</p> : null}
                     </div>
 
+                    <div className="mt-2">
+                        <Label htmlFor="historyComment" className="sr-only">{t('patientHistory.commentLabel')}</Label>
+                        <Textarea
+                            id="historyComment"
+                            rows={2}
+                            maxLength={5000}
+                            value={formState.comment}
+                            onChange={(event) => setFormState((current) => ({ ...current, comment: event.target.value }))}
+                            placeholder={t('patientHistory.commentPlaceholder')}
+                            className="min-h-14 resize-y rounded-xl border-slate-200 bg-slate-50/60 text-sm shadow-none"
+                        />
+                    </div>
+
                     {canViewFinancials ? (
                         <>
                             <div className="mt-3 grid grid-cols-1 gap-2 border-t border-slate-100 pt-3 sm:grid-cols-2">
@@ -1332,12 +1347,10 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                     </Label>
                                     <Input
                                         id="historyDebt"
-                                        type="number"
-                                        inputMode="decimal"
-                                        min="0"
-                                        step="0.01"
+                                        type="text"
+                                        inputMode="numeric"
                                         value={formState.debtAmount}
-                                        onChange={(event) => setFormState((current) => ({ ...current, debtAmount: event.target.value }))}
+                                        onChange={(event) => setFormState((current) => ({ ...current, debtAmount: formatAmountInput(event.target.value) }))}
                                         placeholder="0"
                                         className="mt-0.5 h-7 border-0 bg-transparent px-0 text-xs font-bold tabular-nums text-red-700 shadow-none focus-visible:ring-0"
                                     />
@@ -1348,12 +1361,10 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                     </Label>
                                     <Input
                                         id="historyPaid"
-                                        type="number"
-                                        inputMode="decimal"
-                                        min="0"
-                                        step="0.01"
+                                        type="text"
+                                        inputMode="numeric"
                                         value={formState.paidAmount}
-                                        onChange={(event) => setFormState((current) => ({ ...current, paidAmount: event.target.value }))}
+                                        onChange={(event) => setFormState((current) => ({ ...current, paidAmount: formatAmountInput(event.target.value) }))}
                                         placeholder="0"
                                         className="mt-0.5 h-7 border-0 bg-transparent px-0 text-xs font-bold tabular-nums text-green-700 shadow-none focus-visible:ring-0"
                                     />
@@ -1618,16 +1629,18 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                                         <span className="inline-flex h-6 items-center rounded-full border border-slate-200 bg-slate-50 px-2 text-[11px] font-semibold tabular-nums text-slate-600 md:hidden">
                                                             {formatDate(treatment.treatment_date)}
                                                         </span>
-                                                        {showRecordAuthors ? (
-                                                            <RecordAuthorBadge
-                                                                createdBy={treatment.created_by}
-                                                                updatedBy={treatment.updated_by}
-                                                            />
-                                                        ) : null}
                                                     </div>
                                                     <h3 className="break-words text-sm font-semibold leading-snug text-slate-950 sm:text-base" title={treatment.treatment_type}>
                                                         {treatment.treatment_type}
                                                     </h3>
+                                                    {showRecordAuthors ? (
+                                                        <div className="mt-1.5">
+                                                            <RecordAuthorBadge
+                                                                createdBy={treatment.created_by}
+                                                                updatedBy={treatment.updated_by}
+                                                            />
+                                                        </div>
+                                                    ) : null}
                                                 </div>
                                                 {historyManageDisplayMode === 'hidden' ? null : (
                                                     <div className="flex shrink-0 items-center gap-1.5">

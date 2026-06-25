@@ -720,7 +720,10 @@ describe('TreatmentHistoryCard image controls', () => {
         expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
         expect(screen.getByLabelText(/^Date/i)).toBeInTheDocument();
         expect(screen.getByLabelText(/^Entry/i)).toBeInTheDocument();
-        expect(screen.getAllByTitle('Upload').find((element) => element.classList.contains('h-32'))).toHaveClass('lg:h-36');
+        const uploadTile = screen.getAllByTitle('Upload').find((element) => element.classList.contains('h-24')) as HTMLElement;
+        expect(uploadTile).toHaveClass('lg:h-28');
+        expect(screen.getByLabelText(/^Entry/i).compareDocumentPosition(uploadTile) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+        expect(uploadTile.compareDocumentPosition(screen.getByLabelText(/^Description \/ comment/i)) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
         expect(screen.queryByTitle('Tooth #18')).not.toBeInTheDocument();
         expect(screen.queryByTitle('Tooth #48')).not.toBeInTheDocument();
     });
@@ -796,15 +799,18 @@ describe('TreatmentHistoryCard image controls', () => {
         await user.type(screen.getByLabelText(/^Entry/i), 'Advance payment');
         await user.type(screen.getByLabelText(/^Description \/ comment/i), 'Paid ahead of treatment');
         await user.clear(screen.getByLabelText(/^Work total/i));
-        await user.type(screen.getByLabelText(/^Work total/i), '0');
+        await user.type(screen.getByLabelText(/^Work total/i), '500,000');
         await user.clear(screen.getByLabelText(/^Paid/i));
         await user.type(screen.getByLabelText(/^Paid/i), '60000');
+        expect(screen.getByLabelText(/^Work total/i)).toHaveAttribute('type', 'text');
+        expect(screen.getByLabelText(/^Work total/i)).toHaveValue('500 000');
+        expect(screen.getByLabelText(/^Paid/i)).toHaveValue('60 000');
 
         await user.click(screen.getByRole('button', { name: 'Save Changes' }));
 
         await waitFor(() => {
             expect(createPatientTreatment).toHaveBeenCalledWith('patient-1', expect.objectContaining({
-                debt_amount: 0,
+                debt_amount: 500000,
                 paid_amount: 60000,
                 comment: 'Paid ahead of treatment',
                 treatment_type: 'Advance payment',
