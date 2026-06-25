@@ -231,12 +231,17 @@ function parseAmountInput(value: string) {
     return digits ? Number(digits) : 0;
 }
 
-function getHistoryImageGridTemplateColumns(canAddImages: boolean) {
-    const imageColumns = `repeat(${HISTORY_TIMELINE_IMAGE_LIMIT}, minmax(0, 1fr))`;
+function getHistoryImageGridTemplateColumns(visibleImageCount: number, canAddImages: boolean) {
+    const clampedImageCount = Math.min(Math.max(visibleImageCount, 0), HISTORY_TIMELINE_IMAGE_LIMIT);
+    const imageColumns = clampedImageCount > 0
+        ? `repeat(${clampedImageCount}, minmax(0, 1fr))`
+        : '';
 
-    return canAddImages
-        ? `${imageColumns} ${HISTORY_TIMELINE_ADD_COLUMN_WIDTH}`
-        : imageColumns;
+    if (!canAddImages) {
+        return imageColumns;
+    }
+
+    return [imageColumns, HISTORY_TIMELINE_ADD_COLUMN_WIDTH].filter(Boolean).join(' ');
 }
 
 function buildPreviewGalleryImages(
@@ -345,7 +350,7 @@ function HistoryImageStrip({
     const imageCount = getTreatmentImageCount(treatment);
     const knownImages = getKnownTreatmentImages(treatment);
     const visibleImages = knownImages.slice(0, HISTORY_TIMELINE_IMAGE_LIMIT);
-    const gridTemplateColumns = getHistoryImageGridTemplateColumns(canAddImages);
+    const gridTemplateColumns = getHistoryImageGridTemplateColumns(visibleImages.length, canAddImages);
 
     if (isSyncing) {
         return <HistoryImageStatus label={uploadingLabel} />;
@@ -353,7 +358,7 @@ function HistoryImageStrip({
 
     if (imageCount === 0) {
         return canAddImages ? (
-            <div className="grid min-w-0 items-stretch gap-2 pb-1" style={{ gridTemplateColumns: HISTORY_TIMELINE_ADD_COLUMN_WIDTH }}>
+            <div className="grid min-w-0 items-stretch gap-2 pb-1" style={{ gridTemplateColumns: getHistoryImageGridTemplateColumns(0, true) }}>
                 <HistoryAddImageButton label={addImageLabel} onClick={onAddImage} />
             </div>
         ) : (
@@ -363,7 +368,7 @@ function HistoryImageStrip({
 
     if (visibleImages.length === 0) {
         return canAddImages ? (
-            <div className="grid min-w-0 items-stretch gap-2 pb-1" style={{ gridTemplateColumns: `${HISTORY_TIMELINE_ADD_COLUMN_WIDTH} ${HISTORY_TIMELINE_ADD_COLUMN_WIDTH}` }}>
+            <div className="grid min-w-0 items-stretch gap-2 pb-1" style={{ gridTemplateColumns: getHistoryImageGridTemplateColumns(1, true) }}>
                 <HistoryImageStatus label={processingLabel} />
                 <HistoryAddImageButton label={addImageLabel} onClick={onAddImage} />
             </div>

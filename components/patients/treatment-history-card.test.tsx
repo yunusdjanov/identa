@@ -233,10 +233,46 @@ describe('TreatmentHistoryCard image controls', () => {
         expect(screen.getByRole('button', { name: 'Image 2' })).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Upload' })).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Image 1' })).toHaveClass('h-36', 'w-full', 'min-w-0', 'lg:h-40');
-        expect(screen.getByRole('button', { name: 'Image 1' }).parentElement).toHaveStyle({ gridTemplateColumns: 'repeat(4, minmax(0, 1fr)) 3.75rem' });
+        expect(screen.getByRole('button', { name: 'Image 1' }).parentElement).toHaveStyle({ gridTemplateColumns: 'repeat(2, minmax(0, 1fr)) 3.75rem' });
         expect(screen.getByRole('button', { name: 'Upload' })).toHaveClass('h-36', 'w-full', 'min-w-0', 'lg:h-40');
         expect(screen.queryByText(/^Teeth:/i)).not.toBeInTheDocument();
         expect(screen.getAllByText('Remaining')).toHaveLength(1);
+    });
+
+    it('keeps the upload tile compact when a timeline entry has no images', async () => {
+        vi.mocked(listPatientTreatments).mockResolvedValue(treatmentsEnvelope([
+            {
+                id: 'treatment-empty-images',
+                patient_id: 'patient-1',
+                patient_name: 'Sardor',
+                patient_phone: '+998 90 123 45 67',
+                patient_secondary_phone: null,
+                patient_code: 'PT-1001',
+                tooth_number: null,
+                teeth: [],
+                treatment_type: 'No images',
+                description: null,
+                comment: null,
+                treatment_date: '2026-04-05',
+                cost: null,
+                debt_amount: 0,
+                paid_amount: 0,
+                balance: 0,
+                notes: null,
+                image_count: 0,
+                primary_image: null,
+                images: [],
+                created_at: '2026-04-05T10:00:00Z',
+                updated_at: '2026-04-05T10:00:00Z',
+            },
+        ]));
+
+        renderCard();
+
+        expect(await screen.findByRole('heading', { name: 'No images' })).toBeInTheDocument();
+        const uploadButton = screen.getByRole('button', { name: 'Upload' });
+        expect(uploadButton).toHaveClass('h-36', 'w-full', 'min-w-0', 'lg:h-40');
+        expect(uploadButton.parentElement).toHaveStyle({ gridTemplateColumns: '3.75rem' });
     });
 
     it('renders the financial summary as compact secondary cards', async () => {
@@ -419,7 +455,7 @@ describe('TreatmentHistoryCard image controls', () => {
         expect(screen.getByRole('button', { name: 'Image 1' })).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Image 2' })).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Image 3' })).toBeInTheDocument();
-        expect(screen.getByRole('button', { name: 'Image 1' }).parentElement).toHaveStyle({ gridTemplateColumns: 'repeat(4, minmax(0, 1fr)) 3.75rem' });
+        expect(screen.getByRole('button', { name: 'Image 1' }).parentElement).toHaveStyle({ gridTemplateColumns: 'repeat(3, minmax(0, 1fr)) 3.75rem' });
         expect(screen.getByRole('button', { name: 'Upload' })).toBeInTheDocument();
         expect(screen.queryByText('+1')).not.toBeInTheDocument();
         expect(screen.queryByText('+2')).not.toBeInTheDocument();
