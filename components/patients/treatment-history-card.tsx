@@ -554,7 +554,7 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
             page: pageParam,
             perPage: HISTORY_PAGE_SIZE,
             sort: HISTORY_SORT,
-            includeImages: false,
+            includeImages: true,
             includeSummary: pageParam === 1,
         }),
         getNextPageParam: (lastPage) => {

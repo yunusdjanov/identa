@@ -279,7 +279,7 @@ describe('TreatmentHistoryCard image controls', () => {
             page: 1,
             perPage: 10,
             sort: '-treatment_date,-created_at',
-            includeImages: false,
+            includeImages: true,
             includeSummary: true,
         }));
 
@@ -290,9 +290,57 @@ describe('TreatmentHistoryCard image controls', () => {
             page: 2,
             perPage: 10,
             sort: '-treatment_date,-created_at',
-            includeImages: false,
+            includeImages: true,
             includeSummary: false,
         }));
+    });
+
+    it('does not show a hidden image count when all images fit in the strip', async () => {
+        const images = Array.from({ length: 3 }).map((_, index) => ({
+            id: `image-fit-${index + 1}`,
+            mime_type: 'image/jpeg',
+            file_size: 1024,
+            created_at: `2026-04-05T10:0${index}:00Z`,
+            url: `https://example.com/tooth-fit-${index + 1}.jpg`,
+            thumbnail_url: `https://example.com/tooth-fit-${index + 1}-thumb.jpg`,
+            preview_url: `https://example.com/tooth-fit-${index + 1}-preview.jpg`,
+        }));
+
+        vi.mocked(listPatientTreatments).mockResolvedValue(treatmentsEnvelope([
+            {
+                id: 'treatment-fitting-images',
+                patient_id: 'patient-1',
+                patient_name: 'Sardor',
+                patient_phone: '+998 90 123 45 67',
+                patient_secondary_phone: null,
+                patient_code: 'PT-1001',
+                tooth_number: null,
+                teeth: [],
+                treatment_type: 'Fitting images',
+                description: null,
+                comment: null,
+                treatment_date: '2026-04-05',
+                cost: null,
+                debt_amount: 120000,
+                paid_amount: 60000,
+                balance: 60000,
+                notes: null,
+                image_count: images.length,
+                primary_image: images[0],
+                images,
+                created_at: '2026-04-05T10:00:00Z',
+                updated_at: '2026-04-05T10:00:00Z',
+            },
+        ]));
+
+        renderCard();
+
+        expect(await screen.findByRole('heading', { name: 'Fitting images' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Image 1' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Image 2' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Image 3' })).toBeInTheDocument();
+        expect(screen.queryByText('+1')).not.toBeInTheDocument();
+        expect(screen.queryByText('+2')).not.toBeInTheDocument();
     });
 
     it('limits timeline thumbnails and shows hidden image count with upload affordance', async () => {
