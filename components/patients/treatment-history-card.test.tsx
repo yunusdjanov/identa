@@ -264,6 +264,51 @@ describe('TreatmentHistoryCard image controls', () => {
         expect(remainingCard).toHaveTextContent('Debt');
     });
 
+    it('hides the settled badge when all financial summary amounts are zero', async () => {
+        vi.mocked(listPatientTreatments).mockResolvedValue(treatmentsEnvelope([]));
+
+        renderCard();
+
+        await waitFor(() => {
+            expect(getCompactSummaryCard('Remaining')).toHaveTextContent('0 UZS');
+        });
+
+        expect(getCompactSummaryCard('Remaining')).not.toHaveTextContent('Paid');
+    });
+
+    it('keeps the settled badge when real work is fully paid', async () => {
+        vi.mocked(listPatientTreatments).mockResolvedValue(treatmentsEnvelope([
+            {
+                id: 'treatment-settled',
+                patient_id: 'patient-1',
+                patient_name: 'Sardor',
+                patient_phone: '+998 90 123 45 67',
+                patient_secondary_phone: null,
+                patient_code: 'PT-1001',
+                tooth_number: null,
+                teeth: [],
+                treatment_type: 'Settled treatment',
+                description: null,
+                comment: null,
+                treatment_date: '2026-04-05',
+                cost: null,
+                debt_amount: 120000,
+                paid_amount: 120000,
+                balance: 0,
+                notes: null,
+                images: [],
+                created_at: '2026-04-05T10:00:00Z',
+                updated_at: '2026-04-05T10:00:00Z',
+            },
+        ]));
+
+        renderCard();
+
+        await waitFor(() => {
+            expect(getCompactSummaryCard('Remaining')).toHaveTextContent('Paid');
+        });
+    });
+
     it('loads the newest page first and fetches older entries on demand', async () => {
         const user = userEvent.setup();
         const newestTreatment = {

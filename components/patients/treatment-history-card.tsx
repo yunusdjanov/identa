@@ -92,6 +92,10 @@ function getBalanceStatusKey(balance: number) {
     return 'patientHistory.balanceStatus.debt';
 }
 
+function shouldShowBalanceStatus(totalDebt: number, totalPaid: number, balance: number) {
+    return totalDebt !== 0 || totalPaid !== 0 || balance !== 0;
+}
+
 function getBalanceExportTone(balance: number): 'yellow' | 'blue' | 'neutral' {
     const tone = getBalanceMetricTone(balance);
 
@@ -541,6 +545,7 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
         };
     }, [treatments, treatmentsQuery.data]);
     const netBalanceTone = getBalanceMetricTone(summary.netBalance);
+    const shouldShowNetBalanceStatus = shouldShowBalanceStatus(summary.totalDebt, summary.totalPaid, summary.netBalance);
 
     const invalidateHistory = () => {
         queryClient.invalidateQueries({ queryKey: treatmentsQueryKey });
@@ -1413,15 +1418,21 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                         });
                                         const treatmentRows = exportTreatments.map((tr) => canViewFinancials
                                             ? (() => {
+                                                const debt = Number(tr.debt_amount ?? 0);
+                                                const paid = Number(tr.paid_amount ?? 0);
                                                 const balance = Number(tr.balance ?? 0);
+                                                const balanceValue = formatCurrency(Math.abs(balance));
+                                                const balanceStatus = shouldShowBalanceStatus(debt, paid, balance)
+                                                    ? ` (${t(getBalanceStatusKey(balance))})`
+                                                    : '';
 
                                                 return [
                                                     formatDate(tr.treatment_date),
                                                     formatTeeth(tr.teeth ?? []) || '-',
                                                     tr.treatment_type,
-                                                    formatCurrency(Number(tr.debt_amount ?? 0)),
-                                                    formatCurrency(Number(tr.paid_amount ?? 0)),
-                                                    `${formatCurrency(Math.abs(balance))} (${t(getBalanceStatusKey(balance))})`,
+                                                    formatCurrency(debt),
+                                                    formatCurrency(paid),
+                                                    `${balanceValue}${balanceStatus}`,
                                                 ];
                                             })()
                                             : [
@@ -1443,7 +1454,9 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                                     { label: t('patientHistory.totalDebt'), value: formatCurrency(summary.totalDebt), tone: 'red' },
                                                     { label: t('patientHistory.totalPaid'), value: formatCurrency(summary.totalPaid), tone: 'green' },
                                                     {
-                                                        label: `${t('patientHistory.netBalance')} · ${t(getBalanceStatusKey(summary.netBalance))}`,
+                                                        label: shouldShowNetBalanceStatus
+                                                            ? `${t('patientHistory.netBalance')} · ${t(getBalanceStatusKey(summary.netBalance))}`
+                                                            : t('patientHistory.netBalance'),
                                                         value: formatCurrency(Math.abs(summary.netBalance)),
                                                         tone: getBalanceExportTone(summary.netBalance),
                                                     },
@@ -1527,7 +1540,7 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                             label={t('patientHistory.netBalance')}
                             value={formatCurrency(Math.abs(summary.netBalance))}
                             tone={netBalanceTone}
-                            badge={t(getBalanceStatusKey(summary.netBalance))}
+                            badge={shouldShowNetBalanceStatus ? t(getBalanceStatusKey(summary.netBalance)) : undefined}
                             badgeTone={netBalanceTone}
                             compact
                             gradient

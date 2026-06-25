@@ -419,6 +419,33 @@ describe('PaymentsPage', () => {
         expect(within(zeroHistoryBalanceCell).queryByText('Paid')).not.toBeInTheDocument();
     });
 
+    it('hides the overall settled badge when every summary amount is zero', async () => {
+        patientLedgerRows = [
+            {
+                patient_id: 'patient-zero',
+                patient_code: 'PT-1010',
+                patient_name: 'Zero Patient',
+                patient_phone: '+998900000010',
+                total_debt: 0,
+                total_paid: 0,
+                balance: 0,
+                entry_count: 0,
+                last_entry_date: null,
+            },
+        ];
+        historyLedgerRows = [];
+
+        renderPage();
+
+        await waitFor(() => {
+            expect(screen.getByText('Zero Patient')).toBeInTheDocument();
+        });
+
+        const netBalanceCard = screen.getByText('Balance is settled.').closest('.interactive-card') as HTMLElement;
+        expect(netBalanceCard).not.toBeNull();
+        expect(within(netBalanceCard).queryByText('Paid')).not.toBeInTheDocument();
+    });
+
     it('switches to the global history tab and shows treatment rows', async () => {
         renderPage();
 

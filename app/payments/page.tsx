@@ -419,13 +419,20 @@ export default function PaymentsPage() {
                     String(row.entryCount),
                     formatCurrency(row.totalDebt),
                     formatCurrency(row.totalPaid),
-                    `${formatCurrency(Math.abs(row.balance))} (${t(getNetBalanceSummary(row.balance).statusKey)})`,
+                    shouldShowBalanceStatus(row.totalDebt, row.totalPaid, row.balance)
+                        ? `${formatCurrency(Math.abs(row.balance))} (${t(getNetBalanceSummary(row.balance).statusKey)})`
+                        : formatCurrency(Math.abs(row.balance)),
                     row.lastEntryDate ? formatLocalizedDate(row.lastEntryDate, locale, { year: 'numeric', month: 'short', day: 'numeric' }) : '-',
                 ]),
                 summary: [
                     { label: t('payments.summary.totalDebt'), value: formatCurrency(overallSummary.totalDebt) },
                     { label: t('payments.summary.totalPaid'), value: formatCurrency(overallSummary.totalPaid) },
-                    { label: t('payments.summary.totalBalance'), value: `${formatCurrency(Math.abs(overallSummary.totalBalance))} (${t(getNetBalanceSummary(overallSummary.totalBalance).statusKey)})` },
+                    {
+                        label: t('payments.summary.totalBalance'),
+                        value: shouldShowNetBalanceStatus
+                            ? `${formatCurrency(Math.abs(overallSummary.totalBalance))} (${t(getNetBalanceSummary(overallSummary.totalBalance).statusKey)})`
+                            : formatCurrency(Math.abs(overallSummary.totalBalance)),
+                    },
                 ],
                 orientation: 'landscape',
             });
@@ -489,6 +496,11 @@ export default function PaymentsPage() {
 
     const isAccountingLoading = patientLedgerQuery.isLoading && !patientLedgerQuery.data;
     const netBalanceSummary = getNetBalanceSummary(overallSummary.totalBalance);
+    const shouldShowNetBalanceStatus = shouldShowBalanceStatus(
+        overallSummary.totalDebt,
+        overallSummary.totalPaid,
+        overallSummary.totalBalance
+    );
 
     return (
         <div className="space-y-5 lg:space-y-6">
@@ -535,7 +547,7 @@ export default function PaymentsPage() {
                     <div className={`flex flex-wrap items-center gap-2 text-sm font-medium ${netBalanceSummary.labelClassName}`}>
                         <History className={`h-4 w-4 ${netBalanceSummary.iconClassName}`} />
                         <span>{t('payments.summary.netBalance')}</span>
-                        {!isAccountingLoading ? (
+                        {!isAccountingLoading && shouldShowNetBalanceStatus ? (
                             <span className={`inline-flex items-center rounded-full border px-1.5 py-0.5 text-[10px] font-semibold leading-none ${netBalanceSummary.badgeClassName}`}>
                                 {t(netBalanceSummary.statusKey)}
                             </span>
