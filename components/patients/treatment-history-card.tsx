@@ -72,6 +72,15 @@ const HISTORY_SORT = '-treatment_date,-created_at';
 const HISTORY_TIMELINE_IMAGE_TILE_CLASS = 'h-36 w-full min-w-0 lg:h-40';
 const HISTORY_TIMELINE_ADD_TILE_CLASS = 'h-36 w-full min-w-0 lg:h-40';
 const HISTORY_TIMELINE_ADD_COLUMN_WIDTH = '3.75rem';
+const HISTORY_WORK_DONE_SUGGESTIONS = [
+    'Реставрация',
+    'Эндодонтия',
+    'Удаления',
+    'Имплантация',
+    'Отбеливания',
+    'Ортопедия',
+    'Чистка',
+];
 
 type TreatmentHistoryPages = InfiniteData<ApiCollectionEnvelope<ApiTreatment>, number>;
 
@@ -1160,8 +1169,31 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                 value={formState.treatmentType}
                                 onChange={(event) => setFormState((current) => ({ ...current, treatmentType: event.target.value }))}
                                 placeholder={t('patientHistory.workDonePlaceholder')}
-                                className="h-9 border-0 bg-transparent px-0 text-sm font-semibold text-slate-950 shadow-none focus-visible:ring-0 sm:text-base"
+                                className="h-10 rounded-2xl border-slate-200 bg-slate-50/80 px-4 text-sm font-semibold text-slate-950 shadow-inner shadow-slate-100/70 transition-colors placeholder:text-slate-400 focus-visible:border-teal-300 focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-teal-100 sm:text-base"
                             />
+                            <div className="flex flex-wrap gap-1.5" aria-label="Work type suggestions">
+                                {HISTORY_WORK_DONE_SUGGESTIONS.map((suggestion) => {
+                                    const isSelected = formState.treatmentType.trim() === suggestion;
+
+                                    return (
+                                        <Button
+                                            key={suggestion}
+                                            type="button"
+                                            variant="outline"
+                                            size="sm"
+                                            aria-pressed={isSelected}
+                                            className={`h-7 rounded-full px-2.5 text-xs font-semibold shadow-none ${
+                                                isSelected
+                                                    ? 'border-teal-300 bg-teal-50 text-teal-700'
+                                                    : 'border-slate-200 bg-white text-slate-600 hover:border-teal-200 hover:bg-teal-50/70 hover:text-teal-700'
+                                            }`}
+                                            onClick={() => setFormState((current) => ({ ...current, treatmentType: suggestion }))}
+                                        >
+                                            {suggestion}
+                                        </Button>
+                                    );
+                                })}
+                            </div>
                             {treatmentTypeError ? <p className="text-xs text-red-600">{treatmentTypeError}</p> : null}
                         </div>
                         <Button

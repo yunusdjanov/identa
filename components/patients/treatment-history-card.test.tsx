@@ -764,10 +764,14 @@ describe('TreatmentHistoryCard image controls', () => {
 
         expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
         expect(screen.getByLabelText(/^Date/i)).toBeInTheDocument();
-        expect(screen.getByLabelText(/^Entry/i)).toBeInTheDocument();
+        const entryInput = screen.getByLabelText(/^Entry/i);
+        expect(entryInput).toBeInTheDocument();
+        expect(entryInput).toHaveClass('rounded-2xl', 'bg-slate-50/80');
+        await user.click(screen.getByRole('button', { name: 'Реставрация' }));
+        expect(entryInput).toHaveValue('Реставрация');
         const uploadTile = screen.getAllByTitle('Upload').find((element) => element.classList.contains('h-24')) as HTMLElement;
         expect(uploadTile).toHaveClass('lg:h-28');
-        expect(screen.getByLabelText(/^Entry/i).compareDocumentPosition(uploadTile) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+        expect(entryInput.compareDocumentPosition(uploadTile) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
         expect(uploadTile.compareDocumentPosition(screen.getByLabelText(/^Description \/ comment/i)) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
         expect(screen.queryByTitle('Tooth #18')).not.toBeInTheDocument();
         expect(screen.queryByTitle('Tooth #48')).not.toBeInTheDocument();
