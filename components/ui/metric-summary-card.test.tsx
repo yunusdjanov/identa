@@ -31,6 +31,11 @@ describe('MetricSummaryCard', () => {
         expect(screen.getByText('250,000 UZS')).toBeInTheDocument();
     });
 
+    it('uses a soft tonal gradient when gradient=true', () => {
+        renderCard({ label: 'Paid', value: '250,000 UZS', tone: 'emerald', compact: true, gradient: true });
+        expect(screen.getByText('Paid').closest('.interactive-card')).toHaveClass('bg-gradient-to-br', 'via-emerald-50/70');
+    });
+
     it('maps net balance direction to debt advance and settled tones', () => {
         expect(getBalanceMetricTone(250000)).toBe('yellow');
         expect(getBalanceMetricTone(-250000)).toBe('blue');

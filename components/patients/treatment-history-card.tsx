@@ -1452,6 +1452,7 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                             value={formatCurrency(summary.totalDebt)}
                             tone="red"
                             compact
+                            gradient
                             tabular
                             locked={!canViewFinancials}
                         />
@@ -1460,6 +1461,7 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                             value={formatCurrency(summary.totalPaid)}
                             tone="emerald"
                             compact
+                            gradient
                             tabular
                             locked={!canViewFinancials}
                         />
@@ -1470,6 +1472,7 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                             badge={t(getBalanceStatusKey(summary.netBalance))}
                             badgeTone={netBalanceTone}
                             compact
+                            gradient
                             tabular
                             locked={!canViewFinancials}
                         />

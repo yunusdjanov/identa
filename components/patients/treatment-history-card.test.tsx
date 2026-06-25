@@ -252,6 +252,9 @@ describe('TreatmentHistoryCard image controls', () => {
         expect(workTotalCard).toHaveClass('min-h-14', 'rounded-xl', 'px-3', 'py-2');
         expect(paidCard).toHaveClass('min-h-14', 'rounded-xl', 'px-3', 'py-2');
         expect(remainingCard).toHaveClass('min-h-14', 'rounded-xl', 'px-3', 'py-2');
+        expect(workTotalCard).toHaveClass('bg-gradient-to-br', 'via-red-50/70');
+        expect(paidCard).toHaveClass('bg-gradient-to-br', 'via-emerald-50/70');
+        expect(remainingCard).toHaveClass('bg-gradient-to-br');
         expect(workTotalCard).not.toHaveClass('metric-hover-card');
         expect(paidCard).not.toHaveClass('metric-hover-card');
         expect(remainingCard).not.toHaveClass('metric-hover-card');

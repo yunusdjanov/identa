@@ -14,6 +14,11 @@ interface MetricSummaryCardProps {
     badge?: string;
     badgeTone?: MetricSummaryTone;
     compact?: boolean;
+    /**
+     * Adds the soft financial-card gradient used where metric cards are
+     * part of the visible clinical page hierarchy rather than dense tables.
+     */
+    gradient?: boolean;
     tabular?: boolean;
     className?: string;
     /**
@@ -74,6 +79,16 @@ const badgeClasses: Record<MetricSummaryTone, string> = {
     slate: 'border-slate-200 bg-slate-50 text-slate-600',
 };
 
+const gradientClasses: Record<MetricSummaryTone, string> = {
+    teal: 'bg-gradient-to-br from-white via-teal-50/70 to-cyan-50/60',
+    blue: 'bg-gradient-to-br from-white via-blue-50/70 to-blue-100/60',
+    emerald: 'bg-gradient-to-br from-white via-emerald-50/70 to-teal-50/60',
+    amber: 'bg-gradient-to-br from-white via-amber-50/70 to-orange-50/50',
+    yellow: 'bg-gradient-to-br from-white via-yellow-50/70 to-amber-50/60',
+    red: 'bg-gradient-to-br from-white via-red-50/70 to-red-50/60',
+    slate: 'bg-gradient-to-br from-white via-slate-50/80 to-slate-100/70',
+};
+
 /**
  * Maps a net balance to the visual tone used for remaining/credit cards.
  */
@@ -97,6 +112,7 @@ export function MetricSummaryCard({
     badge,
     badgeTone,
     compact = false,
+    gradient = false,
     tabular = false,
     className,
     locked = false,
@@ -113,7 +129,8 @@ export function MetricSummaryCard({
         return (
             <div
                 className={cn(
-                    'border border-slate-200/70 bg-white',
+                    'border border-slate-200/70',
+                    gradient ? gradientClasses.slate : 'bg-white',
                     compact ? 'min-h-14 rounded-xl px-3 py-2 shadow-xs' : 'rounded-2xl p-3 shadow-sm',
                     className
                 )}
@@ -135,7 +152,7 @@ export function MetricSummaryCard({
         <div
             className={cn(
                 compact
-                    ? 'interactive-card min-h-14 rounded-xl border bg-white px-3 py-2 shadow-xs'
+                    ? cn('interactive-card min-h-14 rounded-xl border px-3 py-2 shadow-xs', gradient ? gradientClasses[tone] : 'bg-white')
                     : 'interactive-card metric-hover-card rounded-2xl border bg-white p-3 shadow-sm',
                 toneClasses[tone].card,
                 className
