@@ -367,6 +367,58 @@ describe('PaymentsPage', () => {
         expect(normalizeText(advanceRow.textContent)).not.toContain('-250 000 UZS');
     });
 
+    it('hides the settled badge on rows with no work and no payment', async () => {
+        patientLedgerRows.push({
+            patient_id: 'patient-zero',
+            patient_code: 'PT-1010',
+            patient_name: 'Zero Patient',
+            patient_phone: '+998900000010',
+            total_debt: 0,
+            total_paid: 0,
+            balance: 0,
+            entry_count: 0,
+            last_entry_date: null,
+        });
+        historyLedgerRows.push({
+            id: 'tr-zero',
+            patient_id: 'patient-zero',
+            patient_name: 'Zero Patient',
+            patient_phone: '+998900000010',
+            date: '2026-03-20',
+            teeth: [],
+            work_done: 'No charge note',
+            comment: null,
+            debt: 0,
+            paid: 0,
+            balance_delta: 0,
+        });
+
+        renderPage();
+
+        await waitFor(() => {
+            expect(screen.getByText('Zero Patient')).toBeInTheDocument();
+        });
+
+        const zeroPatientRow = screen.getByText('Zero Patient').closest('tr') as HTMLElement;
+        const zeroPatientBalanceCell = within(zeroPatientRow).getAllByRole('cell')[6];
+        expect(normalizeText(zeroPatientBalanceCell.textContent)).toContain('0 UZS');
+        expect(within(zeroPatientBalanceCell).queryByText('Paid')).not.toBeInTheDocument();
+
+        const settledPatientRow = screen.getByText('John Smith').closest('tr') as HTMLElement;
+        const settledPatientBalanceCell = within(settledPatientRow).getAllByRole('cell')[6];
+        expect(within(settledPatientBalanceCell).getByText('Paid')).toBeInTheDocument();
+
+        fireEvent.click(screen.getByRole('button', { name: 'History' }));
+
+        await waitFor(() => {
+            expect(screen.getByText('No charge note')).toBeInTheDocument();
+        });
+
+        const zeroHistoryRow = screen.getByText('No charge note').closest('tr') as HTMLElement;
+        const zeroHistoryBalanceCell = within(zeroHistoryRow).getAllByRole('cell')[6];
+        expect(within(zeroHistoryBalanceCell).queryByText('Paid')).not.toBeInTheDocument();
+    });
+
     it('switches to the global history tab and shows treatment rows', async () => {
         renderPage();
 

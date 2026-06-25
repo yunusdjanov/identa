@@ -110,18 +110,24 @@ function getNetBalanceSummary(balance: number) {
     return { ...NET_BALANCE_SUMMARY_VARIANTS.debt, amount: balance };
 }
 
-function BalanceAmount({ balance }: { balance: number }) {
+function shouldShowBalanceStatus(debt: number, paid: number, balance: number) {
+    return debt !== 0 || paid !== 0 || balance !== 0;
+}
+
+function BalanceAmount({ balance, showStatus = true }: { balance: number; showStatus?: boolean }) {
     const { t } = useI18n();
     const summary = getNetBalanceSummary(balance);
 
     return (
-        <div className="flex min-w-[128px] flex-col items-start gap-1">
+        <div className="flex min-w-[128px] flex-wrap items-center gap-1.5">
             <span className={`font-semibold tabular-nums ${summary.valueClassName}`}>
                 {formatCurrency(summary.amount)}
             </span>
-            <span className={`inline-flex items-center rounded-full border px-1.5 py-0.5 text-[10px] font-semibold leading-none ${summary.badgeClassName}`}>
-                {t(summary.statusKey)}
-            </span>
+            {showStatus ? (
+                <span className={`inline-flex items-center rounded-full border px-1.5 py-0.5 text-[10px] font-semibold leading-none ${summary.badgeClassName}`}>
+                    {t(summary.statusKey)}
+                </span>
+            ) : null}
         </div>
     );
 }
@@ -690,7 +696,10 @@ export default function PaymentsPage() {
                                                         <TableCell className="text-red-700">{formatCurrency(row.totalDebt)}</TableCell>
                                                         <TableCell className="text-green-700">{formatCurrency(row.totalPaid)}</TableCell>
                                                         <TableCell>
-                                                            <BalanceAmount balance={row.balance} />
+                                                            <BalanceAmount
+                                                                balance={row.balance}
+                                                                showStatus={shouldShowBalanceStatus(row.totalDebt, row.totalPaid, row.balance)}
+                                                            />
                                                         </TableCell>
                                                         <TableCell className="text-right">
                                                             {canViewPatients ? (
@@ -830,7 +839,10 @@ export default function PaymentsPage() {
                                                         <TableCell className="text-red-700">{formatCurrency(row.debt)}</TableCell>
                                                         <TableCell className="text-green-700">{formatCurrency(row.paid)}</TableCell>
                                                         <TableCell>
-                                                            <BalanceAmount balance={row.balanceDelta} />
+                                                            <BalanceAmount
+                                                                balance={row.balanceDelta}
+                                                                showStatus={shouldShowBalanceStatus(row.debt, row.paid, row.balanceDelta)}
+                                                            />
                                                         </TableCell>
                                                     </TableRow>
                                                 ))}
