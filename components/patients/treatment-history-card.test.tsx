@@ -795,7 +795,8 @@ describe('TreatmentHistoryCard image controls', () => {
         const authorBadge = authorBadgeText.closest('span') as HTMLElement;
 
         expect(authorBadgeText).toBeInTheDocument();
-        expect(paidLabel.compareDocumentPosition(authorBadge) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+        expect(heading.compareDocumentPosition(authorBadge) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+        expect(authorBadge.compareDocumentPosition(paidLabel) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     });
 
     it('keeps the odontogram snapshot and tooth selector hidden', async () => {
@@ -813,16 +814,19 @@ describe('TreatmentHistoryCard image controls', () => {
 
         expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
         expect(screen.getByLabelText(/^Date/i)).toBeInTheDocument();
+        expect(screen.getByText('New entry')).toBeInTheDocument();
         const entryInput = screen.getByLabelText(/^Entry/i);
+        const commentInput = screen.getByLabelText(/^Description \/ comment/i);
         expect(entryInput).toBeInTheDocument();
         expect(entryInput).toHaveClass('rounded-xl', 'bg-white');
+        expect(commentInput).toHaveAttribute('placeholder', 'For example: protocol, recommendations, or comment');
         await user.click(screen.getByRole('button', { name: 'Restoration' }));
         expect(entryInput).toHaveValue('Restoration');
         const uploadTile = screen.getAllByTitle('Upload').find((element) => element.classList.contains('h-24')) as HTMLElement;
         expect(uploadTile).toHaveClass('lg:h-28');
         expect(uploadTile).toHaveTextContent('Upload up to 10 images');
         expect(entryInput.compareDocumentPosition(uploadTile) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-        expect(uploadTile.compareDocumentPosition(screen.getByLabelText(/^Description \/ comment/i)) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+        expect(uploadTile.compareDocumentPosition(commentInput) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
         expect(screen.queryByTitle('Tooth #18')).not.toBeInTheDocument();
         expect(screen.queryByTitle('Tooth #48')).not.toBeInTheDocument();
     });

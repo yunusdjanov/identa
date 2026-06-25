@@ -1161,7 +1161,7 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
         const existingImages = editingTreatment?.images ?? [];
         const hasImages = existingImages.length > 0 || selectedImagePreviews.length > 0;
         const formDate = formState.treatmentDate || toLocalDateKey(new Date());
-        const formTitle = mode === 'edit' ? t('patientHistory.editEntry') : t('patientHistory.addEntry');
+        const formModeLabel = mode === 'edit' ? t('patientHistory.formMode.edit') : t('patientHistory.formMode.create');
 
         return (
             <article key={mode === 'edit' ? `edit-${editingTreatment?.id ?? 'entry'}` : 'new-entry'} className="relative grid gap-2 md:grid-cols-[96px_minmax(0,1fr)]">
@@ -1172,7 +1172,11 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                 <div className="rounded-2xl border border-teal-200 bg-white p-3 shadow-sm ring-1 ring-teal-100/80">
                     <div className="space-y-2">
                         <div className="flex items-start justify-between gap-3">
-                            <div className="flex min-w-0 flex-wrap items-center gap-2">
+                            <div className="flex min-w-0 flex-wrap items-center gap-2.5">
+                                <span className="text-[11px] font-bold uppercase tracking-[0.14em] text-teal-600">
+                                    {formModeLabel}
+                                </span>
+                                <span className="hidden h-4 w-px bg-slate-200 sm:inline-block" aria-hidden="true" />
                                 <Label htmlFor="historyDate" className="sr-only">
                                     {t('patientHistory.table.date')}
                                 </Label>
@@ -1183,11 +1187,8 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                     max={toLocalDateKey(new Date())}
                                     value={formState.treatmentDate}
                                     onChange={(event) => setFormState((current) => ({ ...current, treatmentDate: event.target.value }))}
-                                    className="h-8 w-40 rounded-full border-slate-200 px-3 text-xs font-semibold tabular-nums text-slate-600 shadow-sm"
+                                    className="h-8 w-40 rounded-xl border-slate-200 px-3 text-xs font-semibold tabular-nums text-slate-600 shadow-sm"
                                 />
-                                <span className="inline-flex h-6 items-center rounded-full border border-teal-100 bg-teal-50 px-2 text-[11px] font-semibold text-teal-700">
-                                    {formTitle}
-                                </span>
                             </div>
                             <Button
                                 type="button"
@@ -1716,8 +1717,16 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                                         {treatment.treatment_type}
                                                     </h3>
                                                 </div>
-                                                {historyManageDisplayMode === 'hidden' ? null : (
-                                                    <div className="flex shrink-0 items-center gap-1.5">
+                                                <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
+                                                    {showRecordAuthors ? (
+                                                        <RecordAuthorBadge
+                                                            className="max-w-40"
+                                                            createdBy={treatment.created_by}
+                                                            updatedBy={treatment.updated_by}
+                                                        />
+                                                    ) : null}
+                                                    {historyManageDisplayMode === 'hidden' ? null : (
+                                                        <>
                                                         <Button
                                                             type="button"
                                                             variant="outline"
@@ -1752,8 +1761,9 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                                         >
                                                             <Trash2 className="h-3.5 w-3.5" />
                                                         </Button>
-                                                    </div>
-                                                )}
+                                                        </>
+                                                    )}
+                                                </div>
                                             </div>
                                             <div className="mt-3">
                                                 <HistoryImageStrip
@@ -1794,14 +1804,6 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                                     locked={!canViewFinancials}
                                                 />
                                             </div>
-                                            {showRecordAuthors ? (
-                                                <div className="mt-2 flex justify-end">
-                                                    <RecordAuthorBadge
-                                                        createdBy={treatment.created_by}
-                                                        updatedBy={treatment.updated_by}
-                                                    />
-                                                </div>
-                                            ) : null}
                                         </div>
                                     </article>
                                 );
