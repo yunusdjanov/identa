@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { I18nProvider } from '@/components/providers/i18n-provider';
@@ -227,7 +227,13 @@ describe('TreatmentHistoryCard image controls', () => {
 
         renderCard();
 
-        expect(await screen.findByRole('heading', { name: 'Timeline treatment' })).toBeInTheDocument();
+        const heading = await screen.findByRole('heading', { name: 'Timeline treatment' });
+        const timelineArticle = heading.closest('article') as HTMLElement;
+
+        expect(heading).toBeInTheDocument();
+        expect(timelineArticle).toHaveClass('md:grid-cols-[96px_minmax(0,1fr)]');
+        expect(within(timelineArticle).getByText('Apr 5')).toBeInTheDocument();
+        expect(within(timelineArticle).getByText('2026')).toHaveClass('text-[11px]', 'text-slate-400');
         expect(screen.getByText('Clinical description shown under the title')).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Image 1' })).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Image 2' })).toBeInTheDocument();

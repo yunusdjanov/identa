@@ -105,6 +105,31 @@ function shouldShowBalanceStatus(totalDebt: number, totalPaid: number, balance: 
     return totalDebt !== 0 || totalPaid !== 0 || balance !== 0;
 }
 
+function splitTimelineDate(date: string) {
+    const formatted = formatDate(date);
+    const match = formatted.match(/^(.*?)(?:,?\s+)(\d{4}(?:\s*г\.)?)$/u);
+
+    if (!match) {
+        return { primary: formatted, year: null };
+    }
+
+    return {
+        primary: match[1].trim(),
+        year: match[2].trim(),
+    };
+}
+
+function TimelineDate({ date }: { date: string }) {
+    const { primary, year } = splitTimelineDate(date);
+
+    return (
+        <span className="text-right text-xs font-semibold leading-4 tabular-nums text-slate-500">
+            <span className="block truncate">{primary}</span>
+            {year ? <span className="block text-[11px] leading-3 text-slate-400">{year}</span> : null}
+        </span>
+    );
+}
+
 function getBalanceExportTone(balance: number): 'yellow' | 'blue' | 'neutral' {
     const tone = getBalanceMetricTone(balance);
 
@@ -1137,11 +1162,9 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
         const formTitle = mode === 'edit' ? t('patientHistory.editEntry') : t('patientHistory.addEntry');
 
         return (
-            <article key={mode === 'edit' ? `edit-${editingTreatment?.id ?? 'entry'}` : 'new-entry'} className="relative grid gap-2 md:grid-cols-[118px_minmax(0,1fr)]">
+            <article key={mode === 'edit' ? `edit-${editingTreatment?.id ?? 'entry'}` : 'new-entry'} className="relative grid gap-2 md:grid-cols-[96px_minmax(0,1fr)]">
                 <div className="hidden grid-cols-[1fr_24px] items-start gap-2 pt-5 md:grid">
-                    <span className="text-right text-xs font-semibold leading-4 tabular-nums text-slate-500">
-                        {formatDate(formDate)}
-                    </span>
+                    <TimelineDate date={formDate} />
                     <span className="relative z-10 mt-0.5 h-3.5 w-3.5 justify-self-center rounded-full border-2 border-white bg-teal-500 shadow-sm ring-4 ring-teal-50" />
                 </div>
                 <div className="rounded-2xl border border-teal-200 bg-white p-3 shadow-sm ring-1 ring-teal-100/80">
@@ -1594,11 +1617,11 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
 
                     {isLoading ? (
                         <div className="relative space-y-3">
-                            <div className="absolute bottom-3 left-[106px] top-3 hidden w-px bg-slate-200 md:block" aria-hidden="true" />
+                            <div className="absolute bottom-3 left-[84px] top-3 hidden w-px bg-slate-200 md:block" aria-hidden="true" />
                             {Array.from({ length: 3 }).map((_, index) => (
-                                <div key={index} className="relative grid gap-2 md:grid-cols-[118px_minmax(0,1fr)]">
+                                <div key={index} className="relative grid gap-2 md:grid-cols-[96px_minmax(0,1fr)]">
                                     <div className="hidden grid-cols-[1fr_24px] items-start gap-2 pt-5 md:grid">
-                                        <Skeleton className="mt-0.5 h-4 w-20 justify-self-end" />
+                                        <Skeleton className="mt-0.5 h-8 w-14 justify-self-end" />
                                         <span className="relative z-10 h-3.5 w-3.5 justify-self-center rounded-full border-2 border-white bg-slate-200 shadow-sm" />
                                     </div>
                                     <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
@@ -1652,7 +1675,7 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                     ) : (
                         <div className="space-y-4">
                             <div className="relative space-y-3">
-                                <div className="absolute bottom-3 left-[106px] top-3 hidden w-px bg-slate-200 md:block" aria-hidden="true" />
+                                <div className="absolute bottom-3 left-[84px] top-3 hidden w-px bg-slate-200 md:block" aria-hidden="true" />
                                 {isInlineCreateOpen ? renderTreatmentFormCard('create') : null}
                                 {treatments.map((treatment) => {
                                 const imageCount = getTreatmentImageCount(treatment);
@@ -1671,11 +1694,9 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                 }
 
                                 return (
-                                    <article key={treatment.id} className="relative grid gap-2 md:grid-cols-[118px_minmax(0,1fr)]">
+                                    <article key={treatment.id} className="relative grid gap-2 md:grid-cols-[96px_minmax(0,1fr)]">
                                         <div className="hidden grid-cols-[1fr_24px] items-start gap-2 pt-5 md:grid">
-                                            <span className="text-right text-xs font-semibold leading-4 tabular-nums text-slate-500">
-                                                {formatDate(treatment.treatment_date)}
-                                            </span>
+                                            <TimelineDate date={treatment.treatment_date} />
                                             <span className="relative z-10 mt-0.5 h-3.5 w-3.5 justify-self-center rounded-full border-2 border-white bg-teal-500 shadow-sm ring-4 ring-teal-50" />
                                         </div>
                                         <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm transition-shadow hover:shadow-md">
