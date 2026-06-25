@@ -820,6 +820,16 @@ describe('TreatmentHistoryCard image controls', () => {
         expect(entryInput).toBeInTheDocument();
         expect(entryInput).toHaveClass('rounded-xl', 'bg-white');
         expect(commentInput).toHaveAttribute('placeholder', 'For example: protocol, recommendations, or comment');
+        const workTotalInput = screen.getByLabelText(/^Work total/i) as HTMLInputElement;
+        expect(workTotalInput).toHaveValue('');
+        await user.click(workTotalInput);
+        await waitFor(() => {
+            expect(workTotalInput).toHaveValue('0');
+            expect(workTotalInput.selectionStart).toBe(1);
+            expect(workTotalInput.selectionEnd).toBe(1);
+        });
+        await user.type(workTotalInput, '6');
+        expect(workTotalInput).toHaveValue('6');
         await user.click(screen.getByRole('button', { name: 'Restoration' }));
         expect(entryInput).toHaveValue('Restoration');
         const uploadTile = screen.getAllByTitle('Upload').find((element) => element.classList.contains('h-24')) as HTMLElement;

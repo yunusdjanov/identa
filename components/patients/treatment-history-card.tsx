@@ -1,7 +1,7 @@
 ﻿'use client';
 
 import dynamic from 'next/dynamic';
-import { type ChangeEvent, useEffect, useMemo, useState } from 'react';
+import { type ChangeEvent, type FocusEvent, useEffect, useMemo, useState } from 'react';
 import { type InfiniteData, useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
     createPatientTreatment,
@@ -248,14 +248,26 @@ function getPreviewableTreatmentImages(treatment: ApiTreatment) {
 
 function formatAmountInput(value: string | number | null | undefined) {
     const digits = String(value ?? '').replace(/\D/g, '');
+    const normalizedDigits = digits.replace(/^0+(?=\d)/, '');
 
-    return digits.replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+    return normalizedDigits.replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
 }
 
 function parseAmountInput(value: string) {
     const digits = value.replace(/\D/g, '');
 
     return digits ? Number(digits) : 0;
+}
+
+function moveTextInputCaretToEnd(input: HTMLInputElement) {
+    const scheduleFrame = typeof window.requestAnimationFrame === 'function'
+        ? window.requestAnimationFrame.bind(window)
+        : (callback: FrameRequestCallback) => window.setTimeout(callback, 0);
+
+    scheduleFrame(() => {
+        const caretPosition = input.value.length;
+        input.setSelectionRange(caretPosition, caretPosition);
+    });
 }
 
 function getHistoryImageGridTemplateColumns(visibleImageCount: number, canAddImages: boolean) {
@@ -834,6 +846,15 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
         submitAttempted && visibleExistingImagesCount + formState.imageFiles.length > maxHistoryImagesPerEntry
             ? t('patientHistory.validation.maxImages', { max: maxHistoryImagesPerEntry })
             : '';
+    const handleAmountInputFocus = (field: 'debtAmount' | 'paidAmount') => (event: FocusEvent<HTMLInputElement>) => {
+        const input = event.currentTarget;
+
+        if (input.value.length === 0) {
+            setFormState((current) => ({ ...current, [field]: '0' }));
+        }
+
+        moveTextInputCaretToEnd(input);
+    };
 
     const selectedImagePreviews = useMemo(
         () =>
@@ -1428,6 +1449,7 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                         inputMode="numeric"
                                         value={formState.debtAmount}
                                         onChange={(event) => setFormState((current) => ({ ...current, debtAmount: formatAmountInput(event.target.value) }))}
+                                        onFocus={handleAmountInputFocus('debtAmount')}
                                         placeholder="0"
                                         className="mt-0.5 h-7 border-0 bg-transparent px-0 text-xs font-bold tabular-nums text-red-700 shadow-none focus-visible:ring-0"
                                     />
@@ -1442,6 +1464,7 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                         inputMode="numeric"
                                         value={formState.paidAmount}
                                         onChange={(event) => setFormState((current) => ({ ...current, paidAmount: formatAmountInput(event.target.value) }))}
+                                        onFocus={handleAmountInputFocus('paidAmount')}
                                         placeholder="0"
                                         className="mt-0.5 h-7 border-0 bg-transparent px-0 text-xs font-bold tabular-nums text-green-700 shadow-none focus-visible:ring-0"
                                     />
