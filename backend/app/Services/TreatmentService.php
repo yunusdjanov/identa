@@ -37,16 +37,25 @@ class TreatmentService
     ) {}
 
     /**
-     * @return array{patient: Patient, treatments: LengthAwarePaginator, include_images: bool}
+     * @return array{
+     *     patient: Patient,
+     *     treatments: LengthAwarePaginator,
+     *     include_images: bool,
+     *     summary: array{total_count: int, total_debt: float, total_paid: float, total_balance: float}|null
+     * }
      */
     public function listForPatient(Request $request, string $patientId): array
     {
         $patient = $this->ownedPatient($request, $patientId);
         $includeImages = $this->includeImages($request);
 
-        $query = Treatment::query()
+        $baseQuery = Treatment::query()
             ->where('dentist_id', $this->dentistId($request))
-            ->where('patient_id', $patient->id)
+            ->where('patient_id', $patient->id);
+
+        $summaryQuery = clone $baseQuery;
+        $query = clone $baseQuery;
+        $query
             ->with([
                 'createdBy:id,name,role',
                 'updatedBy:id,name,role',
@@ -60,11 +69,18 @@ class TreatmentService
         }
 
         $this->applySort($query, $request->query('sort', '-treatment_date,-created_at'));
+        $treatments = $query->paginate($this->perPage($request));
+        $summary = null;
+
+        if ($this->includeSummary($request) && $this->canViewFinancials($request)) {
+            $summary = $this->summaryForQuery($summaryQuery, $treatments->total());
+        }
 
         return [
             'patient' => $patient,
-            'treatments' => $query->paginate($this->perPage($request)),
+            'treatments' => $treatments,
             'include_images' => $includeImages,
+            'summary' => $summary,
         ];
     }
 
@@ -135,18 +151,7 @@ class TreatmentService
         $summary = null;
 
         if ($this->includeSummary($request)) {
-            $summaryRow = (clone $summaryQuery)
-                ->selectRaw('COALESCE(SUM(debt_amount), 0) AS total_debt, COALESCE(SUM(paid_amount), 0) AS total_paid')
-                ->first();
-            $totalDebt = (float) ($summaryRow?->getAttribute('total_debt') ?? 0);
-            $totalPaid = (float) ($summaryRow?->getAttribute('total_paid') ?? 0);
-
-            $summary = [
-                'total_count' => $treatments->total(),
-                'total_debt' => $totalDebt,
-                'total_paid' => $totalPaid,
-                'total_balance' => $totalDebt - $totalPaid,
-            ];
+            $summary = $this->summaryForQuery($summaryQuery, $treatments->total());
         }
 
         return [
@@ -407,6 +412,34 @@ class TreatmentService
         }
 
         return false;
+    }
+
+    private function canViewFinancials(Request $request): bool
+    {
+        /** @var User|null $actor */
+        $actor = $request->user();
+
+        return $actor instanceof User
+            && $actor->hasPermission(User::PERMISSION_PAYMENTS_VIEW);
+    }
+
+    /**
+     * @return array{total_count: int, total_debt: float, total_paid: float, total_balance: float}
+     */
+    private function summaryForQuery(Builder $query, int $totalCount): array
+    {
+        $summaryRow = (clone $query)
+            ->selectRaw('COALESCE(SUM(debt_amount), 0) AS total_debt, COALESCE(SUM(paid_amount), 0) AS total_paid')
+            ->first();
+        $totalDebt = (float) ($summaryRow?->getAttribute('total_debt') ?? 0);
+        $totalPaid = (float) ($summaryRow?->getAttribute('total_paid') ?? 0);
+
+        return [
+            'total_count' => $totalCount,
+            'total_debt' => $totalDebt,
+            'total_paid' => $totalPaid,
+            'total_balance' => $totalDebt - $totalPaid,
+        ];
     }
 
     /**

@@ -107,6 +107,51 @@ class OdontogramTreatmentApiTest extends TestCase
             ->assertJsonPath('data.0.treatment_type', 'Filling');
     }
 
+    public function test_patient_treatments_are_paginated_newest_first_with_summary(): void
+    {
+        $dentist = User::factory()->create();
+        $patient = Patient::factory()->create(['dentist_id' => $dentist->id]);
+
+        Treatment::factory()->create([
+            'dentist_id' => $dentist->id,
+            'patient_id' => $patient->id,
+            'treatment_type' => 'Older work',
+            'treatment_date' => '2026-06-01',
+            'debt_amount' => 100_000,
+            'paid_amount' => 50_000,
+        ]);
+        Treatment::factory()->create([
+            'dentist_id' => $dentist->id,
+            'patient_id' => $patient->id,
+            'treatment_type' => 'Middle work',
+            'treatment_date' => '2026-06-10',
+            'debt_amount' => 200_000,
+            'paid_amount' => 100_000,
+        ]);
+        Treatment::factory()->create([
+            'dentist_id' => $dentist->id,
+            'patient_id' => $patient->id,
+            'treatment_type' => 'Newest work',
+            'treatment_date' => '2026-06-15',
+            'debt_amount' => 300_000,
+            'paid_amount' => 150_000,
+        ]);
+
+        $this->actingAs($dentist, 'web')
+            ->getJson("/api/v1/patients/{$patient->id}/treatments?per_page=2&include_summary=1&sort=-treatment_date,-created_at")
+            ->assertOk()
+            ->assertJsonCount(2, 'data')
+            ->assertJsonPath('data.0.treatment_type', 'Newest work')
+            ->assertJsonPath('data.1.treatment_type', 'Middle work')
+            ->assertJsonPath('meta.pagination.per_page', 2)
+            ->assertJsonPath('meta.pagination.total', 3)
+            ->assertJsonPath('meta.pagination.total_pages', 2)
+            ->assertJsonPath('meta.summary.total_count', 3)
+            ->assertJsonPath('meta.summary.total_debt', 600000)
+            ->assertJsonPath('meta.summary.total_paid', 300000)
+            ->assertJsonPath('meta.summary.total_balance', 300000);
+    }
+
     public function test_treatments_allow_standalone_payments_and_prepayments(): void
     {
         $dentist = User::factory()->create();

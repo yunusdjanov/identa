@@ -12,6 +12,7 @@ import {
     getCurrentUser,
     getPatientTreatment,
     listAllPatientTreatments,
+    listPatientTreatments,
     updatePatientTreatment,
     uploadPatientTreatmentImage,
     uploadPatientTreatmentImages,
@@ -24,6 +25,7 @@ vi.mock('@/lib/api/dentist', () => ({
     getCurrentUser: vi.fn(),
     getPatientTreatment: vi.fn(),
     listAllPatientTreatments: vi.fn(),
+    listPatientTreatments: vi.fn(),
     updatePatientTreatment: vi.fn(),
     uploadPatientTreatmentImage: vi.fn(),
     uploadPatientTreatmentImages: vi.fn(),
@@ -46,6 +48,35 @@ function renderCard() {
     );
 }
 
+function treatmentsEnvelope(
+    treatments: Array<Record<string, unknown>>,
+    options: { page?: number; totalPages?: number; total?: number } = {}
+) {
+    const page = options.page ?? 1;
+    const total = options.total ?? treatments.length;
+    const totalPages = options.totalPages ?? 1;
+    const totalDebt = treatments.reduce((sum, treatment) => sum + Number(treatment.debt_amount ?? 0), 0);
+    const totalPaid = treatments.reduce((sum, treatment) => sum + Number(treatment.paid_amount ?? 0), 0);
+
+    return {
+        data: treatments,
+        meta: {
+            pagination: {
+                page,
+                per_page: 10,
+                total,
+                total_pages: totalPages,
+            },
+            summary: {
+                total_count: total,
+                total_debt: totalDebt,
+                total_paid: totalPaid,
+                total_balance: totalDebt - totalPaid,
+            },
+        },
+    } as never;
+}
+
 describe('TreatmentHistoryCard image controls', () => {
     beforeEach(() => {
         vi.mocked(createPatientTreatment).mockReset();
@@ -54,6 +85,7 @@ describe('TreatmentHistoryCard image controls', () => {
         vi.mocked(getCurrentUser).mockReset();
         vi.mocked(getPatientTreatment).mockReset();
         vi.mocked(listAllPatientTreatments).mockReset();
+        vi.mocked(listPatientTreatments).mockReset();
         vi.mocked(updatePatientTreatment).mockReset();
         vi.mocked(uploadPatientTreatmentImage).mockReset();
         vi.mocked(uploadPatientTreatmentImages).mockReset();
@@ -91,7 +123,8 @@ describe('TreatmentHistoryCard image controls', () => {
             },
         });
 
-        vi.mocked(listAllPatientTreatments).mockResolvedValue([
+        vi.mocked(listAllPatientTreatments).mockResolvedValue([] as never);
+        vi.mocked(listPatientTreatments).mockResolvedValue(treatmentsEnvelope([
             {
                 id: 'treatment-1',
                 patient_id: 'patient-1',
@@ -133,7 +166,7 @@ describe('TreatmentHistoryCard image controls', () => {
                 created_at: '2026-04-05T10:00:00Z',
                 updated_at: '2026-04-05T10:00:00Z',
             },
-        ] as never);
+        ]));
     });
 
     afterEach(() => {
@@ -141,7 +174,7 @@ describe('TreatmentHistoryCard image controls', () => {
     });
 
     it('renders entries as image-forward timeline cards', async () => {
-        vi.mocked(listAllPatientTreatments).mockResolvedValue([
+        vi.mocked(listPatientTreatments).mockResolvedValue(treatmentsEnvelope([
             {
                 id: 'treatment-timeline',
                 patient_id: 'patient-1',
@@ -183,7 +216,7 @@ describe('TreatmentHistoryCard image controls', () => {
                 created_at: '2026-04-05T10:00:00Z',
                 updated_at: '2026-04-05T10:00:00Z',
             },
-        ] as never);
+        ]));
 
         renderCard();
 
@@ -194,6 +227,72 @@ describe('TreatmentHistoryCard image controls', () => {
         expect(screen.getByRole('button', { name: 'Upload' })).toBeInTheDocument();
         expect(screen.queryByText(/^Teeth:/i)).not.toBeInTheDocument();
         expect(screen.getAllByText('Remaining')).toHaveLength(1);
+    });
+
+    it('loads the newest page first and fetches older entries on demand', async () => {
+        const user = userEvent.setup();
+        const newestTreatment = {
+            id: 'treatment-newest',
+            patient_id: 'patient-1',
+            patient_name: 'Sardor',
+            patient_phone: '+998 90 123 45 67',
+            patient_secondary_phone: null,
+            patient_code: 'PT-1001',
+            tooth_number: null,
+            teeth: [],
+            treatment_type: 'Newest treatment',
+            description: null,
+            comment: null,
+            treatment_date: '2026-04-10',
+            cost: null,
+            debt_amount: 120000,
+            paid_amount: 60000,
+            balance: 60000,
+            notes: null,
+            image_count: 0,
+            primary_image: null,
+            images: [],
+            created_at: '2026-04-10T10:00:00Z',
+            updated_at: '2026-04-10T10:00:00Z',
+        };
+        const olderTreatment = {
+            ...newestTreatment,
+            id: 'treatment-older',
+            treatment_type: 'Older treatment',
+            treatment_date: '2026-04-01',
+            created_at: '2026-04-01T10:00:00Z',
+            updated_at: '2026-04-01T10:00:00Z',
+        };
+
+        vi.mocked(listPatientTreatments).mockImplementation(async (_patientId, options) => {
+            if (options?.page === 2) {
+                return treatmentsEnvelope([olderTreatment], { page: 2, totalPages: 2, total: 2 });
+            }
+
+            return treatmentsEnvelope([newestTreatment], { page: 1, totalPages: 2, total: 2 });
+        });
+
+        renderCard();
+
+        expect(await screen.findByRole('heading', { name: 'Newest treatment' })).toBeInTheDocument();
+        expect(listPatientTreatments).toHaveBeenCalledWith('patient-1', expect.objectContaining({
+            page: 1,
+            perPage: 10,
+            sort: '-treatment_date,-created_at',
+            includeImages: false,
+            includeSummary: true,
+        }));
+
+        await user.click(screen.getByRole('button', { name: 'Load more' }));
+
+        expect(await screen.findByRole('heading', { name: 'Older treatment' })).toBeInTheDocument();
+        expect(listPatientTreatments).toHaveBeenCalledWith('patient-1', expect.objectContaining({
+            page: 2,
+            perPage: 10,
+            sort: '-treatment_date,-created_at',
+            includeImages: false,
+            includeSummary: false,
+        }));
     });
 
     it('limits timeline thumbnails and shows hidden image count with upload affordance', async () => {
@@ -207,7 +306,7 @@ describe('TreatmentHistoryCard image controls', () => {
             preview_url: `https://example.com/tooth-${index + 1}-preview.jpg`,
         }));
 
-        vi.mocked(listAllPatientTreatments).mockResolvedValue([
+        vi.mocked(listPatientTreatments).mockResolvedValue(treatmentsEnvelope([
             {
                 id: 'treatment-many-images',
                 patient_id: 'patient-1',
@@ -232,7 +331,7 @@ describe('TreatmentHistoryCard image controls', () => {
                 created_at: '2026-04-05T10:00:00Z',
                 updated_at: '2026-04-05T10:00:00Z',
             },
-        ] as never);
+        ]));
 
         renderCard();
 
@@ -329,7 +428,7 @@ describe('TreatmentHistoryCard image controls', () => {
             resolveDetail = resolve;
         });
 
-        vi.mocked(listAllPatientTreatments).mockResolvedValue([partialTreatment] as never);
+        vi.mocked(listPatientTreatments).mockResolvedValue(treatmentsEnvelope([partialTreatment]));
         vi.mocked(getPatientTreatment).mockReturnValue(detailPromise as never);
 
         renderCard();
@@ -359,7 +458,7 @@ describe('TreatmentHistoryCard image controls', () => {
     it('keeps pending scanned images in processing state without loading full media', async () => {
         const user = userEvent.setup();
 
-        vi.mocked(listAllPatientTreatments).mockResolvedValue([
+        vi.mocked(listPatientTreatments).mockResolvedValue(treatmentsEnvelope([
             {
                 id: 'treatment-pending',
                 patient_id: 'patient-1',
@@ -404,7 +503,7 @@ describe('TreatmentHistoryCard image controls', () => {
                 created_at: '2026-04-05T10:00:00Z',
                 updated_at: '2026-04-05T10:00:00Z',
             },
-        ] as never);
+        ]));
 
         renderCard();
 
@@ -434,7 +533,7 @@ describe('TreatmentHistoryCard image controls', () => {
             account_status: 'active',
             show_record_authors: true,
         });
-        vi.mocked(listAllPatientTreatments).mockResolvedValue([
+        vi.mocked(listPatientTreatments).mockResolvedValue(treatmentsEnvelope([
             {
                 id: 'treatment-authored',
                 patient_id: 'patient-1',
@@ -461,7 +560,7 @@ describe('TreatmentHistoryCard image controls', () => {
                 created_by: { id: 'assistant-1', name: 'Hygienist', role: 'assistant' },
                 updated_by: { id: 'assistant-1', name: 'Hygienist', role: 'assistant' },
             },
-        ] as never);
+        ]));
 
         renderCard();
 
@@ -487,7 +586,7 @@ describe('TreatmentHistoryCard image controls', () => {
     });
 
     it('labels overpaid remaining summary as an advance without a negative amount', async () => {
-        vi.mocked(listAllPatientTreatments).mockResolvedValue([
+        vi.mocked(listPatientTreatments).mockResolvedValue(treatmentsEnvelope([
             {
                 id: 'treatment-credit',
                 patient_id: 'patient-1',
@@ -512,7 +611,7 @@ describe('TreatmentHistoryCard image controls', () => {
                 created_at: '2026-04-05T10:00:00Z',
                 updated_at: '2026-04-05T10:00:00Z',
             },
-        ] as never);
+        ]));
 
         renderCard();
 
@@ -523,7 +622,7 @@ describe('TreatmentHistoryCard image controls', () => {
     it('submits standalone payments without requiring matching debt', async () => {
         const user = userEvent.setup();
 
-        vi.mocked(listAllPatientTreatments).mockResolvedValue([] as never);
+        vi.mocked(listPatientTreatments).mockResolvedValue(treatmentsEnvelope([]));
         vi.mocked(createPatientTreatment).mockResolvedValue({
             id: 'treatment-credit',
             patient_id: 'patient-1',

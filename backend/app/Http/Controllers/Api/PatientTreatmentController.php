@@ -51,6 +51,7 @@ class PatientTreatmentController extends Controller
                     'total' => $treatments->total(),
                     'total_pages' => $treatments->lastPage(),
                 ],
+                'summary' => $result['summary'],
             ],
         ]);
     }

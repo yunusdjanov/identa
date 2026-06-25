@@ -2,7 +2,7 @@
 
 import dynamic from 'next/dynamic';
 import { type ChangeEvent, useEffect, useMemo, useState } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { type InfiniteData, useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
     createPatientTreatment,
     deletePatientTreatment,
@@ -10,11 +10,12 @@ import {
     getCurrentUser,
     getPatientTreatment,
     listAllPatientTreatments,
+    listPatientTreatments,
     replacePatientTreatmentImage,
     updatePatientTreatment,
     uploadPatientTreatmentImages,
 } from '@/lib/api/dentist';
-import type { ApiTreatment, ApiTreatmentImage } from '@/lib/api/types';
+import type { ApiCollectionEnvelope, ApiTreatment, ApiTreatmentImage } from '@/lib/api/types';
 import { getApiErrorMessage } from '@/lib/api/client';
 import { useI18n } from '@/components/providers/i18n-provider';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -66,6 +67,10 @@ const HISTORY_IMAGE_UPLOAD_CONCURRENCY = 10;
 const MEDIA_READINESS_POLL_INTERVAL_MS = 1200;
 const MEDIA_READINESS_TIMEOUT_MS = 8000;
 const HISTORY_TIMELINE_IMAGE_LIMIT = 6;
+const HISTORY_PAGE_SIZE = 10;
+const HISTORY_SORT = '-treatment_date,-created_at';
+
+type TreatmentHistoryPages = InfiniteData<ApiCollectionEnvelope<ApiTreatment>, number>;
 
 const PatientPhotoPreviewDialog = dynamic(
     () => import('@/components/patients/patient-photo-preview-dialog').then((module) => module.PatientPhotoPreviewDialog),
@@ -533,21 +538,32 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
     const maxHistoryUploadMb = subscription?.upload_max_mb ?? DEFAULT_HISTORY_UPLOAD_MAX_MB;
     const maxHistoryUploadBytes = maxHistoryUploadMb * 1024 * 1024;
 
-    const treatmentsQuery = useQuery({
-        queryKey: ['patients', 'detail', patientId, 'treatments'],
-        queryFn: () => listAllPatientTreatments(patientId, {
-            sort: '-treatment_date,-created_at',
+    const treatmentsQuery = useInfiniteQuery({
+        queryKey: treatmentsQueryKey,
+        initialPageParam: 1,
+        queryFn: ({ pageParam }) => listPatientTreatments(patientId, {
+            page: pageParam,
+            perPage: HISTORY_PAGE_SIZE,
+            sort: HISTORY_SORT,
             includeImages: false,
+            includeSummary: pageParam === 1,
         }),
+        getNextPageParam: (lastPage) => {
+            const pagination = lastPage.meta?.pagination;
+            if (!pagination || pagination.page >= pagination.total_pages) {
+                return undefined;
+            }
+
+            return pagination.page + 1;
+        },
         staleTime: 30_000,
         gcTime: 300_000,
         refetchOnWindowFocus: false,
         refetchOnReconnect: false,
-        placeholderData: (previousData) => previousData,
     });
 
     const treatments = useMemo(() => {
-        const items = [...(treatmentsQuery.data ?? [])];
+        const items = [...(treatmentsQuery.data?.pages.flatMap((page) => page.data) ?? [])];
         items.sort((a, b) => {
             const dateCompare = (b.treatment_date ?? '').localeCompare(a.treatment_date ?? '');
             if (dateCompare !== 0) {
@@ -558,15 +574,16 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
         return items;
     }, [treatmentsQuery.data]);
     const summary = useMemo(() => {
-        const totalDebt = treatments.reduce((sum, treatment) => sum + Number(treatment.debt_amount ?? 0), 0);
-        const totalPaid = treatments.reduce((sum, treatment) => sum + Number(treatment.paid_amount ?? 0), 0);
+        const metaSummary = treatmentsQuery.data?.pages.find((page) => page.meta?.summary)?.meta?.summary;
+        const totalDebt = Number(metaSummary?.total_debt ?? treatments.reduce((sum, treatment) => sum + Number(treatment.debt_amount ?? 0), 0));
+        const totalPaid = Number(metaSummary?.total_paid ?? treatments.reduce((sum, treatment) => sum + Number(treatment.paid_amount ?? 0), 0));
 
         return {
             totalDebt,
             totalPaid,
             netBalance: totalDebt - totalPaid,
         };
-    }, [treatments]);
+    }, [treatments, treatmentsQuery.data]);
     const netBalanceTone = getBalanceMetricTone(summary.netBalance);
 
     const invalidateHistory = () => {
@@ -581,25 +598,6 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
         queryClient.setQueryData<ApiTreatment>(
             getTreatmentDetailQueryKey(updatedTreatment.id),
             updatedTreatment
-        );
-
-        queryClient.setQueryData<ApiTreatment[]>(
-            treatmentsQueryKey,
-            (current) => {
-                if (!current || current.length === 0) {
-                    return [updatedTreatment];
-                }
-
-                const existingIndex = current.findIndex((treatment) => treatment.id === updatedTreatment.id);
-
-                if (existingIndex === -1) {
-                    return [updatedTreatment, ...current];
-                }
-
-                return current.map((treatment) => (
-                    treatment.id === updatedTreatment.id ? updatedTreatment : treatment
-                ));
-            }
         );
     };
 
@@ -772,26 +770,34 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
         mutationFn: (treatmentId: string) => deletePatientTreatment(patientId, treatmentId),
         onMutate: async (treatmentId: string) => {
             await queryClient.cancelQueries({ queryKey: treatmentsQueryKey });
-            const previousTreatments = queryClient.getQueryData<ApiTreatment[]>(treatmentsQueryKey);
+            const previousHistory = queryClient.getQueryData<TreatmentHistoryPages>(treatmentsQueryKey);
 
-            queryClient.setQueryData<ApiTreatment[]>(
+            queryClient.setQueryData<TreatmentHistoryPages>(
                 treatmentsQueryKey,
-                (current) => current?.filter((treatment) => treatment.id !== treatmentId) ?? []
+                (current) => current
+                    ? {
+                        ...current,
+                        pages: current.pages.map((page) => ({
+                            ...page,
+                            data: page.data.filter((treatment) => treatment.id !== treatmentId),
+                        })),
+                    }
+                    : current
             );
 
             setTreatmentToDelete(null);
 
-            return { previousTreatments };
+            return { previousHistory };
         },
         onSuccess: () => {
             toast.success(t('patientHistory.toast.deleted'));
             invalidateHistory();
         },
         onError: (error, _treatmentId, context) => {
-            if (context?.previousTreatments) {
+            if (context?.previousHistory) {
                 queryClient.setQueryData(
                     treatmentsQueryKey,
-                    context.previousTreatments
+                    context.previousHistory
                 );
             }
 
@@ -1143,7 +1149,7 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                         {subscription?.can_export ? (
                             <Button
                                 variant="outline"
-                                onClick={() => {
+                                onClick={async () => {
                                     // PDF payload mirrors the on-screen gating: viewers
                                     // without `payments.view` get a slimmer PDF with
                                     // clinical columns only. Without this, an
@@ -1151,69 +1157,77 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                     // could still print them via the export button
                                     // (gated only by can_export at the subscription
                                     // level). Keep clinical context (date/teeth/work).
-                                    const treatmentRows = treatments.map((tr) => canViewFinancials
-                                        ? (() => {
-                                            const balance = Number(tr.balance ?? 0);
+                                    try {
+                                        const exportTreatments = await listAllPatientTreatments(patientId, {
+                                            sort: HISTORY_SORT,
+                                            includeImages: false,
+                                        });
+                                        const treatmentRows = exportTreatments.map((tr) => canViewFinancials
+                                            ? (() => {
+                                                const balance = Number(tr.balance ?? 0);
 
-                                            return [
+                                                return [
+                                                    formatDate(tr.treatment_date),
+                                                    formatTeeth(tr.teeth ?? []) || '-',
+                                                    tr.treatment_type,
+                                                    formatCurrency(Number(tr.debt_amount ?? 0)),
+                                                    formatCurrency(Number(tr.paid_amount ?? 0)),
+                                                    `${formatCurrency(Math.abs(balance))} (${t(getBalanceStatusKey(balance))})`,
+                                                ];
+                                            })()
+                                            : [
                                                 formatDate(tr.treatment_date),
                                                 formatTeeth(tr.teeth ?? []) || '-',
                                                 tr.treatment_type,
-                                                formatCurrency(Number(tr.debt_amount ?? 0)),
-                                                formatCurrency(Number(tr.paid_amount ?? 0)),
-                                                `${formatCurrency(Math.abs(balance))} (${t(getBalanceStatusKey(balance))})`,
-                                            ];
-                                        })()
-                                        : [
-                                            formatDate(tr.treatment_date),
-                                            formatTeeth(tr.teeth ?? []) || '-',
-                                            tr.treatment_type,
-                                        ]);
-                                    exportPatientReportToPdf({
-                                        filename: buildPdfFilename(`patient-${patientName.replace(/\s+/g, '-').toLowerCase()}`),
-                                        title: t('patientHistory.title'),
-                                        patientName,
-                                        patientMeta: [
-                                            t('patientDetail.totalAppointments') + ': ' + treatments.length,
-                                            new Date().toLocaleDateString(),
-                                        ],
-                                        summary: canViewFinancials
-                                            ? [
-                                                { label: t('patientHistory.totalDebt'), value: formatCurrency(summary.totalDebt), tone: 'red' },
-                                                { label: t('patientHistory.totalPaid'), value: formatCurrency(summary.totalPaid), tone: 'green' },
+                                            ]);
+                                        exportPatientReportToPdf({
+                                            filename: buildPdfFilename(`patient-${patientName.replace(/\s+/g, '-').toLowerCase()}`),
+                                            title: t('patientHistory.title'),
+                                            patientName,
+                                            patientMeta: [
+                                                t('patientDetail.totalAppointments') + ': ' + exportTreatments.length,
+                                                new Date().toLocaleDateString(),
+                                            ],
+                                            summary: canViewFinancials
+                                                ? [
+                                                    { label: t('patientHistory.totalDebt'), value: formatCurrency(summary.totalDebt), tone: 'red' },
+                                                    { label: t('patientHistory.totalPaid'), value: formatCurrency(summary.totalPaid), tone: 'green' },
+                                                    {
+                                                        label: `${t('patientHistory.netBalance')} · ${t(getBalanceStatusKey(summary.netBalance))}`,
+                                                        value: formatCurrency(Math.abs(summary.netBalance)),
+                                                        tone: getBalanceExportTone(summary.netBalance),
+                                                    },
+                                                ]
+                                                : [],
+                                            sections: [
                                                 {
-                                                    label: `${t('patientHistory.netBalance')} · ${t(getBalanceStatusKey(summary.netBalance))}`,
-                                                    value: formatCurrency(Math.abs(summary.netBalance)),
-                                                    tone: getBalanceExportTone(summary.netBalance),
+                                                    title: t('patientHistory.title'),
+                                                    table: {
+                                                        columns: canViewFinancials
+                                                            ? [
+                                                                t('patientHistory.table.date'),
+                                                                t('patientHistory.teethLabel'),
+                                                                t('patientHistory.table.workDone'),
+                                                                t('patientHistory.table.debt'),
+                                                                t('patientHistory.table.paid'),
+                                                                t('patientHistory.table.remaining'),
+                                                            ]
+                                                            : [
+                                                                t('patientHistory.table.date'),
+                                                                t('patientHistory.teethLabel'),
+                                                                t('patientHistory.table.workDone'),
+                                                            ],
+                                                        rows: treatmentRows,
+                                                        emptyText: t('patientHistory.empty'),
+                                                    },
                                                 },
-                                            ]
-                                            : [],
-                                        sections: [
-                                            {
-                                                title: t('patientHistory.title'),
-                                                table: {
-                                                    columns: canViewFinancials
-                                                        ? [
-                                                            t('patientHistory.table.date'),
-                                                            t('patientHistory.teethLabel'),
-                                                            t('patientHistory.table.workDone'),
-                                                            t('patientHistory.table.debt'),
-                                                            t('patientHistory.table.paid'),
-                                                            t('patientHistory.table.remaining'),
-                                                        ]
-                                                        : [
-                                                            t('patientHistory.table.date'),
-                                                            t('patientHistory.teethLabel'),
-                                                            t('patientHistory.table.workDone'),
-                                                        ],
-                                                    rows: treatmentRows,
-                                                    emptyText: t('patientHistory.empty'),
-                                                },
-                                            },
-                                        ],
-                                        orientation: 'portrait',
-                                    });
-                                    toast.success(t('export.downloaded'));
+                                            ],
+                                            orientation: 'portrait',
+                                        });
+                                        toast.success(t('export.downloaded'));
+                                    } catch (error) {
+                                        toast.error(getApiErrorMessage(error, t('patientHistory.error.loadFailed')));
+                                    }
                                 }}
                             >
                                 <Download className="h-4 w-4" />
@@ -1321,9 +1335,10 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                             />
                         </div>
                     ) : (
-                        <div className="relative space-y-3">
-                            <div className="absolute bottom-3 left-[106px] top-3 hidden w-px bg-slate-200 md:block" aria-hidden="true" />
-                            {treatments.map((treatment) => {
+                        <div className="space-y-4">
+                            <div className="relative space-y-3">
+                                <div className="absolute bottom-3 left-[106px] top-3 hidden w-px bg-slate-200 md:block" aria-hidden="true" />
+                                {treatments.map((treatment) => {
                                 const imageCount = getTreatmentImageCount(treatment);
                                 const debtAmount = Number(treatment.debt_amount);
                                 const paidAmount = Number(treatment.paid_amount);
@@ -1442,7 +1457,30 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                         </div>
                                     </article>
                                 );
-                            })}
+                                })}
+                            </div>
+                            {treatmentsQuery.hasNextPage ? (
+                                <div className="flex justify-center border-t border-slate-100 pt-4">
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        className="min-w-44"
+                                        disabled={treatmentsQuery.isFetchingNextPage}
+                                        onClick={() => {
+                                            void treatmentsQuery.fetchNextPage();
+                                        }}
+                                    >
+                                        {treatmentsQuery.isFetchingNextPage ? (
+                                            <>
+                                                <Loader2 className="h-4 w-4 animate-spin" />
+                                                {t('patientHistory.loadingMore')}
+                                            </>
+                                        ) : (
+                                            t('patientHistory.loadMore')
+                                        )}
+                                    </Button>
+                                </div>
+                            ) : null}
                         </div>
                     )}
                 </CardContent>

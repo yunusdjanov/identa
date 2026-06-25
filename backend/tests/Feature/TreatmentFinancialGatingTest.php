@@ -156,4 +156,26 @@ class TreatmentFinancialGatingTest extends TestCase
             ->assertJsonPath('data.0.balance', null)
             ->assertJsonPath('data.0.cost', null);
     }
+
+    public function test_treatment_list_summary_is_hidden_without_payments_view(): void
+    {
+        $dentist = User::factory()->create();
+        $patient = Patient::factory()->create(['dentist_id' => $dentist->id]);
+
+        Treatment::factory()->create([
+            'dentist_id' => $dentist->id,
+            'patient_id' => $patient->id,
+            'debt_amount' => 500_000,
+            'paid_amount' => 100_000,
+        ]);
+
+        $clinical = $this->makeAssistant($dentist, [
+            User::PERMISSION_PATIENTS_VIEW,
+        ]);
+
+        $this->actingAs($clinical, 'web')
+            ->getJson("/api/v1/patients/{$patient->id}/treatments?include_summary=1")
+            ->assertOk()
+            ->assertJsonPath('meta.summary', null);
+    }
 }

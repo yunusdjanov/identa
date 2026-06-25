@@ -42,6 +42,7 @@ interface QueryOptions {
     sort?: string;
     filter?: Record<string, FilterValue | undefined>;
     includeImages?: boolean;
+    includeSummary?: boolean;
 }
 
 interface ApiDirectUploadTicket {
@@ -111,6 +112,10 @@ function buildQueryParams(options?: QueryOptions): Record<string, unknown> {
 
     if (options?.includeImages !== undefined) {
         params.include_images = options.includeImages ? '1' : '0';
+    }
+
+    if (options?.includeSummary !== undefined) {
+        params.include_summary = options.includeSummary ? '1' : '0';
     }
 
     if (options?.filter) {
