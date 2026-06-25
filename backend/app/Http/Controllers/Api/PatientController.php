@@ -122,7 +122,10 @@ class PatientController extends Controller
     public function show(Request $request, string $id): JsonResponse
     {
         $patient = $this->patients->ownedPatient($request, $id);
-        $this->patients->rememberRecent($request, $patient);
+
+        if ($request->boolean('remember_recent')) {
+            $this->patients->rememberRecent($request, $patient);
+        }
 
         return response()->json([
             'data' => $this->transformPatient($patient, $request),

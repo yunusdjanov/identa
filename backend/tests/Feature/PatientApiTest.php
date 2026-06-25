@@ -157,20 +157,20 @@ class PatientApiTest extends TestCase
         ]);
 
         $this->actingAs($dentist, 'web')
-            ->getJson("/api/v1/patients/{$firstPatient->id}")
+            ->getJson("/api/v1/patients/{$firstPatient->id}?remember_recent=1")
             ->assertOk();
         $this->travel(1)->second();
         $this->actingAs($dentist, 'web')
-            ->getJson("/api/v1/patients/{$secondPatient->id}")
+            ->getJson("/api/v1/patients/{$secondPatient->id}?remember_recent=1")
             ->assertOk();
         $this->travel(1)->second();
         $this->actingAs($dentist, 'web')
-            ->getJson("/api/v1/patients/{$firstPatient->id}")
+            ->getJson("/api/v1/patients/{$firstPatient->id}?remember_recent=1")
             ->assertOk();
         $this->flushSession();
         $this->app['auth']->forgetGuards();
         $this->actingAs($assistant, 'web')
-            ->getJson("/api/v1/patients/{$assistantPatient->id}")
+            ->getJson("/api/v1/patients/{$assistantPatient->id}?remember_recent=1")
             ->assertOk();
 
         $this->flushSession();
@@ -192,6 +192,34 @@ class PatientApiTest extends TestCase
             ->assertJsonPath('data.0.id', (string) $assistantPatient->id);
     }
 
+    public function test_patient_detail_does_not_update_recent_patients_without_search_flag(): void
+    {
+        $dentist = User::factory()->create();
+        $patient = Patient::factory()->create([
+            'dentist_id' => $dentist->id,
+            'full_name' => 'Plain Detail Patient',
+        ]);
+
+        $this->actingAs($dentist, 'web')
+            ->getJson("/api/v1/patients/{$patient->id}")
+            ->assertOk();
+
+        $this->actingAs($dentist, 'web')
+            ->getJson('/api/v1/patients/recent')
+            ->assertOk()
+            ->assertJsonCount(0, 'data');
+
+        $this->actingAs($dentist, 'web')
+            ->getJson("/api/v1/patients/{$patient->id}?remember_recent=1")
+            ->assertOk();
+
+        $this->actingAs($dentist, 'web')
+            ->getJson('/api/v1/patients/recent')
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', (string) $patient->id);
+    }
+
     public function test_dentist_can_remove_and_clear_recent_patients(): void
     {
         $dentist = User::factory()->create();
@@ -205,10 +233,10 @@ class PatientApiTest extends TestCase
         ]);
 
         $this->actingAs($dentist, 'web')
-            ->getJson("/api/v1/patients/{$firstPatient->id}")
+            ->getJson("/api/v1/patients/{$firstPatient->id}?remember_recent=1")
             ->assertOk();
         $this->actingAs($dentist, 'web')
-            ->getJson("/api/v1/patients/{$secondPatient->id}")
+            ->getJson("/api/v1/patients/{$secondPatient->id}?remember_recent=1")
             ->assertOk();
 
         $this->actingAs($dentist, 'web')

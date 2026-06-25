@@ -410,8 +410,13 @@ export async function lookupPatients(options?: QueryOptions): Promise<ApiCollect
     return data;
 }
 
-export async function getPatient(id: string): Promise<ApiPatient> {
-    const { data } = await apiClient.get<ApiEnvelope<ApiPatient>>(`/patients/${id}`);
+export async function getPatient(
+    id: string,
+    options: { rememberRecent?: boolean } = {}
+): Promise<ApiPatient> {
+    const { data } = await apiClient.get<ApiEnvelope<ApiPatient>>(`/patients/${id}`, {
+        params: options.rememberRecent ? { remember_recent: 1 } : undefined,
+    });
 
     return data.data;
 }

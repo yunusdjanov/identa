@@ -68,6 +68,7 @@ const noopSubscribe = () => () => undefined;
 const PAGE_SIZE = 10;
 const PATIENT_TABLE_NAME_UI_LIMIT = 25;
 const PATIENT_CATEGORY_UI_LIMIT = 20;
+type PatientOpenSource = 'list' | 'recent' | 'search';
 
 interface PatientRow {
     id: string;
@@ -336,8 +337,18 @@ export default function PatientsPage() {
             toast.error(getApiErrorMessage(error, t('patients.recent.clearFailed')));
         },
     });
-    const openPatientDetails = (patientId: string, patientName?: string) => {
-        if (patientName) {
+    const getPatientOpenSource = (): PatientOpenSource => (
+        searchQuery.trim() === '' ? 'list' : 'search'
+    );
+
+    const openPatientDetails = (
+        patientId: string,
+        patientName?: string,
+        source: PatientOpenSource = 'list'
+    ) => {
+        const shouldRememberRecent = source !== 'list';
+
+        if (patientName && shouldRememberRecent) {
             setOptimisticRecentPatients((current) => [
                 { id: patientId, full_name: patientName },
                 ...(current ?? recentPatientsQuery.data ?? []).filter((patient) => patient.id !== patientId),
@@ -348,7 +359,11 @@ export default function PatientsPage() {
             ].slice(0, 5));
         }
 
-        router.push(`/patients/${patientId}`);
+        const href = shouldRememberRecent
+            ? `/patients/${patientId}?remember_recent=1`
+            : `/patients/${patientId}`;
+
+        router.push(href);
     };
     const recentPatients = optimisticRecentPatients ?? recentPatientsQuery.data ?? [];
     const shouldShowRecentMenu = isRecentMenuOpen && searchQuery.trim() === '' && recentPatients.length > 0;
@@ -566,7 +581,7 @@ export default function PatientsPage() {
                                                 <button
                                                     type="button"
                                                     className="min-w-0 flex-1 truncate rounded-xl px-3 py-2 text-left font-medium text-slate-800 focus-visible:outline-none"
-                                                    onClick={() => openPatientDetails(patient.id, patient.full_name)}
+                                                    onClick={() => openPatientDetails(patient.id, patient.full_name, 'recent')}
                                                 >
                                                     {patient.full_name}
                                                 </button>
@@ -739,11 +754,11 @@ export default function PatientsPage() {
                                             role="button"
                                             tabIndex={0}
                                             aria-label={t('patients.aria.openDetailsFor', { patientName: patient.fullName })}
-                                            onClick={() => openPatientDetails(patient.id, patient.fullName)}
+                                            onClick={() => openPatientDetails(patient.id, patient.fullName, getPatientOpenSource())}
                                             onKeyDown={(event) => {
                                                 if (event.key === 'Enter' || event.key === ' ') {
                                                     event.preventDefault();
-                                                    openPatientDetails(patient.id, patient.fullName);
+                                                    openPatientDetails(patient.id, patient.fullName, getPatientOpenSource());
                                                 }
                                             }}
                                         >
@@ -913,7 +928,7 @@ export default function PatientsPage() {
                                                         className="h-8 rounded-lg border-slate-200 text-slate-700 hover:bg-slate-50"
                                                         onClick={(event) => {
                                                             event.stopPropagation();
-                                                            openPatientDetails(patient.id, patient.fullName);
+                                                            openPatientDetails(patient.id, patient.fullName, getPatientOpenSource());
                                                         }}
                                                     >
                                                         {t('patients.viewDetails')}

@@ -3,7 +3,7 @@
 import dynamic from 'next/dynamic';
 import { use, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ConfirmActionDialog } from '@/components/ui/confirm-action-dialog';
@@ -275,6 +275,8 @@ export default function PatientDetailPage({
     const { id } = use(params);
     const { t, locale } = useI18n();
     const router = useRouter();
+    const searchParams = useSearchParams();
+    const shouldRememberRecent = searchParams.get('remember_recent') === '1';
 
     // Inline triad labels — locale-aware so they render correctly even if the
     // browser is still holding the previously cached /api/i18n dictionary
@@ -317,8 +319,8 @@ export default function PatientDetailPage({
     const denyManageAction = () => toast.error(getManageDeniedMessage(currentUser, t));
 
     const patientQuery = useQuery({
-        queryKey: ['patients', 'detail', id],
-        queryFn: () => getPatient(id),
+        queryKey: ['patients', 'detail', id, { rememberRecent: shouldRememberRecent }],
+        queryFn: () => getPatient(id, { rememberRecent: shouldRememberRecent }),
         enabled: canViewPatients,
         retry: false,
         staleTime: 30_000,

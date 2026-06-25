@@ -8,8 +8,11 @@ import { archivePatient, getCurrentUser, getPatient, getPatientOverview } from '
 import { I18nProvider } from '@/components/providers/i18n-provider';
 import { DICTIONARIES } from '@/lib/i18n/dictionaries';
 
+let searchString = '';
+
 vi.mock('next/navigation', () => ({
     useRouter: () => ({ push: vi.fn(), replace: vi.fn(), back: vi.fn(), refresh: vi.fn() }),
+    useSearchParams: () => new URLSearchParams(searchString),
 }));
 
 vi.mock('@/lib/api/dentist', () => ({
@@ -86,6 +89,7 @@ async function renderPage() {
 
 describe('PatientDetailPage', () => {
     beforeEach(() => {
+        searchString = '';
         vi.mocked(getCurrentUser).mockReset();
         vi.mocked(getPatient).mockReset();
         vi.mocked(getPatientOverview).mockReset();
@@ -124,6 +128,17 @@ describe('PatientDetailPage', () => {
         await renderPage();
 
         expect(await screen.findByText('John Smith')).toBeInTheDocument();
+    });
+
+    it('passes the recent-search flag to the patient detail request', async () => {
+        searchString = 'remember_recent=1';
+        vi.mocked(getCurrentUser).mockResolvedValue(dentist as never);
+        vi.mocked(getPatient).mockResolvedValue(patient as never);
+
+        await renderPage();
+
+        expect(await screen.findByText('John Smith')).toBeInTheDocument();
+        expect(getPatient).toHaveBeenCalledWith('p-1', { rememberRecent: true });
     });
 
     it('opens a read-only preview from the patient header photo', async () => {

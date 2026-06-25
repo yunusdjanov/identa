@@ -122,7 +122,7 @@ describe('PatientsPage', () => {
         expect(recentMenu.className).not.toContain('max-w');
         await user.click(screen.getByRole('button', { name: 'Recent Patient One' }));
 
-        expect(pushMock).toHaveBeenCalledWith('/patients/recent-patient-1');
+        expect(pushMock).toHaveBeenCalledWith('/patients/recent-patient-1?remember_recent=1');
     });
 
     it('hides recent patients while searching and can remove recent shortcuts', async () => {
@@ -177,6 +177,45 @@ describe('PatientsPage', () => {
         await waitFor(() => {
             expect(screen.queryByText('Recent patients')).not.toBeInTheDocument();
         });
+    });
+
+    it('records recent patients only when opening them from search', async () => {
+        vi.mocked(listPatients).mockResolvedValue(buildPatientsResponse([
+            {
+                id: 'search-patient',
+                patient_id: 'PT-SEARCH',
+                full_name: 'Search Result Patient',
+                phone: '+10000000009',
+                created_at: '2026-03-01T10:00:00Z',
+                last_visit_at: null,
+                address: null,
+                date_of_birth: null,
+                gender: null,
+                medical_history: null,
+                allergies: null,
+                current_medications: null,
+            },
+        ]));
+
+        renderPage();
+        const user = userEvent.setup();
+
+        const searchInput = await screen.findByLabelText('Search patients by name, phone, or patient ID');
+        await screen.findByText('Search Result Patient');
+
+        await user.click(screen.getByText('Search Result Patient'));
+        expect(pushMock).toHaveBeenLastCalledWith('/patients/search-patient');
+
+        await user.click(searchInput);
+        await user.type(searchInput, 'Search');
+        await user.click(screen.getByText('Search Result Patient'));
+        expect(pushMock).toHaveBeenLastCalledWith('/patients/search-patient?remember_recent=1');
+
+        await user.clear(searchInput);
+        await user.click(searchInput);
+
+        expect(await screen.findByText('Recent patients')).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Search Result Patient' })).toBeInTheDocument();
     });
 
     it('shows inactive filter results and quick-schedule action', async () => {
