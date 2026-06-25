@@ -239,7 +239,7 @@ describe('TreatmentHistoryCard image controls', () => {
         expect(screen.getByRole('button', { name: 'Image 2' })).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Upload' })).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Image 1' })).toHaveClass('h-36', 'w-full', 'min-w-0', 'lg:h-40');
-        expect(screen.getByRole('button', { name: 'Image 1' }).parentElement).toHaveStyle({ gridTemplateColumns: 'repeat(2, minmax(0, 1fr)) 3.75rem' });
+        expect(screen.getByRole('button', { name: 'Image 1' }).parentElement).toHaveStyle({ gridTemplateColumns: 'repeat(2, minmax(10rem, 18.75rem)) 3.25rem' });
         expect(screen.getByRole('button', { name: 'Upload' })).toHaveClass('h-36', 'w-full', 'min-w-0', 'lg:h-40');
         expect(screen.queryByText(/^Teeth:/i)).not.toBeInTheDocument();
         expect(screen.getAllByText('Remaining')).toHaveLength(1);
@@ -278,7 +278,7 @@ describe('TreatmentHistoryCard image controls', () => {
         expect(await screen.findByRole('heading', { name: 'No images' })).toBeInTheDocument();
         const uploadButton = screen.getByRole('button', { name: 'Upload' });
         expect(uploadButton).toHaveClass('h-36', 'w-full', 'min-w-0', 'lg:h-40');
-        expect(uploadButton.parentElement).toHaveStyle({ gridTemplateColumns: '3.75rem' });
+        expect(uploadButton.parentElement).toHaveStyle({ gridTemplateColumns: '3.25rem' });
     });
 
     it('renders the financial summary as compact secondary cards', async () => {
@@ -461,7 +461,7 @@ describe('TreatmentHistoryCard image controls', () => {
         expect(screen.getByRole('button', { name: 'Image 1' })).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Image 2' })).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Image 3' })).toBeInTheDocument();
-        expect(screen.getByRole('button', { name: 'Image 1' }).parentElement).toHaveStyle({ gridTemplateColumns: 'repeat(3, minmax(0, 1fr)) 3.75rem' });
+        expect(screen.getByRole('button', { name: 'Image 1' }).parentElement).toHaveStyle({ gridTemplateColumns: 'repeat(3, minmax(10rem, 18.75rem)) 3.25rem' });
         expect(screen.getByRole('button', { name: 'Upload' })).toBeInTheDocument();
         expect(screen.queryByText('+1')).not.toBeInTheDocument();
         expect(screen.queryByText('+2')).not.toBeInTheDocument();
@@ -510,7 +510,7 @@ describe('TreatmentHistoryCard image controls', () => {
         expect(await screen.findByRole('heading', { name: 'Four images' })).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Image 4' })).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Upload' })).toBeInTheDocument();
-        expect(screen.getByRole('button', { name: 'Image 1' }).parentElement).toHaveStyle({ gridTemplateColumns: 'repeat(4, minmax(0, 1fr)) 3.75rem' });
+        expect(screen.getByRole('button', { name: 'Image 1' }).parentElement).toHaveStyle({ gridTemplateColumns: 'repeat(4, minmax(10rem, 18.75rem)) 3.25rem' });
     });
 
     it('limits timeline thumbnails and shows hidden image count with upload affordance', async () => {
@@ -561,7 +561,7 @@ describe('TreatmentHistoryCard image controls', () => {
         expect(screen.queryByRole('button', { name: 'Image 5' })).not.toBeInTheDocument();
         expect(screen.getByText('+4')).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Upload' })).toHaveClass('h-36', 'w-full', 'min-w-0', 'lg:h-40');
-        expect(screen.getByRole('button', { name: 'Image 1' }).parentElement).toHaveStyle({ gridTemplateColumns: 'repeat(4, minmax(0, 1fr)) 3.75rem' });
+        expect(screen.getByRole('button', { name: 'Image 1' }).parentElement).toHaveStyle({ gridTemplateColumns: 'repeat(4, minmax(10rem, 18.75rem)) 3.25rem' });
     });
 
     it('uses compact thumbnails with icon remove and restore controls in edit mode', async () => {
@@ -808,7 +808,7 @@ describe('TreatmentHistoryCard image controls', () => {
         expect(screen.getByLabelText(/^Date/i)).toBeInTheDocument();
         const entryInput = screen.getByLabelText(/^Entry/i);
         expect(entryInput).toBeInTheDocument();
-        expect(entryInput).toHaveClass('rounded-2xl', 'bg-slate-50/80');
+        expect(entryInput).toHaveClass('rounded-xl', 'bg-white');
         await user.click(screen.getByRole('button', { name: 'Реставрация' }));
         expect(entryInput).toHaveValue('Реставрация');
         const uploadTile = screen.getAllByTitle('Upload').find((element) => element.classList.contains('h-24')) as HTMLElement;
