@@ -1714,14 +1714,6 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                                     <h3 className="break-words text-sm font-semibold leading-snug text-slate-950 sm:text-base" title={treatment.treatment_type}>
                                                         {treatment.treatment_type}
                                                     </h3>
-                                                    {showRecordAuthors ? (
-                                                        <div className="mt-1.5">
-                                                            <RecordAuthorBadge
-                                                                createdBy={treatment.created_by}
-                                                                updatedBy={treatment.updated_by}
-                                                            />
-                                                        </div>
-                                                    ) : null}
                                                 </div>
                                                 {historyManageDisplayMode === 'hidden' ? null : (
                                                     <div className="flex shrink-0 items-center gap-1.5">
@@ -1801,6 +1793,14 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                                     locked={!canViewFinancials}
                                                 />
                                             </div>
+                                            {showRecordAuthors ? (
+                                                <div className="mt-2 flex justify-end">
+                                                    <RecordAuthorBadge
+                                                        createdBy={treatment.created_by}
+                                                        updatedBy={treatment.updated_by}
+                                                    />
+                                                </div>
+                                            ) : null}
                                         </div>
                                     </article>
                                 );

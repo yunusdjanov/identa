@@ -788,7 +788,14 @@ describe('TreatmentHistoryCard image controls', () => {
 
         renderCard();
 
-        expect((await screen.findAllByText('by Hygienist')).length).toBeGreaterThan(0);
+        const heading = await screen.findByRole('heading', { name: 'Authored history' });
+        const article = heading.closest('article') as HTMLElement;
+        const paidLabel = within(article).getByText('Paid');
+        const authorBadgeText = within(article).getByText('by Hygienist');
+        const authorBadge = authorBadgeText.closest('span') as HTMLElement;
+
+        expect(authorBadgeText).toBeInTheDocument();
+        expect(paidLabel.compareDocumentPosition(authorBadge) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     });
 
     it('keeps the odontogram snapshot and tooth selector hidden', async () => {
