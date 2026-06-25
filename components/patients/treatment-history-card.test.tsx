@@ -443,6 +443,8 @@ describe('TreatmentHistoryCard image controls', () => {
 
         await user.click(screen.getAllByRole('button', { name: 'Edit Entry' })[0]);
 
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+        expect(screen.getByLabelText(/^Entry/i)).toHaveValue('Davalash');
         expect(screen.queryByTitle('Tooth #21')).not.toBeInTheDocument();
         expect(screen.queryByTitle('Tooth #9')).not.toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Image 1' })).toBeInTheDocument();
@@ -666,7 +668,9 @@ describe('TreatmentHistoryCard image controls', () => {
         await user.click(screen.getByRole('button', { name: 'Add Entry' }));
 
         expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-        expect(screen.getByText('Add a new history entry for Sardor.')).toBeInTheDocument();
+        expect(screen.getByLabelText(/^Date/i)).toBeInTheDocument();
+        expect(screen.getByLabelText(/^Entry/i)).toBeInTheDocument();
+        expect(screen.getAllByTitle('Upload').find((element) => element.classList.contains('h-32'))).toHaveClass('lg:h-36');
         expect(screen.queryByTitle('Tooth #18')).not.toBeInTheDocument();
         expect(screen.queryByTitle('Tooth #48')).not.toBeInTheDocument();
     });

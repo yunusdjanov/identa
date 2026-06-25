@@ -21,7 +21,6 @@ import { useI18n } from '@/components/providers/i18n-provider';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ConfirmActionDialog } from '@/components/ui/confirm-action-dialog';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -246,81 +245,6 @@ async function uploadTreatmentImagesInBatches(
     }
 
     return failedCount;
-}
-
-function HistoryImageTile({
-    src,
-    alt,
-    markedForRemoval = false,
-    onPreview,
-    onToggleRemove,
-    removeLabel,
-    restoreLabel,
-    isNew = false,
-    processingLabel,
-}: {
-    src?: string | null;
-    alt: string;
-    markedForRemoval?: boolean;
-    onPreview: () => void;
-    onToggleRemove: () => void;
-    removeLabel: string;
-    restoreLabel: string;
-    isNew?: boolean;
-    processingLabel?: string;
-}) {
-    const canPreview = Boolean(src);
-
-    return (
-        <div
-            className={`group relative h-14 w-14 overflow-hidden rounded-lg border bg-white shadow-sm transition-all ${
-                markedForRemoval
-                    ? 'border-red-200 opacity-70 ring-1 ring-red-100'
-                    : isNew
-                        ? 'border-teal-200 hover:border-teal-300 hover:shadow-md'
-                        : 'border-slate-200 hover:border-teal-300 hover:shadow-md'
-            }`}
-        >
-            <button
-                type="button"
-                className="block h-full w-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-1 disabled:cursor-wait"
-                onClick={onPreview}
-                disabled={!canPreview}
-                aria-label={alt}
-                title={canPreview ? alt : processingLabel}
-            >
-                {src ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                        src={src}
-                        alt={alt}
-                        crossOrigin={getProtectedMediaCrossOrigin(src)}
-                        className={`h-full w-full object-cover transition-transform group-hover:scale-[1.03] ${
-                            markedForRemoval ? 'grayscale' : ''
-                        }`}
-                        loading="lazy"
-                    />
-                ) : (
-                    <span className="inline-flex h-full w-full items-center justify-center bg-slate-50 text-slate-400">
-                        <Loader2 className="h-4 w-4 animate-spin opacity-70" />
-                    </span>
-                )}
-            </button>
-            <button
-                type="button"
-                className={`absolute right-1 top-1 inline-flex h-5 w-5 items-center justify-center rounded-full border text-[10px] shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 ${
-                    markedForRemoval
-                        ? 'border-teal-200 bg-white text-teal-700 hover:bg-teal-50'
-                        : 'border-white/80 bg-red-600 text-white hover:bg-red-700'
-                }`}
-                onClick={onToggleRemove}
-                aria-label={markedForRemoval ? restoreLabel : removeLabel}
-                title={markedForRemoval ? restoreLabel : removeLabel}
-            >
-                {markedForRemoval ? <RotateCcw className="h-3 w-3" /> : <X className="h-3 w-3" />}
-            </button>
-        </div>
-    );
 }
 
 function HistoryFinanceChip({
@@ -1149,181 +1073,296 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
     const isLoading = treatmentsQuery.isLoading;
     const isError = treatmentsQuery.isError;
     const isInlineCreateOpen = isDialogOpen && editingTreatment === null;
-    const treatmentFormBody = (
-        <div className="min-h-0 space-y-3 overflow-y-auto pr-1">
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                <div className="space-y-2">
-                    <Label htmlFor="historyDate">
-                        {t('patientHistory.table.date')} <span className="text-red-500">*</span>
-                    </Label>
-                    <Input id="historyDate" type="date" required max={toLocalDateKey(new Date())} value={formState.treatmentDate} onChange={(event) => setFormState((current) => ({ ...current, treatmentDate: event.target.value }))} />
-                    {dateError ? <p className="text-xs text-red-600">{dateError}</p> : null}
+    const renderSelectedPreviewGallery = (startIndex: number) => {
+        setPreviewGallery({
+            images: selectedImagePreviews.map((item, imageIndex) => ({
+                id: item.id,
+                src: item.url,
+                alt: `${t('patientHistory.image')} ${imageIndex + 1}`,
+                title: `${t('patientHistory.image')} ${imageIndex + 1}`,
+            })),
+            startIndex,
+            fallbackTitle: patientName,
+            treatmentId: '',
+            treatmentDate: formState.treatmentDate,
+        });
+    };
+    const renderTreatmentFormCard = (mode: 'create' | 'edit') => {
+        const existingImages = editingTreatment?.images ?? [];
+        const hasImages = existingImages.length > 0 || selectedImagePreviews.length > 0;
+        const formDate = formState.treatmentDate || toLocalDateKey(new Date());
+        const formTitle = mode === 'edit' ? t('patientHistory.editEntry') : t('patientHistory.addEntry');
+
+        return (
+            <article key={mode === 'edit' ? `edit-${editingTreatment?.id ?? 'entry'}` : 'new-entry'} className="relative grid gap-2 md:grid-cols-[118px_minmax(0,1fr)]">
+                <div className="hidden grid-cols-[1fr_24px] items-start gap-2 pt-5 md:grid">
+                    <span className="text-right text-xs font-semibold leading-4 tabular-nums text-slate-500">
+                        {formatDate(formDate)}
+                    </span>
+                    <span className="relative z-10 mt-0.5 h-3.5 w-3.5 justify-self-center rounded-full border-2 border-white bg-teal-500 shadow-sm ring-4 ring-teal-50" />
                 </div>
-                <div className="space-y-2 sm:col-span-2">
-                    <Label htmlFor="historyWorkDone">
-                        {t('patientHistory.table.workDone')} <span className="text-red-500">*</span>
-                    </Label>
-                    <Input id="historyWorkDone" required value={formState.treatmentType} onChange={(event) => setFormState((current) => ({ ...current, treatmentType: event.target.value }))} placeholder={t('patientHistory.workDonePlaceholder')} />
-                    {treatmentTypeError ? <p className="text-xs text-red-600">{treatmentTypeError}</p> : null}
-                </div>
-            </div>
-            <div className="space-y-2">
-                <Label htmlFor="historyComment">{t('patientHistory.commentLabel')}</Label>
-                <Textarea
-                    id="historyComment"
-                    rows={3}
-                    maxLength={5000}
-                    value={formState.comment}
-                    onChange={(event) => setFormState((current) => ({ ...current, comment: event.target.value }))}
-                    placeholder={t('patientHistory.commentPlaceholder')}
-                    className="min-h-24 resize-y"
-                />
-            </div>
-            {/* Financial inputs are gated on payments.view —
-                see TreatmentService::payload backend gate.
-                Without this, a clinical assistant editing a
-                treatment with the (hidden but empty) inputs
-                would POST debt=0/paid=0 and overwrite the
-                dentist owner's real values. Hiding here +
-                backend-side payload gate together close the
-                data-loss bug. */}
-            {canViewFinancials ? (
-                <>
-                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                        <div className="space-y-2">
-                            <Label htmlFor="historyDebt">{t('patientHistory.table.debt')}</Label>
-                            <Input id="historyDebt" type="number" inputMode="decimal" min="0" step="0.01" value={formState.debtAmount} onChange={(event) => setFormState((current) => ({ ...current, debtAmount: event.target.value }))} placeholder="0" />
+                <div className="rounded-2xl border border-teal-200 bg-white p-3 shadow-sm ring-1 ring-teal-100/80">
+                    <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0 flex-1 space-y-2">
+                            <div className="flex flex-wrap items-center gap-2">
+                                <Label htmlFor="historyDate" className="sr-only">
+                                    {t('patientHistory.table.date')}
+                                </Label>
+                                <Input
+                                    id="historyDate"
+                                    type="date"
+                                    required
+                                    max={toLocalDateKey(new Date())}
+                                    value={formState.treatmentDate}
+                                    onChange={(event) => setFormState((current) => ({ ...current, treatmentDate: event.target.value }))}
+                                    className="h-8 w-40 rounded-full border-slate-200 px-3 text-xs font-semibold tabular-nums text-slate-600 shadow-sm"
+                                />
+                                <span className="inline-flex h-6 items-center rounded-full border border-teal-100 bg-teal-50 px-2 text-[11px] font-semibold text-teal-700">
+                                    {formTitle}
+                                </span>
+                            </div>
+                            {dateError ? <p className="text-xs text-red-600">{dateError}</p> : null}
+                            <Label htmlFor="historyWorkDone" className="sr-only">
+                                {t('patientHistory.table.workDone')}
+                            </Label>
+                            <Input
+                                id="historyWorkDone"
+                                required
+                                value={formState.treatmentType}
+                                onChange={(event) => setFormState((current) => ({ ...current, treatmentType: event.target.value }))}
+                                placeholder={t('patientHistory.workDonePlaceholder')}
+                                className="h-9 border-0 bg-transparent px-0 text-sm font-semibold text-slate-950 shadow-none focus-visible:ring-0 sm:text-base"
+                            />
+                            {treatmentTypeError ? <p className="text-xs text-red-600">{treatmentTypeError}</p> : null}
                         </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="historyPaid">{t('patientHistory.table.paid')}</Label>
-                            <Input id="historyPaid" type="number" inputMode="decimal" min="0" step="0.01" value={formState.paidAmount} onChange={(event) => setFormState((current) => ({ ...current, paidAmount: event.target.value }))} placeholder="0" />
-                        </div>
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon-sm"
+                            className="h-8 w-8 shrink-0 text-slate-500 hover:bg-slate-100 hover:text-slate-900"
+                            aria-label={t('common.cancel')}
+                            onClick={() => handleDialogOpenChange(false)}
+                            disabled={saveTreatmentMutation.isPending || isPreparingImages}
+                        >
+                            <X className="h-4 w-4" />
+                        </Button>
                     </div>
-                    {amountError ? <p className="text-xs text-red-600">{amountError}</p> : null}
-                </>
-            ) : null}
-            <div className="rounded-xl border border-slate-200 bg-slate-50/40 p-2.5">
-                <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="min-w-0">
-                        <Label htmlFor="historyImages">{t('patientHistory.images')}</Label>
-                        <p className="mt-1 text-xs text-slate-500">
-                            {visibleExistingImagesCount + selectedImagePreviews.length} / {maxHistoryImagesPerEntry} - {t('patientHistory.imagesHint', { max: maxHistoryImagesPerEntry, sizeMb: maxHistoryUploadMb })}
-                        </p>
-                    </div>
-                    <Input
-                        id="historyImages"
-                        type="file"
-                        multiple
-                        accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
-                        onChange={handleImageFilesSelected}
-                        disabled={!canManageHistory || isPreparingImages}
-                        className="sr-only"
-                    />
-                    <Label
-                        htmlFor={!canManageHistory || isPreparingImages ? undefined : 'historyImages'}
-                        className={`inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-sm font-medium text-slate-900 shadow-sm transition-colors ${!canManageHistory || isPreparingImages ? 'cursor-not-allowed opacity-70' : 'cursor-pointer hover:bg-slate-50'}`}
-                        onClick={() => {
-                            if (!canManageHistory) {
-                                toast.error(manageDeniedMessage);
-                            }
-                        }}
-                    >
-                        <Plus className="h-4 w-4" />
-                        {isPreparingImages ? t('common.loading') : t('odontogram.image.upload')}
-                    </Label>
-                </div>
 
-                <div className="mt-2 flex max-h-36 flex-wrap gap-2 overflow-y-auto pr-1">
-                    {isEditingImagePanelLoading ? (
-                        Array.from({ length: Math.min(editingTreatment ? getTreatmentImageCount(editingTreatment) : 0, 4) }).map((_, index) => (
-                            <Skeleton key={`image-loading-${index}`} className="h-16 w-16 rounded-lg" />
-                        ))
-                    ) : editingTreatment ? (
-                        (() => {
-                            const existingImages = editingTreatment.images ?? [];
-
-                            return existingImages.map((image, index) => {
-                                const isMarkedForRemoval = formState.removeImageIds.includes(image.id);
-                                const imageLabel = `${t('patientHistory.image')} ${index + 1}`;
-                                const imageThumbnailUrl = getTreatmentImageThumbnailUrl(image);
-
-                                return (
-                                    <HistoryImageTile
-                                        key={image.id}
-                                        src={imageThumbnailUrl}
-                                        alt={imageLabel}
-                                        markedForRemoval={isMarkedForRemoval}
-                                        onPreview={() =>
-                                            {
-                                                const previewableImages = existingImages.filter((existingImage) => getTreatmentImagePreviewUrl(existingImage));
-
-                                                setPreviewGallery({
-                                                    images: previewableImages.map((existingImage, imageIndex) => ({
-                                                        id: existingImage.id,
-                                                        src: getTreatmentImagePreviewUrl(existingImage) ?? '',
-                                                        thumbnailSrc: getTreatmentImageThumbnailUrl(existingImage) ?? undefined,
-                                                        alt: `${patientName} ${t('patientHistory.image')} ${imageIndex + 1}`,
-                                                        title: `${t('patientHistory.image')} ${imageIndex + 1} - ${formatDate(formState.treatmentDate)}`,
-                                                    })),
-                                                    startIndex: Math.min(index, Math.max(previewableImages.length - 1, 0)),
-                                                    fallbackTitle: patientName,
-                                                    treatmentId: editingTreatment.id,
-                                                    treatmentDate: formState.treatmentDate,
-                                                });
-                                            }
-                                        }
-                                        onToggleRemove={() => toggleExistingImageRemoval(image.id)}
-                                        removeLabel={t('patientHistory.removeImage')}
-                                        restoreLabel={t('patients.restore')}
-                                        processingLabel={t('patientHistory.imageProcessing')}
-                                    />
-                                );
-                            });
-                        })()
-                    ) : null}
-                    {selectedImagePreviews.map((preview, index) => (
-                        <HistoryImageTile
-                            key={preview.id}
-                            src={preview.url}
-                            alt={`${t('patientHistory.image')} ${index + 1}`}
-                            onPreview={() => {
-                                setPreviewGallery({
-                                    images: selectedImagePreviews.map((item, imageIndex) => ({
-                                        id: item.id,
-                                        src: item.url,
-                                        alt: `${t('patientHistory.image')} ${imageIndex + 1}`,
-                                        title: `${t('patientHistory.image')} ${imageIndex + 1}`,
-                                    })),
-                                    startIndex: index,
-                                    fallbackTitle: patientName,
-                                    treatmentId: '',
-                                    treatmentDate: formState.treatmentDate,
-                                });
-                            }}
-                            onToggleRemove={() => removeSelectedImage(index)}
-                            removeLabel={t('patientHistory.removeImage')}
-                            restoreLabel={t('patients.restore')}
-                            isNew
+                    <div className="mt-2">
+                        <Label htmlFor="historyComment" className="sr-only">{t('patientHistory.commentLabel')}</Label>
+                        <Textarea
+                            id="historyComment"
+                            rows={2}
+                            maxLength={5000}
+                            value={formState.comment}
+                            onChange={(event) => setFormState((current) => ({ ...current, comment: event.target.value }))}
+                            placeholder={t('patientHistory.commentPlaceholder')}
+                            className="min-h-16 resize-y rounded-xl border-slate-200 bg-slate-50/60 text-sm shadow-none"
                         />
-                    ))}
-                    {(editingTreatment?.images ?? []).length + selectedImagePreviews.length === 0 ? (
-                        <span className="inline-flex h-8 items-center rounded-full border border-dashed border-slate-200 bg-white px-3 text-xs text-slate-400">
-                            {t('patientHistory.imagesEmpty')}
-                        </span>
-                    ) : null}
-                </div>
+                    </div>
 
-                {imageValidationError ? <p className="mt-2 text-xs text-red-600">{imageValidationError}</p> : null}
-                {maxImagesError ? <p className="mt-2 text-xs text-red-600">{maxImagesError}</p> : null}
-            </div>
-        </div>
-    );
-    const treatmentFormActions = (
-        <div className="flex flex-col-reverse gap-2 border-t border-slate-100 pt-3 sm:flex-row sm:justify-end">
-            <Button type="button" variant="outline" onClick={() => handleDialogOpenChange(false)} disabled={saveTreatmentMutation.isPending || isPreparingImages}>{t('common.cancel')}</Button>
-            <Button type="button" onClick={handleSubmit} disabled={saveTreatmentMutation.isPending || isPreparingImages || !canManageHistory}>{saveTreatmentMutation.isPending ? t('common.saving') : isPreparingImages ? t('common.loading') : t('common.saveChanges')}</Button>
-        </div>
-    );
+                    <div className="mt-3">
+                        <div className="mb-2 flex items-center justify-between gap-3">
+                            <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+                                {t('patientHistory.images')} · {visibleExistingImagesCount + selectedImagePreviews.length} / {maxHistoryImagesPerEntry}
+                            </p>
+                            <p className="hidden text-xs text-slate-400 sm:block">
+                                {t('patientHistory.imagesHint', { max: maxHistoryImagesPerEntry, sizeMb: maxHistoryUploadMb })}
+                            </p>
+                        </div>
+                        <Input
+                            id="historyImages"
+                            type="file"
+                            multiple
+                            accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
+                            onChange={handleImageFilesSelected}
+                            disabled={!canManageHistory || isPreparingImages}
+                            className="sr-only"
+                        />
+                        <div className="grid gap-2 sm:grid-cols-[repeat(auto-fit,minmax(10rem,1fr))]">
+                            {isEditingImagePanelLoading ? (
+                                Array.from({ length: Math.min(editingTreatment ? getTreatmentImageCount(editingTreatment) : 0, 4) }).map((_, index) => (
+                                    <Skeleton key={`image-loading-${index}`} className="h-32 rounded-xl lg:h-36" />
+                                ))
+                            ) : (
+                                existingImages.map((image, index) => {
+                                    const thumbnailUrl = getTreatmentImageThumbnailUrl(image);
+                                    const previewUrl = getTreatmentImagePreviewUrl(image);
+                                    const isMarkedForRemoval = formState.removeImageIds.includes(image.id);
+                                    const imageLabel = `${t('patientHistory.image')} ${index + 1}`;
+
+                                    return (
+                                        <div
+                                            key={image.id}
+                                            className={`group relative h-32 overflow-hidden rounded-xl border bg-slate-100 shadow-sm transition-all lg:h-36 ${
+                                                isMarkedForRemoval
+                                                    ? 'border-red-200 opacity-70 ring-1 ring-red-100'
+                                                    : 'border-slate-200 hover:border-teal-300 hover:shadow-md'
+                                            }`}
+                                        >
+                                            <button
+                                                type="button"
+                                                className="block h-full w-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-1 disabled:cursor-wait"
+                                                onClick={() => {
+                                                    const previewableImages = existingImages.filter((existingImage) => getTreatmentImagePreviewUrl(existingImage));
+                                                    const previewIndex = Math.max(previewableImages.findIndex((existingImage) => existingImage.id === image.id), 0);
+
+                                                    setPreviewGallery({
+                                                        images: previewableImages.map((existingImage, imageIndex) => ({
+                                                            id: existingImage.id,
+                                                            src: getTreatmentImagePreviewUrl(existingImage) ?? '',
+                                                            thumbnailSrc: getTreatmentImageThumbnailUrl(existingImage) ?? undefined,
+                                                            alt: `${patientName} ${t('patientHistory.image')} ${imageIndex + 1}`,
+                                                            title: `${t('patientHistory.image')} ${imageIndex + 1} - ${formatDate(formDate)}`,
+                                                        })),
+                                                        startIndex: previewIndex,
+                                                        fallbackTitle: patientName,
+                                                        treatmentId: editingTreatment?.id ?? '',
+                                                        treatmentDate: formDate,
+                                                    });
+                                                }}
+                                                disabled={!previewUrl}
+                                                aria-label={imageLabel}
+                                                title={previewUrl ? imageLabel : t('patientHistory.imageProcessing')}
+                                            >
+                                                {thumbnailUrl ? (
+                                                    // eslint-disable-next-line @next/next/no-img-element
+                                                    <img
+                                                        src={thumbnailUrl}
+                                                        alt={imageLabel}
+                                                        crossOrigin={getProtectedMediaCrossOrigin(thumbnailUrl)}
+                                                        className={`h-full w-full object-cover transition-transform group-hover:scale-[1.03] ${isMarkedForRemoval ? 'grayscale' : ''}`}
+                                                        loading="lazy"
+                                                    />
+                                                ) : (
+                                                    <span className="inline-flex h-full w-full items-center justify-center bg-slate-50 text-slate-400">
+                                                        <Loader2 className="h-4 w-4 animate-spin opacity-70" />
+                                                    </span>
+                                                )}
+                                            </button>
+                                            <span className="absolute left-1.5 top-1.5 inline-flex h-5 min-w-5 items-center justify-center rounded-md bg-slate-900/75 px-1.5 text-[10px] font-bold text-white">
+                                                {index + 1}
+                                            </span>
+                                            <button
+                                                type="button"
+                                                className={`absolute right-1.5 top-1.5 inline-flex h-7 w-7 items-center justify-center rounded-full border text-[10px] shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 ${
+                                                    isMarkedForRemoval
+                                                        ? 'border-teal-200 bg-white text-teal-700 hover:bg-teal-50'
+                                                        : 'border-white/80 bg-red-600 text-white hover:bg-red-700'
+                                                }`}
+                                                onClick={() => toggleExistingImageRemoval(image.id)}
+                                                aria-label={isMarkedForRemoval ? t('patients.restore') : t('patientHistory.removeImage')}
+                                                title={isMarkedForRemoval ? t('patients.restore') : t('patientHistory.removeImage')}
+                                            >
+                                                {isMarkedForRemoval ? <RotateCcw className="h-3.5 w-3.5" /> : <X className="h-3.5 w-3.5" />}
+                                            </button>
+                                        </div>
+                                    );
+                                })
+                            )}
+                            {selectedImagePreviews.map((preview, index) => (
+                                <div key={preview.id} className="group relative h-32 overflow-hidden rounded-xl border border-teal-200 bg-slate-100 shadow-sm transition-all hover:border-teal-300 hover:shadow-md lg:h-36">
+                                    <button
+                                        type="button"
+                                        className="block h-full w-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-1"
+                                        onClick={() => renderSelectedPreviewGallery(index)}
+                                        aria-label={`${t('patientHistory.image')} ${existingImages.length + index + 1}`}
+                                        title={`${t('patientHistory.image')} ${existingImages.length + index + 1}`}
+                                    >
+                                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                                        <img src={preview.url} alt={`${t('patientHistory.image')} ${existingImages.length + index + 1}`} className="h-full w-full object-cover transition-transform group-hover:scale-[1.03]" loading="lazy" />
+                                    </button>
+                                    <span className="absolute left-1.5 top-1.5 inline-flex h-5 min-w-5 items-center justify-center rounded-md bg-teal-700/85 px-1.5 text-[10px] font-bold text-white">
+                                        {existingImages.length + index + 1}
+                                    </span>
+                                    <button
+                                        type="button"
+                                        className="absolute right-1.5 top-1.5 inline-flex h-7 w-7 items-center justify-center rounded-full border border-white/80 bg-red-600 text-white shadow-sm transition-colors hover:bg-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500"
+                                        onClick={() => removeSelectedImage(index)}
+                                        aria-label={t('patientHistory.removeImage')}
+                                        title={t('patientHistory.removeImage')}
+                                    >
+                                        <X className="h-3.5 w-3.5" />
+                                    </button>
+                                </div>
+                            ))}
+                            {visibleExistingImagesCount + selectedImagePreviews.length < maxHistoryImagesPerEntry ? (
+                                <Label
+                                    htmlFor={!canManageHistory || isPreparingImages ? undefined : 'historyImages'}
+                                    className={`group inline-flex h-32 min-h-32 items-center justify-center rounded-xl border border-dashed border-teal-200 bg-teal-50/60 text-teal-700 transition-all lg:h-36 ${!canManageHistory || isPreparingImages ? 'cursor-not-allowed opacity-70' : 'cursor-pointer hover:border-teal-300 hover:bg-teal-50 hover:shadow-sm'}`}
+                                    onClick={() => {
+                                        if (!canManageHistory) {
+                                            toast.error(manageDeniedMessage);
+                                        }
+                                    }}
+                                    aria-label={t('odontogram.image.upload')}
+                                    title={t('odontogram.image.upload')}
+                                >
+                                    {isPreparingImages ? <Loader2 className="h-5 w-5 animate-spin" /> : <Plus className="h-5 w-5 transition-transform group-hover:scale-110" />}
+                                </Label>
+                            ) : null}
+                            {!hasImages && visibleExistingImagesCount + selectedImagePreviews.length >= maxHistoryImagesPerEntry ? (
+                                <span className="inline-flex h-10 items-center rounded-full border border-dashed border-slate-200 bg-white px-3 text-xs text-slate-400">
+                                    {t('patientHistory.imagesEmpty')}
+                                </span>
+                            ) : null}
+                        </div>
+                        {imageValidationError ? <p className="mt-2 text-xs text-red-600">{imageValidationError}</p> : null}
+                        {maxImagesError ? <p className="mt-2 text-xs text-red-600">{maxImagesError}</p> : null}
+                    </div>
+
+                    {canViewFinancials ? (
+                        <>
+                            <div className="mt-3 grid grid-cols-1 gap-2 border-t border-slate-100 pt-3 sm:grid-cols-2">
+                                <div className="min-w-0 rounded-lg border border-slate-200 bg-slate-50/80 px-2.5 py-1.5">
+                                    <Label htmlFor="historyDebt" className="block truncate text-[9px] font-semibold uppercase tracking-wider text-slate-400">
+                                        {t('patientHistory.table.debt')}
+                                    </Label>
+                                    <Input
+                                        id="historyDebt"
+                                        type="number"
+                                        inputMode="decimal"
+                                        min="0"
+                                        step="0.01"
+                                        value={formState.debtAmount}
+                                        onChange={(event) => setFormState((current) => ({ ...current, debtAmount: event.target.value }))}
+                                        placeholder="0"
+                                        className="mt-0.5 h-7 border-0 bg-transparent px-0 text-xs font-bold tabular-nums text-red-700 shadow-none focus-visible:ring-0"
+                                    />
+                                </div>
+                                <div className="min-w-0 rounded-lg border border-slate-200 bg-slate-50/80 px-2.5 py-1.5">
+                                    <Label htmlFor="historyPaid" className="block truncate text-[9px] font-semibold uppercase tracking-wider text-slate-400">
+                                        {t('patientHistory.table.paid')}
+                                    </Label>
+                                    <Input
+                                        id="historyPaid"
+                                        type="number"
+                                        inputMode="decimal"
+                                        min="0"
+                                        step="0.01"
+                                        value={formState.paidAmount}
+                                        onChange={(event) => setFormState((current) => ({ ...current, paidAmount: event.target.value }))}
+                                        placeholder="0"
+                                        className="mt-0.5 h-7 border-0 bg-transparent px-0 text-xs font-bold tabular-nums text-green-700 shadow-none focus-visible:ring-0"
+                                    />
+                                </div>
+                            </div>
+                            {amountError ? <p className="mt-2 text-xs text-red-600">{amountError}</p> : null}
+                        </>
+                    ) : null}
+
+                    <div className="mt-3 flex flex-col-reverse gap-2 border-t border-slate-100 pt-3 sm:flex-row sm:justify-end">
+                        <Button type="button" variant="outline" onClick={() => handleDialogOpenChange(false)} disabled={saveTreatmentMutation.isPending || isPreparingImages}>
+                            {t('common.cancel')}
+                        </Button>
+                        <Button type="button" onClick={handleSubmit} disabled={saveTreatmentMutation.isPending || isPreparingImages || !canManageHistory}>
+                            {saveTreatmentMutation.isPending ? t('common.saving') : isPreparingImages ? t('common.loading') : t('common.saveChanges')}
+                        </Button>
+                    </div>
+                </div>
+            </article>
+        );
+    };
 
     return (
         <>
@@ -1474,32 +1513,6 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                         />
                     </div>
 
-                    {isInlineCreateOpen ? (
-                        <div className="rounded-2xl border border-teal-200 bg-white shadow-sm ring-1 ring-teal-100">
-                            <div className="flex items-start justify-between gap-3 px-4 py-3">
-                                <div className="min-w-0">
-                                    <p className="text-sm font-semibold text-slate-950">{t('patientHistory.addEntry')}</p>
-                                    <p className="mt-1 text-xs text-slate-500">{t('patientHistory.addDescription', { patientName })}</p>
-                                </div>
-                                <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="icon-sm"
-                                    className="h-8 w-8 shrink-0 text-slate-500 hover:bg-slate-100 hover:text-slate-900"
-                                    aria-label={t('common.cancel')}
-                                    onClick={() => handleDialogOpenChange(false)}
-                                    disabled={saveTreatmentMutation.isPending || isPreparingImages}
-                                >
-                                    <X className="h-4 w-4" />
-                                </Button>
-                            </div>
-                            <div className="space-y-3 border-t border-teal-100 p-4">
-                                {treatmentFormBody}
-                                {treatmentFormActions}
-                            </div>
-                        </div>
-                    ) : null}
-
                     {isLoading ? (
                         <div className="relative space-y-3">
                             <div className="absolute bottom-3 left-[106px] top-3 hidden w-px bg-slate-200 md:block" aria-hidden="true" />
@@ -1539,7 +1552,7 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                             <p className="text-sm text-red-600">{getApiErrorMessage(treatmentsQuery.error, t('patientHistory.error.loadFailed'))}</p>
                             <Button variant="outline" onClick={() => treatmentsQuery.refetch()}>{t('common.retry')}</Button>
                         </div>
-                    ) : treatments.length === 0 ? (
+                    ) : treatments.length === 0 && !isInlineCreateOpen ? (
                         <div className="rounded-2xl border border-dashed border-slate-200">
                             <EmptyState
                                 icon={CalendarDays}
@@ -1561,6 +1574,7 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                         <div className="space-y-4">
                             <div className="relative space-y-3">
                                 <div className="absolute bottom-3 left-[106px] top-3 hidden w-px bg-slate-200 md:block" aria-hidden="true" />
+                                {isInlineCreateOpen ? renderTreatmentFormCard('create') : null}
                                 {treatments.map((treatment) => {
                                 const imageCount = getTreatmentImageCount(treatment);
                                 const debtAmount = Number(treatment.debt_amount);
@@ -1572,6 +1586,10 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                     && imageCount < maxHistoryImagesPerEntry;
                                 const isManageReadonly = historyManageDisplayMode === 'disabled-readonly';
                                 const isEditDisabled = isManageReadonly || isDetailLoading;
+
+                                if (isDialogOpen && editingTreatment?.id === treatment.id) {
+                                    return renderTreatmentFormCard('edit');
+                                }
 
                                 return (
                                     <article key={treatment.id} className="relative grid gap-2 md:grid-cols-[118px_minmax(0,1fr)]">
@@ -1708,17 +1726,6 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                     )}
                 </CardContent>
             </Card>
-
-            <Dialog open={isDialogOpen && editingTreatment !== null} onOpenChange={handleDialogOpenChange}>
-                <DialogContent className="grid max-h-[calc(100dvh-1.5rem)] w-[min(96vw,980px)] max-w-[980px] grid-rows-[auto_minmax(0,1fr)_auto] gap-3 overflow-hidden p-4 sm:p-5">
-                    <DialogHeader>
-                        <DialogTitle>{editingTreatment ? t('patientHistory.editEntry') : t('patientHistory.addEntry')}</DialogTitle>
-                        <DialogDescription>{editingTreatment ? t('patientHistory.editDescription', { patientName }) : t('patientHistory.addDescription', { patientName })}</DialogDescription>
-                    </DialogHeader>
-                    {treatmentFormBody}
-                    <DialogFooter>{treatmentFormActions}</DialogFooter>
-                </DialogContent>
-            </Dialog>
 
             <ConfirmActionDialog
                 open={treatmentToDelete !== null}
