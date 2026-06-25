@@ -1303,12 +1303,13 @@ export default function AppointmentsPage() {
                                         filename: buildPdfFilename('appointments'),
                                         title: t('appointments.title'),
                                         subtitle: t('appointments.subtitle'),
+                                        locale,
                                         columns: [
-                                            t('appointments.table.date') ?? 'Date',
-                                            t('appointments.table.time') ?? 'Time',
-                                            t('appointments.table.patient') ?? 'Patient',
-                                            t('appointments.table.reason') ?? 'Reason',
-                                            t('appointments.table.status') ?? 'Status',
+                                            t('appointments.table.date'),
+                                            t('appointments.table.time'),
+                                            t('appointments.table.patient'),
+                                            t('appointments.table.reason'),
+                                            t('appointments.table.status'),
                                         ],
                                         rows,
                                         summary: [

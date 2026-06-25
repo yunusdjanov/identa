@@ -281,6 +281,7 @@ export default function AnalyticsPage() {
                 filename: buildPdfFilename(`${t('analytics.export.filename')}-${range}`),
                 title: t('analytics.export.title'),
                 subtitle: `${t('analytics.export.range', { range: rangeLabel })} • ${t('analytics.export.generated', { date: today })}`,
+                locale,
                 orientation: 'portrait',
                 columns: [
                     t('analytics.export.col.month'),

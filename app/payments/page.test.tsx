@@ -484,5 +484,8 @@ describe('PaymentsPage', () => {
         });
         expect(vi.mocked(exportRowsToPdf).mock.calls[0]?.[0].rows).toHaveLength(1);
         expect(vi.mocked(exportRowsToPdf).mock.calls[0]?.[0].rows[0]?.[0]).toBe('Jane Doe');
+        expect(normalizeText(String(vi.mocked(exportRowsToPdf).mock.calls[0]?.[0].rows[0]?.[5]))).toBe('50 000 UZS (Debt)');
+        expect(normalizeText(vi.mocked(exportRowsToPdf).mock.calls[0]?.[0].summary?.[2]?.value)).toBe('50 000 UZS (Debt)');
+        expect(vi.mocked(exportRowsToPdf).mock.calls[0]?.[0].locale).toBe('en');
     });
 });

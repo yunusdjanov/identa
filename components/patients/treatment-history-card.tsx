@@ -31,6 +31,7 @@ import type { PreviewGalleryImage } from '@/components/patients/patient-photo-pr
 import { optimizeImageFilesForUpload } from '@/lib/browser-image';
 import { getProtectedMediaCrossOrigin, getProtectedMediaPreviewUrl, getProtectedMediaThumbnailUrl, isProtectedMediaApproved } from '@/lib/protected-media';
 import { formatToothList } from '@/lib/tooth-numbering';
+import { formatLocalizedDate } from '@/lib/i18n/date';
 import { formatCurrency, formatDate, toLocalDateKey } from '@/lib/utils';
 import { toast } from 'sonner';
 import { CalendarDays, Download, Loader2, Lock, Pencil, Plus, RotateCcw, Trash2, X } from 'lucide-react';
@@ -517,7 +518,7 @@ function HistoryAddImageButton({
 }
 
 export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistoryCardProps) {
-    const { t } = useI18n();
+    const { t, locale } = useI18n();
     const queryClient = useQueryClient();
     const treatmentsQueryKey = ['patients', 'detail', patientId, 'treatments'] as const;
     const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -1192,10 +1193,11 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                         exportPatientReportToPdf({
                                             filename: buildPdfFilename(`patient-${patientName.replace(/\s+/g, '-').toLowerCase()}`),
                                             title: t('patientHistory.title'),
+                                            locale,
                                             patientName,
                                             patientMeta: [
                                                 t('patientDetail.totalAppointments') + ': ' + exportTreatments.length,
-                                                new Date().toLocaleDateString(),
+                                                formatLocalizedDate(new Date(), locale, { year: 'numeric', month: 'short', day: 'numeric' }),
                                             ],
                                             summary: canViewFinancials
                                                 ? [

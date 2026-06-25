@@ -31,12 +31,14 @@ describe('PDF export print templates', () => {
 
     it('uses zero page margin for table exports so browser URL footers are not printed', () => {
         vi.useFakeTimers();
+        vi.setSystemTime(new Date('2026-06-25T12:00:00Z'));
         const { printWindow, getWrittenHtml } = createPrintWindowMock();
         vi.spyOn(window, 'open').mockReturnValue(printWindow);
 
         exportRowsToPdf({
             filename: 'payments',
             title: 'Payments',
+            locale: 'uz',
             columns: ['Patient'],
             rows: [['Jane Doe']],
         });
@@ -45,6 +47,7 @@ describe('PDF export print templates', () => {
         expect(html).toContain('@page { margin: 0; size: A4 landscape; }');
         expect(html).toContain('--pdf-print-padding-y: 16mm');
         expect(html).not.toContain('@page { margin: 16mm');
+        expect(html).toContain('25 iyn 2026');
 
         vi.runOnlyPendingTimers();
         expect(printWindow.print).toHaveBeenCalledTimes(1);
@@ -52,12 +55,14 @@ describe('PDF export print templates', () => {
 
     it('uses zero page margin for patient reports while preserving report padding', () => {
         vi.useFakeTimers();
+        vi.setSystemTime(new Date('2026-06-25T12:00:00Z'));
         const { printWindow, getWrittenHtml } = createPrintWindowMock();
         vi.spyOn(window, 'open').mockReturnValue(printWindow);
 
         exportPatientReportToPdf({
             filename: 'patient-history',
             title: 'Patient History',
+            locale: 'uz',
             patientName: 'Jane Doe',
             patientMeta: ['2 visits'],
             sections: [
@@ -75,6 +80,7 @@ describe('PDF export print templates', () => {
         expect(html).toContain('@page { margin: 0; size: A4 portrait; }');
         expect(html).toContain('--pdf-print-padding-y: 14mm');
         expect(html).not.toContain('@page { margin: 14mm');
+        expect(html).toContain('25 iyn 2026');
 
         vi.runOnlyPendingTimers();
         expect(printWindow.print).toHaveBeenCalledTimes(1);

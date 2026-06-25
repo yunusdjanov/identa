@@ -1,7 +1,11 @@
+import { formatLocalizedDate } from '@/lib/i18n/date';
+import type { AppLocale } from '@/lib/i18n/config';
+
 export interface PdfExportOptions {
     filename: string;
     title: string;
     subtitle?: string;
+    locale?: AppLocale;
     columns: readonly string[];
     rows: ReadonlyArray<ReadonlyArray<string | number>>;
     summary?: ReadonlyArray<{ label: string; value: string }>;
@@ -142,8 +146,16 @@ const PRINT_STYLES = `
     }
 `;
 
-function buildHtml({ title, subtitle, columns, rows, summary }: PdfExportOptions): string {
-    const dateStr = new Date().toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+function getPdfDate(locale?: AppLocale): string {
+    const options: Intl.DateTimeFormatOptions = { year: 'numeric', month: 'short', day: 'numeric' };
+
+    return locale
+        ? formatLocalizedDate(new Date(), locale, options)
+        : new Date().toLocaleDateString(undefined, options);
+}
+
+function buildHtml({ title, subtitle, locale, columns, rows, summary }: PdfExportOptions): string {
+    const dateStr = getPdfDate(locale);
     const headerHtml = `
         <div class="brand-strip"></div>
         <div class="header">
@@ -258,6 +270,7 @@ export interface PatientReportSection {
 export interface PatientReportOptions {
     filename: string;
     title: string;
+    locale?: AppLocale;
     patientName: string;
     patientMeta?: ReadonlyArray<string>;
     summary?: ReadonlyArray<{ label: string; value: string; tone?: 'red' | 'green' | 'yellow' | 'blue' | 'neutral' }>;
@@ -427,7 +440,7 @@ export function exportPatientReportToPdf(options: PatientReportOptions): void {
         return;
     }
 
-    const dateStr = new Date().toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+    const dateStr = getPdfDate(options.locale);
     const pageOrientation = options.orientation ?? 'portrait';
     const pageRule = `:root { --pdf-print-padding-y: 14mm; --pdf-print-padding-x: 14mm; } @page { margin: 0; size: A4 ${pageOrientation}; }`;
 

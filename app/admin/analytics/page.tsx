@@ -325,6 +325,7 @@ export default function AdminAnalyticsPage() {
                 filename: buildPdfFilename(`admin-analytics-${range}`),
                 title: t('admin.analytics.export.title'),
                 subtitle: `${t('analytics.export.range', { range: rangeLabel })} • ${t('analytics.export.generated', { date: today })}`,
+                locale,
                 orientation: 'portrait',
                 columns: [
                     t('admin.analytics.export.col.month'),

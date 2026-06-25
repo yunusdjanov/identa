@@ -134,7 +134,7 @@ function getPatientInitials(fullName: string): string {
 }
 
 export default function PatientsPage() {
-    const { t } = useI18n();
+    const { t, locale } = useI18n();
     const router = useRouter();
     const queryClient = useQueryClient();
     const recentMenuId = useId();
@@ -420,6 +420,7 @@ export default function PatientsPage() {
                                         filename: buildPdfFilename('patients'),
                                         title: t('patients.title'),
                                         subtitle: t('patients.subtitle'),
+                                        locale,
                                         columns: [
                                             t('patients.table.name'),
                                             t('patients.table.phone'),

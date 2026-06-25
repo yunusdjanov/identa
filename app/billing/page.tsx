@@ -587,6 +587,7 @@ export default function BillingPage() {
                                             filename: buildPdfFilename('billing-history'),
                                             title: t('billing.paymentHistory'),
                                             subtitle: t('billing.subtitle'),
+                                            locale,
                                             columns: [
                                                 t('billing.table.date'),
                                                 t('billing.table.plan'),
@@ -605,7 +606,7 @@ export default function BillingPage() {
                                     }}
                                 >
                                     <Download className="h-3.5 w-3.5" />
-                                    PDF
+                                    {t('common.export')}
                                 </Button>
                             ) : null}
                         </div>
