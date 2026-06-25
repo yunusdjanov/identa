@@ -232,8 +232,8 @@ describe('TreatmentHistoryCard image controls', () => {
         expect(screen.getByRole('button', { name: 'Image 1' })).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Image 2' })).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Upload' })).toBeInTheDocument();
-        expect(screen.getByRole('button', { name: 'Image 1' })).toHaveClass('h-36', 'w-64', 'lg:h-40', 'lg:w-72');
-        expect(screen.getByRole('button', { name: 'Upload' })).toHaveClass('h-24', 'w-40', 'lg:h-28', 'lg:w-44');
+        expect(screen.getByRole('button', { name: 'Image 1' })).toHaveClass('h-36', 'w-full', 'min-w-0', 'lg:h-40');
+        expect(screen.getByRole('button', { name: 'Upload' })).toHaveClass('h-36', 'w-20', 'lg:h-40', 'lg:w-24');
         expect(screen.queryByText(/^Teeth:/i)).not.toBeInTheDocument();
         expect(screen.getAllByText('Remaining')).toHaveLength(1);
     });
@@ -418,13 +418,13 @@ describe('TreatmentHistoryCard image controls', () => {
         renderCard();
 
         expect(await screen.findByRole('heading', { name: 'Many images' })).toBeInTheDocument();
-        expect(document.querySelector('.snap-x.snap-mandatory')).toBeInTheDocument();
-        expect(document.querySelector('.bg-gradient-to-l')).toBeInTheDocument();
-        expect(screen.getByRole('button', { name: 'Image 1' })).toHaveClass('snap-start');
+        expect(document.querySelector('.snap-x')).not.toBeInTheDocument();
+        expect(document.querySelector('.overflow-x-auto')).not.toBeInTheDocument();
+        expect(document.querySelector('.bg-gradient-to-l')).not.toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Image 4' })).toBeInTheDocument();
         expect(screen.queryByRole('button', { name: 'Image 5' })).not.toBeInTheDocument();
         expect(screen.getByText('+4')).toBeInTheDocument();
-        expect(screen.getByRole('button', { name: 'Upload' })).toHaveClass('h-24', 'w-40', 'self-center');
+        expect(screen.getByRole('button', { name: 'Upload' })).toHaveClass('h-36', 'w-20', 'lg:h-40', 'lg:w-24');
     });
 
     it('uses compact thumbnails with icon remove and restore controls in edit mode', async () => {

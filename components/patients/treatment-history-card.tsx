@@ -70,8 +70,8 @@ const MEDIA_READINESS_TIMEOUT_MS = 8000;
 const HISTORY_TIMELINE_IMAGE_LIMIT = 4;
 const HISTORY_PAGE_SIZE = 10;
 const HISTORY_SORT = '-treatment_date,-created_at';
-const HISTORY_TIMELINE_IMAGE_TILE_CLASS = 'h-36 w-64 lg:h-40 lg:w-72';
-const HISTORY_TIMELINE_ADD_TILE_CLASS = 'h-24 w-40 lg:h-28 lg:w-44';
+const HISTORY_TIMELINE_IMAGE_TILE_CLASS = 'h-36 w-full min-w-0 lg:h-40';
+const HISTORY_TIMELINE_ADD_TILE_CLASS = 'h-36 w-20 lg:h-40 lg:w-24';
 
 type TreatmentHistoryPages = InfiniteData<ApiCollectionEnvelope<ApiTreatment>, number>;
 
@@ -387,7 +387,9 @@ function HistoryImageStrip({
     const imageCount = getTreatmentImageCount(treatment);
     const knownImages = getKnownTreatmentImages(treatment);
     const visibleImages = knownImages.slice(0, HISTORY_TIMELINE_IMAGE_LIMIT);
-    const showOverflowCue = visibleImages.length > 1 || canAddImages;
+    const gridTemplateColumns = canAddImages
+        ? `repeat(${visibleImages.length}, minmax(0, 1fr)) minmax(5rem, 6rem)`
+        : `repeat(${visibleImages.length}, minmax(0, 1fr))`;
 
     if (isSyncing) {
         return <HistoryImageStatus label={uploadingLabel} />;
@@ -411,7 +413,7 @@ function HistoryImageStrip({
 
     return (
         <div className="relative min-w-0">
-            <div className="flex min-w-0 snap-x snap-mandatory gap-2 overflow-x-auto overscroll-x-contain scroll-smooth pb-1 pr-8 [scrollbar-width:thin]">
+            <div className="grid min-w-0 items-stretch gap-2 pb-1" style={{ gridTemplateColumns }}>
                 {visibleImages.map((image, index) => (
                     <HistoryTimelineImageButton
                         key={image.id}
@@ -427,12 +429,6 @@ function HistoryImageStrip({
                 ))}
                 {canAddImages ? <HistoryAddImageButton label={addImageLabel} onClick={onAddImage} /> : null}
             </div>
-            {showOverflowCue ? (
-                <div
-                    className="pointer-events-none absolute inset-y-0 right-0 w-10 rounded-r-xl bg-gradient-to-l from-white via-white/85 to-transparent"
-                    aria-hidden="true"
-                />
-            ) : null}
         </div>
     );
 }
@@ -440,7 +436,7 @@ function HistoryImageStrip({
 function HistoryImageStatus({ label }: { label: string }) {
     return (
         <span
-            className={`inline-flex ${HISTORY_TIMELINE_IMAGE_TILE_CLASS} shrink-0 snap-start items-center justify-center rounded-xl border border-teal-200 bg-teal-50 text-teal-700`}
+            className={`inline-flex ${HISTORY_TIMELINE_IMAGE_TILE_CLASS} items-center justify-center rounded-xl border border-teal-200 bg-teal-50 text-teal-700`}
             title={label}
             aria-label={label}
         >
@@ -478,7 +474,7 @@ function HistoryTimelineImageButton({
     return (
         <button
             type="button"
-            className={`group relative ${HISTORY_TIMELINE_IMAGE_TILE_CLASS} shrink-0 snap-start overflow-hidden rounded-xl border border-slate-200 bg-slate-100 shadow-sm transition-all hover:border-teal-300 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-1 disabled:cursor-wait disabled:opacity-70`}
+            className={`group relative ${HISTORY_TIMELINE_IMAGE_TILE_CLASS} overflow-hidden rounded-xl border border-slate-200 bg-slate-100 shadow-sm transition-all hover:border-teal-300 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-1 disabled:cursor-wait disabled:opacity-70`}
             disabled={disabled}
             onClick={() => onOpen(index)}
             aria-label={`${imageLabel} ${index + 1}`}
@@ -509,7 +505,7 @@ function HistoryAddImageButton({
     return (
         <button
             type="button"
-            className={`group inline-flex ${HISTORY_TIMELINE_ADD_TILE_CLASS} shrink-0 snap-start items-center justify-center self-center rounded-xl border border-dashed border-teal-200 bg-teal-50/60 text-teal-700 transition-all hover:border-teal-300 hover:bg-teal-50 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-1`}
+            className={`group inline-flex ${HISTORY_TIMELINE_ADD_TILE_CLASS} items-center justify-center rounded-xl border border-dashed border-teal-200 bg-teal-50/60 text-teal-700 transition-all hover:border-teal-300 hover:bg-teal-50 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-1`}
             onClick={onClick}
             aria-label={label}
             title={label}
