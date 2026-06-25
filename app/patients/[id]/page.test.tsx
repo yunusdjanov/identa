@@ -304,6 +304,7 @@ describe('PatientDetailPage', () => {
         expect(screen.getAllByText('1/6')).toHaveLength(3);
         expect(screen.getAllByTitle('Upload')).toHaveLength(3);
         expect(screen.getAllByTitle('View')).toHaveLength(3);
+        expect(screen.getAllByTitle('View')[0]).toHaveClass('h-11', 'w-11');
         expect(screen.getByRole('button', { name: 'Edit Smile' })).toBeInTheDocument();
         expect(screen.queryAllByTitle('Delete')).toHaveLength(0);
     });

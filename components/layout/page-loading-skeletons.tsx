@@ -480,7 +480,7 @@ export function PatientDetailLoadingState() {
                                 className="py-1.5"
                             >
                                 <div className="flex min-w-0 items-center gap-2">
-                                    <Skeleton className="h-9 w-9 shrink-0 rounded-lg" />
+                                    <Skeleton className="h-11 w-11 shrink-0 rounded-lg" />
                                     <div className="min-w-0 flex-1 space-y-1.5">
                                         <Skeleton className="h-3.5 w-24 rounded-xl" />
                                         <Skeleton className="h-3 w-16 rounded-xl" />

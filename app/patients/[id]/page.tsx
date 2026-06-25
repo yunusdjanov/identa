@@ -1039,7 +1039,7 @@ export default function PatientDetailPage({
                                                 pickOralPhoto(slot.viewType);
                                             }
                                         }}
-                                        className={`group/thumb relative flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg border text-slate-400 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 focus-visible:ring-offset-1 disabled:cursor-default disabled:hover:border-slate-200 disabled:hover:bg-slate-50 ${slot.hasPhoto ? 'border-slate-200 bg-slate-50 hover:border-slate-300 hover:bg-slate-100' : 'border-dashed border-slate-300 bg-white hover:border-slate-400 hover:bg-slate-50'}`}
+                                        className={`group/thumb relative flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-lg border text-slate-400 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 focus-visible:ring-offset-1 disabled:cursor-default disabled:hover:border-slate-200 disabled:hover:bg-slate-50 ${slot.hasPhoto ? 'border-slate-200 bg-slate-50 hover:border-slate-300 hover:bg-slate-100' : 'border-dashed border-slate-300 bg-white hover:border-slate-400 hover:bg-slate-50'}`}
                                         aria-label={slot.hasPhoto ? t('patientDetail.oralPhoto.view') : slotLabel}
                                         title={slot.hasPhoto ? t('patientDetail.oralPhoto.view') : slotLabel}
                                     >
