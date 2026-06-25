@@ -662,7 +662,8 @@ describe('TreatmentHistoryCard image controls', () => {
 
         await user.click(screen.getByRole('button', { name: 'Add Entry' }));
 
-        expect(screen.getByRole('dialog')).toBeInTheDocument();
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+        expect(screen.getByText('Add a new history entry for Sardor.')).toBeInTheDocument();
         expect(screen.queryByTitle('Tooth #18')).not.toBeInTheDocument();
         expect(screen.queryByTitle('Tooth #48')).not.toBeInTheDocument();
     });

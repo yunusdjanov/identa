@@ -979,6 +979,9 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
             toast.error(manageDeniedMessage);
             return;
         }
+        if (isDialogOpen && editingTreatment === null) {
+            return;
+        }
 
         setEditingTreatment(null);
         setFormState(createEmptyFormState());
@@ -1149,6 +1152,182 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
 
     const isLoading = treatmentsQuery.isLoading;
     const isError = treatmentsQuery.isError;
+    const isInlineCreateOpen = isDialogOpen && editingTreatment === null;
+    const treatmentFormBody = (
+        <div className="min-h-0 space-y-3 overflow-y-auto pr-1">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <div className="space-y-2">
+                    <Label htmlFor="historyDate">
+                        {t('patientHistory.table.date')} <span className="text-red-500">*</span>
+                    </Label>
+                    <Input id="historyDate" type="date" required max={toLocalDateKey(new Date())} value={formState.treatmentDate} onChange={(event) => setFormState((current) => ({ ...current, treatmentDate: event.target.value }))} />
+                    {dateError ? <p className="text-xs text-red-600">{dateError}</p> : null}
+                </div>
+                <div className="space-y-2 sm:col-span-2">
+                    <Label htmlFor="historyWorkDone">
+                        {t('patientHistory.table.workDone')} <span className="text-red-500">*</span>
+                    </Label>
+                    <Input id="historyWorkDone" required value={formState.treatmentType} onChange={(event) => setFormState((current) => ({ ...current, treatmentType: event.target.value }))} placeholder={t('patientHistory.workDonePlaceholder')} />
+                    {treatmentTypeError ? <p className="text-xs text-red-600">{treatmentTypeError}</p> : null}
+                </div>
+            </div>
+            <div className="space-y-2">
+                <Label htmlFor="historyComment">{t('patientHistory.commentLabel')}</Label>
+                <Textarea
+                    id="historyComment"
+                    rows={3}
+                    maxLength={5000}
+                    value={formState.comment}
+                    onChange={(event) => setFormState((current) => ({ ...current, comment: event.target.value }))}
+                    placeholder={t('patientHistory.commentPlaceholder')}
+                    className="min-h-24 resize-y"
+                />
+            </div>
+            {/* Financial inputs are gated on payments.view —
+                see TreatmentService::payload backend gate.
+                Without this, a clinical assistant editing a
+                treatment with the (hidden but empty) inputs
+                would POST debt=0/paid=0 and overwrite the
+                dentist owner's real values. Hiding here +
+                backend-side payload gate together close the
+                data-loss bug. */}
+            {canViewFinancials ? (
+                <>
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                        <div className="space-y-2">
+                            <Label htmlFor="historyDebt">{t('patientHistory.table.debt')}</Label>
+                            <Input id="historyDebt" type="number" inputMode="decimal" min="0" step="0.01" value={formState.debtAmount} onChange={(event) => setFormState((current) => ({ ...current, debtAmount: event.target.value }))} placeholder="0" />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="historyPaid">{t('patientHistory.table.paid')}</Label>
+                            <Input id="historyPaid" type="number" inputMode="decimal" min="0" step="0.01" value={formState.paidAmount} onChange={(event) => setFormState((current) => ({ ...current, paidAmount: event.target.value }))} placeholder="0" />
+                        </div>
+                    </div>
+                    {amountError ? <p className="text-xs text-red-600">{amountError}</p> : null}
+                </>
+            ) : null}
+            <div className="rounded-xl border border-slate-200 bg-slate-50/40 p-2.5">
+                <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="min-w-0">
+                        <Label htmlFor="historyImages">{t('patientHistory.images')}</Label>
+                        <p className="mt-1 text-xs text-slate-500">
+                            {visibleExistingImagesCount + selectedImagePreviews.length} / {maxHistoryImagesPerEntry} - {t('patientHistory.imagesHint', { max: maxHistoryImagesPerEntry, sizeMb: maxHistoryUploadMb })}
+                        </p>
+                    </div>
+                    <Input
+                        id="historyImages"
+                        type="file"
+                        multiple
+                        accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
+                        onChange={handleImageFilesSelected}
+                        disabled={!canManageHistory || isPreparingImages}
+                        className="sr-only"
+                    />
+                    <Label
+                        htmlFor={!canManageHistory || isPreparingImages ? undefined : 'historyImages'}
+                        className={`inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-sm font-medium text-slate-900 shadow-sm transition-colors ${!canManageHistory || isPreparingImages ? 'cursor-not-allowed opacity-70' : 'cursor-pointer hover:bg-slate-50'}`}
+                        onClick={() => {
+                            if (!canManageHistory) {
+                                toast.error(manageDeniedMessage);
+                            }
+                        }}
+                    >
+                        <Plus className="h-4 w-4" />
+                        {isPreparingImages ? t('common.loading') : t('odontogram.image.upload')}
+                    </Label>
+                </div>
+
+                <div className="mt-2 flex max-h-36 flex-wrap gap-2 overflow-y-auto pr-1">
+                    {isEditingImagePanelLoading ? (
+                        Array.from({ length: Math.min(editingTreatment ? getTreatmentImageCount(editingTreatment) : 0, 4) }).map((_, index) => (
+                            <Skeleton key={`image-loading-${index}`} className="h-16 w-16 rounded-lg" />
+                        ))
+                    ) : editingTreatment ? (
+                        (() => {
+                            const existingImages = editingTreatment.images ?? [];
+
+                            return existingImages.map((image, index) => {
+                                const isMarkedForRemoval = formState.removeImageIds.includes(image.id);
+                                const imageLabel = `${t('patientHistory.image')} ${index + 1}`;
+                                const imageThumbnailUrl = getTreatmentImageThumbnailUrl(image);
+
+                                return (
+                                    <HistoryImageTile
+                                        key={image.id}
+                                        src={imageThumbnailUrl}
+                                        alt={imageLabel}
+                                        markedForRemoval={isMarkedForRemoval}
+                                        onPreview={() =>
+                                            {
+                                                const previewableImages = existingImages.filter((existingImage) => getTreatmentImagePreviewUrl(existingImage));
+
+                                                setPreviewGallery({
+                                                    images: previewableImages.map((existingImage, imageIndex) => ({
+                                                        id: existingImage.id,
+                                                        src: getTreatmentImagePreviewUrl(existingImage) ?? '',
+                                                        thumbnailSrc: getTreatmentImageThumbnailUrl(existingImage) ?? undefined,
+                                                        alt: `${patientName} ${t('patientHistory.image')} ${imageIndex + 1}`,
+                                                        title: `${t('patientHistory.image')} ${imageIndex + 1} - ${formatDate(formState.treatmentDate)}`,
+                                                    })),
+                                                    startIndex: Math.min(index, Math.max(previewableImages.length - 1, 0)),
+                                                    fallbackTitle: patientName,
+                                                    treatmentId: editingTreatment.id,
+                                                    treatmentDate: formState.treatmentDate,
+                                                });
+                                            }
+                                        }
+                                        onToggleRemove={() => toggleExistingImageRemoval(image.id)}
+                                        removeLabel={t('patientHistory.removeImage')}
+                                        restoreLabel={t('patients.restore')}
+                                        processingLabel={t('patientHistory.imageProcessing')}
+                                    />
+                                );
+                            });
+                        })()
+                    ) : null}
+                    {selectedImagePreviews.map((preview, index) => (
+                        <HistoryImageTile
+                            key={preview.id}
+                            src={preview.url}
+                            alt={`${t('patientHistory.image')} ${index + 1}`}
+                            onPreview={() => {
+                                setPreviewGallery({
+                                    images: selectedImagePreviews.map((item, imageIndex) => ({
+                                        id: item.id,
+                                        src: item.url,
+                                        alt: `${t('patientHistory.image')} ${imageIndex + 1}`,
+                                        title: `${t('patientHistory.image')} ${imageIndex + 1}`,
+                                    })),
+                                    startIndex: index,
+                                    fallbackTitle: patientName,
+                                    treatmentId: '',
+                                    treatmentDate: formState.treatmentDate,
+                                });
+                            }}
+                            onToggleRemove={() => removeSelectedImage(index)}
+                            removeLabel={t('patientHistory.removeImage')}
+                            restoreLabel={t('patients.restore')}
+                            isNew
+                        />
+                    ))}
+                    {(editingTreatment?.images ?? []).length + selectedImagePreviews.length === 0 ? (
+                        <span className="inline-flex h-8 items-center rounded-full border border-dashed border-slate-200 bg-white px-3 text-xs text-slate-400">
+                            {t('patientHistory.imagesEmpty')}
+                        </span>
+                    ) : null}
+                </div>
+
+                {imageValidationError ? <p className="mt-2 text-xs text-red-600">{imageValidationError}</p> : null}
+                {maxImagesError ? <p className="mt-2 text-xs text-red-600">{maxImagesError}</p> : null}
+            </div>
+        </div>
+    );
+    const treatmentFormActions = (
+        <div className="flex flex-col-reverse gap-2 border-t border-slate-100 pt-3 sm:flex-row sm:justify-end">
+            <Button type="button" variant="outline" onClick={() => handleDialogOpenChange(false)} disabled={saveTreatmentMutation.isPending || isPreparingImages}>{t('common.cancel')}</Button>
+            <Button type="button" onClick={handleSubmit} disabled={saveTreatmentMutation.isPending || isPreparingImages || !canManageHistory}>{saveTreatmentMutation.isPending ? t('common.saving') : isPreparingImages ? t('common.loading') : t('common.saveChanges')}</Button>
+        </div>
+    );
 
     return (
         <>
@@ -1248,7 +1427,7 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                             </Button>
                         ) : null}
                         {historyManageDisplayMode === 'enabled' ? (
-                            <Button onClick={openCreateDialog}>
+                            <Button onClick={openCreateDialog} variant={isInlineCreateOpen ? 'secondary' : 'default'}>
                                 <Plus className="h-4 w-4" />
                                 {t('patientHistory.addEntry')}
                             </Button>
@@ -1295,6 +1474,32 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                             locked={!canViewFinancials}
                         />
                     </div>
+
+                    {isInlineCreateOpen ? (
+                        <div className="rounded-2xl border border-teal-200 bg-white shadow-sm ring-1 ring-teal-100">
+                            <div className="flex items-start justify-between gap-3 px-4 py-3">
+                                <div className="min-w-0">
+                                    <p className="text-sm font-semibold text-slate-950">{t('patientHistory.addEntry')}</p>
+                                    <p className="mt-1 text-xs text-slate-500">{t('patientHistory.addDescription', { patientName })}</p>
+                                </div>
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon-sm"
+                                    className="h-8 w-8 shrink-0 text-slate-500 hover:bg-slate-100 hover:text-slate-900"
+                                    aria-label={t('common.cancel')}
+                                    onClick={() => handleDialogOpenChange(false)}
+                                    disabled={saveTreatmentMutation.isPending || isPreparingImages}
+                                >
+                                    <X className="h-4 w-4" />
+                                </Button>
+                            </div>
+                            <div className="space-y-3 border-t border-teal-100 p-4">
+                                {treatmentFormBody}
+                                {treatmentFormActions}
+                            </div>
+                        </div>
+                    ) : null}
 
                     {isLoading ? (
                         <div className="relative space-y-3">
@@ -1505,183 +1710,14 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                 </CardContent>
             </Card>
 
-            <Dialog open={isDialogOpen} onOpenChange={handleDialogOpenChange}>
+            <Dialog open={isDialogOpen && editingTreatment !== null} onOpenChange={handleDialogOpenChange}>
                 <DialogContent className="grid max-h-[calc(100dvh-1.5rem)] w-[min(96vw,980px)] max-w-[980px] grid-rows-[auto_minmax(0,1fr)_auto] gap-3 overflow-hidden p-4 sm:p-5">
                     <DialogHeader>
                         <DialogTitle>{editingTreatment ? t('patientHistory.editEntry') : t('patientHistory.addEntry')}</DialogTitle>
                         <DialogDescription>{editingTreatment ? t('patientHistory.editDescription', { patientName }) : t('patientHistory.addDescription', { patientName })}</DialogDescription>
                     </DialogHeader>
-                    <div className="min-h-0 space-y-3 overflow-y-auto pr-1">
-                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                            <div className="space-y-2">
-                                <Label htmlFor="historyDate">
-                                    {t('patientHistory.table.date')} <span className="text-red-500">*</span>
-                                </Label>
-                                <Input id="historyDate" type="date" required max={toLocalDateKey(new Date())} value={formState.treatmentDate} onChange={(event) => setFormState((current) => ({ ...current, treatmentDate: event.target.value }))} />
-                                {dateError ? <p className="text-xs text-red-600">{dateError}</p> : null}
-                            </div>
-                            <div className="space-y-2 sm:col-span-2">
-                                <Label htmlFor="historyWorkDone">
-                                    {t('patientHistory.table.workDone')} <span className="text-red-500">*</span>
-                                </Label>
-                                <Input id="historyWorkDone" required value={formState.treatmentType} onChange={(event) => setFormState((current) => ({ ...current, treatmentType: event.target.value }))} placeholder={t('patientHistory.workDonePlaceholder')} />
-                                {treatmentTypeError ? <p className="text-xs text-red-600">{treatmentTypeError}</p> : null}
-                            </div>
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="historyComment">{t('patientHistory.commentLabel')}</Label>
-                            <Textarea
-                                id="historyComment"
-                                rows={3}
-                                maxLength={5000}
-                                value={formState.comment}
-                                onChange={(event) => setFormState((current) => ({ ...current, comment: event.target.value }))}
-                                placeholder={t('patientHistory.commentPlaceholder')}
-                                className="min-h-24 resize-y"
-                            />
-                        </div>
-                        {/* Financial inputs are gated on payments.view —
-                            see TreatmentService::payload backend gate.
-                            Without this, a clinical assistant editing a
-                            treatment with the (hidden but empty) inputs
-                            would POST debt=0/paid=0 and overwrite the
-                            dentist owner's real values. Hiding here +
-                            backend-side payload gate together close the
-                            data-loss bug. */}
-                        {canViewFinancials ? (
-                            <>
-                                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                                    <div className="space-y-2">
-                                        <Label htmlFor="historyDebt">{t('patientHistory.table.debt')}</Label>
-                                        <Input id="historyDebt" type="number" inputMode="decimal" min="0" step="0.01" value={formState.debtAmount} onChange={(event) => setFormState((current) => ({ ...current, debtAmount: event.target.value }))} placeholder="0" />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label htmlFor="historyPaid">{t('patientHistory.table.paid')}</Label>
-                                        <Input id="historyPaid" type="number" inputMode="decimal" min="0" step="0.01" value={formState.paidAmount} onChange={(event) => setFormState((current) => ({ ...current, paidAmount: event.target.value }))} placeholder="0" />
-                                    </div>
-                                </div>
-                                {amountError ? <p className="text-xs text-red-600">{amountError}</p> : null}
-                            </>
-                        ) : null}
-                        <div className="rounded-xl border border-slate-200 bg-slate-50/40 p-2.5">
-                            <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
-                                <div className="min-w-0">
-                                    <Label htmlFor="historyImages">{t('patientHistory.images')}</Label>
-                                    <p className="mt-1 text-xs text-slate-500">
-                                        {visibleExistingImagesCount + selectedImagePreviews.length} / {maxHistoryImagesPerEntry} - {t('patientHistory.imagesHint', { max: maxHistoryImagesPerEntry, sizeMb: maxHistoryUploadMb })}
-                                    </p>
-                                </div>
-                                <Input
-                                    id="historyImages"
-                                    type="file"
-                                    multiple
-                                    accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
-                                    onChange={handleImageFilesSelected}
-                                    disabled={!canManageHistory || isPreparingImages}
-                                    className="sr-only"
-                                />
-                                <Label
-                                    htmlFor={!canManageHistory || isPreparingImages ? undefined : 'historyImages'}
-                                    className={`inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-sm font-medium text-slate-900 shadow-sm transition-colors ${!canManageHistory || isPreparingImages ? 'cursor-not-allowed opacity-70' : 'cursor-pointer hover:bg-slate-50'}`}
-                                    onClick={() => {
-                                        if (!canManageHistory) {
-                                            toast.error(manageDeniedMessage);
-                                        }
-                                    }}
-                                >
-                                    <Plus className="h-4 w-4" />
-                                    {isPreparingImages ? t('common.loading') : t('odontogram.image.upload')}
-                                </Label>
-                            </div>
-
-                            <div className="mt-2 flex max-h-36 flex-wrap gap-2 overflow-y-auto pr-1">
-                                {isEditingImagePanelLoading ? (
-                                    Array.from({ length: Math.min(editingTreatment ? getTreatmentImageCount(editingTreatment) : 0, 4) }).map((_, index) => (
-                                        <Skeleton key={`image-loading-${index}`} className="h-16 w-16 rounded-lg" />
-                                    ))
-                                ) : editingTreatment ? (
-                                    (() => {
-                                        const existingImages = editingTreatment.images ?? [];
-
-                                        return existingImages.map((image, index) => {
-                                            const isMarkedForRemoval = formState.removeImageIds.includes(image.id);
-                                            const imageLabel = `${t('patientHistory.image')} ${index + 1}`;
-                                            const imageThumbnailUrl = getTreatmentImageThumbnailUrl(image);
-
-                                            return (
-                                                <HistoryImageTile
-                                                    key={image.id}
-                                                    src={imageThumbnailUrl}
-                                                    alt={imageLabel}
-                                                    markedForRemoval={isMarkedForRemoval}
-                                                    onPreview={() =>
-                                                        {
-                                                            const previewableImages = existingImages.filter((existingImage) => getTreatmentImagePreviewUrl(existingImage));
-
-                                                            setPreviewGallery({
-                                                                images: previewableImages.map((existingImage, imageIndex) => ({
-                                                                    id: existingImage.id,
-                                                                    src: getTreatmentImagePreviewUrl(existingImage) ?? '',
-                                                                    thumbnailSrc: getTreatmentImageThumbnailUrl(existingImage) ?? undefined,
-                                                                    alt: `${patientName} ${t('patientHistory.image')} ${imageIndex + 1}`,
-                                                                    title: `${t('patientHistory.image')} ${imageIndex + 1} - ${formatDate(formState.treatmentDate)}`,
-                                                                })),
-                                                                startIndex: Math.min(index, Math.max(previewableImages.length - 1, 0)),
-                                                                fallbackTitle: patientName,
-                                                                treatmentId: editingTreatment.id,
-                                                                treatmentDate: formState.treatmentDate,
-                                                            });
-                                                        }
-                                                    }
-                                                    onToggleRemove={() => toggleExistingImageRemoval(image.id)}
-                                                    removeLabel={t('patientHistory.removeImage')}
-                                                    restoreLabel={t('patients.restore')}
-                                                    processingLabel={t('patientHistory.imageProcessing')}
-                                                />
-                                            );
-                                        });
-                                    })()
-                                ) : null}
-                                {selectedImagePreviews.map((preview, index) => (
-                                    <HistoryImageTile
-                                        key={preview.id}
-                                        src={preview.url}
-                                        alt={`${t('patientHistory.image')} ${index + 1}`}
-                                        onPreview={() => {
-                                            setPreviewGallery({
-                                                images: selectedImagePreviews.map((item, imageIndex) => ({
-                                                    id: item.id,
-                                                    src: item.url,
-                                                    alt: `${t('patientHistory.image')} ${imageIndex + 1}`,
-                                                    title: `${t('patientHistory.image')} ${imageIndex + 1}`,
-                                                })),
-                                                startIndex: index,
-                                                fallbackTitle: patientName,
-                                                treatmentId: '',
-                                                treatmentDate: formState.treatmentDate,
-                                            });
-                                        }}
-                                        onToggleRemove={() => removeSelectedImage(index)}
-                                        removeLabel={t('patientHistory.removeImage')}
-                                        restoreLabel={t('patients.restore')}
-                                        isNew
-                                    />
-                                ))}
-                                {(editingTreatment?.images ?? []).length + selectedImagePreviews.length === 0 ? (
-                                    <span className="inline-flex h-8 items-center rounded-full border border-dashed border-slate-200 bg-white px-3 text-xs text-slate-400">
-                                        {t('patientHistory.imagesEmpty')}
-                                    </span>
-                                ) : null}
-                            </div>
-
-                            {imageValidationError ? <p className="mt-2 text-xs text-red-600">{imageValidationError}</p> : null}
-                            {maxImagesError ? <p className="mt-2 text-xs text-red-600">{maxImagesError}</p> : null}
-                        </div>
-                    </div>
-                    <DialogFooter className="border-t border-slate-100 pt-3">
-                        <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)} disabled={saveTreatmentMutation.isPending || isPreparingImages}>{t('common.cancel')}</Button>
-                        <Button type="button" onClick={handleSubmit} disabled={saveTreatmentMutation.isPending || isPreparingImages || !canManageHistory}>{saveTreatmentMutation.isPending ? t('common.saving') : isPreparingImages ? t('common.loading') : t('common.saveChanges')}</Button>
-                    </DialogFooter>
+                    {treatmentFormBody}
+                    <DialogFooter>{treatmentFormActions}</DialogFooter>
                 </DialogContent>
             </Dialog>
 
