@@ -36,6 +36,25 @@ vi.mock('@/components/patients/treatment-history-card', () => ({
     ),
 }));
 
+vi.mock('@/components/appointments/add-appointment-dialog', () => ({
+    AddAppointmentDialog: ({
+        open,
+        onOpenChange,
+        prefillPatientId,
+    }: {
+        open: boolean;
+        onOpenChange: (open: boolean) => void;
+        prefillPatientId?: string;
+    }) => open ? (
+        <section aria-label="Schedule Appointment Dialog" role="dialog">
+            Appointment for {prefillPatientId}
+            <button type="button" onClick={() => onOpenChange(false)}>
+                Close appointment dialog
+            </button>
+        </section>
+    ) : null,
+}));
+
 const dentist = {
     id: '1',
     name: 'Demo Dentist',
@@ -128,6 +147,18 @@ describe('PatientDetailPage', () => {
         await renderPage();
 
         expect(await screen.findByText('John Smith')).toBeInTheDocument();
+    });
+
+    it('opens appointment scheduling with the current patient preselected', async () => {
+        vi.mocked(getCurrentUser).mockResolvedValue(dentist as never);
+        vi.mocked(getPatient).mockResolvedValue(patient as never);
+        await renderPage();
+        const user = userEvent.setup();
+
+        await user.click(await screen.findByRole('button', { name: 'Schedule Appointment' }));
+
+        expect(await screen.findByRole('dialog', { name: 'Schedule Appointment Dialog' })).toBeInTheDocument();
+        expect(screen.getByText('Appointment for p-1')).toBeInTheDocument();
     });
 
     it('passes the recent-search flag to the patient detail request', async () => {

@@ -35,6 +35,7 @@ import {
     ArrowLeft,
     Calendar,
     CalendarCheck,
+    CalendarPlus,
     Camera,
     Clock3,
     Contact,
@@ -79,6 +80,11 @@ const EditPatientDialog = dynamic(
 
 const PatientPhotoPreviewDialog = dynamic(
     () => import('@/components/patients/patient-photo-preview-dialog').then((module) => module.PatientPhotoPreviewDialog),
+    { ssr: false }
+);
+
+const AddAppointmentDialog = dynamic(
+    () => import('@/components/appointments/add-appointment-dialog').then((module) => module.AddAppointmentDialog),
     { ssr: false }
 );
 
@@ -290,6 +296,7 @@ export default function PatientDetailPage({
     const oralPhotoInputRef = useRef<HTMLInputElement | null>(null);
     const oralPhotoUploadViewTypeRef = useRef<ApiPatientClinicalPhotoViewType>('smile');
     const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+    const [isAppointmentDialogOpen, setIsAppointmentDialogOpen] = useState(false);
     const [isArchivePatientDialogOpen, setIsArchivePatientDialogOpen] = useState(false);
     const [isRestorePatientDialogOpen, setIsRestorePatientDialogOpen] = useState(false);
     const [isPermanentDeletePatientDialogOpen, setIsPermanentDeletePatientDialogOpen] = useState(false);
@@ -312,6 +319,8 @@ export default function PatientDetailPage({
     const currentUser = currentUserQuery.data;
     const canViewPatients = canView(currentUser, 'patients');
     const canManagePatients = canManage(currentUser, 'patients');
+    const canViewAppointments = canView(currentUser, 'appointments');
+    const canManageAppointments = canManage(currentUser, 'appointments');
     const canViewPayments = canView(currentUser, 'payments');
     // AF5: shared deny-toast for buttons we keep disabled because the
     // subscription is read-only (vs. hidden when the assistant simply
@@ -758,6 +767,28 @@ export default function PatientDetailPage({
                             {t('patientDetail.editPatient')}
                         </Button>
                     ) : null}
+                    {!isPatientArchived && canManageAppointments ? (
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-7 rounded-full px-3 text-xs"
+                            onClick={() => setIsAppointmentDialogOpen(true)}
+                        >
+                            <CalendarPlus className="mr-1.5 h-3 w-3" />
+                            {t('appointments.dialog.newTitle')}
+                        </Button>
+                    ) : !isPatientArchived && isSubscriptionReadOnly(currentUser) && canViewAppointments ? (
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-7 rounded-full px-3 text-xs"
+                            disabled
+                            onClick={denyManageAction}
+                        >
+                            <CalendarPlus className="mr-1.5 h-3 w-3" />
+                            {t('appointments.dialog.newTitle')}
+                        </Button>
+                    ) : null}
                     {isPatientArchived ? (
                         <>
                             {canManagePatients ? (
@@ -1154,6 +1185,20 @@ export default function PatientDetailPage({
                     onOpenChange={setIsEditDialogOpen}
                     patient={patient}
                     uploadMaxMb={currentUser?.subscription?.upload_max_mb}
+                />
+            ) : null}
+
+            {isAppointmentDialogOpen && canManageAppointments && !isPatientArchived ? (
+                <AddAppointmentDialog
+                    key={`${patient.id}-appointment`}
+                    open={isAppointmentDialogOpen}
+                    onOpenChange={(open) => {
+                        setIsAppointmentDialogOpen(open);
+                        if (!open) {
+                            queryClient.invalidateQueries({ queryKey: ['patients', 'detail', id, 'overview'] });
+                        }
+                    }}
+                    prefillPatientId={patient.id}
                 />
             ) : null}
 
