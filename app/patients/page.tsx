@@ -1,7 +1,7 @@
 ﻿'use client';
 
 import dynamic from 'next/dynamic';
-import { useId, useMemo, useState, useSyncExternalStore } from 'react';
+import { useEffect, useId, useMemo, useState, useSyncExternalStore } from 'react';
 import { useRouter } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -50,6 +50,7 @@ import { AppErrorState } from '@/components/error/app-error-state';
 import { AccessDeniedState } from '@/components/error/access-denied-state';
 import { canManage, canView, getManageDeniedMessage, isSubscriptionReadOnly } from '@/lib/auth/permissions';
 import { RecordAuthorBadge } from '@/components/ui/record-author-badge';
+import { readPatientListState, writePatientListState } from '@/lib/patients/patient-list-state';
 
 const AddPatientDialog = dynamic(
     () => import('@/components/patients/add-patient-dialog').then((module) => module.AddPatientDialog),
@@ -149,11 +150,13 @@ export default function PatientsPage() {
         () => window.location.search,
         () => ''
     );
-    const [searchQuery, setSearchQuery] = useState('');
-    const [inactiveFilter, setInactiveFilter] = useState<'none' | '6m' | '1y'>('none');
-    const [showArchivedOnly, setShowArchivedOnly] = useState(false);
-    const [selectedCategoryId, setSelectedCategoryId] = useState('all');
-    const [currentPage, setCurrentPage] = useState(1);
+    const [initialListState] = useState(readPatientListState);
+    const [searchQuery, setSearchQuery] = useState(initialListState.searchQuery);
+    const [inactiveFilter, setInactiveFilter] = useState<'none' | '6m' | '1y'>(initialListState.inactiveFilter);
+    const [showArchivedOnly, setShowArchivedOnly] = useState(initialListState.showArchivedOnly);
+    const [selectedCategoryId, setSelectedCategoryId] = useState(initialListState.selectedCategoryId);
+    const [currentPage, setCurrentPage] = useState(initialListState.currentPage);
+    const [focusedPatientId, setFocusedPatientId] = useState<string | null>(initialListState.focusPatientId);
     const [inactiveThresholdDateKey6m] = useState(() => {
         const threshold = new Date();
         threshold.setHours(0, 0, 0, 0);
@@ -226,7 +229,7 @@ export default function PatientsPage() {
             listPatients({
                 page: currentPage,
                 perPage: PAGE_SIZE,
-                sort: '-created_at',
+                sort: '-updated_at',
                 filter: {
                     search: debouncedSearch.trim() || undefined,
                     category_id: selectedCategoryId !== 'all' ? selectedCategoryId : undefined,
@@ -341,12 +344,56 @@ export default function PatientsPage() {
         searchQuery.trim() === '' ? 'list' : 'search'
     );
 
+    useEffect(() => {
+        if (!isClient) {
+            return;
+        }
+
+        writePatientListState({
+            searchQuery,
+            inactiveFilter,
+            showArchivedOnly,
+            selectedCategoryId,
+            currentPage,
+            focusPatientId: focusedPatientId,
+        });
+    }, [currentPage, focusedPatientId, inactiveFilter, isClient, searchQuery, selectedCategoryId, showArchivedOnly]);
+
+    useEffect(() => {
+        if (!isClient || !focusedPatientId || patientsQuery.isFetching) {
+            return;
+        }
+
+        if (!patientRows.some((patient) => patient.id === focusedPatientId)) {
+            return;
+        }
+
+        const runAfterPaint = window.requestAnimationFrame ?? ((callback: FrameRequestCallback) => {
+            return window.setTimeout(() => callback(window.performance.now()), 0);
+        });
+
+        runAfterPaint(() => {
+            document
+                .getElementById(`patient-row-${focusedPatientId}`)
+                ?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        });
+    }, [focusedPatientId, isClient, patientRows, patientsQuery.isFetching]);
+
     const openPatientDetails = (
         patientId: string,
         patientName?: string,
         source: PatientOpenSource = 'list'
     ) => {
         const shouldRememberRecent = source !== 'list';
+        setFocusedPatientId(patientId);
+        writePatientListState({
+            searchQuery,
+            inactiveFilter,
+            showArchivedOnly,
+            selectedCategoryId,
+            currentPage: pageNumber,
+            focusPatientId: patientId,
+        });
 
         if (patientName && shouldRememberRecent) {
             setOptimisticRecentPatients((current) => [
@@ -749,8 +796,13 @@ export default function PatientsPage() {
 
                                         return (
                                         <TableRow
+                                            id={`patient-row-${patient.id}`}
                                             key={patient.id}
-                                            className="cursor-pointer hover:bg-teal-50/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-100"
+                                            data-testid={`patient-row-${patient.id}`}
+                                            className={cn(
+                                                'cursor-pointer hover:bg-teal-50/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-100',
+                                                focusedPatientId === patient.id && 'bg-teal-50/60 ring-1 ring-inset ring-teal-100'
+                                            )}
                                             role="button"
                                             tabIndex={0}
                                             aria-label={t('patients.aria.openDetailsFor', { patientName: patient.fullName })}

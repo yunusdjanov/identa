@@ -107,6 +107,75 @@ class OdontogramTreatmentApiTest extends TestCase
             ->assertJsonPath('data.0.treatment_type', 'Filling');
     }
 
+    public function test_creating_treatment_moves_patient_to_top_of_patient_list(): void
+    {
+        $dentist = User::factory()->create();
+        $workedPatient = Patient::factory()->create([
+            'dentist_id' => $dentist->id,
+            'full_name' => 'Worked Patient',
+            'updated_at' => now()->subDays(5),
+        ]);
+        Patient::factory()->create([
+            'dentist_id' => $dentist->id,
+            'full_name' => 'Previously First Patient',
+            'updated_at' => now()->subDay(),
+        ]);
+
+        $this->actingAs($dentist, 'web')
+            ->postJson("/api/v1/patients/{$workedPatient->id}/treatments", [
+                'teeth' => [12],
+                'treatment_type' => 'Filling',
+                'treatment_date' => '2026-02-14',
+                'debt_amount' => 100,
+                'paid_amount' => 40,
+            ])
+            ->assertCreated();
+
+        $this->actingAs($dentist, 'web')
+            ->getJson('/api/v1/patients')
+            ->assertOk()
+            ->assertJsonPath('data.0.id', (string) $workedPatient->id)
+            ->assertJsonPath('data.0.full_name', 'Worked Patient');
+    }
+
+    public function test_updating_treatment_moves_patient_to_top_of_patient_list(): void
+    {
+        $dentist = User::factory()->create();
+        $workedPatient = Patient::factory()->create([
+            'dentist_id' => $dentist->id,
+            'full_name' => 'Edited Entry Patient',
+            'updated_at' => now()->subDays(5),
+        ]);
+        Patient::factory()->create([
+            'dentist_id' => $dentist->id,
+            'full_name' => 'Unchanged Patient',
+            'updated_at' => now()->subDay(),
+        ]);
+        $treatment = Treatment::factory()->create([
+            'dentist_id' => $dentist->id,
+            'patient_id' => $workedPatient->id,
+            'treatment_type' => 'Old work',
+            'treatment_date' => '2026-02-14',
+        ]);
+        $workedPatient->forceFill(['updated_at' => now()->subDays(5)])->saveQuietly();
+
+        $this->actingAs($dentist, 'web')
+            ->putJson("/api/v1/patients/{$workedPatient->id}/treatments/{$treatment->id}", [
+                'teeth' => [12],
+                'treatment_type' => 'Updated work',
+                'treatment_date' => '2026-02-15',
+                'debt_amount' => 200,
+                'paid_amount' => 100,
+            ])
+            ->assertOk();
+
+        $this->actingAs($dentist, 'web')
+            ->getJson('/api/v1/patients')
+            ->assertOk()
+            ->assertJsonPath('data.0.id', (string) $workedPatient->id)
+            ->assertJsonPath('data.0.full_name', 'Edited Entry Patient');
+    }
+
     public function test_patient_treatments_are_paginated_newest_first_with_summary(): void
     {
         $dentist = User::factory()->create();

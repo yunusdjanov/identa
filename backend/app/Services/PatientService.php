@@ -35,6 +35,7 @@ class PatientService
      */
     private const ALLOWED_SORT_FIELDS = [
         'created_at',
+        'updated_at',
         'full_name',
         'date_of_birth',
     ];
@@ -107,7 +108,7 @@ class PatientService
                 });
         }
 
-        $this->applySort($query, $request->query('sort', '-created_at'));
+        $this->applySort($query, $request->query('sort', '-updated_at'));
 
         return $query->paginate($this->perPage($request));
     }
@@ -634,7 +635,9 @@ class PatientService
     private function applySort(Builder $query, mixed $sort): void
     {
         if (! is_string($sort) || $sort === '') {
-            $query->orderByDesc('created_at');
+            $query
+                ->orderByDesc('updated_at')
+                ->orderByDesc('created_at');
 
             return;
         }
@@ -658,8 +661,10 @@ class PatientService
         }
 
         if (! $applied) {
-            $query->orderByDesc('created_at');
+            $query->orderByDesc('updated_at');
         }
+
+        $query->orderByDesc('created_at');
     }
 
     private function withLastVisitAggregates(Builder $query): Builder

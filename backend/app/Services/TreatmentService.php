@@ -191,6 +191,7 @@ class TreatmentService
             'updated_by_user_id' => $actorId,
             'patient_id' => $patient->id,
         ]);
+        $this->markPatientWorked($patient);
 
         $this->auditLogger->logFromRequest(
             request: $request,
@@ -247,6 +248,7 @@ class TreatmentService
                 'updatedBy:id,name,role',
             ]);
         });
+        $this->markPatientWorked($patient);
 
         $this->auditLogger->logFromRequest(
             request: $request,
@@ -276,6 +278,7 @@ class TreatmentService
 
         $this->images->deleteAllForTreatment($treatment);
         $treatment->delete();
+        $this->markPatientWorked($patient);
 
         $this->auditLogger->logFromRequest(
             request: $request,
@@ -304,6 +307,11 @@ class TreatmentService
             ->where('patient_id', $patientId)
             ->where('dentist_id', $this->dentistId($request))
             ->firstOrFail();
+    }
+
+    private function markPatientWorked(Patient $patient): void
+    {
+        $patient->touch();
     }
 
     public function dentistId(Request $request): int

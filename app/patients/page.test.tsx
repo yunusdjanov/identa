@@ -14,6 +14,7 @@ import {
 } from '@/lib/api/dentist';
 import { I18nProvider } from '@/components/providers/i18n-provider';
 import { DICTIONARIES } from '@/lib/i18n/dictionaries';
+import { PATIENTS_LIST_STATE_STORAGE_KEY } from '@/lib/patients/patient-list-state';
 
 const pushMock = vi.fn();
 
@@ -59,14 +60,17 @@ describe('PatientsPage', () => {
     // earlier `unknown[]` signature widened `data` to `unknown[]`, which
     // didn't satisfy `ApiCollectionEnvelope<ApiPatient>` when handed to
     // `listPatients.mockResolvedValue(...)`.
-    const buildPatientsResponse = <T,>(patients: T[]) => ({
+    const buildPatientsResponse = <T,>(
+        patients: T[],
+        pagination?: Partial<{ page: number; per_page: number; total: number; total_pages: number }>
+    ) => ({
         data: patients,
         meta: {
             pagination: {
-                page: 1,
-                per_page: 10,
-                total: patients.length,
-                total_pages: 1,
+                page: pagination?.page ?? 1,
+                per_page: pagination?.per_page ?? 10,
+                total: pagination?.total ?? patients.length,
+                total_pages: pagination?.total_pages ?? 1,
             },
         },
     });
@@ -77,6 +81,7 @@ describe('PatientsPage', () => {
 
     beforeEach(() => {
         pushMock.mockReset();
+        window.sessionStorage.clear();
         vi.mocked(getCurrentUser).mockReset();
         vi.mocked(clearRecentPatients).mockReset();
         vi.mocked(forgetRecentPatient).mockReset();
@@ -101,6 +106,48 @@ describe('PatientsPage', () => {
             full_name: 'Restored',
             phone: '+10000000000',
         } as never);
+    });
+
+    it('restores the previous page and focused patient after returning from details', async () => {
+        window.sessionStorage.setItem(PATIENTS_LIST_STATE_STORAGE_KEY, JSON.stringify({
+            searchQuery: 'Restored',
+            inactiveFilter: 'none',
+            showArchivedOnly: false,
+            selectedCategoryId: 'all',
+            currentPage: 2,
+            focusPatientId: 'patient-restored',
+        }));
+        vi.mocked(listPatients).mockResolvedValue(buildPatientsResponse([
+            {
+                id: 'patient-restored',
+                patient_id: 'PT-REST',
+                full_name: 'Restored Patient',
+                phone: '+10000000010',
+                created_at: '2026-02-01T10:00:00Z',
+                updated_at: '2026-02-02T10:00:00Z',
+                last_visit_at: null,
+                address: null,
+                date_of_birth: null,
+                gender: null,
+                medical_history: null,
+                allergies: null,
+                current_medications: null,
+            },
+        ], { page: 2, total: 11, total_pages: 2 }));
+
+        renderPage();
+
+        expect(await screen.findByText('Restored Patient')).toBeInTheDocument();
+        await waitFor(() => {
+            expect(listPatients).toHaveBeenCalledWith(expect.objectContaining({
+                page: 2,
+                sort: '-updated_at',
+                filter: expect.objectContaining({
+                    search: 'Restored',
+                }),
+            }));
+        });
+        expect(screen.getByTestId('patient-row-patient-restored')).toHaveClass('bg-teal-50/60');
     });
 
     it('shows profile-based recent patients on empty search focus', async () => {
@@ -356,6 +403,10 @@ describe('PatientsPage', () => {
         await user.click(viewDetailsButtons[0]);
 
         expect(pushMock).toHaveBeenCalledWith('/patients/patient-followup');
+        expect(JSON.parse(window.sessionStorage.getItem(PATIENTS_LIST_STATE_STORAGE_KEY) ?? '{}')).toMatchObject({
+            currentPage: 1,
+            focusPatientId: 'patient-followup',
+        });
     });
 
     it('opens a read-only preview from the patient photo thumbnail', async () => {

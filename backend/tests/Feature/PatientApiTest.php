@@ -136,6 +136,31 @@ class PatientApiTest extends TestCase
             ->assertJsonPath('data.0.last_visit_at', '2026-06-13');
     }
 
+    public function test_patient_list_defaults_to_recently_updated_patients_first(): void
+    {
+        $dentist = User::factory()->create();
+        $recentlyUpdatedPatient = Patient::factory()->create([
+            'dentist_id' => $dentist->id,
+            'full_name' => 'Recently Updated Patient',
+            'created_at' => now()->subDays(10),
+            'updated_at' => now()->subDays(10),
+        ]);
+        Patient::factory()->create([
+            'dentist_id' => $dentist->id,
+            'full_name' => 'Newer Registration Patient',
+            'created_at' => now()->subDay(),
+            'updated_at' => now()->subDay(),
+        ]);
+
+        $recentlyUpdatedPatient->forceFill(['updated_at' => now()])->saveQuietly();
+
+        $this->actingAs($dentist, 'web')
+            ->getJson('/api/v1/patients')
+            ->assertOk()
+            ->assertJsonPath('data.0.id', (string) $recentlyUpdatedPatient->id)
+            ->assertJsonPath('data.0.full_name', 'Recently Updated Patient');
+    }
+
     public function test_patient_detail_updates_profile_based_recent_patients(): void
     {
         $dentist = User::factory()->create();

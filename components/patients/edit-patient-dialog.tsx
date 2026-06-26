@@ -38,6 +38,7 @@ import {
 import { PatientPhotoField } from '@/components/patients/patient-photo-field';
 import { toLocalDateKey } from '@/lib/utils';
 import { getProtectedMediaThumbnailUrl } from '@/lib/protected-media';
+import { rememberPatientListFocus } from '@/lib/patients/patient-list-state';
 
 interface EditPatientDialogProps {
     open: boolean;
@@ -186,6 +187,7 @@ export function EditPatientDialog({
             queryClient.invalidateQueries({ queryKey: ['patients'] });
             queryClient.invalidateQueries({ queryKey: ['patients', 'detail', patient.id] });
             queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+            rememberPatientListFocus(patient.id, { currentPage: 1 });
             handleDialogOpenChange(false);
         },
         onError: (error) => {

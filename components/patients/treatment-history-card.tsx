@@ -38,6 +38,7 @@ import { buildPdfFilename, exportPatientReportToPdf } from '@/lib/export/pdf';
 import { EmptyState } from '@/components/ui/empty-state';
 import { canManage, canView, getManageDeniedMessage, isSubscriptionReadOnly } from '@/lib/auth/permissions';
 import { RecordAuthorBadge } from '@/components/ui/record-author-badge';
+import { rememberPatientListFocus } from '@/lib/patients/patient-list-state';
 
 interface TreatmentHistoryCardProps {
     patientId: string;
@@ -769,6 +770,9 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                     current.includes(treatment.id) ? current : [...current, treatment.id]
                 ));
             }
+            rememberPatientListFocus(patientId, { currentPage: 1 });
+            queryClient.invalidateQueries({ queryKey: ['patients'] });
+            queryClient.invalidateQueries({ queryKey: ['dashboard'] });
             setIsDialogOpen(false);
             setEditingTreatment(null);
             setFormState(createEmptyFormState());
@@ -805,6 +809,9 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
         },
         onSuccess: () => {
             toast.success(t('patientHistory.toast.deleted'));
+            rememberPatientListFocus(patientId, { currentPage: 1 });
+            queryClient.invalidateQueries({ queryKey: ['patients'] });
+            queryClient.invalidateQueries({ queryKey: ['dashboard'] });
             invalidateHistory();
         },
         onError: (error, _treatmentId, context) => {
