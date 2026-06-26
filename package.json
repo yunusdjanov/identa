@@ -15,6 +15,7 @@
     "db:migrate": "powershell -ExecutionPolicy Bypass -File .\\scripts\\sync-backend-db.ps1",
     "check:secrets": "powershell -ExecutionPolicy Bypass -File .\\scripts\\backend-artisan.ps1 security:check-secrets",
     "check:runtime-security": "powershell -ExecutionPolicy Bypass -File .\\scripts\\backend-artisan.ps1 security:check-runtime",
+    "check:core-guardrails": "node scripts/check-core-guardrails.mjs",
     "audit:frontend": "npm audit --audit-level=high",
     "audit:backend": "node scripts/backend-composer-audit.mjs",
     "audit:deps": "npm run audit:frontend && npm run audit:backend",

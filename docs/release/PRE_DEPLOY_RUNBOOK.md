@@ -22,6 +22,7 @@ this runbook is about the human side: secrets, credentials, soak, sign-off.
 
 - [ ] Confirm `main` is on a tagged release commit (`vX.Y.Z`).
 - [ ] CI green:
+  - [ ] `npm run check:core-guardrails` (five core quality rules, see `docs/qa/CORE_QUALITY_RULES.md`).
   - [ ] `npm run quality:all` (frontend lint + types + tests + build).
   - [ ] `npm run quality:security` (npm audit + composer audit gate).
   - [ ] Backend `vendor/bin/phpunit` green against PostgreSQL.

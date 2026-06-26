@@ -29,6 +29,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Run core guardrail drift check
+        run: npm run check:core-guardrails
+
       - name: Run frontend quality gates
         run: npm run quality:frontend
 

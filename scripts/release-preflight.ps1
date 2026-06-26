@@ -18,6 +18,10 @@ function Invoke-Step {
     }
 }
 
+Invoke-Step -Name "Core Quality Guardrails" -Action {
+    npm run check:core-guardrails
+}
+
 Invoke-Step -Name "Full Quality Gate" -Action {
     npm run quality:all
 }
