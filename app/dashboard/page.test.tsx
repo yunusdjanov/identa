@@ -141,7 +141,7 @@ describe('DashboardPage', () => {
         cleanup();
     });
 
-    it('renders compact appointment stats above the appointments workspace', async () => {
+    it('renders the dashboard header and planner without summary stats', async () => {
         const todayKey = toLocalDateKey(new Date());
         const tomorrowKey = toLocalDateKey(addDays(new Date(), 1));
         vi.mocked(listAllAppointments).mockResolvedValue([
@@ -171,14 +171,12 @@ describe('DashboardPage', () => {
 
         renderPage();
 
-        expect(await screen.findByText('Total appointments')).toBeInTheDocument();
-        expect(screen.getByRole('heading', { name: 'Dashboard' })).toBeInTheDocument();
+        expect(await screen.findByRole('heading', { name: 'Dashboard' })).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Schedule Appointment' })).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Add Patient' })).toBeInTheDocument();
-        expect(screen.getByText('Total appointments')).toHaveClass('font-semibold', 'tracking-[0.08em]');
-        expect(screen.getAllByText('Scheduled').length).toBeGreaterThan(0);
-        expect(screen.getByText('Starting Soon')).toBeInTheDocument();
-        expect(screen.getByText('Cancelled / no-show')).toBeInTheDocument();
+        expect(screen.queryByText('Total appointments')).not.toBeInTheDocument();
+        expect(screen.queryByText('Starting Soon')).not.toBeInTheDocument();
+        expect(screen.queryByText('Cancelled / no-show')).not.toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Week View' })).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Day View' })).toBeInTheDocument();
         expect(screen.queryByRole('button', { name: /Month/i })).not.toBeInTheDocument();

@@ -44,16 +44,13 @@ import {
 import { formatLocalizedDate } from '@/lib/i18n/date';
 import {
     Calendar as CalendarIcon,
-    CheckCircle2,
     ChevronLeft,
     ChevronRight,
-    Clock3,
     Download,
     Pencil,
     Plus,
     Trash2,
     UserPlus,
-    XCircle,
 } from 'lucide-react';
 import { buildPdfFilename, exportRowsToPdf } from '@/lib/export/pdf';
 import { AppointmentTimePicker } from '@/components/appointments/appointment-time-picker';
@@ -102,7 +99,6 @@ const WEEK_VIEW_COMPACT_LIST_HEIGHT_CLASSES: Record<number, string> = {
 };
 const WEEK_VIEW_STACKED_CARD_HEIGHT_CLASS = 'h-[23.5rem]';
 const WEEK_VIEW_STACKED_LIST_HEIGHT_CLASS = 'h-[16.5rem]';
-const APPOINTMENT_STARTING_SOON_WINDOW_MINUTES = 120;
 const APPOINTMENT_STATUS_VALUES = ['scheduled', 'completed', 'cancelled', 'no_show'] as const;
 type AppointmentStatus = (typeof APPOINTMENT_STATUS_VALUES)[number];
 type AppointmentsWorkspaceMode = 'appointments' | 'dashboard';
@@ -275,78 +271,6 @@ interface WeekInlineEditFormData {
     durationMinutes: number;
     status: AppointmentStatus;
     reason: string;
-}
-
-interface DashboardAppointmentSummary {
-    total: number;
-    scheduled: number;
-    startingSoon: number;
-    cancelledNoShow: number;
-}
-
-function DashboardAppointmentStats({ summary }: { summary: DashboardAppointmentSummary }) {
-    const { t } = useI18n();
-    const cards = [
-        {
-            title: t('dashboard.planner.total'),
-            value: summary.total,
-            helper: t('dashboard.planner.rangeTotal'),
-            icon: CalendarIcon,
-            className: 'border-teal-100 bg-gradient-to-br from-white via-teal-50/50 to-cyan-50/60 text-teal-700',
-        },
-        {
-            title: t('dashboard.planner.confirmed'),
-            value: summary.scheduled,
-            helper: t('dashboard.planner.scheduledHelper'),
-            icon: CheckCircle2,
-            className: 'border-blue-100 bg-gradient-to-br from-white via-blue-50/50 to-sky-50/60 text-blue-700',
-        },
-        {
-            title: t('dashboard.startingSoon'),
-            value: summary.startingSoon,
-            helper: t('dashboard.nextTwoHours'),
-            icon: Clock3,
-            className: 'border-amber-100 bg-gradient-to-br from-white via-amber-50/50 to-yellow-50/60 text-amber-700',
-        },
-        {
-            title: t('dashboard.planner.cancelledNoShow'),
-            value: summary.cancelledNoShow,
-            helper: t('dashboard.planner.cancelledNoShowHelper'),
-            icon: XCircle,
-            className: 'border-rose-100 bg-gradient-to-br from-white via-rose-50/50 to-pink-50/60 text-rose-700',
-        },
-    ];
-
-    return (
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            {cards.map((card) => {
-                const Icon = card.icon;
-                return (
-                    <section
-                        key={card.title}
-                        className={`rounded-xl border px-3 py-2.5 shadow-sm shadow-slate-200/50 ${card.className}`}
-                    >
-                        <div className="flex items-center justify-between gap-3">
-                            <div className="min-w-0">
-                                <p className="truncate text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">
-                                    {card.title}
-                                </p>
-                                <p className="mt-1 text-xl font-bold leading-none text-slate-950">
-                                    {card.value}
-                                </p>
-                                <p className="mt-1 text-xs font-medium text-slate-500">
-                                    {card.helper}
-                                </p>
-                            </div>
-                            <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/85 shadow-sm ring-1 ring-white/80">
-                                <Icon className="h-3.5 w-3.5" />
-                            </span>
-                        </div>
-                    </section>
-                );
-            })}
-        </div>
-    );
 }
 
 function hasAppointmentRowConflict(
@@ -747,35 +671,6 @@ export function AppointmentsWorkspace({ mode = 'appointments' }: AppointmentsWor
             return true;
         });
     }, [appointmentRows, nowTimeKey, todayDateKey, urlStatuses, urlWhen, urlWindowMinutes]);
-    const dashboardSummary = useMemo<DashboardAppointmentSummary>(() => {
-        const nowMinutes = toMinutesFromTime(nowTimeKey);
-        return filteredAppointmentRows.reduce<DashboardAppointmentSummary>(
-            (summary, appointment) => {
-                summary.total += 1;
-
-                if (appointment.status === 'scheduled') {
-                    summary.scheduled += 1;
-
-                    if (appointment.appointmentDate === todayDateKey) {
-                        const appointmentMinutes = toMinutesFromTime(appointment.startTime);
-                        if (
-                            appointmentMinutes >= nowMinutes
-                            && appointmentMinutes <= nowMinutes + APPOINTMENT_STARTING_SOON_WINDOW_MINUTES
-                        ) {
-                            summary.startingSoon += 1;
-                        }
-                    }
-                }
-
-                if (appointment.status === 'cancelled' || appointment.status === 'no_show') {
-                    summary.cancelledNoShow += 1;
-                }
-
-                return summary;
-            },
-            { total: 0, scheduled: 0, startingSoon: 0, cancelledNoShow: 0 }
-        );
-    }, [filteredAppointmentRows, nowTimeKey, todayDateKey]);
     const availabilityTimeSlots = createAppointmentStartSlots(workingHours);
     const timeSlots = useMemo(
         () => createAppointmentStartSlots(workingHours, {
@@ -1539,8 +1434,6 @@ export function AppointmentsWorkspace({ mode = 'appointments' }: AppointmentsWor
                     )}
                 />
             ) : null}
-
-            {isDashboardMode ? <DashboardAppointmentStats summary={dashboardSummary} /> : null}
 
             <Card className="overflow-hidden rounded-2xl border-teal-100/80 bg-white shadow-sm shadow-teal-100/50 sm:rounded-2xl">
                 <CardContent className="p-3 sm:p-5 xl:pb-2.5">
