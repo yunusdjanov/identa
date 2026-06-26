@@ -41,6 +41,12 @@ vi.mock('@/components/patients/add-patient-dialog', () => ({
     AddPatientDialog: () => null,
 }));
 
+vi.mock('@/components/patients/patient-photo-preview-dialog', () => ({
+    PatientPhotoPreviewDialog: (props: { open: boolean; title: string }) => (
+        props.open ? <div role="dialog" aria-label={props.title} /> : null
+    ),
+}));
+
 function renderPage() {
     const queryClient = new QueryClient({
         defaultOptions: {
@@ -215,6 +221,36 @@ describe('PatientsPage', () => {
         await user.click(screen.getByRole('button', { name: 'Recent Patient One' }));
 
         expect(pushMock).toHaveBeenCalledWith('/patients/recent-patient-1?remember_recent=1');
+    });
+
+    it('renders search and filters inside the patients list card', async () => {
+        vi.mocked(listPatients).mockResolvedValue(buildPatientsResponse([
+            {
+                id: 'patient-list-card',
+                patient_id: 'PT-LIST',
+                full_name: 'List Card Patient',
+                phone: '+10000000012',
+                created_at: '2026-02-01T10:00:00Z',
+                updated_at: '2026-02-02T10:00:00Z',
+                last_visit_at: null,
+                address: null,
+                date_of_birth: null,
+                gender: null,
+                medical_history: null,
+                allergies: null,
+                current_medications: null,
+            },
+        ]));
+
+        renderPage();
+
+        const listCard = await screen.findByTestId('patients-list-card');
+        const toolbar = within(listCard).getByTestId('patients-filter-toolbar');
+
+        expect(within(listCard).getByText('Patients: 1')).toBeInTheDocument();
+        expect(within(toolbar).getByLabelText('Search patients by name, phone, or patient ID')).toBeInTheDocument();
+        expect(within(toolbar).getByRole('combobox', { name: 'Filter patients by category' })).toBeInTheDocument();
+        expect(within(toolbar).getByRole('combobox', { name: 'Filter patients by visit gap' })).toBeInTheDocument();
     });
 
     it('hides recent patients while searching and can remove recent shortcuts', async () => {
