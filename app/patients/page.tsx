@@ -50,7 +50,12 @@ import { AppErrorState } from '@/components/error/app-error-state';
 import { AccessDeniedState } from '@/components/error/access-denied-state';
 import { canManage, canView, getManageDeniedMessage, isSubscriptionReadOnly } from '@/lib/auth/permissions';
 import { RecordAuthorBadge } from '@/components/ui/record-author-badge';
-import { readPatientListState, writePatientListState } from '@/lib/patients/patient-list-state';
+import {
+    clearPatientListRestoreIntent,
+    markPatientListStateForBackNavigation,
+    readPatientListState,
+    writePatientListState,
+} from '@/lib/patients/patient-list-state';
 
 const AddPatientDialog = dynamic(
     () => import('@/components/patients/add-patient-dialog').then((module) => module.AddPatientDialog),
@@ -345,6 +350,12 @@ export default function PatientsPage() {
     );
 
     useEffect(() => {
+        if (isClient) {
+            clearPatientListRestoreIntent();
+        }
+    }, [isClient]);
+
+    useEffect(() => {
         if (!isClient) {
             return;
         }
@@ -386,7 +397,7 @@ export default function PatientsPage() {
     ) => {
         const shouldRememberRecent = source !== 'list';
         setFocusedPatientId(patientId);
-        writePatientListState({
+        markPatientListStateForBackNavigation({
             searchQuery,
             inactiveFilter,
             showArchivedOnly,

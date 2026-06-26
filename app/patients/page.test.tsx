@@ -14,7 +14,10 @@ import {
 } from '@/lib/api/dentist';
 import { I18nProvider } from '@/components/providers/i18n-provider';
 import { DICTIONARIES } from '@/lib/i18n/dictionaries';
-import { PATIENTS_LIST_STATE_STORAGE_KEY } from '@/lib/patients/patient-list-state';
+import {
+    markPatientListStateForBackNavigation,
+    PATIENTS_LIST_STATE_STORAGE_KEY,
+} from '@/lib/patients/patient-list-state';
 
 const pushMock = vi.fn();
 
@@ -109,14 +112,14 @@ describe('PatientsPage', () => {
     });
 
     it('restores the previous page and focused patient after returning from details', async () => {
-        window.sessionStorage.setItem(PATIENTS_LIST_STATE_STORAGE_KEY, JSON.stringify({
+        markPatientListStateForBackNavigation({
             searchQuery: 'Restored',
             inactiveFilter: 'none',
             showArchivedOnly: false,
             selectedCategoryId: 'all',
             currentPage: 2,
             focusPatientId: 'patient-restored',
-        }));
+        });
         vi.mocked(listPatients).mockResolvedValue(buildPatientsResponse([
             {
                 id: 'patient-restored',
@@ -148,6 +151,48 @@ describe('PatientsPage', () => {
             }));
         });
         expect(screen.getByTestId('patient-row-patient-restored')).toHaveClass('bg-teal-50/60');
+    });
+
+    it('ignores stale patient list state on normal menu navigation', async () => {
+        window.sessionStorage.setItem(PATIENTS_LIST_STATE_STORAGE_KEY, JSON.stringify({
+            searchQuery: 'Restored',
+            inactiveFilter: 'none',
+            showArchivedOnly: false,
+            selectedCategoryId: 'all',
+            currentPage: 2,
+            focusPatientId: 'patient-restored',
+        }));
+        vi.mocked(listPatients).mockResolvedValue(buildPatientsResponse([
+            {
+                id: 'patient-default',
+                patient_id: 'PT-DEFAULT',
+                full_name: 'Default Patient',
+                phone: '+10000000011',
+                created_at: '2026-02-01T10:00:00Z',
+                updated_at: '2026-02-02T10:00:00Z',
+                last_visit_at: null,
+                address: null,
+                date_of_birth: null,
+                gender: null,
+                medical_history: null,
+                allergies: null,
+                current_medications: null,
+            },
+        ], { page: 1, total: 1, total_pages: 1 }));
+
+        renderPage();
+
+        expect(await screen.findByText('Default Patient')).toBeInTheDocument();
+        await waitFor(() => {
+            expect(listPatients).toHaveBeenCalledWith(expect.objectContaining({
+                page: 1,
+                sort: '-updated_at',
+                filter: expect.not.objectContaining({
+                    search: 'Restored',
+                }),
+            }));
+        });
+        expect(screen.getByTestId('patient-row-patient-default')).not.toHaveClass('bg-teal-50/60');
     });
 
     it('shows profile-based recent patients on empty search focus', async () => {
