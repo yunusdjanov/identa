@@ -420,6 +420,7 @@ describe('AppointmentsPage drag and drop', () => {
             expect(screen.getByTestId(`week-day-card-${today}`)).toBeInTheDocument();
         });
 
+        expect(screen.getByTestId(`week-day-card-${today}`)).toHaveClass('rounded-lg');
         expect(screen.queryByTestId('timeslot-dropzone-08:00')).not.toBeInTheDocument();
         expect(screen.getAllByText('Alice Doe').length).toBeGreaterThan(0);
     });
@@ -536,6 +537,7 @@ describe('AppointmentsPage drag and drop', () => {
 
         const addButton = await screen.findByTestId(`week-day-more-${today}`);
         expect(addButton).toHaveTextContent('Add');
+        expect(addButton).toHaveClass('rounded-md');
     });
 
     it('shows record authors when the display preference is enabled', async () => {

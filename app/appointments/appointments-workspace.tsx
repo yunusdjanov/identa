@@ -1031,7 +1031,7 @@ export function AppointmentsWorkspace({ mode = 'appointments' }: AppointmentsWor
         return (
             <div
                 key={descriptor.dayIndex}
-                className={`interactive-card metric-hover-card metric-hover-teal flex flex-col overflow-hidden rounded-2xl border shadow-sm ${
+                className={`interactive-card metric-hover-card metric-hover-teal flex flex-col overflow-hidden rounded-lg border shadow-sm ${
                     compact ? `${compactCardHeightClass} self-start` : `${WEEK_VIEW_STACKED_CARD_HEIGHT_CLASS} self-stretch`
                 } ${isTodayLane ? 'border-teal-200 bg-teal-50/35 shadow-teal-100/70 ring-1 ring-teal-100' : 'border-slate-200/80 bg-white shadow-slate-200/50'}`}
                 data-testid={includeTestIds ? `week-day-card-${descriptor.dateKey}` : undefined}
@@ -1090,22 +1090,22 @@ export function AppointmentsWorkspace({ mode = 'appointments' }: AppointmentsWor
                 </div>
                 <div className={`flex flex-1 min-h-0 flex-col ${compact ? 'p-1' : 'gap-2 p-2'}`}>
                     {dayAppointments.length === 0 ? (
-                        <div className={`flex flex-1 items-center justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50/70 px-3 text-center text-sm text-slate-500 ${
+                        <div className={`flex flex-1 items-center justify-center rounded-md border border-dashed border-slate-200 bg-slate-50/70 px-3 text-center text-sm text-slate-500 ${
                             compact ? `${compactListHeightClass} py-4` : `${WEEK_VIEW_STACKED_LIST_HEIGHT_CLASS} py-4`
                         }`}>
                             {t('appointments.noAppointments')}
                         </div>
                     ) : (
                         <>
-                            <div className={compact ? `${compactListHeightClass} rounded-xl border border-slate-100 bg-slate-50/70 p-1.5` : `${WEEK_VIEW_STACKED_LIST_HEIGHT_CLASS} space-y-1.5 rounded-xl border border-slate-100 bg-slate-50/70 p-1.5`}>
+                            <div className={compact ? `${compactListHeightClass} rounded-md border border-slate-100 bg-slate-50/70 p-1.5` : `${WEEK_VIEW_STACKED_LIST_HEIGHT_CLASS} space-y-1.5 rounded-md border border-slate-100 bg-slate-50/70 p-1.5`}>
                                 <div className={compact ? 'space-y-1' : ''}>
                                 {visibleAppointments.map((appointment) => (
                                     <div
                                         key={appointment.id}
                                         className={`border-l-4 ${
                                             compact
-                                                ? `${getAppointmentBorderClass(appointment.status)} flex h-6 items-center rounded-lg bg-white px-2 shadow-xs ring-1 ring-slate-100`
-                                                : 'rounded-lg px-2.5 py-1.5'
+                                                ? `${getAppointmentBorderClass(appointment.status)} flex h-6 items-center rounded-md bg-white px-2 shadow-xs ring-1 ring-slate-100`
+                                                : 'rounded-md px-2.5 py-1.5'
                                         } ${
                                             compact ? '' : getAppointmentCardClass(appointment.status)
                                         }`}
@@ -1151,7 +1151,7 @@ export function AppointmentsWorkspace({ mode = 'appointments' }: AppointmentsWor
                             <div className={`mt-auto flex gap-1.5 ${compact ? 'pt-1' : 'pt-2'}`}>
                                 <button
                                     type="button"
-                                    className={`inline-flex flex-1 items-center justify-center rounded-lg border border-teal-200 bg-teal-50 font-medium text-teal-700 transition-colors hover:bg-teal-100 ${
+                                    className={`inline-flex flex-1 items-center justify-center rounded-md border border-teal-200 bg-teal-50 font-medium text-teal-700 transition-colors hover:bg-teal-100 ${
                                         compact ? 'h-6 px-1.5 text-[10px]' : 'h-8 px-3 text-xs'
                                     }`}
                                     aria-label={hiddenAppointmentsCount > 0
@@ -1172,7 +1172,7 @@ export function AppointmentsWorkspace({ mode = 'appointments' }: AppointmentsWor
                                 {canManageAppointments ? (
                                     <button
                                         type="button"
-                                        className={`inline-flex flex-1 items-center justify-center rounded-lg border border-slate-200 bg-white font-medium text-slate-700 transition-colors hover:bg-slate-50 ${
+                                        className={`inline-flex flex-1 items-center justify-center rounded-md border border-slate-200 bg-white font-medium text-slate-700 transition-colors hover:bg-slate-50 ${
                                             compact ? 'h-6 px-1.5 text-[10px]' : 'h-8 px-3 text-xs'
                                         }`}
                                         data-testid={includeTestIds ? `week-day-add-${descriptor.dateKey}` : undefined}
@@ -1183,7 +1183,7 @@ export function AppointmentsWorkspace({ mode = 'appointments' }: AppointmentsWor
                                 ) : isSubscriptionReadOnly(currentUser) && canViewAppointments ? (
                                     <button
                                         type="button"
-                                        className={`inline-flex flex-1 items-center justify-center rounded-lg border border-slate-200 bg-white font-medium text-slate-400 ${
+                                        className={`inline-flex flex-1 items-center justify-center rounded-md border border-slate-200 bg-white font-medium text-slate-400 ${
                                             compact ? 'h-6 px-1.5 text-[10px]' : 'h-8 px-3 text-xs'
                                         } disabled:cursor-not-allowed`}
                                         disabled
@@ -1200,7 +1200,7 @@ export function AppointmentsWorkspace({ mode = 'appointments' }: AppointmentsWor
                             {canManageAppointments ? (
                                 <button
                                     type="button"
-                                    className={`inline-flex w-full items-center justify-center rounded-lg border border-teal-200 bg-teal-50 font-medium text-teal-700 transition-colors hover:bg-teal-100 ${
+                                    className={`inline-flex w-full items-center justify-center rounded-md border border-teal-200 bg-teal-50 font-medium text-teal-700 transition-colors hover:bg-teal-100 ${
                                         compact ? 'h-6 px-1.5 text-[10px]' : 'h-8 px-3 text-xs'
                                     }`}
                                     aria-label={t('appointments.addForDay')}
@@ -1212,7 +1212,7 @@ export function AppointmentsWorkspace({ mode = 'appointments' }: AppointmentsWor
                             ) : isSubscriptionReadOnly(currentUser) && canViewAppointments ? (
                                 <button
                                     type="button"
-                                    className={`inline-flex w-full items-center justify-center rounded-lg border border-teal-100 bg-teal-50/60 font-medium text-teal-400 ${
+                                    className={`inline-flex w-full items-center justify-center rounded-md border border-teal-100 bg-teal-50/60 font-medium text-teal-400 ${
                                         compact ? 'h-6 px-1.5 text-[10px]' : 'h-8 px-3 text-xs'
                                     } disabled:cursor-not-allowed`}
                                     aria-label={t('appointments.addForDay')}
