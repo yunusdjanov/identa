@@ -15,6 +15,7 @@ import { DICTIONARIES } from '@/lib/i18n/dictionaries';
 import { toLocalDateKey } from '@/lib/utils';
 
 const addAppointmentDialogSpy = vi.fn();
+const addPatientDialogSpy = vi.fn();
 
 vi.mock('@/lib/api/dentist', () => ({
     createPatientCardFromGuestAppointment: vi.fn(),
@@ -48,7 +49,18 @@ vi.mock('@/components/appointments/add-appointment-dialog', () => ({
 }));
 
 vi.mock('@/components/patients/add-patient-dialog', () => ({
-    AddPatientDialog: () => null,
+    AddPatientDialog: (props: { open: boolean }) => {
+        addPatientDialogSpy(props);
+        if (!props.open) {
+            return null;
+        }
+
+        return (
+            <div role="dialog">
+                <h2>Add Patient</h2>
+            </div>
+        );
+    },
 }));
 
 vi.mock('@/components/ui/confirm-action-dialog', () => ({
@@ -92,6 +104,7 @@ function renderPage(initialPath = '/dashboard?view=week') {
 describe('DashboardPage', () => {
     beforeEach(() => {
         addAppointmentDialogSpy.mockClear();
+        addPatientDialogSpy.mockClear();
         vi.mocked(createPatientCardFromGuestAppointment).mockReset();
         vi.mocked(deleteAppointment).mockReset();
         vi.mocked(getCurrentUser).mockReset();
@@ -159,6 +172,10 @@ describe('DashboardPage', () => {
         renderPage();
 
         expect(await screen.findByText('Total appointments')).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: 'Dashboard' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Schedule Appointment' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Add Patient' })).toBeInTheDocument();
+        expect(screen.getByText('Total appointments')).toHaveClass('font-semibold', 'tracking-[0.08em]');
         expect(screen.getAllByText('Scheduled').length).toBeGreaterThan(0);
         expect(screen.getByText('Starting Soon')).toBeInTheDocument();
         expect(screen.getByText('Cancelled / no-show')).toBeInTheDocument();
@@ -225,5 +242,19 @@ describe('DashboardPage', () => {
         expect(await screen.findByRole('dialog')).toBeInTheDocument();
         expect(screen.getByRole('heading', { name: /Schedule Appointment/i })).toBeInTheDocument();
         expect(window.location.pathname).toBe('/dashboard');
+    });
+
+    it('opens quick action dialogs from the dashboard header', async () => {
+        renderPage();
+
+        expect(await screen.findByRole('button', { name: 'Schedule Appointment' })).toBeInTheDocument();
+
+        fireEvent.click(screen.getByRole('button', { name: 'Schedule Appointment' }));
+        expect(await screen.findByRole('dialog')).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: /Schedule Appointment/i })).toBeInTheDocument();
+
+        fireEvent.click(screen.getByRole('button', { name: 'Add Patient' }));
+        expect(await screen.findByRole('heading', { name: 'Add Patient' })).toBeInTheDocument();
+        expect(addPatientDialogSpy).toHaveBeenLastCalledWith(expect.objectContaining({ open: true }));
     });
 });
