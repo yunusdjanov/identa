@@ -1037,9 +1037,6 @@ export default function PatientDetailPage({
                                                     className="h-full w-full object-cover"
                                                     decoding="async"
                                                 />
-                                                <span className="absolute right-1.5 top-1.5 rounded-full bg-slate-950/80 px-1.5 py-0.5 text-[10px] font-bold tabular-nums text-white">
-                                                    {index + 1}
-                                                </span>
                                                 <span className="pointer-events-none absolute inset-0 flex items-center justify-center bg-slate-950/0 text-white opacity-0 transition group-hover/thumb:bg-slate-950/25 group-hover/thumb:opacity-100 group-focus-visible/thumb:bg-slate-950/25 group-focus-visible/thumb:opacity-100">
                                                     <Maximize2 className="h-4 w-4" />
                                                 </span>

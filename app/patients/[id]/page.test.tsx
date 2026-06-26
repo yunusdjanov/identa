@@ -306,6 +306,7 @@ describe('PatientDetailPage', () => {
         expect(screen.getAllByTitle('Upload')).toHaveLength(7);
         expect(screen.getAllByTitle('View')).toHaveLength(1);
         expect(screen.getAllByTitle('View')[0]).toHaveClass('aspect-[4/3]');
+        expect(within(screen.getAllByTitle('View')[0]).queryByText('1')).not.toBeInTheDocument();
         expect(screen.queryAllByTitle('Delete')).toHaveLength(0);
     });
 
