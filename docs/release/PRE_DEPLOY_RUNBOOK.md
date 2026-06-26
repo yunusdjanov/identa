@@ -1,13 +1,13 @@
 # Pre-Deploy Runbook
 
-Status: ready for first production cut as of 2026-06-05.
+Status: canonical Railway/GitHub production runbook as of 2026-06-26.
 
 Audience: whoever is doing the production deploy.
 
 Purpose: a single ordered checklist that takes you from "code is green on
-main" to "service is live, monitored, and rollback-ready." Every other
-release doc in `docs/release/` is reference material for one specific
-control; this file is the running order.
+main" to "service is live, monitored, and rollback-ready." Railway is the
+current production deployment target. Historical Docker/MVP notes are kept
+as reference only; this file is the running order.
 
 ## How to use this file
 
@@ -115,7 +115,7 @@ when the situation changes.
   filenames). Sentry will surface these in production via the upload
   controllers.
 
-Current decision: **deferred** as of 2026-06-05. Foundation reasoning:
+Current decision: **deferred** as of 2026-06-26. Foundation reasoning:
 ishonchli klinika foydalanuvchilari + magic-byte check + per-tenant S3
 prefix. Revisit when adding any public upload surface.
 
@@ -181,12 +181,15 @@ It must exit 0. If it fails, stop — the deploy will fail at boot anyway.
 
 ## T+0 — Deploy
 
-Steps map directly to `docs/release/DEPLOYMENT_PLAYBOOK_DRAFT.md`. The
-extra steps below are checklist-level.
+Railway deployment is triggered from the release commit/tag on GitHub.
+Treat each Railway service (`identa`, `identa-worker`, Redis, Postgres) as
+part of one coordinated release. The Docker Compose playbook is historical
+and must not be used as the canonical production procedure.
 
 1. [ ] Take application out of rotation OR enable maintenance mode
    (`php artisan down --secret=...`).
-2. [ ] Pull new image / restart app container with the new code.
+2. [ ] Trigger Railway deploy from the release commit and watch build logs
+   for both API and worker services.
 3. [ ] Run database migrations: `php artisan migrate --force`.
    - Watch stdout. Any failure → stop, leave maintenance mode on, fix
      migration before continuing. Do NOT roll forward through a broken
@@ -198,9 +201,11 @@ extra steps below are checklist-level.
    php artisan view:cache
    php artisan event:cache
    ```
-5. [ ] Restart queue worker(s) so they pick up the new code.
+5. [ ] Restart queue worker(s) / confirm the `identa-worker` deployment is
+   on the same commit as the API service.
 6. [ ] Bring application back up (`php artisan up`).
-7. [ ] Deploy frontend (Vercel push / container restart).
+7. [ ] Confirm the frontend deployment for `identa.uz` points at the same
+   release commit and `https://api.identa.uz/api`.
 
 ## T+5m — Smoke matrix
 

@@ -1,5 +1,10 @@
 # Performance Pass (P2) - 2026-02-28
 
+> Historical snapshot. Do not use this as the current release performance
+> decision after the payments ledger, image editor, history timeline, recent
+> patients, and direct-upload changes. Run a fresh performance pass before
+> release sign-off.
+
 ## Scope
 - Frontend-only non-deployment track.
 - Focused on the heaviest UI paths with repeated transforms/render pressure:

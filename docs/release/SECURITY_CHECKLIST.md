@@ -1,7 +1,7 @@
 # Security Checklist
 
-Date: 2026-02-15  
-Scope: Identa frontend + Laravel backend (Phase 2 local-ready baseline)
+Date: 2026-06-26
+Scope: Identa frontend + Laravel backend (Railway production baseline)
 
 ## Checklist Status
 
@@ -16,7 +16,7 @@ Scope: Identa frontend + Laravel backend (Phase 2 local-ready baseline)
 | Request correlation ID | Done | `X-Request-Id` middleware + response propagation |
 | Audit logging for critical actions | Done | Auth/admin/patient/payment events tracked |
 | HTTPS-only cookie policy | Done (implementation) | Runtime production policy check validates `APP_URL=https` + `SESSION_SECURE_COOKIE=true`; remaining work is production env rollout |
-| Secrets and env management policy | In progress | Runtime production validator + preflight command added; managed secret-store rollout still required per environment |
+| Secrets and env management policy | Done (implementation) | Runtime production validator + preflight command added; managed secret-store rollout remains an environment task per release |
 | Dependency vulnerability scan in CI | Done (implementation) | Local gate is green via `npm run quality:security`; CI workflow `.github/workflows/ci-quality-security.yml` runs the same gate on push/PR |
 | Security headers baseline | Done (implementation) | App-level middleware + runtime policy check in place; remaining work is production edge/proxy env rollout (`TRUSTED_PROXIES`, HSTS enablement) |
 | Provider-backed error tracking | Done (implementation) | Sentry integrated in exception pipeline with request/user context and payload scrubbing (`docs/release/ERROR_TRACKING.md`) |
@@ -28,6 +28,6 @@ Scope: Identa frontend + Laravel backend (Phase 2 local-ready baseline)
    - production `SANCTUM_STATEFUL_DOMAINS`
 2. Move all credentials/keys to secure secret storage (no plaintext in CI/deploy configs).
    - Enforce with `npm run check:secrets` in deployment pre-flight.
-3. Add automated dependency and image vulnerability checks.
+3. Run automated dependency and upload-security checks before deploy.
 4. Apply edge/proxy security policy and enable HSTS in TLS environments (`SECURITY_HSTS_ENABLED=true`).
 5. Complete a manual abuse-case pass on auth and admin endpoints.

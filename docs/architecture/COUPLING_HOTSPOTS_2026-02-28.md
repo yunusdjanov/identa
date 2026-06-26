@@ -1,5 +1,10 @@
 # Coupling Hotspots Review (2026-02-28)
 
+> Historical snapshot. This predates the payments ledger, image editor,
+> history timeline, recent patients, direct-upload hardening, and appointment
+> guest patient-card flow. Re-run the coupling review before using it for a
+> current refactoring plan.
+
 ## Scope
 - Frontend billing and destructive-action flows
 - Pages reviewed: `appointments`, `payments`, `patients/[id]`

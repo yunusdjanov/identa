@@ -1,7 +1,10 @@
-# Deployment Playbook (Draft)
+# Deployment Playbook (Historical Docker Draft)
+
+> Historical reference only. Current production deploys use Railway/GitHub,
+> and the canonical checklist is `docs/release/PRE_DEPLOY_RUNBOOK.md`.
 
 Date: 2026-02-15  
-Target selected: Linux host with Docker Compose (single-tenant MVP deployment)
+Target selected: Linux host with Docker Compose (single-tenant MVP deployment, superseded)
 
 ## Why This Target
 

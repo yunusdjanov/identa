@@ -1,9 +1,12 @@
-# API Conventions (Phase 2)
+# API Conventions
 
 ## Base Path And Versioning
 - Base API path: `/api/v1`
 - Contract file: `docs/api/openapi.v1.yaml`
 - Any breaking change requires a new version path (e.g. `/api/v2`)
+- New list endpoints must be paginated before frontend integration.
+- New backend routes must be added to `docs/api/openapi.v1.yaml` and pass
+  `npm run check:openapi`.
 
 ## Response Envelope
 

@@ -1,13 +1,14 @@
 import { NextResponse } from 'next/server';
 import { resolveLoginUser } from '../../_mock-users';
 
-// Local mock only. The real Laravel backend authenticates against seeded
-// users and enforces the portal separation server-side; here we just
-// branch on the login portal and posted email to decide which fixture to
-// return. The admin signs in via /admin/login (which posts `portal: 'admin'`);
-// any of the seeded assistant emails will return an assistant fixture so
-// the assistant UX is reachable in local dev. Anything else falls through
-// to the dentist owner.
+// Local mock only. Production hard-blocking for `/api/v1/*` lives in
+// `proxy.ts`, so this route must stay fixture-only and never become a
+// production auth fallback. The real Laravel backend authenticates against
+// seeded users and enforces portal separation server-side; here we just branch
+// on the login portal and posted email to decide which fixture to return. The
+// admin signs in via /admin/login (which posts `portal: 'admin'`); any seeded
+// assistant email returns an assistant fixture so local dev can reach the
+// assistant UX. Anything else falls through to the dentist owner.
 //
 // Recognised test emails (any password works in mock mode):
 //   - admin@identa.test               → ADMIN_USER

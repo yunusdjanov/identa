@@ -1,5 +1,9 @@
 # Phase 2 Go/No-Go Re-Review (2026-02-28)
 
+> Historical snapshot. Current release decisions must use
+> `docs/release/PRE_DEPLOY_RUNBOOK.md` plus fresh quality, security,
+> OpenAPI, performance, and accessibility checks.
+
 ## Scope
 
 - Project: Identa (frontend + Laravel backend)

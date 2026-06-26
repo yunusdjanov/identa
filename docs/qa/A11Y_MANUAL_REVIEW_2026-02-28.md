@@ -1,5 +1,10 @@
 # Accessibility Manual Review (2026-02-28)
 
+> Historical snapshot. This predates the recent patients dropdown, history
+> timeline redesign, image editor, oral photo gallery changes, and guest
+> appointment patient-card flow. Run a fresh WCAG 2.1 AA pass before using it
+> for current release sign-off.
+
 Scope:
 - `app/appointments/page.tsx`
 - `app/patients/page.tsx`

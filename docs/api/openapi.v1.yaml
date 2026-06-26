@@ -3,7 +3,7 @@ info:
   title: Identa API
   version: 1.0.0
   description: |
-    OpenAPI contract for Phase 2 backend integration.
+    OpenAPI contract for the current Laravel backend integration.
     This contract is authoritative for frontend/backend alignment.
 servers:
   - url: http://localhost:8000
@@ -15,6 +15,7 @@ tags:
   - name: Appointments
   - name: Invoices
   - name: Payments
+  - name: Lookups
   - name: Settings
   - name: Admin
 paths:
@@ -154,6 +155,50 @@ paths:
                 $ref: "#/components/schemas/UserResponse"
         "401":
           $ref: "#/components/responses/UnauthorizedError"
+  /api/v1/lookups/patients:
+    get:
+      tags: [Lookups]
+      summary: Search lightweight patients for appointment/payment selectors
+      operationId: lookupPatients
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PerPage"
+        - $ref: "#/components/parameters/SearchFilter"
+      responses:
+        "200":
+          description: Paginated patient lookup rows
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PatientLookupCollectionResponse"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+  /api/v1/lookups/appointments:
+    get:
+      tags: [Lookups]
+      summary: Search lightweight appointments for payment selectors
+      operationId: lookupAppointments
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PerPage"
+        - $ref: "#/components/parameters/SearchFilter"
+      responses:
+        "200":
+          description: Paginated appointment lookup rows
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AppointmentLookupCollectionResponse"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
   /api/v1/patients:
     get:
       tags: [Patients]
@@ -204,6 +249,53 @@ paths:
           $ref: "#/components/responses/ForbiddenError"
         "422":
           $ref: "#/components/responses/ValidationError"
+  /api/v1/patients/recent:
+    get:
+      tags: [Patients]
+      summary: List profile-scoped recently opened patients
+      operationId: listRecentPatients
+      security:
+        - cookieAuth: []
+      responses:
+        "200":
+          description: Recent patients for the current user profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RecentPatientCollectionResponse"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+    delete:
+      tags: [Patients]
+      summary: Clear profile-scoped recent patients
+      operationId: clearRecentPatients
+      security:
+        - cookieAuth: []
+      responses:
+        "204":
+          description: Recent patients cleared
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+  /api/v1/patients/recent/{id}:
+    delete:
+      tags: [Patients]
+      summary: Remove one profile-scoped recent patient
+      operationId: forgetRecentPatient
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+      responses:
+        "204":
+          description: Recent patient removed
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
   /api/v1/patients/{id}:
     get:
       tags: [Patients]
@@ -272,6 +364,161 @@ paths:
           $ref: "#/components/responses/ForbiddenError"
         "404":
           $ref: "#/components/responses/NotFoundError"
+  /api/v1/patients/{id}/photo/direct-upload:
+    post:
+      tags: [Patients]
+      summary: Prepare a direct upload for a patient profile photo
+      operationId: preparePatientPhotoDirectUpload
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DirectUploadPrepareRequest"
+      responses:
+        "200":
+          description: Signed upload ticket, or unsupported=false when the disk cannot sign uploads
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DirectUploadPrepareResponse"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+  /api/v1/patients/{id}/photo/direct-upload/{uploadId}/complete:
+    post:
+      tags: [Patients]
+      summary: Finalize a direct-uploaded patient profile photo
+      operationId: finalizePatientPhotoDirectUpload
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+        - $ref: "#/components/parameters/UploadId"
+      responses:
+        "200":
+          description: Patient updated and media scan queued
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PatientResponse"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+  /api/v1/patients/{id}/oral-photo/direct-upload:
+    post:
+      tags: [Patients]
+      summary: Prepare a legacy smile oral-photo direct upload
+      operationId: prepareLegacyOralPhotoDirectUpload
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DirectUploadPrepareRequest"
+      responses:
+        "200":
+          description: Signed upload ticket
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DirectUploadPrepareResponse"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+  /api/v1/patients/{id}/oral-photo/direct-upload/{uploadId}/complete:
+    post:
+      tags: [Patients]
+      summary: Finalize a legacy smile oral-photo direct upload
+      operationId: finalizeLegacyOralPhotoDirectUpload
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+        - $ref: "#/components/parameters/UploadId"
+      responses:
+        "200":
+          description: Patient updated and media scan completed/queued
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PatientResponse"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+  /api/v1/patients/{id}/oral-photos/{viewType}/direct-upload:
+    post:
+      tags: [Patients]
+      summary: Prepare an oral-photo direct upload for a clinical view
+      operationId: prepareOralPhotoDirectUpload
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+        - $ref: "#/components/parameters/OralPhotoViewType"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DirectUploadPrepareRequest"
+      responses:
+        "200":
+          description: Signed upload ticket
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DirectUploadPrepareResponse"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+  /api/v1/patients/{id}/oral-photos/{viewType}/direct-upload/{uploadId}/complete:
+    post:
+      tags: [Patients]
+      summary: Finalize an oral-photo direct upload for a clinical view
+      operationId: finalizeOralPhotoDirectUpload
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+        - $ref: "#/components/parameters/OralPhotoViewType"
+        - $ref: "#/components/parameters/UploadId"
+      responses:
+        "200":
+          description: Patient updated and media scan completed/queued
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PatientResponse"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+        "422":
+          $ref: "#/components/responses/ValidationError"
   /api/v1/patients/{id}/odontogram:
     get:
       tags: [Patients]
@@ -350,6 +597,63 @@ paths:
           $ref: "#/components/responses/ForbiddenError"
         "404":
           $ref: "#/components/responses/NotFoundError"
+  /api/v1/patients/{id}/odontogram/{entryId}/images/direct-upload:
+    post:
+      tags: [Patients]
+      summary: Prepare a direct upload for an odontogram image
+      operationId: prepareOdontogramImageDirectUpload
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+        - $ref: "#/components/parameters/EntryId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DirectUploadPrepareRequest"
+      responses:
+        "200":
+          description: Signed upload ticket
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DirectUploadPrepareResponse"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+  /api/v1/patients/{id}/odontogram/{entryId}/images/direct-upload/{uploadId}/complete:
+    post:
+      tags: [Patients]
+      summary: Finalize a direct-uploaded odontogram image
+      operationId: finalizeOdontogramImageDirectUpload
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+        - $ref: "#/components/parameters/EntryId"
+        - $ref: "#/components/parameters/UploadId"
+      responses:
+        "201":
+          description: Odontogram image created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MediaImageResponse"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+        "422":
+          $ref: "#/components/responses/ValidationError"
   /api/v1/patients/{id}/treatments:
     get:
       tags: [Patients]
@@ -396,6 +700,131 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/TreatmentResponse"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+  /api/v1/patients/{id}/treatments/{treatmentId}/images/direct-upload:
+    post:
+      tags: [Patients]
+      summary: Prepare a direct upload for one treatment image
+      operationId: prepareTreatmentImageDirectUpload
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+        - $ref: "#/components/parameters/TreatmentId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DirectUploadPrepareRequest"
+      responses:
+        "200":
+          description: Signed upload ticket
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DirectUploadPrepareResponse"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+  /api/v1/patients/{id}/treatments/{treatmentId}/images/direct-upload/{uploadId}/complete:
+    post:
+      tags: [Patients]
+      summary: Finalize a direct-uploaded treatment image
+      operationId: finalizeTreatmentImageDirectUpload
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+        - $ref: "#/components/parameters/TreatmentId"
+        - $ref: "#/components/parameters/UploadId"
+      responses:
+        "201":
+          description: Treatment image created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MediaImageResponse"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+  /api/v1/patients/{id}/treatments/{treatmentId}/images/direct-upload-batch:
+    post:
+      tags: [Patients]
+      summary: Prepare direct uploads for multiple treatment images
+      operationId: prepareTreatmentImageBatchDirectUpload
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+        - $ref: "#/components/parameters/TreatmentId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DirectUploadBatchPrepareRequest"
+      responses:
+        "200":
+          description: Signed upload tickets
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DirectUploadBatchPrepareResponse"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+  /api/v1/patients/{id}/treatments/{treatmentId}/images/direct-upload-batch/complete:
+    post:
+      tags: [Patients]
+      summary: Finalize multiple direct-uploaded treatment images
+      operationId: finalizeTreatmentImageBatchDirectUpload
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+        - $ref: "#/components/parameters/TreatmentId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DirectUploadBatchCompleteRequest"
+      responses:
+        "201":
+          description: Treatment images created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DirectUploadBatchCompleteResponse"
+        "207":
+          description: Some uploads failed validation or processing
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DirectUploadBatchCompleteResponse"
         "401":
           $ref: "#/components/responses/UnauthorizedError"
         "403":
@@ -523,6 +952,36 @@ paths:
           $ref: "#/components/responses/ForbiddenError"
         "404":
           $ref: "#/components/responses/NotFoundError"
+  /api/v1/appointments/{id}/patient-card:
+    post:
+      tags: [Appointments]
+      summary: Create a patient card from a guest appointment and link it
+      operationId: createAppointmentPatientCard
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PatientUpsertRequest"
+      responses:
+        "201":
+          description: Patient card created and appointment linked
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AppointmentPatientCardResponse"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+        "422":
+          $ref: "#/components/responses/ValidationError"
   /api/v1/invoices:
     get:
       tags: [Invoices]
@@ -644,6 +1103,54 @@ paths:
           $ref: "#/components/responses/NotFoundError"
         "422":
           $ref: "#/components/responses/ValidationError"
+  /api/v1/payments/ledger/patients:
+    get:
+      tags: [Payments]
+      summary: List patient-level payment ledger balances
+      operationId: listPaymentLedgerPatients
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PerPage"
+        - $ref: "#/components/parameters/SearchFilter"
+        - $ref: "#/components/parameters/PatientIdFilter"
+        - $ref: "#/components/parameters/OutstandingFilter"
+      responses:
+        "200":
+          description: Paginated patient balance rows
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentLedgerPatientCollectionResponse"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+  /api/v1/payments/ledger/history:
+    get:
+      tags: [Payments]
+      summary: List treatment-level payment ledger history rows
+      operationId: listPaymentLedgerHistory
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PerPage"
+        - $ref: "#/components/parameters/SearchFilter"
+        - $ref: "#/components/parameters/PatientIdFilter"
+        - $ref: "#/components/parameters/OutstandingFilter"
+      responses:
+        "200":
+          description: Paginated treatment ledger rows
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentLedgerHistoryCollectionResponse"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
   /api/v1/payments:
     get:
       tags: [Payments]
@@ -881,6 +1388,34 @@ components:
       schema:
         type: string
         format: uuid
+    UploadId:
+      name: uploadId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    EntryId:
+      name: entryId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    TreatmentId:
+      name: treatmentId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    OralPhotoViewType:
+      name: viewType
+      in: path
+      required: true
+      schema:
+        type: string
+        enum: [smile, top, bottom]
     Page:
       name: page
       in: query
@@ -962,6 +1497,11 @@ components:
       schema:
         type: string
         format: uuid
+    OutstandingFilter:
+      name: filter[outstanding]
+      in: query
+      schema:
+        type: boolean
     ToothNumberFilter:
       name: filter[tooth_number]
       in: query
@@ -1063,6 +1603,227 @@ components:
           type: integer
         total_amount:
           type: number
+    PaymentLedgerSummary:
+      type: object
+      properties:
+        total_debt:
+          type: number
+        total_paid:
+          type: number
+        balance:
+          type: number
+        outstanding_count:
+          type: integer
+    ActorSummary:
+      type: object
+      nullable: true
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        role:
+          type: string
+    PatientLookup:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        patient_id:
+          type: string
+        full_name:
+          type: string
+        phone:
+          type: string
+        secondary_phone:
+          type: string
+          nullable: true
+        category:
+          type: string
+          nullable: true
+    AppointmentLookup:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        patient_id:
+          type: string
+          format: uuid
+          nullable: true
+        patient_name:
+          type: string
+        guest_name:
+          type: string
+          nullable: true
+        guest_phone:
+          type: string
+          nullable: true
+        is_guest:
+          type: boolean
+        appointment_date:
+          type: string
+          format: date
+        start_time:
+          type: string
+          example: "10:00"
+        status:
+          type: string
+    RecentPatient:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        patient_id:
+          type: string
+        full_name:
+          type: string
+        phone:
+          type: string
+        photo_thumbnail_url:
+          type: string
+          nullable: true
+        remembered_at:
+          type: string
+          format: date-time
+    MediaImage:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        url:
+          type: string
+          nullable: true
+        thumbnail_url:
+          type: string
+          nullable: true
+        preview_url:
+          type: string
+          nullable: true
+        scan_status:
+          type: string
+          enum: [pending, approved, rejected]
+        sort_order:
+          type: integer
+          nullable: true
+        view_type:
+          type: string
+          nullable: true
+    DirectUploadPrepareRequest:
+      type: object
+      required: [filename, content_type, file_size]
+      properties:
+        filename:
+          type: string
+          maxLength: 255
+        content_type:
+          type: string
+          enum: [image/jpeg, image/jpg, image/png, image/webp]
+        file_size:
+          type: integer
+          minimum: 1
+          maximum: 5242880
+    DirectUploadTicket:
+      type: object
+      properties:
+        upload_id:
+          type: string
+          format: uuid
+        url:
+          type: string
+          format: uri
+        method:
+          type: string
+          example: PUT
+        headers:
+          type: object
+          additionalProperties:
+            type: string
+        expires_at:
+          type: string
+          format: date-time
+    DirectUploadPrepareResponse:
+      type: object
+      properties:
+        data:
+          allOf:
+            - $ref: "#/components/schemas/DirectUploadTicket"
+            - type: object
+              properties:
+                supported:
+                  type: boolean
+                  default: true
+      required: [data]
+    DirectUploadBatchPrepareRequest:
+      type: object
+      required: [files]
+      properties:
+        files:
+          type: array
+          minItems: 1
+          maxItems: 10
+          items:
+            allOf:
+              - $ref: "#/components/schemas/DirectUploadPrepareRequest"
+              - type: object
+                required: [client_id]
+                properties:
+                  client_id:
+                    type: string
+                    maxLength: 80
+    DirectUploadBatchPrepareResponse:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            uploads:
+              type: array
+              items:
+                allOf:
+                  - $ref: "#/components/schemas/DirectUploadTicket"
+                  - type: object
+                    properties:
+                      client_id:
+                        type: string
+            failed:
+              type: array
+              items:
+                type: object
+                properties:
+                  client_id:
+                    type: string
+                  message:
+                    type: string
+      required: [data]
+    DirectUploadBatchCompleteRequest:
+      type: object
+      required: [upload_ids]
+      properties:
+        upload_ids:
+          type: array
+          minItems: 1
+          maxItems: 10
+          items:
+            type: string
+            format: uuid
+    DirectUploadBatchCompleteResponse:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            completed_count:
+              type: integer
+            failed:
+              type: array
+              items:
+                type: object
+      required: [data]
     AdminDentistCollectionSummary:
       type: object
       properties:
@@ -1364,6 +2125,79 @@ components:
         created_at:
           type: string
           format: date-time
+    PaymentLedgerPatientRow:
+      type: object
+      properties:
+        patient_id:
+          type: string
+          format: uuid
+        patient_code:
+          type: string
+          nullable: true
+        patient_name:
+          type: string
+        patient_phone:
+          type: string
+          nullable: true
+        patient_secondary_phone:
+          type: string
+          nullable: true
+        total_debt:
+          type: number
+        total_paid:
+          type: number
+        balance:
+          type: number
+        entry_count:
+          type: integer
+        last_entry_date:
+          type: string
+          format: date
+          nullable: true
+    PaymentLedgerHistoryRow:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        patient_id:
+          type: string
+          format: uuid
+        patient_name:
+          type: string
+          nullable: true
+        patient_phone:
+          type: string
+          nullable: true
+        patient_secondary_phone:
+          type: string
+          nullable: true
+        patient_code:
+          type: string
+          nullable: true
+        date:
+          type: string
+          format: date
+          nullable: true
+        teeth:
+          type: array
+          items:
+            type: integer
+        work_done:
+          type: string
+        comment:
+          type: string
+          nullable: true
+        debt:
+          type: number
+        paid:
+          type: number
+        balance_delta:
+          type: number
+        created_by:
+          $ref: "#/components/schemas/ActorSummary"
+        updated_by:
+          $ref: "#/components/schemas/ActorSummary"
     Profile:
       type: object
       properties:
@@ -1751,6 +2585,41 @@ components:
             pagination:
               $ref: "#/components/schemas/PaginationMeta"
       required: [data]
+    PatientLookupCollectionResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/PatientLookup"
+        meta:
+          type: object
+          properties:
+            pagination:
+              $ref: "#/components/schemas/PaginationMeta"
+      required: [data]
+    RecentPatientCollectionResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/RecentPatient"
+      required: [data]
+    MediaImageResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/MediaImage"
+      required: [data]
+    MediaImageCollectionResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/MediaImage"
+      required: [data]
     OdontogramEntryResponse:
       type: object
       properties:
@@ -1808,11 +2677,35 @@ components:
             pagination:
               $ref: "#/components/schemas/PaginationMeta"
       required: [data]
+    AppointmentLookupCollectionResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/AppointmentLookup"
+        meta:
+          type: object
+          properties:
+            pagination:
+              $ref: "#/components/schemas/PaginationMeta"
+      required: [data]
     AppointmentResponse:
       type: object
       properties:
         data:
           $ref: "#/components/schemas/Appointment"
+      required: [data]
+    AppointmentPatientCardResponse:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            appointment:
+              $ref: "#/components/schemas/Appointment"
+            patient:
+              $ref: "#/components/schemas/Patient"
       required: [data]
     InvoiceCollectionResponse:
       type: object
@@ -1855,6 +2748,36 @@ components:
               $ref: "#/components/schemas/PaginationMeta"
             summary:
               $ref: "#/components/schemas/PaymentCollectionSummary"
+      required: [data]
+    PaymentLedgerPatientCollectionResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/PaymentLedgerPatientRow"
+        meta:
+          type: object
+          properties:
+            pagination:
+              $ref: "#/components/schemas/PaginationMeta"
+            summary:
+              $ref: "#/components/schemas/PaymentLedgerSummary"
+      required: [data]
+    PaymentLedgerHistoryCollectionResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/PaymentLedgerHistoryRow"
+        meta:
+          type: object
+          properties:
+            pagination:
+              $ref: "#/components/schemas/PaginationMeta"
+            summary:
+              $ref: "#/components/schemas/PaymentLedgerSummary"
       required: [data]
     ProfileResponse:
       type: object

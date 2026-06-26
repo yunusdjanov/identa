@@ -21,10 +21,14 @@ MEDIA_DISK=r2
 MEDIA_VERIFY_DIRECT_UPLOADS_ON_FINALIZE=true
 MEDIA_CHECK_REMOTE_VARIANT_EXISTS=false
 
-ANTIVIRUS_DRIVER=clamav
-CLAMAV_HOST=127.0.0.1
-CLAMAV_PORT=3310
-CLAMAV_TIMEOUT=10
+# Current production policy: defer ClamAV while uploads stay authenticated,
+# image-only, magic-byte checked, and tenant-isolated. Set ANTIVIRUS_DRIVER
+# to clamav before any public upload surface or regulatory requirement.
+ANTIVIRUS_DRIVER=null
+# ANTIVIRUS_DRIVER=clamav
+# CLAMAV_HOST=127.0.0.1
+# CLAMAV_PORT=3310
+# CLAMAV_TIMEOUT=10
 ```
 
 For R2/S3, also set the existing storage keys used by `config/filesystems.php`.
@@ -56,6 +60,7 @@ For R2/S3, also set the existing storage keys used by `config/filesystems.php`.
 ## Notes
 
 - Local development uses `ANTIVIRUS_DRIVER=null` unless explicitly changed.
-- Production defaults to ClamAV when `APP_ENV=production`.
+- Production ClamAV is an explicit risk decision. The canonical decision
+  matrix lives in `docs/release/PRE_DEPLOY_RUNBOOK.md`.
 - Existing media rows default to `approved` during migration so old patient data stays visible.
 - If the queue is down, new uploads remain hidden as `pending` rather than serving unscanned files.

@@ -6,40 +6,44 @@
 ```bash
 npm run check:core-guardrails
 ```
-2. Frontend static checks
+2. OpenAPI contract drift check
+```bash
+npm run check:openapi
+```
+3. Frontend static checks
 ```bash
 npm run lint
 npm run build
 ```
-3. Frontend unit/component tests
+4. Frontend unit/component tests
 ```bash
 npm test
 ```
-4. Backend schema sync (idempotent, prevents migration drift)
+5. Backend schema sync (idempotent, prevents migration drift)
 ```bash
 npm run db:migrate
 ```
-5. Backend automated tests
+6. Backend automated tests
 ```bash
 npm run test:backend
 ```
-6. Critical end-to-end flows
+7. Critical end-to-end flows
 ```bash
 npm run test:e2e
 ```
-7. Dependency vulnerability scan
+8. Dependency vulnerability scan
 ```bash
 npm run quality:security
 ```
-8. Secrets preflight validation
+9. Secrets preflight validation
 ```bash
 npm run check:secrets
 ```
-9. Runtime security policy preflight
+10. Runtime security policy preflight
 ```bash
 npm run check:runtime-security
 ```
-10. Release preflight (all security blockers)
+11. Release preflight (all security blockers)
 ```bash
 npm run release:preflight
 npm run release:preflight:production
@@ -68,6 +72,16 @@ This command verifies the five release-blocking rules documented in
 stay tied to regression-test discipline, list endpoints keep the pagination
 contract, direct upload finalize keeps stored-size/type verification, and
 the release checklist still runs the guardrails.
+
+## OpenAPI Contract Drift Check
+
+```bash
+npm run check:openapi
+```
+
+This command parses `docs/api/openapi.v1.yaml`, verifies required current
+backend paths are documented, resolves all local `$ref` pointers, and checks
+that path parameters are declared on each operation.
 
 ## Security Gate
 
