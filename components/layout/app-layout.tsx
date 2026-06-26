@@ -19,10 +19,9 @@ import { useInstantLogout } from '@/lib/auth/use-instant-logout';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
     BarChart3,
+    CreditCard,
     LayoutDashboard,
     Users,
-    Calendar,
-    CreditCard,
 } from 'lucide-react';
 import { LanguageSwitcher } from '@/components/layout/language-switcher';
 import { useI18n } from '@/components/providers/i18n-provider';
@@ -41,11 +40,6 @@ const navigation = [
         icon: Users,
     },
     {
-        key: 'nav.appointments',
-        href: '/appointments',
-        icon: Calendar,
-    },
-    {
         key: 'nav.payments',
         href: '/payments',
         icon: CreditCard,
@@ -57,7 +51,7 @@ const navigation = [
     },
 ];
 
-const navigationSkeletonLabelWidths = ['lg:w-28', 'lg:w-24', 'lg:w-32', 'lg:w-24', 'lg:w-28'] as const;
+const navigationSkeletonLabelWidths = ['lg:w-28', 'lg:w-24', 'lg:w-24', 'lg:w-28'] as const;
 
 function useIsHydrated() {
     return useSyncExternalStore(

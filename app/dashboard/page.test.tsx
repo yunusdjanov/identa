@@ -2,19 +2,57 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import DashboardPage from '@/app/dashboard/page';
-import { getCurrentUser, getProfile, listAllAppointments, listAppointments, lookupPatients } from '@/lib/api/dentist';
+import {
+    createPatientCardFromGuestAppointment,
+    deleteAppointment,
+    getCurrentUser,
+    getProfile,
+    listAllAppointments,
+    updateAppointment,
+} from '@/lib/api/dentist';
 import { I18nProvider } from '@/components/providers/i18n-provider';
 import { DICTIONARIES } from '@/lib/i18n/dictionaries';
 import { toLocalDateKey } from '@/lib/utils';
 
+const addAppointmentDialogSpy = vi.fn();
+
 vi.mock('@/lib/api/dentist', () => ({
-    createAppointment: vi.fn(),
+    createPatientCardFromGuestAppointment: vi.fn(),
+    deleteAppointment: vi.fn(),
     getCurrentUser: vi.fn(),
     getProfile: vi.fn(),
-    listAppointments: vi.fn(),
     listAllAppointments: vi.fn(),
-    lookupPatients: vi.fn(),
     updateAppointment: vi.fn(),
+}));
+
+vi.mock('sonner', () => ({
+    toast: {
+        success: vi.fn(),
+        error: vi.fn(),
+    },
+}));
+
+vi.mock('@/components/appointments/add-appointment-dialog', () => ({
+    AddAppointmentDialog: (props: { open: boolean }) => {
+        addAppointmentDialogSpy(props);
+        if (!props.open) {
+            return null;
+        }
+
+        return (
+            <div role="dialog">
+                <h2>Schedule Appointment</h2>
+            </div>
+        );
+    },
+}));
+
+vi.mock('@/components/patients/add-patient-dialog', () => ({
+    AddPatientDialog: () => null,
+}));
+
+vi.mock('@/components/ui/confirm-action-dialog', () => ({
+    ConfirmActionDialog: () => null,
 }));
 
 function timeOffsetFromNow(minutes: number): string {
@@ -32,7 +70,9 @@ function addDays(date: Date, days: number): Date {
     return nextDate;
 }
 
-function renderPage() {
+function renderPage(initialPath = '/dashboard?view=week') {
+    window.history.replaceState({}, '', initialPath);
+
     const queryClient = new QueryClient({
         defaultOptions: {
             queries: { retry: false },
@@ -51,11 +91,13 @@ function renderPage() {
 
 describe('DashboardPage', () => {
     beforeEach(() => {
+        addAppointmentDialogSpy.mockClear();
+        vi.mocked(createPatientCardFromGuestAppointment).mockReset();
+        vi.mocked(deleteAppointment).mockReset();
         vi.mocked(getCurrentUser).mockReset();
         vi.mocked(getProfile).mockReset();
         vi.mocked(listAllAppointments).mockReset();
-        vi.mocked(listAppointments).mockReset();
-        vi.mocked(lookupPatients).mockReset();
+        vi.mocked(updateAppointment).mockReset();
 
         vi.mocked(getCurrentUser).mockResolvedValue({
             id: '1',
@@ -79,35 +121,14 @@ describe('DashboardPage', () => {
             default_appointment_duration: 30,
             show_record_authors: false,
         });
-        vi.mocked(listAppointments).mockResolvedValue({
-            data: [],
-            meta: {
-                pagination: {
-                    page: 1,
-                    per_page: 20,
-                    total: 0,
-                    total_pages: 1,
-                },
-            },
-        });
-        vi.mocked(lookupPatients).mockResolvedValue({
-            data: [],
-            meta: {
-                pagination: {
-                    page: 1,
-                    per_page: 20,
-                    total: 0,
-                    total_pages: 1,
-                },
-            },
-        });
+        vi.mocked(listAllAppointments).mockResolvedValue([]);
     });
 
     afterEach(() => {
         cleanup();
     });
 
-    it('renders the planner dashboard with appointment stats instead of financial KPIs', async () => {
+    it('renders compact appointment stats above the appointments workspace', async () => {
         const todayKey = toLocalDateKey(new Date());
         const tomorrowKey = toLocalDateKey(addDays(new Date(), 1));
         vi.mocked(listAllAppointments).mockResolvedValue([
@@ -137,14 +158,16 @@ describe('DashboardPage', () => {
 
         renderPage();
 
-        expect(await screen.findByText('Work dashboard')).toBeInTheDocument();
-        expect(screen.getByText('Total appointments')).toBeInTheDocument();
+        expect(await screen.findByText('Total appointments')).toBeInTheDocument();
         expect(screen.getAllByText('Scheduled').length).toBeGreaterThan(0);
         expect(screen.getByText('Starting Soon')).toBeInTheDocument();
+        expect(screen.getByText('Cancelled / no-show')).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Week View' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Day View' })).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: /Month/i })).not.toBeInTheDocument();
         expect(screen.queryByText('Collected This Month')).not.toBeInTheDocument();
         expect(screen.queryByText('Outstanding Debts')).not.toBeInTheDocument();
         expect(screen.getByText('Alisher Karimov')).toBeInTheDocument();
-        expect(screen.getByText('New Visitor')).toBeInTheDocument();
 
         await waitFor(() => {
             expect(listAllAppointments).toHaveBeenCalledWith(expect.objectContaining({
@@ -157,20 +180,20 @@ describe('DashboardPage', () => {
         });
     });
 
-    it('switches between day and month planner views', async () => {
-        vi.mocked(listAllAppointments).mockResolvedValue([]);
+    it('keeps dashboard routing while switching views and splits day slots into two columns', async () => {
+        renderPage('/dashboard?view=day');
 
-        renderPage();
+        expect(await screen.findByText('0 appointments')).toBeInTheDocument();
+        expect(screen.getByTestId('day-slot-column-0')).toBeInTheDocument();
+        expect(screen.getByTestId('day-slot-column-1')).toBeInTheDocument();
+        expect(within(screen.getByTestId('day-slot-column-0')).getByText('09:00')).toBeInTheDocument();
 
-        expect(await screen.findByText('Work dashboard')).toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: 'Week View' }));
 
-        fireEvent.click(screen.getByRole('button', { name: /^Day$/i }));
-        expect(screen.getByText('Day agenda')).toBeInTheDocument();
-        expect(screen.getAllByText('Add')[0]).toBeInTheDocument();
-
-        fireEvent.click(screen.getByRole('button', { name: /^Month$/i }));
-        expect(screen.getByText('Planner')).toBeInTheDocument();
-        expect(screen.getAllByText('No appointments').length).toBeGreaterThan(0);
+        await waitFor(() => {
+            expect(window.location.pathname).toBe('/dashboard');
+            expect(window.location.search).toContain('view=week');
+        });
     });
 
     it('shows access denied when appointments permission is missing', async () => {
@@ -182,27 +205,25 @@ describe('DashboardPage', () => {
             account_status: 'active',
             assistant_permissions: [],
         });
-        vi.mocked(listAllAppointments).mockResolvedValue([]);
 
         renderPage();
 
-        const denied = await screen.findByRole('heading', { name: 'Access denied' });
+        const denied = await screen.findByRole('heading', { name: 'No access' });
         expect(denied).toBeInTheDocument();
+        expect(screen.getByText('Access denied')).toBeInTheDocument();
         expect(listAllAppointments).not.toHaveBeenCalled();
     });
 
-    it('opens appointment creation with selected day context from a week column', async () => {
-        vi.mocked(listAllAppointments).mockResolvedValue([]);
-
+    it('opens appointment creation from a week column without leaving the dashboard', async () => {
         renderPage();
 
-        expect(await screen.findByText('Work dashboard')).toBeInTheDocument();
-        const firstDayColumn = screen.getAllByRole('button', { name: 'Add' })[0].closest('section');
-        expect(firstDayColumn).not.toBeNull();
+        expect(await screen.findByRole('button', { name: 'Week View' })).toBeInTheDocument();
+        const firstDayColumn = screen.getAllByTestId(/^week-day-card-/)[0];
 
-        fireEvent.click(within(firstDayColumn as HTMLElement).getByRole('button', { name: 'Add' }));
+        fireEvent.click(within(firstDayColumn).getByRole('button', { name: 'Add' }));
 
         expect(await screen.findByRole('dialog')).toBeInTheDocument();
         expect(screen.getByRole('heading', { name: /Schedule Appointment/i })).toBeInTheDocument();
+        expect(window.location.pathname).toBe('/dashboard');
     });
 });

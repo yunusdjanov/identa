@@ -91,7 +91,7 @@ describe('AppLayout skeleton header', () => {
             </AppLayout>
         );
 
-        expect(screen.getAllByTestId('app-header-desktop-nav-skeleton-item')).toHaveLength(5);
-        expect(screen.getAllByTestId('app-header-mobile-nav-skeleton-item')).toHaveLength(5);
+        expect(screen.getAllByTestId('app-header-desktop-nav-skeleton-item')).toHaveLength(4);
+        expect(screen.getAllByTestId('app-header-mobile-nav-skeleton-item')).toHaveLength(4);
     });
 });
