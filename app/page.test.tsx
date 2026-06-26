@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { Landing } from '@/components/landing/landing';
 
 const landingCss = readFileSync(join(process.cwd(), 'app', 'landing.css'), 'utf8');
+const landingPageSource = readFileSync(join(process.cwd(), 'app', 'page.tsx'), 'utf8');
 
 // The marketing landing is now a native, server-rendered React tree (no iframe,
 // no CDN bundle). next/font is wired in app/page.tsx, so the component itself is
@@ -75,5 +76,11 @@ describe('Landing', () => {
         expect(landingCss).toContain('@media (min-width: 1280px)');
         expect(landingCss).toContain('flex-wrap: nowrap');
         expect(landingCss).toContain('white-space: nowrap');
+    });
+
+    it('loads landing fonts in a cold-visit-safe way for Cyrillic copy', () => {
+        expect(landingPageSource).toContain('subsets: ["cyrillic", "latin"]');
+        expect(landingPageSource).toContain('display: "swap"');
+        expect(landingPageSource).not.toContain('display: "optional"');
     });
 });

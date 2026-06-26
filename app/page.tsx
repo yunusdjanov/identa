@@ -13,33 +13,22 @@ const seoDescription =
 // Self-hosted via next/font (no render-blocking Google Fonts request, no
 // layout shift). The variables feed the landing's --font-sans/display/mono.
 //
-// `display: "optional"` instead of `"swap"`:
-//   - With "swap", the browser paints fallback fonts immediately and swaps
-//     to the custom font when it loads. That swap is the visible "flash"
-//     between two designs the user complained about on refresh — system
-//     font metrics differ from Geist/Instrument Serif enough that lines
-//     re-flow when the swap happens (especially on the Cyrillic landing
-//     copy, where the fallback "system-ui" has different widths than the
-//     custom font's latin-only glyphs).
-//   - "optional" gives the font 100ms to load before render; if it makes
-//     it, the user sees the brand font from the first paint. If not, the
-//     browser commits to the fallback for the rest of this page load —
-//     no swap, no reflow. On the next visit the font is already cached
-//     and loads instantly. End result: zero visible swap, ever.
-//
-// `preload: true` is also explicit so Vercel's edge cache always serves
-// the font woff2 alongside the HTML; combined with "optional", the
-// cache-warm visit always paints with the brand font.
+// `display: "swap"` keeps cold visits converging to the same final layout as
+// cache-warm refreshes. `optional` can permanently keep the first page load on
+// fallback fonts, which made the landing look different until a manual refresh.
+// RU/UZ copy needs Cyrillic glyphs from Geist; otherwise the biggest hero text
+// silently falls back to system fonts while the cached refresh uses a different
+// mix of font metrics.
 const geist = Geist({
-    subsets: ["latin"],
+    subsets: ["cyrillic", "latin"],
     variable: "--font-geist",
-    display: "optional",
+    display: "swap",
     preload: true,
 });
 const geistMono = Geist_Mono({
-    subsets: ["latin"],
+    subsets: ["cyrillic", "latin"],
     variable: "--font-geist-mono",
-    display: "optional",
+    display: "swap",
     preload: true,
 });
 const instrumentSerif = Instrument_Serif({
@@ -47,7 +36,7 @@ const instrumentSerif = Instrument_Serif({
     weight: "400",
     style: ["normal", "italic"],
     variable: "--font-instrument",
-    display: "optional",
+    display: "swap",
     preload: true,
 });
 
