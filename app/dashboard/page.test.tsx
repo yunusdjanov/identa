@@ -1,17 +1,21 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import DashboardPage from '@/app/dashboard/page';
-import { getCurrentUser, getDashboardSnapshot } from '@/lib/api/dentist';
+import { getCurrentUser, getProfile, listAllAppointments, listAppointments, lookupPatients } from '@/lib/api/dentist';
 import { I18nProvider } from '@/components/providers/i18n-provider';
 import { DICTIONARIES } from '@/lib/i18n/dictionaries';
+import { toLocalDateKey } from '@/lib/utils';
 
 vi.mock('@/lib/api/dentist', () => ({
+    createAppointment: vi.fn(),
     getCurrentUser: vi.fn(),
-    getDashboardSnapshot: vi.fn(),
+    getProfile: vi.fn(),
+    listAppointments: vi.fn(),
+    listAllAppointments: vi.fn(),
+    lookupPatients: vi.fn(),
+    updateAppointment: vi.fn(),
 }));
-
-const DASHBOARD_FINANCIAL_PRIVACY_STORAGE_KEY = 'identa.dashboard.financialPrivacy.v1';
 
 function timeOffsetFromNow(minutes: number): string {
     const now = new Date();
@@ -20,6 +24,12 @@ function timeOffsetFromNow(minutes: number): string {
     const hours = Math.floor(clampedMinutes / 60);
     const mins = clampedMinutes % 60;
     return `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}`;
+}
+
+function addDays(date: Date, days: number): Date {
+    const nextDate = new Date(date);
+    nextDate.setDate(nextDate.getDate() + days);
+    return nextDate;
 }
 
 function renderPage() {
@@ -41,172 +51,158 @@ function renderPage() {
 
 describe('DashboardPage', () => {
     beforeEach(() => {
-        window.localStorage.clear();
         vi.mocked(getCurrentUser).mockReset();
-        vi.mocked(getDashboardSnapshot).mockReset();
+        vi.mocked(getProfile).mockReset();
+        vi.mocked(listAllAppointments).mockReset();
+        vi.mocked(listAppointments).mockReset();
+        vi.mocked(lookupPatients).mockReset();
 
         vi.mocked(getCurrentUser).mockResolvedValue({
-            // ApiUser fields the mock needs (id was numeric here previously;
-            // account_status became required when soft-delete landed and the
-            // mock wasn't updated).
             id: '1',
             name: 'Demo Dentist',
             email: 'dentist@identa.test',
             role: 'dentist',
             account_status: 'active',
         });
+        vi.mocked(getProfile).mockResolvedValue({
+            id: 'profile-1',
+            name: 'Demo Dentist',
+            email: 'dentist@identa.test',
+            phone: null,
+            practice_name: 'Identa',
+            license_number: null,
+            address: null,
+            working_hours: {
+                start: '09:00',
+                end: '18:00',
+            },
+            default_appointment_duration: 30,
+            show_record_authors: false,
+        });
+        vi.mocked(listAppointments).mockResolvedValue({
+            data: [],
+            meta: {
+                pagination: {
+                    page: 1,
+                    per_page: 20,
+                    total: 0,
+                    total_pages: 1,
+                },
+            },
+        });
+        vi.mocked(lookupPatients).mockResolvedValue({
+            data: [],
+            meta: {
+                pagination: {
+                    page: 1,
+                    per_page: 20,
+                    total: 0,
+                    total_pages: 1,
+                },
+            },
+        });
     });
 
     afterEach(() => {
-        window.localStorage.clear();
         cleanup();
     });
 
-    it('shows only 4 upcoming appointments and keeps show-all action', async () => {
-        vi.mocked(getDashboardSnapshot).mockResolvedValue({
-            revenueThisMonth: 1000000,
-            outstandingDebtTotal: 500000,
-            todayAppointments: [
-                {
-                    id: 'a-1',
-                    patientName: 'Early One',
-                    appointmentDate: '2026-03-01',
-                    startTime: timeOffsetFromNow(-20),
-                    durationMinutes: 30,
-                    status: 'scheduled',
-                    reason: 'Checkup',
-                },
-                {
-                    id: 'a-3',
-                    patientName: 'Upcoming One',
-                    appointmentDate: '2026-03-01',
-                    startTime: timeOffsetFromNow(10),
-                    durationMinutes: 30,
-                    status: 'scheduled',
-                    reason: 'Cleaning',
-                },
-                {
-                    id: 'a-4',
-                    patientName: 'Upcoming Two',
-                    appointmentDate: '2026-03-01',
-                    startTime: timeOffsetFromNow(20),
-                    durationMinutes: 30,
-                    status: 'scheduled',
-                    reason: 'Filling',
-                },
-                {
-                    id: 'a-5',
-                    patientName: 'Upcoming Three',
-                    appointmentDate: '2026-03-01',
-                    startTime: timeOffsetFromNow(30),
-                    durationMinutes: 30,
-                    status: 'scheduled',
-                    reason: 'Review',
-                },
-                {
-                    id: 'a-6',
-                    patientName: 'Upcoming Four',
-                    appointmentDate: '2026-03-01',
-                    startTime: timeOffsetFromNow(40),
-                    durationMinutes: 30,
-                    status: 'scheduled',
-                    reason: 'Follow up',
-                },
-            ],
-        });
+    it('renders the planner dashboard with appointment stats instead of financial KPIs', async () => {
+        const todayKey = toLocalDateKey(new Date());
+        const tomorrowKey = toLocalDateKey(addDays(new Date(), 1));
+        vi.mocked(listAllAppointments).mockResolvedValue([
+            {
+                id: 'a-1',
+                patient_id: 'patient-1',
+                patient_name: 'Alisher Karimov',
+                appointment_date: todayKey,
+                start_time: timeOffsetFromNow(30),
+                end_time: timeOffsetFromNow(60),
+                status: 'scheduled',
+                notes: 'Cleaning',
+            },
+            {
+                id: 'a-2',
+                patient_id: null,
+                guest_name: 'New Visitor',
+                guest_phone: '+998901234567',
+                is_guest: true,
+                appointment_date: tomorrowKey,
+                start_time: '12:00',
+                end_time: '12:30',
+                status: 'cancelled',
+                notes: 'Consult',
+            },
+        ]);
 
         renderPage();
+
+        expect(await screen.findByText('Work dashboard')).toBeInTheDocument();
+        expect(screen.getByText('Total appointments')).toBeInTheDocument();
+        expect(screen.getAllByText('Scheduled').length).toBeGreaterThan(0);
+        expect(screen.getByText('Starting Soon')).toBeInTheDocument();
+        expect(screen.queryByText('Collected This Month')).not.toBeInTheDocument();
+        expect(screen.queryByText('Outstanding Debts')).not.toBeInTheDocument();
+        expect(screen.getByText('Alisher Karimov')).toBeInTheDocument();
+        expect(screen.getByText('New Visitor')).toBeInTheDocument();
 
         await waitFor(() => {
-            expect(screen.getByText('Upcoming One')).toBeInTheDocument();
-            expect(screen.getByText('Upcoming Two')).toBeInTheDocument();
-            expect(screen.getByText('Upcoming Three')).toBeInTheDocument();
-            expect(screen.getByText('Upcoming Four')).toBeInTheDocument();
+            expect(listAllAppointments).toHaveBeenCalledWith(expect.objectContaining({
+                sort: 'appointment_date,start_time',
+                filter: expect.objectContaining({
+                    date_from: expect.any(String),
+                    date_to: expect.any(String),
+                }),
+            }));
         });
-
-        expect(screen.queryByText('Early One')).not.toBeInTheDocument();
-        expect(screen.queryByText('Early Two')).not.toBeInTheDocument();
-        const showAllLink = screen.getByRole('link', { name: /(Show all today|Показать все на сегодня) \(5\)/i });
-        expect(showAllLink).toHaveAttribute('href', '/appointments');
     });
 
-    it('masks dashboard financial KPI amounts independently and remembers the choice', async () => {
-        vi.mocked(getDashboardSnapshot).mockResolvedValue({
-            revenueThisMonth: 1000000,
-            outstandingDebtTotal: 500000,
-            todayAppointments: [],
-        });
-
-        const firstRender = renderPage();
-
-        const hideButtons = await screen.findAllByRole('button', { name: 'Hide amounts' });
-        expect(screen.queryByText('***')).not.toBeInTheDocument();
-
-        fireEvent.click(hideButtons[0]);
-
-        expect(screen.getAllByText('***')).toHaveLength(1);
-        expect(window.localStorage.getItem(DASHBOARD_FINANCIAL_PRIVACY_STORAGE_KEY)).toBe(JSON.stringify({
-            revenueThisMonth: true,
-            outstandingDebtTotal: false,
-        }));
-
-        fireEvent.click(screen.getAllByRole('button', { name: 'Hide amounts' })[0]);
-
-        expect(screen.getAllByText('***')).toHaveLength(2);
-        expect(window.localStorage.getItem(DASHBOARD_FINANCIAL_PRIVACY_STORAGE_KEY)).toBe(JSON.stringify({
-            revenueThisMonth: true,
-            outstandingDebtTotal: true,
-        }));
-
-        fireEvent.click(screen.getAllByRole('button', { name: 'Show amounts' })[0]);
-
-        expect(screen.getAllByText('***')).toHaveLength(1);
-        expect(window.localStorage.getItem(DASHBOARD_FINANCIAL_PRIVACY_STORAGE_KEY)).toBe(JSON.stringify({
-            revenueThisMonth: false,
-            outstandingDebtTotal: true,
-        }));
-
-        firstRender.unmount();
-        renderPage();
-
-        expect(await screen.findByText('***')).toBeInTheDocument();
-        expect(screen.getAllByRole('button', { name: 'Hide amounts' })).toHaveLength(1);
-        expect(screen.getAllByRole('button', { name: 'Show amounts' })).toHaveLength(1);
-    });
-
-    it('shows "no more upcoming" state when today items are all in the past', async () => {
-        vi.mocked(getDashboardSnapshot).mockResolvedValue({
-            revenueThisMonth: 1000000,
-            outstandingDebtTotal: 500000,
-            todayAppointments: [
-                {
-                    id: 'a-1',
-                    patientName: 'Morning One',
-                    appointmentDate: '2026-03-01',
-                    startTime: timeOffsetFromNow(-30),
-                    durationMinutes: 30,
-                    status: 'scheduled',
-                    reason: 'Checkup',
-                },
-                {
-                    id: 'a-2',
-                    patientName: 'Morning Two',
-                    appointmentDate: '2026-03-01',
-                    startTime: timeOffsetFromNow(-15),
-                    durationMinutes: 30,
-                    status: 'scheduled',
-                    reason: 'Consult',
-                },
-            ],
-        });
+    it('switches between day and month planner views', async () => {
+        vi.mocked(listAllAppointments).mockResolvedValue([]);
 
         renderPage();
 
-        await waitFor(() => {
-            expect(screen.getByText(/(No more upcoming appointments for today\.|На сегодня больше нет ближайших записей\.)/i)).toBeInTheDocument();
-        });
+        expect(await screen.findByText('Work dashboard')).toBeInTheDocument();
 
-        const showAllLink = screen.getByRole('link', { name: /(Show all today|Показать все на сегодня) \(2\)/i });
-        expect(showAllLink).toHaveAttribute('href', '/appointments');
+        fireEvent.click(screen.getByRole('button', { name: /^Day$/i }));
+        expect(screen.getByText('Day agenda')).toBeInTheDocument();
+        expect(screen.getAllByText('Add')[0]).toBeInTheDocument();
+
+        fireEvent.click(screen.getByRole('button', { name: /^Month$/i }));
+        expect(screen.getByText('Planner')).toBeInTheDocument();
+        expect(screen.getAllByText('No appointments').length).toBeGreaterThan(0);
+    });
+
+    it('shows access denied when appointments permission is missing', async () => {
+        vi.mocked(getCurrentUser).mockResolvedValue({
+            id: '2',
+            name: 'Assistant',
+            email: 'assistant@identa.test',
+            role: 'assistant',
+            account_status: 'active',
+            assistant_permissions: [],
+        });
+        vi.mocked(listAllAppointments).mockResolvedValue([]);
+
+        renderPage();
+
+        const denied = await screen.findByRole('heading', { name: 'Access denied' });
+        expect(denied).toBeInTheDocument();
+        expect(listAllAppointments).not.toHaveBeenCalled();
+    });
+
+    it('opens appointment creation with selected day context from a week column', async () => {
+        vi.mocked(listAllAppointments).mockResolvedValue([]);
+
+        renderPage();
+
+        expect(await screen.findByText('Work dashboard')).toBeInTheDocument();
+        const firstDayColumn = screen.getAllByRole('button', { name: 'Add' })[0].closest('section');
+        expect(firstDayColumn).not.toBeNull();
+
+        fireEvent.click(within(firstDayColumn as HTMLElement).getByRole('button', { name: 'Add' }));
+
+        expect(await screen.findByRole('dialog')).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: /Schedule Appointment/i })).toBeInTheDocument();
     });
 });
