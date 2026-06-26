@@ -2,112 +2,17 @@
 //
 // Loaded from `instrumentation-client.ts` (Next.js 16 convention). Strips
 // PII / financial keys from event payloads so the monitoring service
-// never accumulates a parallel patient-data store — mirrors the backend
-// `SentryEventSanitizer` key list. Set `NEXT_PUBLIC_SENTRY_DSN` to
-// enable; empty DSN = no-op (good for dev / preview branches).
+// never accumulates a parallel patient-data store. Set
+// `NEXT_PUBLIC_SENTRY_DSN` to enable; empty DSN = no-op.
 import * as Sentry from '@sentry/nextjs';
-
-// Kept in sync with backend `App\Support\SentryEventSanitizer::SENSITIVE_KEYS`
-// — any change here should land in both files. `user_agent` is deliberately
-// not scrubbed (debugging browser-specific bugs needs it).
-const SENSITIVE_KEYS = [
-    // Credentials
-    'password',
-    'password_confirmation',
-    'pass',
-    'passwd',
-    'pwd',
-    'token',
-    'access_token',
-    'refresh_token',
-    'id_token',
-    'authorization',
-    'cookie',
-    'set-cookie',
-    'x-api-key',
-    'api_key',
-    'apikey',
-    'secret',
-    'client_secret',
-    'x-csrf-token',
-    'x-xsrf-token',
-    'csrf_token',
-    '_token',
-    // PII (matches backend list)
-    'phone',
-    'secondary_phone',
-    'patient_phone',
-    'date_of_birth',
-    'medical_history',
-    'allergies',
-    'current_medications',
-    'iin',
-    'email',
-    'full_name',
-    'name',
-    'notes',
-    'note',
-    'address',
-    'practice_name',
-    'license_number',
-    'patient_id',
-    'ip_address',
-    'ip',
-    'provider',
-    'provider_payment_id',
-    'provider_order_id',
-    'provider_payload',
-    'transaction_id',
-    'payment_method',
-    // Financials (matches AuditLogResource)
-    'amount',
-    'cost',
-    'debt_amount',
-    'paid_amount',
-    'total_amount',
-    'balance',
-    'refund_amount',
-    'payment_amount',
-    'unit_price',
-    'total_price',
-] as const;
-
-// Suffix-aware match: a key counts as sensitive if it equals a listed key
-// OR ends with `_<key>` / `.<key>`. Mirrors backend semantics so
-// nested fields like `patient.phone`, `request.body.payment_method`, or
-// `final_amount` all get redacted. Exact-match alone (`set.has(key)`) was
-// the original bug — `patient_phone_number` slipped through.
-function isSensitiveKey(key: string): boolean {
-    const normalized = key.toLowerCase();
-    for (const sensitive of SENSITIVE_KEYS) {
-        if (normalized === sensitive) return true;
-        if (normalized.endsWith('_' + sensitive)) return true;
-        if (normalized.endsWith('.' + sensitive)) return true;
-    }
-    return false;
-}
-
-function scrub(value: unknown): unknown {
-    if (value === null || value === undefined) return value;
-    if (Array.isArray(value)) return value.map(scrub);
-    if (typeof value !== 'object') return value;
-    const out: Record<string, unknown> = {};
-    for (const [key, child] of Object.entries(value as Record<string, unknown>)) {
-        if (isSensitiveKey(key)) {
-            out[key] = '[Filtered]';
-            continue;
-        }
-        out[key] = scrub(child);
-    }
-    return out;
-}
+import { scrubSentryPayload } from '@/lib/sentry-event-sanitizer';
 
 Sentry.init({
     dsn: process.env.NEXT_PUBLIC_SENTRY_DSN ?? '',
     environment: process.env.NEXT_PUBLIC_SENTRY_ENVIRONMENT ?? process.env.NODE_ENV,
     release: process.env.NEXT_PUBLIC_SENTRY_RELEASE,
 
-    // Default to OFF — PII collection is opt-in via NEXT_PUBLIC_SENTRY_SEND_PII=true.
+    // Default to OFF: PII collection is opt-in via NEXT_PUBLIC_SENTRY_SEND_PII=true.
     sendDefaultPii: process.env.NEXT_PUBLIC_SENTRY_SEND_PII === 'true',
 
     // Conservative sampling for cost control. Tracing OFF by default;
@@ -134,16 +39,16 @@ Sentry.init({
     beforeSend(event) {
         try {
             if (event.request) {
-                event.request = scrub(event.request) as typeof event.request;
+                event.request = scrubSentryPayload(event.request) as typeof event.request;
             }
             if (event.extra) {
-                event.extra = scrub(event.extra) as typeof event.extra;
+                event.extra = scrubSentryPayload(event.extra) as typeof event.extra;
             }
             if (event.contexts) {
-                event.contexts = scrub(event.contexts) as typeof event.contexts;
+                event.contexts = scrubSentryPayload(event.contexts) as typeof event.contexts;
             }
             if (event.tags) {
-                event.tags = scrub(event.tags) as typeof event.tags;
+                event.tags = scrubSentryPayload(event.tags) as typeof event.tags;
             }
         } catch {
             // Sanitizer must never break the event pipeline.
@@ -152,9 +57,8 @@ Sentry.init({
     },
 
     beforeBreadcrumb(breadcrumb) {
-        // Drop XHR/fetch breadcrumbs for auth endpoints — they carry the
-        // request body (including passwords on /login) and the response
-        // headers (including Set-Cookie on a successful login).
+        // Drop XHR/fetch breadcrumbs for auth endpoints: they may carry
+        // passwords, reset tokens, or Set-Cookie response headers.
         const url = breadcrumb.data?.url;
         if (typeof url === 'string' && (
             url.includes('/auth/login')
@@ -165,7 +69,7 @@ Sentry.init({
             return null;
         }
         if (breadcrumb.data) {
-            breadcrumb.data = scrub(breadcrumb.data) as typeof breadcrumb.data;
+            breadcrumb.data = scrubSentryPayload(breadcrumb.data) as typeof breadcrumb.data;
         }
         return breadcrumb;
     },

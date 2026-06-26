@@ -18,6 +18,10 @@ function Invoke-Step {
     }
 }
 
+Invoke-Step -Name "Full Quality Gate" -Action {
+    npm run quality:all
+}
+
 Invoke-Step -Name "Dependency Security Audit" -Action {
     npm run quality:security
 }

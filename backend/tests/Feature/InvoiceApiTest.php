@@ -7,6 +7,7 @@ use App\Models\OdontogramEntry;
 use App\Models\Payment;
 use App\Models\Patient;
 use App\Models\User;
+use App\Services\InvoicePdfService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use ReflectionMethod;
@@ -365,6 +366,19 @@ class InvoiceApiTest extends TestCase
             'payment_date' => '2026-03-02',
         ]);
 
+        $pdfService = new class extends InvoicePdfService
+        {
+            public ?string $invoiceNumber = null;
+
+            public function build(Invoice $invoice): string
+            {
+                $this->invoiceNumber = $invoice->invoice_number;
+
+                return '%PDF-1.4'.str_repeat("\n% invoice fixture", 90);
+            }
+        };
+        $this->app->instance(InvoicePdfService::class, $pdfService);
+
         $response = $this->actingAs($dentist, 'web')
             ->get("/api/v1/invoices/{$invoice->id}/download");
 
@@ -373,6 +387,7 @@ class InvoiceApiTest extends TestCase
         $this->assertStringContainsString('attachment; filename="INV-DL-1.pdf"', (string) $response->headers->get('Content-Disposition'));
         $this->assertStringStartsWith('%PDF-', $response->getContent());
         $this->assertGreaterThan(1000, strlen($response->getContent()));
+        $this->assertSame('INV-DL-1', $pdfService->invoiceNumber);
     }
 
     public function test_dentist_cannot_download_other_dentist_invoice_pdf(): void
