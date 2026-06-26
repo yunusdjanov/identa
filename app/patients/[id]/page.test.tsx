@@ -21,6 +21,7 @@ vi.mock('@/lib/api/dentist', () => ({
     getPatientOverview: vi.fn(),
     uploadPatientOralPhoto: vi.fn(),
     deletePatientOralPhoto: vi.fn(),
+    replacePatientOralPhoto: vi.fn(),
     archivePatient: vi.fn(),
     restorePatient: vi.fn(),
     permanentlyDeletePatient: vi.fn(),
@@ -247,16 +248,14 @@ describe('PatientDetailPage', () => {
         const oralPhotoTitle = screen.getByText('Oral photo');
 
         expect(screen.getAllByText('Oral photo')).toHaveLength(1);
-        expect(screen.getByText('Smile')).toBeInTheDocument();
-        expect(screen.getByText('Top')).toBeInTheDocument();
-        expect(screen.getByText('Bottom')).toBeInTheDocument();
+        expect(screen.queryByText('Smile')).not.toBeInTheDocument();
+        expect(screen.queryByText('Top')).not.toBeInTheDocument();
+        expect(screen.queryByText('Bottom')).not.toBeInTheDocument();
         expect(screen.queryByText('Appointments')).not.toBeInTheDocument();
         expect(await screen.findByTestId('patient-detail-work-history')).toHaveAttribute('data-patient-id', 'p-1');
         expect(screen.getByTestId('patient-detail-work-history')).toHaveTextContent('Work History for John Smith');
-        expect(screen.getByText('0/18')).toBeInTheDocument();
-        expect(screen.getAllByText('0/6')).toHaveLength(3);
-        expect(screen.getAllByText('No photo')).toHaveLength(3);
-        expect(screen.getAllByTitle('Upload')).toHaveLength(3);
+        expect(screen.getByText('0/8')).toBeInTheDocument();
+        expect(screen.getAllByTitle('Upload')).toHaveLength(8);
         expect(oralPhotoTitle.compareDocumentPosition(detailCard) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     });
 
@@ -300,15 +299,13 @@ describe('PatientDetailPage', () => {
         expect(await screen.findByText('Oral photo')).toBeInTheDocument();
         expect(screen.queryByText('Ready')).not.toBeInTheDocument();
         expect(screen.queryByText('No photo')).not.toBeInTheDocument();
-        expect(screen.getByText('Smile')).toBeInTheDocument();
-        expect(screen.getByText('Top')).toBeInTheDocument();
-        expect(screen.getByText('Bottom')).toBeInTheDocument();
-        expect(screen.getByText('3/18')).toBeInTheDocument();
-        expect(screen.getAllByText('1/6')).toHaveLength(3);
-        expect(screen.getAllByTitle('Upload')).toHaveLength(3);
-        expect(screen.getAllByTitle('View')).toHaveLength(3);
-        expect(screen.getAllByTitle('View')[0]).toHaveClass('h-11', 'w-11');
-        expect(screen.getByRole('button', { name: 'Edit Smile' })).toBeInTheDocument();
+        expect(screen.queryByText('Smile')).not.toBeInTheDocument();
+        expect(screen.queryByText('Top')).not.toBeInTheDocument();
+        expect(screen.queryByText('Bottom')).not.toBeInTheDocument();
+        expect(screen.getByText('1/8')).toBeInTheDocument();
+        expect(screen.getAllByTitle('Upload')).toHaveLength(7);
+        expect(screen.getAllByTitle('View')).toHaveLength(1);
+        expect(screen.getAllByTitle('View')[0]).toHaveClass('aspect-[4/3]');
         expect(screen.queryAllByTitle('Delete')).toHaveLength(0);
     });
 
@@ -342,7 +339,7 @@ describe('PatientDetailPage', () => {
         await renderPage();
         const user = userEvent.setup();
 
-        await user.click(await screen.findByRole('button', { name: 'Edit Smile' }));
+        await user.click((await screen.findAllByRole('button', { name: 'View' }))[0]);
 
         expect(await screen.findByRole('dialog')).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Delete' })).toBeInTheDocument();

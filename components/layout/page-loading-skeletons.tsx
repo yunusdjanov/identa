@@ -435,9 +435,9 @@ export function PatientDetailLoadingState() {
                 </div>
             </section>
 
-            {/* Summary cards: contact, clinic, oral photo, detail */}
+            {/* Summary cards: contact, oral photo, detail */}
             <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
-                {[4, 3].map((rowCount, cardIndex) => (
+                {[5].map((rowCount, cardIndex) => (
                     <div key={cardIndex} className="overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm shadow-slate-100/80">
                         {/* Header: h-7 w-7 rounded-lg badge + title */}
                         <div className="flex items-center gap-2.5 border-b border-slate-100 px-4 py-1.5">
@@ -463,7 +463,7 @@ export function PatientDetailLoadingState() {
                 ))}
                 <div
                     data-testid="patient-detail-oral-photo-skeleton"
-                    className="overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm shadow-slate-100/80"
+                    className="overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm shadow-slate-100/80 md:col-span-2"
                 >
                     <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-4 py-1.5">
                         <div className="flex min-w-0 items-center gap-2.5">
@@ -472,25 +472,13 @@ export function PatientDetailLoadingState() {
                         </div>
                         <Skeleton className="h-5 w-12 shrink-0 rounded-full" />
                     </div>
-                    <div className="divide-y divide-slate-100 px-3 pb-2">
-                        {Array.from({ length: 3 }).map((_, index) => (
-                            <div
+                    <div className="grid grid-cols-2 gap-2.5 px-4 pb-4 pt-2 sm:grid-cols-4">
+                        {Array.from({ length: 8 }).map((_, index) => (
+                            <Skeleton
                                 key={index}
                                 data-testid="patient-detail-oral-photo-slot-skeleton"
-                                className="py-1.5"
-                            >
-                                <div className="flex min-w-0 items-center gap-2">
-                                    <Skeleton className="h-11 w-11 shrink-0 rounded-lg" />
-                                    <div className="min-w-0 flex-1 space-y-1.5">
-                                        <Skeleton className="h-3.5 w-24 rounded-xl" />
-                                        <Skeleton className="h-3 w-16 rounded-xl" />
-                                    </div>
-                                    <div className="flex shrink-0 items-center gap-1">
-                                        <Skeleton className="h-7 w-7 rounded-full" />
-                                        <Skeleton className="h-7 w-7 rounded-full" />
-                                    </div>
-                                </div>
-                            </div>
+                                className="aspect-[4/3] min-h-[64px] rounded-xl sm:min-h-[78px]"
+                            />
                         ))}
                     </div>
                 </div>

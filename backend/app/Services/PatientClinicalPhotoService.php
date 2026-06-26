@@ -21,7 +21,7 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 class PatientClinicalPhotoService
 {
     private const DIRECT_UPLOAD_TTL_MINUTES = 15;
-    private const MAX_ORAL_PHOTOS_PER_VIEW = 6;
+    private const MAX_ORAL_PHOTOS_PER_VIEW = 8;
 
     public function __construct(
         private readonly PlanLimitService $planLimitService,
@@ -432,7 +432,7 @@ class PatientClinicalPhotoService
         }
 
         throw ValidationException::withMessages([
-            'photo' => [$this->message('oral_photo_limit_reached', 'Each oral photo section can contain up to 6 images.')],
+            'photo' => [$this->message('oral_photo_limit_reached', 'Each oral photo section can contain up to 8 images.')],
         ]);
     }
 
