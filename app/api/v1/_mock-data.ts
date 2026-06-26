@@ -69,6 +69,11 @@ export const PAYMENTS = [
     { id: 'pay-5', invoice_id: 'inv-6', patient_id: 'pat-6', amount: 850000, payment_method: 'cash', payment_date: '2026-05-20', notes: null, created_at: '2026-05-20T11:00:00Z' },
 ];
 
+export const PAYMENT_EXPENSES = [
+    { id: 'exp-1', title: 'Materials', amount: 450000, expense_date: '2026-05-24', created_at: '2026-05-24T09:00:00Z', updated_at: '2026-05-24T09:00:00Z' },
+    { id: 'exp-2', title: 'Rent', amount: 1200000, expense_date: '2026-05-01', created_at: '2026-05-01T09:00:00Z', updated_at: '2026-05-01T09:00:00Z' },
+];
+
 export const ODONTOGRAM: Record<string, unknown[]> = {
     'pat-1': [
         { id: 'odo-1', patient_id: 'pat-1', tooth_number: 21, condition_type: 'filling', surface: 'mesial', material: 'composite', severity: null, condition_date: '2026-05-19', notes: null, created_at: '2026-05-19T09:30:00Z', images: [] },

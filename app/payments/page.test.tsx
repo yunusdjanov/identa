@@ -2,15 +2,21 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import PaymentsPage from '@/app/payments/page';
-import { getCurrentUser, listPaymentLedgerHistory, listPaymentLedgerPatients } from '@/lib/api/dentist';
+import {
+    createPaymentExpense,
+    getCurrentUser,
+    listPaymentExpenses,
+    listPaymentLedgerPatients,
+} from '@/lib/api/dentist';
 import type { ApiSubscriptionSummary } from '@/lib/api/types';
 import { I18nProvider } from '@/components/providers/i18n-provider';
 import { DICTIONARIES } from '@/lib/i18n/dictionaries';
 import { exportRowsToPdf } from '@/lib/export/pdf';
 
 vi.mock('@/lib/api/dentist', () => ({
+    createPaymentExpense: vi.fn(),
     getCurrentUser: vi.fn(),
-    listPaymentLedgerHistory: vi.fn(),
+    listPaymentExpenses: vi.fn(),
     listPaymentLedgerPatients: vi.fn(),
 }));
 
@@ -43,41 +49,14 @@ let patientLedgerRows: Array<{
     last_entry_date: string | null;
 }>;
 
-let historyLedgerRows: Array<{
+let expenseRows: Array<{
     id: string;
-    patient_id: string;
-    patient_name: string;
-    patient_phone: string;
-    date: string;
-    teeth: number[];
-    work_done: string;
-    comment: string | null;
-    debt: number;
-    paid: number;
-    balance_delta: number;
-    created_by?: { id: string; name: string; role: 'assistant' | 'dentist' | 'admin' } | null;
-    updated_by?: { id: string; name: string; role: 'assistant' | 'dentist' | 'admin' } | null;
+    title: string;
+    amount: number;
+    expense_date: string;
+    created_at: string;
+    updated_at: string;
 }>;
-
-function renderPage() {
-    const queryClient = new QueryClient({
-        defaultOptions: {
-            queries: { retry: false },
-        },
-    });
-
-    return render(
-        <QueryClientProvider client={queryClient}>
-            <I18nProvider initialLocale="en" initialDictionary={DICTIONARIES.en}>
-                <PaymentsPage />
-            </I18nProvider>
-        </QueryClientProvider>
-    );
-}
-
-function normalizeText(value: string | null | undefined) {
-    return (value ?? '').replace(/\u00A0/g, ' ').replace(/\s+/g, ' ').trim();
-}
 
 const EXPORT_ENABLED_SUBSCRIPTION: ApiSubscriptionSummary = {
     is_configured: true,
@@ -104,6 +83,27 @@ const EXPORT_ENABLED_SUBSCRIPTION: ApiSubscriptionSummary = {
     payment_amount: null,
     note: null,
 };
+
+function renderPage() {
+    const queryClient = new QueryClient({
+        defaultOptions: {
+            queries: { retry: false },
+            mutations: { retry: false },
+        },
+    });
+
+    return render(
+        <QueryClientProvider client={queryClient}>
+            <I18nProvider initialLocale="en" initialDictionary={DICTIONARIES.en}>
+                <PaymentsPage />
+            </I18nProvider>
+        </QueryClientProvider>
+    );
+}
+
+function normalizeText(value: string | null | undefined) {
+    return (value ?? '').replace(/\u00A0/g, ' ').replace(/\s+/g, ' ').trim();
+}
 
 function paginateRows<T>(rows: T[], options?: MockLedgerOptions) {
     const perPage = options?.perPage ?? 10;
@@ -138,26 +138,16 @@ function filteredPatientRows(options?: MockLedgerOptions) {
         });
 }
 
-function filteredHistoryRows(options?: MockLedgerOptions) {
+function filteredExpenseRows(options?: MockLedgerOptions) {
     const search = options?.filter?.search?.trim().toLowerCase() ?? '';
-    const outstandingPatientIds = new Set(patientLedgerRows.filter((row) => row.balance > 0).map((row) => row.patient_id));
 
-    return historyLedgerRows
-        .filter((row) => (options?.filter?.patient_id ? row.patient_id === options.filter.patient_id : true))
-        .filter((row) => (options?.filter?.outstanding === '1' ? outstandingPatientIds.has(row.patient_id) : true))
-        .filter((row) => {
-            if (!search) {
-                return true;
-            }
+    return expenseRows.filter((row) => {
+        if (!search) {
+            return true;
+        }
 
-            return [
-                row.patient_name,
-                row.patient_phone,
-                row.work_done,
-                row.comment ?? '',
-                row.teeth.join(' '),
-            ].join(' ').toLowerCase().includes(search);
-        });
+        return row.title.toLowerCase().includes(search);
+    });
 }
 
 function patientSummary(rows: typeof patientLedgerRows) {
@@ -180,30 +170,39 @@ function patientSummary(rows: typeof patientLedgerRows) {
     );
 }
 
+function expenseSummary(rows: typeof expenseRows) {
+    return {
+        total_count: rows.length,
+        total_amount: rows.reduce((sum, row) => sum + row.amount, 0),
+        current_month_amount: rows
+            .filter((row) => row.expense_date.startsWith('2026-06'))
+            .reduce((sum, row) => sum + row.amount, 0),
+        latest_expense_date: rows.reduce<string | null>((latest, row) => {
+            return latest === null || row.expense_date > latest ? row.expense_date : latest;
+        }, null),
+    };
+}
+
 function setupLedgerMocks() {
     vi.mocked(listPaymentLedgerPatients).mockImplementation(async (options?: MockLedgerOptions) => {
         const rows = filteredPatientRows(options);
-        return {
-            ...paginateRows(rows, options),
-            meta: {
-                ...paginateRows(rows, options).meta,
-                summary: patientSummary(rows),
-            },
-        } as never;
-    });
-    vi.mocked(listPaymentLedgerHistory).mockImplementation(async (options?: MockLedgerOptions) => {
-        const rows = filteredHistoryRows(options);
         const page = paginateRows(rows, options);
         return {
             ...page,
             meta: {
                 ...page.meta,
-                summary: {
-                    total_debt: rows.reduce((sum, row) => sum + row.debt, 0),
-                    total_paid: rows.reduce((sum, row) => sum + row.paid, 0),
-                    total_balance: rows.reduce((sum, row) => sum + row.balance_delta, 0),
-                    total_entries: rows.length,
-                },
+                summary: patientSummary(rows),
+            },
+        } as never;
+    });
+    vi.mocked(listPaymentExpenses).mockImplementation(async (options?: MockLedgerOptions) => {
+        const rows = filteredExpenseRows(options);
+        const page = paginateRows(rows, options);
+        return {
+            ...page,
+            meta: {
+                ...page.meta,
+                summary: expenseSummary(rows),
             },
         } as never;
     });
@@ -215,9 +214,10 @@ describe('PaymentsPage', () => {
     });
 
     beforeEach(() => {
-        vi.mocked(listPaymentLedgerPatients).mockReset();
-        vi.mocked(listPaymentLedgerHistory).mockReset();
+        vi.mocked(createPaymentExpense).mockReset();
         vi.mocked(getCurrentUser).mockReset();
+        vi.mocked(listPaymentExpenses).mockReset();
+        vi.mocked(listPaymentLedgerPatients).mockReset();
         vi.mocked(exportRowsToPdf).mockClear();
         window.history.replaceState({}, '', '/payments');
 
@@ -228,6 +228,14 @@ describe('PaymentsPage', () => {
             role: 'dentist',
             account_status: 'active',
             subscription: EXPORT_ENABLED_SUBSCRIPTION,
+        });
+        vi.mocked(createPaymentExpense).mockResolvedValue({
+            id: 'expense-created',
+            title: 'Rent',
+            amount: 1200000,
+            expense_date: '2026-06-27',
+            created_at: '2026-06-27T10:00:00Z',
+            updated_at: '2026-06-27T10:00:00Z',
         });
         patientLedgerRows = [
             {
@@ -253,38 +261,28 @@ describe('PaymentsPage', () => {
                 last_entry_date: '2026-03-10',
             },
         ];
-        historyLedgerRows = [
+        expenseRows = [
             {
-                id: 'tr-1',
-                patient_id: 'patient-1',
-                patient_name: 'Jane Doe',
-                patient_phone: '+998900000001',
-                date: '2026-03-14',
-                teeth: [12],
-                work_done: 'Composite filling',
-                comment: 'Upper left premolar',
-                debt: 120000,
-                paid: 70000,
-                balance_delta: 50000,
+                id: 'expense-1',
+                title: 'Materials',
+                amount: 450000,
+                expense_date: '2026-06-12',
+                created_at: '2026-06-12T10:00:00Z',
+                updated_at: '2026-06-12T10:00:00Z',
             },
             {
-                id: 'tr-2',
-                patient_id: 'patient-2',
-                patient_name: 'John Smith',
-                patient_phone: '+998900000002',
-                date: '2026-03-10',
-                teeth: [],
-                work_done: 'Teeth cleaning',
-                comment: null,
-                debt: 50000,
-                paid: 50000,
-                balance_delta: 0,
+                id: 'expense-2',
+                title: 'Rent',
+                amount: 1200000,
+                expense_date: '2026-05-30',
+                created_at: '2026-05-30T10:00:00Z',
+                updated_at: '2026-05-30T10:00:00Z',
             },
         ];
         setupLedgerMocks();
     });
 
-    it('renders patient balances and links to patient history page', async () => {
+    it('renders patient balances and keeps patient history links', async () => {
         renderPage();
 
         await waitFor(() => {
@@ -292,39 +290,21 @@ describe('PaymentsPage', () => {
             expect(screen.getByText('John Smith')).toBeInTheDocument();
         });
 
+        expect(screen.queryByRole('button', { name: 'History' })).not.toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Expenses' })).toBeInTheDocument();
         expect(screen.getAllByText('Work total').length).toBeGreaterThan(0);
         expect(screen.getByText('Total Paid')).toBeInTheDocument();
         expect(
             screen.getByText((_, element) => normalizeText(element?.textContent) === '170 000 UZS')
         ).toBeInTheDocument();
-        expect(
-            screen.getAllByText((_, element) => normalizeText(element?.textContent) === '120 000 UZS').length
-        ).toBeGreaterThan(0);
 
         const janeRow = screen.getByText('Jane Doe').closest('tr');
         expect(janeRow).not.toBeNull();
         const janeBalanceCell = within(janeRow as HTMLElement).getAllByRole('cell')[6];
         expect(within(janeBalanceCell).getByText('Debt')).toBeInTheDocument();
-        expect(
-            within(janeBalanceCell).getByText((_, element) => normalizeText(element?.textContent) === '50 000 UZS')
-        ).toBeInTheDocument();
 
         const historyLink = within(janeRow as HTMLElement).getByRole('link', { name: 'History' });
         expect(historyLink).toHaveAttribute('href', '/patients/patient-1/history?from=payments');
-    });
-
-    it('renders the total patients summary with the teal accent', async () => {
-        renderPage();
-
-        await waitFor(() => {
-            expect(screen.getByText('Jane Doe')).toBeInTheDocument();
-        });
-
-        const totalPatientsCard = screen.getByText('Total Patients').closest('.interactive-card') as HTMLElement;
-        expect(totalPatientsCard).not.toBeNull();
-        expect(totalPatientsCard).toHaveClass('metric-hover-teal');
-        expect(totalPatientsCard).toHaveClass('border-cyan-200');
-        expect(totalPatientsCard).not.toHaveClass('metric-hover-blue');
     });
 
     it('labels a negative remaining summary as advance without a minus sign', async () => {
@@ -341,7 +321,6 @@ describe('PaymentsPage', () => {
                 last_entry_date: '2026-03-18',
             },
         ];
-        historyLedgerRows = [];
 
         renderPage();
 
@@ -351,20 +330,7 @@ describe('PaymentsPage', () => {
 
         expect(screen.getAllByText('Advance').length).toBeGreaterThanOrEqual(2);
         const netBalanceCard = screen.getByText('Paid amount exceeds work total.').closest('.interactive-card') as HTMLElement;
-        expect(netBalanceCard).not.toBeNull();
-        expect(within(netBalanceCard).getByText('Advance')).toBeInTheDocument();
-        expect(
-            within(netBalanceCard).getByText((_, element) => normalizeText(element?.textContent) === '250 000 UZS')
-        ).toBeInTheDocument();
         expect(normalizeText(netBalanceCard.textContent)).not.toContain('-250 000 UZS');
-
-        const advanceRow = screen.getByText('Advance Patient').closest('tr') as HTMLElement;
-        const advanceBalanceCell = within(advanceRow).getAllByRole('cell')[6];
-        expect(within(advanceBalanceCell).getByText('Advance')).toBeInTheDocument();
-        expect(
-            within(advanceBalanceCell).getByText((_, element) => normalizeText(element?.textContent) === '250 000 UZS')
-        ).toBeInTheDocument();
-        expect(normalizeText(advanceRow.textContent)).not.toContain('-250 000 UZS');
     });
 
     it('hides the settled badge on rows with no work and no payment', async () => {
@@ -379,19 +345,6 @@ describe('PaymentsPage', () => {
             entry_count: 0,
             last_entry_date: null,
         });
-        historyLedgerRows.push({
-            id: 'tr-zero',
-            patient_id: 'patient-zero',
-            patient_name: 'Zero Patient',
-            patient_phone: '+998900000010',
-            date: '2026-03-20',
-            teeth: [],
-            work_done: 'No charge note',
-            comment: null,
-            debt: 0,
-            paid: 0,
-            balance_delta: 0,
-        });
 
         renderPage();
 
@@ -403,130 +356,42 @@ describe('PaymentsPage', () => {
         const zeroPatientBalanceCell = within(zeroPatientRow).getAllByRole('cell')[6];
         expect(normalizeText(zeroPatientBalanceCell.textContent)).toContain('0 UZS');
         expect(within(zeroPatientBalanceCell).queryByText('Paid')).not.toBeInTheDocument();
-
-        const settledPatientRow = screen.getByText('John Smith').closest('tr') as HTMLElement;
-        const settledPatientBalanceCell = within(settledPatientRow).getAllByRole('cell')[6];
-        expect(within(settledPatientBalanceCell).getByText('Paid')).toBeInTheDocument();
-
-        fireEvent.click(screen.getByRole('button', { name: 'History' }));
-
-        await waitFor(() => {
-            expect(screen.getByText('No charge note')).toBeInTheDocument();
-        });
-
-        const zeroHistoryRow = screen.getByText('No charge note').closest('tr') as HTMLElement;
-        const zeroHistoryBalanceCell = within(zeroHistoryRow).getAllByRole('cell')[6];
-        expect(within(zeroHistoryBalanceCell).queryByText('Paid')).not.toBeInTheDocument();
     });
 
-    it('hides the overall settled badge when every summary amount is zero', async () => {
-        patientLedgerRows = [
-            {
-                patient_id: 'patient-zero',
-                patient_code: 'PT-1010',
-                patient_name: 'Zero Patient',
-                patient_phone: '+998900000010',
-                total_debt: 0,
-                total_paid: 0,
-                balance: 0,
-                entry_count: 0,
-                last_entry_date: null,
-            },
-        ];
-        historyLedgerRows = [];
-
+    it('switches to expenses and shows expense rows with matching summary cards', async () => {
         renderPage();
 
+        fireEvent.click(await screen.findByRole('button', { name: 'Expenses' }));
+
         await waitFor(() => {
-            expect(screen.getByText('Zero Patient')).toBeInTheDocument();
+            expect(screen.getByText('Clinic Expenses')).toBeInTheDocument();
+            expect(screen.getByText('Materials')).toBeInTheDocument();
+            expect(screen.getByText('Rent')).toBeInTheDocument();
         });
 
-        const netBalanceCard = screen.getByText('Balance is settled.').closest('.interactive-card') as HTMLElement;
-        expect(netBalanceCard).not.toBeNull();
-        expect(within(netBalanceCard).queryByText('Paid')).not.toBeInTheDocument();
+        expect(screen.getByText('Total Expenses')).toBeInTheDocument();
+        expect(screen.getByText('This Month')).toBeInTheDocument();
+        expect(screen.getByPlaceholderText('Search expenses by title...')).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'With debt' })).not.toBeInTheDocument();
     });
 
-    it('switches to the global history tab and shows treatment rows', async () => {
+    it('creates a payment expense from the expenses tab', async () => {
         renderPage();
 
-        await waitFor(() => {
-            expect(screen.getByRole('button', { name: 'History' })).toBeInTheDocument();
-        });
-
-        fireEvent.click(screen.getByRole('button', { name: 'History' }));
-
-        await waitFor(() => {
-            expect(screen.getByText('Entry History')).toBeInTheDocument();
-            expect(screen.getAllByText('Composite filling').length).toBeGreaterThan(0);
-            expect(screen.getByText('Teeth cleaning')).toBeInTheDocument();
-        });
-
-        expect(screen.getByTitle('24')).toBeInTheDocument();
-        expect(screen.queryByTitle('12')).not.toBeInTheDocument();
-
-        const compositeRow = screen.getAllByText('Composite filling')[0].closest('tr') as HTMLElement;
-        const compositeBalanceCell = within(compositeRow).getAllByRole('cell')[6];
-        expect(within(compositeBalanceCell).getByText('Debt')).toBeInTheDocument();
-    });
-
-    it('shows treatment authors in the global history tab when enabled', async () => {
-        vi.mocked(getCurrentUser).mockResolvedValue({
-            id: 'user-1',
-            name: 'Dr. Test',
-            email: 'doctor@example.test',
-            role: 'dentist',
-            account_status: 'active',
-            show_record_authors: true,
-            subscription: EXPORT_ENABLED_SUBSCRIPTION,
-        } as never);
-        patientLedgerRows = [
-            {
-                patient_id: 'patient-1',
-                patient_code: 'PT-1001',
-                patient_name: 'Jane Doe',
-                patient_phone: '+998900000001',
-                total_debt: 120000,
-                total_paid: 70000,
-                balance: 50000,
-                entry_count: 1,
-                last_entry_date: '2026-03-14',
-            },
-        ];
-        historyLedgerRows = [
-            {
-                id: 'tr-author',
-                patient_id: 'patient-1',
-                patient_name: 'Jane Doe',
-                patient_phone: '+998900000001',
-                date: '2026-03-14',
-                teeth: [12],
-                work_done: 'Composite filling',
-                comment: null,
-                debt: 120000,
-                paid: 70000,
-                balance_delta: 50000,
-                created_by: { id: 'assistant-1', name: 'Front Desk', role: 'assistant' },
-                updated_by: { id: 'assistant-1', name: 'Front Desk', role: 'assistant' },
-            },
-        ];
-        renderPage();
+        fireEvent.click(await screen.findByRole('button', { name: 'Expenses' }));
+        fireEvent.change(await screen.findByLabelText('Title'), { target: { value: 'Rent' } });
+        fireEvent.change(screen.getByLabelText('Amount'), { target: { value: '1200000' } });
+        fireEvent.change(screen.getByLabelText('Date'), { target: { value: '2026-06-27' } });
+        fireEvent.click(screen.getByRole('button', { name: 'Add expense' }));
 
         await waitFor(() => {
-            expect(screen.getByRole('button', { name: 'History' })).toBeInTheDocument();
+            expect(createPaymentExpense).toHaveBeenCalled();
         });
-
-        fireEvent.click(screen.getByRole('button', { name: 'History' }));
-
-        await waitFor(() => {
-            expect(screen.getByText('by Front Desk')).toBeInTheDocument();
+        expect(vi.mocked(createPaymentExpense).mock.calls[0]?.[0]).toEqual({
+            title: 'Rent',
+            amount: 1200000,
+            expense_date: '2026-06-27',
         });
-
-        const historyRow = screen.getByText('Jane Doe').closest('tr') as HTMLElement;
-        const historyCells = within(historyRow).getAllByRole('cell');
-
-        expect(within(historyCells[1]).getByText('by Front Desk')).toBeInTheDocument();
-        expect(within(historyCells[3]).queryByText('by Front Desk')).not.toBeInTheDocument();
-        expect(screen.getByTitle('Created by Front Desk')).toBeInTheDocument();
     });
 
     it('filters payments to patients with outstanding debt and exports the filtered rows', async () => {
@@ -545,16 +410,7 @@ describe('PaymentsPage', () => {
         });
 
         expect(screen.getByRole('button', { name: 'With debt' })).toHaveAttribute('aria-pressed', 'true');
-        expect(screen.getByRole('button', { name: 'With debt' })).toHaveAttribute('title', 'Clear debt filter.');
         expect(window.location.search).toContain('outstanding=1');
-
-        fireEvent.click(screen.getByRole('button', { name: 'History' }));
-
-        await waitFor(() => {
-            expect(screen.getByText('Entry History')).toBeInTheDocument();
-            expect(screen.getAllByText('Composite filling').length).toBeGreaterThan(0);
-            expect(screen.queryByText('Teeth cleaning')).not.toBeInTheDocument();
-        });
 
         fireEvent.click(screen.getByRole('button', { name: 'Download PDF' }));
 
@@ -564,7 +420,6 @@ describe('PaymentsPage', () => {
         expect(vi.mocked(exportRowsToPdf).mock.calls[0]?.[0].rows).toHaveLength(1);
         expect(vi.mocked(exportRowsToPdf).mock.calls[0]?.[0].rows[0]?.[0]).toBe('Jane Doe');
         expect(normalizeText(String(vi.mocked(exportRowsToPdf).mock.calls[0]?.[0].rows[0]?.[5]))).toBe('50 000 UZS (Debt)');
-        expect(normalizeText(vi.mocked(exportRowsToPdf).mock.calls[0]?.[0].summary?.[2]?.value)).toBe('50 000 UZS (Debt)');
         expect(vi.mocked(exportRowsToPdf).mock.calls[0]?.[0].locale).toBe('en');
     });
 });

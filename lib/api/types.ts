@@ -13,7 +13,7 @@ export interface ApiCollectionEnvelope<T> {
     data: T[];
     meta?: {
         pagination?: PaginationMeta;
-        summary?: Record<string, number>;
+        summary?: Record<string, number | string | null>;
     };
 }
 
@@ -356,6 +356,15 @@ export interface ApiPaymentHistoryLedgerRow {
     balance_delta: number;
     created_by?: ApiRecordActor | null;
     updated_by?: ApiRecordActor | null;
+}
+
+export interface ApiPaymentExpense {
+    id: string;
+    title: string;
+    amount: number;
+    expense_date: string | null;
+    created_at: string | null;
+    updated_at: string | null;
 }
 
 export interface ApiTreatmentImage {

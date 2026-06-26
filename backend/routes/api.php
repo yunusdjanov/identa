@@ -15,6 +15,7 @@ use App\Http\Controllers\Api\PatientController;
 use App\Http\Controllers\Api\PatientOdontogramController;
 use App\Http\Controllers\Api\PatientTreatmentController;
 use App\Http\Controllers\Api\PaymentController;
+use App\Http\Controllers\Api\PaymentExpenseController;
 use App\Http\Controllers\Api\PaymentLedgerController;
 use App\Http\Controllers\Api\QuickPaymentController;
 use App\Http\Controllers\Api\SettingsProfileController;
@@ -347,6 +348,10 @@ Route::prefix('v1')->group(function (): void {
             ->middleware('permission:'.User::PERMISSION_PAYMENTS_VIEW);
         Route::get('payments/ledger/history', [PaymentLedgerController::class, 'history'])
             ->middleware('permission:'.User::PERMISSION_PAYMENTS_VIEW);
+        Route::get('payments/expenses', [PaymentExpenseController::class, 'index'])
+            ->middleware('permission:'.User::PERMISSION_PAYMENTS_VIEW);
+        Route::post('payments/expenses', [PaymentExpenseController::class, 'store'])
+            ->middleware('permission:'.User::PERMISSION_PAYMENTS_MANAGE);
         Route::get('payments', [PaymentController::class, 'index'])
             ->middleware('permission:'.User::PERMISSION_PAYMENTS_VIEW);
         Route::post('payments', [PaymentController::class, 'store'])

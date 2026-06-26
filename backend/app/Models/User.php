@@ -531,6 +531,14 @@ class User extends Authenticatable implements MustVerifyEmail
     }
 
     /**
+     * @return HasMany<PaymentExpense, User>
+     */
+    public function paymentExpenses(): HasMany
+    {
+        return $this->hasMany(PaymentExpense::class, 'dentist_id');
+    }
+
+    /**
      * @return HasMany<OdontogramEntry, User>
      */
     public function odontogramEntries(): HasMany

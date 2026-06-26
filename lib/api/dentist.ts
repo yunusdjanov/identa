@@ -22,6 +22,7 @@ import type {
     ApiPatientOverview,
     ApiPatientCategory,
     ApiPatientClinicalPhotoViewType,
+    ApiPaymentExpense,
     ApiPaymentHistoryLedgerRow,
     ApiPaymentPatientLedgerRow,
     ApiPlan,
@@ -970,6 +971,38 @@ export async function listPaymentLedgerHistory(
     );
 
     return data;
+}
+
+/**
+ * Fetches practice expenses for the payments Expenses tab.
+ */
+export async function listPaymentExpenses(
+    options?: QueryOptions
+): Promise<ApiCollectionEnvelope<ApiPaymentExpense>> {
+    const { data } = await apiClient.get<ApiCollectionEnvelope<ApiPaymentExpense>>(
+        '/payments/expenses',
+        {
+            params: buildQueryParams(options),
+        }
+    );
+
+    return data;
+}
+
+/**
+ * Creates a practice expense in the payments Expenses tab.
+ */
+export async function createPaymentExpense(payload: {
+    title: string;
+    amount: number;
+    expense_date: string;
+}): Promise<ApiPaymentExpense> {
+    const { data } = await apiClient.post<ApiEnvelope<ApiPaymentExpense>>(
+        '/payments/expenses',
+        payload
+    );
+
+    return data.data;
 }
 
 export async function listAllTreatments(

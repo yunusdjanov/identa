@@ -1,13 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { apiGetMock } = vi.hoisted(() => ({
+const { apiGetMock, apiPostMock } = vi.hoisted(() => ({
     apiGetMock: vi.fn(),
+    apiPostMock: vi.fn(),
 }));
 
 vi.mock('@/lib/api/client', () => ({
     apiClient: {
         get: apiGetMock,
-        post: vi.fn(),
+        post: apiPostMock,
         put: vi.fn(),
         patch: vi.fn(),
         delete: vi.fn(),
@@ -19,6 +20,8 @@ import {
     getPatientOdontogramSummary,
     listAllPatientOdontogram,
     listAllPatients,
+    createPaymentExpense,
+    listPaymentExpenses,
     listPaymentLedgerHistory,
     listPaymentLedgerPatients,
 } from '@/lib/api/dentist';
@@ -26,6 +29,7 @@ import {
 describe('dentist api pagination aggregation', () => {
     beforeEach(() => {
         apiGetMock.mockReset();
+        apiPostMock.mockReset();
     });
 
     it('aggregates all patient pages until total_pages is reached', async () => {
@@ -264,6 +268,64 @@ describe('dentist api pagination aggregation', () => {
                     search: 'root',
                 },
             },
+        });
+    });
+
+    it('loads payment expenses with pagination and filters', async () => {
+        apiGetMock.mockResolvedValueOnce({
+            data: {
+                data: [],
+                meta: {
+                    pagination: { page: 1, per_page: 10, total: 0, total_pages: 1 },
+                    summary: { total_count: 0, total_amount: 0, current_month_amount: 0, latest_expense_date: null },
+                },
+            },
+        });
+
+        await listPaymentExpenses({
+            page: 1,
+            perPage: 10,
+            filter: {
+                search: 'rent',
+            },
+        });
+
+        expect(apiGetMock).toHaveBeenCalledWith('/payments/expenses', {
+            params: {
+                page: 1,
+                per_page: 10,
+                filter: {
+                    search: 'rent',
+                },
+            },
+        });
+    });
+
+    it('creates payment expenses', async () => {
+        apiPostMock.mockResolvedValueOnce({
+            data: {
+                data: {
+                    id: 'expense-1',
+                    title: 'Rent',
+                    amount: 1200000,
+                    expense_date: '2026-06-27',
+                    created_at: '2026-06-27T10:00:00Z',
+                    updated_at: '2026-06-27T10:00:00Z',
+                },
+            },
+        });
+
+        const expense = await createPaymentExpense({
+            title: 'Rent',
+            amount: 1200000,
+            expense_date: '2026-06-27',
+        });
+
+        expect(expense.title).toBe('Rent');
+        expect(apiPostMock).toHaveBeenCalledWith('/payments/expenses', {
+            title: 'Rent',
+            amount: 1200000,
+            expense_date: '2026-06-27',
         });
     });
 });
