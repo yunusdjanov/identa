@@ -1022,9 +1022,11 @@ export async function createPaymentExpense(payload: {
     currency?: ApiPaymentExpense['currency'];
     expense_date: string;
 }): Promise<ApiPaymentExpense> {
-    const { data } = await apiClient.post<ApiEnvelope<ApiPaymentExpense>>(
-        '/payments/expenses',
-        payload
+    const { data } = await withCsrfRetry(() =>
+        apiClient.post<ApiEnvelope<ApiPaymentExpense>>(
+            '/payments/expenses',
+            payload
+        )
     );
 
     return data.data;
@@ -1043,9 +1045,11 @@ export async function updatePaymentExpense(
         expense_date: string;
     }
 ): Promise<ApiPaymentExpense> {
-    const { data } = await apiClient.put<ApiEnvelope<ApiPaymentExpense>>(
-        `/payments/expenses/${expenseId}`,
-        payload
+    const { data } = await withCsrfRetry(() =>
+        apiClient.put<ApiEnvelope<ApiPaymentExpense>>(
+            `/payments/expenses/${expenseId}`,
+            payload
+        )
     );
 
     return data.data;
@@ -1055,7 +1059,7 @@ export async function updatePaymentExpense(
  * Deletes a practice expense from the payments Expenses tab.
  */
 export async function deletePaymentExpense(expenseId: string): Promise<void> {
-    await apiClient.delete(`/payments/expenses/${expenseId}`);
+    await withCsrfRetry(() => apiClient.delete(`/payments/expenses/${expenseId}`));
 }
 
 export async function listAllTreatments(

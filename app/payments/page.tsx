@@ -1,7 +1,7 @@
 ﻿'use client';
 
 import Link from 'next/link';
-import { useDeferredValue, useMemo, useState, useSyncExternalStore } from 'react';
+import { useDeferredValue, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -476,6 +476,12 @@ export default function PaymentsPage() {
     const effectiveExpensePage = Math.min(expensePage, expenseTotalPages);
     const paginatedPatientRows = patientRows;
     const paginatedExpenseRows = expenseRows;
+
+    useEffect(() => {
+        if (activeTab === 'expenses' && expensesQuery.data && expensePage > expenseTotalPages) {
+            setExpensePage(expenseTotalPages);
+        }
+    }, [activeTab, expensePage, expenseTotalPages, expensesQuery.data]);
 
     const updateUrlSearch = (update: (params: URLSearchParams) => void) => {
         if (typeof window === 'undefined') {
@@ -1060,7 +1066,7 @@ export default function PaymentsPage() {
                     ) : (
                         <div className="space-y-4">
                             <div className="rounded-2xl border border-teal-100 bg-teal-50/40 p-4 shadow-xs">
-                                <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_11rem_8rem_8rem_11rem_auto] lg:items-end">
+                                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_11rem_8rem_8rem_11rem_auto] xl:items-end">
                                     <div className="space-y-1.5">
                                         <label className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500" htmlFor="expense-title">
                                             {t('payments.expenses.title')}
@@ -1149,10 +1155,10 @@ export default function PaymentsPage() {
                                             disabled={!canManagePayments || isExpenseFormPending}
                                         />
                                     </div>
-                                    <div className="flex flex-col gap-2 sm:flex-row lg:flex-col">
+                                    <div className="flex flex-col gap-2 sm:flex-row md:col-span-2 md:justify-end xl:col-span-1 xl:justify-start">
                                         <Button
                                             type="button"
-                                            className="h-10 rounded-xl bg-slate-950 text-white hover:bg-slate-900"
+                                            className="h-10 min-w-[128px] rounded-xl bg-slate-950 text-white hover:bg-slate-900"
                                             disabled={!canManagePayments || isExpenseFormPending}
                                             onClick={handleExpenseSubmit}
                                         >
@@ -1165,7 +1171,7 @@ export default function PaymentsPage() {
                                             <Button
                                                 type="button"
                                                 variant="outline"
-                                                className="h-10 rounded-xl"
+                                                className="h-10 min-w-[104px] rounded-xl bg-white"
                                                 disabled={isExpenseFormPending}
                                                 onClick={resetExpenseForm}
                                             >

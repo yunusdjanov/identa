@@ -1,10 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { apiDeleteMock, apiGetMock, apiPostMock, apiPutMock } = vi.hoisted(() => ({
+const { apiDeleteMock, apiGetMock, apiPostMock, apiPutMock, withCsrfRetryMock } = vi.hoisted(() => ({
     apiDeleteMock: vi.fn(),
     apiGetMock: vi.fn(),
     apiPostMock: vi.fn(),
     apiPutMock: vi.fn(),
+    withCsrfRetryMock: vi.fn((operation: () => unknown) => operation()),
 }));
 
 vi.mock('@/lib/api/client', () => ({
@@ -16,6 +17,7 @@ vi.mock('@/lib/api/client', () => ({
         delete: apiDeleteMock,
     },
     ensureCsrfCookie: vi.fn(),
+    withCsrfRetry: withCsrfRetryMock,
 }));
 
 import {
@@ -38,6 +40,7 @@ describe('dentist api pagination aggregation', () => {
         apiDeleteMock.mockReset();
         apiPostMock.mockReset();
         apiPutMock.mockReset();
+        withCsrfRetryMock.mockClear();
     });
 
     it('aggregates all patient pages until total_pages is reached', async () => {
@@ -406,6 +409,7 @@ describe('dentist api pagination aggregation', () => {
         });
 
         expect(expense.title).toBe('Rent');
+        expect(withCsrfRetryMock).toHaveBeenCalledTimes(1);
         expect(apiPostMock).toHaveBeenCalledWith('/payments/expenses', {
             title: 'Rent',
             amount: 1200000,
@@ -441,6 +445,7 @@ describe('dentist api pagination aggregation', () => {
         });
         await deletePaymentExpense('expense-1');
 
+        expect(withCsrfRetryMock).toHaveBeenCalledTimes(2);
         expect(apiPutMock).toHaveBeenCalledWith('/payments/expenses/expense-1', {
             title: 'Materials',
             amount: 450000,
