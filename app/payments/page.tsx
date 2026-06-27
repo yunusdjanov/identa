@@ -35,6 +35,7 @@ const PAGE_SIZE = 10;
 const OUTSTANDING_FILTER_PARAM = 'outstanding';
 const OUTSTANDING_FILTER_VALUE = '1';
 const LEDGER_EXPORT_PAGE_SIZE = 100;
+const EXPENSE_EXPORT_PAGE_SIZE = 100;
 const URL_SEARCH_CHANGE_EVENT = 'identa:payments-url-search-change';
 const NET_BALANCE_SUMMARY_VARIANTS = {
     advance: {
@@ -191,6 +192,27 @@ function parseMoneyInput(value: string) {
     const amount = Number(normalized);
 
     return Number.isFinite(amount) ? amount : 0;
+}
+
+async function fetchExpenseExportRows(search: string): Promise<ExpenseRow[]> {
+    const rows: ExpenseRow[] = [];
+    let page = 1;
+    let totalPages = 1;
+
+    do {
+        const response = await listPaymentExpenses({
+            page,
+            perPage: EXPENSE_EXPORT_PAGE_SIZE,
+            filter: {
+                search: search || undefined,
+            },
+        });
+        rows.push(...response.data.map(toExpenseRow));
+        totalPages = response.meta?.pagination?.total_pages ?? 1;
+        page += 1;
+    } while (page <= totalPages);
+
+    return rows;
 }
 
 export default function PaymentsPage() {
@@ -485,6 +507,46 @@ export default function PaymentsPage() {
         }
     };
 
+    const handleExportExpenses = async () => {
+        if (expenseSummary.totalCount === 0) {
+            toast.error(t('export.empty'));
+            return;
+        }
+
+        setIsExporting(true);
+        try {
+            const rows = await fetchExpenseExportRows(expenseSearch.trim());
+
+            if (rows.length === 0) {
+                toast.error(t('export.empty'));
+                return;
+            }
+
+            exportRowsToPdf({
+                filename: buildPdfFilename('expenses'),
+                title: t('payments.expensesTitle'),
+                subtitle: t('payments.expensesSubtitle'),
+                locale,
+                columns: [
+                    t('payments.expenses.date'),
+                    t('payments.table.expenseTitle'),
+                    t('payments.expenses.amount'),
+                ],
+                rows: rows.map((row) => [
+                    formatDate(row.date),
+                    row.title,
+                    formatCurrency(row.amount),
+                ]),
+                orientation: 'portrait',
+            });
+            toast.success(t('export.downloaded'));
+        } catch (error) {
+            toast.error(getApiErrorMessage(error, t('payments.error.loadFailed')));
+        } finally {
+            setIsExporting(false);
+        }
+    };
+
     if (
         currentUserQuery.isLoading
         || (patientLedgerQuery.isLoading && !patientLedgerQuery.data)
@@ -549,12 +611,15 @@ export default function PaymentsPage() {
             <PageHeader
                 title={t('payments.title')}
                 description={t('payments.subtitle')}
-                actions={activeTab === 'patients' && currentUser?.subscription?.can_export ? (
+                actions={currentUser?.subscription?.can_export ? (
                     <Button
                         variant="outline"
                         className="w-full sm:w-auto"
-                        disabled={overallSummary.totalPatients === 0 || isExporting}
-                        onClick={handleExportPayments}
+                        disabled={
+                            isExporting
+                            || (activeTab === 'patients' ? overallSummary.totalPatients === 0 : expenseSummary.totalCount === 0)
+                        }
+                        onClick={activeTab === 'patients' ? handleExportPayments : handleExportExpenses}
                     >
                         <Download className="mr-2 h-4 w-4" />
                         {t('common.export')}

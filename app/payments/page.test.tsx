@@ -377,6 +377,44 @@ describe('PaymentsPage', () => {
         expect(screen.queryByRole('button', { name: 'With debt' })).not.toBeInTheDocument();
     });
 
+    it('exports filtered expenses as a PDF', async () => {
+        renderPage();
+
+        fireEvent.click(await screen.findByRole('button', { name: 'Expenses' }));
+        await waitFor(() => {
+            expect(screen.getByText('Clinic Expenses')).toBeInTheDocument();
+        });
+
+        fireEvent.change(screen.getByPlaceholderText('Search expenses by title...'), {
+            target: { value: 'Materials' },
+        });
+        await waitFor(() => {
+            expect(screen.getByText('Materials')).toBeInTheDocument();
+            expect(screen.queryByText('Rent')).not.toBeInTheDocument();
+        });
+
+        fireEvent.click(screen.getByRole('button', { name: 'Download PDF' }));
+
+        await waitFor(() => {
+            expect(exportRowsToPdf).toHaveBeenCalledTimes(1);
+        });
+        expect(listPaymentExpenses).toHaveBeenCalledWith(expect.objectContaining({
+            page: 1,
+            perPage: 100,
+            filter: expect.objectContaining({ search: 'Materials' }),
+        }));
+        expect(vi.mocked(exportRowsToPdf).mock.calls[0]?.[0]).toMatchObject({
+            filename: 'expenses.pdf',
+            title: 'Clinic Expenses',
+            columns: ['Date', 'Expense', 'Amount'],
+            orientation: 'portrait',
+            locale: 'en',
+        });
+        expect(vi.mocked(exportRowsToPdf).mock.calls[0]?.[0].rows).toHaveLength(1);
+        expect(vi.mocked(exportRowsToPdf).mock.calls[0]?.[0].rows[0]?.[1]).toBe('Materials');
+        expect(normalizeText(String(vi.mocked(exportRowsToPdf).mock.calls[0]?.[0].rows[0]?.[2]))).toBe('450 000 UZS');
+    });
+
     it('creates a payment expense from the expenses tab', async () => {
         renderPage();
 
