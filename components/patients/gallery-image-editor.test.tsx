@@ -275,4 +275,29 @@ describe('GalleryImageEditor', () => {
             }),
         }));
     });
+
+    it('saves an active crop selection even before the user applies it', async () => {
+        const user = userEvent.setup();
+        renderEditor();
+
+        const cropModeButton = await screen.findByRole('button', { name: 'Crop' });
+        await waitFor(() => expect(cropModeButton).toBeEnabled());
+        await user.click(cropModeButton);
+
+        const stage = screen.getByTestId('gallery-image-editor-stage');
+        fireEvent.mouseDown(stage, { clientX: 45, clientY: 20 });
+        fireEvent.mouseMove(stage, { clientX: 210, clientY: 130 });
+        fireEvent.mouseUp(stage, { clientX: 210, clientY: 130 });
+
+        await user.click(screen.getByRole('button', { name: 'Save' }));
+
+        expect(createEditedImageFileMock).toHaveBeenCalledWith(expect.objectContaining({
+            cropRect: expect.objectContaining({
+                x: 45,
+                y: 20,
+                width: 165,
+                height: 110,
+            }),
+        }));
+    });
 });

@@ -32,6 +32,27 @@ function isFinitePoint(point: Point | undefined): point is Point {
     return point !== undefined && Number.isFinite(point.x) && Number.isFinite(point.y);
 }
 
+/** Returns a drawable crop rectangle constrained to the current canvas bounds. */
+export function clampCropRectToCanvas(cropRect: CropRect | null, width: number, height: number): CropRect {
+    const canvasWidth = Math.max(1, width);
+    const canvasHeight = Math.max(1, height);
+    if (!cropRect || cropRect.width <= 0 || cropRect.height <= 0) {
+        return { x: 0, y: 0, width: canvasWidth, height: canvasHeight };
+    }
+
+    const left = clamp(cropRect.x, 0, Math.max(0, canvasWidth - 1));
+    const top = clamp(cropRect.y, 0, Math.max(0, canvasHeight - 1));
+    const right = clamp(cropRect.x + cropRect.width, left + 1, canvasWidth);
+    const bottom = clamp(cropRect.y + cropRect.height, top + 1, canvasHeight);
+
+    return {
+        x: left,
+        y: top,
+        width: Math.max(1, right - left),
+        height: Math.max(1, bottom - top),
+    };
+}
+
 /** Builds a bounded crop rectangle from two canvas-space pointer positions. */
 export function normalizeRect(start: Point, end: Point, width: number, height: number): CropRect {
     const left = clamp(Math.min(start.x, end.x), 0, width);
@@ -212,7 +233,7 @@ export function renderEditedCanvas({
     } catch {
         return;
     }
-    const crop = cropRect ?? { x: 0, y: 0, width: base.width, height: base.height };
+    const crop = clampCropRectToCanvas(cropRect, base.width, base.height);
     canvas.width = Math.max(1, Math.round(crop.width));
     canvas.height = Math.max(1, Math.round(crop.height));
 

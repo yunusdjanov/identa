@@ -139,6 +139,10 @@ function textStrokeColor(fillColor: string): string {
     return fillColor === '#ffffff' ? 'rgba(15, 23, 42, 0.7)' : 'rgba(255, 255, 255, 0.75)';
 }
 
+function isValidCropRect(rect: CropRect | null): rect is CropRect {
+    return Boolean(rect && rect.width >= MIN_CROP_SIZE && rect.height >= MIN_CROP_SIZE);
+}
+
 function isEditableImageTarget(event: KonvaPointerEvent, stage: Konva.Stage | null): boolean {
     if (event.target === stage) {
         return true;
@@ -480,7 +484,7 @@ export function GalleryImageEditor({ image, isSaving = false, onCancel, onSave }
     };
 
     const applyCrop = () => {
-        if (!draftCropRect || draftCropRect.width < MIN_CROP_SIZE || draftCropRect.height < MIN_CROP_SIZE) {
+        if (!isValidCropRect(draftCropRect)) {
             return;
         }
 
@@ -513,7 +517,17 @@ export function GalleryImageEditor({ image, isSaving = false, onCancel, onSave }
             const committedTextAnnotations = pendingTextAnnotation
                 ? [...textAnnotations, pendingTextAnnotation]
                 : textAnnotations;
-            const file = await createEditedImageFile({ source, image, rotation, brightness, contrast, cropRect, strokes, textAnnotations: committedTextAnnotations });
+            const effectiveCropRect = isValidCropRect(draftCropRect) ? draftCropRect : cropRect;
+            const file = await createEditedImageFile({
+                source,
+                image,
+                rotation,
+                brightness,
+                contrast,
+                cropRect: effectiveCropRect,
+                strokes,
+                textAnnotations: committedTextAnnotations,
+            });
             if (pendingTextAnnotation) {
                 setTextAnnotations(committedTextAnnotations);
                 textDraftRef.current = null;

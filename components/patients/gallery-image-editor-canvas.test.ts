@@ -1,5 +1,32 @@
 import { describe, expect, it, vi } from 'vitest';
-import { drawCropOverlay } from '@/components/patients/gallery-image-editor-canvas';
+import { clampCropRectToCanvas, drawCropOverlay } from '@/components/patients/gallery-image-editor-canvas';
+
+describe('clampCropRectToCanvas', () => {
+    it('keeps export crop rectangles inside the rendered canvas', () => {
+        expect(clampCropRectToCanvas({ x: -10, y: 5, width: 50, height: 90 }, 100, 80)).toEqual({
+            x: 0,
+            y: 5,
+            width: 40,
+            height: 75,
+        });
+        expect(clampCropRectToCanvas({ x: 80, y: 60, width: 60, height: 40 }, 100, 80)).toEqual({
+            x: 80,
+            y: 60,
+            width: 20,
+            height: 20,
+        });
+    });
+
+    it('falls back to the full canvas when the crop is empty', () => {
+        expect(clampCropRectToCanvas(null, 100, 80)).toEqual({ x: 0, y: 0, width: 100, height: 80 });
+        expect(clampCropRectToCanvas({ x: 10, y: 10, width: 0, height: 20 }, 100, 80)).toEqual({
+            x: 0,
+            y: 0,
+            width: 100,
+            height: 80,
+        });
+    });
+});
 
 describe('drawCropOverlay', () => {
     it('dims only the area outside the crop rectangle', () => {
