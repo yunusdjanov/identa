@@ -382,7 +382,9 @@ describe('PaymentsPage', () => {
 
         fireEvent.click(await screen.findByRole('button', { name: 'Expenses' }));
         fireEvent.change(await screen.findByLabelText('Title'), { target: { value: 'Rent' } });
-        fireEvent.change(screen.getByLabelText('Amount'), { target: { value: '1200000' } });
+        const amountInput = screen.getByLabelText('Amount');
+        fireEvent.change(amountInput, { target: { value: '1200000' } });
+        expect(amountInput).toHaveValue('1 200 000');
         fireEvent.change(screen.getByLabelText('Date'), { target: { value: '2026-06-27' } });
         fireEvent.click(screen.getByRole('button', { name: 'Add expense' }));
 

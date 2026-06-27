@@ -180,8 +180,14 @@ function getTodayInputValue() {
     return new Date().toISOString().slice(0, 10);
 }
 
+function formatMoneyInput(value: string) {
+    const digits = value.replace(/\D/g, '');
+
+    return digits.replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+}
+
 function parseMoneyInput(value: string) {
-    const normalized = value.replace(/\s/g, '').replace(',', '.');
+    const normalized = value.replace(/\D/g, '');
     const amount = Number(normalized);
 
     return Number.isFinite(amount) ? amount : 0;
@@ -875,9 +881,14 @@ export default function PaymentsPage() {
                                         <Input
                                             id="expense-amount"
                                             value={expenseForm.amount}
-                                            onChange={(event) => setExpenseForm((current) => ({ ...current, amount: event.target.value }))}
+                                            onChange={(event) =>
+                                                setExpenseForm((current) => ({
+                                                    ...current,
+                                                    amount: formatMoneyInput(event.target.value),
+                                                }))
+                                            }
                                             placeholder={t('payments.expenses.amountPlaceholder')}
-                                            inputMode="decimal"
+                                            inputMode="numeric"
                                             className="h-10 rounded-xl border-slate-200 bg-white shadow-xs"
                                             disabled={!canManagePayments || createExpenseMutation.isPending}
                                         />
