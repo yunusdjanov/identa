@@ -1,8 +1,8 @@
 ﻿'use client';
 
 import dynamic from 'next/dynamic';
-import { useEffect, useId, useMemo, useState, useSyncExternalStore } from 'react';
-import { useRouter } from 'next/navigation';
+import { useEffect, useId, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -143,18 +143,16 @@ function getPatientInitials(fullName: string): string {
 export default function PatientsPage() {
     const { t, locale } = useI18n();
     const router = useRouter();
+    const searchParams = useSearchParams();
     const queryClient = useQueryClient();
     const recentMenuId = useId();
+    const restoreInProgressRef = useRef(false);
     const isClient = useSyncExternalStore(
         noopSubscribe,
         () => true,
         () => false
     );
-    const urlSearch = useSyncExternalStore(
-        noopSubscribe,
-        () => window.location.search,
-        () => ''
-    );
+    const restoreSearchValue = searchParams.get('restore');
     const [initialListState] = useState(readPatientListState);
     const [searchQuery, setSearchQuery] = useState(initialListState.searchQuery);
     const [inactiveFilter, setInactiveFilter] = useState<'none' | '6m' | '1y'>(initialListState.inactiveFilter);
@@ -186,7 +184,7 @@ export default function PatientsPage() {
     } | null>(null);
     const [dismissedUrlDialog, setDismissedUrlDialog] = useState(false);
     const shouldOpenFromUrl =
-        isClient && new URLSearchParams(urlSearch).get('action') === 'new' && !dismissedUrlDialog;
+        isClient && searchParams.get('action') === 'new' && !dismissedUrlDialog;
     const currentUserQuery = useQuery({
         queryKey: ['auth', 'me'],
         queryFn: getCurrentUser,
@@ -350,13 +348,41 @@ export default function PatientsPage() {
     );
 
     useEffect(() => {
-        if (isClient) {
-            clearPatientListRestoreIntent();
+        if (!isClient || restoreSearchValue !== '1') {
+            return;
         }
-    }, [isClient]);
+
+        let releaseRestoreTimer: number | undefined;
+        const restoreTimer = window.setTimeout(() => {
+            const restoredState = readPatientListState();
+            restoreInProgressRef.current = true;
+            writePatientListState(restoredState);
+
+            setSearchQuery(restoredState.searchQuery);
+            setInactiveFilter(restoredState.inactiveFilter);
+            setShowArchivedOnly(restoredState.showArchivedOnly);
+            setSelectedCategoryId(restoredState.selectedCategoryId);
+            setCurrentPage(restoredState.currentPage);
+            setFocusedPatientId(restoredState.focusPatientId);
+            clearPatientListRestoreIntent();
+
+            releaseRestoreTimer = window.setTimeout(() => {
+                restoreInProgressRef.current = false;
+                writePatientListState(restoredState);
+            }, 0);
+        }, 0);
+
+        return () => {
+            window.clearTimeout(restoreTimer);
+            if (releaseRestoreTimer !== undefined) {
+                window.clearTimeout(releaseRestoreTimer);
+            }
+            restoreInProgressRef.current = false;
+        };
+    }, [isClient, restoreSearchValue]);
 
     useEffect(() => {
-        if (!isClient) {
+        if (!isClient || restoreSearchValue === '1' || restoreInProgressRef.current) {
             return;
         }
 
@@ -368,7 +394,7 @@ export default function PatientsPage() {
             currentPage,
             focusPatientId: focusedPatientId,
         });
-    }, [currentPage, focusedPatientId, inactiveFilter, isClient, searchQuery, selectedCategoryId, showArchivedOnly]);
+    }, [currentPage, focusedPatientId, inactiveFilter, isClient, restoreSearchValue, searchQuery, selectedCategoryId, showArchivedOnly]);
 
     useEffect(() => {
         if (!isClient || !focusedPatientId || patientsQuery.isFetching) {

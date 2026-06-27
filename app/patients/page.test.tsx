@@ -26,6 +26,7 @@ vi.mock('next/navigation', () => ({
     useRouter: () => ({
         push: pushMock,
     }),
+    useSearchParams: () => new URLSearchParams(window.location.search),
 }));
 
 vi.mock('@/lib/api/dentist', () => ({
@@ -48,6 +49,16 @@ vi.mock('@/components/patients/patient-photo-preview-dialog', () => ({
     ),
 }));
 
+function createPatientsPageElement(queryClient: QueryClient) {
+    return (
+        <QueryClientProvider client={queryClient}>
+            <I18nProvider initialLocale="en" initialDictionary={DICTIONARIES.en}>
+                <PatientsPage />
+            </I18nProvider>
+        </QueryClientProvider>
+    );
+}
+
 function renderPage() {
     const queryClient = new QueryClient({
         defaultOptions: {
@@ -56,13 +67,12 @@ function renderPage() {
         },
     });
 
-    return render(
-        <QueryClientProvider client={queryClient}>
-            <I18nProvider initialLocale="en" initialDictionary={DICTIONARIES.en}>
-                <PatientsPage />
-            </I18nProvider>
-        </QueryClientProvider>
-    );
+    const result = render(createPatientsPageElement(queryClient));
+
+    return {
+        ...result,
+        rerenderPage: () => result.rerender(createPatientsPageElement(queryClient)),
+    };
 }
 
 describe('PatientsPage', () => {
@@ -160,6 +170,76 @@ describe('PatientsPage', () => {
             }));
         });
         expect(screen.getByTestId('patient-row-patient-restored')).toHaveClass('bg-teal-50/60');
+    });
+
+    it('restores the previous page when the router reuses the patients page instance', async () => {
+        window.history.replaceState({}, '', '/patients');
+        vi.mocked(listPatients).mockImplementation(async (options) => {
+            const page = options?.page ?? 1;
+
+            if (page === 2) {
+                return buildPatientsResponse([
+                    {
+                        id: 'patient-restored',
+                        patient_id: 'PT-REST',
+                        full_name: 'Restored Patient',
+                        phone: '+10000000010',
+                        created_at: '2026-02-01T10:00:00Z',
+                        updated_at: '2026-02-02T10:00:00Z',
+                        last_visit_at: null,
+                        address: null,
+                        date_of_birth: null,
+                        gender: null,
+                        medical_history: null,
+                        allergies: null,
+                        current_medications: null,
+                    },
+                ], { page: 2, total: 11, total_pages: 2 });
+            }
+
+            return buildPatientsResponse([
+                {
+                    id: 'patient-default',
+                    patient_id: 'PT-DEFAULT',
+                    full_name: 'Default Patient',
+                    phone: '+10000000011',
+                    created_at: '2026-02-01T10:00:00Z',
+                    updated_at: '2026-02-02T10:00:00Z',
+                    last_visit_at: null,
+                    address: null,
+                    date_of_birth: null,
+                    gender: null,
+                    medical_history: null,
+                    allergies: null,
+                    current_medications: null,
+                },
+            ], { page: 1, total: 11, total_pages: 2 });
+        });
+
+        const { rerenderPage } = renderPage();
+
+        expect(await screen.findByText('Default Patient')).toBeInTheDocument();
+
+        markPatientListStateForBackNavigation({
+            searchQuery: '',
+            inactiveFilter: 'none',
+            showArchivedOnly: false,
+            selectedCategoryId: 'all',
+            currentPage: 2,
+            focusPatientId: 'patient-restored',
+        });
+        window.history.replaceState({}, '', '/patients?restore=1');
+        rerenderPage();
+
+        expect(await screen.findByText('Restored Patient')).toBeInTheDocument();
+        await waitFor(() => {
+            expect(listPatients).toHaveBeenCalledWith(expect.objectContaining({
+                page: 2,
+                sort: '-updated_at',
+            }));
+        });
+        expect(screen.getByTestId('patient-row-patient-restored')).toHaveClass('bg-teal-50/60');
+        expect(window.location.search).toBe('');
     });
 
     it('ignores stale patient list state on normal menu navigation', async () => {
