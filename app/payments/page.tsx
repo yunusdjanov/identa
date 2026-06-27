@@ -919,7 +919,6 @@ export default function PaymentsPage() {
                             <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-slate-50/70 p-4">
                                 <div>
                                     <h2 className="text-lg font-semibold text-slate-900">{t('payments.expensesTitle')}</h2>
-                                    <p className="text-sm text-slate-500">{t('payments.expensesSubtitle')}</p>
                                 </div>
                                 <p className="rounded-full border border-slate-200 bg-white px-3 py-1 text-sm text-slate-500 shadow-xs">{t('payments.summary.filteredExpenses', { count: expenseTotalCount })}</p>
                             </div>

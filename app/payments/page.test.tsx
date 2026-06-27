@@ -374,6 +374,7 @@ describe('PaymentsPage', () => {
         expect(screen.getByText('Total Expenses')).toBeInTheDocument();
         expect(screen.getByText('This Month')).toBeInTheDocument();
         expect(screen.getByPlaceholderText('Search expenses by title...')).toBeInTheDocument();
+        expect(screen.queryByText('A simple dated log for expense title and amount.')).not.toBeInTheDocument();
         expect(screen.queryByRole('button', { name: 'With debt' })).not.toBeInTheDocument();
     });
 
