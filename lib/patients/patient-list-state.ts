@@ -26,8 +26,8 @@ const PATIENTS_LIST_RESTORE_SEARCH_VALUE = '1';
 const PATIENTS_LIST_RESTORE_HISTORY_STATE_KEY = 'identaPatientsListRestore';
 
 /**
- * Restores the patient list view state only when the current navigation
- * explicitly came from patient detail back-navigation.
+ * Restores the patient list view state only when the patient-detail header
+ * arrow explicitly navigates to `/patients?restore=1`.
  */
 export function readPatientListState(): PatientListState {
     if (!hasPatientListRestoreIntent()) {
@@ -62,25 +62,11 @@ export function clearPatientListRestoreIntent(): void {
 }
 
 /**
- * Marks the current history entry so browser Back can restore this exact list.
+ * Persists the current list position so patient-detail header back navigation
+ * can restore the same page and row.
  */
 export function markPatientListStateForBackNavigation(state: PatientListState): void {
     writePatientListState(state);
-
-    if (typeof window === 'undefined') {
-        return;
-    }
-
-    try {
-        const currentState = window.history.state;
-        const nextState = currentState && typeof currentState === 'object'
-            ? { ...currentState }
-            : {};
-        (nextState as Record<string, unknown>)[PATIENTS_LIST_RESTORE_HISTORY_STATE_KEY] = true;
-        window.history.replaceState(nextState, '', window.location.href);
-    } catch {
-        // Browser history may be unavailable in tests or hardened contexts.
-    }
 }
 
 function hasPatientListRestoreIntent(): boolean {
@@ -90,16 +76,7 @@ function hasPatientListRestoreIntent(): boolean {
 
     try {
         const params = new URLSearchParams(window.location.search);
-        if (params.get(PATIENTS_LIST_RESTORE_SEARCH_PARAM) === PATIENTS_LIST_RESTORE_SEARCH_VALUE) {
-            return true;
-        }
-
-        const historyState = window.history.state;
-        return Boolean(
-            historyState
-            && typeof historyState === 'object'
-            && (historyState as Record<string, unknown>)[PATIENTS_LIST_RESTORE_HISTORY_STATE_KEY]
-        );
+        return params.get(PATIENTS_LIST_RESTORE_SEARCH_PARAM) === PATIENTS_LIST_RESTORE_SEARCH_VALUE;
     } catch {
         return false;
     }

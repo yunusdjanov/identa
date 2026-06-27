@@ -20,6 +20,7 @@ import {
 } from '@/lib/patients/patient-list-state';
 
 const pushMock = vi.fn();
+const STALE_RESTORE_HISTORY_STATE_KEY = 'identaPatientsListRestore';
 
 vi.mock('next/navigation', () => ({
     useRouter: () => ({
@@ -91,6 +92,7 @@ describe('PatientsPage', () => {
     beforeEach(() => {
         pushMock.mockReset();
         window.sessionStorage.clear();
+        window.history.replaceState({}, '', '/patients');
         vi.mocked(getCurrentUser).mockReset();
         vi.mocked(clearRecentPatients).mockReset();
         vi.mocked(forgetRecentPatient).mockReset();
@@ -118,6 +120,7 @@ describe('PatientsPage', () => {
     });
 
     it('restores the previous page and focused patient after returning from details', async () => {
+        window.history.replaceState({}, '', '/patients?restore=1');
         markPatientListStateForBackNavigation({
             searchQuery: 'Restored',
             inactiveFilter: 'none',
@@ -160,6 +163,49 @@ describe('PatientsPage', () => {
     });
 
     it('ignores stale patient list state on normal menu navigation', async () => {
+        window.sessionStorage.setItem(PATIENTS_LIST_STATE_STORAGE_KEY, JSON.stringify({
+            searchQuery: 'Restored',
+            inactiveFilter: 'none',
+            showArchivedOnly: false,
+            selectedCategoryId: 'all',
+            currentPage: 2,
+            focusPatientId: 'patient-restored',
+        }));
+        vi.mocked(listPatients).mockResolvedValue(buildPatientsResponse([
+            {
+                id: 'patient-default',
+                patient_id: 'PT-DEFAULT',
+                full_name: 'Default Patient',
+                phone: '+10000000011',
+                created_at: '2026-02-01T10:00:00Z',
+                updated_at: '2026-02-02T10:00:00Z',
+                last_visit_at: null,
+                address: null,
+                date_of_birth: null,
+                gender: null,
+                medical_history: null,
+                allergies: null,
+                current_medications: null,
+            },
+        ], { page: 1, total: 1, total_pages: 1 }));
+
+        renderPage();
+
+        expect(await screen.findByText('Default Patient')).toBeInTheDocument();
+        await waitFor(() => {
+            expect(listPatients).toHaveBeenCalledWith(expect.objectContaining({
+                page: 1,
+                sort: '-updated_at',
+                filter: expect.not.objectContaining({
+                    search: 'Restored',
+                }),
+            }));
+        });
+        expect(screen.getByTestId('patient-row-patient-default')).not.toHaveClass('bg-teal-50/60');
+    });
+
+    it('ignores stale browser restore markers unless the detail arrow restore URL is used', async () => {
+        window.history.replaceState({ [STALE_RESTORE_HISTORY_STATE_KEY]: true }, '', '/patients');
         window.sessionStorage.setItem(PATIENTS_LIST_STATE_STORAGE_KEY, JSON.stringify({
             searchQuery: 'Restored',
             inactiveFilter: 'none',

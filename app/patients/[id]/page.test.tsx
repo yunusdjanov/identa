@@ -9,9 +9,15 @@ import { I18nProvider } from '@/components/providers/i18n-provider';
 import { DICTIONARIES } from '@/lib/i18n/dictionaries';
 
 let searchString = '';
+const routerMocks = vi.hoisted(() => ({
+    push: vi.fn(),
+    replace: vi.fn(),
+    back: vi.fn(),
+    refresh: vi.fn(),
+}));
 
 vi.mock('next/navigation', () => ({
-    useRouter: () => ({ push: vi.fn(), replace: vi.fn(), back: vi.fn(), refresh: vi.fn() }),
+    useRouter: () => routerMocks,
     useSearchParams: () => new URLSearchParams(searchString),
 }));
 
@@ -110,6 +116,10 @@ async function renderPage() {
 describe('PatientDetailPage', () => {
     beforeEach(() => {
         searchString = '';
+        routerMocks.push.mockReset();
+        routerMocks.replace.mockReset();
+        routerMocks.back.mockReset();
+        routerMocks.refresh.mockReset();
         vi.mocked(getCurrentUser).mockReset();
         vi.mocked(getPatient).mockReset();
         vi.mocked(getPatientOverview).mockReset();
@@ -151,6 +161,17 @@ describe('PatientDetailPage', () => {
         const scheduleButton = screen.getByRole('button', { name: 'Schedule Appointment' });
         const editButton = screen.getByRole('button', { name: 'Edit Patient' });
         expect(scheduleButton.compareDocumentPosition(editButton) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    });
+
+    it('returns to the patients list with the restore marker from the header arrow', async () => {
+        vi.mocked(getCurrentUser).mockResolvedValue(dentist as never);
+        vi.mocked(getPatient).mockResolvedValue(patient as never);
+        await renderPage();
+        const user = userEvent.setup();
+
+        await user.click(await screen.findByRole('button', { name: 'Back to Patients' }));
+
+        expect(routerMocks.push).toHaveBeenCalledWith('/patients?restore=1');
     });
 
     it('opens appointment scheduling with the current patient preselected', async () => {

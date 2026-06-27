@@ -668,7 +668,13 @@ export default function PatientDetailPage({
             {/* Patient header */}
             <div className="flex flex-col gap-3 rounded-2xl border border-white/80 bg-white px-4 py-3 shadow-sm shadow-slate-200/70 sm:px-5 xl:flex-row xl:items-center xl:justify-between">
                 <div className="flex min-w-0 items-center gap-3">
-                    <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => router.push(PATIENTS_LIST_RESTORE_HREF)}>
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 shrink-0"
+                        aria-label={t('patientDetail.backToPatients')}
+                        onClick={() => router.push(PATIENTS_LIST_RESTORE_HREF)}
+                    >
                         <ArrowLeft className="h-4 w-4" />
                     </Button>
                     {patientAvatarUrl ? (
