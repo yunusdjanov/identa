@@ -22,6 +22,8 @@ class PaymentExpenseFactory extends Factory
             'dentist_id' => User::factory(),
             'title' => $this->faker->words(3, true),
             'amount' => $this->faker->numberBetween(50000, 1500000),
+            'quantity' => 1,
+            'currency' => PaymentExpense::CURRENCY_UZS,
             'expense_date' => $this->faker->date(),
         ];
     }

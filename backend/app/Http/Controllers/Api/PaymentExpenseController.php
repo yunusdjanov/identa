@@ -9,6 +9,7 @@ use App\Services\PaymentExpenseService;
 use App\Support\AuditLogger;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 
 class PaymentExpenseController extends Controller
 {
@@ -50,7 +51,7 @@ class PaymentExpenseController extends Controller
     /**
      * POST /api/v1/payments/expenses
      *
-     * Auth: payments.manage. Body: title, amount, expense_date.
+     * Auth: payments.manage. Body: title, amount, quantity, currency, expense_date.
      */
     public function store(StorePaymentExpenseRequest $request): JsonResponse
     {
@@ -64,6 +65,8 @@ class PaymentExpenseController extends Controller
             metadata: [
                 'title' => $expense->title,
                 'amount' => (float) $expense->amount,
+                'quantity' => (float) $expense->quantity,
+                'currency' => $expense->currency,
                 'expense_date' => $expense->expense_date?->toDateString(),
             ],
         );
@@ -71,6 +74,60 @@ class PaymentExpenseController extends Controller
         return response()->json([
             'data' => $this->expenseRow($expense),
         ], 201);
+    }
+
+    /**
+     * PUT /api/v1/payments/expenses/{id}
+     *
+     * Auth: payments.manage. Body: title, amount, quantity, currency, expense_date.
+     */
+    public function update(StorePaymentExpenseRequest $request, string $id): JsonResponse
+    {
+        $expense = $this->expenses->update($request, $id);
+
+        $this->auditLogger->logFromRequest(
+            request: $request,
+            eventType: 'payment_expense.updated',
+            entityType: 'payment_expense',
+            entityId: (string) $expense->id,
+            metadata: [
+                'title' => $expense->title,
+                'amount' => (float) $expense->amount,
+                'quantity' => (float) $expense->quantity,
+                'currency' => $expense->currency,
+                'expense_date' => $expense->expense_date?->toDateString(),
+            ],
+        );
+
+        return response()->json([
+            'data' => $this->expenseRow($expense),
+        ]);
+    }
+
+    /**
+     * DELETE /api/v1/payments/expenses/{id}
+     *
+     * Auth: payments.manage.
+     */
+    public function destroy(Request $request, string $id): Response
+    {
+        $expense = $this->expenses->delete($request, $id);
+
+        $this->auditLogger->logFromRequest(
+            request: $request,
+            eventType: 'payment_expense.deleted',
+            entityType: 'payment_expense',
+            entityId: (string) $expense->id,
+            metadata: [
+                'title' => $expense->title,
+                'amount' => (float) $expense->amount,
+                'quantity' => (float) $expense->quantity,
+                'currency' => $expense->currency,
+                'expense_date' => $expense->expense_date?->toDateString(),
+            ],
+        );
+
+        return response()->noContent();
     }
 
     /**
@@ -82,6 +139,8 @@ class PaymentExpenseController extends Controller
             'id' => (string) $expense->id,
             'title' => $expense->title,
             'amount' => (float) $expense->amount,
+            'quantity' => (float) $expense->quantity,
+            'currency' => $expense->currency,
             'expense_date' => $expense->expense_date?->toDateString(),
             'created_at' => $expense->created_at?->toISOString(),
             'updated_at' => $expense->updated_at?->toISOString(),

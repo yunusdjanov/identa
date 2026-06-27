@@ -15,6 +15,7 @@ tags:
   - name: Appointments
   - name: Invoices
   - name: Payments
+  - name: Analytics
   - name: Lookups
   - name: Settings
   - name: Admin
@@ -1151,6 +1152,212 @@ paths:
           $ref: "#/components/responses/UnauthorizedError"
         "403":
           $ref: "#/components/responses/ForbiddenError"
+  /api/v1/payments/expenses:
+    get:
+      tags: [Payments]
+      summary: List clinic expenses
+      operationId: listPaymentExpenses
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PerPage"
+        - $ref: "#/components/parameters/SearchFilter"
+      responses:
+        "200":
+          description: Paginated clinic expense rows
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentExpenseCollectionResponse"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+    post:
+      tags: [Payments]
+      summary: Create clinic expense
+      operationId: createPaymentExpense
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PaymentExpenseCreateRequest"
+      responses:
+        "201":
+          description: Expense created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentExpenseResponse"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+  /api/v1/payments/expenses/{id}:
+    put:
+      tags: [Payments]
+      summary: Update clinic expense
+      operationId: updatePaymentExpense
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PaymentExpenseCreateRequest"
+      responses:
+        "200":
+          description: Expense updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentExpenseResponse"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+    delete:
+      tags: [Payments]
+      summary: Delete clinic expense
+      operationId: deletePaymentExpense
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: Expense deleted
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+  /api/v1/analytics/summary:
+    get:
+      tags: [Analytics]
+      summary: Get dentist analytics summary
+      operationId: getAnalyticsSummary
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: range
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [7d, 30d, 90d, 180d, 365d, ytd]
+        - name: current_from
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+        - name: current_to
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+        - name: previous_from
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+        - name: previous_to
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+      responses:
+        "200":
+          description: Analytics summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnalyticsSummaryResponse"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+  /api/v1/admin/analytics/summary:
+    get:
+      tags: [Admin, Analytics]
+      summary: Get admin analytics summary
+      operationId: getAdminAnalyticsSummary
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: range
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [7d, 30d, 90d, 180d, 365d, ytd]
+        - name: current_from
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+        - name: current_to
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+        - name: previous_from
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+        - name: previous_to
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+      responses:
+        "200":
+          description: Admin analytics summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminAnalyticsSummaryResponse"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+        "422":
+          $ref: "#/components/responses/ValidationError"
   /api/v1/payments:
     get:
       tags: [Payments]
@@ -2125,6 +2332,81 @@ components:
         created_at:
           type: string
           format: date-time
+    PaymentExpense:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        amount:
+          type: number
+        quantity:
+          type: number
+          default: 1
+        currency:
+          type: string
+          enum: [UZS, USD]
+          default: UZS
+        expense_date:
+          type: string
+          format: date
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          nullable: true
+        updated_at:
+          type: string
+          format: date-time
+          nullable: true
+    PaymentExpenseCreateRequest:
+      type: object
+      required: [title, amount]
+      properties:
+        title:
+          type: string
+          maxLength: 255
+        amount:
+          type: number
+          minimum: 0
+        quantity:
+          type: number
+          minimum: 0.01
+          default: 1
+        currency:
+          type: string
+          enum: [UZS, USD]
+          default: UZS
+        expense_date:
+          type: string
+          format: date
+          nullable: true
+    PaymentExpenseCollectionSummary:
+      type: object
+      properties:
+        total_count:
+          type: integer
+        total_amount:
+          type: number
+        current_month_amount:
+          type: number
+        totals_by_currency:
+          $ref: "#/components/schemas/PaymentExpenseCurrencyTotals"
+        current_month_by_currency:
+          $ref: "#/components/schemas/PaymentExpenseCurrencyTotals"
+        latest_expense_date:
+          type: string
+          format: date
+          nullable: true
+    PaymentExpenseCurrencyTotals:
+      type: object
+      properties:
+        UZS:
+          type: number
+        USD:
+          type: number
     PaymentLedgerPatientRow:
       type: object
       properties:
@@ -2198,6 +2480,139 @@ components:
           $ref: "#/components/schemas/ActorSummary"
         updated_by:
           $ref: "#/components/schemas/ActorSummary"
+    AnalyticsKpiPair:
+      type: object
+      properties:
+        current:
+          type: number
+        previous:
+          type: number
+      required: [current, previous]
+    AnalyticsKpiOptionalPrevious:
+      type: object
+      properties:
+        current:
+          type: number
+        previous:
+          type: number
+          nullable: true
+      required: [current, previous]
+    AnalyticsBucket:
+      type: object
+      properties:
+        key:
+          type: string
+        revenue:
+          type: number
+        debt:
+          type: number
+        new_patients:
+          type: integer
+        cumulative_patients:
+          type: integer
+      required: [key, revenue, debt, new_patients, cumulative_patients]
+    AnalyticsAppointmentStatus:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [scheduled, completed, cancelled, no_show]
+        count:
+          type: integer
+      required: [status, count]
+    AnalyticsTopDebtor:
+      type: object
+      properties:
+        name:
+          type: string
+        phone:
+          type: string
+        debt:
+          type: number
+      required: [name, phone, debt]
+    AnalyticsSummary:
+      type: object
+      properties:
+        permissions:
+          type: object
+          properties:
+            payments:
+              type: boolean
+            patients:
+              type: boolean
+            appointments:
+              type: boolean
+          required: [payments, patients, appointments]
+        kpis:
+          type: object
+          properties:
+            revenue:
+              $ref: "#/components/schemas/AnalyticsKpiPair"
+            debt:
+              $ref: "#/components/schemas/AnalyticsKpiOptionalPrevious"
+            patients:
+              $ref: "#/components/schemas/AnalyticsKpiPair"
+            visits:
+              $ref: "#/components/schemas/AnalyticsKpiPair"
+          required: [revenue, debt, patients, visits]
+        buckets:
+          type: array
+          items:
+            $ref: "#/components/schemas/AnalyticsBucket"
+        appointment_status:
+          type: array
+          items:
+            $ref: "#/components/schemas/AnalyticsAppointmentStatus"
+        top_debtors:
+          type: array
+          items:
+            $ref: "#/components/schemas/AnalyticsTopDebtor"
+      required: [permissions, kpis, buckets, appointment_status, top_debtors]
+    AdminAnalyticsSummary:
+      type: object
+      properties:
+        kpis:
+          type: object
+          properties:
+            active_dentists:
+              $ref: "#/components/schemas/AnalyticsKpiPair"
+            mrr:
+              allOf:
+                - $ref: "#/components/schemas/AnalyticsKpiPair"
+                - type: object
+                  properties:
+                    currency:
+                      type: string
+                  required: [currency]
+            signups:
+              $ref: "#/components/schemas/AnalyticsKpiPair"
+            conversion:
+              $ref: "#/components/schemas/AnalyticsKpiPair"
+          required: [active_dentists, mrr, signups, conversion]
+        signup_growth:
+          type: array
+          items:
+            type: object
+            properties:
+              key:
+                type: string
+              signups:
+                type: integer
+              cumulative:
+                type: integer
+            required: [key, signups, cumulative]
+        subscription_health:
+          type: array
+          items:
+            type: object
+            properties:
+              status:
+                type: string
+                enum: [active, trialing, grace, read_only, canceled, none]
+              count:
+                type: integer
+            required: [status, count]
+      required: [kpis, signup_growth, subscription_health]
     Profile:
       type: object
       properties:
@@ -2734,6 +3149,12 @@ components:
         data:
           $ref: "#/components/schemas/Payment"
       required: [data]
+    PaymentExpenseResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/PaymentExpense"
+      required: [data]
     PaymentCollectionResponse:
       type: object
       properties:
@@ -2748,6 +3169,21 @@ components:
               $ref: "#/components/schemas/PaginationMeta"
             summary:
               $ref: "#/components/schemas/PaymentCollectionSummary"
+      required: [data]
+    PaymentExpenseCollectionResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/PaymentExpense"
+        meta:
+          type: object
+          properties:
+            pagination:
+              $ref: "#/components/schemas/PaginationMeta"
+            summary:
+              $ref: "#/components/schemas/PaymentExpenseCollectionSummary"
       required: [data]
     PaymentLedgerPatientCollectionResponse:
       type: object
@@ -2778,6 +3214,18 @@ components:
               $ref: "#/components/schemas/PaginationMeta"
             summary:
               $ref: "#/components/schemas/PaymentLedgerSummary"
+      required: [data]
+    AnalyticsSummaryResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/AnalyticsSummary"
+      required: [data]
+    AdminAnalyticsSummaryResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/AdminAnalyticsSummary"
       required: [data]
     ProfileResponse:
       type: object

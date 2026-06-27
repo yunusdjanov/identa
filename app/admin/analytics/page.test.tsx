@@ -2,22 +2,42 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import AdminAnalyticsPage from '@/app/admin/analytics/page';
-import { getCurrentUser, listAdminPlans, listAllAdminDentists } from '@/lib/api/dentist';
+import { getAdminAnalyticsSummary, getCurrentUser } from '@/lib/api/dentist';
 import { I18nProvider } from '@/components/providers/i18n-provider';
 import { DICTIONARIES } from '@/lib/i18n/dictionaries';
+import type { ApiAdminAnalyticsSummary } from '@/lib/api/types';
 
 const replaceMock = vi.fn();
 vi.mock('next/navigation', () => ({
     useRouter: () => ({ push: vi.fn(), replace: replaceMock, refresh: vi.fn() }),
 }));
 vi.mock('@/lib/api/dentist', () => ({
+    getAdminAnalyticsSummary: vi.fn(),
     getCurrentUser: vi.fn(),
-    listAdminPlans: vi.fn(),
-    listAllAdminDentists: vi.fn(),
 }));
 vi.mock('sonner', () => ({ toast: { error: vi.fn(), success: vi.fn() } }));
 
 const admin = { id: 'a1', name: 'Super Admin', email: 'admin@identa.test', role: 'admin' as const, account_status: 'active' as const };
+
+function createAdminAnalyticsSummary(): ApiAdminAnalyticsSummary {
+    return {
+        kpis: {
+            active_dentists: { current: 0, previous: 0 },
+            mrr: { current: 0, previous: 0, currency: 'UZS' },
+            signups: { current: 0, previous: 0 },
+            conversion: { current: 0, previous: 0 },
+        },
+        signup_growth: [],
+        subscription_health: [
+            { status: 'active', count: 0 },
+            { status: 'trialing', count: 0 },
+            { status: 'grace', count: 0 },
+            { status: 'read_only', count: 0 },
+            { status: 'canceled', count: 0 },
+            { status: 'none', count: 0 },
+        ],
+    };
+}
 
 function renderPage() {
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
@@ -34,8 +54,8 @@ describe('AdminAnalyticsPage', () => {
     beforeEach(() => {
         replaceMock.mockClear();
         vi.mocked(getCurrentUser).mockReset();
-        vi.mocked(listAdminPlans).mockResolvedValue([] as never);
-        vi.mocked(listAllAdminDentists).mockResolvedValue([] as never);
+        vi.mocked(getAdminAnalyticsSummary).mockReset();
+        vi.mocked(getAdminAnalyticsSummary).mockResolvedValue(createAdminAnalyticsSummary());
     });
     afterEach(() => cleanup());
 
@@ -58,5 +78,11 @@ describe('AdminAnalyticsPage', () => {
         expect(
             await screen.findByText('Subscription health, revenue, and dentist base growth')
         ).toBeInTheDocument();
+        expect(vi.mocked(getAdminAnalyticsSummary)).toHaveBeenCalledWith(expect.objectContaining({
+            current_from: expect.any(String),
+            current_to: expect.any(String),
+            previous_from: expect.any(String),
+            previous_to: expect.any(String),
+        }));
     });
 });

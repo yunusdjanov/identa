@@ -13,12 +13,24 @@ function expenseSummary(expenses: typeof PAYMENT_EXPENSES) {
         return value === null || expense.expense_date > value ? expense.expense_date : value;
     }, null);
 
+    const totalsByCurrency = { UZS: 0, USD: 0 };
+    const currentMonthByCurrency = { UZS: 0, USD: 0 };
+    for (const expense of expenses) {
+        const currency = expense.currency === 'USD' ? 'USD' : 'UZS';
+        totalsByCurrency[currency] += Number(expense.amount ?? 0);
+        if (expense.expense_date.startsWith(currentMonth)) {
+            currentMonthByCurrency[currency] += Number(expense.amount ?? 0);
+        }
+    }
+
     return {
         total_count: expenses.length,
         total_amount: expenses.reduce((sum, expense) => sum + Number(expense.amount ?? 0), 0),
         current_month_amount: expenses
             .filter((expense) => expense.expense_date.startsWith(currentMonth))
             .reduce((sum, expense) => sum + Number(expense.amount ?? 0), 0),
+        totals_by_currency: totalsByCurrency,
+        current_month_by_currency: currentMonthByCurrency,
         latest_expense_date: latest,
     };
 }
@@ -58,6 +70,8 @@ export async function POST(request: Request) {
         id: `exp-${Date.now()}`,
         title: body.title,
         amount: Number(body.amount ?? 0),
+        quantity: Number(body.quantity ?? 1),
+        currency: body.currency === 'USD' ? 'USD' : 'UZS',
         expense_date: body.expense_date,
         created_at: now,
         updated_at: now,

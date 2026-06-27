@@ -14,6 +14,15 @@ class PaymentExpense extends Model implements TenantOwned
     /** @use HasFactory<\Database\Factories\PaymentExpenseFactory> */
     use BelongsToTenant, HasFactory, HasUuids;
 
+    public const CURRENCY_UZS = 'UZS';
+
+    public const CURRENCY_USD = 'USD';
+
+    public const CURRENCIES = [
+        self::CURRENCY_UZS,
+        self::CURRENCY_USD,
+    ];
+
     /**
      * @var bool
      */
@@ -31,6 +40,8 @@ class PaymentExpense extends Model implements TenantOwned
         'dentist_id',
         'title',
         'amount',
+        'quantity',
+        'currency',
         'expense_date',
     ];
 
@@ -41,6 +52,7 @@ class PaymentExpense extends Model implements TenantOwned
     {
         return [
             'amount' => 'decimal:2',
+            'quantity' => 'decimal:2',
             'expense_date' => 'date',
         ];
     }

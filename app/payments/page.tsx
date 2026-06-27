@@ -18,16 +18,24 @@ import { DataTableShell, getDataTableClassName } from '@/components/ui/data-tabl
 import { PaymentsLoadingState } from '@/components/layout/page-loading-skeletons';
 import { PageHeader } from '@/components/ui/page-shell';
 import { getApiErrorMessage } from '@/lib/api/client';
-import { createPaymentExpense, getCurrentUser, listPaymentExpenses, listPaymentLedgerPatients } from '@/lib/api/dentist';
-import type { ApiPaymentExpense, ApiPaymentPatientLedgerRow } from '@/lib/api/types';
+import {
+    createPaymentExpense,
+    deletePaymentExpense,
+    getCurrentUser,
+    listPaymentExpenses,
+    listPaymentLedgerPatients,
+    updatePaymentExpense,
+} from '@/lib/api/dentist';
+import type { ApiPaymentExpense, ApiPaymentExpenseCurrency, ApiPaymentPatientLedgerRow } from '@/lib/api/types';
 import { useI18n } from '@/components/providers/i18n-provider';
 import { formatLocalizedDate } from '@/lib/i18n/date';
 import { extractPrimaryPhone, formatCurrency } from '@/lib/utils';
-import { AlertCircle, CalendarDays, Download, History, Phone, Plus, ReceiptText, Search, Users, Wallet, X } from 'lucide-react';
+import { AlertCircle, CalendarDays, Download, History, Pencil, Phone, Plus, Receipt, Search, Trash2, Users, Wallet, X } from 'lucide-react';
 import { buildPdfFilename, exportRowsToPdf } from '@/lib/export/pdf';
 import { EmptyState } from '@/components/ui/empty-state';
 import { AppErrorState } from '@/components/error/app-error-state';
 import { AccessDeniedState } from '@/components/error/access-denied-state';
+import { ConfirmActionDialog } from '@/components/ui/confirm-action-dialog';
 import { canManage, canView } from '@/lib/auth/permissions';
 import { toast } from 'sonner';
 
@@ -37,6 +45,7 @@ const OUTSTANDING_FILTER_VALUE = '1';
 const LEDGER_EXPORT_PAGE_SIZE = 100;
 const EXPENSE_EXPORT_PAGE_SIZE = 100;
 const URL_SEARCH_CHANGE_EVENT = 'identa:payments-url-search-change';
+const EXPENSE_CURRENCIES = ['UZS', 'USD'] as const satisfies readonly ApiPaymentExpenseCurrency[];
 const NET_BALANCE_SUMMARY_VARIANTS = {
     advance: {
         statusKey: 'patientHistory.balanceStatus.advance',
@@ -146,6 +155,8 @@ interface ExpenseRow {
     id: string;
     title: string;
     amount: number;
+    quantity: number;
+    currency: ApiPaymentExpenseCurrency;
     date: string;
 }
 
@@ -173,6 +184,8 @@ function toExpenseRow(row: ApiPaymentExpense): ExpenseRow {
         id: row.id,
         title: row.title,
         amount: Number(row.amount ?? 0),
+        quantity: Number(row.quantity ?? 1),
+        currency: coerceExpenseCurrency(row.currency),
         date: row.expense_date ?? '',
     };
 }
@@ -181,17 +194,83 @@ function getTodayInputValue() {
     return new Date().toISOString().slice(0, 10);
 }
 
-function formatMoneyInput(value: string) {
-    const digits = value.replace(/\D/g, '');
-
-    return digits.replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+function coerceExpenseCurrency(value: unknown): ApiPaymentExpenseCurrency {
+    return EXPENSE_CURRENCIES.includes(value as ApiPaymentExpenseCurrency)
+        ? value as ApiPaymentExpenseCurrency
+        : 'UZS';
 }
 
-function parseMoneyInput(value: string) {
-    const normalized = value.replace(/\D/g, '');
+function normalizeDecimalInput(value: string, maxFractionDigits: number) {
+    const normalized = value
+        .replace(/\s/g, '')
+        .replace(',', '.')
+        .replace(/[^\d.]/g, '');
+    const [rawWhole = '', ...rawDecimals] = normalized.split('.');
+    const whole = rawWhole.replace(/^0+(?=\d)/, '');
+    const decimal = rawDecimals.join('').slice(0, maxFractionDigits);
+    const groupedWhole = (whole || (normalized.startsWith('0') ? '0' : '')).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+
+    if (maxFractionDigits > 0 && normalized.includes('.')) {
+        return `${groupedWhole || '0'}.${decimal}`;
+    }
+
+    return groupedWhole;
+}
+
+function formatMoneyInput(value: string, currency: ApiPaymentExpenseCurrency) {
+    return normalizeDecimalInput(value, currency === 'USD' ? 2 : 0);
+}
+
+function formatQuantityInput(value: string) {
+    return normalizeDecimalInput(value, 2);
+}
+
+function parseDecimalInput(value: string) {
+    const normalized = value.replace(/\s/g, '').replace(',', '.').replace(/[^\d.]/g, '');
     const amount = Number(normalized);
 
     return Number.isFinite(amount) ? amount : 0;
+}
+
+function parseMoneyInput(value: string, currency: ApiPaymentExpenseCurrency) {
+    const amount = parseDecimalInput(value);
+
+    return currency === 'UZS' ? Math.round(amount) : amount;
+}
+
+function formatExpenseAmount(amount: number, currency: ApiPaymentExpenseCurrency, locale: string) {
+    if (currency === 'UZS') {
+        return formatCurrency(amount);
+    }
+
+    const formatted = new Intl.NumberFormat(locale, {
+        maximumFractionDigits: 2,
+        minimumFractionDigits: amount % 1 === 0 ? 0 : 2,
+    }).format(amount);
+
+    return `${formatted} USD`;
+}
+
+function currencyTotalsFromSummary(value: unknown): Record<ApiPaymentExpenseCurrency, number> {
+    const totals: Record<ApiPaymentExpenseCurrency, number> = { UZS: 0, USD: 0 };
+    if (!value || typeof value !== 'object') {
+        return totals;
+    }
+
+    for (const currency of EXPENSE_CURRENCIES) {
+        const amount = Number((value as Record<string, unknown>)[currency] ?? 0);
+        totals[currency] = Number.isFinite(amount) ? amount : 0;
+    }
+
+    return totals;
+}
+
+function formatExpenseTotals(totals: Record<ApiPaymentExpenseCurrency, number>, locale: string) {
+    const visibleTotals = EXPENSE_CURRENCIES
+        .filter((currency) => totals[currency] > 0)
+        .map((currency) => formatExpenseAmount(totals[currency], currency, locale));
+
+    return visibleTotals.length > 0 ? visibleTotals.join(' / ') : formatExpenseAmount(0, 'UZS', locale);
 }
 
 async function fetchExpenseExportRows(search: string): Promise<ExpenseRow[]> {
@@ -234,8 +313,12 @@ export default function PaymentsPage() {
     const [expenseForm, setExpenseForm] = useState({
         title: '',
         amount: '',
+        quantity: '1',
+        currency: 'UZS' as ApiPaymentExpenseCurrency,
         expense_date: getTodayInputValue(),
     });
+    const [editingExpenseId, setEditingExpenseId] = useState<string | null>(null);
+    const [expensePendingDelete, setExpensePendingDelete] = useState<ExpenseRow | null>(null);
     const [isUrlPatientFilterDismissed, setIsUrlPatientFilterDismissed] = useState(false);
     const [isExporting, setIsExporting] = useState(false);
     const patientFilterId = isUrlPatientFilterDismissed ? '' : patientIdFromUrl;
@@ -304,16 +387,37 @@ export default function PaymentsPage() {
         mutationFn: createPaymentExpense,
         onSuccess: () => {
             toast.success(t('payments.expenses.created'));
-            setExpenseForm((current) => ({
-                ...current,
-                title: '',
-                amount: '',
-            }));
+            resetExpenseForm();
             setExpensePage(1);
             queryClient.invalidateQueries({ queryKey: ['payments', 'expenses'] });
         },
         onError: (error) => {
             toast.error(getApiErrorMessage(error, t('payments.expenses.createFailed')));
+        },
+    });
+    const updateExpenseMutation = useMutation({
+        mutationFn: ({ id, payload }: {
+            id: string;
+            payload: Parameters<typeof updatePaymentExpense>[1];
+        }) => updatePaymentExpense(id, payload),
+        onSuccess: () => {
+            toast.success(t('payments.expenses.updated'));
+            resetExpenseForm();
+            queryClient.invalidateQueries({ queryKey: ['payments', 'expenses'] });
+        },
+        onError: (error) => {
+            toast.error(getApiErrorMessage(error, t('payments.expenses.updateFailed')));
+        },
+    });
+    const deleteExpenseMutation = useMutation({
+        mutationFn: deletePaymentExpense,
+        onSuccess: () => {
+            toast.success(t('payments.expenses.deleted'));
+            setExpensePendingDelete(null);
+            queryClient.invalidateQueries({ queryKey: ['payments', 'expenses'] });
+        },
+        onError: (error) => {
+            toast.error(getApiErrorMessage(error, t('payments.expenses.deleteFailed')));
         },
     });
 
@@ -356,6 +460,8 @@ export default function PaymentsPage() {
             totalCount: Number(summary?.total_count ?? 0),
             totalAmount: Number(summary?.total_amount ?? 0),
             currentMonthAmount: Number(summary?.current_month_amount ?? 0),
+            totalsByCurrency: currencyTotalsFromSummary(summary?.totals_by_currency),
+            currentMonthByCurrency: currencyTotalsFromSummary(summary?.current_month_by_currency),
             latestExpenseDate: typeof summary?.latest_expense_date === 'string' ? summary.latest_expense_date : null,
         };
     }, [expensesQuery.data]);
@@ -379,6 +485,28 @@ export default function PaymentsPage() {
         const nextUrl = new URL(window.location.href);
         update(nextUrl.searchParams);
         replaceUrl(nextUrl);
+    };
+
+    const resetExpenseForm = () => {
+        setEditingExpenseId(null);
+        setExpenseForm({
+            title: '',
+            amount: '',
+            quantity: '1',
+            currency: 'UZS',
+            expense_date: getTodayInputValue(),
+        });
+    };
+
+    const handleEditExpense = (row: ExpenseRow) => {
+        setEditingExpenseId(row.id);
+        setExpenseForm({
+            title: row.title,
+            amount: formatMoneyInput(String(row.amount), row.currency),
+            quantity: formatQuantityInput(String(row.quantity)),
+            currency: row.currency,
+            expense_date: row.date || getTodayInputValue(),
+        });
     };
 
     const clearPatientFilter = () => {
@@ -416,18 +544,29 @@ export default function PaymentsPage() {
 
     const handleExpenseSubmit = () => {
         const title = expenseForm.title.trim();
-        const amount = parseMoneyInput(expenseForm.amount);
+        const currency = coerceExpenseCurrency(expenseForm.currency);
+        const amount = parseMoneyInput(expenseForm.amount, currency);
+        const quantity = parseDecimalInput(expenseForm.quantity);
 
-        if (!title || amount <= 0 || !expenseForm.expense_date) {
+        if (!title || amount <= 0 || quantity <= 0 || !expenseForm.expense_date) {
             toast.error(t('payments.expenses.validation'));
             return;
         }
 
-        createExpenseMutation.mutate({
+        const payload = {
             title,
             amount,
+            quantity,
+            currency,
             expense_date: expenseForm.expense_date,
-        });
+        };
+
+        if (editingExpenseId) {
+            updateExpenseMutation.mutate({ id: editingExpenseId, payload });
+            return;
+        }
+
+        createExpenseMutation.mutate(payload);
     };
 
     const handleExportPayments = async () => {
@@ -530,12 +669,14 @@ export default function PaymentsPage() {
                 columns: [
                     t('payments.expenses.date'),
                     t('payments.table.expenseTitle'),
+                    t('payments.expenses.quantity'),
                     t('payments.expenses.amount'),
                 ],
                 rows: rows.map((row) => [
                     formatDate(row.date),
                     row.title,
-                    formatCurrency(row.amount),
+                    String(row.quantity),
+                    formatExpenseAmount(row.amount, row.currency, locale),
                 ]),
                 orientation: 'portrait',
             });
@@ -552,7 +693,7 @@ export default function PaymentsPage() {
         || (patientLedgerQuery.isLoading && !patientLedgerQuery.data)
         || (activeTab === 'expenses' && expensesQuery.isLoading && !expensesQuery.data)
     ) {
-        return <PaymentsLoadingState />;
+        return <PaymentsLoadingState tab={activeTab} />;
     }
 
     if (!canViewPayments) {
@@ -599,6 +740,8 @@ export default function PaymentsPage() {
 
     const isAccountingLoading = patientLedgerQuery.isLoading && !patientLedgerQuery.data;
     const isExpensesLoading = expensesQuery.isLoading && !expensesQuery.data;
+    const isExpenseFormPending = createExpenseMutation.isPending || updateExpenseMutation.isPending;
+    const isEditingExpense = editingExpenseId !== null;
     const netBalanceSummary = getNetBalanceSummary(overallSummary.totalBalance);
     const shouldShowNetBalanceStatus = shouldShowBalanceStatus(
         overallSummary.totalDebt,
@@ -631,11 +774,11 @@ export default function PaymentsPage() {
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
                     <div className="interactive-card metric-hover-card metric-hover-red rounded-2xl border border-red-100 bg-white p-4 shadow-sm shadow-red-100/60 md:p-5">
                         <div className="flex items-center gap-2 text-sm font-medium text-slate-600">
-                            <ReceiptText className="h-4 w-4 text-red-500" />
+                            <Receipt className="h-4 w-4 text-red-500" />
                             {t('payments.summary.expenseTotal')}
                         </div>
                         <p className="mt-2 text-lg font-semibold leading-none tabular-nums text-red-700">
-                            {isExpensesLoading ? '...' : formatCurrency(expenseSummary.totalAmount)}
+                            {isExpensesLoading ? '...' : formatExpenseTotals(expenseSummary.totalsByCurrency, locale)}
                         </p>
                         <p className="mt-1 text-xs text-slate-500">{t('payments.summary.expenseTotalHint')}</p>
                     </div>
@@ -646,14 +789,14 @@ export default function PaymentsPage() {
                             {t('payments.summary.expenseCurrentMonth')}
                         </div>
                         <p className="mt-2 text-lg font-semibold leading-none tabular-nums text-green-700">
-                            {isExpensesLoading ? '...' : formatCurrency(expenseSummary.currentMonthAmount)}
+                            {isExpensesLoading ? '...' : formatExpenseTotals(expenseSummary.currentMonthByCurrency, locale)}
                         </p>
                         <p className="mt-1 text-xs text-slate-500">{t('payments.summary.expenseCurrentMonthHint')}</p>
                     </div>
 
                     <div className="interactive-card metric-hover-card metric-hover-teal rounded-2xl border border-cyan-200 bg-gradient-to-br from-cyan-50 via-teal-50/80 to-white p-4 shadow-sm shadow-cyan-100/70 md:p-5">
                         <div className="flex items-center gap-2 text-sm font-medium text-cyan-700">
-                            <ReceiptText className="h-4 w-4 text-teal-600" />
+                            <Receipt className="h-4 w-4 text-teal-600" />
                             {t('payments.summary.expenseRecords')}
                         </div>
                         <p className="mt-2 text-lg font-semibold leading-none tabular-nums text-cyan-950">
@@ -755,7 +898,7 @@ export default function PaymentsPage() {
                                 }`}
                                 onClick={() => handleTabChange('expenses')}
                             >
-                                <ReceiptText className="h-4 w-4" />
+                                <Receipt className="h-4 w-4" />
                                 {t('payments.tabs.expenses')}
                             </Button>
                         </div>
@@ -916,15 +1059,8 @@ export default function PaymentsPage() {
                         </div>
                     ) : (
                         <div className="space-y-4">
-                            <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-slate-50/70 p-4">
-                                <div>
-                                    <h2 className="text-lg font-semibold text-slate-900">{t('payments.expensesTitle')}</h2>
-                                </div>
-                                <p className="rounded-full border border-slate-200 bg-white px-3 py-1 text-sm text-slate-500 shadow-xs">{t('payments.summary.filteredExpenses', { count: expenseTotalCount })}</p>
-                            </div>
-
                             <div className="rounded-2xl border border-teal-100 bg-teal-50/40 p-4 shadow-xs">
-                                <div className="grid gap-3 lg:grid-cols-[1fr_180px_180px_auto] lg:items-end">
+                                <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_11rem_8rem_8rem_11rem_auto] lg:items-end">
                                     <div className="space-y-1.5">
                                         <label className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500" htmlFor="expense-title">
                                             {t('payments.expenses.title')}
@@ -935,7 +1071,7 @@ export default function PaymentsPage() {
                                             onChange={(event) => setExpenseForm((current) => ({ ...current, title: event.target.value }))}
                                             placeholder={t('payments.expenses.titlePlaceholder')}
                                             className="h-10 rounded-xl border-slate-200 bg-white shadow-xs"
-                                            disabled={!canManagePayments || createExpenseMutation.isPending}
+                                            disabled={!canManagePayments || isExpenseFormPending}
                                         />
                                     </div>
                                     <div className="space-y-1.5">
@@ -948,14 +1084,57 @@ export default function PaymentsPage() {
                                             onChange={(event) =>
                                                 setExpenseForm((current) => ({
                                                     ...current,
-                                                    amount: formatMoneyInput(event.target.value),
+                                                    amount: formatMoneyInput(event.target.value, current.currency),
                                                 }))
                                             }
                                             placeholder={t('payments.expenses.amountPlaceholder')}
-                                            inputMode="numeric"
+                                            inputMode="decimal"
                                             className="h-10 rounded-xl border-slate-200 bg-white shadow-xs"
-                                            disabled={!canManagePayments || createExpenseMutation.isPending}
+                                            disabled={!canManagePayments || isExpenseFormPending}
                                         />
+                                    </div>
+                                    <div className="space-y-1.5">
+                                        <label className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500" htmlFor="expense-quantity">
+                                            {t('payments.expenses.quantity')}
+                                        </label>
+                                        <Input
+                                            id="expense-quantity"
+                                            value={expenseForm.quantity}
+                                            onChange={(event) =>
+                                                setExpenseForm((current) => ({
+                                                    ...current,
+                                                    quantity: formatQuantityInput(event.target.value),
+                                                }))
+                                            }
+                                            inputMode="decimal"
+                                            className="h-10 rounded-xl border-slate-200 bg-white shadow-xs"
+                                            disabled={!canManagePayments || isExpenseFormPending}
+                                        />
+                                    </div>
+                                    <div className="space-y-1.5">
+                                        <label className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500" htmlFor="expense-currency">
+                                            {t('payments.expenses.currency')}
+                                        </label>
+                                        <select
+                                            id="expense-currency"
+                                            value={expenseForm.currency}
+                                            onChange={(event) => {
+                                                const currency = coerceExpenseCurrency(event.target.value);
+                                                setExpenseForm((current) => ({
+                                                    ...current,
+                                                    currency,
+                                                    amount: formatMoneyInput(current.amount, currency),
+                                                }));
+                                            }}
+                                            className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 shadow-xs outline-none transition-[border-color,box-shadow] focus-visible:border-teal-300 focus-visible:ring-[3px] focus-visible:ring-teal-100 disabled:cursor-not-allowed disabled:opacity-50"
+                                            disabled={!canManagePayments || isExpenseFormPending}
+                                        >
+                                            {EXPENSE_CURRENCIES.map((currency) => (
+                                                <option key={currency} value={currency}>
+                                                    {t(`payments.expenses.currency.${currency.toLowerCase()}`)}
+                                                </option>
+                                            ))}
+                                        </select>
                                     </div>
                                     <div className="space-y-1.5">
                                         <label className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500" htmlFor="expense-date">
@@ -967,18 +1146,33 @@ export default function PaymentsPage() {
                                             value={expenseForm.expense_date}
                                             onChange={(event) => setExpenseForm((current) => ({ ...current, expense_date: event.target.value }))}
                                             className="h-10 rounded-xl border-slate-200 bg-white shadow-xs"
-                                            disabled={!canManagePayments || createExpenseMutation.isPending}
+                                            disabled={!canManagePayments || isExpenseFormPending}
                                         />
                                     </div>
-                                    <Button
-                                        type="button"
-                                        className="h-10 rounded-xl bg-slate-950 text-white hover:bg-slate-900"
-                                        disabled={!canManagePayments || createExpenseMutation.isPending}
-                                        onClick={handleExpenseSubmit}
-                                    >
-                                        <Plus className="mr-2 h-4 w-4" />
-                                        {createExpenseMutation.isPending ? t('payments.expenses.adding') : t('payments.expenses.add')}
-                                    </Button>
+                                    <div className="flex flex-col gap-2 sm:flex-row lg:flex-col">
+                                        <Button
+                                            type="button"
+                                            className="h-10 rounded-xl bg-slate-950 text-white hover:bg-slate-900"
+                                            disabled={!canManagePayments || isExpenseFormPending}
+                                            onClick={handleExpenseSubmit}
+                                        >
+                                            <Plus className="mr-2 h-4 w-4" />
+                                            {isEditingExpense
+                                                ? (updateExpenseMutation.isPending ? t('payments.expenses.updating') : t('payments.expenses.update'))
+                                                : (createExpenseMutation.isPending ? t('payments.expenses.adding') : t('payments.expenses.add'))}
+                                        </Button>
+                                        {isEditingExpense ? (
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                className="h-10 rounded-xl"
+                                                disabled={isExpenseFormPending}
+                                                onClick={resetExpenseForm}
+                                            >
+                                                {t('common.cancel')}
+                                            </Button>
+                                        ) : null}
+                                    </div>
                                 </div>
                                 {!canManagePayments ? (
                                     <p className="mt-3 text-xs text-slate-500">{t('permissions.deniedDescription')}</p>
@@ -987,7 +1181,7 @@ export default function PaymentsPage() {
 
                             {expenseTotalCount === 0 ? (
                                 <div className="rounded-xl border border-dashed border-slate-200 px-6 py-10 text-center">
-                                    <ReceiptText className="mx-auto h-10 w-10 text-slate-300" />
+                                    <Receipt className="mx-auto h-10 w-10 text-slate-300" />
                                     <p className="mt-4 text-sm text-slate-500">{t('payments.empty.expenses')}</p>
                                 </div>
                             ) : (
@@ -998,7 +1192,9 @@ export default function PaymentsPage() {
                                                 <TableRow>
                                                     <TableHead>{t('payments.table.date')}</TableHead>
                                                     <TableHead>{t('payments.table.expenseTitle')}</TableHead>
+                                                    <TableHead className="text-right">{t('payments.expenses.quantity')}</TableHead>
                                                     <TableHead className="text-right">{t('payments.expenses.amount')}</TableHead>
+                                                    <TableHead className="text-right">{t('payments.table.actions')}</TableHead>
                                                 </TableRow>
                                             </TableHeader>
                                             <TableBody>
@@ -1006,8 +1202,37 @@ export default function PaymentsPage() {
                                                     <TableRow key={row.id}>
                                                         <TableCell>{formatDate(row.date)}</TableCell>
                                                         <TableCell className="font-medium text-slate-900">{row.title}</TableCell>
+                                                        <TableCell className="text-right tabular-nums text-slate-600">
+                                                            {row.quantity}
+                                                        </TableCell>
                                                         <TableCell className="text-right font-semibold tabular-nums text-red-700">
-                                                            {formatCurrency(row.amount)}
+                                                            {formatExpenseAmount(row.amount, row.currency, locale)}
+                                                        </TableCell>
+                                                        <TableCell>
+                                                            <div className="flex justify-end gap-2">
+                                                                <Button
+                                                                    type="button"
+                                                                    variant="outline"
+                                                                    size="icon"
+                                                                    className="h-9 w-9 rounded-xl"
+                                                                    disabled={!canManagePayments || isExpenseFormPending || deleteExpenseMutation.isPending}
+                                                                    aria-label={t('payments.expenses.editAria', { title: row.title })}
+                                                                    onClick={() => handleEditExpense(row)}
+                                                                >
+                                                                    <Pencil className="h-4 w-4" />
+                                                                </Button>
+                                                                <Button
+                                                                    type="button"
+                                                                    variant="outline"
+                                                                    size="icon"
+                                                                    className="h-9 w-9 rounded-xl border-red-100 text-red-600 hover:bg-red-50 hover:text-red-700"
+                                                                    disabled={!canManagePayments || deleteExpenseMutation.isPending}
+                                                                    aria-label={t('payments.expenses.deleteAria', { title: row.title })}
+                                                                    onClick={() => setExpensePendingDelete(row)}
+                                                                >
+                                                                    <Trash2 className="h-4 w-4" />
+                                                                </Button>
+                                                            </div>
                                                         </TableCell>
                                                     </TableRow>
                                                 ))}
@@ -1047,6 +1272,27 @@ export default function PaymentsPage() {
                     )}
                 </CardContent>
             </Card>
+            <ConfirmActionDialog
+                open={expensePendingDelete !== null}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        setExpensePendingDelete(null);
+                    }
+                }}
+                title={t('payments.expenses.deleteTitle')}
+                description={t('payments.expenses.deleteDescription', {
+                    title: expensePendingDelete?.title ?? '',
+                })}
+                confirmLabel={t('payments.expenses.delete')}
+                pendingLabel={t('payments.expenses.deleting')}
+                cancelLabel={t('common.cancel')}
+                isPending={deleteExpenseMutation.isPending}
+                onConfirm={() => {
+                    if (expensePendingDelete) {
+                        deleteExpenseMutation.mutate(expensePendingDelete.id);
+                    }
+                }}
+            />
         </div>
     );
 }

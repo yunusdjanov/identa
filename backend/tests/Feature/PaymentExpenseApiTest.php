@@ -27,12 +27,16 @@ class PaymentExpenseApiTest extends TestCase
         $this->actingAs($dentist, 'web')
             ->postJson('/api/v1/payments/expenses', [
                 'title' => 'Rent',
-                'amount' => 1200000,
+                'amount' => 1200,
+                'quantity' => 2,
+                'currency' => PaymentExpense::CURRENCY_USD,
                 'expense_date' => '2026-06-27',
             ])
             ->assertCreated()
             ->assertJsonPath('data.title', 'Rent')
-            ->assertJsonPath('data.amount', 1200000)
+            ->assertJsonPath('data.amount', 1200)
+            ->assertJsonPath('data.quantity', 2)
+            ->assertJsonPath('data.currency', PaymentExpense::CURRENCY_USD)
             ->assertJsonPath('data.expense_date', '2026-06-27');
 
         $this->actingAs($dentist, 'web')
@@ -41,8 +45,12 @@ class PaymentExpenseApiTest extends TestCase
             ->assertJsonPath('meta.pagination.total', 3)
             ->assertJsonPath('meta.pagination.total_pages', 2)
             ->assertJsonPath('meta.summary.total_count', 3)
-            ->assertJsonPath('meta.summary.total_amount', 1950000)
-            ->assertJsonPath('meta.summary.current_month_amount', 1650000)
+            ->assertJsonPath('meta.summary.total_amount', 751200)
+            ->assertJsonPath('meta.summary.current_month_amount', 451200)
+            ->assertJsonPath('meta.summary.totals_by_currency.UZS', 750000)
+            ->assertJsonPath('meta.summary.totals_by_currency.USD', 1200)
+            ->assertJsonPath('meta.summary.current_month_by_currency.UZS', 450000)
+            ->assertJsonPath('meta.summary.current_month_by_currency.USD', 1200)
             ->assertJsonPath('meta.summary.latest_expense_date', '2026-06-27')
             ->assertJsonPath('data.0.title', 'Rent');
 
@@ -74,9 +82,57 @@ class PaymentExpenseApiTest extends TestCase
             ->assertJsonPath('data.0.title', 'Other rent');
     }
 
-    public function test_expense_manage_permission_is_required_to_create(): void
+    public function test_dentist_can_update_and_delete_own_expenses(): void
+    {
+        [$dentist, $otherDentist] = $this->seedExpenseRecords();
+        $expense = PaymentExpense::query()
+            ->where('dentist_id', $dentist->id)
+            ->where('title', 'Materials')
+            ->firstOrFail();
+        $otherExpense = PaymentExpense::query()
+            ->where('dentist_id', $otherDentist->id)
+            ->firstOrFail();
+
+        $this->actingAs($dentist, 'web')
+            ->putJson("/api/v1/payments/expenses/{$expense->id}", [
+                'title' => 'Implant kit',
+                'amount' => 125.5,
+                'quantity' => 3,
+                'currency' => PaymentExpense::CURRENCY_USD,
+                'expense_date' => '2026-06-18',
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.title', 'Implant kit')
+            ->assertJsonPath('data.amount', 125.5)
+            ->assertJsonPath('data.quantity', 3)
+            ->assertJsonPath('data.currency', PaymentExpense::CURRENCY_USD)
+            ->assertJsonPath('data.expense_date', '2026-06-18');
+
+        $this->actingAs($dentist, 'web')
+            ->putJson("/api/v1/payments/expenses/{$otherExpense->id}", [
+                'title' => 'Blocked',
+                'amount' => 10,
+                'quantity' => 1,
+                'currency' => PaymentExpense::CURRENCY_UZS,
+                'expense_date' => '2026-06-18',
+            ])
+            ->assertNotFound();
+
+        $this->actingAs($dentist, 'web')
+            ->deleteJson("/api/v1/payments/expenses/{$expense->id}")
+            ->assertNoContent();
+
+        $this->assertDatabaseMissing('payment_expenses', [
+            'id' => $expense->id,
+        ]);
+    }
+
+    public function test_expense_manage_permission_is_required_to_create_update_and_delete(): void
     {
         $dentist = User::factory()->create();
+        $expense = PaymentExpense::factory()->create([
+            'dentist_id' => $dentist->id,
+        ]);
         $assistant = User::factory()->create([
             'role' => 'assistant',
             'dentist_owner_id' => $dentist->id,
@@ -94,6 +150,20 @@ class PaymentExpenseApiTest extends TestCase
                 'expense_date' => '2026-06-27',
             ])
             ->assertForbidden();
+
+        $this->actingAs($assistant, 'web')
+            ->putJson("/api/v1/payments/expenses/{$expense->id}", [
+                'title' => 'Rent',
+                'amount' => 1200000,
+                'quantity' => 1,
+                'currency' => PaymentExpense::CURRENCY_UZS,
+                'expense_date' => '2026-06-27',
+            ])
+            ->assertForbidden();
+
+        $this->actingAs($assistant, 'web')
+            ->deleteJson("/api/v1/payments/expenses/{$expense->id}")
+            ->assertForbidden();
     }
 
     public function test_expense_validation_rejects_invalid_payload(): void
@@ -104,10 +174,12 @@ class PaymentExpenseApiTest extends TestCase
             ->postJson('/api/v1/payments/expenses', [
                 'title' => '',
                 'amount' => 0,
+                'quantity' => 0,
+                'currency' => 'EUR',
                 'expense_date' => 'not-a-date',
             ])
             ->assertUnprocessable()
-            ->assertJsonValidationErrors(['title', 'amount', 'expense_date']);
+            ->assertJsonValidationErrors(['title', 'amount', 'quantity', 'currency', 'expense_date']);
     }
 
     /**

@@ -9,17 +9,9 @@ import { PageHeader } from '@/components/ui/page-shell';
 import { Button } from '@/components/ui/button';
 import { getApiErrorMessage } from '@/lib/api/client';
 import {
+    getAnalyticsSummary,
     getCurrentUser,
-    getDashboardSnapshot,
-    listAllAppointments,
-    listAllTreatments,
-    listPatients,
 } from '@/lib/api/dentist';
-import type {
-    ApiAppointment,
-    ApiPatient,
-    ApiTreatment,
-} from '@/lib/api/types';
 import { useI18n } from '@/components/providers/i18n-provider';
 import { AppErrorState } from '@/components/error/app-error-state';
 import { AccessDeniedState } from '@/components/error/access-denied-state';
@@ -31,7 +23,7 @@ import {
     RevenueChart,
     TopDebtorsCard,
 } from '@/components/dashboard/dashboard-charts';
-import { extractPrimaryPhone, formatCurrency } from '@/lib/utils';
+import { formatCurrency } from '@/lib/utils';
 import { KpiCard } from '@/components/analytics/kpi-card';
 import {
     type AnalyticsRange,
@@ -40,9 +32,7 @@ import {
     getRangeBounds,
     TimeRangeSelector,
 } from '@/components/analytics/time-range-selector';
-import { withinLocalBounds } from '@/lib/analytics/date-bounds';
 import { buildChartBuckets } from '@/lib/analytics/chart-buckets';
-import { countUniqueVisits } from '@/lib/analytics/visits';
 import { buildPdfFilename, exportRowsToPdf } from '@/lib/export/pdf';
 import { formatLocalizedDate, getActiveDisplayLocale } from '@/lib/i18n/date';
 
@@ -54,15 +44,6 @@ function formatApiDate(date: Date): string {
     ].join('-');
 }
 
-/**
- * Outstanding balance for a treatment, clamped to ≥0. Mirrors the
- * backend's `balance = debt_amount − paid_amount` field but recomputes
- * locally so we don't depend on the field being present on every shape.
- */
-function outstandingBalance(treatment: ApiTreatment): number {
-    return Math.max(0, Number(treatment.debt_amount ?? 0) - Number(treatment.paid_amount ?? 0));
-}
-
 function computeDelta(current: number, previous: number): number | null {
     // (0, 0) used to return 0 — which renders as a literal "0%" with a neutral
     // arrow and reads as "no change". That's misleading when there's actually
@@ -71,11 +52,8 @@ function computeDelta(current: number, previous: number): number | null {
     return ((current - previous) / Math.abs(previous)) * 100;
 }
 
-// Stable empty references prevent each render from producing a new `[]`
-// that would invalidate every downstream useMemo dependency.
-const EMPTY_TREATMENTS: readonly ApiTreatment[] = Object.freeze([]);
-const EMPTY_APPOINTMENTS: readonly ApiAppointment[] = Object.freeze([]);
-const EMPTY_PATIENTS: readonly ApiPatient[] = Object.freeze([]);
+const AUTH_QUERY_STALE_TIME_MS = 5 * 60_000;
+const ANALYTICS_QUERY_STALE_TIME_MS = 60_000;
 
 export default function AnalyticsPage() {
     const { t, locale } = useI18n();
@@ -84,6 +62,7 @@ export default function AnalyticsPage() {
     const currentUserQuery = useQuery({
         queryKey: ['auth', 'me'],
         queryFn: getCurrentUser,
+        staleTime: AUTH_QUERY_STALE_TIME_MS,
     });
     const currentUser = currentUserQuery.data;
     const canViewPayments = canView(currentUser, 'payments');
@@ -100,42 +79,34 @@ export default function AnalyticsPage() {
     const now = rangeAnchor.now;
     const bounds = useMemo(() => getRangeBounds(range, now), [range, now]);
     const previousBounds = useMemo(() => getPreviousRangeBounds(range, now), [range, now]);
-    const analyticsDateFilter = useMemo(
+    const analyticsSummaryParams = useMemo(
         () => ({
-            date_from: formatApiDate(previousBounds.start),
-            date_to: formatApiDate(bounds.end),
+            range,
+            current_from: formatApiDate(bounds.start),
+            current_to: formatApiDate(bounds.end),
+            previous_from: formatApiDate(previousBounds.start),
+            previous_to: formatApiDate(previousBounds.end),
         }),
-        [bounds.end, previousBounds.start]
+        [range, bounds.start, bounds.end, previousBounds.start, previousBounds.end]
     );
 
-    const treatmentsQuery = useQuery({
-        queryKey: ['analytics', 'treatments', analyticsDateFilter.date_from, analyticsDateFilter.date_to],
-        queryFn: () => listAllTreatments({
-            sort: '-treatment_date,-created_at',
-            includeImages: false,
-            filter: analyticsDateFilter,
-        }),
-        enabled: canViewPayments,
-    });
-    const patientsQuery = useQuery({
-        queryKey: ['analytics', 'patients'],
-        queryFn: () => listPatients({ page: 1, perPage: 500, sort: '-created_at' }),
-        enabled: canViewPatients,
-    });
-    const appointmentsQuery = useQuery({
-        queryKey: ['analytics', 'appointments', analyticsDateFilter.date_from, analyticsDateFilter.date_to],
-        queryFn: () => listAllAppointments({ filter: analyticsDateFilter }),
-        enabled: canViewAppointments,
-    });
-    const snapshotQuery = useQuery({
-        queryKey: ['dashboard', 'snapshot'],
-        queryFn: () => getDashboardSnapshot({ includeFinancials: true }),
-        enabled: canViewPayments,
+    const analyticsQuery = useQuery({
+        queryKey: [
+            'analytics',
+            'summary',
+            analyticsSummaryParams.range,
+            analyticsSummaryParams.current_from,
+            analyticsSummaryParams.current_to,
+            analyticsSummaryParams.previous_from,
+            analyticsSummaryParams.previous_to,
+        ],
+        queryFn: () => getAnalyticsSummary(analyticsSummaryParams),
+        enabled: canViewPayments || canViewPatients || canViewAppointments,
+        placeholderData: (previousData) => previousData,
+        staleTime: ANALYTICS_QUERY_STALE_TIME_MS,
     });
 
-    const treatments = treatmentsQuery.data ?? EMPTY_TREATMENTS;
-    const patients = (patientsQuery.data?.data ?? EMPTY_PATIENTS) as readonly ApiPatient[];
-    const appointments = appointmentsQuery.data ?? EMPTY_APPOINTMENTS;
+    const analytics = analyticsQuery.data;
 
     const displayLocale = getActiveDisplayLocale();
     const buckets = useMemo(
@@ -146,129 +117,67 @@ export default function AnalyticsPage() {
     // KPI #1 — Revenue collected within the selected range. Sum
     // `paid_amount` on treatments whose treatment_date is in the window.
     const revenueKpi = useMemo(() => {
-        let current = 0;
-        let previous = 0;
-        for (const tr of treatments) {
-            const paid = Number(tr.paid_amount ?? 0);
-            if (!paid) continue;
-            if (withinLocalBounds(tr.treatment_date, bounds.start, bounds.end)) {
-                current += paid;
-            } else if (withinLocalBounds(tr.treatment_date, previousBounds.start, previousBounds.end)) {
-                previous += paid;
-            }
-        }
+        const current = analytics?.kpis.revenue.current ?? 0;
+        const previous = analytics?.kpis.revenue.previous ?? 0;
         return { current, previous, delta: computeDelta(current, previous) };
-    }, [treatments, bounds, previousBounds]);
+    }, [analytics]);
 
     // KPI #2 — Outstanding debt across all patients (snapshot value).
     // It's a standing balance, not a flow, so we don't compute a baseline
     // delta — the KpiCard renders the "no previous data" hint.
     const debtKpi = useMemo(() => {
         return {
-            current: snapshotQuery.data?.outstandingDebtTotal ?? 0,
+            current: analytics?.kpis.debt.current ?? 0,
             delta: null as number | null,
         };
-    }, [snapshotQuery.data]);
+    }, [analytics]);
 
     // KPI #3 — New patients registered in the range.
     const patientsKpi = useMemo(() => {
-        let current = 0;
-        let previous = 0;
-        for (const p of patients) {
-            if (withinLocalBounds(p.created_at, bounds.start, bounds.end)) {
-                current += 1;
-            } else if (withinLocalBounds(p.created_at, previousBounds.start, previousBounds.end)) {
-                previous += 1;
-            }
-        }
+        const current = analytics?.kpis.patients.current ?? 0;
+        const previous = analytics?.kpis.patients.previous ?? 0;
         return { current, previous, delta: computeDelta(current, previous) };
-    }, [patients, bounds, previousBounds]);
+    }, [analytics]);
 
     // KPI #4: real visits, not just appointment rows. A completed
     // appointment and a treatment/history entry on the same patient/day
     // represent one clinical visit.
     const visitsKpi = useMemo(() => {
-        const current = countUniqueVisits(appointments, treatments, bounds.start, bounds.end);
-        const previous = countUniqueVisits(appointments, treatments, previousBounds.start, previousBounds.end);
+        const current = analytics?.kpis.visits.current ?? 0;
+        const previous = analytics?.kpis.visits.previous ?? 0;
 
         return {
             current,
             previous,
             delta: computeDelta(current, previous),
         };
-    }, [appointments, treatments, bounds, previousBounds]);
+    }, [analytics]);
 
     const revenueByBucket = useMemo(() => {
+        const summaryByKey = new Map((analytics?.buckets ?? []).map((bucket) => [bucket.key, bucket]));
         return buckets.map((bucket) => {
-            let revenue = 0;
-            let debt = 0;
-            for (const tr of treatments) {
-                if (!bucket.match(tr.treatment_date)) continue;
-                revenue += Number(tr.paid_amount ?? 0);
-                // **Fix**: previously summed `debt_amount` (the gross charge)
-                // here, which double-counted the paid portion of fully-paid
-                // treatments. The bar now shows the actual outstanding balance.
-                debt += outstandingBalance(tr);
-            }
+            const row = summaryByKey.get(bucket.key);
+            const revenue = row?.revenue ?? 0;
+            const debt = row?.debt ?? 0;
             return { month: bucket.label, revenue, debt };
         });
-    }, [treatments, buckets]);
+    }, [analytics, buckets]);
 
     const patientGrowth = useMemo(() => {
-        return buckets.map((bucket, index) => {
-            const newInBucket = patients.filter((p) => bucket.match(p.created_at)).length;
-            // Cumulative count up to and including this bucket. We walk the
-            // patient list once per bucket — small dataset, simpler than
-            // pre-sorting + binary search.
-            const cumulativeBucketKeys = new Set(buckets.slice(0, index + 1).map((b) => b.key));
-            const total = patients.filter((p) => {
-                if (!p.created_at) return false;
-                for (const b of buckets) {
-                    if (b.match(p.created_at) && cumulativeBucketKeys.has(b.key)) return true;
-                }
-                return false;
-            }).length;
-            return { month: bucket.label, total, new: newInBucket };
-        });
-    }, [patients, buckets]);
-
-    // Appointment status pie — count by status WITHIN the selected range.
-    // Previously this counted the entire dataset so the donut never
-    // changed when the user toggled the range.
-    const appointmentStatus = useMemo(() => {
-        const counts: Record<string, number> = { scheduled: 0, completed: 0, cancelled: 0, no_show: 0 };
-        for (const apt of appointments) {
-            if (!withinLocalBounds(apt.appointment_date, bounds.start, bounds.end)) continue;
-            const status = apt.status as keyof typeof counts;
-            if (status in counts) counts[status] = (counts[status] ?? 0) + 1;
-        }
-        return Object.entries(counts).map(([status, count]) => ({
-            status: status as ApiAppointment['status'],
-            count,
-        }));
-    }, [appointments, bounds]);
-
-    // Top debtors — aggregate outstanding balance per patient, but only
-    // count treatments whose date sits in the selected range. Previously
-    // returned all-time data regardless of range.
-    const topDebtors = useMemo(() => {
-        const grouped: Record<string, { name: string; phone: string; debt: number }> = {};
-        for (const tr of treatments) {
-            if (!withinLocalBounds(tr.treatment_date, bounds.start, bounds.end)) continue;
-            const debt = outstandingBalance(tr);
-            if (debt <= 0) continue;
-            const patientId = tr.patient_id ?? 'unknown';
-            const existing = grouped[patientId] ?? {
-                name: tr.patient_name ?? '—',
-                phone: extractPrimaryPhone(tr.patient_phone ?? '') || '',
-                debt: 0,
+        const summaryByKey = new Map((analytics?.buckets ?? []).map((bucket) => [bucket.key, bucket]));
+        return buckets.map((bucket) => {
+            const row = summaryByKey.get(bucket.key);
+            return {
+                month: bucket.label,
+                total: row?.cumulative_patients ?? 0,
+                new: row?.new_patients ?? 0,
             };
-            existing.debt += debt;
-            grouped[patientId] = existing;
-        }
-        return Object.values(grouped).sort((a, b) => b.debt - a.debt).slice(0, 5);
-    }, [treatments, bounds]);
+        });
+    }, [analytics, buckets]);
 
+    const appointmentStatus = useMemo(() => analytics?.appointment_status ?? [], [analytics]);
+
+    const topDebtors = useMemo(() => analytics?.top_debtors ?? [], [analytics]);
     const handleExport = useCallback(() => {
         const rangeLabel = t(`analytics.range.${range}`);
         const today = formatLocalizedDate(new Date().toISOString(), locale, {
@@ -341,14 +250,36 @@ export default function AnalyticsPage() {
         return <AccessDeniedState title={t('common.forbiddenTitle')} description={t('permissions.deniedDescription')} />;
     }
 
-    const isAnyLoading =
-        treatmentsQuery.isLoading
-        || patientsQuery.isLoading
-        || appointmentsQuery.isLoading
-        || snapshotQuery.isLoading;
+    // Keep the loading skeleton in the same permission-shaped layout as the
+    // final page to avoid large jumps for assistant accounts.
+    const visibleKpiCount =
+        (canViewPayments ? 2 : 0) + (canViewPatients ? 1 : 0) + (canViewVisits ? 1 : 0);
+    const showRevenueChart = canViewPayments;
+    const showStatusChart = canViewAppointments;
+    const showGrowthChart = canViewPatients;
+    const showDebtorsCard = canViewPayments;
 
-    if (isAnyLoading) {
-        return <AnalyticsLoadingState />;
+    if (analyticsQuery.isLoading) {
+        return (
+            <AnalyticsLoadingState
+                visibleKpiCount={visibleKpiCount}
+                showRevenueChart={showRevenueChart}
+                showStatusChart={showStatusChart}
+                showGrowthChart={showGrowthChart}
+                showDebtorsCard={showDebtorsCard}
+            />
+        );
+    }
+
+    if (analyticsQuery.isError) {
+        return (
+            <AppErrorState
+                title={t('analytics.title')}
+                description={getApiErrorMessage(analyticsQuery.error, t('common.loadErrorTitle'))}
+                retryLabel={t('common.retry')}
+                onRetry={() => analyticsQuery.refetch()}
+            />
+        );
     }
 
     // Permission-aware layout: when an assistant lacks `payments.view`, the
@@ -356,8 +287,6 @@ export default function AnalyticsPage() {
     // 3-col/2-col chart rows would leave a single chart sitting in a
     // fraction of the row width. Count the visible cells in each row and
     // pick a grid template that fills cleanly for any permission shape.
-    const visibleKpiCount =
-        (canViewPayments ? 2 : 0) + (canViewPatients ? 1 : 0) + (canViewVisits ? 1 : 0);
     const kpiGridClass =
         visibleKpiCount <= 1
             ? 'grid grid-cols-1 gap-4'
@@ -367,15 +296,11 @@ export default function AnalyticsPage() {
                     ? 'grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3'
                     : 'grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4';
 
-    const showRevenueChart = canViewPayments;
-    const showStatusChart = canViewAppointments;
     const firstChartRowBoth = showRevenueChart && showStatusChart;
     const firstChartRowClass = firstChartRowBoth
         ? 'grid grid-cols-1 gap-2.5 lg:grid-cols-3'
         : 'grid grid-cols-1 gap-2.5';
 
-    const showGrowthChart = canViewPatients;
-    const showDebtorsCard = canViewPayments;
     const secondChartRowBoth = showGrowthChart && showDebtorsCard;
     const secondChartRowClass = secondChartRowBoth
         ? 'grid grid-cols-1 gap-2.5 lg:grid-cols-2'

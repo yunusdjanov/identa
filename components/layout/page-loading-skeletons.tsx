@@ -157,55 +157,77 @@ function AdminShellSkeleton({
 
 export function RouteDashboardLoadingState() {
     return (
-        <div data-testid="dashboard-loading" className="space-y-3">
-            {/* Header banner */}
-            <section className="overflow-hidden rounded-2xl border border-white/80 bg-white px-4 py-3 shadow-sm shadow-slate-200/70 sm:px-5 sm:py-4">
-                <div className="flex min-w-0 flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                    <div className="space-y-1.5">
-                        <Skeleton className="h-3 w-16 rounded-xl" />
-                        <Skeleton className="h-7 w-48 rounded-xl" />
-                        <Skeleton className="h-3.5 w-56 rounded-xl" />
-                    </div>
-                    <div className="flex gap-2">
-                        <Skeleton className="h-7 w-28 rounded-full" />
-                        <Skeleton className="h-7 w-28 rounded-full" />
-                    </div>
-                </div>
-            </section>
-            {/* Stat cards — 3 cols, compact */}
-            <div className="grid gap-2.5 md:grid-cols-3">
-                {Array.from({ length: 3 }).map((_, i) => (
-                    <div key={i} className="rounded-2xl border bg-white px-4 py-3.5 shadow-sm">
-                        <div className="flex items-start justify-between gap-3">
-                            <Skeleton className="h-3.5 w-28 rounded-xl" />
-                            <Skeleton className="h-7 w-7 rounded-lg" />
+        <div data-testid="dashboard-loading" className="space-y-5 lg:space-y-6">
+            <PageHeaderSkeleton actions={2} />
+            <Card data-testid="dashboard-planner-skeleton" className="overflow-hidden rounded-2xl border-teal-100/80 bg-white shadow-sm shadow-teal-100/50">
+                <CardContent className="space-y-4 p-3 sm:p-5 xl:pb-2.5">
+                    <div className="flex flex-col gap-3 rounded-2xl border border-teal-100/80 bg-white p-3 shadow-xs md:flex-row md:items-center md:justify-between">
+                        <div className="inline-flex w-full items-center gap-1 rounded-xl border border-slate-200/80 bg-slate-100/70 p-1 shadow-xs sm:w-auto">
+                            <Skeleton className="h-9 flex-1 rounded-lg sm:w-24 sm:flex-none" />
+                            <Skeleton className="h-9 flex-1 rounded-lg sm:w-24 sm:flex-none" />
                         </div>
-                        <Skeleton className="mt-2.5 h-7 w-20 rounded-xl" />
+                        <div className="flex w-full min-w-0 items-center justify-center gap-2 md:w-auto">
+                            <Skeleton className="h-9 w-9 rounded-xl" />
+                            <Skeleton className="h-9 w-full rounded-xl md:w-64" />
+                            <Skeleton className="h-9 w-9 rounded-xl" />
+                        </div>
+                        <Skeleton className="h-9 w-full rounded-xl md:w-24" />
                     </div>
-                ))}
-            </div>
-            {/* Upcoming today block */}
-            <div className="rounded-2xl border border-slate-200/80 bg-white shadow-sm">
-                <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
-                    <div className="flex items-center gap-2">
-                        <Skeleton className="h-6 w-6 rounded-md" />
-                        <Skeleton className="h-4 w-32 rounded-xl" />
+                    <div className="border-t border-slate-100 pt-4">
+                        <div className="hidden xl:grid xl:grid-cols-7 xl:gap-2.5">
+                            {Array.from({ length: 7 }).map((_, index) => (
+                                <div
+                                    key={index}
+                                    data-testid="dashboard-week-day-skeleton"
+                                    className="min-h-[18rem] rounded-2xl border border-slate-200/80 bg-white p-2 shadow-sm shadow-slate-200/50"
+                                >
+                                    <div className="mb-2 flex items-center justify-between gap-2">
+                                        <div className="flex items-center gap-2">
+                                            <Skeleton className="h-4 w-8 rounded-xl" />
+                                            <Skeleton className="h-5 w-12 rounded-xl" />
+                                        </div>
+                                        <Skeleton className="h-6 w-7 rounded-full" />
+                                    </div>
+                                    <div className="min-h-[13rem] rounded-2xl border border-dashed border-teal-100/70 bg-slate-50/60 p-2">
+                                        <div className="space-y-1.5">
+                                            <Skeleton className="h-8 w-full rounded-xl" />
+                                            <Skeleton className="h-8 w-11/12 rounded-xl" />
+                                            <Skeleton className="h-8 w-4/5 rounded-xl" />
+                                        </div>
+                                    </div>
+                                    <Skeleton className="mt-2 h-8 w-full rounded-xl" />
+                                </div>
+                            ))}
+                        </div>
+                        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:hidden">
+                            {Array.from({ length: 4 }).map((_, index) => (
+                                <div
+                                    key={index}
+                                    data-testid="dashboard-week-day-skeleton"
+                                    className="min-h-[14rem] rounded-2xl border border-slate-200/80 bg-white p-3 shadow-sm shadow-slate-200/50"
+                                >
+                                    <div className="mb-3 flex items-center justify-between">
+                                        <Skeleton className="h-5 w-20 rounded-xl" />
+                                        <Skeleton className="h-6 w-7 rounded-full" />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Skeleton className="h-9 w-full rounded-xl" />
+                                        <Skeleton className="h-9 w-10/12 rounded-xl" />
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
                     </div>
-                    <Skeleton className="h-4 w-16 rounded-xl" />
-                </div>
-                <div className="divide-y divide-slate-100/80 px-4">
-                    {Array.from({ length: 4 }).map((_, i) => (
-                        <div key={i} className="flex items-center gap-3 py-2.5">
-                            <Skeleton className="h-8 w-[3.8rem] shrink-0 rounded-full" />
-                            <div className="flex-1 space-y-1.5">
-                                <Skeleton className="h-3.5 w-40 rounded-xl" />
-                                <Skeleton className="h-3 w-24 rounded-xl" />
+                    <div className="hidden items-center justify-center gap-6 pt-1 xl:flex">
+                        {Array.from({ length: 4 }).map((_, index) => (
+                            <div key={index} className="flex items-center gap-2">
+                                <Skeleton className="h-2.5 w-2.5 rounded-full" />
+                                <Skeleton className="h-3 w-20 rounded-xl" />
                             </div>
-                            <Skeleton className="h-5 w-20 shrink-0 rounded-full" />
-                        </div>
-                    ))}
-                </div>
-            </div>
+                        ))}
+                    </div>
+                </CardContent>
+            </Card>
         </div>
     );
 }
@@ -249,23 +271,49 @@ export function PatientsLoadingState() {
     return (
         <div className="space-y-5 lg:space-y-6">
             <PageHeaderSkeleton actions={2} />
-            <Card className="rounded-2xl border-slate-200 bg-white">
-                <CardContent className="p-4">
-                    <div className="grid gap-3 md:grid-cols-[1fr_12rem_12rem_10rem]">
-                        <Skeleton className="h-10 rounded-xl" />
+            <Card data-testid="patients-list-skeleton" className="overflow-hidden rounded-2xl bg-white shadow-sm">
+                <CardHeader className="gap-4 pb-4">
+                    <Skeleton className="h-6 w-32 rounded-xl" />
+                    <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_12rem_12rem_10rem]">
+                        <Skeleton className="h-10 rounded-xl" data-testid="patients-search-skeleton" />
                         <Skeleton className="h-10 rounded-xl" />
                         <Skeleton className="h-10 rounded-xl" />
                         <Skeleton className="h-10 rounded-xl" />
                     </div>
+                </CardHeader>
+                <CardContent className="space-y-3 px-4 pb-5 sm:px-5">
+                    <div className="hidden grid-cols-[3rem_7rem_minmax(0,1.35fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_8rem] gap-3 rounded-t-xl border border-slate-100 bg-slate-50 px-4 py-3 md:grid">
+                        {Array.from({ length: 7 }).map((_, index) => (
+                            <Skeleton key={index} className="h-4 w-full rounded-xl" />
+                        ))}
+                    </div>
+                    {Array.from({ length: 6 }).map((_, rowIndex) => (
+                        <div
+                            key={rowIndex}
+                            className="grid gap-3 rounded-xl border border-slate-100 bg-white p-3 md:grid-cols-[3rem_7rem_minmax(0,1.35fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_8rem]"
+                        >
+                            <Skeleton className="h-4 w-5 rounded-xl" />
+                            <Skeleton className="h-16 w-16 rounded-xl" />
+                            <div className="space-y-2">
+                                <Skeleton className="h-4 w-44 max-w-full rounded-xl" />
+                                <Skeleton className="h-3.5 w-32 rounded-xl" />
+                                <Skeleton className="h-5 w-28 rounded-full" />
+                            </div>
+                            <Skeleton className="h-5 w-28 rounded-full" />
+                            <Skeleton className="h-4 w-24 rounded-xl" />
+                            <Skeleton className="h-4 w-24 rounded-xl" />
+                            <Skeleton className="h-8 w-full rounded-xl" />
+                        </div>
+                    ))}
                 </CardContent>
             </Card>
-            <DataTableSkeleton columns={7} rows={6} />
         </div>
     );
 }
 
-export function PaymentsLoadingState() {
-    const ledgerColumnCount = 8;
+export function PaymentsLoadingState({ tab = 'patients' }: { tab?: 'patients' | 'expenses' } = {}) {
+    const isExpensesTab = tab === 'expenses';
+    const ledgerColumnCount = isExpensesTab ? 5 : 8;
 
     // The real page (`app/payments/page.tsx`) keeps the toolbar (tab group +
     // search) AND the ledger table inside ONE `overflow-hidden rounded-2xl`
@@ -276,7 +324,10 @@ export function PaymentsLoadingState() {
         <div data-testid="payments-loading" className="space-y-5 lg:space-y-6">
             <PageHeaderSkeleton actions={0} />
             <MetricCardsSkeleton count={4} />
-            <Card data-testid="ledger-table-skeleton" className="overflow-hidden rounded-2xl bg-white shadow-sm">
+            <Card
+                data-testid={isExpensesTab ? 'expenses-table-skeleton' : 'ledger-table-skeleton'}
+                className="overflow-hidden rounded-2xl bg-white shadow-sm"
+            >
                 <CardContent className="space-y-5 p-4 sm:p-5">
                     {/* Toolbar: tabs, search, and outstanding-debt filter. */}
                     <div className="flex flex-col gap-4 rounded-2xl border border-teal-100/80 bg-white p-3 lg:flex-row lg:items-center lg:justify-between">
@@ -286,16 +337,28 @@ export function PaymentsLoadingState() {
                         </div>
                         <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
                             <Skeleton className="h-9 w-full rounded-xl sm:w-[22rem]" />
-                            <Skeleton
-                                data-testid="payments-outstanding-filter-skeleton"
-                                className="h-9 w-full rounded-xl sm:w-28"
-                            />
+                            {isExpensesTab ? null : (
+                                <Skeleton
+                                    data-testid="payments-outstanding-filter-skeleton"
+                                    className="h-9 w-full rounded-xl sm:w-28"
+                                />
+                            )}
                         </div>
                     </div>
+                    {isExpensesTab ? (
+                        <div data-testid="payments-expenses-form-skeleton" className="grid gap-3 rounded-2xl border border-slate-100 bg-slate-50/60 p-3 md:grid-cols-[minmax(0,1fr)_11rem_8rem_8rem_11rem_9rem]">
+                            <Skeleton className="h-10 rounded-xl" />
+                            <Skeleton className="h-10 rounded-xl" />
+                            <Skeleton className="h-10 rounded-xl" />
+                            <Skeleton className="h-10 rounded-xl" />
+                            <Skeleton className="h-10 rounded-xl" />
+                            <Skeleton className="h-10 rounded-xl" />
+                        </div>
+                    ) : null}
                     <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-slate-50/70 p-4">
                         <div className="space-y-2">
-                            <Skeleton className="h-5 w-36 rounded-xl" />
-                            <Skeleton className="h-4 w-56 max-w-full rounded-xl" />
+                            <Skeleton className={`h-5 rounded-xl ${isExpensesTab ? 'w-32' : 'w-36'}`} />
+                            <Skeleton className={`h-4 max-w-full rounded-xl ${isExpensesTab ? 'w-44' : 'w-56'}`} />
                         </div>
                         <Skeleton className="h-8 w-28 rounded-full" />
                     </div>
@@ -437,7 +500,7 @@ export function PatientDetailLoadingState() {
 
             {/* Summary cards: contact, oral photo, detail */}
             <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
-                {[5].map((rowCount, cardIndex) => (
+                {[4].map((rowCount, cardIndex) => (
                     <div key={cardIndex} className="overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm shadow-slate-100/80">
                         {/* Header: h-7 w-7 rounded-lg badge + title */}
                         <div className="flex items-center gap-2.5 border-b border-slate-100 px-4 py-1.5">
@@ -493,6 +556,23 @@ export function PatientDetailLoadingState() {
                                 <Skeleton className="mx-auto h-3 w-20 rounded-xl" />
                                 <Skeleton className="mx-auto mt-3 h-4 w-24 rounded-xl" />
                             </div>
+                        ))}
+                    </div>
+                </div>
+            </div>
+
+            <div
+                data-testid="patient-detail-clinical-strip-skeleton"
+                className="overflow-hidden rounded-2xl border border-slate-200/60 bg-white px-4 py-3 shadow-sm shadow-slate-100/80"
+            >
+                <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+                    <div className="flex min-w-[9rem] items-center gap-2.5">
+                        <Skeleton className="h-8 w-8 shrink-0 rounded-xl" />
+                        <Skeleton className="h-[14px] w-28 rounded-xl" />
+                    </div>
+                    <div className="grid min-w-0 flex-1 gap-2 md:grid-cols-3">
+                        {Array.from({ length: 3 }).map((_, index) => (
+                            <Skeleton key={index} className="h-8 rounded-lg" />
                         ))}
                     </div>
                 </div>
@@ -580,7 +660,19 @@ export function AdminAnalyticsLoadingState() {
     );
 }
 
-export function AnalyticsLoadingState() {
+export function AnalyticsLoadingState({
+    visibleKpiCount = 4,
+    showRevenueChart = true,
+    showStatusChart = true,
+    showGrowthChart = true,
+    showDebtorsCard = true,
+}: {
+    visibleKpiCount?: number;
+    showRevenueChart?: boolean;
+    showStatusChart?: boolean;
+    showGrowthChart?: boolean;
+    showDebtorsCard?: boolean;
+} = {}) {
     // Mirrors the real /analytics page:
     // - PageHeader with 1 action (Export PDF)
     // - Time range pill group
@@ -589,6 +681,18 @@ export function AnalyticsLoadingState() {
     // - Bottom chart row: patient growth + top debtors
     // Heights are approximate but close enough that the page doesn't jump
     // when data arrives.
+    const normalizedKpiCount = Math.max(0, Math.min(visibleKpiCount, 4));
+    const kpiGridClass =
+        normalizedKpiCount <= 1
+            ? 'grid grid-cols-1 gap-4'
+            : normalizedKpiCount === 2
+                ? 'grid grid-cols-1 gap-4 sm:grid-cols-2'
+                : normalizedKpiCount === 3
+                    ? 'grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3'
+                    : 'grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4';
+    const firstChartRowBoth = showRevenueChart && showStatusChart;
+    const secondChartRowBoth = showGrowthChart && showDebtorsCard;
+
     return (
         <div className="space-y-5 lg:space-y-6">
             <PageHeaderSkeleton actions={1} />
@@ -602,10 +706,11 @@ export function AnalyticsLoadingState() {
                 </div>
             </div>
             {/* KPI cards */}
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-                {Array.from({ length: 4 }).map((_, index) => (
+            {normalizedKpiCount > 0 ? (
+                <div className={kpiGridClass}>
+                {Array.from({ length: normalizedKpiCount }).map((_, index) => (
                     <Card key={index} className="rounded-2xl border-slate-200 bg-white shadow-sm">
-                        <CardContent className="space-y-3 p-5">
+                        <CardContent className="space-y-3 p-5" data-testid="analytics-kpi-skeleton">
                             <div className="flex items-start justify-between gap-3">
                                 <div className="space-y-1.5">
                                     <Skeleton className="h-3 w-20 rounded-xl" />
@@ -618,17 +723,30 @@ export function AnalyticsLoadingState() {
                         </CardContent>
                     </Card>
                 ))}
-            </div>
+                </div>
+            ) : null}
             {/* First chart row */}
-            <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-                <Skeleton className="h-[300px] rounded-2xl lg:col-span-2" />
-                <Skeleton className="h-[300px] rounded-2xl" />
-            </div>
+            {showRevenueChart || showStatusChart ? (
+                <div className={firstChartRowBoth ? 'grid grid-cols-1 gap-4 lg:grid-cols-3' : 'grid grid-cols-1 gap-4'}>
+                    {showRevenueChart ? (
+                        <Skeleton className={`h-[300px] rounded-2xl ${firstChartRowBoth ? 'lg:col-span-2' : ''}`} data-testid="analytics-revenue-chart-skeleton" />
+                    ) : null}
+                    {showStatusChart ? (
+                        <Skeleton className="h-[300px] rounded-2xl" data-testid="analytics-status-chart-skeleton" />
+                    ) : null}
+                </div>
+            ) : null}
             {/* Second chart row */}
-            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-                <Skeleton className="h-[280px] rounded-2xl" />
-                <Skeleton className="h-[280px] rounded-2xl" />
-            </div>
+            {showGrowthChart || showDebtorsCard ? (
+                <div className={secondChartRowBoth ? 'grid grid-cols-1 gap-4 lg:grid-cols-2' : 'grid grid-cols-1 gap-4'}>
+                    {showGrowthChart ? (
+                        <Skeleton className="h-[280px] rounded-2xl" data-testid="analytics-growth-chart-skeleton" />
+                    ) : null}
+                    {showDebtorsCard ? (
+                        <Skeleton className="h-[280px] rounded-2xl" data-testid="analytics-debtors-card-skeleton" />
+                    ) : null}
+                </div>
+            ) : null}
         </div>
     );
 }

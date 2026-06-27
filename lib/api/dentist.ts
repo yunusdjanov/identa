@@ -5,6 +5,8 @@ import type {
     ApiAdminPasswordResetPayload,
     ApiAdminPayment,
     ApiAdminPaymentsEnvelope,
+    ApiAdminAnalyticsSummary,
+    ApiAnalyticsSummary,
     ApiAppointment,
     ApiAppointmentLookup,
     ApiAssistantAccount,
@@ -36,6 +38,14 @@ import type {
 
 type FilterValue = string | number | boolean;
 type LoginPortal = 'app' | 'admin';
+
+export interface AnalyticsSummaryParams {
+    range: '7d' | '30d' | '90d' | '180d' | '365d' | 'ytd';
+    current_from: string;
+    current_to: string;
+    previous_from: string;
+    previous_to: string;
+}
 
 interface QueryOptions {
     page?: number;
@@ -990,11 +1000,26 @@ export async function listPaymentExpenses(
 }
 
 /**
+ * Fetches server-aggregated clinic analytics. The payload replaces the old
+ * browser-side "load all treatments/appointments/patients then aggregate"
+ * flow, keeping the analytics page bounded as the clinic grows.
+ */
+export async function getAnalyticsSummary(params: AnalyticsSummaryParams): Promise<ApiAnalyticsSummary> {
+    const { data } = await apiClient.get<ApiEnvelope<ApiAnalyticsSummary>>('/analytics/summary', {
+        params,
+    });
+
+    return data.data;
+}
+
+/**
  * Creates a practice expense in the payments Expenses tab.
  */
 export async function createPaymentExpense(payload: {
     title: string;
     amount: number;
+    quantity?: number;
+    currency?: ApiPaymentExpense['currency'];
     expense_date: string;
 }): Promise<ApiPaymentExpense> {
     const { data } = await apiClient.post<ApiEnvelope<ApiPaymentExpense>>(
@@ -1003,6 +1028,34 @@ export async function createPaymentExpense(payload: {
     );
 
     return data.data;
+}
+
+/**
+ * Updates a practice expense in the payments Expenses tab.
+ */
+export async function updatePaymentExpense(
+    expenseId: string,
+    payload: {
+        title: string;
+        amount: number;
+        quantity?: number;
+        currency?: ApiPaymentExpense['currency'];
+        expense_date: string;
+    }
+): Promise<ApiPaymentExpense> {
+    const { data } = await apiClient.put<ApiEnvelope<ApiPaymentExpense>>(
+        `/payments/expenses/${expenseId}`,
+        payload
+    );
+
+    return data.data;
+}
+
+/**
+ * Deletes a practice expense from the payments Expenses tab.
+ */
+export async function deletePaymentExpense(expenseId: string): Promise<void> {
+    await apiClient.delete(`/payments/expenses/${expenseId}`);
 }
 
 export async function listAllTreatments(
@@ -1919,6 +1972,23 @@ export async function listAdminDentistStaff(id: string): Promise<ApiCollectionEn
 
 export async function listAdminPlans(): Promise<ApiPlan[]> {
     const { data } = await apiClient.get<ApiCollectionEnvelope<ApiPlan>>('/admin/plans');
+
+    return data.data;
+}
+
+/**
+ * Fetches pre-aggregated SaaS/admin analytics without transferring the whole
+ * dentist roster to the browser.
+ */
+export async function getAdminAnalyticsSummary(
+    params: AnalyticsSummaryParams
+): Promise<ApiAdminAnalyticsSummary> {
+    const { data } = await apiClient.get<ApiEnvelope<ApiAdminAnalyticsSummary>>(
+        '/admin/analytics/summary',
+        {
+            params,
+        }
+    );
 
     return data.data;
 }

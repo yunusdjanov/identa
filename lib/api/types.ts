@@ -9,11 +9,13 @@ export interface ApiEnvelope<T> {
     data: T;
 }
 
+export type ApiSummaryValue = number | string | null | Record<string, number>;
+
 export interface ApiCollectionEnvelope<T> {
     data: T[];
     meta?: {
         pagination?: PaginationMeta;
-        summary?: Record<string, number | string | null>;
+        summary?: Record<string, ApiSummaryValue>;
     };
 }
 
@@ -358,13 +360,81 @@ export interface ApiPaymentHistoryLedgerRow {
     updated_by?: ApiRecordActor | null;
 }
 
+export type ApiPaymentExpenseCurrency = 'UZS' | 'USD';
+
 export interface ApiPaymentExpense {
     id: string;
     title: string;
     amount: number;
+    quantity: number;
+    currency: ApiPaymentExpenseCurrency;
     expense_date: string | null;
     created_at: string | null;
     updated_at: string | null;
+}
+
+export interface ApiAnalyticsKpiPair {
+    current: number;
+    previous: number;
+}
+
+export interface ApiAnalyticsKpiOptionalPrevious {
+    current: number;
+    previous: number | null;
+}
+
+export interface ApiAnalyticsBucket {
+    key: string;
+    revenue: number;
+    debt: number;
+    new_patients: number;
+    cumulative_patients: number;
+}
+
+export interface ApiAnalyticsAppointmentStatus {
+    status: ApiAppointment['status'];
+    count: number;
+}
+
+export interface ApiAnalyticsTopDebtor {
+    name: string;
+    phone: string;
+    debt: number;
+}
+
+export interface ApiAnalyticsSummary {
+    permissions: {
+        payments: boolean;
+        patients: boolean;
+        appointments: boolean;
+    };
+    kpis: {
+        revenue: ApiAnalyticsKpiPair;
+        debt: ApiAnalyticsKpiOptionalPrevious;
+        patients: ApiAnalyticsKpiPair;
+        visits: ApiAnalyticsKpiPair;
+    };
+    buckets: ApiAnalyticsBucket[];
+    appointment_status: ApiAnalyticsAppointmentStatus[];
+    top_debtors: ApiAnalyticsTopDebtor[];
+}
+
+export interface ApiAdminAnalyticsSummary {
+    kpis: {
+        active_dentists: ApiAnalyticsKpiPair;
+        mrr: ApiAnalyticsKpiPair & { currency: string };
+        signups: ApiAnalyticsKpiPair;
+        conversion: ApiAnalyticsKpiPair;
+    };
+    signup_growth: Array<{
+        key: string;
+        signups: number;
+        cumulative: number;
+    }>;
+    subscription_health: Array<{
+        status: 'active' | 'trialing' | 'grace' | 'read_only' | 'canceled' | 'none';
+        count: number;
+    }>;
 }
 
 export interface ApiTreatmentImage {

@@ -70,8 +70,8 @@ export const PAYMENTS = [
 ];
 
 export const PAYMENT_EXPENSES = [
-    { id: 'exp-1', title: 'Materials', amount: 450000, expense_date: '2026-05-24', created_at: '2026-05-24T09:00:00Z', updated_at: '2026-05-24T09:00:00Z' },
-    { id: 'exp-2', title: 'Rent', amount: 1200000, expense_date: '2026-05-01', created_at: '2026-05-01T09:00:00Z', updated_at: '2026-05-01T09:00:00Z' },
+    { id: 'exp-1', title: 'Materials', amount: 450000, quantity: 1, currency: 'UZS', expense_date: '2026-05-24', created_at: '2026-05-24T09:00:00Z', updated_at: '2026-05-24T09:00:00Z' },
+    { id: 'exp-2', title: 'Rent', amount: 1200000, quantity: 1, currency: 'UZS', expense_date: '2026-05-01', created_at: '2026-05-01T09:00:00Z', updated_at: '2026-05-01T09:00:00Z' },
 ];
 
 export const ODONTOGRAM: Record<string, unknown[]> = {

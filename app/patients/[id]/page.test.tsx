@@ -234,6 +234,46 @@ describe('PatientDetailPage', () => {
         expect(addressValue).toHaveTextContent(longAddress);
     });
 
+    it('renders medical facts in a separate clinical strip instead of the contact card', async () => {
+        vi.mocked(getCurrentUser).mockResolvedValue(dentist as never);
+        vi.mocked(getPatient).mockResolvedValue({
+            ...patient,
+            phone: '+998901234567',
+            allergies: 'Penicillin',
+            current_medications: 'Aspirin',
+            medical_history: 'Hypertension',
+        } as never);
+
+        await renderPage();
+
+        const contactCard = await screen.findByTestId('patient-detail-contact-card');
+        const clinicalStrip = await screen.findByTestId('patient-detail-clinical-strip');
+
+        expect(within(contactCard).getByText('+998901234567')).toBeInTheDocument();
+        expect(within(contactCard).queryByText('Clinic')).not.toBeInTheDocument();
+        expect(within(contactCard).queryByText('Penicillin')).not.toBeInTheDocument();
+        expect(within(clinicalStrip).getByText('Clinic')).toBeInTheDocument();
+        expect(within(clinicalStrip).getByText('Allergies & blood pressure')).toBeInTheDocument();
+        expect(within(clinicalStrip).getByText('Penicillin')).toBeInTheDocument();
+        expect(within(clinicalStrip).getByText('Current Medications')).toBeInTheDocument();
+        expect(within(clinicalStrip).getByText('Aspirin')).toBeInTheDocument();
+        expect(within(clinicalStrip).getByText('Medical history')).toBeInTheDocument();
+        expect(within(clinicalStrip).getByText('Hypertension')).toBeInTheDocument();
+    });
+
+    it('keeps the clinical strip compact when no medical facts are recorded', async () => {
+        vi.mocked(getCurrentUser).mockResolvedValue(dentist as never);
+        vi.mocked(getPatient).mockResolvedValue(patient as never);
+
+        await renderPage();
+
+        const clinicalStrip = await screen.findByTestId('patient-detail-clinical-strip');
+
+        expect(within(clinicalStrip).getByText('Clinic')).toBeInTheDocument();
+        expect(within(clinicalStrip).getByText('No medical information recorded')).toBeInTheDocument();
+        expect(within(clinicalStrip).queryByText('Allergies & blood pressure')).not.toBeInTheDocument();
+    });
+
     it('renders the total visits from the overview visit count', async () => {
         vi.mocked(getCurrentUser).mockResolvedValue(dentist as never);
         vi.mocked(getPatient).mockResolvedValue(patient as never);

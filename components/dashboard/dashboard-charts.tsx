@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { Bar, BarChart, CartesianGrid, Cell, Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import type {
     DashboardAppointmentStatusPoint,
@@ -171,14 +172,24 @@ export function PatientGrowthChart({
 
 export function TopDebtorsCard({ data }: { data: TopDebtorPoint[] }) {
     const { t } = useI18n();
-    const maxDebt = data.length > 0 ? Math.max(...data.map((d) => d.debt)) : 1;
-    const totalDebt = data.reduce((sum, d) => sum + d.debt, 0);
+    const displayedDebtors = data.slice(0, 5);
+    const maxDebt = displayedDebtors.length > 0 ? Math.max(...displayedDebtors.map((d) => d.debt)) : 1;
+    const topDebtTotal = displayedDebtors.reduce((sum, d) => sum + d.debt, 0);
+
     return (
         <ChartCard
             title={t('analytics.topDebtors.title') ?? "Eng katta qarzga ega bemorlar"}
-            subtitle={data.length > 0 ? `${t('analytics.topDebtors.totalShort') ?? "Jami"}: ${formatCurrency(totalDebt)}` : (t('analytics.topDebtors.subtitle') ?? 'TOP 5')}
+            subtitle={displayedDebtors.length > 0 ? `${t('analytics.topDebtors.totalShort') ?? "Jami"}: ${formatCurrency(topDebtTotal)}` : (t('analytics.topDebtors.subtitle') ?? 'TOP 5')}
+            action={
+                <Link
+                    href="/payments?outstanding=1"
+                    className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 shadow-sm transition hover:border-teal-200 hover:text-teal-700"
+                >
+                    {t('analytics.topDebtors.viewAll') ?? 'All debts'}
+                </Link>
+            }
         >
-            {data.length === 0 ? (
+            {displayedDebtors.length === 0 ? (
                 <div className="flex flex-col items-center gap-2 py-6 text-center">
                     <span className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
                         <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
@@ -187,7 +198,7 @@ export function TopDebtorsCard({ data }: { data: TopDebtorPoint[] }) {
                 </div>
             ) : (
                 <div className="space-y-3">
-                    {data.map((item, idx) => {
+                    {displayedDebtors.map((item, idx) => {
                         const pct = (item.debt / maxDebt) * 100;
                         return (
                             <div key={`${item.name}-${idx}`} className="space-y-1.5">

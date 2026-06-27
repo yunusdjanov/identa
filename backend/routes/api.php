@@ -1,8 +1,10 @@
 <?php
 
 use App\Http\Controllers\Api\Admin\AdminPaymentController;
+use App\Http\Controllers\Api\Admin\AdminAnalyticsController;
 use App\Http\Controllers\Api\Admin\DentistAccountController;
 use App\Http\Controllers\Api\Admin\PlanController;
+use App\Http\Controllers\Api\AnalyticsController;
 use App\Http\Controllers\Api\AppointmentController;
 use App\Http\Controllers\Api\AuditLogController;
 use App\Http\Controllers\Api\AuthController;
@@ -113,6 +115,7 @@ Route::prefix('v1')->group(function (): void {
         // they can issue further admin mutations. Reads are unaffected.
         ->middleware(['auth:sanctum', 'role:admin', 'password.fresh', 'throttle:120,1'])
         ->group(function (): void {
+            Route::get('/analytics/summary', [AdminAnalyticsController::class, 'summary']);
             Route::get('/dentists', [DentistAccountController::class, 'index']);
             Route::post('/dentists', [DentistAccountController::class, 'store']);
             Route::get('/dentists/{id}', [DentistAccountController::class, 'show']);
@@ -189,6 +192,8 @@ Route::prefix('v1')->group(function (): void {
     // runaway client / compromised token can't hammer the DB. Auth/admin/
     // billing/team groups have their own narrower throttles.
     Route::middleware(['auth:sanctum', 'role:dentist,assistant', 'password.fresh', 'subscription.access', 'throttle:300,1'])->group(function (): void {
+        Route::get('analytics/summary', [AnalyticsController::class, 'summary'])
+            ->middleware('permission:'.User::PERMISSION_PAYMENTS_VIEW.'|'.User::PERMISSION_PATIENTS_VIEW.'|'.User::PERMISSION_APPOINTMENTS_VIEW);
         Route::get('dashboard/snapshot', [DashboardController::class, 'show'])
             ->middleware('permission:'.User::PERMISSION_APPOINTMENTS_VIEW.'|'.User::PERMISSION_PAYMENTS_VIEW);
 
@@ -351,6 +356,10 @@ Route::prefix('v1')->group(function (): void {
         Route::get('payments/expenses', [PaymentExpenseController::class, 'index'])
             ->middleware('permission:'.User::PERMISSION_PAYMENTS_VIEW);
         Route::post('payments/expenses', [PaymentExpenseController::class, 'store'])
+            ->middleware('permission:'.User::PERMISSION_PAYMENTS_MANAGE);
+        Route::put('payments/expenses/{id}', [PaymentExpenseController::class, 'update'])
+            ->middleware('permission:'.User::PERMISSION_PAYMENTS_MANAGE);
+        Route::delete('payments/expenses/{id}', [PaymentExpenseController::class, 'destroy'])
             ->middleware('permission:'.User::PERMISSION_PAYMENTS_MANAGE);
         Route::get('payments', [PaymentController::class, 'index'])
             ->middleware('permission:'.User::PERMISSION_PAYMENTS_VIEW);

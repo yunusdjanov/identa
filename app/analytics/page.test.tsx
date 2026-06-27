@@ -3,21 +3,16 @@ import { cleanup, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import AnalyticsPage from '@/app/analytics/page';
 import {
+    getAnalyticsSummary,
     getCurrentUser,
-    getDashboardSnapshot,
-    listAllAppointments,
-    listAllTreatments,
-    listPatients,
 } from '@/lib/api/dentist';
 import { I18nProvider } from '@/components/providers/i18n-provider';
 import { DICTIONARIES } from '@/lib/i18n/dictionaries';
+import type { ApiAnalyticsSummary } from '@/lib/api/types';
 
 vi.mock('@/lib/api/dentist', () => ({
+    getAnalyticsSummary: vi.fn(),
     getCurrentUser: vi.fn(),
-    getDashboardSnapshot: vi.fn(),
-    listAllAppointments: vi.fn(),
-    listAllTreatments: vi.fn(),
-    listPatients: vi.fn(),
 }));
 
 const dentist = {
@@ -37,13 +32,25 @@ const assistantNoAccess = {
     permissions: [],
 };
 
-function todayDateKey(): string {
-    const today = new Date();
-    return [
-        today.getFullYear(),
-        String(today.getMonth() + 1).padStart(2, '0'),
-        String(today.getDate()).padStart(2, '0'),
-    ].join('-');
+function createAnalyticsSummary(overrides: Partial<ApiAnalyticsSummary> = {}): ApiAnalyticsSummary {
+    return {
+        permissions: { payments: true, patients: true, appointments: true },
+        kpis: {
+            revenue: { current: 0, previous: 0 },
+            debt: { current: 0, previous: null },
+            patients: { current: 0, previous: 0 },
+            visits: { current: 0, previous: 0 },
+        },
+        buckets: [],
+        appointment_status: [
+            { status: 'scheduled', count: 0 },
+            { status: 'completed', count: 0 },
+            { status: 'cancelled', count: 0 },
+            { status: 'no_show', count: 0 },
+        ],
+        top_debtors: [],
+        ...overrides,
+    };
 }
 
 function renderPage() {
@@ -62,10 +69,8 @@ function renderPage() {
 describe('AnalyticsPage', () => {
     beforeEach(() => {
         vi.mocked(getCurrentUser).mockReset();
-        vi.mocked(getDashboardSnapshot).mockResolvedValue({} as never);
-        vi.mocked(listAllAppointments).mockResolvedValue([] as never);
-        vi.mocked(listAllTreatments).mockResolvedValue([] as never);
-        vi.mocked(listPatients).mockResolvedValue({ data: [] } as never);
+        vi.mocked(getAnalyticsSummary).mockReset();
+        vi.mocked(getAnalyticsSummary).mockResolvedValue(createAnalyticsSummary());
     });
 
     afterEach(() => {
@@ -93,88 +98,24 @@ describe('AnalyticsPage', () => {
         expect(
             await screen.findByText('Financial metrics, activity and trends for your clinic.')
         ).toBeInTheDocument();
-        expect(vi.mocked(listAllTreatments)).toHaveBeenCalledWith(expect.objectContaining({
-            filter: expect.objectContaining({
-                date_from: expect.any(String),
-                date_to: expect.any(String),
-            }),
-            includeImages: false,
-        }));
-        expect(vi.mocked(listAllAppointments)).toHaveBeenCalledWith(expect.objectContaining({
-            filter: expect.objectContaining({
-                date_from: expect.any(String),
-                date_to: expect.any(String),
-            }),
+        expect(vi.mocked(getAnalyticsSummary)).toHaveBeenCalledWith(expect.objectContaining({
+            current_from: expect.any(String),
+            current_to: expect.any(String),
+            previous_from: expect.any(String),
+            previous_to: expect.any(String),
         }));
     });
 
-    it('counts unique visits from completed appointments and treatment history without double-counting patient days', async () => {
-        const today = todayDateKey();
+    it('renders visit totals from the backend summary', async () => {
         vi.mocked(getCurrentUser).mockResolvedValue(dentist as never);
-        vi.mocked(listAllAppointments).mockResolvedValue([
-            {
-                id: 'appointment-1',
-                patient_id: 'patient-1',
-                patient_name: 'Patient One',
-                appointment_date: today,
-                start_time: '09:00',
-                end_time: '09:30',
-                status: 'completed',
-                notes: null,
+        vi.mocked(getAnalyticsSummary).mockResolvedValue(createAnalyticsSummary({
+            kpis: {
+                revenue: { current: 0, previous: 0 },
+                debt: { current: 0, previous: null },
+                patients: { current: 0, previous: 0 },
+                visits: { current: 2, previous: 0 },
             },
-            {
-                id: 'appointment-2',
-                patient_id: 'patient-3',
-                patient_name: 'Patient Three',
-                appointment_date: today,
-                start_time: '10:00',
-                end_time: '10:30',
-                status: 'scheduled',
-                notes: null,
-            },
-        ] as never);
-        vi.mocked(listAllTreatments).mockResolvedValue([
-            {
-                id: 'treatment-1',
-                patient_id: 'patient-1',
-                patient_name: 'Patient One',
-                treatment_date: today,
-                tooth_number: null,
-                teeth: [],
-                treatment_type: 'Consultation',
-                description: null,
-                comment: null,
-                cost: null,
-                debt_amount: 0,
-                paid_amount: 0,
-                balance: 0,
-                notes: null,
-                image_count: 0,
-                images: [],
-                created_at: null,
-                updated_at: null,
-            },
-            {
-                id: 'treatment-2',
-                patient_id: 'patient-2',
-                patient_name: 'Patient Two',
-                treatment_date: today,
-                tooth_number: null,
-                teeth: [],
-                treatment_type: 'Filling',
-                description: null,
-                comment: null,
-                cost: null,
-                debt_amount: 0,
-                paid_amount: 0,
-                balance: 0,
-                notes: null,
-                image_count: 0,
-                images: [],
-                created_at: null,
-                updated_at: null,
-            },
-        ] as never);
+        }));
 
         renderPage();
 
@@ -182,5 +123,27 @@ describe('AnalyticsPage', () => {
         const card = label.closest('div.relative');
         expect(card).not.toBeNull();
         expect(within(card as HTMLElement).getByText('2')).toBeInTheDocument();
+    });
+
+    it('shows only the top five debtors with a link to all outstanding payments', async () => {
+        vi.mocked(getCurrentUser).mockResolvedValue(dentist as never);
+        vi.mocked(getAnalyticsSummary).mockResolvedValue(createAnalyticsSummary({
+            top_debtors: [
+                { name: 'Patient 1', phone: '+998900000001', debt: 1_000_000 },
+                { name: 'Patient 2', phone: '+998900000002', debt: 500_000 },
+                { name: 'Patient 3', phone: '+998900000003', debt: 400_000 },
+                { name: 'Patient 4', phone: '+998900000004', debt: 300_000 },
+                { name: 'Patient 5', phone: '+998900000005', debt: 200_000 },
+                { name: 'Patient 6', phone: '+998900000006', debt: 100_000 },
+            ],
+        }));
+
+        renderPage();
+
+        expect(await screen.findByText('Largest outstanding balances')).toBeInTheDocument();
+        expect(screen.getByText('Patient 1')).toBeInTheDocument();
+        expect(screen.getByText('Patient 5')).toBeInTheDocument();
+        expect(screen.queryByText('Patient 6')).not.toBeInTheDocument();
+        expect(screen.getByRole('link', { name: 'All debts' })).toHaveAttribute('href', '/payments?outstanding=1');
     });
 });

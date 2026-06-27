@@ -1,35 +1,43 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { apiGetMock, apiPostMock } = vi.hoisted(() => ({
+const { apiDeleteMock, apiGetMock, apiPostMock, apiPutMock } = vi.hoisted(() => ({
+    apiDeleteMock: vi.fn(),
     apiGetMock: vi.fn(),
     apiPostMock: vi.fn(),
+    apiPutMock: vi.fn(),
 }));
 
 vi.mock('@/lib/api/client', () => ({
     apiClient: {
         get: apiGetMock,
         post: apiPostMock,
-        put: vi.fn(),
+        put: apiPutMock,
         patch: vi.fn(),
-        delete: vi.fn(),
+        delete: apiDeleteMock,
     },
     ensureCsrfCookie: vi.fn(),
 }));
 
 import {
+    getAdminAnalyticsSummary,
+    getAnalyticsSummary,
     getPatientOdontogramSummary,
     listAllPatientOdontogram,
     listAllPatients,
     createPaymentExpense,
+    deletePaymentExpense,
     listPaymentExpenses,
     listPaymentLedgerHistory,
     listPaymentLedgerPatients,
+    updatePaymentExpense,
 } from '@/lib/api/dentist';
 
 describe('dentist api pagination aggregation', () => {
     beforeEach(() => {
         apiGetMock.mockReset();
+        apiDeleteMock.mockReset();
         apiPostMock.mockReset();
+        apiPutMock.mockReset();
     });
 
     it('aggregates all patient pages until total_pages is reached', async () => {
@@ -205,6 +213,78 @@ describe('dentist api pagination aggregation', () => {
         });
     });
 
+    it('loads dentist analytics summary with explicit range bounds', async () => {
+        apiGetMock.mockResolvedValueOnce({
+            data: {
+                data: {
+                    permissions: { payments: true, patients: true, appointments: true },
+                    kpis: {
+                        revenue: { current: 0, previous: 0 },
+                        debt: { current: 0, previous: null },
+                        patients: { current: 0, previous: 0 },
+                        visits: { current: 0, previous: 0 },
+                    },
+                    buckets: [],
+                    appointment_status: [],
+                    top_debtors: [],
+                },
+            },
+        });
+
+        await getAnalyticsSummary({
+            range: '7d',
+            current_from: '2026-06-01',
+            current_to: '2026-06-07',
+            previous_from: '2026-05-25',
+            previous_to: '2026-05-31',
+        });
+
+        expect(apiGetMock).toHaveBeenCalledWith('/analytics/summary', {
+            params: {
+                range: '7d',
+                current_from: '2026-06-01',
+                current_to: '2026-06-07',
+                previous_from: '2026-05-25',
+                previous_to: '2026-05-31',
+            },
+        });
+    });
+
+    it('loads admin analytics summary with explicit range bounds', async () => {
+        apiGetMock.mockResolvedValueOnce({
+            data: {
+                data: {
+                    kpis: {
+                        active_dentists: { current: 0, previous: 0 },
+                        mrr: { current: 0, previous: 0, currency: 'UZS' },
+                        signups: { current: 0, previous: 0 },
+                        conversion: { current: 0, previous: 0 },
+                    },
+                    signup_growth: [],
+                    subscription_health: [],
+                },
+            },
+        });
+
+        await getAdminAnalyticsSummary({
+            range: '30d',
+            current_from: '2026-06-01',
+            current_to: '2026-06-30',
+            previous_from: '2026-05-02',
+            previous_to: '2026-05-31',
+        });
+
+        expect(apiGetMock).toHaveBeenCalledWith('/admin/analytics/summary', {
+            params: {
+                range: '30d',
+                current_from: '2026-06-01',
+                current_to: '2026-06-30',
+                previous_from: '2026-05-02',
+                previous_to: '2026-05-31',
+            },
+        });
+    });
+
     it('loads payment patient ledger with pagination and filters', async () => {
         apiGetMock.mockResolvedValueOnce({
             data: {
@@ -308,6 +388,8 @@ describe('dentist api pagination aggregation', () => {
                     id: 'expense-1',
                     title: 'Rent',
                     amount: 1200000,
+                    quantity: 1,
+                    currency: 'UZS',
                     expense_date: '2026-06-27',
                     created_at: '2026-06-27T10:00:00Z',
                     updated_at: '2026-06-27T10:00:00Z',
@@ -318,6 +400,8 @@ describe('dentist api pagination aggregation', () => {
         const expense = await createPaymentExpense({
             title: 'Rent',
             amount: 1200000,
+            quantity: 2,
+            currency: 'USD',
             expense_date: '2026-06-27',
         });
 
@@ -325,7 +409,45 @@ describe('dentist api pagination aggregation', () => {
         expect(apiPostMock).toHaveBeenCalledWith('/payments/expenses', {
             title: 'Rent',
             amount: 1200000,
+            quantity: 2,
+            currency: 'USD',
             expense_date: '2026-06-27',
         });
+    });
+
+    it('updates and deletes payment expenses', async () => {
+        apiPutMock.mockResolvedValueOnce({
+            data: {
+                data: {
+                    id: 'expense-1',
+                    title: 'Materials',
+                    amount: 450000,
+                    quantity: 3,
+                    currency: 'UZS',
+                    expense_date: '2026-06-27',
+                    created_at: '2026-06-27T10:00:00Z',
+                    updated_at: '2026-06-27T11:00:00Z',
+                },
+            },
+        });
+        apiDeleteMock.mockResolvedValueOnce({});
+
+        await updatePaymentExpense('expense-1', {
+            title: 'Materials',
+            amount: 450000,
+            quantity: 3,
+            currency: 'UZS',
+            expense_date: '2026-06-27',
+        });
+        await deletePaymentExpense('expense-1');
+
+        expect(apiPutMock).toHaveBeenCalledWith('/payments/expenses/expense-1', {
+            title: 'Materials',
+            amount: 450000,
+            quantity: 3,
+            currency: 'UZS',
+            expense_date: '2026-06-27',
+        });
+        expect(apiDeleteMock).toHaveBeenCalledWith('/payments/expenses/expense-1');
     });
 });

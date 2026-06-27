@@ -4,9 +4,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import PaymentsPage from '@/app/payments/page';
 import {
     createPaymentExpense,
+    deletePaymentExpense,
     getCurrentUser,
     listPaymentExpenses,
     listPaymentLedgerPatients,
+    updatePaymentExpense,
 } from '@/lib/api/dentist';
 import type { ApiSubscriptionSummary } from '@/lib/api/types';
 import { I18nProvider } from '@/components/providers/i18n-provider';
@@ -15,9 +17,11 @@ import { exportRowsToPdf } from '@/lib/export/pdf';
 
 vi.mock('@/lib/api/dentist', () => ({
     createPaymentExpense: vi.fn(),
+    deletePaymentExpense: vi.fn(),
     getCurrentUser: vi.fn(),
     listPaymentExpenses: vi.fn(),
     listPaymentLedgerPatients: vi.fn(),
+    updatePaymentExpense: vi.fn(),
 }));
 
 vi.mock('@/lib/export/pdf', () => ({
@@ -53,6 +57,8 @@ let expenseRows: Array<{
     id: string;
     title: string;
     amount: number;
+    quantity: number;
+    currency: 'UZS' | 'USD';
     expense_date: string;
     created_at: string;
     updated_at: string;
@@ -171,12 +177,23 @@ function patientSummary(rows: typeof patientLedgerRows) {
 }
 
 function expenseSummary(rows: typeof expenseRows) {
+    const totalsByCurrency = { UZS: 0, USD: 0 };
+    const currentMonthByCurrency = { UZS: 0, USD: 0 };
+    for (const row of rows) {
+        totalsByCurrency[row.currency] += row.amount;
+        if (row.expense_date.startsWith('2026-06')) {
+            currentMonthByCurrency[row.currency] += row.amount;
+        }
+    }
+
     return {
         total_count: rows.length,
         total_amount: rows.reduce((sum, row) => sum + row.amount, 0),
         current_month_amount: rows
             .filter((row) => row.expense_date.startsWith('2026-06'))
             .reduce((sum, row) => sum + row.amount, 0),
+        totals_by_currency: totalsByCurrency,
+        current_month_by_currency: currentMonthByCurrency,
         latest_expense_date: rows.reduce<string | null>((latest, row) => {
             return latest === null || row.expense_date > latest ? row.expense_date : latest;
         }, null),
@@ -215,9 +232,11 @@ describe('PaymentsPage', () => {
 
     beforeEach(() => {
         vi.mocked(createPaymentExpense).mockReset();
+        vi.mocked(deletePaymentExpense).mockReset();
         vi.mocked(getCurrentUser).mockReset();
         vi.mocked(listPaymentExpenses).mockReset();
         vi.mocked(listPaymentLedgerPatients).mockReset();
+        vi.mocked(updatePaymentExpense).mockReset();
         vi.mocked(exportRowsToPdf).mockClear();
         window.history.replaceState({}, '', '/payments');
 
@@ -233,10 +252,23 @@ describe('PaymentsPage', () => {
             id: 'expense-created',
             title: 'Rent',
             amount: 1200000,
+            quantity: 1,
+            currency: 'UZS',
             expense_date: '2026-06-27',
             created_at: '2026-06-27T10:00:00Z',
             updated_at: '2026-06-27T10:00:00Z',
         });
+        vi.mocked(updatePaymentExpense).mockResolvedValue({
+            id: 'expense-1',
+            title: 'Materials',
+            amount: 750000,
+            quantity: 2,
+            currency: 'USD',
+            expense_date: '2026-06-27',
+            created_at: '2026-06-12T10:00:00Z',
+            updated_at: '2026-06-27T10:00:00Z',
+        });
+        vi.mocked(deletePaymentExpense).mockResolvedValue(undefined);
         patientLedgerRows = [
             {
                 patient_id: 'patient-1',
@@ -266,6 +298,8 @@ describe('PaymentsPage', () => {
                 id: 'expense-1',
                 title: 'Materials',
                 amount: 450000,
+                quantity: 2,
+                currency: 'UZS',
                 expense_date: '2026-06-12',
                 created_at: '2026-06-12T10:00:00Z',
                 updated_at: '2026-06-12T10:00:00Z',
@@ -273,7 +307,9 @@ describe('PaymentsPage', () => {
             {
                 id: 'expense-2',
                 title: 'Rent',
-                amount: 1200000,
+                amount: 1200,
+                quantity: 1,
+                currency: 'USD',
                 expense_date: '2026-05-30',
                 created_at: '2026-05-30T10:00:00Z',
                 updated_at: '2026-05-30T10:00:00Z',
@@ -366,7 +402,6 @@ describe('PaymentsPage', () => {
         fireEvent.click(await screen.findByRole('button', { name: 'Expenses' }));
 
         await waitFor(() => {
-            expect(screen.getByText('Clinic Expenses')).toBeInTheDocument();
             expect(screen.getByText('Materials')).toBeInTheDocument();
             expect(screen.getByText('Rent')).toBeInTheDocument();
         });
@@ -374,6 +409,9 @@ describe('PaymentsPage', () => {
         expect(screen.getByText('Total Expenses')).toBeInTheDocument();
         expect(screen.getByText('This Month')).toBeInTheDocument();
         expect(screen.getByPlaceholderText('Search expenses by title...')).toBeInTheDocument();
+        expect(screen.getByLabelText('Quantity')).toHaveValue('1');
+        expect(screen.getByLabelText('Currency')).toHaveValue('UZS');
+        expect(screen.queryByText('Clinic Expenses')).not.toBeInTheDocument();
         expect(screen.queryByText('A simple dated log for expense title and amount.')).not.toBeInTheDocument();
         expect(screen.queryByRole('button', { name: 'With debt' })).not.toBeInTheDocument();
     });
@@ -383,7 +421,7 @@ describe('PaymentsPage', () => {
 
         fireEvent.click(await screen.findByRole('button', { name: 'Expenses' }));
         await waitFor(() => {
-            expect(screen.getByText('Clinic Expenses')).toBeInTheDocument();
+            expect(screen.getByText('Materials')).toBeInTheDocument();
         });
 
         fireEvent.change(screen.getByPlaceholderText('Search expenses by title...'), {
@@ -407,13 +445,14 @@ describe('PaymentsPage', () => {
         expect(vi.mocked(exportRowsToPdf).mock.calls[0]?.[0]).toMatchObject({
             filename: 'expenses.pdf',
             title: 'Clinic Expenses',
-            columns: ['Date', 'Expense', 'Amount'],
+            columns: ['Date', 'Expense', 'Quantity', 'Amount'],
             orientation: 'portrait',
             locale: 'en',
         });
         expect(vi.mocked(exportRowsToPdf).mock.calls[0]?.[0].rows).toHaveLength(1);
         expect(vi.mocked(exportRowsToPdf).mock.calls[0]?.[0].rows[0]?.[1]).toBe('Materials');
-        expect(normalizeText(String(vi.mocked(exportRowsToPdf).mock.calls[0]?.[0].rows[0]?.[2]))).toBe('450 000 UZS');
+        expect(vi.mocked(exportRowsToPdf).mock.calls[0]?.[0].rows[0]?.[2]).toBe('2');
+        expect(normalizeText(String(vi.mocked(exportRowsToPdf).mock.calls[0]?.[0].rows[0]?.[3]))).toBe('450 000 UZS');
     });
 
     it('creates a payment expense from the expenses tab', async () => {
@@ -424,6 +463,7 @@ describe('PaymentsPage', () => {
         const amountInput = screen.getByLabelText('Amount');
         fireEvent.change(amountInput, { target: { value: '1200000' } });
         expect(amountInput).toHaveValue('1 200 000');
+        fireEvent.change(screen.getByLabelText('Quantity'), { target: { value: '2' } });
         fireEvent.change(screen.getByLabelText('Date'), { target: { value: '2026-06-27' } });
         fireEvent.click(screen.getByRole('button', { name: 'Add expense' }));
 
@@ -433,8 +473,50 @@ describe('PaymentsPage', () => {
         expect(vi.mocked(createPaymentExpense).mock.calls[0]?.[0]).toEqual({
             title: 'Rent',
             amount: 1200000,
+            quantity: 2,
+            currency: 'UZS',
             expense_date: '2026-06-27',
         });
+    });
+
+    it('edits and deletes payment expenses from the expenses tab', async () => {
+        renderPage();
+
+        fireEvent.click(await screen.findByRole('button', { name: 'Expenses' }));
+
+        await waitFor(() => {
+            expect(screen.getByText('Materials')).toBeInTheDocument();
+        });
+
+        fireEvent.click(screen.getByRole('button', { name: 'Edit expense Materials' }));
+        expect(screen.getByLabelText('Title')).toHaveValue('Materials');
+        expect(screen.getByLabelText('Quantity')).toHaveValue('2');
+
+        fireEvent.change(screen.getByLabelText('Currency'), { target: { value: 'USD' } });
+        fireEvent.change(screen.getByLabelText('Amount'), { target: { value: '125.5' } });
+        fireEvent.change(screen.getByLabelText('Quantity'), { target: { value: '3' } });
+        fireEvent.change(screen.getByLabelText('Date'), { target: { value: '2026-06-27' } });
+        fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+        await waitFor(() => {
+            expect(updatePaymentExpense).toHaveBeenCalled();
+        });
+        expect(vi.mocked(updatePaymentExpense).mock.calls[0]?.[0]).toBe('expense-1');
+        expect(vi.mocked(updatePaymentExpense).mock.calls[0]?.[1]).toEqual({
+            title: 'Materials',
+            amount: 125.5,
+            quantity: 3,
+            currency: 'USD',
+            expense_date: '2026-06-27',
+        });
+
+        fireEvent.click(screen.getByRole('button', { name: 'Delete expense Materials' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
+
+        await waitFor(() => {
+            expect(deletePaymentExpense).toHaveBeenCalled();
+        });
+        expect(vi.mocked(deletePaymentExpense).mock.calls[0]?.[0]).toBe('expense-1');
     });
 
     it('filters payments to patients with outstanding debt and exports the filtered rows', async () => {

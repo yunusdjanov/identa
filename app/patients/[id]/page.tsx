@@ -215,7 +215,7 @@ function ReachRow({
 }
 
 /**
- * Render one compact medical fact inside the contact card without expanding the profile summary grid.
+ * Render one compact medical fact without expanding the profile summary grid.
  */
 function CompactClinicalFact({
     icon: Icon,
@@ -890,10 +890,10 @@ export default function PatientDetailPage({
                 />
             </div>
 
-            {/* Premium summary cards: contact with compact medical facts, oral photo, detail. */}
+            {/* Premium summary cards: contact, oral photo, detail. */}
             <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
 
-                {/* Contact: click-to-call essentials plus compact medical facts. */}
+                {/* Contact: click-to-call essentials. */}
                 <article className="group/card relative flex flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm shadow-slate-200/40 transition-all hover:-translate-y-0.5 hover:shadow-md hover:shadow-slate-200/70">
                     <div className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-emerald-400 via-teal-400 to-cyan-400" />
                     <header className="flex items-center gap-2.5 px-4 pt-4 pb-2">
@@ -902,7 +902,7 @@ export default function PatientDetailPage({
                         </span>
                         <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-700">{triadLabels.contact}</p>
                     </header>
-                    <div className="space-y-0.5 px-2 pb-3">
+                    <div data-testid="patient-detail-contact-card" className="space-y-0.5 px-2 pb-3">
                         {patient.phone ? (
                             <ReachRow
                                 icon={Phone}
@@ -935,50 +935,6 @@ export default function PatientDetailPage({
                                 value={formatDate(patient.date_of_birth)}
                             />
                         ) : null}
-                        <div className="mx-1 mt-2 rounded-xl border border-slate-100 bg-slate-50/70 px-2.5 py-2">
-                            <div className="flex items-center gap-1.5 text-slate-500">
-                                <HeartPulse className="h-3.5 w-3.5 shrink-0" />
-                                <span className="text-[10px] font-bold uppercase tracking-[0.12em]">{triadLabels.clinic}</span>
-                            </div>
-                            {!patient.allergies && !patient.current_medications && !patient.medical_history ? (
-                                <p className="mt-1 truncate text-[11px] font-medium text-slate-400">
-                                    {t('patientDetail.noMedicalInfo')}
-                                </p>
-                            ) : (
-                                <div className="mt-2 grid gap-1.5">
-                                    {patient.allergies ? (
-                                        <CompactClinicalFact
-                                            icon={AlertCircle}
-                                            label={t('patientDetail.allergies')}
-                                            value={patient.allergies}
-                                            tone="rose"
-                                            truncateLimit={PATIENT_ALLERGIES_UI_LIMIT}
-                                            emptyLabel={t('patientDetail.notSpecified')}
-                                        />
-                                    ) : null}
-                                    {patient.current_medications ? (
-                                        <CompactClinicalFact
-                                            icon={Pill}
-                                            label={t('patientDetail.currentMedications')}
-                                            value={patient.current_medications}
-                                            tone="amber"
-                                            truncateLimit={PATIENT_MEDICATIONS_UI_LIMIT}
-                                            emptyLabel={t('patientDetail.notSpecified')}
-                                        />
-                                    ) : null}
-                                    {patient.medical_history ? (
-                                        <CompactClinicalFact
-                                            icon={FileText}
-                                            label={t('patientDetail.medicalHistory.label')}
-                                            value={patient.medical_history}
-                                            tone="slate"
-                                            truncateLimit={PATIENT_MEDICAL_HISTORY_UI_LIMIT}
-                                            emptyLabel={t('patientDetail.notSpecified')}
-                                        />
-                                    ) : null}
-                                </div>
-                            )}
-                        </div>
                     </div>
                 </article>
 
@@ -1104,6 +1060,53 @@ export default function PatientDetailPage({
                 </article>
 
             </div>
+
+            <section
+                data-testid="patient-detail-clinical-strip"
+                className="relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white px-4 py-3 shadow-sm shadow-slate-200/40"
+            >
+                <div className={`absolute inset-x-0 top-0 h-[3px] ${patient.allergies || patient.current_medications ? 'bg-gradient-to-r from-rose-300 via-amber-300 to-slate-300' : 'bg-gradient-to-r from-slate-200 via-slate-300 to-slate-200'}`} />
+                <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+                    <div className="flex min-w-[9rem] items-center gap-2.5">
+                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-slate-50 text-slate-500 ring-1 ring-slate-100/80 shadow-sm shadow-slate-100/40">
+                            <HeartPulse className="h-4 w-4" strokeWidth={2.25} />
+                        </span>
+                        <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-700">{triadLabels.clinic}</p>
+                    </div>
+                    {!patient.allergies && !patient.current_medications && !patient.medical_history ? (
+                        <p className="truncate text-[12px] font-medium text-slate-400">
+                            {t('patientDetail.noMedicalInfo')}
+                        </p>
+                    ) : (
+                        <div className="grid min-w-0 flex-1 gap-2 md:grid-cols-3">
+                            <CompactClinicalFact
+                                icon={AlertCircle}
+                                label={t('patientDetail.allergies')}
+                                value={patient.allergies}
+                                tone="rose"
+                                truncateLimit={PATIENT_ALLERGIES_UI_LIMIT}
+                                emptyLabel={t('patientDetail.notSpecified')}
+                            />
+                            <CompactClinicalFact
+                                icon={Pill}
+                                label={t('patientDetail.currentMedications')}
+                                value={patient.current_medications}
+                                tone="amber"
+                                truncateLimit={PATIENT_MEDICATIONS_UI_LIMIT}
+                                emptyLabel={t('patientDetail.notSpecified')}
+                            />
+                            <CompactClinicalFact
+                                icon={FileText}
+                                label={t('patientDetail.medicalHistory.label')}
+                                value={patient.medical_history}
+                                tone="slate"
+                                truncateLimit={PATIENT_MEDICAL_HISTORY_UI_LIMIT}
+                                emptyLabel={t('patientDetail.notSpecified')}
+                            />
+                        </div>
+                    )}
+                </div>
+            </section>
 
             <TreatmentHistoryCard patientId={id} patientName={patient.full_name} />
 

@@ -94,6 +94,18 @@ describe('i18n dictionaries integrity', () => {
         expect(en['patientDetail.oralPhoto.status.empty']).toBe('No photo');
     });
 
+    it('labels the finance section consistently across locales', () => {
+        expect(ru['nav.payments']).toBe('Финансы');
+        expect(uz['nav.payments']).toBe('Moliya');
+        expect(en['nav.payments']).toBe('Finance');
+        expect(ru['payments.title']).toBe('Финансы');
+        expect(uz['payments.title']).toBe('Moliya');
+        expect(en['payments.title']).toBe('Finance');
+        expect(ru['settings.team.permissionPaymentsView']).toBe('Финансы: просмотр');
+        expect(uz['settings.team.permissionPaymentsView']).toBe('Moliya: koʻrish');
+        expect(en['settings.team.permissionPaymentsView']).toBe('Finance: view');
+    });
+
     it('defines each key exactly once per locale in the source', () => {
         // The dictionaries are assembled from many `Object.assign` blocks where
         // a later definition silently overrides an earlier one. Duplicate keys

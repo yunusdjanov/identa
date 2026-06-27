@@ -7,8 +7,10 @@ import {
     AdminPaymentsLoadingState,
     AdminPlansLoadingState,
     AdminSettingsLoadingState,
+    AnalyticsLoadingState,
     AuthFormLoadingState,
     PatientDetailLoadingState,
+    PatientsLoadingState,
     PaymentsLoadingState,
     RouteDashboardLoadingState,
 } from '@/components/layout/page-loading-skeletons';
@@ -23,16 +25,19 @@ describe('page loading skeletons', () => {
     });
 
     describe('dentist-side routes', () => {
-        it('renders a dashboard-shaped loading state with 3 metric cards', () => {
+        it('renders a dashboard planner loading state', () => {
             render(<RouteDashboardLoadingState />);
 
             expect(screen.getByTestId('dashboard-loading')).toBeInTheDocument();
-            // The route-level dentist dashboard shows 3 compact stat tiles
-            // (today, week, month) before the upcoming-appointments block.
-            // The stat tiles aren't tagged with `metric-card-skeleton` —
-            // that testid is reserved for the larger `MetricCardsSkeleton`
-            // used by /payments. Just assert the dashboard container is
-            // present; the inner stat-tile DOM is structural.
+            expect(screen.getByTestId('dashboard-planner-skeleton')).toBeInTheDocument();
+            expect(screen.getAllByTestId('dashboard-week-day-skeleton')).toHaveLength(11);
+        });
+
+        it('renders patients loading with filters inside the list card', () => {
+            render(<PatientsLoadingState />);
+
+            expect(screen.getByTestId('patients-list-skeleton')).toBeInTheDocument();
+            expect(screen.getByTestId('patients-search-skeleton')).toBeInTheDocument();
         });
 
         it('renders payments loading with 4 summary cards and ledger table', () => {
@@ -46,10 +51,40 @@ describe('page loading skeletons', () => {
             expect(screen.getAllByTestId('payments-ledger-row-skeleton')[0].children).toHaveLength(8);
         });
 
+        it('renders expenses loading with the expense form and compact table', () => {
+            render(<PaymentsLoadingState tab="expenses" />);
+
+            expect(screen.getByTestId('payments-loading')).toBeInTheDocument();
+            expect(screen.getByTestId('expenses-table-skeleton')).toBeInTheDocument();
+            expect(screen.getByTestId('payments-expenses-form-skeleton')).toBeInTheDocument();
+            expect(screen.queryByTestId('payments-outstanding-filter-skeleton')).not.toBeInTheDocument();
+            expect(screen.getByTestId('payments-ledger-header-skeleton').children).toHaveLength(5);
+            expect(screen.getAllByTestId('payments-ledger-row-skeleton')[0].children).toHaveLength(5);
+        });
+
+        it('renders permission-shaped analytics loading state', () => {
+            render(
+                <AnalyticsLoadingState
+                    visibleKpiCount={2}
+                    showRevenueChart={false}
+                    showStatusChart
+                    showGrowthChart
+                    showDebtorsCard={false}
+                />
+            );
+
+            expect(screen.getAllByTestId('analytics-kpi-skeleton')).toHaveLength(2);
+            expect(screen.queryByTestId('analytics-revenue-chart-skeleton')).not.toBeInTheDocument();
+            expect(screen.getByTestId('analytics-status-chart-skeleton')).toBeInTheDocument();
+            expect(screen.getByTestId('analytics-growth-chart-skeleton')).toBeInTheDocument();
+            expect(screen.queryByTestId('analytics-debtors-card-skeleton')).not.toBeInTheDocument();
+        });
+
         it('renders the patient detail oral photo panel skeleton', () => {
             render(<PatientDetailLoadingState />);
 
             expect(screen.getByTestId('patient-detail-oral-photo-skeleton')).toBeInTheDocument();
+            expect(screen.getByTestId('patient-detail-clinical-strip-skeleton')).toBeInTheDocument();
             expect(screen.getAllByTestId('patient-detail-oral-photo-slot-skeleton')).toHaveLength(8);
             expect(screen.getByTestId('patient-detail-work-history-skeleton')).toBeInTheDocument();
         });
