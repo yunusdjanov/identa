@@ -745,14 +745,6 @@ export default function PaymentsPage() {
 
                     {activeTab === 'patients' ? (
                         <div className="space-y-4">
-                            <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-slate-50/70 p-4">
-                                <div>
-                                    <h2 className="text-lg font-semibold text-slate-900">{t('payments.patientsTitle')}</h2>
-                                    <p className="text-sm text-slate-500">{t('payments.patientsSubtitle')}</p>
-                                </div>
-                                <p className="rounded-full border border-slate-200 bg-white px-3 py-1 text-sm text-slate-500 shadow-xs">{t('payments.summary.filteredPatients', { count: patientTotalCount })}</p>
-                            </div>
-
                             {patientTotalCount === 0 ? (
                                 <div className="rounded-2xl border border-dashed border-slate-200">
                                     <EmptyState

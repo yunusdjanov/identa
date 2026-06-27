@@ -292,6 +292,8 @@ describe('PaymentsPage', () => {
 
         expect(screen.queryByRole('button', { name: 'History' })).not.toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Expenses' })).toBeInTheDocument();
+        expect(screen.queryByText('Patient Balances')).not.toBeInTheDocument();
+        expect(screen.queryByText('Patients in filter: 2')).not.toBeInTheDocument();
         expect(screen.getAllByText('Work total').length).toBeGreaterThan(0);
         expect(screen.getByText('Total Paid')).toBeInTheDocument();
         expect(
