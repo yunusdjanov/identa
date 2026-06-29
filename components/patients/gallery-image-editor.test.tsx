@@ -330,4 +330,43 @@ describe('GalleryImageEditor', () => {
             rotation: 37,
         }));
     });
+
+    it('clamps typed manual rotation instead of wrapping to the opposite angle', async () => {
+        const user = userEvent.setup();
+        renderEditor();
+
+        const rotationInput = await screen.findByRole('spinbutton', { name: 'Rotation' });
+        await waitFor(() => expect(rotationInput).toBeEnabled());
+        await user.clear(rotationInput);
+        await user.type(rotationInput, '181');
+        await user.click(screen.getByRole('button', { name: 'Save' }));
+
+        expect(createEditedImageFileMock).toHaveBeenCalledWith(expect.objectContaining({
+            rotation: 180,
+        }));
+    });
+
+    it('drops a transient crop selection when rotation changes', async () => {
+        const user = userEvent.setup();
+        renderEditor();
+
+        const cropModeButton = await screen.findByRole('button', { name: 'Crop' });
+        await waitFor(() => expect(cropModeButton).toBeEnabled());
+        await user.click(cropModeButton);
+
+        const stage = screen.getByTestId('gallery-image-editor-stage');
+        fireEvent.mouseDown(stage, { clientX: 40, clientY: 30 });
+        fireEvent.mouseMove(stage, { clientX: 200, clientY: 120 });
+        fireEvent.mouseUp(stage, { clientX: 200, clientY: 120 });
+
+        const rotationInput = screen.getByRole('spinbutton', { name: 'Rotation' });
+        await user.clear(rotationInput);
+        await user.type(rotationInput, '25');
+        await user.click(screen.getByRole('button', { name: 'Save' }));
+
+        expect(createEditedImageFileMock).toHaveBeenCalledWith(expect.objectContaining({
+            cropRect: null,
+            rotation: 25,
+        }));
+    });
 });

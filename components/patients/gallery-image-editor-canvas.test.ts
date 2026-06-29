@@ -88,6 +88,29 @@ describe('drawCropOverlay', () => {
 });
 
 describe('renderEditedCanvas', () => {
+    it('fails fast when the export surface is unavailable', () => {
+        const outputCanvas = {
+            getContext: vi.fn(() => null),
+        } as unknown as HTMLCanvasElement;
+        const source = {
+            naturalWidth: 100,
+            naturalHeight: 50,
+            width: 100,
+            height: 50,
+        } as HTMLImageElement;
+
+        expect(() => renderEditedCanvas({
+            canvas: outputCanvas,
+            source,
+            rotation: 0,
+            brightness: 100,
+            contrast: 100,
+            cropRect: null,
+            strokes: [],
+            textAnnotations: [],
+        })).toThrow('Canvas is unavailable.');
+    });
+
     it('expands the export surface for arbitrary rotation degrees', () => {
         const outputCanvas = createMockCanvas();
         const internalCanvas = createMockCanvas();
@@ -122,5 +145,41 @@ describe('renderEditedCanvas', () => {
         createElementSpy.mockRestore();
         expect(outputCanvas.width).toBe(107);
         expect(outputCanvas.height).toBe(107);
+    });
+
+    it('keeps malformed zero-sized source images exportable', () => {
+        const outputCanvas = createMockCanvas();
+        const internalCanvas = createMockCanvas();
+        const source = {
+            naturalWidth: 0,
+            naturalHeight: 0,
+            width: 0,
+            height: 0,
+        } as HTMLImageElement;
+        const originalCreateElement = document.createElement.bind(document);
+        const createElementSpy = vi.spyOn(document, 'createElement').mockImplementation((
+            (tagName: string, options?: ElementCreationOptions) => {
+                if (tagName.toLowerCase() === 'canvas') {
+                    return internalCanvas;
+                }
+
+                return originalCreateElement(tagName, options);
+            }
+        ) as typeof document.createElement);
+
+        renderEditedCanvas({
+            canvas: outputCanvas,
+            source,
+            rotation: 0,
+            brightness: 100,
+            contrast: 100,
+            cropRect: null,
+            strokes: [],
+            textAnnotations: [],
+        });
+
+        createElementSpy.mockRestore();
+        expect(outputCanvas.width).toBe(1);
+        expect(outputCanvas.height).toBe(1);
     });
 });

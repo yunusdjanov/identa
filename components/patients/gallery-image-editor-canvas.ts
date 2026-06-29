@@ -85,20 +85,24 @@ export function loadEditableImage(src: string): Promise<HTMLImageElement> {
 
 function canvasToBlob(canvas: HTMLCanvasElement): Promise<Blob> {
     return new Promise((resolve, reject) => {
-        canvas.toBlob((blob) => {
-            if (blob) {
-                resolve(blob);
-                return;
-            }
-            reject(new Error('Image export failed.'));
-        }, EXPORT_MIME_TYPE, EXPORT_QUALITY);
+        try {
+            canvas.toBlob((blob) => {
+                if (blob) {
+                    resolve(blob);
+                    return;
+                }
+                reject(new Error('Image export failed.'));
+            }, EXPORT_MIME_TYPE, EXPORT_QUALITY);
+        } catch (error) {
+            reject(error instanceof Error ? error : new Error('Image export failed.'));
+        }
     });
 }
 
 function getRotatedSize(source: HTMLImageElement, rotation: number) {
     const normalizedRotation = normalizeRotation(rotation);
-    const naturalWidth = source.naturalWidth || source.width;
-    const naturalHeight = source.naturalHeight || source.height;
+    const naturalWidth = Math.max(1, Math.round(source.naturalWidth || source.width || 1));
+    const naturalHeight = Math.max(1, Math.round(source.naturalHeight || source.height || 1));
     if (normalizedRotation === 0 || normalizedRotation === 180) {
         return {
             width: naturalWidth,
@@ -237,22 +241,17 @@ export function renderEditedCanvas({
         context = null;
     }
     if (!context) {
-        return;
+        throw new Error('Canvas is unavailable.');
     }
 
-    let base: HTMLCanvasElement;
-    try {
-        base = drawRotatedBase(source, rotation, brightness, contrast);
-    } catch {
-        return;
-    }
+    const base = drawRotatedBase(source, rotation, brightness, contrast);
     const crop = clampCropRectToCanvas(cropRect, base.width, base.height);
     canvas.width = Math.max(1, Math.round(crop.width));
     canvas.height = Math.max(1, Math.round(crop.height));
 
     context = canvas.getContext('2d');
     if (!context) {
-        return;
+        throw new Error('Canvas is unavailable.');
     }
 
     context.clearRect(0, 0, canvas.width, canvas.height);
@@ -324,6 +323,9 @@ export async function createEditedImageFile({
         strokes,
         textAnnotations,
     });
+    if (canvas.width < 1 || canvas.height < 1) {
+        throw new Error('Image export failed.');
+    }
 
     const blob = await canvasToBlob(canvas);
     const baseName = sanitizeBaseName(image.title ?? image.alt);

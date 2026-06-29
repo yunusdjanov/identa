@@ -137,7 +137,7 @@ function clampStageRect(rect: CropRect, stageWidth: number, stageHeight: number,
     };
 }
 
-function normalizeManualRotation(value: number): number {
+function normalizeRotationStep(value: number): number {
     if (!Number.isFinite(value)) {
         return 0;
     }
@@ -145,6 +145,18 @@ function normalizeManualRotation(value: number): number {
     const normalized = ((((Math.round(value) + 180) % 360) + 360) % 360) - 180;
 
     return normalized === MIN_MANUAL_ROTATION_DEGREES ? MAX_MANUAL_ROTATION_DEGREES : normalized;
+}
+
+function clampManualRotation(value: number): number {
+    if (!Number.isFinite(value)) {
+        return 0;
+    }
+
+    return clamp(
+        Math.round(value),
+        MIN_MANUAL_ROTATION_DEGREES,
+        MAX_MANUAL_ROTATION_DEGREES
+    );
 }
 
 /**
@@ -384,6 +396,7 @@ export function GalleryImageEditor({ image, isSaving = false, onCancel, onSave }
             });
             setPreviewCanvas(canvas);
         } catch {
+            setPreviewCanvas(null);
             setError(t('gallery.edit.failed'));
         }
     }, [brightness, contrast, cropRect, rotation, source, t]);
@@ -431,13 +444,20 @@ export function GalleryImageEditor({ image, isSaving = false, onCancel, onSave }
         setDraftCropRect(stageRectToBaseRect(nextStageRect));
     }, [stageMetrics.height, stageMetrics.scale, stageMetrics.width, stageRectToBaseRect]);
 
-    const updateRotation = useCallback((value: number) => {
-        setRotation(normalizeManualRotation(value));
+    const clearDraftCrop = useCallback(() => {
+        setDraftCropRect(null);
+        cropStartRef.current = null;
     }, []);
 
+    const updateRotation = useCallback((value: number) => {
+        clearDraftCrop();
+        setRotation(clampManualRotation(value));
+    }, [clearDraftCrop]);
+
     const rotateBy = useCallback((degrees: number) => {
-        setRotation((value) => normalizeManualRotation(value + degrees));
-    }, []);
+        clearDraftCrop();
+        setRotation((value) => normalizeRotationStep(value + degrees));
+    }, [clearDraftCrop]);
 
     const startTextDraft = (basePoint: Point) => {
         commitTextDraft();
