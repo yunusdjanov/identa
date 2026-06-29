@@ -499,17 +499,17 @@ export function PatientDetailLoadingState() {
             </section>
 
             {/* Summary cards: basic info, oral photo, detail */}
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-5">
-                <div className="h-[18.5rem] overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm shadow-slate-100/80 md:col-span-2 xl:col-span-2">
-                    <div className="flex items-center gap-2.5 px-5 pb-2.5 pt-4">
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+                <div className="h-[19.5rem] overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm shadow-slate-100/80">
+                    <div className="flex items-center gap-2.5 px-4 pb-2 pt-4">
                         <Skeleton className="h-8 w-8 shrink-0 rounded-xl" />
                         <Skeleton className="h-[14px] w-40 rounded-xl" />
                     </div>
-                    <div className="px-5 pb-4">
-                        <div className="grid min-h-[5.9rem] grid-cols-1 gap-3 border-b border-slate-100 pb-3 sm:grid-cols-3">
-                            {Array.from({ length: 3 }).map((_, index) => (
-                                <div key={index} className="flex min-w-0 gap-3 px-1.5 py-1">
-                                    <Skeleton className="mt-0.5 h-8 w-8 shrink-0 rounded-xl" />
+                    <div className="px-4 pb-4">
+                        <div className="grid grid-cols-2 gap-2 border-b border-slate-100 pb-2.5">
+                            {Array.from({ length: 2 }).map((_, index) => (
+                                <div key={index} className="flex min-w-0 gap-2.5 px-1 py-0.5">
+                                    <Skeleton className="mt-0.5 h-7 w-7 shrink-0 rounded-lg" />
                                     <div className="min-w-0 flex-1">
                                         <Skeleton className="h-3 w-16 rounded-xl" />
                                         <Skeleton className="mt-2 h-4 w-full rounded-xl" />
@@ -518,16 +518,26 @@ export function PatientDetailLoadingState() {
                                 </div>
                             ))}
                         </div>
-                        <div className="grid gap-2 pt-3 sm:grid-cols-3">
+                        <div className="border-b border-slate-100 py-2.5">
+                            <div className="flex min-w-0 gap-2.5 px-1 py-0.5">
+                                <Skeleton className="mt-0.5 h-7 w-7 shrink-0 rounded-lg" />
+                                <div className="min-w-0 flex-1">
+                                    <Skeleton className="h-3 w-20 rounded-xl" />
+                                    <Skeleton className="mt-2 h-4 w-full rounded-xl" />
+                                    <Skeleton className="mt-1 h-4 w-3/4 rounded-xl" />
+                                </div>
+                            </div>
+                        </div>
+                        <div className="grid gap-1.5 pt-2.5">
                             {Array.from({ length: 3 }).map((_, index) => (
-                                <Skeleton key={index} className="h-14 rounded-xl" />
+                                <Skeleton key={index} className="h-8 rounded-lg" />
                             ))}
                         </div>
                     </div>
                 </div>
                 <div
                     data-testid="patient-detail-oral-photo-skeleton"
-                    className="flex h-[18.5rem] flex-col overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm shadow-slate-100/80 md:col-span-2 xl:col-span-2"
+                    className="flex h-[19.5rem] flex-col overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm shadow-slate-100/80 md:col-span-2"
                 >
                     <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-4 py-1.5">
                         <div className="flex min-w-0 items-center gap-2.5">
@@ -546,7 +556,7 @@ export function PatientDetailLoadingState() {
                         ))}
                     </div>
                 </div>
-                <div className="h-[18.5rem] overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm shadow-slate-100/80 md:col-span-2 xl:col-span-1">
+                <div className="h-[19.5rem] overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm shadow-slate-100/80">
                     <div className="flex items-center gap-2.5 border-b border-slate-100 px-4 py-1.5">
                         <Skeleton className="h-7 w-7 shrink-0 rounded-lg" />
                         <Skeleton className="h-[14px] w-32 rounded-xl" />

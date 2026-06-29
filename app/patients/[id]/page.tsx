@@ -172,13 +172,13 @@ function BasicInfoCell({
     children: React.ReactNode;
 }) {
     return (
-        <div className="flex min-w-0 gap-3 px-1.5 py-1">
-            <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-teal-50 text-teal-600 ring-1 ring-teal-100/80">
+        <div className="flex min-w-0 gap-2.5 px-1 py-0.5">
+            <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-teal-50 text-teal-600 ring-1 ring-teal-100/80">
                 <Icon className="h-3.5 w-3.5" />
             </span>
             <div className="min-w-0 flex-1">
-                <p className="text-[10px] font-bold uppercase tracking-[0.13em] text-slate-500">{label}</p>
-                <div className="mt-1 min-w-0 text-[13px] font-semibold leading-5 text-slate-900">
+                <p className="text-[9px] font-bold uppercase tracking-[0.11em] text-slate-500">{label}</p>
+                <div className="mt-0.5 min-w-0 text-[12px] font-semibold leading-4 text-slate-900">
                     {children}
                 </div>
             </div>
@@ -230,15 +230,15 @@ function CompactClinicalFact({
     const displayValue = hasValue ? truncateForUi(safeValue, truncateLimit) : emptyLabel;
 
     return (
-        <div className={`min-w-0 rounded-xl px-3 py-2 ring-1 ${t.box}`}>
-            <div className="flex min-w-0 items-center gap-1.5">
+        <div className={`flex min-w-0 items-center gap-2 rounded-lg px-2.5 py-1.5 ring-1 ${t.box}`}>
+            <div className="flex min-w-0 flex-1 items-center gap-1.5">
                 <Icon className={`h-3.5 w-3.5 shrink-0 ${t.icon}`} />
-                <span className={`min-w-0 truncate text-[10px] font-bold uppercase tracking-[0.08em] ${t.labelText}`}>
+                <span className={`min-w-0 truncate text-[9px] font-bold uppercase tracking-[0.08em] ${t.labelText}`}>
                     {label}
                 </span>
             </div>
             <span
-                className={`mt-1 block min-w-0 truncate text-[12px] font-semibold ${hasValue ? t.valueText : 'text-slate-400'}`}
+                className={`min-w-0 max-w-[42%] shrink-0 truncate text-right text-[12px] font-semibold ${hasValue ? t.valueText : 'text-slate-400'}`}
                 title={hasValue ? safeValue : emptyLabel}
             >
                 {displayValue}
@@ -862,19 +862,19 @@ export default function PatientDetailPage({
             </div>
 
             {/* Premium summary cards: basic info, oral photo, detail. */}
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-5">
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
 
                 {/* Basic info: contact essentials with stable clinical notes. */}
-                <article className="group/card relative flex h-[18.5rem] flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm shadow-slate-200/40 transition-all hover:-translate-y-0.5 hover:shadow-md hover:shadow-slate-200/70 md:col-span-2 xl:col-span-2">
+                <article className="group/card relative flex h-[19.5rem] flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm shadow-slate-200/40 transition-all hover:-translate-y-0.5 hover:shadow-md hover:shadow-slate-200/70">
                     <div className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-emerald-400 via-teal-400 to-cyan-400" />
-                    <header className="flex items-center gap-2.5 px-5 pb-2.5 pt-4">
+                    <header className="flex items-center gap-2.5 px-4 pb-2 pt-4">
                         <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-50 to-teal-50 text-teal-600 ring-1 ring-teal-100/80 shadow-sm shadow-teal-100/40">
                             <Info className="h-4 w-4" strokeWidth={2.25} />
                         </span>
                         <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-700">{t('patients.section.basicInfo')}</p>
                     </header>
-                    <div data-testid="patient-detail-contact-card" className="flex min-h-0 flex-1 flex-col px-5 pb-4">
-                        <div className="grid min-h-[5.9rem] grid-cols-1 gap-3 border-b border-slate-100 pb-3 sm:grid-cols-3">
+                    <div data-testid="patient-detail-contact-card" className="flex min-h-0 flex-1 flex-col px-4 pb-4">
+                        <div data-testid="patient-detail-contact-primary-row" className="grid grid-cols-2 gap-2 border-b border-slate-100 pb-2.5">
                             <BasicInfoCell icon={Phone} label={t('patientDetail.phone')}>
                                 <div className="space-y-0.5">
                                     {patient.phone ? (
@@ -900,20 +900,22 @@ export default function PatientDetailPage({
                                     ) : null}
                                 </div>
                             </BasicInfoCell>
-                            <BasicInfoCell icon={MapPin} label={t('patientDetail.address')}>
-                                <p className="line-clamp-2 break-words" title={patient.address ?? t('patientDetail.notSpecified')}>
-                                    {patient.address || t('patientDetail.notSpecified')}
-                                </p>
-                            </BasicInfoCell>
                             <BasicInfoCell icon={Calendar} label={t('patientDetail.birthDate')}>
                                 <p className="truncate tabular-nums" title={patient.date_of_birth ? formatDate(patient.date_of_birth) : t('patientDetail.notSpecified')}>
                                     {patient.date_of_birth ? formatDate(patient.date_of_birth) : t('patientDetail.notSpecified')}
                                 </p>
                             </BasicInfoCell>
                         </div>
+                        <div data-testid="patient-detail-contact-address-row" className="border-b border-slate-100 py-2.5">
+                            <BasicInfoCell icon={MapPin} label={t('patientDetail.address')}>
+                                <p className="line-clamp-2 break-words" title={patient.address ?? t('patientDetail.notSpecified')}>
+                                    {patient.address || t('patientDetail.notSpecified')}
+                                </p>
+                            </BasicInfoCell>
+                        </div>
                         <div
                             data-testid="patient-detail-clinical-facts"
-                            className="grid min-h-0 flex-1 grid-cols-1 gap-2 pt-3 sm:grid-cols-3"
+                            className="grid min-h-0 flex-1 grid-cols-1 gap-1.5 pt-2.5"
                         >
                             <CompactClinicalFact
                                 icon={AlertCircle}
@@ -944,7 +946,7 @@ export default function PatientDetailPage({
                 </article>
 
                 {/* Oral photo: compact clinical photo shortcuts */}
-                <article className="group/card relative flex h-[18.5rem] flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm shadow-slate-200/40 transition-all hover:-translate-y-0.5 hover:shadow-md hover:shadow-slate-200/70 md:col-span-2 xl:col-span-2">
+                <article className="group/card relative flex h-[19.5rem] flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm shadow-slate-200/40 transition-all hover:-translate-y-0.5 hover:shadow-md hover:shadow-slate-200/70 md:col-span-2">
                     <div className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-slate-200 via-slate-300 to-slate-400" />
                     <header className="flex items-center justify-between gap-3 px-4 pt-4 pb-2">
                         <div className="flex min-w-0 items-center gap-2.5">
@@ -1023,7 +1025,7 @@ export default function PatientDetailPage({
                 </article>
 
                 {/* Detail: activity and balance snapshot */}
-                <article className="group/card relative flex h-[18.5rem] flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm shadow-slate-200/40 transition-all hover:-translate-y-0.5 hover:shadow-md hover:shadow-slate-200/70 md:col-span-2 xl:col-span-1">
+                <article className="group/card relative flex h-[19.5rem] flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm shadow-slate-200/40 transition-all hover:-translate-y-0.5 hover:shadow-md hover:shadow-slate-200/70">
                     <div className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-teal-400 via-sky-400 to-indigo-400" />
                     <header className="flex items-center justify-between gap-3 px-4 pt-4 pb-3">
                         <div className="flex items-center gap-2.5">

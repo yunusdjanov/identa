@@ -247,12 +247,14 @@ describe('PatientDetailPage', () => {
         await renderPage();
 
         const contactCard = await screen.findByTestId('patient-detail-contact-card');
+        const primaryRow = within(contactCard).getByTestId('patient-detail-contact-primary-row');
+        const addressRow = within(contactCard).getByTestId('patient-detail-contact-address-row');
         const clinicalFacts = within(contactCard).getByTestId('patient-detail-clinical-facts');
 
-        expect(within(contactCard).getByText('+998901234567')).toBeInTheDocument();
         expect(screen.getByText('Basic Information')).toBeInTheDocument();
-        expect(within(contactCard).getByText('Address')).toBeInTheDocument();
-        expect(within(contactCard).getByText('Date of Birth')).toBeInTheDocument();
+        expect(within(primaryRow).getByText('+998901234567')).toBeInTheDocument();
+        expect(within(primaryRow).getByText('Date of Birth')).toBeInTheDocument();
+        expect(within(addressRow).getByText('Address')).toBeInTheDocument();
         expect(within(clinicalFacts).getByText('Allergies & blood pressure')).toBeInTheDocument();
         expect(within(clinicalFacts).getByText('Penicillin')).toBeInTheDocument();
         expect(within(clinicalFacts).getByText('Current Medications')).toBeInTheDocument();
