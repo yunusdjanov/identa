@@ -234,7 +234,7 @@ describe('PatientDetailPage', () => {
         expect(addressValue).toHaveTextContent(longAddress);
     });
 
-    it('renders medical facts in a separate clinical strip instead of the contact card', async () => {
+    it('renders contact and medical facts in the same patient info card', async () => {
         vi.mocked(getCurrentUser).mockResolvedValue(dentist as never);
         vi.mocked(getPatient).mockResolvedValue({
             ...patient,
@@ -247,31 +247,33 @@ describe('PatientDetailPage', () => {
         await renderPage();
 
         const contactCard = await screen.findByTestId('patient-detail-contact-card');
-        const clinicalStrip = await screen.findByTestId('patient-detail-clinical-strip');
+        const clinicalFacts = within(contactCard).getByTestId('patient-detail-clinical-facts');
 
         expect(within(contactCard).getByText('+998901234567')).toBeInTheDocument();
-        expect(within(contactCard).queryByText('Clinic')).not.toBeInTheDocument();
-        expect(within(contactCard).queryByText('Penicillin')).not.toBeInTheDocument();
-        expect(within(clinicalStrip).getByText('Clinic')).toBeInTheDocument();
-        expect(within(clinicalStrip).getByText('Allergies & blood pressure')).toBeInTheDocument();
-        expect(within(clinicalStrip).getByText('Penicillin')).toBeInTheDocument();
-        expect(within(clinicalStrip).getByText('Current Medications')).toBeInTheDocument();
-        expect(within(clinicalStrip).getByText('Aspirin')).toBeInTheDocument();
-        expect(within(clinicalStrip).getByText('Medical history')).toBeInTheDocument();
-        expect(within(clinicalStrip).getByText('Hypertension')).toBeInTheDocument();
+        expect(screen.getByText('Patient')).toBeInTheDocument();
+        expect(within(clinicalFacts).getByText('Clinic')).toBeInTheDocument();
+        expect(within(clinicalFacts).getByText('Allergies & blood pressure')).toBeInTheDocument();
+        expect(within(clinicalFacts).getByText('Penicillin')).toBeInTheDocument();
+        expect(within(clinicalFacts).getByText('Current Medications')).toBeInTheDocument();
+        expect(within(clinicalFacts).getByText('Aspirin')).toBeInTheDocument();
+        expect(within(clinicalFacts).getByText('Medical history')).toBeInTheDocument();
+        expect(within(clinicalFacts).getByText('Hypertension')).toBeInTheDocument();
+        expect(screen.queryByTestId('patient-detail-clinical-strip')).not.toBeInTheDocument();
     });
 
-    it('keeps the clinical strip compact when no medical facts are recorded', async () => {
+    it('keeps the combined patient info card compact when no medical facts are recorded', async () => {
         vi.mocked(getCurrentUser).mockResolvedValue(dentist as never);
         vi.mocked(getPatient).mockResolvedValue(patient as never);
 
         await renderPage();
 
-        const clinicalStrip = await screen.findByTestId('patient-detail-clinical-strip');
+        const contactCard = await screen.findByTestId('patient-detail-contact-card');
+        const clinicalFacts = within(contactCard).getByTestId('patient-detail-clinical-facts');
 
-        expect(within(clinicalStrip).getByText('Clinic')).toBeInTheDocument();
-        expect(within(clinicalStrip).getByText('No medical information recorded')).toBeInTheDocument();
-        expect(within(clinicalStrip).queryByText('Allergies & blood pressure')).not.toBeInTheDocument();
+        expect(within(clinicalFacts).getByText('Clinic')).toBeInTheDocument();
+        expect(within(clinicalFacts).getByText('No medical information recorded')).toBeInTheDocument();
+        expect(within(clinicalFacts).queryByText('Allergies & blood pressure')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('patient-detail-clinical-strip')).not.toBeInTheDocument();
     });
 
     it('renders the total visits from the overview visit count', async () => {
@@ -366,7 +368,7 @@ describe('PatientDetailPage', () => {
         expect(screen.getByText('1/8')).toBeInTheDocument();
         expect(screen.getAllByTitle('Upload')).toHaveLength(7);
         expect(screen.getAllByTitle('View')).toHaveLength(1);
-        expect(screen.getAllByTitle('View')[0]).toHaveClass('aspect-[4/3]');
+        expect(screen.getAllByTitle('View')[0]).toHaveClass('min-h-[4.25rem]');
         expect(within(screen.getAllByTitle('View')[0]).queryByText('1')).not.toBeInTheDocument();
         expect(screen.queryAllByTitle('Delete')).toHaveLength(0);
     });

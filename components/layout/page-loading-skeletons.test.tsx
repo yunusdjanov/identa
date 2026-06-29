@@ -84,7 +84,7 @@ describe('page loading skeletons', () => {
             render(<PatientDetailLoadingState />);
 
             expect(screen.getByTestId('patient-detail-oral-photo-skeleton')).toBeInTheDocument();
-            expect(screen.getByTestId('patient-detail-clinical-strip-skeleton')).toBeInTheDocument();
+            expect(screen.queryByTestId('patient-detail-clinical-strip-skeleton')).not.toBeInTheDocument();
             expect(screen.getAllByTestId('patient-detail-oral-photo-slot-skeleton')).toHaveLength(8);
             expect(screen.getByTestId('patient-detail-work-history-skeleton')).toBeInTheDocument();
         });

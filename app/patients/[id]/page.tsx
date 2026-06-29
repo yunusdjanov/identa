@@ -203,7 +203,7 @@ function ReachRow({
         </>
     );
 
-    const base = 'group/row flex items-center gap-3 rounded-xl px-3 py-2.5 transition-colors';
+    const base = 'group/row flex items-center gap-3 rounded-xl px-3 py-2 transition-colors';
     if (href) {
         return (
             <a href={href} className={`${base} hover:bg-teal-50/70`}>
@@ -890,56 +890,99 @@ export default function PatientDetailPage({
                 />
             </div>
 
-            {/* Premium summary cards: contact, oral photo, detail. */}
+            {/* Premium summary cards: patient info, oral photo, detail. */}
             <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
 
-                {/* Contact: click-to-call essentials. */}
-                <article className="group/card relative flex flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm shadow-slate-200/40 transition-all hover:-translate-y-0.5 hover:shadow-md hover:shadow-slate-200/70">
+                {/* Patient: contact essentials with compact clinical notes. */}
+                <article className="group/card relative flex h-[19.5rem] flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm shadow-slate-200/40 transition-all hover:-translate-y-0.5 hover:shadow-md hover:shadow-slate-200/70">
                     <div className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-emerald-400 via-teal-400 to-cyan-400" />
                     <header className="flex items-center gap-2.5 px-4 pt-4 pb-2">
                         <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-50 to-teal-50 text-teal-600 ring-1 ring-teal-100/80 shadow-sm shadow-teal-100/40">
                             <Contact className="h-4 w-4" strokeWidth={2.25} />
                         </span>
-                        <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-700">{triadLabels.contact}</p>
+                        <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-700">{t('appointments.dialog.patient')}</p>
                     </header>
-                    <div data-testid="patient-detail-contact-card" className="space-y-0.5 px-2 pb-3">
-                        {patient.phone ? (
-                            <ReachRow
-                                icon={Phone}
-                                label={t('patientDetail.phone')}
-                                value={patient.phone}
-                                href={`tel:${patient.phone.replace(/\s/g, '')}`}
-                            />
-                        ) : null}
-                        {patient.secondary_phone ? (
-                            <ReachRow
-                                icon={Phone}
-                                label={t('patientDetail.phone2')}
-                                value={patient.secondary_phone}
-                                href={`tel:${patient.secondary_phone.replace(/\s/g, '')}`}
-                            />
-                        ) : null}
-                        {patient.address ? (
-                            <ReachRow
-                                icon={MapPin}
-                                label={t('patientDetail.address')}
-                                value={patient.address}
-                                multiline
-                                maxLines={2}
-                            />
-                        ) : null}
-                        {patient.date_of_birth ? (
-                            <ReachRow
-                                icon={Calendar}
-                                label={t('patientDetail.birthDate')}
-                                value={formatDate(patient.date_of_birth)}
-                            />
-                        ) : null}
+                    <div data-testid="patient-detail-contact-card" className="flex min-h-0 flex-1 flex-col px-2 pb-3">
+                        <div className="min-h-0 space-y-0.5 overflow-hidden">
+                            {patient.phone ? (
+                                <ReachRow
+                                    icon={Phone}
+                                    label={t('patientDetail.phone')}
+                                    value={patient.phone}
+                                    href={`tel:${patient.phone.replace(/\s/g, '')}`}
+                                />
+                            ) : null}
+                            {patient.secondary_phone ? (
+                                <ReachRow
+                                    icon={Phone}
+                                    label={t('patientDetail.phone2')}
+                                    value={patient.secondary_phone}
+                                    href={`tel:${patient.secondary_phone.replace(/\s/g, '')}`}
+                                />
+                            ) : null}
+                            {patient.address ? (
+                                <ReachRow
+                                    icon={MapPin}
+                                    label={t('patientDetail.address')}
+                                    value={patient.address}
+                                    multiline
+                                    maxLines={2}
+                                />
+                            ) : null}
+                            {patient.date_of_birth ? (
+                                <ReachRow
+                                    icon={Calendar}
+                                    label={t('patientDetail.birthDate')}
+                                    value={formatDate(patient.date_of_birth)}
+                                />
+                            ) : null}
+                        </div>
+                        <div
+                            data-testid="patient-detail-clinical-facts"
+                            className="mt-auto shrink-0 border-t border-slate-100 px-1 pt-2"
+                        >
+                            <div className="mb-1.5 flex items-center gap-1.5 px-2">
+                                <HeartPulse className="h-3.5 w-3.5 text-slate-400" />
+                                <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500">{triadLabels.clinic}</p>
+                            </div>
+                            {!patient.allergies && !patient.current_medications && !patient.medical_history ? (
+                                <p className="truncate rounded-lg bg-slate-50 px-2 py-1.5 text-[11px] font-medium text-slate-400 ring-1 ring-slate-100">
+                                    {t('patientDetail.noMedicalInfo')}
+                                </p>
+                            ) : (
+                                <div className="grid gap-1.5">
+                                    <CompactClinicalFact
+                                        icon={AlertCircle}
+                                        label={t('patientDetail.allergies')}
+                                        value={patient.allergies}
+                                        tone="rose"
+                                        truncateLimit={PATIENT_ALLERGIES_UI_LIMIT}
+                                        emptyLabel={t('patientDetail.notSpecified')}
+                                    />
+                                    <CompactClinicalFact
+                                        icon={Pill}
+                                        label={t('patientDetail.currentMedications')}
+                                        value={patient.current_medications}
+                                        tone="amber"
+                                        truncateLimit={PATIENT_MEDICATIONS_UI_LIMIT}
+                                        emptyLabel={t('patientDetail.notSpecified')}
+                                    />
+                                    <CompactClinicalFact
+                                        icon={FileText}
+                                        label={t('patientDetail.medicalHistory.label')}
+                                        value={patient.medical_history}
+                                        tone="slate"
+                                        truncateLimit={PATIENT_MEDICAL_HISTORY_UI_LIMIT}
+                                        emptyLabel={t('patientDetail.notSpecified')}
+                                    />
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </article>
 
                 {/* Oral photo: compact clinical photo shortcuts */}
-                <article className="group/card relative flex flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm shadow-slate-200/40 transition-all hover:-translate-y-0.5 hover:shadow-md hover:shadow-slate-200/70 md:col-span-2">
+                <article className="group/card relative flex h-[19.5rem] flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm shadow-slate-200/40 transition-all hover:-translate-y-0.5 hover:shadow-md hover:shadow-slate-200/70 md:col-span-2">
                     <div className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-slate-200 via-slate-300 to-slate-400" />
                     <header className="flex items-center justify-between gap-3 px-4 pt-4 pb-2">
                         <div className="flex min-w-0 items-center gap-2.5">
@@ -955,8 +998,8 @@ export default function PatientDetailPage({
                             <span className="tabular-nums">{smileOralPhotoReadyCount}/{ORAL_PHOTO_MAX_PER_SLOT}</span>
                         </span>
                     </header>
-                    <div className="px-4 pb-4 pt-1">
-                        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+                    <div className="flex flex-1 px-4 py-3">
+                        <div className="grid flex-1 grid-cols-2 grid-rows-4 gap-2.5 sm:grid-cols-4 sm:grid-rows-2">
                             {smileOralPhotoPlaceholders.map((photoSlot, index) => {
                                 const isUploadingSlot = uploadOralPhotoMutation.isPending
                                     && uploadOralPhotoMutation.variables?.viewType === 'smile';
@@ -985,7 +1028,7 @@ export default function PatientDetailPage({
                                                 pickOralPhoto('smile');
                                             }
                                         }}
-                                        className={`group/thumb relative flex aspect-[4/3] min-h-[64px] items-center justify-center overflow-hidden rounded-xl border text-slate-400 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-300 focus-visible:ring-offset-1 disabled:cursor-default disabled:hover:border-slate-200 disabled:hover:bg-slate-50 sm:min-h-[78px] ${hasRenderablePhoto ? 'border-slate-200 bg-slate-50 shadow-sm shadow-slate-200/60 hover:border-slate-300 hover:shadow-md' : 'border-dashed border-teal-200 bg-teal-50/30 hover:border-teal-300 hover:bg-teal-50/60'}`}
+                                        className={`group/thumb relative flex min-h-[4.25rem] items-center justify-center overflow-hidden rounded-xl border text-slate-400 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-300 focus-visible:ring-offset-1 disabled:cursor-default disabled:hover:border-slate-200 disabled:hover:bg-slate-50 sm:min-h-0 ${hasRenderablePhoto ? 'border-slate-200 bg-slate-50 shadow-sm shadow-slate-200/60 hover:border-slate-300 hover:shadow-md' : 'border-dashed border-teal-200 bg-teal-50/30 hover:border-teal-300 hover:bg-teal-50/60'}`}
                                         aria-label={hasRenderablePhoto ? t('patientDetail.oralPhoto.view') : t('patientDetail.oralPhoto.upload')}
                                         title={hasRenderablePhoto ? t('patientDetail.oralPhoto.view') : t('patientDetail.oralPhoto.upload')}
                                     >
@@ -1018,7 +1061,7 @@ export default function PatientDetailPage({
                 </article>
 
                 {/* Detail: activity and balance snapshot */}
-                <article className="group/card relative flex flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm shadow-slate-200/40 transition-all hover:-translate-y-0.5 hover:shadow-md hover:shadow-slate-200/70">
+                <article className="group/card relative flex h-[19.5rem] flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm shadow-slate-200/40 transition-all hover:-translate-y-0.5 hover:shadow-md hover:shadow-slate-200/70">
                     <div className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-teal-400 via-sky-400 to-indigo-400" />
                     <header className="flex items-center justify-between gap-3 px-4 pt-4 pb-3">
                         <div className="flex items-center gap-2.5">
@@ -1060,53 +1103,6 @@ export default function PatientDetailPage({
                 </article>
 
             </div>
-
-            <section
-                data-testid="patient-detail-clinical-strip"
-                className="relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white px-4 py-3 shadow-sm shadow-slate-200/40"
-            >
-                <div className={`absolute inset-x-0 top-0 h-[3px] ${patient.allergies || patient.current_medications ? 'bg-gradient-to-r from-rose-300 via-amber-300 to-slate-300' : 'bg-gradient-to-r from-slate-200 via-slate-300 to-slate-200'}`} />
-                <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
-                    <div className="flex min-w-[9rem] items-center gap-2.5">
-                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-slate-50 text-slate-500 ring-1 ring-slate-100/80 shadow-sm shadow-slate-100/40">
-                            <HeartPulse className="h-4 w-4" strokeWidth={2.25} />
-                        </span>
-                        <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-700">{triadLabels.clinic}</p>
-                    </div>
-                    {!patient.allergies && !patient.current_medications && !patient.medical_history ? (
-                        <p className="truncate text-[12px] font-medium text-slate-400">
-                            {t('patientDetail.noMedicalInfo')}
-                        </p>
-                    ) : (
-                        <div className="grid min-w-0 flex-1 gap-2 md:grid-cols-3">
-                            <CompactClinicalFact
-                                icon={AlertCircle}
-                                label={t('patientDetail.allergies')}
-                                value={patient.allergies}
-                                tone="rose"
-                                truncateLimit={PATIENT_ALLERGIES_UI_LIMIT}
-                                emptyLabel={t('patientDetail.notSpecified')}
-                            />
-                            <CompactClinicalFact
-                                icon={Pill}
-                                label={t('patientDetail.currentMedications')}
-                                value={patient.current_medications}
-                                tone="amber"
-                                truncateLimit={PATIENT_MEDICATIONS_UI_LIMIT}
-                                emptyLabel={t('patientDetail.notSpecified')}
-                            />
-                            <CompactClinicalFact
-                                icon={FileText}
-                                label={t('patientDetail.medicalHistory.label')}
-                                value={patient.medical_history}
-                                tone="slate"
-                                truncateLimit={PATIENT_MEDICAL_HISTORY_UI_LIMIT}
-                                emptyLabel={t('patientDetail.notSpecified')}
-                            />
-                        </div>
-                    )}
-                </div>
-            </section>
 
             <TreatmentHistoryCard patientId={id} patientName={patient.full_name} />
 
