@@ -250,8 +250,9 @@ describe('PatientDetailPage', () => {
         const clinicalFacts = within(contactCard).getByTestId('patient-detail-clinical-facts');
 
         expect(within(contactCard).getByText('+998901234567')).toBeInTheDocument();
-        expect(screen.getByText('Patient')).toBeInTheDocument();
-        expect(within(clinicalFacts).getByText('Clinic')).toBeInTheDocument();
+        expect(screen.getByText('Basic Information')).toBeInTheDocument();
+        expect(within(contactCard).getByText('Address')).toBeInTheDocument();
+        expect(within(contactCard).getByText('Date of Birth')).toBeInTheDocument();
         expect(within(clinicalFacts).getByText('Allergies & blood pressure')).toBeInTheDocument();
         expect(within(clinicalFacts).getByText('Penicillin')).toBeInTheDocument();
         expect(within(clinicalFacts).getByText('Current Medications')).toBeInTheDocument();
@@ -270,9 +271,10 @@ describe('PatientDetailPage', () => {
         const contactCard = await screen.findByTestId('patient-detail-contact-card');
         const clinicalFacts = within(contactCard).getByTestId('patient-detail-clinical-facts');
 
-        expect(within(clinicalFacts).getByText('Clinic')).toBeInTheDocument();
-        expect(within(clinicalFacts).getByText('No medical information recorded')).toBeInTheDocument();
-        expect(within(clinicalFacts).queryByText('Allergies & blood pressure')).not.toBeInTheDocument();
+        expect(within(clinicalFacts).getByText('Allergies & blood pressure')).toBeInTheDocument();
+        expect(within(clinicalFacts).getByText('Current Medications')).toBeInTheDocument();
+        expect(within(clinicalFacts).getByText('Medical history')).toBeInTheDocument();
+        expect(within(clinicalFacts).getAllByText('Not specified')).toHaveLength(3);
         expect(screen.queryByTestId('patient-detail-clinical-strip')).not.toBeInTheDocument();
     });
 
