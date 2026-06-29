@@ -75,6 +75,16 @@ function createInitialState(patient: ApiPatient): PatientFormState {
     };
 }
 
+function nullableTrimmedValue(value: string): string | null {
+    const trimmed = value.trim();
+
+    return trimmed.length > 0 ? trimmed : null;
+}
+
+function nullablePhoneValue(value: string): string | null {
+    return value ? normalizePhoneForApi(value) : null;
+}
+
 export function EditPatientDialog({
     open,
     onOpenChange,
@@ -152,13 +162,13 @@ export function EditPatientDialog({
             const updatedPatient = await updatePatient(patient.id, {
                 full_name: fullName,
                 phone: normalizePhoneForApi(formData.phone),
-                secondary_phone: formData.secondaryPhone ? normalizePhoneForApi(formData.secondaryPhone) : undefined,
+                secondary_phone: nullablePhoneValue(formData.secondaryPhone),
                 category_id: formData.categoryId || null,
-                address: formData.address.trim() || undefined,
-                date_of_birth: formData.dateOfBirth || undefined,
-                medical_history: formData.medicalHistory.trim() || undefined,
-                allergies: formData.allergies.trim() || undefined,
-                current_medications: formData.currentMedications.trim() || undefined,
+                address: nullableTrimmedValue(formData.address),
+                date_of_birth: formData.dateOfBirth || null,
+                medical_history: nullableTrimmedValue(formData.medicalHistory),
+                allergies: nullableTrimmedValue(formData.allergies),
+                current_medications: nullableTrimmedValue(formData.currentMedications),
             });
 
             let photoActionError: string | null = null;

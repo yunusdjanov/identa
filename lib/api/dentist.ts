@@ -506,14 +506,14 @@ export async function updatePatient(
     payload: {
         full_name: string;
         phone: string;
-        secondary_phone?: string;
+        secondary_phone?: string | null;
         category_id?: string | null;
-        address?: string;
-        date_of_birth?: string;
+        address?: string | null;
+        date_of_birth?: string | null;
         gender?: 'male' | 'female';
-        medical_history?: string;
-        allergies?: string;
-        current_medications?: string;
+        medical_history?: string | null;
+        allergies?: string | null;
+        current_medications?: string | null;
     }
 ): Promise<ApiPatient> {
     const { data } = await withCsrfRetry(() =>

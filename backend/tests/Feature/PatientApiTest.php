@@ -460,6 +460,51 @@ class PatientApiTest extends TestCase
         ]);
     }
 
+    public function test_dentist_can_clear_optional_patient_fields(): void
+    {
+        $dentist = User::factory()->create();
+        $patient = Patient::factory()->create([
+            'dentist_id' => $dentist->id,
+            'full_name' => 'Nullable Patient',
+            'phone' => '+15550000000',
+            'secondary_phone' => '+15553334444',
+            'address' => '1 Main St',
+            'date_of_birth' => '1990-01-01',
+            'medical_history' => 'Hypertension',
+            'allergies' => 'Penicillin',
+            'current_medications' => 'Aspirin',
+        ]);
+
+        $this->actingAs($dentist, 'web')
+            ->putJson("/api/v1/patients/{$patient->id}", [
+                'full_name' => 'Nullable Patient',
+                'phone' => '+15550000000',
+                'secondary_phone' => null,
+                'address' => null,
+                'date_of_birth' => null,
+                'medical_history' => null,
+                'allergies' => null,
+                'current_medications' => null,
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.secondary_phone', null)
+            ->assertJsonPath('data.address', null)
+            ->assertJsonPath('data.date_of_birth', null)
+            ->assertJsonPath('data.medical_history', null)
+            ->assertJsonPath('data.allergies', null)
+            ->assertJsonPath('data.current_medications', null);
+
+        $this->assertDatabaseHas('patients', [
+            'id' => $patient->id,
+            'secondary_phone' => null,
+            'address' => null,
+            'date_of_birth' => null,
+            'medical_history' => null,
+            'allergies' => null,
+            'current_medications' => null,
+        ]);
+    }
+
     public function test_dentist_can_upload_patient_oral_photo(): void
     {
         Storage::fake('local');

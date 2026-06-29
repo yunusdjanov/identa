@@ -871,7 +871,7 @@ export default function PatientDetailPage({
                         <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-50 to-teal-50 text-teal-600 ring-1 ring-teal-100/80 shadow-sm shadow-teal-100/40">
                             <Info className="h-4 w-4" strokeWidth={2.25} />
                         </span>
-                        <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-700">{t('patients.section.basicInfo')}</p>
+                        <p className="min-w-0 text-[11px] font-bold uppercase leading-4 tracking-[0.08em] text-slate-700">{t('patients.section.basicInfo')}</p>
                     </header>
                     <div data-testid="patient-detail-contact-card" className="flex min-h-0 flex-1 flex-col px-4 pb-4">
                         <div data-testid="patient-detail-contact-primary-row" className="grid grid-cols-2 gap-2 border-b border-slate-100 pb-2.5">
