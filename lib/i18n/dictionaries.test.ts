@@ -86,6 +86,9 @@ describe('i18n dictionaries integrity', () => {
     });
 
     it('localizes oral photo slot and compact status labels', () => {
+        expect(ru['patientDetail.oralPhoto.title']).toBe('Общие фото');
+        expect(uz['patientDetail.oralPhoto.title']).toBe('Umumiy foto');
+        expect(en['patientDetail.oralPhoto.title']).toBe('General Photos');
         expect(ru['patientDetail.oralPhoto.slot.smile']).toBe('Улыбка');
         expect(uz['patientDetail.oralPhoto.slot.smile']).toBe('Tabassum');
         expect(en['patientDetail.oralPhoto.slot.smile']).toBe('Smile');

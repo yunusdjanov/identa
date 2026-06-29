@@ -962,8 +962,11 @@ export default function PatientDetailPage({
                             <span className="tabular-nums">{smileOralPhotoReadyCount}/{ORAL_PHOTO_MAX_PER_SLOT}</span>
                         </span>
                     </header>
-                    <div className="flex flex-1 px-4 py-3">
-                        <div className="grid flex-1 grid-cols-2 grid-rows-4 gap-2.5 sm:grid-cols-4 sm:grid-rows-2">
+                    <div className="flex min-h-0 flex-1 px-4 py-3">
+                        <div
+                            data-testid="patient-detail-oral-photo-grid"
+                            className="grid h-full min-h-0 flex-1 grid-cols-2 grid-rows-[repeat(4,minmax(0,1fr))] gap-2.5 sm:grid-cols-4 sm:grid-rows-[repeat(2,minmax(0,1fr))]"
+                        >
                             {smileOralPhotoPlaceholders.map((photoSlot, index) => {
                                 const isUploadingSlot = uploadOralPhotoMutation.isPending
                                     && uploadOralPhotoMutation.variables?.viewType === 'smile';
@@ -992,7 +995,8 @@ export default function PatientDetailPage({
                                                 pickOralPhoto('smile');
                                             }
                                         }}
-                                        className={`group/thumb relative flex min-h-[4.25rem] items-center justify-center overflow-hidden rounded-xl border text-slate-400 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-300 focus-visible:ring-offset-1 disabled:cursor-default disabled:hover:border-slate-200 disabled:hover:bg-slate-50 sm:min-h-0 ${hasRenderablePhoto ? 'border-slate-200 bg-slate-50 shadow-sm shadow-slate-200/60 hover:border-slate-300 hover:shadow-md' : 'border-dashed border-teal-200 bg-teal-50/30 hover:border-teal-300 hover:bg-teal-50/60'}`}
+                                        data-testid="patient-detail-oral-photo-slot"
+                                        className={`group/thumb relative flex h-full min-h-0 w-full items-center justify-center overflow-hidden rounded-xl border text-slate-400 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-300 focus-visible:ring-offset-1 disabled:cursor-default disabled:hover:border-slate-200 disabled:hover:bg-slate-50 ${hasRenderablePhoto ? 'border-slate-200 bg-slate-50 shadow-sm shadow-slate-200/60 hover:border-slate-300 hover:shadow-md' : 'border-dashed border-teal-200 bg-teal-50/30 hover:border-teal-300 hover:bg-teal-50/60'}`}
                                         aria-label={hasRenderablePhoto ? t('patientDetail.oralPhoto.view') : t('patientDetail.oralPhoto.upload')}
                                         title={hasRenderablePhoto ? t('patientDetail.oralPhoto.view') : t('patientDetail.oralPhoto.upload')}
                                     >

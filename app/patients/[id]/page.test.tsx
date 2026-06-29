@@ -312,9 +312,9 @@ describe('PatientDetailPage', () => {
         await renderPage();
 
         const detailCard = await screen.findByText('Detail');
-        const oralPhotoTitle = screen.getByText('Oral photo');
+        const oralPhotoTitle = screen.getByText('General Photos');
 
-        expect(screen.getAllByText('Oral photo')).toHaveLength(1);
+        expect(screen.getAllByText('General Photos')).toHaveLength(1);
         expect(screen.queryByText('Smile')).not.toBeInTheDocument();
         expect(screen.queryByText('Top')).not.toBeInTheDocument();
         expect(screen.queryByText('Bottom')).not.toBeInTheDocument();
@@ -323,6 +323,9 @@ describe('PatientDetailPage', () => {
         expect(screen.getByTestId('patient-detail-work-history')).toHaveTextContent('Work History for John Smith');
         expect(screen.getByText('0/8')).toBeInTheDocument();
         expect(screen.getAllByTitle('Upload')).toHaveLength(8);
+        expect(screen.getByTestId('patient-detail-oral-photo-grid')).toHaveClass('h-full', 'min-h-0');
+        expect(screen.getAllByTestId('patient-detail-oral-photo-slot')).toHaveLength(8);
+        expect(screen.getAllByTestId('patient-detail-oral-photo-slot')[0]).toHaveClass('h-full', 'min-h-0', 'w-full');
         expect(oralPhotoTitle.compareDocumentPosition(detailCard) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     });
 
@@ -363,7 +366,7 @@ describe('PatientDetailPage', () => {
 
         await renderPage();
 
-        expect(await screen.findByText('Oral photo')).toBeInTheDocument();
+        expect(await screen.findByText('General Photos')).toBeInTheDocument();
         expect(screen.queryByText('Ready')).not.toBeInTheDocument();
         expect(screen.queryByText('No photo')).not.toBeInTheDocument();
         expect(screen.queryByText('Smile')).not.toBeInTheDocument();
@@ -372,7 +375,7 @@ describe('PatientDetailPage', () => {
         expect(screen.getByText('1/8')).toBeInTheDocument();
         expect(screen.getAllByTitle('Upload')).toHaveLength(7);
         expect(screen.getAllByTitle('View')).toHaveLength(1);
-        expect(screen.getAllByTitle('View')[0]).toHaveClass('min-h-[4.25rem]');
+        expect(screen.getAllByTitle('View')[0]).toHaveClass('h-full', 'min-h-0', 'w-full');
         expect(within(screen.getAllByTitle('View')[0]).queryByText('1')).not.toBeInTheDocument();
         expect(screen.queryAllByTitle('Delete')).toHaveLength(0);
     });
