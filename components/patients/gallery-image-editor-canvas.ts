@@ -99,11 +99,33 @@ function getRotatedSize(source: HTMLImageElement, rotation: number) {
     const normalizedRotation = normalizeRotation(rotation);
     const naturalWidth = source.naturalWidth || source.width;
     const naturalHeight = source.naturalHeight || source.height;
-    const swapsDimensions = normalizedRotation === 90 || normalizedRotation === 270;
+    if (normalizedRotation === 0 || normalizedRotation === 180) {
+        return {
+            width: naturalWidth,
+            height: naturalHeight,
+            naturalWidth,
+            naturalHeight,
+            normalizedRotation,
+        };
+    }
+
+    if (normalizedRotation === 90 || normalizedRotation === 270) {
+        return {
+            width: naturalHeight,
+            height: naturalWidth,
+            naturalWidth,
+            naturalHeight,
+            normalizedRotation,
+        };
+    }
+
+    const radians = (normalizedRotation * Math.PI) / 180;
+    const width = Math.abs(naturalWidth * Math.cos(radians)) + Math.abs(naturalHeight * Math.sin(radians));
+    const height = Math.abs(naturalWidth * Math.sin(radians)) + Math.abs(naturalHeight * Math.cos(radians));
 
     return {
-        width: swapsDimensions ? naturalHeight : naturalWidth,
-        height: swapsDimensions ? naturalWidth : naturalHeight,
+        width: Math.max(1, Math.ceil(width)),
+        height: Math.max(1, Math.ceil(height)),
         naturalWidth,
         naturalHeight,
         normalizedRotation,
@@ -131,18 +153,9 @@ function drawRotatedBase(
     context.fillRect(0, 0, width, height);
     context.filter = `brightness(${brightness}%) contrast(${contrast}%)`;
 
-    if (normalizedRotation === 90) {
-        context.translate(width, 0);
-        context.rotate(Math.PI / 2);
-    } else if (normalizedRotation === 180) {
-        context.translate(width, height);
-        context.rotate(Math.PI);
-    } else if (normalizedRotation === 270) {
-        context.translate(0, height);
-        context.rotate((Math.PI * 3) / 2);
-    }
-
-    context.drawImage(source, 0, 0, naturalWidth, naturalHeight);
+    context.translate(width / 2, height / 2);
+    context.rotate((normalizedRotation * Math.PI) / 180);
+    context.drawImage(source, -naturalWidth / 2, -naturalHeight / 2, naturalWidth, naturalHeight);
     context.restore();
 
     return canvas;

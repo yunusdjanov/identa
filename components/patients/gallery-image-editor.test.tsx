@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { GalleryImageEditor } from '@/components/patients/gallery-image-editor';
+import { GalleryImageEditor, clampCropTransformBox } from '@/components/patients/gallery-image-editor';
 import { I18nProvider } from '@/components/providers/i18n-provider';
 import { DICTIONARIES } from '@/lib/i18n/dictionaries';
 
@@ -298,6 +298,36 @@ describe('GalleryImageEditor', () => {
                 width: 165,
                 height: 110,
             }),
+        }));
+    });
+
+    it('clamps crop transformer resizes at image edges instead of rejecting them', () => {
+        expect(clampCropTransformBox({ x: 260, y: 120, width: 90, height: 45 }, 300, 150, 16)).toEqual({
+            x: 210,
+            y: 105,
+            width: 90,
+            height: 45,
+        });
+        expect(clampCropTransformBox({ x: 25, y: 20, width: -80, height: -40 }, 300, 150, 16)).toEqual({
+            x: 0,
+            y: 0,
+            width: 80,
+            height: 40,
+        });
+    });
+
+    it('exports manual rotation degrees from the rotation control', async () => {
+        const user = userEvent.setup();
+        renderEditor();
+
+        const rotationInput = await screen.findByRole('spinbutton', { name: 'Rotation' });
+        await waitFor(() => expect(rotationInput).toBeEnabled());
+        await user.clear(rotationInput);
+        await user.type(rotationInput, '37');
+        await user.click(screen.getByRole('button', { name: 'Save' }));
+
+        expect(createEditedImageFileMock).toHaveBeenCalledWith(expect.objectContaining({
+            rotation: 37,
         }));
     });
 });

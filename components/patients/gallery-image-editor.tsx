@@ -12,7 +12,9 @@ import {
     DEFAULT_DRAW_COLOR,
     DEFAULT_DRAW_SIZE,
     DEFAULT_TEXT_SIZE,
+    MAX_MANUAL_ROTATION_DEGREES,
     MIN_CROP_SIZE,
+    MIN_MANUAL_ROTATION_DEGREES,
     ROTATION_STEP_DEGREES,
     type CropRect,
     type DrawStroke,
@@ -130,6 +132,43 @@ function clampStageRect(rect: CropRect, stageWidth: number, stageHeight: number,
     return {
         x: clamp(rect.x, 0, Math.max(0, stageWidth - width)),
         y: clamp(rect.y, 0, Math.max(0, stageHeight - height)),
+        width,
+        height,
+    };
+}
+
+function normalizeManualRotation(value: number): number {
+    if (!Number.isFinite(value)) {
+        return 0;
+    }
+
+    const normalized = ((((Math.round(value) + 180) % 360) + 360) % 360) - 180;
+
+    return normalized === MIN_MANUAL_ROTATION_DEGREES ? MAX_MANUAL_ROTATION_DEGREES : normalized;
+}
+
+/**
+ * Keeps transformer crop boxes usable at image edges instead of rejecting the resize.
+ */
+export function clampCropTransformBox(
+    box: CropRect,
+    stageWidth: number,
+    stageHeight: number,
+    minimumSize: number
+): CropRect {
+    const safeStageWidth = Math.max(1, stageWidth);
+    const safeStageHeight = Math.max(1, stageHeight);
+    const safeMinimumSize = clamp(minimumSize, 1, Math.min(safeStageWidth, safeStageHeight));
+    const rawWidth = Number.isFinite(box.width) ? box.width : safeMinimumSize;
+    const rawHeight = Number.isFinite(box.height) ? box.height : safeMinimumSize;
+    const normalizedX = rawWidth < 0 ? box.x + rawWidth : box.x;
+    const normalizedY = rawHeight < 0 ? box.y + rawHeight : box.y;
+    const width = clamp(Math.abs(rawWidth), safeMinimumSize, safeStageWidth);
+    const height = clamp(Math.abs(rawHeight), safeMinimumSize, safeStageHeight);
+
+    return {
+        x: clamp(Number.isFinite(normalizedX) ? normalizedX : 0, 0, Math.max(0, safeStageWidth - width)),
+        y: clamp(Number.isFinite(normalizedY) ? normalizedY : 0, 0, Math.max(0, safeStageHeight - height)),
         width,
         height,
     };
@@ -392,6 +431,14 @@ export function GalleryImageEditor({ image, isSaving = false, onCancel, onSave }
         setDraftCropRect(stageRectToBaseRect(nextStageRect));
     }, [stageMetrics.height, stageMetrics.scale, stageMetrics.width, stageRectToBaseRect]);
 
+    const updateRotation = useCallback((value: number) => {
+        setRotation(normalizeManualRotation(value));
+    }, []);
+
+    const rotateBy = useCallback((degrees: number) => {
+        setRotation((value) => normalizeManualRotation(value + degrees));
+    }, []);
+
     const startTextDraft = (basePoint: Point) => {
         commitTextDraft();
         textDraftIdRef.current += 1;
@@ -653,7 +700,9 @@ export function GalleryImageEditor({ image, isSaving = false, onCancel, onSave }
                                             event.cancelBubble = true;
                                             cropStartRef.current = null;
                                         }}
+                                        onDragMove={updateCropFromNode}
                                         onDragEnd={updateCropFromNode}
+                                        onTransform={updateCropFromNode}
                                         onTransformEnd={updateCropFromNode}
                                     />
                                     <Transformer
@@ -666,15 +715,13 @@ export function GalleryImageEditor({ image, isSaving = false, onCancel, onSave }
                                         anchorSize={12}
                                         borderStroke="#5eead4"
                                         borderStrokeWidth={1.5}
-                                        boundBoxFunc={(oldBox, newBox) => {
+                                        flipEnabled={false}
+                                        boundBoxFunc={(_oldBox, newBox) => {
                                             const minimumStageSize = MIN_CROP_SIZE * stageMetrics.scale;
-                                            const isTooSmall = newBox.width < minimumStageSize || newBox.height < minimumStageSize;
-                                            const isOutOfBounds = newBox.x < 0
-                                                || newBox.y < 0
-                                                || newBox.x + newBox.width > stageMetrics.width
-                                                || newBox.y + newBox.height > stageMetrics.height;
-
-                                            return isTooSmall || isOutOfBounds ? oldBox : newBox;
+                                            return {
+                                                ...newBox,
+                                                ...clampCropTransformBox(newBox, stageMetrics.width, stageMetrics.height, minimumStageSize),
+                                            };
                                         }}
                                     />
                                 </>
@@ -730,6 +777,8 @@ export function GalleryImageEditor({ image, isSaving = false, onCancel, onSave }
                 onBrightnessChange={setBrightness}
                 contrast={contrast}
                 onContrastChange={setContrast}
+                rotation={rotation}
+                onRotationChange={updateRotation}
                 drawSize={drawSize}
                 onDrawSizeChange={setDrawSize}
                 textSize={textSize}
@@ -745,8 +794,8 @@ export function GalleryImageEditor({ image, isSaving = false, onCancel, onSave }
                 onReset={reset}
                 onCancel={onCancel}
                 onSave={saveEditedImage}
-                onRotateLeft={() => setRotation((value) => value - ROTATION_STEP_DEGREES)}
-                onRotateRight={() => setRotation((value) => value + ROTATION_STEP_DEGREES)}
+                onRotateLeft={() => rotateBy(-ROTATION_STEP_DEGREES)}
+                onRotateRight={() => rotateBy(ROTATION_STEP_DEGREES)}
                 isEditingDisabled={isEditingDisabled}
                 isSaveBusy={isSaveBusy}
             />

@@ -1,5 +1,37 @@
 import { describe, expect, it, vi } from 'vitest';
-import { clampCropRectToCanvas, drawCropOverlay } from '@/components/patients/gallery-image-editor-canvas';
+import { clampCropRectToCanvas, drawCropOverlay, renderEditedCanvas } from '@/components/patients/gallery-image-editor-canvas';
+
+function createMockCanvas(): HTMLCanvasElement {
+    const context = {
+        beginPath: vi.fn(),
+        clearRect: vi.fn(),
+        drawImage: vi.fn(),
+        fillRect: vi.fn(),
+        fillText: vi.fn(),
+        lineTo: vi.fn(),
+        moveTo: vi.fn(),
+        restore: vi.fn(),
+        rotate: vi.fn(),
+        save: vi.fn(),
+        stroke: vi.fn(),
+        strokeText: vi.fn(),
+        translate: vi.fn(),
+        set fillStyle(_value: string) {},
+        set filter(_value: string) {},
+        set font(_value: string) {},
+        set lineCap(_value: CanvasLineCap) {},
+        set lineJoin(_value: CanvasLineJoin) {},
+        set lineWidth(_value: number) {},
+        set strokeStyle(_value: string) {},
+        set textBaseline(_value: CanvasTextBaseline) {},
+    } as unknown as CanvasRenderingContext2D;
+
+    return {
+        width: 0,
+        height: 0,
+        getContext: vi.fn(() => context),
+    } as unknown as HTMLCanvasElement;
+}
 
 describe('clampCropRectToCanvas', () => {
     it('keeps export crop rectangles inside the rendered canvas', () => {
@@ -52,5 +84,43 @@ describe('drawCropOverlay', () => {
         expect(fillRect).toHaveBeenCalledWith(0, 10, 20, 40);
         expect(fillRect).toHaveBeenCalledWith(50, 10, 50, 40);
         expect(strokeRect).toHaveBeenCalledWith(20, 10, 30, 40);
+    });
+});
+
+describe('renderEditedCanvas', () => {
+    it('expands the export surface for arbitrary rotation degrees', () => {
+        const outputCanvas = createMockCanvas();
+        const internalCanvas = createMockCanvas();
+        const source = {
+            naturalWidth: 100,
+            naturalHeight: 50,
+            width: 100,
+            height: 50,
+        } as HTMLImageElement;
+        const originalCreateElement = document.createElement.bind(document);
+        const createElementSpy = vi.spyOn(document, 'createElement').mockImplementation((
+            (tagName: string, options?: ElementCreationOptions) => {
+                if (tagName.toLowerCase() === 'canvas') {
+                    return internalCanvas;
+                }
+
+                return originalCreateElement(tagName, options);
+            }
+        ) as typeof document.createElement);
+
+        renderEditedCanvas({
+            canvas: outputCanvas,
+            source,
+            rotation: 45,
+            brightness: 100,
+            contrast: 100,
+            cropRect: null,
+            strokes: [],
+            textAnnotations: [],
+        });
+
+        createElementSpy.mockRestore();
+        expect(outputCanvas.width).toBe(107);
+        expect(outputCanvas.height).toBe(107);
     });
 });
