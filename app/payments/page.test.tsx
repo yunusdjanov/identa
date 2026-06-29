@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import PaymentsPage from '@/app/payments/page';
 import {
@@ -410,7 +411,7 @@ describe('PaymentsPage', () => {
         expect(screen.getByText('This Month')).toBeInTheDocument();
         expect(screen.getByPlaceholderText('Search expenses by title...')).toBeInTheDocument();
         expect(screen.getByLabelText('Quantity')).toHaveValue('1');
-        expect(screen.getByLabelText('Currency')).toHaveValue('UZS');
+        expect(screen.getByRole('combobox', { name: 'Currency' })).toHaveTextContent('UZS');
         expect(screen.queryByText('Clinic Expenses')).not.toBeInTheDocument();
         expect(screen.queryByText('A simple dated log for expense title and amount.')).not.toBeInTheDocument();
         expect(screen.queryByRole('button', { name: 'With debt' })).not.toBeInTheDocument();
@@ -480,6 +481,7 @@ describe('PaymentsPage', () => {
     });
 
     it('edits and deletes payment expenses from the expenses tab', async () => {
+        const user = userEvent.setup();
         renderPage();
 
         fireEvent.click(await screen.findByRole('button', { name: 'Expenses' }));
@@ -492,7 +494,8 @@ describe('PaymentsPage', () => {
         expect(screen.getByLabelText('Title')).toHaveValue('Materials');
         expect(screen.getByLabelText('Quantity')).toHaveValue('2');
 
-        fireEvent.change(screen.getByLabelText('Currency'), { target: { value: 'USD' } });
+        await user.click(screen.getByRole('combobox', { name: 'Currency' }));
+        await user.click(await screen.findByRole('option', { name: 'USD' }));
         fireEvent.change(screen.getByLabelText('Amount'), { target: { value: '125.5' } });
         fireEvent.change(screen.getByLabelText('Quantity'), { target: { value: '3' } });
         fireEvent.change(screen.getByLabelText('Date'), { target: { value: '2026-06-27' } });

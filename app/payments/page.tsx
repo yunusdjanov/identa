@@ -14,6 +14,13 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 import { DataTableShell, getDataTableClassName } from '@/components/ui/data-table-shell';
 import { PaymentsLoadingState } from '@/components/layout/page-loading-skeletons';
 import { PageHeader } from '@/components/ui/page-shell';
@@ -1121,26 +1128,37 @@ export default function PaymentsPage() {
                                         <label className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500" htmlFor="expense-currency">
                                             {t('payments.expenses.currency')}
                                         </label>
-                                        <select
-                                            id="expense-currency"
+                                        <Select
                                             value={expenseForm.currency}
-                                            onChange={(event) => {
-                                                const currency = coerceExpenseCurrency(event.target.value);
+                                            onValueChange={(value) => {
+                                                const currency = coerceExpenseCurrency(value);
                                                 setExpenseForm((current) => ({
                                                     ...current,
                                                     currency,
                                                     amount: formatMoneyInput(current.amount, currency),
                                                 }));
                                             }}
-                                            className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 shadow-xs outline-none transition-[border-color,box-shadow] focus-visible:border-teal-300 focus-visible:ring-[3px] focus-visible:ring-teal-100 disabled:cursor-not-allowed disabled:opacity-50"
                                             disabled={!canManagePayments || isExpenseFormPending}
                                         >
-                                            {EXPENSE_CURRENCIES.map((currency) => (
-                                                <option key={currency} value={currency}>
-                                                    {t(`payments.expenses.currency.${currency.toLowerCase()}`)}
-                                                </option>
-                                            ))}
-                                        </select>
+                                            <SelectTrigger
+                                                id="expense-currency"
+                                                aria-label={t('payments.expenses.currency')}
+                                                className="h-10 w-full rounded-xl border-slate-200 bg-white text-slate-900 shadow-xs"
+                                            >
+                                                <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent
+                                                position="popper"
+                                                align="start"
+                                                className="min-w-[var(--radix-select-trigger-width)] border-slate-200 bg-white shadow-xl shadow-slate-200/70"
+                                            >
+                                                {EXPENSE_CURRENCIES.map((currency) => (
+                                                    <SelectItem key={currency} value={currency} className="rounded-lg">
+                                                        {t(`payments.expenses.currency.${currency.toLowerCase()}`)}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
                                     </div>
                                     <div className="space-y-1.5">
                                         <label className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500" htmlFor="expense-date">
