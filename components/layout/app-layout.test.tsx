@@ -94,4 +94,14 @@ describe('AppLayout skeleton header', () => {
         expect(screen.getAllByTestId('app-header-desktop-nav-skeleton-item')).toHaveLength(4);
         expect(screen.getAllByTestId('app-header-mobile-nav-skeleton-item')).toHaveLength(4);
     });
+
+    it('keeps the app header above page-level select popovers', () => {
+        const { container } = render(
+            <AppLayout>
+                <div>Protected content</div>
+            </AppLayout>
+        );
+
+        expect(container.querySelector('header')).toHaveClass('z-50');
+    });
 });

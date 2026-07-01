@@ -7,6 +7,7 @@ import { Dialog as DialogPrimitive } from "radix-ui"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { useI18n } from "@/components/providers/i18n-provider"
+import { OverlayLayerProvider } from "@/components/ui/overlay-layer-context"
 
 function Dialog({
   ...props
@@ -40,7 +41,7 @@ function DialogOverlay({
     <DialogPrimitive.Overlay
       data-slot="dialog-overlay"
       className={cn(
-        "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 fixed inset-0 z-50 bg-slate-950/45 backdrop-blur-[2px]",
+        "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 fixed inset-0 z-[60] bg-slate-950/45 backdrop-blur-[2px]",
         className
       )}
       {...props}
@@ -64,12 +65,14 @@ function DialogContent({
       <DialogPrimitive.Content
         data-slot="dialog-content"
         className={cn(
-          "fixed left-[50%] top-[50%] z-50 grid w-full max-w-[calc(100%-1rem)] translate-x-[-50%] translate-y-[-50%] gap-5 rounded-2xl border border-slate-200/90 bg-white p-6 text-slate-950 shadow-2xl shadow-slate-900/15 outline-none duration-200 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 sm:max-w-lg",
+          "fixed left-[50%] top-[50%] z-[60] grid w-full max-w-[calc(100%-1rem)] translate-x-[-50%] translate-y-[-50%] gap-5 rounded-2xl border border-slate-200/90 bg-white p-6 text-slate-950 shadow-2xl shadow-slate-900/15 outline-none duration-200 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 sm:max-w-lg",
           className
         )}
         {...props}
       >
-        {children}
+        <OverlayLayerProvider layer="dialog">
+          {children}
+        </OverlayLayerProvider>
         {showCloseButton && (
           <DialogPrimitive.Close
             data-slot="dialog-close"
