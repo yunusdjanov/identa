@@ -316,34 +316,15 @@ describe('GalleryImageEditor', () => {
         });
     });
 
-    it('exports manual rotation degrees from the rotation control', async () => {
-        const user = userEvent.setup();
+    it('keeps manual rotation hidden while quick rotate actions remain available', async () => {
         renderEditor();
 
-        const rotationInput = await screen.findByRole('spinbutton', { name: 'Rotation' });
-        await waitFor(() => expect(rotationInput).toBeEnabled());
-        await user.clear(rotationInput);
-        await user.type(rotationInput, '37');
-        await user.click(screen.getByRole('button', { name: 'Save' }));
+        await waitFor(() => expect(screen.getByRole('button', { name: 'Right' })).toBeEnabled());
 
-        expect(createEditedImageFileMock).toHaveBeenCalledWith(expect.objectContaining({
-            rotation: 37,
-        }));
-    });
-
-    it('clamps typed manual rotation instead of wrapping to the opposite angle', async () => {
-        const user = userEvent.setup();
-        renderEditor();
-
-        const rotationInput = await screen.findByRole('spinbutton', { name: 'Rotation' });
-        await waitFor(() => expect(rotationInput).toBeEnabled());
-        await user.clear(rotationInput);
-        await user.type(rotationInput, '181');
-        await user.click(screen.getByRole('button', { name: 'Save' }));
-
-        expect(createEditedImageFileMock).toHaveBeenCalledWith(expect.objectContaining({
-            rotation: 180,
-        }));
+        expect(screen.queryByRole('spinbutton', { name: 'Rotation' })).not.toBeInTheDocument();
+        expect(screen.queryByText('Rotation')).not.toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Left' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Right' })).toBeInTheDocument();
     });
 
     it('drops a transient crop selection when rotation changes', async () => {
@@ -359,14 +340,12 @@ describe('GalleryImageEditor', () => {
         fireEvent.mouseMove(stage, { clientX: 200, clientY: 120 });
         fireEvent.mouseUp(stage, { clientX: 200, clientY: 120 });
 
-        const rotationInput = screen.getByRole('spinbutton', { name: 'Rotation' });
-        await user.clear(rotationInput);
-        await user.type(rotationInput, '25');
+        await user.click(screen.getByRole('button', { name: 'Right' }));
         await user.click(screen.getByRole('button', { name: 'Save' }));
 
         expect(createEditedImageFileMock).toHaveBeenCalledWith(expect.objectContaining({
             cropRect: null,
-            rotation: 25,
+            rotation: 90,
         }));
     });
 });

@@ -8,12 +8,9 @@ import { Crop, MousePointer2, PenLine, RotateCcw, RotateCw, Save, Type, Undo2 } 
 import {
     ADJUSTMENT_STEP_PERCENT,
     COLOR_SWATCHES,
-    MANUAL_ROTATION_STEP_DEGREES,
     MAX_ADJUSTMENT_PERCENT,
-    MAX_MANUAL_ROTATION_DEGREES,
     MIN_ADJUSTMENT_PERCENT,
     MIN_CROP_SIZE,
-    MIN_MANUAL_ROTATION_DEGREES,
     type CropRect,
     type EditMode,
 } from './gallery-image-editor-types';
@@ -25,8 +22,6 @@ interface GalleryImageEditorControlsProps {
     onBrightnessChange: (value: number) => void;
     contrast: number;
     onContrastChange: (value: number) => void;
-    rotation: number;
-    onRotationChange: (value: number) => void;
     drawSize: number;
     onDrawSizeChange: (value: number) => void;
     textSize: number;
@@ -93,8 +88,6 @@ export function GalleryImageEditorControls({
     onBrightnessChange,
     contrast,
     onContrastChange,
-    rotation,
-    onRotationChange,
     drawSize,
     onDrawSizeChange,
     textSize,
@@ -167,34 +160,6 @@ export function GalleryImageEditorControls({
                                 max={MAX_ADJUSTMENT_PERCENT}
                                 step={ADJUSTMENT_STEP_PERCENT}
                                 onChange={(event) => onContrastChange(Number(event.target.value))}
-                                disabled={isEditingDisabled}
-                                className="h-2 w-full cursor-pointer accent-teal-400 disabled:cursor-not-allowed disabled:opacity-50"
-                            />
-                        </div>
-                        <div className="space-y-1.5">
-                            <div className="flex items-center justify-between gap-2">
-                                <Label className="text-xs font-semibold text-white/75">
-                                    {t('gallery.edit.rotation')}
-                                </Label>
-                                <input
-                                    type="number"
-                                    value={rotation}
-                                    min={MIN_MANUAL_ROTATION_DEGREES}
-                                    max={MAX_MANUAL_ROTATION_DEGREES}
-                                    step={MANUAL_ROTATION_STEP_DEGREES}
-                                    onChange={(event) => onRotationChange(Number(event.target.value))}
-                                    disabled={isEditingDisabled}
-                                    aria-label={t('gallery.edit.rotation')}
-                                    className="h-7 w-16 rounded-md border border-white/10 bg-white/10 px-2 text-right text-xs font-semibold tabular-nums text-white outline-none transition [appearance:textfield] focus:border-teal-300 focus:ring-2 focus:ring-teal-300/30 disabled:cursor-not-allowed disabled:opacity-50 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                                />
-                            </div>
-                            <input
-                                type="range"
-                                value={rotation}
-                                min={MIN_MANUAL_ROTATION_DEGREES}
-                                max={MAX_MANUAL_ROTATION_DEGREES}
-                                step={MANUAL_ROTATION_STEP_DEGREES}
-                                onChange={(event) => onRotationChange(Number(event.target.value))}
                                 disabled={isEditingDisabled}
                                 className="h-2 w-full cursor-pointer accent-teal-400 disabled:cursor-not-allowed disabled:opacity-50"
                             />

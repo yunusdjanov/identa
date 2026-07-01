@@ -147,18 +147,6 @@ function normalizeRotationStep(value: number): number {
     return normalized === MIN_MANUAL_ROTATION_DEGREES ? MAX_MANUAL_ROTATION_DEGREES : normalized;
 }
 
-function clampManualRotation(value: number): number {
-    if (!Number.isFinite(value)) {
-        return 0;
-    }
-
-    return clamp(
-        Math.round(value),
-        MIN_MANUAL_ROTATION_DEGREES,
-        MAX_MANUAL_ROTATION_DEGREES
-    );
-}
-
 /**
  * Keeps transformer crop boxes usable at image edges instead of rejecting the resize.
  */
@@ -448,11 +436,6 @@ export function GalleryImageEditor({ image, isSaving = false, onCancel, onSave }
         setDraftCropRect(null);
         cropStartRef.current = null;
     }, []);
-
-    const updateRotation = useCallback((value: number) => {
-        clearDraftCrop();
-        setRotation(clampManualRotation(value));
-    }, [clearDraftCrop]);
 
     const rotateBy = useCallback((degrees: number) => {
         clearDraftCrop();
@@ -797,8 +780,6 @@ export function GalleryImageEditor({ image, isSaving = false, onCancel, onSave }
                 onBrightnessChange={setBrightness}
                 contrast={contrast}
                 onContrastChange={setContrast}
-                rotation={rotation}
-                onRotationChange={updateRotation}
                 drawSize={drawSize}
                 onDrawSizeChange={setDrawSize}
                 textSize={textSize}
