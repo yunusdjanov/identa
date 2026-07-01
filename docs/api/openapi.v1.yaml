@@ -2565,6 +2565,8 @@ components:
             $ref: "#/components/schemas/AnalyticsAppointmentStatus"
         top_debtors:
           type: array
+          description: Top 4 patients by outstanding balance for the selected analytics range.
+          maxItems: 4
           items:
             $ref: "#/components/schemas/AnalyticsTopDebtor"
       required: [permissions, kpis, buckets, appointment_status, top_debtors]

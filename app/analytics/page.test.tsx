@@ -9,6 +9,7 @@ import {
 import { I18nProvider } from '@/components/providers/i18n-provider';
 import { DICTIONARIES } from '@/lib/i18n/dictionaries';
 import type { ApiAnalyticsSummary } from '@/lib/api/types';
+import { formatCurrency } from '@/lib/utils';
 
 vi.mock('@/lib/api/dentist', () => ({
     getAnalyticsSummary: vi.fn(),
@@ -64,6 +65,10 @@ function renderPage() {
             </I18nProvider>
         </QueryClientProvider>
     );
+}
+
+function normalizeVisibleText(value: string): string {
+    return value.replace(/\s+/g, ' ').trim();
 }
 
 describe('AnalyticsPage', () => {
@@ -125,7 +130,7 @@ describe('AnalyticsPage', () => {
         expect(within(card as HTMLElement).getByText('2')).toBeInTheDocument();
     });
 
-    it('shows only the top five debtors with a link to all outstanding payments', async () => {
+    it('shows only the top four debtors with a link to all outstanding payments', async () => {
         vi.mocked(getCurrentUser).mockResolvedValue(dentist as never);
         vi.mocked(getAnalyticsSummary).mockResolvedValue(createAnalyticsSummary({
             top_debtors: [
@@ -142,7 +147,10 @@ describe('AnalyticsPage', () => {
 
         expect(await screen.findByText('Largest outstanding balances')).toBeInTheDocument();
         expect(screen.getByText('Patient 1')).toBeInTheDocument();
-        expect(screen.getByText('Patient 5')).toBeInTheDocument();
+        expect(screen.getByText('Patient 4')).toBeInTheDocument();
+        const topDebtSummary = `In top: ${formatCurrency(2_200_000)}`;
+        expect(screen.getByText((content) => normalizeVisibleText(content) === normalizeVisibleText(topDebtSummary))).toBeInTheDocument();
+        expect(screen.queryByText('Patient 5')).not.toBeInTheDocument();
         expect(screen.queryByText('Patient 6')).not.toBeInTheDocument();
         expect(screen.getByRole('link', { name: 'All debts' })).toHaveAttribute('href', '/payments?outstanding=1');
     });

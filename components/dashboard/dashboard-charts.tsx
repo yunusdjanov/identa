@@ -33,6 +33,8 @@ const STATUS_COLOR: Record<string, string> = {
     no_show: TONE.rose,
 };
 
+const TOP_DEBTORS_LIMIT = 4;
+
 function formatShortCurrency(value: number): string {
     if (Math.abs(value) >= 1_000_000) {
         return `${(value / 1_000_000).toFixed(1)}M`;
@@ -172,14 +174,14 @@ export function PatientGrowthChart({
 
 export function TopDebtorsCard({ data }: { data: TopDebtorPoint[] }) {
     const { t } = useI18n();
-    const displayedDebtors = data.slice(0, 5);
+    const displayedDebtors = data.slice(0, TOP_DEBTORS_LIMIT);
     const maxDebt = displayedDebtors.length > 0 ? Math.max(...displayedDebtors.map((d) => d.debt)) : 1;
     const topDebtTotal = displayedDebtors.reduce((sum, d) => sum + d.debt, 0);
 
     return (
         <ChartCard
             title={t('analytics.topDebtors.title') ?? "Eng katta qarzga ega bemorlar"}
-            subtitle={displayedDebtors.length > 0 ? `${t('analytics.topDebtors.totalShort') ?? "Jami"}: ${formatCurrency(topDebtTotal)}` : (t('analytics.topDebtors.subtitle') ?? 'TOP 5')}
+            subtitle={displayedDebtors.length > 0 ? `${t('analytics.topDebtors.totalShort') ?? "Jami"}: ${formatCurrency(topDebtTotal)}` : (t('analytics.topDebtors.subtitle') ?? `TOP ${TOP_DEBTORS_LIMIT}`)}
             action={
                 <Link
                     href="/payments?outstanding=1"

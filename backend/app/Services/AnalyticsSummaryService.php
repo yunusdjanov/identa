@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\DB;
 class AnalyticsSummaryService
 {
     private const ALLOWED_RANGES = ['7d', '30d', '90d', '180d', '365d', 'ytd'];
+    private const TOP_DEBTORS_LIMIT = 4;
 
     /**
      * Builds the dentist analytics payload from tenant-scoped, date-bounded
@@ -294,7 +295,7 @@ class AnalyticsSummaryService
 
         usort($grouped, fn (array $a, array $b): int => $b['debt'] <=> $a['debt']);
 
-        return array_slice($grouped, 0, 5);
+        return array_slice($grouped, 0, self::TOP_DEBTORS_LIMIT);
     }
 
     private function outstandingBalance(object $treatment): float

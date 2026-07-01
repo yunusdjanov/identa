@@ -102,4 +102,46 @@ class AnalyticsSummaryApiTest extends TestCase
                 ],
             ]);
     }
+
+    public function test_dentist_summary_limits_top_debtors_to_four_largest_balances(): void
+    {
+        $dentist = User::factory()->create();
+        $debts = [
+            'Patient 1' => 100,
+            'Patient 2' => 500,
+            'Patient 3' => 300,
+            'Patient 4' => 200,
+            'Patient 5' => 400,
+        ];
+
+        foreach ($debts as $name => $debt) {
+            $patient = Patient::factory()->create([
+                'dentist_id' => $dentist->id,
+                'full_name' => $name,
+            ]);
+
+            Treatment::factory()->create([
+                'dentist_id' => $dentist->id,
+                'patient_id' => $patient->id,
+                'treatment_date' => '2026-06-10',
+                'debt_amount' => (string) $debt,
+                'paid_amount' => '0.00',
+            ]);
+        }
+
+        $this->actingAs($dentist, 'web')
+            ->getJson('/api/v1/analytics/summary?'.http_build_query([
+                'range' => '7d',
+                'current_from' => '2026-06-10',
+                'current_to' => '2026-06-10',
+                'previous_from' => '2026-06-09',
+                'previous_to' => '2026-06-09',
+            ]))
+            ->assertOk()
+            ->assertJsonCount(4, 'data.top_debtors')
+            ->assertJsonPath('data.top_debtors.0.name', 'Patient 2')
+            ->assertJsonPath('data.top_debtors.1.name', 'Patient 5')
+            ->assertJsonPath('data.top_debtors.2.name', 'Patient 3')
+            ->assertJsonPath('data.top_debtors.3.name', 'Patient 4');
+    }
 }
