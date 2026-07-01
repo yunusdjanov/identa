@@ -1,6 +1,7 @@
 import { cleanup, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import { AdminHeader } from '@/components/admin/admin-header';
 import { AppLayout } from '@/components/layout/app-layout';
 
 vi.mock('@tanstack/react-query', () => ({
@@ -102,7 +103,15 @@ describe('AppLayout skeleton header', () => {
             </AppLayout>
         );
 
-        expect(container.querySelector('header')).toHaveClass('z-50');
+        expect(container.querySelector('header')).toHaveClass('fixed', 'z-50');
         expect(container.querySelector('header')).toHaveAttribute('data-app-header');
+        expect(container.querySelector('[data-app-header-spacer]')).toHaveClass('h-[7.5rem]', 'md:h-16');
+    });
+
+    it('keeps the admin header fixed above page-level select popovers', () => {
+        const { container } = render(<AdminHeader active="dashboard" onLogout={vi.fn()} />);
+
+        expect(container.querySelector('header')).toHaveClass('fixed', 'z-50');
+        expect(container.querySelector('[data-admin-header-spacer]')).toHaveClass('h-[7.5rem]', 'md:h-16');
     });
 });

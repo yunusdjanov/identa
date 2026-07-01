@@ -44,14 +44,52 @@ export function AdminHeader({ active, isLoggingOut = false, onLogout }: AdminHea
     });
 
     return (
-        <header className="sticky top-0 z-50 border-b border-teal-100/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(248,251,255,0.94)_100%)] shadow-sm shadow-slate-200/40 backdrop-blur-xl">
-            <div className="mx-auto max-w-[1440px] px-3 sm:px-6 lg:px-8">
-                <div className="flex h-14 items-center justify-between gap-3 sm:h-16 sm:gap-4">
-                    <div className="flex min-w-0 items-center">
-                        <Brand href="/admin" variant="text" priority textClassName="w-28 sm:w-36" />
-                    </div>
+        <>
+            <header className="fixed inset-x-0 top-0 z-50 border-b border-teal-100/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(248,251,255,0.94)_100%)] shadow-sm shadow-slate-200/40 backdrop-blur-xl">
+                <div className="mx-auto max-w-[1440px] px-3 sm:px-6 lg:px-8">
+                    <div className="flex h-14 items-center justify-between gap-3 sm:h-16 sm:gap-4">
+                        <div className="flex min-w-0 items-center">
+                            <Brand href="/admin" variant="text" priority textClassName="w-28 sm:w-36" />
+                        </div>
 
-                    <nav className="hidden items-center gap-1 rounded-2xl border border-slate-200/75 bg-white/75 p-1 shadow-sm shadow-slate-200/60 md:flex">
+                        <nav className="hidden items-center gap-1 rounded-2xl border border-slate-200/75 bg-white/75 p-1 shadow-sm shadow-slate-200/60 md:flex">
+                            {adminNavigation.map((item) => {
+                                const Icon = item.icon;
+                                const isActive = item.section === active;
+
+                                return (
+                                    <Link
+                                        key={item.key}
+                                        href={item.href}
+                                        className={cn(
+                                            'flex h-9 shrink-0 items-center rounded-xl border px-3.5 text-sm font-semibold transition-colors',
+                                            isActive
+                                                ? 'border-teal-600 bg-teal-600 text-white shadow-sm shadow-teal-200/70'
+                                                : 'border-transparent text-slate-600 hover:bg-teal-50/80 hover:text-teal-700'
+                                        )}
+                                    >
+                                        <Icon className="mr-2 h-4 w-4" />
+                                        {t(item.key)}
+                                    </Link>
+                                );
+                            })}
+                        </nav>
+
+                        <div className="flex items-center gap-2">
+                            <LanguageSwitcher variant="compact" />
+                            <AccountMenu
+                                user={authQuery.data}
+                                isLoggingOut={isLoggingOut}
+                                onLogout={onLogout}
+                                settingsHref="/admin/settings"
+                                billingHref={null}
+                            />
+                        </div>
+                    </div>
+                </div>
+
+                <div className="border-t border-slate-200/70 bg-white md:hidden">
+                    <nav className="flex gap-1 overflow-x-auto overflow-y-hidden px-2 py-2 no-scrollbar">
                         {adminNavigation.map((item) => {
                             const Icon = item.icon;
                             const isActive = item.section === active;
@@ -61,10 +99,10 @@ export function AdminHeader({ active, isLoggingOut = false, onLogout }: AdminHea
                                     key={item.key}
                                     href={item.href}
                                     className={cn(
-                                        'flex h-9 shrink-0 items-center rounded-xl border px-3.5 text-sm font-semibold transition-colors',
+                                        'flex h-10 min-w-max shrink-0 items-center rounded-xl px-3 text-xs font-semibold transition-colors',
                                         isActive
-                                            ? 'border-teal-600 bg-teal-600 text-white shadow-sm shadow-teal-200/70'
-                                            : 'border-transparent text-slate-600 hover:bg-teal-50/80 hover:text-teal-700'
+                                            ? 'bg-teal-50 text-teal-700'
+                                            : 'text-slate-600 hover:bg-teal-50/80 hover:text-teal-700'
                                     )}
                                 >
                                     <Icon className="mr-2 h-4 w-4" />
@@ -73,44 +111,9 @@ export function AdminHeader({ active, isLoggingOut = false, onLogout }: AdminHea
                             );
                         })}
                     </nav>
-
-                    <div className="flex items-center gap-2">
-                        <LanguageSwitcher variant="compact" />
-                        <AccountMenu
-                            user={authQuery.data}
-                            isLoggingOut={isLoggingOut}
-                            onLogout={onLogout}
-                            settingsHref="/admin/settings"
-                            billingHref={null}
-                        />
-                    </div>
                 </div>
-            </div>
-
-            <div className="border-t border-slate-200/70 bg-white md:hidden">
-                <nav className="flex gap-1 overflow-x-auto overflow-y-hidden px-2 py-2 no-scrollbar">
-                    {adminNavigation.map((item) => {
-                        const Icon = item.icon;
-                        const isActive = item.section === active;
-
-                        return (
-                            <Link
-                                key={item.key}
-                                href={item.href}
-                                className={cn(
-                                    'flex h-10 min-w-max shrink-0 items-center rounded-xl px-3 text-xs font-semibold transition-colors',
-                                    isActive
-                                        ? 'bg-teal-50 text-teal-700'
-                                        : 'text-slate-600 hover:bg-teal-50/80 hover:text-teal-700'
-                                )}
-                            >
-                                <Icon className="mr-2 h-4 w-4" />
-                                {t(item.key)}
-                            </Link>
-                        );
-                    })}
-                </nav>
-            </div>
-        </header>
+            </header>
+            <div data-admin-header-spacer aria-hidden="true" className="h-[7.5rem] md:h-16" />
+        </>
     );
 }
