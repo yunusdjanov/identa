@@ -606,35 +606,33 @@ export default function PatientsPage() {
                             <SelectItem value="1y">{t('patients.noVisit1y')}</SelectItem>
                         </SelectContent>
                     </Select>
-                    <div className="relative flex h-9 shrink-0 items-center">
+                    <Button
+                        variant="outline"
+                        className={cn(
+                            'h-9 min-w-[120px] shrink-0 rounded-xl px-4 shadow-xs transition-colors',
+                            showArchivedOnly
+                                ? 'border-teal-200 bg-teal-50 text-teal-700 hover:border-teal-300 hover:bg-teal-50 hover:text-teal-700'
+                                : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                        )}
+                        aria-pressed={showArchivedOnly}
+                        onClick={() => {
+                            setShowArchivedOnly((value) => !value);
+                            setInactiveFilter('none');
+                            setCurrentPage(1);
+                        }}
+                    >
+                        {t('patients.archived')}
+                    </Button>
+                    {hasActiveFilters ? (
                         <Button
-                            variant="outline"
-                            className={cn(
-                                'h-9 min-w-[120px] rounded-xl px-4 shadow-xs transition-colors',
-                                showArchivedOnly
-                                    ? 'border-teal-200 bg-teal-50 text-teal-700 hover:border-teal-300 hover:bg-teal-50 hover:text-teal-700'
-                                    : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
-                            )}
-                            aria-pressed={showArchivedOnly}
-                            onClick={() => {
-                                setShowArchivedOnly((value) => !value);
-                                setInactiveFilter('none');
-                                setCurrentPage(1);
-                            }}
+                            variant="ghost"
+                            className="h-9 shrink-0 whitespace-nowrap rounded-xl px-2.5 text-xs text-slate-500 hover:bg-white hover:text-slate-900"
+                            onClick={resetFilters}
                         >
-                            {t('patients.archived')}
+                            <FilterX className="h-3.5 w-3.5" />
+                            {t('common.clear')}
                         </Button>
-                        {hasActiveFilters ? (
-                            <Button
-                                variant="ghost"
-                                className="absolute right-0 top-full mt-1 h-6 whitespace-nowrap px-2 text-xs text-slate-500 hover:bg-white hover:text-slate-900"
-                                onClick={resetFilters}
-                            >
-                                <FilterX className="h-3.5 w-3.5" />
-                                {t('common.clear')}
-                            </Button>
-                        ) : null}
-                    </div>
+                    ) : null}
                 </div>
             </div>
         </div>
