@@ -7,6 +7,29 @@ import { Select as SelectPrimitive } from "radix-ui"
 import { cn } from "@/lib/utils"
 import { useOverlayLayer } from "@/components/ui/overlay-layer-context"
 
+const PAGE_SELECT_OPEN_ATTRIBUTE = "data-page-select-open"
+
+let pageSelectOpenCount = 0
+
+/**
+ * Radix Select wraps its content in RemoveScroll. That is useful inside
+ * dialogs, but page-level selects should not turn the document into an
+ * overflow-hidden container because it breaks sticky app headers in Chrome.
+ */
+function markPageSelectOpen(open: boolean) {
+  if (typeof document === "undefined") {
+    return
+  }
+
+  pageSelectOpenCount = Math.max(0, pageSelectOpenCount + (open ? 1 : -1))
+
+  if (pageSelectOpenCount > 0) {
+    document.body.setAttribute(PAGE_SELECT_OPEN_ATTRIBUTE, "true")
+  } else {
+    document.body.removeAttribute(PAGE_SELECT_OPEN_ATTRIBUTE)
+  }
+}
+
 /**
  * Keeps Radix Select focus management from nudging the document scroll when
  * a portalled menu opens near sticky app headers.
@@ -30,12 +53,39 @@ function restoreScrollPositionAfterOpen() {
 
 function Select({
   onOpenChange,
+  open,
+  defaultOpen,
   ...props
 }: React.ComponentProps<typeof SelectPrimitive.Root>) {
+  const overlayLayer = useOverlayLayer()
+  const isPageSelect = overlayLayer === "page"
+  const isMarkedOpenRef = React.useRef(false)
+
+  const setPageSelectOpen = React.useCallback((nextOpen: boolean) => {
+    if (!isPageSelect || isMarkedOpenRef.current === nextOpen) {
+      return
+    }
+
+    isMarkedOpenRef.current = nextOpen
+    markPageSelectOpen(nextOpen)
+  }, [isPageSelect])
+
+  React.useEffect(() => {
+    setPageSelectOpen(Boolean(open ?? defaultOpen))
+
+    return () => {
+      setPageSelectOpen(false)
+    }
+  }, [defaultOpen, open, setPageSelectOpen])
+
   return (
     <SelectPrimitive.Root
       data-slot="select"
+      open={open}
+      defaultOpen={defaultOpen}
       onOpenChange={(open) => {
+        setPageSelectOpen(open)
+
         if (open) {
           restoreScrollPositionAfterOpen()
         }

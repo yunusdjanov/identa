@@ -181,6 +181,17 @@
     padding-right: 0 !important;
   }
 
+  /* Page-level Radix Select menus should not turn the page into an
+     overflow-hidden scroll container; doing so makes sticky app headers
+     disappear in Chrome. Dialog-level selects are not marked with this
+     attribute, so modal scroll locking remains intact. */
+  body[data-page-select-open="true"][data-scroll-locked] {
+    overflow-x: clip !important;
+    overflow-y: auto !important;
+    overscroll-behavior: auto !important;
+    position: static !important;
+  }
+
   html, body {
     @apply bg-background text-foreground;
     /* `overflow-x: hidden` on the root makes the body a scroll container, which

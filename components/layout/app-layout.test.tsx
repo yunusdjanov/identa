@@ -103,5 +103,6 @@ describe('AppLayout skeleton header', () => {
         );
 
         expect(container.querySelector('header')).toHaveClass('z-50');
+        expect(container.querySelector('header')).toHaveAttribute('data-app-header');
     });
 });

@@ -64,6 +64,28 @@ describe('Select', () => {
         expect(document.querySelector('[data-slot="select-content"]')).toHaveClass('z-40');
     });
 
+    it('marks page-level open menus so global styles keep sticky headers stable', () => {
+        render(
+            <Select defaultValue="uzs">
+                <SelectTrigger aria-label="Currency">
+                    <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="uzs">UZS</SelectItem>
+                    <SelectItem value="usd">USD</SelectItem>
+                </SelectContent>
+            </Select>
+        );
+
+        fireEvent.pointerDown(screen.getByRole('combobox', { name: 'Currency' }), {
+            button: 0,
+            ctrlKey: false,
+            pointerType: 'mouse',
+        });
+
+        expect(document.body).toHaveAttribute('data-page-select-open', 'true');
+    });
+
     it('raises dialog select menus above dialog content', () => {
         render(
             <OverlayLayerProvider layer="dialog">
@@ -79,6 +101,23 @@ describe('Select', () => {
         );
 
         expect(document.querySelector('[data-slot="select-content"]')).toHaveClass('z-[70]');
+    });
+
+    it('does not mark dialog-level menus as page-level scroll locks', () => {
+        render(
+            <OverlayLayerProvider layer="dialog">
+                <Select defaultValue="uzs" defaultOpen>
+                    <SelectTrigger aria-label="Currency">
+                        <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="uzs">UZS</SelectItem>
+                    </SelectContent>
+                </Select>
+            </OverlayLayerProvider>
+        );
+
+        expect(document.body).not.toHaveAttribute('data-page-select-open');
     });
 
     it('restores document scroll when opening the menu', () => {

@@ -260,7 +260,10 @@ function AppLayoutBody({ children }: { children: React.ReactNode }) {
     return (
         <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(209,228,255,0.7),transparent_34rem),linear-gradient(180deg,#eaf1f8_0%,#e8edf5_45%,#e2e8f0_100%)]">
             {/* Header */}
-            <header className="sticky top-0 z-50 border-b border-teal-100/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(248,251,255,0.94)_100%)] shadow-sm shadow-slate-200/40 backdrop-blur-xl">
+            <header
+                data-app-header
+                className="sticky top-0 z-50 border-b border-teal-100/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(248,251,255,0.94)_100%)] shadow-sm shadow-slate-200/40 backdrop-blur-xl"
+            >
                 <div className="mx-auto max-w-[1440px] px-3 sm:px-6 lg:px-8">
                     <div className="flex h-14 items-center justify-between gap-3 sm:h-16 sm:gap-4">
                         {showHeaderSkeleton ? (
