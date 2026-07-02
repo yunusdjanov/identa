@@ -411,15 +411,22 @@ class PatientService
 
                 $totalDebt = 0.0;
                 $totalPaid = 0.0;
+                $totalsByCurrency = [];
                 if ($includePayments) {
                     $treatmentTotals = Treatment::query()
                         ->where('dentist_id', $dentistId)
                         ->where('patient_id', $id)
+                        ->where(function (Builder $builder): void {
+                            $builder
+                                ->where('currency', Treatment::CURRENCY_UZS)
+                                ->orWhereNull('currency');
+                        })
                         ->selectRaw('COALESCE(SUM(debt_amount), 0) AS total_debt, COALESCE(SUM(paid_amount), 0) AS total_paid')
                         ->first();
 
                     $totalDebt = (float) ($treatmentTotals?->getAttribute('total_debt') ?? 0);
                     $totalPaid = (float) ($treatmentTotals?->getAttribute('total_paid') ?? 0);
+                    $totalsByCurrency = $this->treatmentTotalsByCurrency($dentistId, $id);
                 }
 
                 return [
@@ -429,9 +436,45 @@ class PatientService
                     'total_debt' => $totalDebt,
                     'total_paid' => $totalPaid,
                     'total_balance' => round($totalDebt - $totalPaid, 2),
+                    'totals_by_currency' => $totalsByCurrency,
                 ];
             }
         );
+    }
+
+    /**
+     * @return array<string, array{total_debt: float, total_paid: float, total_balance: float}>
+     */
+    private function treatmentTotalsByCurrency(int $dentistId, string $patientId): array
+    {
+        $totals = [];
+        foreach (Treatment::SUPPORTED_CURRENCIES as $currency) {
+            $currencyQuery = Treatment::query()
+                ->where('dentist_id', $dentistId)
+                ->where('patient_id', $patientId);
+            if ($currency === Treatment::CURRENCY_UZS) {
+                $currencyQuery->where(function (Builder $builder): void {
+                    $builder
+                        ->where('currency', Treatment::CURRENCY_UZS)
+                        ->orWhereNull('currency');
+                });
+            } else {
+                $currencyQuery->where('currency', $currency);
+            }
+
+            $row = $currencyQuery
+                ->selectRaw('COALESCE(SUM(debt_amount), 0) AS total_debt, COALESCE(SUM(paid_amount), 0) AS total_paid')
+                ->first();
+            $totalDebt = (float) ($row?->getAttribute('total_debt') ?? 0);
+            $totalPaid = (float) ($row?->getAttribute('total_paid') ?? 0);
+            $totals[$currency] = [
+                'total_debt' => $totalDebt,
+                'total_paid' => $totalPaid,
+                'total_balance' => round($totalDebt - $totalPaid, 2),
+            ];
+        }
+
+        return $totals;
     }
 
     public function archive(Request $request, string $id): void

@@ -41,7 +41,7 @@ class TreatmentService
      *     patient: Patient,
      *     treatments: LengthAwarePaginator,
      *     include_images: bool,
-     *     summary: array{total_count: int, total_debt: float, total_paid: float, total_balance: float}|null
+     *     summary: array{total_count: int, total_debt: float, total_paid: float, total_balance: float, totals_by_currency: array<string, array{total_debt: float, total_paid: float, total_balance: float}>}|null
      * }
      */
     public function listForPatient(Request $request, string $patientId): array
@@ -88,7 +88,7 @@ class TreatmentService
      * @return array{
      *     treatments: LengthAwarePaginator,
      *     include_images: bool,
-     *     summary: array{total_count: int, total_debt: float, total_paid: float, total_balance: float}|null
+     *     summary: array{total_count: int, total_debt: float, total_paid: float, total_balance: float, totals_by_currency: array<string, array{total_debt: float, total_paid: float, total_balance: float}>}|null
      * }
      */
     public function listAll(Request $request): array
@@ -432,11 +432,16 @@ class TreatmentService
     }
 
     /**
-     * @return array{total_count: int, total_debt: float, total_paid: float, total_balance: float}
+     * @return array{total_count: int, total_debt: float, total_paid: float, total_balance: float, totals_by_currency: array<string, array{total_debt: float, total_paid: float, total_balance: float}>}
      */
     private function summaryForQuery(Builder $query, int $totalCount): array
     {
         $summaryRow = (clone $query)
+            ->where(function (Builder $builder): void {
+                $builder
+                    ->where('currency', Treatment::CURRENCY_UZS)
+                    ->orWhereNull('currency');
+            })
             ->selectRaw('COALESCE(SUM(debt_amount), 0) AS total_debt, COALESCE(SUM(paid_amount), 0) AS total_paid')
             ->first();
         $totalDebt = (float) ($summaryRow?->getAttribute('total_debt') ?? 0);
@@ -447,7 +452,42 @@ class TreatmentService
             'total_debt' => $totalDebt,
             'total_paid' => $totalPaid,
             'total_balance' => $totalDebt - $totalPaid,
+            'totals_by_currency' => $this->totalsByCurrency($query),
         ];
+    }
+
+    /**
+     * @return array<string, array{total_debt: float, total_paid: float, total_balance: float}>
+     */
+    private function totalsByCurrency(Builder $query): array
+    {
+        $totals = [];
+        foreach (Treatment::SUPPORTED_CURRENCIES as $currency) {
+            $currencyQuery = clone $query;
+            if ($currency === Treatment::CURRENCY_UZS) {
+                $currencyQuery->where(function (Builder $builder): void {
+                    $builder
+                        ->where('currency', Treatment::CURRENCY_UZS)
+                        ->orWhereNull('currency');
+                });
+            } else {
+                $currencyQuery->where('currency', $currency);
+            }
+
+            $row = $currencyQuery
+                ->selectRaw('COALESCE(SUM(debt_amount), 0) AS total_debt, COALESCE(SUM(paid_amount), 0) AS total_paid')
+                ->first();
+            $totalDebt = (float) ($row?->getAttribute('total_debt') ?? 0);
+            $totalPaid = (float) ($row?->getAttribute('total_paid') ?? 0);
+
+            $totals[$currency] = [
+                'total_debt' => $totalDebt,
+                'total_paid' => $totalPaid,
+                'total_balance' => $totalDebt - $totalPaid,
+            ];
+        }
+
+        return $totals;
     }
 
     /**
@@ -498,6 +538,9 @@ class TreatmentService
             $payload['cost'] = number_format($debtAmount, 2, '.', '');
             $payload['debt_amount'] = number_format($debtAmount, 2, '.', '');
             $payload['paid_amount'] = number_format($paidAmount, 2, '.', '');
+            if (array_key_exists('currency', $validated)) {
+                $payload['currency'] = strtoupper((string) $validated['currency']);
+            }
         }
 
         return $payload;

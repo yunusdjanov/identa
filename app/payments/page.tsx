@@ -33,7 +33,7 @@ import {
     listPaymentLedgerPatients,
     updatePaymentExpense,
 } from '@/lib/api/dentist';
-import type { ApiPaymentExpense, ApiPaymentExpenseCurrency, ApiPaymentPatientLedgerRow } from '@/lib/api/types';
+import type { ApiMoneyCurrency, ApiPaymentExpense, ApiPaymentExpenseCurrency, ApiPaymentPatientLedgerRow } from '@/lib/api/types';
 import { useI18n } from '@/components/providers/i18n-provider';
 import { formatLocalizedDate } from '@/lib/i18n/date';
 import { extractPrimaryPhone, formatCurrency } from '@/lib/utils';
@@ -53,6 +53,7 @@ const LEDGER_EXPORT_PAGE_SIZE = 100;
 const EXPENSE_EXPORT_PAGE_SIZE = 100;
 const URL_SEARCH_CHANGE_EVENT = 'identa:payments-url-search-change';
 const EXPENSE_CURRENCIES = ['UZS', 'USD'] as const satisfies readonly ApiPaymentExpenseCurrency[];
+const MONEY_CURRENCIES = ['UZS', 'USD'] as const satisfies readonly ApiMoneyCurrency[];
 const NET_BALANCE_SUMMARY_VARIANTS = {
     advance: {
         statusKey: 'patientHistory.balanceStatus.advance',
@@ -129,24 +130,6 @@ function shouldShowBalanceStatus(debt: number, paid: number, balance: number) {
     return debt !== 0 || paid !== 0 || balance !== 0;
 }
 
-function BalanceAmount({ balance, showStatus = true }: { balance: number; showStatus?: boolean }) {
-    const { t } = useI18n();
-    const summary = getNetBalanceSummary(balance);
-
-    return (
-        <div className="flex min-w-[128px] flex-wrap items-center gap-1.5">
-            <span className={`font-semibold tabular-nums ${summary.valueClassName}`}>
-                {formatCurrency(summary.amount)}
-            </span>
-            {showStatus ? (
-                <span className={`inline-flex items-center rounded-full border px-1.5 py-0.5 text-[10px] font-semibold leading-none ${summary.badgeClassName}`}>
-                    {t(summary.statusKey)}
-                </span>
-            ) : null}
-        </div>
-    );
-}
-
 interface PatientBalanceRow {
     patientId: string;
     patientName: string;
@@ -154,8 +137,134 @@ interface PatientBalanceRow {
     totalDebt: number;
     totalPaid: number;
     balance: number;
+    balancesByCurrency: Record<ApiMoneyCurrency, {
+        totalDebt: number;
+        totalPaid: number;
+        balance: number;
+    }>;
     entryCount: number;
     lastEntryDate: string | null;
+}
+
+function getEmptyMoneyBalances(): PatientBalanceRow['balancesByCurrency'] {
+    return {
+        UZS: { totalDebt: 0, totalPaid: 0, balance: 0 },
+        USD: { totalDebt: 0, totalPaid: 0, balance: 0 },
+    };
+}
+
+function getPatientBalancesByCurrency(row: ApiPaymentPatientLedgerRow): PatientBalanceRow['balancesByCurrency'] {
+    const balances = getEmptyMoneyBalances();
+    const rawBalances = row.balances_by_currency;
+
+    if (rawBalances && typeof rawBalances === 'object') {
+        for (const currency of MONEY_CURRENCIES) {
+            const raw = rawBalances[currency];
+            if (!raw || typeof raw !== 'object') {
+                continue;
+            }
+
+            balances[currency] = {
+                totalDebt: Number(raw.total_debt ?? 0),
+                totalPaid: Number(raw.total_paid ?? 0),
+                balance: Number(raw.balance ?? 0),
+            };
+        }
+
+        return balances;
+    }
+
+    balances.UZS = {
+        totalDebt: Number(row.total_debt ?? 0),
+        totalPaid: Number(row.total_paid ?? 0),
+        balance: Number(row.balance ?? 0),
+    };
+
+    return balances;
+}
+
+function getVisibleBalanceLines(
+    balances: PatientBalanceRow['balancesByCurrency'],
+    field: 'totalDebt' | 'totalPaid' | 'balance'
+) {
+    const lines = MONEY_CURRENCIES
+        .map((currency) => ({
+            currency,
+            amount: field === 'balance' ? Math.abs(balances[currency][field]) : balances[currency][field],
+            rawAmount: balances[currency][field],
+        }))
+        .filter(({ amount, rawAmount }) => amount !== 0 || rawAmount !== 0);
+
+    return lines.length > 0 ? lines : [{ currency: 'UZS' as const, amount: 0, rawAmount: 0 }];
+}
+
+function formatBalanceBreakdown(
+    balances: PatientBalanceRow['balancesByCurrency'],
+    field: 'totalDebt' | 'totalPaid' | 'balance'
+) {
+    return getVisibleBalanceLines(balances, field)
+        .map(({ currency, amount }) => formatCurrency(amount, currency))
+        .join(' / ');
+}
+
+function getRepresentativeBalance(balances: PatientBalanceRow['balancesByCurrency']) {
+    const activeBalances = MONEY_CURRENCIES
+        .map((currency) => balances[currency].balance)
+        .filter((balance) => balance !== 0);
+
+    if (activeBalances.length === 0) {
+        return 0;
+    }
+
+    if (activeBalances.every((balance) => balance > 0)) {
+        return Math.max(...activeBalances);
+    }
+
+    if (activeBalances.every((balance) => balance < 0)) {
+        return Math.min(...activeBalances);
+    }
+
+    return 0;
+}
+
+function canShowSingleBalanceStatus(balances: PatientBalanceRow['balancesByCurrency']) {
+    const activeBalances = MONEY_CURRENCIES
+        .map((currency) => balances[currency].balance)
+        .filter((balance) => balance !== 0);
+
+    return activeBalances.length > 0
+        && (activeBalances.every((balance) => balance > 0) || activeBalances.every((balance) => balance < 0));
+}
+
+function BalanceAmount({ balances }: { balances: PatientBalanceRow['balancesByCurrency'] }) {
+    const { t } = useI18n();
+    const lines = getVisibleBalanceLines(balances, 'balance');
+
+    return (
+        <div className="flex min-w-[128px] flex-col gap-1">
+            {lines.map(({ currency, amount, rawAmount }) => {
+                const summary = getNetBalanceSummary(rawAmount);
+                const showStatus = shouldShowBalanceStatus(
+                    balances[currency].totalDebt,
+                    balances[currency].totalPaid,
+                    balances[currency].balance
+                );
+
+                return (
+                    <div key={currency} className="flex flex-wrap items-center gap-1.5">
+                        <span className={`font-semibold tabular-nums ${summary.valueClassName}`}>
+                            {formatCurrency(amount, currency)}
+                        </span>
+                        {showStatus ? (
+                            <span className={`inline-flex items-center rounded-full border px-1.5 py-0.5 text-[10px] font-semibold leading-none ${summary.badgeClassName}`}>
+                                {t(summary.statusKey)}
+                            </span>
+                        ) : null}
+                    </div>
+                );
+            })}
+        </div>
+    );
 }
 
 interface ExpenseRow {
@@ -174,13 +283,16 @@ function parsePaymentsTab(value: string | null): PaymentsTab {
 }
 
 function toPatientBalanceRow(row: ApiPaymentPatientLedgerRow): PatientBalanceRow {
+    const balancesByCurrency = getPatientBalancesByCurrency(row);
+
     return {
         patientId: row.patient_id,
         patientName: row.patient_name,
         patientPhone: extractPrimaryPhone(row.patient_phone ?? '') || '-',
-        totalDebt: Number(row.total_debt ?? 0),
-        totalPaid: Number(row.total_paid ?? 0),
-        balance: Number(row.balance ?? 0),
+        totalDebt: balancesByCurrency.UZS.totalDebt,
+        totalPaid: balancesByCurrency.UZS.totalPaid,
+        balance: balancesByCurrency.UZS.balance,
+        balancesByCurrency,
         entryCount: Number(row.entry_count ?? 0),
         lastEntryDate: row.last_entry_date ?? null,
     };
@@ -267,6 +379,28 @@ function currencyTotalsFromSummary(value: unknown): Record<ApiPaymentExpenseCurr
     for (const currency of EXPENSE_CURRENCIES) {
         const amount = Number((value as Record<string, unknown>)[currency] ?? 0);
         totals[currency] = Number.isFinite(amount) ? amount : 0;
+    }
+
+    return totals;
+}
+
+function ledgerTotalsFromSummary(value: unknown): PatientBalanceRow['balancesByCurrency'] {
+    const totals = getEmptyMoneyBalances();
+    if (!value || typeof value !== 'object') {
+        return totals;
+    }
+
+    for (const currency of MONEY_CURRENCIES) {
+        const raw = (value as Record<string, unknown>)[currency];
+        if (!raw || typeof raw !== 'object') {
+            continue;
+        }
+
+        totals[currency] = {
+            totalDebt: Number((raw as Record<string, unknown>).total_debt ?? 0),
+            totalPaid: Number((raw as Record<string, unknown>).total_paid ?? 0),
+            balance: Number((raw as Record<string, unknown>).total_balance ?? 0),
+        };
     }
 
     return totals;
@@ -452,10 +586,26 @@ export default function PaymentsPage() {
 
     const overallSummary = useMemo(() => {
         const summary = patientLedgerQuery.data?.meta?.summary;
+        const balancesByCurrency = ledgerTotalsFromSummary(summary?.totals_by_currency);
+        const hasCurrencySummary = MONEY_CURRENCIES.some((currency) => (
+            balancesByCurrency[currency].totalDebt !== 0
+            || balancesByCurrency[currency].totalPaid !== 0
+            || balancesByCurrency[currency].balance !== 0
+        ));
+
+        if (!hasCurrencySummary && summary) {
+            balancesByCurrency.UZS = {
+                totalDebt: Number(summary.total_debt ?? 0),
+                totalPaid: Number(summary.total_paid ?? 0),
+                balance: Number(summary.total_balance ?? 0),
+            };
+        }
+
         return {
-            totalDebt: Number(summary?.total_debt ?? 0),
-            totalPaid: Number(summary?.total_paid ?? 0),
-            totalBalance: Number(summary?.total_balance ?? 0),
+            totalDebt: balancesByCurrency.UZS.totalDebt,
+            totalPaid: balancesByCurrency.UZS.totalPaid,
+            totalBalance: balancesByCurrency.UZS.balance,
+            balancesByCurrency,
             totalEntries: Number(summary?.total_entries ?? 0),
             totalPatients: Number(summary?.total_patients ?? 0),
         };
@@ -632,21 +782,29 @@ export default function PaymentsPage() {
                     row.patientName,
                     row.patientPhone,
                     String(row.entryCount),
-                    formatCurrency(row.totalDebt),
-                    formatCurrency(row.totalPaid),
-                    shouldShowBalanceStatus(row.totalDebt, row.totalPaid, row.balance)
-                        ? `${formatCurrency(Math.abs(row.balance))} (${t(getNetBalanceSummary(row.balance).statusKey)})`
-                        : formatCurrency(Math.abs(row.balance)),
+                    formatBalanceBreakdown(row.balancesByCurrency, 'totalDebt'),
+                    formatBalanceBreakdown(row.balancesByCurrency, 'totalPaid'),
+                    getVisibleBalanceLines(row.balancesByCurrency, 'balance')
+                        .map(({ currency, amount, rawAmount }) => {
+                            const balanceStatus = shouldShowBalanceStatus(
+                                row.balancesByCurrency[currency].totalDebt,
+                                row.balancesByCurrency[currency].totalPaid,
+                                row.balancesByCurrency[currency].balance
+                            )
+                                ? ` (${t(getNetBalanceSummary(rawAmount).statusKey)})`
+                                : '';
+
+                            return `${formatCurrency(amount, currency)}${balanceStatus}`;
+                        })
+                        .join(' / '),
                     row.lastEntryDate ? formatLocalizedDate(row.lastEntryDate, locale, { year: 'numeric', month: 'short', day: 'numeric' }) : '-',
                 ]),
                 summary: [
-                    { label: t('payments.summary.totalDebt'), value: formatCurrency(overallSummary.totalDebt) },
-                    { label: t('payments.summary.totalPaid'), value: formatCurrency(overallSummary.totalPaid) },
+                    { label: t('payments.summary.totalDebt'), value: formatBalanceBreakdown(overallSummary.balancesByCurrency, 'totalDebt') },
+                    { label: t('payments.summary.totalPaid'), value: formatBalanceBreakdown(overallSummary.balancesByCurrency, 'totalPaid') },
                     {
                         label: t('payments.summary.totalBalance'),
-                        value: shouldShowNetBalanceStatus
-                            ? `${formatCurrency(Math.abs(overallSummary.totalBalance))} (${t(getNetBalanceSummary(overallSummary.totalBalance).statusKey)})`
-                            : formatCurrency(Math.abs(overallSummary.totalBalance)),
+                        value: formatBalanceBreakdown(overallSummary.balancesByCurrency, 'balance'),
                     },
                 ],
                 orientation: 'landscape',
@@ -755,12 +913,8 @@ export default function PaymentsPage() {
     const isExpensesLoading = expensesQuery.isLoading && !expensesQuery.data;
     const isExpenseFormPending = createExpenseMutation.isPending || updateExpenseMutation.isPending;
     const isEditingExpense = editingExpenseId !== null;
-    const netBalanceSummary = getNetBalanceSummary(overallSummary.totalBalance);
-    const shouldShowNetBalanceStatus = shouldShowBalanceStatus(
-        overallSummary.totalDebt,
-        overallSummary.totalPaid,
-        overallSummary.totalBalance
-    );
+    const netBalanceSummary = getNetBalanceSummary(getRepresentativeBalance(overallSummary.balancesByCurrency));
+    const shouldShowNetBalanceStatus = canShowSingleBalanceStatus(overallSummary.balancesByCurrency);
 
     return (
         <div className="space-y-5 lg:space-y-6">
@@ -837,7 +991,7 @@ export default function PaymentsPage() {
                             {t('payments.summary.totalDebt')}
                         </div>
                         <p className="mt-2 text-lg font-semibold leading-none tabular-nums text-red-700">
-                            {isAccountingLoading ? '...' : formatCurrency(overallSummary.totalDebt)}
+                            {isAccountingLoading ? '...' : formatBalanceBreakdown(overallSummary.balancesByCurrency, 'totalDebt')}
                         </p>
                         <p className="mt-1 text-xs text-slate-500">{t('payments.summary.totalDebtHint')}</p>
                     </div>
@@ -848,7 +1002,7 @@ export default function PaymentsPage() {
                             {t('payments.summary.totalPaid')}
                         </div>
                         <p className="mt-2 text-lg font-semibold leading-none tabular-nums text-green-700">
-                            {isAccountingLoading ? '...' : formatCurrency(overallSummary.totalPaid)}
+                            {isAccountingLoading ? '...' : formatBalanceBreakdown(overallSummary.balancesByCurrency, 'totalPaid')}
                         </p>
                         <p className="mt-1 text-xs text-slate-500">{t('payments.summary.totalPaidHint')}</p>
                     </div>
@@ -864,7 +1018,7 @@ export default function PaymentsPage() {
                             ) : null}
                         </div>
                         <p className={`mt-2 text-lg font-semibold leading-none tabular-nums ${netBalanceSummary.valueClassName}`}>
-                            {isAccountingLoading ? '...' : formatCurrency(netBalanceSummary.amount)}
+                            {isAccountingLoading ? '...' : formatBalanceBreakdown(overallSummary.balancesByCurrency, 'balance')}
                         </p>
                         <p className={`mt-1 text-xs ${netBalanceSummary.hintClassName}`}>{t(netBalanceSummary.hintKey)}</p>
                     </div>
@@ -1010,12 +1164,11 @@ export default function PaymentsPage() {
                                                         </TableCell>
                                                         <TableCell>{formatDate(row.lastEntryDate)}</TableCell>
                                                         <TableCell>{row.entryCount}</TableCell>
-                                                        <TableCell className="text-red-700">{formatCurrency(row.totalDebt)}</TableCell>
-                                                        <TableCell className="text-green-700">{formatCurrency(row.totalPaid)}</TableCell>
+                                                        <TableCell className="whitespace-pre-line text-red-700">{formatBalanceBreakdown(row.balancesByCurrency, 'totalDebt')}</TableCell>
+                                                        <TableCell className="whitespace-pre-line text-green-700">{formatBalanceBreakdown(row.balancesByCurrency, 'totalPaid')}</TableCell>
                                                         <TableCell>
                                                             <BalanceAmount
-                                                                balance={row.balance}
-                                                                showStatus={shouldShowBalanceStatus(row.totalDebt, row.totalPaid, row.balance)}
+                                                                balances={row.balancesByCurrency}
                                                             />
                                                         </TableCell>
                                                         <TableCell className="text-right">

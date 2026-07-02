@@ -79,6 +79,79 @@ class PaymentLedgerApiTest extends TestCase
             ->assertJsonPath('data.0.entry_count', 0);
     }
 
+    public function test_payment_ledger_keeps_uzs_and_usd_balances_separate(): void
+    {
+        $dentist = User::factory()->create();
+        $uzsPatient = Patient::factory()->create([
+            'dentist_id' => $dentist->id,
+            'full_name' => 'UZS Patient',
+            'phone' => '+998900000031',
+            'patient_id' => 'PT-UZS',
+        ]);
+        $usdPatient = Patient::factory()->create([
+            'dentist_id' => $dentist->id,
+            'full_name' => 'USD Patient',
+            'phone' => '+998900000032',
+            'patient_id' => 'PT-USD',
+        ]);
+
+        Treatment::factory()->create([
+            'dentist_id' => $dentist->id,
+            'patient_id' => $uzsPatient->id,
+            'created_by_user_id' => $dentist->id,
+            'updated_by_user_id' => $dentist->id,
+            'treatment_type' => 'UZS work',
+            'treatment_date' => '2026-06-20',
+            'debt_amount' => 100000,
+            'paid_amount' => 40000,
+            'currency' => Treatment::CURRENCY_UZS,
+        ]);
+        Treatment::factory()->create([
+            'dentist_id' => $dentist->id,
+            'patient_id' => $usdPatient->id,
+            'created_by_user_id' => $dentist->id,
+            'updated_by_user_id' => $dentist->id,
+            'treatment_type' => 'USD work',
+            'treatment_date' => '2026-06-21',
+            'debt_amount' => 100,
+            'paid_amount' => 40,
+            'currency' => Treatment::CURRENCY_USD,
+        ]);
+
+        $ledgerResponse = $this->actingAs($dentist, 'web')
+            ->getJson('/api/v1/payments/ledger/patients?filter[outstanding]=1&per_page=10')
+            ->assertOk()
+            ->assertJsonPath('meta.summary.total_debt', 100000)
+            ->assertJsonPath('meta.summary.total_paid', 40000)
+            ->assertJsonPath('meta.summary.total_balance', 60000)
+            ->assertJsonPath('meta.summary.totals_by_currency.UZS.total_balance', 60000)
+            ->assertJsonPath('meta.summary.totals_by_currency.USD.total_balance', 60);
+
+        $this->assertCount(2, $ledgerResponse->json('data'));
+        $usdLedgerRow = collect($ledgerResponse->json('data'))
+            ->firstWhere('patient_id', (string) $usdPatient->id);
+        $this->assertNotNull($usdLedgerRow);
+        $this->assertEquals(0, $usdLedgerRow['total_debt']);
+        $this->assertEquals(0, $usdLedgerRow['total_paid']);
+        $this->assertEquals(0, $usdLedgerRow['balance']);
+        $this->assertEquals(100, $usdLedgerRow['balances_by_currency']['USD']['total_debt']);
+        $this->assertEquals(40, $usdLedgerRow['balances_by_currency']['USD']['total_paid']);
+        $this->assertEquals(60, $usdLedgerRow['balances_by_currency']['USD']['balance']);
+
+        $historyResponse = $this->actingAs($dentist, 'web')
+            ->getJson('/api/v1/payments/ledger/history?per_page=10')
+            ->assertOk()
+            ->assertJsonPath('meta.summary.total_debt', 100000)
+            ->assertJsonPath('meta.summary.total_paid', 40000)
+            ->assertJsonPath('meta.summary.total_balance', 60000)
+            ->assertJsonPath('meta.summary.totals_by_currency.USD.total_debt', 100);
+
+        $usdHistoryRow = collect($historyResponse->json('data'))
+            ->firstWhere('patient_id', (string) $usdPatient->id);
+        $this->assertNotNull($usdHistoryRow);
+        $this->assertSame(Treatment::CURRENCY_USD, $usdHistoryRow['currency']);
+    }
+
     public function test_payment_ledger_requires_payments_view_permission(): void
     {
         [$dentist] = $this->seedLedgerRecords();

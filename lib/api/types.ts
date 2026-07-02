@@ -294,6 +294,21 @@ export interface ApiOdontogramSummary {
     latest_conditions: ApiOdontogramSummaryEntry[];
 }
 
+export type ApiMoneyCurrency = 'UZS' | 'USD';
+
+export interface ApiCurrencyTotals {
+    total_debt: number;
+    total_paid: number;
+    total_balance: number;
+    totals_by_currency?: Partial<Record<ApiMoneyCurrency, ApiCurrencyTotals>>;
+}
+
+export interface ApiCurrencyBalance {
+    total_debt: number;
+    total_paid: number;
+    balance: number;
+}
+
 export interface ApiTreatment {
     id: string;
     patient_id: string;
@@ -311,6 +326,7 @@ export interface ApiTreatment {
     debt_amount: number;
     paid_amount: number;
     balance: number;
+    currency?: ApiMoneyCurrency | null;
     notes: string | null;
     image_count: number;
     primary_image?: ApiTreatmentImage | null;
@@ -327,6 +343,7 @@ export interface ApiPaymentLedgerSummary {
     total_balance: number;
     total_patients?: number;
     total_entries: number;
+    totals_by_currency?: Partial<Record<ApiMoneyCurrency, ApiCurrencyTotals>>;
 }
 
 export interface ApiPaymentPatientLedgerRow {
@@ -338,6 +355,7 @@ export interface ApiPaymentPatientLedgerRow {
     total_debt: number;
     total_paid: number;
     balance: number;
+    balances_by_currency?: Partial<Record<ApiMoneyCurrency, ApiCurrencyBalance>>;
     entry_count: number;
     last_entry_date: string | null;
 }
@@ -356,11 +374,12 @@ export interface ApiPaymentHistoryLedgerRow {
     debt: number;
     paid: number;
     balance_delta: number;
+    currency?: ApiMoneyCurrency | null;
     created_by?: ApiRecordActor | null;
     updated_by?: ApiRecordActor | null;
 }
 
-export type ApiPaymentExpenseCurrency = 'UZS' | 'USD';
+export type ApiPaymentExpenseCurrency = ApiMoneyCurrency;
 
 export interface ApiPaymentExpense {
     id: string;

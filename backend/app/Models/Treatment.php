@@ -16,6 +16,13 @@ class Treatment extends Model implements TenantOwned
     /** @use HasFactory<\Database\Factories\TreatmentFactory> */
     use BelongsToTenant, HasFactory, HasUuids;
 
+    public const CURRENCY_UZS = 'UZS';
+    public const CURRENCY_USD = 'USD';
+    public const SUPPORTED_CURRENCIES = [
+        self::CURRENCY_UZS,
+        self::CURRENCY_USD,
+    ];
+
     /**
      * @var bool
      */
@@ -43,6 +50,7 @@ class Treatment extends Model implements TenantOwned
         'cost',
         'debt_amount',
         'paid_amount',
+        'currency',
         'notes',
         'before_image_disk',
         'before_image_path',

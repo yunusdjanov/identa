@@ -2,7 +2,9 @@
 
 namespace App\Http\Requests;
 
+use App\Models\Treatment;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class StoreTreatmentRequest extends FormRequest
 {
@@ -27,8 +29,8 @@ class StoreTreatmentRequest extends FormRequest
             'cost' => ['nullable', 'numeric', 'min:0'],
             'debt_amount' => ['nullable', 'numeric', 'min:0'],
             'paid_amount' => ['nullable', 'numeric', 'min:0'],
+            'currency' => ['nullable', 'string', Rule::in(Treatment::SUPPORTED_CURRENCIES)],
             'notes' => ['nullable', 'string', 'max:5000'],
         ];
     }
-
 }

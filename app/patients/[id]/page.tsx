@@ -57,7 +57,7 @@ import { useI18n } from '@/components/providers/i18n-provider';
 import { getProtectedMediaCrossOrigin, getProtectedMediaPreviewUrl, getProtectedMediaThumbnailUrl } from '@/lib/protected-media';
 import { INPUT_LIMITS } from '@/lib/input-validation';
 import { optimizeImageFileForUpload } from '@/lib/browser-image';
-import type { ApiPatient, ApiPatientClinicalPhotoViewType } from '@/lib/api/types';
+import type { ApiMoneyCurrency, ApiPatient, ApiPatientClinicalPhotoViewType } from '@/lib/api/types';
 import type { PreviewGalleryImage } from '@/components/patients/patient-photo-preview-dialog';
 import {
     getPatientOralPhotoGallery,
@@ -101,6 +101,7 @@ const PATIENT_MEDICATIONS_UI_LIMIT = INPUT_LIMITS.medicalMedications;
 const PATIENT_MEDICAL_HISTORY_UI_LIMIT = INPUT_LIMITS.medicalHistory;
 const DEFAULT_ORAL_PHOTO_UPLOAD_MAX_MB = 1;
 const ORAL_PHOTO_UPLOAD_MAX_EDGE = 1600;
+const PROFILE_MONEY_CURRENCIES: ApiMoneyCurrency[] = ['UZS', 'USD'];
 
 function getPatientInitials(fullName: string): string {
     const parts = fullName.trim().split(/\s+/).filter(Boolean);
@@ -127,6 +128,50 @@ function computePatientAge(dateOfBirth: string): number {
         age--;
     }
     return Math.max(0, age);
+}
+
+function getOverviewBalanceLines(overview: {
+    total_balance?: number;
+    totals_by_currency?: Partial<Record<ApiMoneyCurrency, { total_balance: number }>>;
+} | undefined) {
+    const lines = PROFILE_MONEY_CURRENCIES
+        .map((currency) => ({
+            currency,
+            rawAmount: Number(overview?.totals_by_currency?.[currency]?.total_balance ?? 0),
+        }))
+        .filter(({ rawAmount }) => rawAmount !== 0)
+        .map(({ currency, rawAmount }) => ({ currency, rawAmount, amount: Math.abs(rawAmount) }));
+
+    if (lines.length > 0 || !overview?.total_balance) {
+        return lines;
+    }
+
+    return [{ currency: 'UZS' as const, rawAmount: overview.total_balance, amount: Math.abs(overview.total_balance) }];
+}
+
+function formatOverviewBalance(overview: Parameters<typeof getOverviewBalanceLines>[0], paidLabel: string) {
+    const lines = getOverviewBalanceLines(overview);
+
+    return lines.length > 0
+        ? lines.map(({ currency, amount }) => formatCurrency(amount, currency)).join(' / ')
+        : paidLabel;
+}
+
+function getOverviewBalanceClassName(overview: Parameters<typeof getOverviewBalanceLines>[0], canViewPayments: boolean) {
+    if (!canViewPayments) {
+        return 'text-slate-700';
+    }
+
+    const lines = getOverviewBalanceLines(overview);
+    if (lines.some(({ rawAmount }) => rawAmount > 0)) {
+        return 'text-red-700';
+    }
+
+    if (lines.some(({ rawAmount }) => rawAmount < 0)) {
+        return 'text-blue-700';
+    }
+
+    return 'text-emerald-700';
 }
 
 /* ============================================================
@@ -421,7 +466,6 @@ export default function PatientDetailPage({
     const patient = patientQuery.data;
     const patientVisitCount = overviewQuery.data?.visit_count ?? overviewQuery.data?.appointment_count ?? 0;
     const latestVisitDate = patient?.last_visit_at ?? undefined;
-    const totalBalance = overviewQuery.data?.total_balance ?? 0;
     const isPatientArchived = Boolean(patient?.is_archived);
 
     if (
@@ -1049,8 +1093,8 @@ export default function PatientDetailPage({
                         <VitalStatCell
                             icon={Wallet}
                             label={t('patientDetail.openBalance')}
-                            value={!canViewPayments ? '—' : totalBalance > 0 ? formatCurrency(totalBalance) : t('payments.paid')}
-                            valueClassName={!canViewPayments ? 'text-slate-700' : totalBalance > 0 ? 'text-red-700' : 'text-emerald-700'}
+                            value={!canViewPayments ? '—' : formatOverviewBalance(overviewQuery.data, t('payments.paid'))}
+                            valueClassName={getOverviewBalanceClassName(overviewQuery.data, canViewPayments)}
                         />
                         <VitalStatCell
                             icon={Hash}

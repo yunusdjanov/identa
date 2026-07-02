@@ -83,6 +83,7 @@ class TreatmentResource extends JsonResource
             'debt_amount' => $canViewFinancials ? $debtAmount : null,
             'paid_amount' => $canViewFinancials ? $paidAmount : null,
             'balance' => $canViewFinancials ? round($debtAmount - $paidAmount, 2) : null,
+            'currency' => $canViewFinancials ? ($treatment->currency ?: Treatment::CURRENCY_UZS) : null,
             'notes' => $treatment->notes,
             'image_count' => $imageCount,
             'primary_image' => $primaryImage instanceof TreatmentImage

@@ -21,6 +21,8 @@ export function cn(...inputs: ClassValue[]) {
  */
 export function formatCurrency(amount: number, currency: string = 'UZS'): string {
   const safe = Number.isFinite(amount) ? amount : 0;
+  const normalizedCurrency = currency.toUpperCase();
+  const fractionDigits = normalizedCurrency === 'UZS' ? 0 : 2;
   // Uppercase to match the ApiPlan.currency / ApiBillingPayment.currency
   // convention. We don't pass `style: 'currency'` because that injects a
   // locale-specific symbol (₽, $, etc.) which is wrong for UZS — that's
@@ -28,8 +30,8 @@ export function formatCurrency(amount: number, currency: string = 'UZS'): string
   return new Intl.NumberFormat('uz-UZ', {
     style: 'decimal',
     minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(safe) + ' ' + currency.toUpperCase();
+    maximumFractionDigits: fractionDigits,
+  }).format(safe) + ' ' + normalizedCurrency;
 }
 
 export function formatDate(date: string): string {

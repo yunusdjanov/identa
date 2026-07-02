@@ -87,9 +87,21 @@ class PaymentLedgerController extends Controller
             'patient_name' => $patient->full_name,
             'patient_phone' => $patient->phone,
             'patient_secondary_phone' => $patient->secondary_phone,
-            'total_debt' => (float) $patient->getAttribute('total_debt'),
-            'total_paid' => (float) $patient->getAttribute('total_paid'),
-            'balance' => (float) $patient->getAttribute('balance'),
+            'total_debt' => (float) $patient->getAttribute('total_debt_uzs'),
+            'total_paid' => (float) $patient->getAttribute('total_paid_uzs'),
+            'balance' => (float) $patient->getAttribute('balance_uzs'),
+            'balances_by_currency' => [
+                'UZS' => [
+                    'total_debt' => (float) $patient->getAttribute('total_debt_uzs'),
+                    'total_paid' => (float) $patient->getAttribute('total_paid_uzs'),
+                    'balance' => (float) $patient->getAttribute('balance_uzs'),
+                ],
+                'USD' => [
+                    'total_debt' => (float) $patient->getAttribute('total_debt_usd'),
+                    'total_paid' => (float) $patient->getAttribute('total_paid_usd'),
+                    'balance' => (float) $patient->getAttribute('balance_usd'),
+                ],
+            ],
             'entry_count' => (int) $patient->getAttribute('entry_count'),
             'last_entry_date' => $patient->getAttribute('last_entry_date'),
         ];
@@ -114,6 +126,7 @@ class PaymentLedgerController extends Controller
             'debt' => (float) $treatment->debt_amount,
             'paid' => (float) $treatment->paid_amount,
             'balance_delta' => (float) $treatment->debt_amount - (float) $treatment->paid_amount,
+            'currency' => $treatment->currency ?: Treatment::CURRENCY_UZS,
             'created_by' => $this->actorPayload($treatment->createdBy),
             'updated_by' => $this->actorPayload($treatment->updatedBy),
         ];

@@ -15,7 +15,7 @@ import {
     updatePatientTreatment,
     uploadPatientTreatmentImages,
 } from '@/lib/api/dentist';
-import type { ApiCollectionEnvelope, ApiTreatment, ApiTreatmentImage } from '@/lib/api/types';
+import type { ApiCollectionEnvelope, ApiMoneyCurrency, ApiTreatment, ApiTreatmentImage } from '@/lib/api/types';
 import { getApiErrorMessage } from '@/lib/api/client';
 import { useI18n } from '@/components/providers/i18n-provider';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -25,7 +25,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
-import { getBalanceMetricTone, MetricSummaryCard } from '@/components/ui/metric-summary-card';
+import { MetricSummaryCard } from '@/components/ui/metric-summary-card';
 import type { PreviewGalleryImage } from '@/components/patients/patient-photo-preview-dialog';
 import { optimizeImageFilesForUpload } from '@/lib/browser-image';
 import { getProtectedMediaCrossOrigin, getProtectedMediaPreviewUrl, getProtectedMediaThumbnailUrl, isProtectedMediaApproved } from '@/lib/protected-media';
@@ -51,6 +51,7 @@ interface TreatmentFormState {
     comment: string;
     debtAmount: string;
     paidAmount: string;
+    currency: ApiMoneyCurrency;
     teeth: number[];
     imageFiles: File[];
     removeImageIds: string[];
@@ -84,8 +85,15 @@ const HISTORY_WORK_DONE_SUGGESTION_KEYS = [
     'patientHistory.workSuggestion.prosthodontics',
     'patientHistory.workSuggestion.cleaning',
 ] as const;
+const TREATMENT_CURRENCIES: ApiMoneyCurrency[] = ['UZS', 'USD'];
 
 type TreatmentHistoryPages = InfiniteData<ApiCollectionEnvelope<ApiTreatment>, number>;
+type TreatmentCurrencyTotals = Record<ApiMoneyCurrency, {
+    totalDebt: number;
+    totalPaid: number;
+    netBalance: number;
+}>;
+type TreatmentMoneyField = 'totalDebt' | 'totalPaid' | 'netBalance';
 
 const PatientPhotoPreviewDialog = dynamic(
     () => import('@/components/patients/patient-photo-preview-dialog').then((module) => module.PatientPhotoPreviewDialog),
@@ -133,26 +141,13 @@ function TimelineDate({ date }: { date: string }) {
     );
 }
 
-function getBalanceExportTone(balance: number): 'yellow' | 'blue' | 'neutral' {
-    const tone = getBalanceMetricTone(balance);
-
-    if (tone === 'blue') {
-        return 'blue';
-    }
-
-    if (tone === 'slate') {
-        return 'neutral';
-    }
-
-    return 'yellow';
-}
-
 const createEmptyFormState = (): TreatmentFormState => ({
     treatmentDate: toLocalDateKey(),
     treatmentType: '',
     comment: '',
     debtAmount: '',
     paidAmount: '',
+    currency: 'UZS',
     teeth: [],
     imageFiles: [],
     removeImageIds: [],
@@ -247,17 +242,170 @@ function getPreviewableTreatmentImages(treatment: ApiTreatment) {
     return getKnownTreatmentImages(treatment).filter((image) => getTreatmentImagePreviewUrl(image));
 }
 
-function formatAmountInput(value: string | number | null | undefined) {
-    const digits = String(value ?? '').replace(/\D/g, '');
+function coerceTreatmentCurrency(value: string | null | undefined): ApiMoneyCurrency {
+    return value === 'USD' ? 'USD' : 'UZS';
+}
+
+function formatAmountInput(value: string | number | null | undefined, currency: ApiMoneyCurrency = 'UZS') {
+    if (currency === 'USD') {
+        const normalized = String(value ?? '')
+            .replace(',', '.')
+            .replace(/[^\d.]/g, '')
+            .replace(/(\..*)\./g, '$1');
+        const [whole = '', fraction = ''] = normalized.split('.');
+        const normalizedWhole = whole.replace(/^0+(?=\d)/, '').replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+
+        return fraction !== '' || normalized.endsWith('.')
+            ? `${normalizedWhole || '0'}.${fraction.slice(0, 2)}`
+            : normalizedWhole;
+    }
+
+    const rawValue = typeof value === 'number' ? String(Math.round(value)) : String(value ?? '');
+    const digits = rawValue.replace(/\D/g, '');
     const normalizedDigits = digits.replace(/^0+(?=\d)/, '');
 
     return normalizedDigits.replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
 }
 
-function parseAmountInput(value: string) {
+function parseAmountInput(value: string, currency: ApiMoneyCurrency = 'UZS') {
+    if (currency === 'USD') {
+        const normalized = value.replace(/\s/g, '').replace(',', '.').replace(/[^\d.]/g, '');
+        const amount = Number(normalized);
+
+        return Number.isFinite(amount) ? amount : 0;
+    }
+
     const digits = value.replace(/\D/g, '');
 
     return digits ? Number(digits) : 0;
+}
+
+function createEmptyCurrencyTotals(): TreatmentCurrencyTotals {
+    return {
+        UZS: { totalDebt: 0, totalPaid: 0, netBalance: 0 },
+        USD: { totalDebt: 0, totalPaid: 0, netBalance: 0 },
+    };
+}
+
+function getCurrencyTotalsFromMeta(value: unknown): TreatmentCurrencyTotals | null {
+    if (!value || typeof value !== 'object') {
+        return null;
+    }
+
+    const totals = createEmptyCurrencyTotals();
+    let hasAnyValue = false;
+
+    for (const currency of TREATMENT_CURRENCIES) {
+        const raw = (value as Record<string, unknown>)[currency];
+        if (!raw || typeof raw !== 'object') {
+            continue;
+        }
+
+        const totalDebt = Number((raw as Record<string, unknown>).total_debt ?? 0);
+        const totalPaid = Number((raw as Record<string, unknown>).total_paid ?? 0);
+        const totalBalance = Number((raw as Record<string, unknown>).total_balance ?? 0);
+
+        totals[currency] = {
+            totalDebt: Number.isFinite(totalDebt) ? totalDebt : 0,
+            totalPaid: Number.isFinite(totalPaid) ? totalPaid : 0,
+            netBalance: Number.isFinite(totalBalance) ? totalBalance : 0,
+        };
+
+        hasAnyValue = hasAnyValue
+            || totals[currency].totalDebt !== 0
+            || totals[currency].totalPaid !== 0
+            || totals[currency].netBalance !== 0;
+    }
+
+    return hasAnyValue ? totals : null;
+}
+
+function getCurrencyTotalsFromTreatments(treatments: ApiTreatment[]): TreatmentCurrencyTotals {
+    const totals = createEmptyCurrencyTotals();
+
+    for (const treatment of treatments) {
+        const currency = coerceTreatmentCurrency(treatment.currency);
+        const debt = Number(treatment.debt_amount ?? 0);
+        const paid = Number(treatment.paid_amount ?? 0);
+
+        totals[currency].totalDebt += Number.isFinite(debt) ? debt : 0;
+        totals[currency].totalPaid += Number.isFinite(paid) ? paid : 0;
+        totals[currency].netBalance = totals[currency].totalDebt - totals[currency].totalPaid;
+    }
+
+    return totals;
+}
+
+function getVisibleMoneyLines(totals: TreatmentCurrencyTotals, field: TreatmentMoneyField) {
+    const lines = TREATMENT_CURRENCIES
+        .map((currency) => ({
+            currency,
+            amount: field === 'netBalance' ? Math.abs(totals[currency][field]) : totals[currency][field],
+            rawAmount: totals[currency][field],
+        }))
+        .filter(({ amount, rawAmount }) => amount !== 0 || rawAmount !== 0);
+
+    return lines.length > 0 ? lines : [{ currency: 'UZS' as const, amount: 0, rawAmount: 0 }];
+}
+
+function formatMoneyBreakdown(totals: TreatmentCurrencyTotals, field: TreatmentMoneyField) {
+    return getVisibleMoneyLines(totals, field)
+        .map(({ currency, amount }) => formatCurrency(amount, currency))
+        .join(' / ');
+}
+
+function getMultiCurrencyBalanceTone(totals: TreatmentCurrencyTotals) {
+    const activeBalances = TREATMENT_CURRENCIES
+        .map((currency) => totals[currency].netBalance)
+        .filter((balance) => balance !== 0);
+
+    if (activeBalances.length === 0) {
+        return 'slate' as const;
+    }
+
+    if (activeBalances.every((balance) => balance < 0)) {
+        return 'blue' as const;
+    }
+
+    if (activeBalances.every((balance) => balance > 0)) {
+        return 'yellow' as const;
+    }
+
+    return 'slate' as const;
+}
+
+function getMultiCurrencyBalanceStatusKey(totals: TreatmentCurrencyTotals) {
+    const activeBalances = TREATMENT_CURRENCIES
+        .map((currency) => totals[currency].netBalance)
+        .filter((balance) => balance !== 0);
+
+    if (activeBalances.length === 0) {
+        const hasAnyActivity = TREATMENT_CURRENCIES.some((currency) => (
+            totals[currency].totalDebt !== 0 || totals[currency].totalPaid !== 0
+        ));
+
+        return hasAnyActivity ? 'patientHistory.balanceStatus.paid' : null;
+    }
+
+    if (activeBalances.every((balance) => balance < 0)) {
+        return 'patientHistory.balanceStatus.advance';
+    }
+
+    if (activeBalances.every((balance) => balance > 0)) {
+        return 'patientHistory.balanceStatus.debt';
+    }
+
+    return null;
+}
+
+function reformatTreatmentAmountForCurrency(value: string, fromCurrency: ApiMoneyCurrency, toCurrency: ApiMoneyCurrency) {
+    const parsedValue = parseAmountInput(value, fromCurrency);
+
+    if (parsedValue <= 0) {
+        return '';
+    }
+
+    return formatAmountInput(toCurrency === 'UZS' ? Math.round(parsedValue) : parsedValue, toCurrency);
 }
 
 function moveTextInputCaretToEnd(input: HTMLInputElement) {
@@ -304,8 +452,9 @@ function createTreatmentFormState(treatment?: ApiTreatment | null): TreatmentFor
         treatmentDate: treatment?.treatment_date ?? toLocalDateKey(),
         treatmentType: treatment?.treatment_type ?? '',
         comment: treatment?.comment ?? treatment?.description ?? '',
-        debtAmount: treatment?.debt_amount ? formatAmountInput(Number(treatment.debt_amount)) : '',
-        paidAmount: treatment?.paid_amount ? formatAmountInput(Number(treatment.paid_amount)) : '',
+        currency: coerceTreatmentCurrency(treatment?.currency),
+        debtAmount: treatment?.debt_amount ? formatAmountInput(Number(treatment.debt_amount), coerceTreatmentCurrency(treatment?.currency)) : '',
+        paidAmount: treatment?.paid_amount ? formatAmountInput(Number(treatment.paid_amount), coerceTreatmentCurrency(treatment?.currency)) : '',
         teeth: treatment?.teeth ?? [],
         imageFiles: [],
         removeImageIds: [],
@@ -589,17 +738,21 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
     }, [treatmentsQuery.data]);
     const summary = useMemo(() => {
         const metaSummary = treatmentsQuery.data?.pages.find((page) => page.meta?.summary)?.meta?.summary;
-        const totalDebt = Number(metaSummary?.total_debt ?? treatments.reduce((sum, treatment) => sum + Number(treatment.debt_amount ?? 0), 0));
-        const totalPaid = Number(metaSummary?.total_paid ?? treatments.reduce((sum, treatment) => sum + Number(treatment.paid_amount ?? 0), 0));
+        const totalsByCurrency = getCurrencyTotalsFromMeta(metaSummary?.totals_by_currency)
+            ?? getCurrencyTotalsFromTreatments(treatments);
+        const totalDebt = totalsByCurrency.UZS.totalDebt;
+        const totalPaid = totalsByCurrency.UZS.totalPaid;
+        const netBalance = totalDebt - totalPaid;
 
         return {
             totalDebt,
             totalPaid,
-            netBalance: totalDebt - totalPaid,
+            netBalance,
+            totalsByCurrency,
         };
     }, [treatments, treatmentsQuery.data]);
-    const netBalanceTone = getBalanceMetricTone(summary.netBalance);
-    const shouldShowNetBalanceStatus = shouldShowBalanceStatus(summary.totalDebt, summary.totalPaid, summary.netBalance);
+    const netBalanceTone = getMultiCurrencyBalanceTone(summary.totalsByCurrency);
+    const netBalanceStatusKey = getMultiCurrencyBalanceStatusKey(summary.totalsByCurrency);
 
     const invalidateHistory = () => {
         queryClient.invalidateQueries({ queryKey: treatmentsQueryKey });
@@ -700,8 +853,9 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                 teeth: formState.teeth,
                 tooth_number: formState.teeth[0] ?? null,
                 ...(canViewFinancials ? {
-                    debt_amount: parseAmountInput(formState.debtAmount),
-                    paid_amount: parseAmountInput(formState.paidAmount),
+                    debt_amount: parseAmountInput(formState.debtAmount, formState.currency),
+                    paid_amount: parseAmountInput(formState.paidAmount, formState.currency),
+                    currency: formState.currency,
                 } : {}),
             };
             const treatment = editingTreatment
@@ -832,7 +986,7 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
     const treatmentTypeError = submitAttempted && formState.treatmentType.trim().length < 2 ? t('patientHistory.validation.workDone') : '';
     const dateError = submitAttempted && !formState.treatmentDate ? t('patientHistory.validation.date') : '';
     const amountError =
-        submitAttempted && [formState.debtAmount, formState.paidAmount].some((value) => parseAmountInput(value) < 0)
+        submitAttempted && [formState.debtAmount, formState.paidAmount].some((value) => parseAmountInput(value, formState.currency) < 0)
             ? t('patientHistory.validation.amount')
             : '';
     const imageValidationError =
@@ -1445,7 +1599,33 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
 
                     {canViewFinancials ? (
                         <>
-                            <div className="mt-3 grid grid-cols-1 gap-2 border-t border-slate-100 pt-3 sm:grid-cols-2">
+                            <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-3">
+                                <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                                    {t('payments.table.balance')}
+                                </span>
+                                <div className="inline-flex rounded-xl border border-slate-200 bg-white p-0.5 shadow-xs">
+                                    {TREATMENT_CURRENCIES.map((currency) => (
+                                        <button
+                                            key={currency}
+                                            type="button"
+                                            className={`rounded-lg px-2.5 py-1 text-xs font-semibold transition ${
+                                                formState.currency === currency
+                                                    ? 'bg-teal-50 text-teal-700 shadow-xs ring-1 ring-teal-200'
+                                                    : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'
+                                            }`}
+                                            onClick={() => setFormState((current) => ({
+                                                ...current,
+                                                currency,
+                                                debtAmount: reformatTreatmentAmountForCurrency(current.debtAmount, current.currency, currency),
+                                                paidAmount: reformatTreatmentAmountForCurrency(current.paidAmount, current.currency, currency),
+                                            }))}
+                                        >
+                                            {currency}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                            <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
                                 <div className="min-w-0 rounded-lg border border-slate-200 bg-slate-50/80 px-2.5 py-1.5">
                                     <Label htmlFor="historyDebt" className="block truncate text-[9px] font-semibold uppercase tracking-wider text-slate-400">
                                         {t('patientHistory.table.debt')}
@@ -1453,9 +1633,9 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                     <Input
                                         id="historyDebt"
                                         type="text"
-                                        inputMode="numeric"
+                                        inputMode={formState.currency === 'USD' ? 'decimal' : 'numeric'}
                                         value={formState.debtAmount}
-                                        onChange={(event) => setFormState((current) => ({ ...current, debtAmount: formatAmountInput(event.target.value) }))}
+                                        onChange={(event) => setFormState((current) => ({ ...current, debtAmount: formatAmountInput(event.target.value, current.currency) }))}
                                         onFocus={handleAmountInputFocus('debtAmount')}
                                         placeholder="0"
                                         className="mt-0.5 h-7 border-0 bg-transparent px-0 text-xs font-bold tabular-nums text-red-700 shadow-none focus-visible:ring-0"
@@ -1468,9 +1648,9 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                     <Input
                                         id="historyPaid"
                                         type="text"
-                                        inputMode="numeric"
+                                        inputMode={formState.currency === 'USD' ? 'decimal' : 'numeric'}
                                         value={formState.paidAmount}
-                                        onChange={(event) => setFormState((current) => ({ ...current, paidAmount: formatAmountInput(event.target.value) }))}
+                                        onChange={(event) => setFormState((current) => ({ ...current, paidAmount: formatAmountInput(event.target.value, current.currency) }))}
                                         onFocus={handleAmountInputFocus('paidAmount')}
                                         placeholder="0"
                                         className="mt-0.5 h-7 border-0 bg-transparent px-0 text-xs font-bold tabular-nums text-green-700 shadow-none focus-visible:ring-0"
@@ -1520,10 +1700,11 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                         });
                                         const treatmentRows = exportTreatments.map((tr) => canViewFinancials
                                             ? (() => {
+                                                const currency = coerceTreatmentCurrency(tr.currency);
                                                 const debt = Number(tr.debt_amount ?? 0);
                                                 const paid = Number(tr.paid_amount ?? 0);
                                                 const balance = Number(tr.balance ?? 0);
-                                                const balanceValue = formatCurrency(Math.abs(balance));
+                                                const balanceValue = formatCurrency(Math.abs(balance), currency);
                                                 const balanceStatus = shouldShowBalanceStatus(debt, paid, balance)
                                                     ? ` (${t(getBalanceStatusKey(balance))})`
                                                     : '';
@@ -1532,8 +1713,8 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                                     formatDate(tr.treatment_date),
                                                     formatTeeth(tr.teeth ?? []) || '-',
                                                     tr.treatment_type,
-                                                    formatCurrency(debt),
-                                                    formatCurrency(paid),
+                                                    formatCurrency(debt, currency),
+                                                    formatCurrency(paid, currency),
                                                     `${balanceValue}${balanceStatus}`,
                                                 ];
                                             })()
@@ -1553,14 +1734,14 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                             ],
                                             summary: canViewFinancials
                                                 ? [
-                                                    { label: t('patientHistory.totalDebt'), value: formatCurrency(summary.totalDebt), tone: 'red' },
-                                                    { label: t('patientHistory.totalPaid'), value: formatCurrency(summary.totalPaid), tone: 'green' },
+                                                    { label: t('patientHistory.totalDebt'), value: formatMoneyBreakdown(summary.totalsByCurrency, 'totalDebt'), tone: 'red' },
+                                                    { label: t('patientHistory.totalPaid'), value: formatMoneyBreakdown(summary.totalsByCurrency, 'totalPaid'), tone: 'green' },
                                                     {
-                                                        label: shouldShowNetBalanceStatus
-                                                            ? `${t('patientHistory.netBalance')} · ${t(getBalanceStatusKey(summary.netBalance))}`
+                                                        label: netBalanceStatusKey
+                                                            ? `${t('patientHistory.netBalance')} · ${t(netBalanceStatusKey)}`
                                                             : t('patientHistory.netBalance'),
-                                                        value: formatCurrency(Math.abs(summary.netBalance)),
-                                                        tone: getBalanceExportTone(summary.netBalance),
+                                                        value: formatMoneyBreakdown(summary.totalsByCurrency, 'netBalance'),
+                                                        tone: netBalanceTone === 'blue' ? 'blue' : netBalanceTone === 'slate' ? 'neutral' : 'yellow',
                                                     },
                                                 ]
                                                 : [],
@@ -1622,7 +1803,7 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                     <div className="grid grid-cols-1 gap-2.5 md:grid-cols-3">
                         <MetricSummaryCard
                             label={t('patientHistory.totalDebt')}
-                            value={formatCurrency(summary.totalDebt)}
+                            value={formatMoneyBreakdown(summary.totalsByCurrency, 'totalDebt')}
                             tone="red"
                             compact
                             gradient
@@ -1631,7 +1812,7 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                         />
                         <MetricSummaryCard
                             label={t('patientHistory.totalPaid')}
-                            value={formatCurrency(summary.totalPaid)}
+                            value={formatMoneyBreakdown(summary.totalsByCurrency, 'totalPaid')}
                             tone="emerald"
                             compact
                             gradient
@@ -1640,9 +1821,9 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                         />
                         <MetricSummaryCard
                             label={t('patientHistory.netBalance')}
-                            value={formatCurrency(Math.abs(summary.netBalance))}
+                            value={formatMoneyBreakdown(summary.totalsByCurrency, 'netBalance')}
                             tone={netBalanceTone}
-                            badge={shouldShowNetBalanceStatus ? t(getBalanceStatusKey(summary.netBalance)) : undefined}
+                            badge={netBalanceStatusKey ? t(netBalanceStatusKey) : undefined}
                             badgeTone={netBalanceTone}
                             compact
                             gradient
@@ -1715,6 +1896,7 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                 {isInlineCreateOpen ? renderTreatmentFormCard('create') : null}
                                 {treatments.map((treatment) => {
                                 const imageCount = getTreatmentImageCount(treatment);
+                                const treatmentCurrency = coerceTreatmentCurrency(treatment.currency);
                                 const debtAmount = Number(treatment.debt_amount);
                                 const paidAmount = Number(treatment.paid_amount);
                                 const description = treatment.comment ?? treatment.description ?? '';
@@ -1823,13 +2005,13 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                             <div className="mt-3 grid grid-cols-1 gap-2 border-t border-slate-100 pt-3 sm:grid-cols-2">
                                                 <HistoryFinanceChip
                                                     label={t('patientHistory.table.debt')}
-                                                    value={canViewFinancials ? formatCurrency(debtAmount) : t('dashboard.lockedKpi.label')}
+                                                    value={canViewFinancials ? formatCurrency(debtAmount, treatmentCurrency) : t('dashboard.lockedKpi.label')}
                                                     tone="red"
                                                     locked={!canViewFinancials}
                                                 />
                                                 <HistoryFinanceChip
                                                     label={t('patientHistory.table.paid')}
-                                                    value={canViewFinancials ? formatCurrency(paidAmount) : t('dashboard.lockedKpi.label')}
+                                                    value={canViewFinancials ? formatCurrency(paidAmount, treatmentCurrency) : t('dashboard.lockedKpi.label')}
                                                     tone="green"
                                                     locked={!canViewFinancials}
                                                 />

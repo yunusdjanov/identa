@@ -1821,6 +1821,32 @@ components:
           type: number
         outstanding_count:
           type: integer
+        total_entries:
+          type: integer
+        total_patients:
+          type: integer
+        totals_by_currency:
+          type: object
+          additionalProperties:
+            $ref: "#/components/schemas/PaymentLedgerCurrencyTotals"
+    PaymentLedgerCurrencyTotals:
+      type: object
+      properties:
+        total_debt:
+          type: number
+        total_paid:
+          type: number
+        total_balance:
+          type: number
+    PaymentLedgerCurrencyBalance:
+      type: object
+      properties:
+        total_debt:
+          type: number
+        total_paid:
+          type: number
+        balance:
+          type: number
     ActorSummary:
       type: object
       nullable: true
@@ -2212,11 +2238,31 @@ components:
         description:
           type: string
           nullable: true
+        comment:
+          type: string
+          nullable: true
         treatment_date:
           type: string
           format: date
+        teeth:
+          type: array
+          items:
+            type: integer
         cost:
           type: number
+          nullable: true
+        debt_amount:
+          type: number
+          nullable: true
+        paid_amount:
+          type: number
+          nullable: true
+        balance:
+          type: number
+          nullable: true
+        currency:
+          type: string
+          enum: [UZS, USD]
           nullable: true
         notes:
           type: string
@@ -2436,6 +2482,10 @@ components:
           type: string
           format: date
           nullable: true
+        balances_by_currency:
+          type: object
+          additionalProperties:
+            $ref: "#/components/schemas/PaymentLedgerCurrencyBalance"
     PaymentLedgerHistoryRow:
       type: object
       properties:
@@ -2476,6 +2526,9 @@ components:
           type: number
         balance_delta:
           type: number
+        currency:
+          type: string
+          enum: [UZS, USD]
         created_by:
           $ref: "#/components/schemas/ActorSummary"
         updated_by:
@@ -2748,9 +2801,17 @@ components:
           type: integer
           minimum: 1
           maximum: 32
+        teeth:
+          type: array
+          items:
+            type: integer
+            minimum: 1
+            maximum: 32
         treatment_type:
           type: string
         description:
+          type: string
+        comment:
           type: string
         treatment_date:
           type: string
@@ -2758,6 +2819,16 @@ components:
         cost:
           type: number
           minimum: 0
+        debt_amount:
+          type: number
+          minimum: 0
+        paid_amount:
+          type: number
+          minimum: 0
+        currency:
+          type: string
+          enum: [UZS, USD]
+          default: UZS
         notes:
           type: string
     AppointmentUpsertRequest:

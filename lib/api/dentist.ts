@@ -15,6 +15,7 @@ import type {
     ApiCollectionEnvelope,
     ApiEnvelope,
     ApiInvoice,
+    ApiMoneyCurrency,
     ApiOdontogramEntry,
     ApiOdontogramSummary,
     ApiBillingPayment,
@@ -1153,6 +1154,7 @@ export async function createPatientTreatment(
         cost?: number;
         debt_amount?: number;
         paid_amount?: number;
+        currency?: ApiMoneyCurrency;
         notes?: string;
     }
 ): Promise<ApiTreatment> {
@@ -1176,6 +1178,7 @@ export async function updatePatientTreatment(
         cost?: number;
         debt_amount?: number;
         paid_amount?: number;
+        currency?: ApiMoneyCurrency;
         notes?: string;
     }
 ): Promise<ApiTreatment> {

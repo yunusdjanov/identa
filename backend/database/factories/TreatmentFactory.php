@@ -35,6 +35,7 @@ class TreatmentFactory extends Factory
             'cost' => fake()->optional()->randomFloat(2, 50, 500),
             'debt_amount' => fn (array $attributes): string => number_format((float) ($attributes['cost'] ?? fake()->randomFloat(2, 50, 500)), 2, '.', ''),
             'paid_amount' => fn (array $attributes): string => number_format(min((float) ($attributes['debt_amount'] ?? $attributes['cost'] ?? 0), fake()->randomFloat(2, 0, 200)), 2, '.', ''),
+            'currency' => Treatment::CURRENCY_UZS,
             'notes' => fake()->optional()->sentence(),
             'before_image_disk' => null,
             'before_image_path' => null,
