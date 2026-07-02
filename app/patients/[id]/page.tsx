@@ -149,29 +149,77 @@ function getOverviewBalanceLines(overview: {
     return [{ currency: 'UZS' as const, rawAmount: overview.total_balance, amount: Math.abs(overview.total_balance) }];
 }
 
-function formatOverviewBalance(overview: Parameters<typeof getOverviewBalanceLines>[0], paidLabel: string) {
-    const lines = getOverviewBalanceLines(overview);
-
-    return lines.length > 0
-        ? lines.map(({ currency, amount }) => formatCurrency(amount, currency)).join(' / ')
-        : paidLabel;
-}
-
 function getOverviewBalanceClassName(overview: Parameters<typeof getOverviewBalanceLines>[0], canViewPayments: boolean) {
     if (!canViewPayments) {
         return 'text-slate-700';
     }
 
     const lines = getOverviewBalanceLines(overview);
-    if (lines.some(({ rawAmount }) => rawAmount > 0)) {
+    const hasDebt = lines.some(({ rawAmount }) => rawAmount > 0);
+    const hasAdvance = lines.some(({ rawAmount }) => rawAmount < 0);
+
+    if (hasDebt && hasAdvance) {
+        return 'text-slate-700';
+    }
+
+    if (hasDebt) {
         return 'text-red-700';
     }
 
-    if (lines.some(({ rawAmount }) => rawAmount < 0)) {
+    if (hasAdvance) {
         return 'text-blue-700';
     }
 
     return 'text-emerald-700';
+}
+
+function getOverviewBalanceStatusKey(balance: number) {
+    if (balance < 0) {
+        return 'patientHistory.balanceStatus.advance';
+    }
+
+    if (balance > 0) {
+        return 'patientHistory.balanceStatus.debt';
+    }
+
+    return 'patientHistory.balanceStatus.paid';
+}
+
+function getOverviewBalanceStatusClassName(balance: number) {
+    if (balance < 0) {
+        return 'border-blue-200 bg-blue-50 text-blue-700';
+    }
+
+    if (balance > 0) {
+        return 'border-yellow-200 bg-yellow-50 text-yellow-700';
+    }
+
+    return 'border-slate-200 bg-slate-50 text-slate-600';
+}
+
+function renderOverviewBalance(
+    overview: Parameters<typeof getOverviewBalanceLines>[0],
+    paidLabel: string,
+    t: ReturnType<typeof useI18n>['t']
+) {
+    const lines = getOverviewBalanceLines(overview);
+
+    if (lines.length === 0) {
+        return paidLabel;
+    }
+
+    return (
+        <span className="flex flex-col items-center gap-0.5 leading-tight">
+            {lines.map(({ currency, rawAmount, amount }) => (
+                <span key={currency} className="flex max-w-full flex-wrap items-center justify-center gap-1">
+                    <span className="whitespace-nowrap tabular-nums">{formatCurrency(amount, currency)}</span>
+                    <span className={`inline-flex items-center rounded-full border px-1 py-0.5 text-[9px] font-semibold leading-none ${getOverviewBalanceStatusClassName(rawAmount)}`}>
+                        {t(getOverviewBalanceStatusKey(rawAmount))}
+                    </span>
+                </span>
+            ))}
+        </span>
+    );
 }
 
 /* ============================================================
@@ -191,7 +239,7 @@ function VitalStatCell({
 }: {
     icon: React.ComponentType<{ className?: string }>;
     label: string;
-    value: string;
+    value: React.ReactNode;
     valueClassName?: string;
 }) {
     return (
@@ -200,7 +248,10 @@ function VitalStatCell({
                 <Icon className="h-3 w-3" />
                 <p className="text-[10px] font-semibold uppercase tracking-[0.12em]">{label}</p>
             </div>
-            <p className={`max-w-full truncate text-[13px] font-semibold tabular-nums text-slate-900 ${valueClassName ?? ''}`} title={value}>
+            <p
+                className={`max-w-full text-[13px] font-semibold tabular-nums text-slate-900 ${typeof value === 'string' ? 'truncate' : ''} ${valueClassName ?? ''}`}
+                title={typeof value === 'string' ? value : undefined}
+            >
                 {value}
             </p>
         </div>
@@ -1093,7 +1144,7 @@ export default function PatientDetailPage({
                         <VitalStatCell
                             icon={Wallet}
                             label={t('patientDetail.openBalance')}
-                            value={!canViewPayments ? '—' : formatOverviewBalance(overviewQuery.data, t('payments.paid'))}
+                            value={!canViewPayments ? '—' : renderOverviewBalance(overviewQuery.data, t('payments.paid'), t)}
                             valueClassName={getOverviewBalanceClassName(overviewQuery.data, canViewPayments)}
                         />
                         <VitalStatCell

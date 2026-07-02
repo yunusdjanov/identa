@@ -1,5 +1,6 @@
 ﻿'use client';
 
+import type { ReactNode } from 'react';
 import { Lock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useI18n } from '@/components/providers/i18n-provider';
@@ -8,7 +9,7 @@ type MetricSummaryTone = 'teal' | 'blue' | 'emerald' | 'amber' | 'yellow' | 'red
 
 interface MetricSummaryCardProps {
     label: string;
-    value: string;
+    value: ReactNode;
     tone?: MetricSummaryTone;
     valueTone?: MetricSummaryTone;
     badge?: string;
@@ -173,7 +174,7 @@ export function MetricSummaryCard({
                     </span>
                 ) : null}
             </div>
-            <p
+            <div
                 className={cn(
                     'font-semibold',
                     compact ? 'mt-0.5 text-base' : 'mt-1 text-lg',
@@ -182,7 +183,7 @@ export function MetricSummaryCard({
                 )}
             >
                 {value}
-            </p>
+            </div>
         </div>
     );
 }

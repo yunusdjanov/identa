@@ -84,6 +84,10 @@ function getCompactSummaryCard(label: string) {
         .find((card): card is HTMLElement => card instanceof HTMLElement && card.classList.contains('min-h-14'));
 }
 
+function normalizeText(value: string | null | undefined) {
+    return (value ?? '').replace(/\u00A0/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
 describe('TreatmentHistoryCard image controls', () => {
     beforeEach(() => {
         vi.mocked(createPatientTreatment).mockReset();
@@ -889,6 +893,76 @@ describe('TreatmentHistoryCard image controls', () => {
 
         expect((await screen.findAllByText('Advance')).length).toBeGreaterThan(0);
         expect(screen.queryAllByText((content) => content.includes('-60') && content.includes('UZS'))).toHaveLength(0);
+    });
+
+    it('labels mixed currency remaining summary per currency', async () => {
+        vi.mocked(listPatientTreatments).mockResolvedValue(treatmentsEnvelope([
+            {
+                id: 'treatment-uzs-debt',
+                patient_id: 'patient-1',
+                patient_name: 'Sardor',
+                patient_phone: '+998 90 123 45 67',
+                patient_secondary_phone: null,
+                patient_code: 'PT-1001',
+                tooth_number: 21,
+                teeth: [21],
+                treatment_type: 'UZS debt',
+                description: null,
+                comment: null,
+                treatment_date: '2026-04-05',
+                currency: 'UZS',
+                cost: null,
+                debt_amount: 1820000,
+                paid_amount: 550000,
+                balance: 1270000,
+                notes: null,
+                image_count: 0,
+                primary_image: null,
+                images: [],
+                created_at: '2026-04-05T10:00:00Z',
+                updated_at: '2026-04-05T10:00:00Z',
+            },
+            {
+                id: 'treatment-usd-advance',
+                patient_id: 'patient-1',
+                patient_name: 'Sardor',
+                patient_phone: '+998 90 123 45 67',
+                patient_secondary_phone: null,
+                patient_code: 'PT-1001',
+                tooth_number: 22,
+                teeth: [22],
+                treatment_type: 'USD advance',
+                description: null,
+                comment: null,
+                treatment_date: '2026-04-05',
+                currency: 'USD',
+                cost: null,
+                debt_amount: 200,
+                paid_amount: 205,
+                balance: -5,
+                notes: null,
+                image_count: 0,
+                primary_image: null,
+                images: [],
+                created_at: '2026-04-05T10:01:00Z',
+                updated_at: '2026-04-05T10:01:00Z',
+            },
+        ]));
+
+        renderCard();
+
+        await waitFor(() => {
+            expect(getCompactSummaryCard('Remaining')).toHaveTextContent('USD');
+        });
+
+        const remainingCard = getCompactSummaryCard('Remaining') as HTMLElement;
+        const remainingText = normalizeText(remainingCard.textContent);
+
+        expect(remainingText).toContain('1 270 000 UZS');
+        expect(remainingText).toContain('5 USD');
+        expect(within(remainingCard).getByText('Debt')).toBeInTheDocument();
+        expect(within(remainingCard).getByText('Advance')).toBeInTheDocument();
+        expect(within(remainingCard).queryByText('Paid')).not.toBeInTheDocument();
     });
 
     it('submits standalone payments without requiring matching debt', async () => {

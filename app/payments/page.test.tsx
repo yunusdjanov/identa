@@ -50,6 +50,10 @@ let patientLedgerRows: Array<{
     total_debt: number;
     total_paid: number;
     balance: number;
+    balances_by_currency?: {
+        UZS?: { total_debt: number; total_paid: number; balance: number };
+        USD?: { total_debt: number; total_paid: number; balance: number };
+    };
     entry_count: number;
     last_entry_date: string | null;
 }>;
@@ -165,6 +169,18 @@ function patientSummary(rows: typeof patientLedgerRows) {
             summary.total_balance += row.balance;
             summary.total_entries += row.entry_count;
             summary.total_patients += 1;
+            const balancesByCurrency = row.balances_by_currency ?? {
+                UZS: { total_debt: row.total_debt, total_paid: row.total_paid, balance: row.balance },
+            };
+            for (const currency of ['UZS', 'USD'] as const) {
+                const balance = balancesByCurrency[currency];
+                if (!balance) {
+                    continue;
+                }
+                summary.totals_by_currency[currency].total_debt += balance.total_debt;
+                summary.totals_by_currency[currency].total_paid += balance.total_paid;
+                summary.totals_by_currency[currency].total_balance += balance.balance;
+            }
             return summary;
         },
         {
@@ -173,6 +189,10 @@ function patientSummary(rows: typeof patientLedgerRows) {
             total_balance: 0,
             total_entries: 0,
             total_patients: 0,
+            totals_by_currency: {
+                UZS: { total_debt: 0, total_paid: 0, total_balance: 0 },
+                USD: { total_debt: 0, total_paid: 0, total_balance: 0 },
+            },
         }
     );
 }
@@ -370,6 +390,41 @@ describe('PaymentsPage', () => {
         expect(screen.getAllByText('Advance').length).toBeGreaterThanOrEqual(2);
         const netBalanceCard = screen.getByText('Paid amount exceeds work total.').closest('.interactive-card') as HTMLElement;
         expect(normalizeText(netBalanceCard.textContent)).not.toContain('-250 000 UZS');
+    });
+
+    it('shows debt and advance labels separately when balances are mixed by currency', async () => {
+        patientLedgerRows = [
+            {
+                patient_id: 'patient-mixed',
+                patient_code: 'PT-1011',
+                patient_name: 'Mixed Currency Patient',
+                patient_phone: '+998900000011',
+                total_debt: 1820000,
+                total_paid: 550000,
+                balance: 1270000,
+                balances_by_currency: {
+                    UZS: { total_debt: 1820000, total_paid: 550000, balance: 1270000 },
+                    USD: { total_debt: 200, total_paid: 205, balance: -5 },
+                },
+                entry_count: 2,
+                last_entry_date: '2026-06-18',
+            },
+        ];
+
+        renderPage();
+
+        await waitFor(() => {
+            expect(screen.getByText('Mixed Currency Patient')).toBeInTheDocument();
+        });
+
+        const netBalanceCard = screen.getByText('Debt and advance exist in different currencies.').closest('.interactive-card') as HTMLElement;
+        const cardText = normalizeText(netBalanceCard.textContent);
+
+        expect(cardText).toContain('1 270 000 UZS');
+        expect(cardText).toContain('5 USD');
+        expect(within(netBalanceCard).getByText('Debt')).toBeInTheDocument();
+        expect(within(netBalanceCard).getByText('Advance')).toBeInTheDocument();
+        expect(screen.queryByText('Balance is settled.')).not.toBeInTheDocument();
     });
 
     it('hides the settled badge on rows with no work and no payment', async () => {

@@ -85,7 +85,18 @@ const NET_BALANCE_SUMMARY_VARIANTS = {
         badgeClassName: 'border-amber-200 bg-amber-50 text-amber-700',
         hintClassName: 'text-amber-500/80',
     },
+    mixed: {
+        statusKey: 'payments.summary.netBalanceMixedStatus',
+        hintKey: 'payments.summary.netBalanceMixedHint',
+        cardClassName: 'metric-hover-slate border-slate-200 shadow-slate-200/60',
+        labelClassName: 'text-slate-600',
+        iconClassName: 'text-slate-500',
+        valueClassName: 'text-slate-700',
+        badgeClassName: 'border-slate-200 bg-slate-50 text-slate-600',
+        hintClassName: 'text-slate-500',
+    },
 } as const;
+type TranslateFn = ReturnType<typeof useI18n>['t'];
 
 function subscribeToUrlSearch(onStoreChange: () => void) {
     if (typeof window === 'undefined') {
@@ -234,6 +245,40 @@ function canShowSingleBalanceStatus(balances: PatientBalanceRow['balancesByCurre
 
     return activeBalances.length > 0
         && (activeBalances.every((balance) => balance > 0) || activeBalances.every((balance) => balance < 0));
+}
+
+function hasMixedBalanceStatus(balances: PatientBalanceRow['balancesByCurrency']) {
+    const activeBalances = MONEY_CURRENCIES
+        .map((currency) => balances[currency].balance)
+        .filter((balance) => balance !== 0);
+
+    return activeBalances.some((balance) => balance > 0) && activeBalances.some((balance) => balance < 0);
+}
+
+function renderBalanceBreakdownWithStatusBadges(
+    balances: PatientBalanceRow['balancesByCurrency'],
+    t: TranslateFn
+) {
+    return (
+        <div className="flex flex-col gap-0.5 leading-tight">
+            {getVisibleBalanceLines(balances, 'balance').map(({ currency, amount, rawAmount }) => {
+                const summary = getNetBalanceSummary(rawAmount);
+
+                return (
+                    <span key={currency} className="flex flex-wrap items-center gap-1.5">
+                        <span className={`whitespace-nowrap tabular-nums ${summary.valueClassName}`}>
+                            {formatCurrency(amount, currency)}
+                        </span>
+                        {rawAmount !== 0 ? (
+                            <span className={`inline-flex items-center rounded-full border px-1.5 py-0.5 text-[10px] font-semibold leading-none ${summary.badgeClassName}`}>
+                                {t(summary.statusKey)}
+                            </span>
+                        ) : null}
+                    </span>
+                );
+            })}
+        </div>
+    );
 }
 
 function BalanceAmount({ balances }: { balances: PatientBalanceRow['balancesByCurrency'] }) {
@@ -913,8 +958,11 @@ export default function PaymentsPage() {
     const isExpensesLoading = expensesQuery.isLoading && !expensesQuery.data;
     const isExpenseFormPending = createExpenseMutation.isPending || updateExpenseMutation.isPending;
     const isEditingExpense = editingExpenseId !== null;
-    const netBalanceSummary = getNetBalanceSummary(getRepresentativeBalance(overallSummary.balancesByCurrency));
-    const shouldShowNetBalanceStatus = canShowSingleBalanceStatus(overallSummary.balancesByCurrency);
+    const hasMixedNetBalanceStatus = hasMixedBalanceStatus(overallSummary.balancesByCurrency);
+    const netBalanceSummary = hasMixedNetBalanceStatus
+        ? NET_BALANCE_SUMMARY_VARIANTS.mixed
+        : getNetBalanceSummary(getRepresentativeBalance(overallSummary.balancesByCurrency));
+    const shouldShowNetBalanceStatus = !hasMixedNetBalanceStatus && canShowSingleBalanceStatus(overallSummary.balancesByCurrency);
 
     return (
         <div className="space-y-5 lg:space-y-6">
@@ -1017,9 +1065,13 @@ export default function PaymentsPage() {
                                 </span>
                             ) : null}
                         </div>
-                        <p className={`mt-2 text-lg font-semibold leading-none tabular-nums ${netBalanceSummary.valueClassName}`}>
-                            {isAccountingLoading ? '...' : formatBalanceBreakdown(overallSummary.balancesByCurrency, 'balance')}
-                        </p>
+                        <div className={`mt-2 text-lg font-semibold leading-tight tabular-nums ${netBalanceSummary.valueClassName}`}>
+                            {isAccountingLoading
+                                ? '...'
+                                : hasMixedNetBalanceStatus
+                                    ? renderBalanceBreakdownWithStatusBadges(overallSummary.balancesByCurrency, t)
+                                    : formatBalanceBreakdown(overallSummary.balancesByCurrency, 'balance')}
+                        </div>
                         <p className={`mt-1 text-xs ${netBalanceSummary.hintClassName}`}>{t(netBalanceSummary.hintKey)}</p>
                     </div>
 

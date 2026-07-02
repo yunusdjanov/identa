@@ -94,6 +94,7 @@ type TreatmentCurrencyTotals = Record<ApiMoneyCurrency, {
     netBalance: number;
 }>;
 type TreatmentMoneyField = 'totalDebt' | 'totalPaid' | 'netBalance';
+type TranslateFn = ReturnType<typeof useI18n>['t'];
 
 const PatientPhotoPreviewDialog = dynamic(
     () => import('@/components/patients/patient-photo-preview-dialog').then((module) => module.PatientPhotoPreviewDialog),
@@ -352,6 +353,43 @@ function formatMoneyBreakdown(totals: TreatmentCurrencyTotals, field: TreatmentM
     return getVisibleMoneyLines(totals, field)
         .map(({ currency, amount }) => formatCurrency(amount, currency))
         .join(' / ');
+}
+
+function hasMixedCurrencyBalanceStatus(totals: TreatmentCurrencyTotals) {
+    const activeBalances = TREATMENT_CURRENCIES
+        .map((currency) => totals[currency].netBalance)
+        .filter((balance) => balance !== 0);
+
+    return activeBalances.some((balance) => balance > 0) && activeBalances.some((balance) => balance < 0);
+}
+
+function getInlineBalanceBadgeClassName(balance: number) {
+    if (balance < 0) {
+        return 'border-blue-200 bg-blue-50 text-blue-700';
+    }
+
+    if (balance > 0) {
+        return 'border-yellow-200 bg-yellow-50 text-yellow-700';
+    }
+
+    return 'border-slate-200 bg-slate-50 text-slate-600';
+}
+
+function renderMoneyBreakdownWithBalanceStatuses(totals: TreatmentCurrencyTotals, t: TranslateFn) {
+    return (
+        <div className="flex flex-col gap-0.5 whitespace-normal leading-tight">
+            {getVisibleMoneyLines(totals, 'netBalance').map(({ currency, amount, rawAmount }) => (
+                <span key={currency} className="flex flex-wrap items-center gap-1.5">
+                    <span className="whitespace-nowrap tabular-nums">{formatCurrency(amount, currency)}</span>
+                    {rawAmount !== 0 ? (
+                        <span className={`inline-flex items-center rounded-full border px-1.5 py-0.5 text-[10px] font-semibold leading-none ${getInlineBalanceBadgeClassName(rawAmount)}`}>
+                            {t(getBalanceStatusKey(rawAmount))}
+                        </span>
+                    ) : null}
+                </span>
+            ))}
+        </div>
+    );
 }
 
 function getMultiCurrencyBalanceTone(totals: TreatmentCurrencyTotals) {
@@ -753,6 +791,7 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
     }, [treatments, treatmentsQuery.data]);
     const netBalanceTone = getMultiCurrencyBalanceTone(summary.totalsByCurrency);
     const netBalanceStatusKey = getMultiCurrencyBalanceStatusKey(summary.totalsByCurrency);
+    const hasMixedNetBalanceStatus = hasMixedCurrencyBalanceStatus(summary.totalsByCurrency);
 
     const invalidateHistory = () => {
         queryClient.invalidateQueries({ queryKey: treatmentsQueryKey });
@@ -1821,9 +1860,11 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                         />
                         <MetricSummaryCard
                             label={t('patientHistory.netBalance')}
-                            value={formatMoneyBreakdown(summary.totalsByCurrency, 'netBalance')}
+                            value={hasMixedNetBalanceStatus
+                                ? renderMoneyBreakdownWithBalanceStatuses(summary.totalsByCurrency, t)
+                                : formatMoneyBreakdown(summary.totalsByCurrency, 'netBalance')}
                             tone={netBalanceTone}
-                            badge={netBalanceStatusKey ? t(netBalanceStatusKey) : undefined}
+                            badge={!hasMixedNetBalanceStatus && netBalanceStatusKey ? t(netBalanceStatusKey) : undefined}
                             badgeTone={netBalanceTone}
                             compact
                             gradient
