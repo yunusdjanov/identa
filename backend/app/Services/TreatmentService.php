@@ -185,7 +185,7 @@ class TreatmentService
 
         $actorId = $this->actorId($request);
         $treatment = Treatment::query()->create([
-            ...$this->payload($request->validated(), $request->user()),
+            ...$this->payload($request->validated(), $request->user(), true),
             'dentist_id' => $this->dentistId($request),
             'created_by_user_id' => $actorId,
             'updated_by_user_id' => $actorId,
@@ -222,7 +222,7 @@ class TreatmentService
             ]);
         }
 
-        $payload = $this->payload($request->validated(), $request->user());
+        $payload = $this->payload($request->validated(), $request->user(), false);
         $patientIdValue = (string) $patient->id;
         $dentistId = $this->dentistId($request);
         $actorId = $this->actorId($request);
@@ -494,7 +494,7 @@ class TreatmentService
      * @param  array<string, mixed>  $validated
      * @return array<string, mixed>
      */
-    private function payload(array $validated, ?User $actor = null): array
+    private function payload(array $validated, ?User $actor = null, bool $defaultMissingFinancials = false): array
     {
         $teeth = $this->normalizeTeeth($validated['teeth'] ?? null, $validated['tooth_number'] ?? null);
         $primaryTooth = $validated['tooth_number'] ?? ($teeth[0] ?? null);
@@ -528,16 +528,23 @@ class TreatmentService
         $canSetFinancials = $actor !== null
             && $actor->hasPermission(User::PERMISSION_PAYMENTS_VIEW);
         if ($canSetFinancials) {
-            $debtAmount = array_key_exists('debt_amount', $validated)
-                ? (float) $validated['debt_amount']
-                : (array_key_exists('cost', $validated) ? (float) $validated['cost'] : 0.0);
-            $paidAmount = array_key_exists('paid_amount', $validated)
-                ? (float) $validated['paid_amount']
-                : 0.0;
+            if ($defaultMissingFinancials || array_key_exists('debt_amount', $validated) || array_key_exists('cost', $validated)) {
+                $debtAmount = array_key_exists('debt_amount', $validated)
+                    ? (float) $validated['debt_amount']
+                    : (array_key_exists('cost', $validated) ? (float) $validated['cost'] : 0.0);
 
-            $payload['cost'] = number_format($debtAmount, 2, '.', '');
-            $payload['debt_amount'] = number_format($debtAmount, 2, '.', '');
-            $payload['paid_amount'] = number_format($paidAmount, 2, '.', '');
+                $payload['cost'] = number_format($debtAmount, 2, '.', '');
+                $payload['debt_amount'] = number_format($debtAmount, 2, '.', '');
+            }
+
+            if ($defaultMissingFinancials || array_key_exists('paid_amount', $validated)) {
+                $paidAmount = array_key_exists('paid_amount', $validated)
+                    ? (float) $validated['paid_amount']
+                    : 0.0;
+
+                $payload['paid_amount'] = number_format($paidAmount, 2, '.', '');
+            }
+
             if (array_key_exists('currency', $validated)) {
                 $payload['currency'] = strtoupper((string) $validated['currency']);
             }

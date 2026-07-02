@@ -1817,7 +1817,7 @@ components:
           type: number
         total_paid:
           type: number
-        balance:
+        total_balance:
           type: number
         outstanding_count:
           type: integer

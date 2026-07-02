@@ -128,6 +128,45 @@ class TreatmentFinancialGatingTest extends TestCase
             ]);
     }
 
+    public function test_payments_user_partial_update_preserves_financial_fields_when_omitted(): void
+    {
+        $dentist = User::factory()->create();
+        $patient = Patient::factory()->create(['dentist_id' => $dentist->id]);
+
+        $treatment = Treatment::factory()->create([
+            'dentist_id' => $dentist->id,
+            'patient_id' => $patient->id,
+            'treatment_type' => 'Implant',
+            'treatment_date' => '2026-03-07',
+            'debt_amount' => 900_000,
+            'paid_amount' => 250_000,
+            'currency' => Treatment::CURRENCY_USD,
+        ]);
+
+        $assistant = $this->makeAssistant($dentist, [
+            User::PERMISSION_PATIENTS_VIEW,
+            User::PERMISSION_PATIENTS_MANAGE,
+            User::PERMISSION_PAYMENTS_VIEW,
+            User::PERMISSION_PAYMENTS_MANAGE,
+        ]);
+
+        $this->actingAs($assistant, 'web')
+            ->putJson("/api/v1/patients/{$patient->id}/treatments/{$treatment->id}", [
+                'treatment_type' => 'Implant checkup',
+                'treatment_date' => '2026-03-08',
+                'teeth' => [24],
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.debt_amount', 900000)
+            ->assertJsonPath('data.paid_amount', 250000)
+            ->assertJsonPath('data.currency', Treatment::CURRENCY_USD);
+
+        $treatment->refresh();
+        $this->assertEquals(900_000, (float) $treatment->debt_amount);
+        $this->assertEquals(250_000, (float) $treatment->paid_amount);
+        $this->assertSame(Treatment::CURRENCY_USD, $treatment->currency);
+    }
+
     public function test_treatment_list_response_scrubs_financials_for_assistant_without_payments_view(): void
     {
         $dentist = User::factory()->create();

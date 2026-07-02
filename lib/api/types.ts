@@ -300,7 +300,6 @@ export interface ApiCurrencyTotals {
     total_debt: number;
     total_paid: number;
     total_balance: number;
-    totals_by_currency?: Partial<Record<ApiMoneyCurrency, ApiCurrencyTotals>>;
 }
 
 export interface ApiCurrencyBalance {
