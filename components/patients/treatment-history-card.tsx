@@ -73,6 +73,7 @@ const HISTORY_PAGE_SIZE = 10;
 const HISTORY_SORT = '-treatment_date,-created_at';
 const HISTORY_TIMELINE_IMAGE_TILE_CLASS = 'h-36 w-full min-w-0 lg:h-40';
 const HISTORY_TIMELINE_ADD_TILE_CLASS = 'h-36 w-full min-w-0 lg:h-40';
+const HISTORY_TIMELINE_EMPTY_ADD_TILE_CLASS = 'h-20 w-full min-w-0';
 const HISTORY_TIMELINE_IMAGE_COLUMN_WIDTH = '18.75rem';
 const HISTORY_TIMELINE_IMAGE_COLUMN_MIN_WIDTH = '10rem';
 const HISTORY_TIMELINE_ADD_COLUMN_WIDTH = '3.25rem';
@@ -586,7 +587,7 @@ function HistoryImageStrip({
     if (imageCount === 0) {
         return canAddImages ? (
             <div className="grid min-w-0 justify-start gap-2 pb-1" style={{ gridTemplateColumns: getHistoryImageGridTemplateColumns(0, true) }}>
-                <HistoryAddImageButton label={addImageLabel} onClick={onAddImage} />
+                <HistoryAddImageButton label={addImageLabel} onClick={onAddImage} compact />
             </div>
         ) : (
             <p className="text-xs font-medium text-slate-400">{emptyLabel}</p>
@@ -691,14 +692,16 @@ function HistoryTimelineImageButton({
 function HistoryAddImageButton({
     label,
     onClick,
+    compact = false,
 }: {
     label: string;
     onClick: () => void;
+    compact?: boolean;
 }) {
     return (
         <button
             type="button"
-            className={`group inline-flex ${HISTORY_TIMELINE_ADD_TILE_CLASS} items-center justify-center rounded-xl border border-dashed border-teal-200 bg-teal-50/60 text-teal-700 transition-all hover:border-teal-300 hover:bg-teal-50 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-1`}
+            className={`group inline-flex ${compact ? HISTORY_TIMELINE_EMPTY_ADD_TILE_CLASS : HISTORY_TIMELINE_ADD_TILE_CLASS} items-center justify-center rounded-xl border border-dashed border-teal-200 bg-teal-50/60 text-teal-700 transition-all hover:border-teal-300 hover:bg-teal-50 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-1`}
             onClick={onClick}
             aria-label={label}
             title={label}

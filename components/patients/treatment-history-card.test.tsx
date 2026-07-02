@@ -281,7 +281,8 @@ describe('TreatmentHistoryCard image controls', () => {
 
         expect(await screen.findByRole('heading', { name: 'No images' })).toBeInTheDocument();
         const uploadButton = screen.getByRole('button', { name: 'Upload' });
-        expect(uploadButton).toHaveClass('h-36', 'w-full', 'min-w-0', 'lg:h-40');
+        expect(uploadButton).toHaveClass('h-20', 'w-full', 'min-w-0');
+        expect(uploadButton).not.toHaveClass('h-36', 'lg:h-40');
         expect(uploadButton.parentElement).toHaveStyle({ gridTemplateColumns: '3.25rem' });
     });
 
