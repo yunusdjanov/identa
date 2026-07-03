@@ -140,6 +140,65 @@ function getRotatedSize(source: HTMLImageElement, rotation: number) {
     return getRotatedDimensions(source.naturalWidth || source.width || 1, source.naturalHeight || source.height || 1, rotation);
 }
 
+function isPointInsideRotatedImageDimensions(
+    sourceWidth: number,
+    sourceHeight: number,
+    rotation: number,
+    point: Point,
+    epsilon = 0.5
+): boolean {
+    const { width, height, naturalWidth, naturalHeight, normalizedRotation } = getRotatedDimensions(
+        sourceWidth,
+        sourceHeight,
+        rotation
+    );
+    const angle = (normalizedRotation * Math.PI) / 180;
+    const cos = Math.cos(angle);
+    const sin = Math.sin(angle);
+    const dx = point.x - width / 2;
+    const dy = point.y - height / 2;
+    const sourceX = dx * cos + dy * sin;
+    const sourceY = -dx * sin + dy * cos;
+
+    return (
+        Math.abs(sourceX) <= naturalWidth / 2 + epsilon
+        && Math.abs(sourceY) <= naturalHeight / 2 + epsilon
+    );
+}
+
+/** Checks whether a canvas-space point is inside the actual rotated source image. */
+export function isPointInsideRotatedImage(
+    sourceWidth: number,
+    sourceHeight: number,
+    rotation: number,
+    point: Point
+): boolean {
+    return isPointInsideRotatedImageDimensions(sourceWidth, sourceHeight, rotation, point);
+}
+
+/** Checks whether an axis-aligned crop rectangle stays inside the rotated source image. */
+export function isCropRectInsideRotatedImage(
+    sourceWidth: number,
+    sourceHeight: number,
+    rotation: number,
+    crop: CropRect
+): boolean {
+    if (crop.width < 1 || crop.height < 1) {
+        return false;
+    }
+
+    const right = crop.x + crop.width;
+    const bottom = crop.y + crop.height;
+    const corners = [
+        { x: crop.x, y: crop.y },
+        { x: right, y: crop.y },
+        { x: right, y: bottom },
+        { x: crop.x, y: bottom },
+    ];
+
+    return corners.every((corner) => isPointInsideRotatedImageDimensions(sourceWidth, sourceHeight, rotation, corner));
+}
+
 /**
  * Returns the largest centered crop rectangle that stays fully inside a rotated image.
  */

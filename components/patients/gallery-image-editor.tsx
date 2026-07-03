@@ -2,11 +2,20 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import type Konva from 'konva';
+import type { Box as KonvaTransformerBox } from 'konva/lib/shapes/Transformer';
 import { Image as KonvaImage, Layer, Line, Rect, Stage, Text as KonvaText, Transformer } from 'react-konva';
 import { useI18n } from '@/components/providers/i18n-provider';
 import { getApiErrorMessage } from '@/lib/api/client';
 import { GalleryImageEditorControls } from './gallery-image-editor-controls';
-import { createEditedImageFile, getSafeCropRectForRotation, loadEditableImage, normalizeRect, renderEditedCanvas } from './gallery-image-editor-canvas';
+import {
+    createEditedImageFile,
+    getSafeCropRectForRotation,
+    isCropRectInsideRotatedImage,
+    isPointInsideRotatedImage,
+    loadEditableImage,
+    normalizeRect,
+    renderEditedCanvas,
+} from './gallery-image-editor-canvas';
 import {
     DEFAULT_BRIGHTNESS,
     DEFAULT_CONTRAST,
@@ -135,20 +144,6 @@ function cropRectsEqual(left: CropRect, right: CropRect): boolean {
         && Math.abs(left.width - right.width) < 0.001
         && Math.abs(left.height - right.height) < 0.001
     );
-}
-
-function intersectCropRects(left: CropRect, right: CropRect): CropRect {
-    const x = Math.max(left.x, right.x);
-    const y = Math.max(left.y, right.y);
-    const rightEdge = Math.min(left.x + left.width, right.x + right.width);
-    const bottomEdge = Math.min(left.y + left.height, right.y + right.height);
-
-    return {
-        x,
-        y,
-        width: Math.max(0, rightEdge - x),
-        height: Math.max(0, bottomEdge - y),
-    };
 }
 
 function clampPointToRect(point: Point, rect: CropRect): Point {
@@ -299,15 +294,6 @@ export function GalleryImageEditor({ image, isSaving = false, onCancel, onSave }
         );
     }, [effectiveRotation, source, visibleRect]);
 
-    const cropInteractionBounds = useMemo<CropRect>(() => {
-        const intersection = intersectCropRects(visibleRect, fullSafeCropBounds);
-        if (intersection.width >= MIN_CROP_SIZE && intersection.height >= MIN_CROP_SIZE) {
-            return intersection;
-        }
-
-        return visibleRect;
-    }, [fullSafeCropBounds, visibleRect]);
-
     const stageMetrics = useMemo<StageMetrics>(() => {
         const scale = Math.min(
             viewportSize.width / Math.max(visibleRect.width, 1),
@@ -326,21 +312,6 @@ export function GalleryImageEditor({ image, isSaving = false, onCancel, onSave }
         x: (point.x - visibleRect.x) * stageMetrics.scale,
         y: (point.y - visibleRect.y) * stageMetrics.scale,
     }), [stageMetrics.scale, visibleRect.x, visibleRect.y]);
-
-    const stageCropBounds = useMemo<CropRect>(() => {
-        const stagePoint = basePointToStagePoint(cropInteractionBounds);
-
-        return {
-            x: stagePoint.x,
-            y: stagePoint.y,
-            width: cropInteractionBounds.width * stageMetrics.scale,
-            height: cropInteractionBounds.height * stageMetrics.scale,
-        };
-    }, [
-        basePointToStagePoint,
-        cropInteractionBounds,
-        stageMetrics.scale,
-    ]);
 
     const allStrokes = useMemo(() => (activeStroke ? [...strokes, activeStroke] : strokes), [activeStroke, strokes]);
 
@@ -366,6 +337,72 @@ export function GalleryImageEditor({ image, isSaving = false, onCancel, onSave }
         width: rect.width / Math.max(stageMetrics.scale, 0.001),
         height: rect.height / Math.max(stageMetrics.scale, 0.001),
     }), [stageMetrics.scale, visibleRect.x, visibleRect.y]);
+
+    const sourceDimensions = useMemo(() => ({
+        width: source?.naturalWidth || source?.width || 1,
+        height: source?.naturalHeight || source?.height || 1,
+    }), [source?.height, source?.naturalHeight, source?.naturalWidth, source?.width]);
+
+    const isBasePointInsideImage = useCallback((point: Point): boolean => {
+        if (!source) {
+            return true;
+        }
+
+        return isPointInsideRotatedImage(sourceDimensions.width, sourceDimensions.height, effectiveRotation, point);
+    }, [effectiveRotation, source, sourceDimensions.height, sourceDimensions.width]);
+
+    const isBaseCropInsideImage = useCallback((rect: CropRect): boolean => {
+        if (!source || rect.width < MIN_CROP_SIZE || rect.height < MIN_CROP_SIZE) {
+            return true;
+        }
+
+        return isCropRectInsideRotatedImage(sourceDimensions.width, sourceDimensions.height, effectiveRotation, rect);
+    }, [effectiveRotation, source, sourceDimensions.height, sourceDimensions.width]);
+
+    const resolveBaseCropRect = useCallback((candidate: CropRect, fallback: CropRect): CropRect => {
+        const clampedCandidate = clampCropRectToBounds(candidate, visibleRect, MIN_CROP_SIZE);
+        if (isBaseCropInsideImage(clampedCandidate)) {
+            return clampedCandidate;
+        }
+
+        const clampedFallback = clampCropRectToBounds(fallback, visibleRect, MIN_CROP_SIZE);
+        if (isBaseCropInsideImage(clampedFallback)) {
+            return clampedFallback;
+        }
+
+        return clampCropRectToBounds(fullSafeCropBounds, visibleRect, MIN_CROP_SIZE);
+    }, [fullSafeCropBounds, isBaseCropInsideImage, visibleRect]);
+
+    const stageCropBounds = useMemo<CropRect>(() => ({
+        x: 0,
+        y: 0,
+        width: stageMetrics.width,
+        height: stageMetrics.height,
+    }), [stageMetrics.height, stageMetrics.width]);
+
+    const resolveStageCropBox = useCallback((candidate: CropRect, fallback: CropRect): CropRect => {
+        const minimumStageSize = MIN_CROP_SIZE * stageMetrics.scale;
+        const nextStageRect = clampCropTransformBoxToBounds(candidate, stageCropBounds, minimumStageSize);
+        if (isBaseCropInsideImage(stageRectToBaseRect(nextStageRect))) {
+            return nextStageRect;
+        }
+
+        const fallbackStageRect = clampCropTransformBoxToBounds(fallback, stageCropBounds, minimumStageSize);
+        if (isBaseCropInsideImage(stageRectToBaseRect(fallbackStageRect))) {
+            return fallbackStageRect;
+        }
+
+        return baseRectToStageRect(resolveBaseCropRect(fullSafeCropBounds, visibleRect));
+    }, [
+        baseRectToStageRect,
+        fullSafeCropBounds,
+        isBaseCropInsideImage,
+        resolveBaseCropRect,
+        stageCropBounds,
+        stageMetrics.scale,
+        stageRectToBaseRect,
+        visibleRect,
+    ]);
 
     const pointerPosition = useCallback((): Point | null => {
         const position = stageRef.current?.getPointerPosition();
@@ -491,13 +528,13 @@ export function GalleryImageEditor({ image, isSaving = false, onCancel, onSave }
                 return current;
             }
 
-            const nextRect = clampCropRectToBounds(current, cropInteractionBounds, MIN_CROP_SIZE);
+            const nextRect = resolveBaseCropRect(current, current);
 
             return cropRectsEqual(current, nextRect) ? current : nextRect;
         });
     }, [
-        cropInteractionBounds,
         mode,
+        resolveBaseCropRect,
     ]);
 
     useEffect(() => {
@@ -531,18 +568,48 @@ export function GalleryImageEditor({ image, isSaving = false, onCancel, onSave }
             return;
         }
 
-        const minimumStageSize = MIN_CROP_SIZE * stageMetrics.scale;
-        const nextStageRect = clampCropTransformBoxToBounds({
+        const currentStageRect = {
             x: node.x(),
             y: node.y(),
-            width: Math.max(minimumStageSize, node.width() * node.scaleX()),
-            height: Math.max(minimumStageSize, node.height() * node.scaleY()),
-        }, stageCropBounds, minimumStageSize);
+            width: Math.max(MIN_CROP_SIZE * stageMetrics.scale, node.width() * node.scaleX()),
+            height: Math.max(MIN_CROP_SIZE * stageMetrics.scale, node.height() * node.scaleY()),
+        };
+        const nextStageRect = resolveStageCropBox(currentStageRect, currentStageRect);
 
+        node.x(nextStageRect.x);
+        node.y(nextStageRect.y);
+        node.width(nextStageRect.width);
+        node.height(nextStageRect.height);
         node.scaleX(1);
         node.scaleY(1);
         setDraftCropRect(stageRectToBaseRect(nextStageRect));
-    }, [stageCropBounds, stageMetrics.scale, stageRectToBaseRect]);
+    }, [resolveStageCropBox, stageMetrics.scale, stageRectToBaseRect]);
+
+    const constrainCropDragPosition = useCallback((position: Point, currentStageRect: CropRect): Point => {
+        const nextStageRect = resolveStageCropBox({
+            x: position.x,
+            y: position.y,
+            width: currentStageRect.width,
+            height: currentStageRect.height,
+        }, currentStageRect);
+
+        return { x: nextStageRect.x, y: nextStageRect.y };
+    }, [resolveStageCropBox]);
+
+    const constrainCropTransformBox = useCallback((oldBox: KonvaTransformerBox, newBox: KonvaTransformerBox): KonvaTransformerBox => {
+        const nextStageRect = resolveStageCropBox(newBox, oldBox);
+
+        return {
+            ...newBox,
+            ...nextStageRect,
+        };
+    }, [resolveStageCropBox]);
+
+    const initializeStraightenCrop = useCallback((current: CropRect | null): CropRect => {
+        const baseRect = current ?? fullSafeCropBounds;
+
+        return resolveBaseCropRect(baseRect, fullSafeCropBounds);
+    }, [fullSafeCropBounds, resolveBaseCropRect]);
 
     const clearDraftCrop = useCallback(() => {
         setDraftCropRect(null);
@@ -569,11 +636,11 @@ export function GalleryImageEditor({ image, isSaving = false, onCancel, onSave }
         }
 
         setDraftCropRect((current) => {
-            const nextRect = clampCropRectToBounds(current ?? cropInteractionBounds, cropInteractionBounds, MIN_CROP_SIZE);
+            const nextRect = initializeStraightenCrop(current);
 
             return current && cropRectsEqual(current, nextRect) ? current : nextRect;
         });
-    }, [cropInteractionBounds]);
+    }, [initializeStraightenCrop]);
 
     const startTextDraft = (basePoint: Point) => {
         commitTextDraft();
@@ -603,7 +670,11 @@ export function GalleryImageEditor({ image, isSaving = false, onCancel, onSave }
                 return;
             }
 
-            const cropStart = clampPointToRect(basePoint, cropInteractionBounds);
+            if (!isBasePointInsideImage(basePoint)) {
+                return;
+            }
+
+            const cropStart = clampPointToRect(basePoint, visibleRect);
             cropStartRef.current = cropStart;
             setDraftCropRect({ x: cropStart.x, y: cropStart.y, width: 0, height: 0 });
             event.evt.preventDefault();
@@ -640,7 +711,11 @@ export function GalleryImageEditor({ image, isSaving = false, onCancel, onSave }
         const basePoint = stagePointToBasePoint(stagePoint);
 
         if (mode === 'crop' && cropStartRef.current) {
-            setDraftCropRect(cropWithinVisibleRect(cropStartRef.current, basePoint, cropInteractionBounds));
+            setDraftCropRect((current) => {
+                const nextRect = cropWithinVisibleRect(cropStartRef.current as Point, basePoint, visibleRect);
+
+                return resolveBaseCropRect(nextRect, current ?? fullSafeCropBounds);
+            });
             event.evt.preventDefault();
             return;
         }
@@ -704,7 +779,7 @@ export function GalleryImageEditor({ image, isSaving = false, onCancel, onSave }
                 : textAnnotations;
             const selectedCropRect = isValidCropRect(draftCropRect) ? draftCropRect : cropRect;
             const safeCropRect = selectedCropRect
-                ? clampCropRectToBounds(selectedCropRect, fullSafeCropBounds, MIN_CROP_SIZE)
+                ? resolveBaseCropRect(selectedCropRect, fullSafeCropBounds)
                 : null;
             const effectiveCropRect = safeCropRect ?? (
                 straightenRotation === 0 ? null : clampCropRectToBounds(fullSafeCropBounds, fullSafeCropBounds, MIN_CROP_SIZE)
@@ -833,18 +908,7 @@ export function GalleryImageEditor({ image, isSaving = false, onCancel, onSave }
                                         stroke="#5eead4"
                                         strokeWidth={1.5}
                                         draggable={!isEditingDisabled}
-                                        dragBoundFunc={(position) => ({
-                                            x: clamp(
-                                                position.x,
-                                                stageCropBounds.x,
-                                                Math.max(stageCropBounds.x, stageCropBounds.x + stageCropBounds.width - stageCropRect.width)
-                                            ),
-                                            y: clamp(
-                                                position.y,
-                                                stageCropBounds.y,
-                                                Math.max(stageCropBounds.y, stageCropBounds.y + stageCropBounds.height - stageCropRect.height)
-                                            ),
-                                        })}
+                                        dragBoundFunc={(position) => constrainCropDragPosition(position, stageCropRect)}
                                         onMouseDown={(event) => {
                                             event.cancelBubble = true;
                                             cropStartRef.current = null;
@@ -869,13 +933,7 @@ export function GalleryImageEditor({ image, isSaving = false, onCancel, onSave }
                                         borderStroke="#5eead4"
                                         borderStrokeWidth={1.5}
                                         flipEnabled={false}
-                                        boundBoxFunc={(_oldBox, newBox) => {
-                                            const minimumStageSize = MIN_CROP_SIZE * stageMetrics.scale;
-                                            return {
-                                                ...newBox,
-                                                ...clampCropTransformBoxToBounds(newBox, stageCropBounds, minimumStageSize),
-                                            };
-                                        }}
+                                        boundBoxFunc={constrainCropTransformBox}
                                     />
                                 </>
                             ) : null}

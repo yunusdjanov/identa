@@ -140,7 +140,7 @@ export function GalleryImageEditorControls({
                 </div>
 
                 <div className="grid min-w-0 grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
-                    <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
+                    <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
                         {mode === 'crop' ? (
                             <div className="space-y-1.5">
                                 <Label className="text-xs font-semibold text-white/75">
@@ -159,78 +159,86 @@ export function GalleryImageEditorControls({
                                 />
                             </div>
                         ) : null}
-                        <div className="space-y-1.5">
-                            <Label className="text-xs font-semibold text-white/75">
-                                {t('gallery.edit.brightness')}: {brightness}%
-                            </Label>
-                            <input
-                                type="range"
-                                value={brightness}
-                                min={MIN_ADJUSTMENT_PERCENT}
-                                max={MAX_ADJUSTMENT_PERCENT}
-                                step={ADJUSTMENT_STEP_PERCENT}
-                                onChange={(event) => onBrightnessChange(Number(event.target.value))}
-                                disabled={isEditingDisabled}
-                                className="h-2 w-full cursor-pointer accent-teal-400 disabled:cursor-not-allowed disabled:opacity-50"
-                            />
-                        </div>
-                        <div className="space-y-1.5">
-                            <Label className="text-xs font-semibold text-white/75">
-                                {t('gallery.edit.contrast')}: {contrast}%
-                            </Label>
-                            <input
-                                type="range"
-                                value={contrast}
-                                min={MIN_ADJUSTMENT_PERCENT}
-                                max={MAX_ADJUSTMENT_PERCENT}
-                                step={ADJUSTMENT_STEP_PERCENT}
-                                onChange={(event) => onContrastChange(Number(event.target.value))}
-                                disabled={isEditingDisabled}
-                                className="h-2 w-full cursor-pointer accent-teal-400 disabled:cursor-not-allowed disabled:opacity-50"
-                            />
-                        </div>
-                        <div className="space-y-1.5">
-                            <Label className="text-xs font-semibold text-white/75">
-                                {t('gallery.edit.size')}: {mode === 'text' ? textSize : drawSize}
-                            </Label>
-                            <input
-                                type="range"
-                                value={mode === 'text' ? textSize : drawSize}
-                                min={mode === 'text' ? 18 : 2}
-                                max={mode === 'text' ? 72 : 18}
-                                step={1}
-                                onChange={(event) => {
-                                    const value = Number(event.target.value);
-                                    if (mode === 'text') {
-                                        onTextSizeChange(value);
-                                    } else {
-                                        onDrawSizeChange(value);
-                                    }
-                                }}
-                                disabled={isEditingDisabled || mode === 'crop' || mode === 'adjust'}
-                                className="h-2 w-full cursor-pointer accent-teal-400 disabled:cursor-not-allowed disabled:opacity-50"
-                            />
-                        </div>
-                        <div className="space-y-1.5">
-                            <Label className="text-xs font-semibold text-white/75">
-                                {t('gallery.edit.color')}
-                            </Label>
-                            <div className="flex gap-2">
-                                {COLOR_SWATCHES.map((color) => (
-                                    <button
-                                        key={color}
-                                        type="button"
-                                        onClick={() => onDrawColorChange(color)}
-                                        disabled={isEditingDisabled || mode === 'crop' || mode === 'adjust'}
-                                        className={`h-7 w-7 rounded-full border shadow-sm transition disabled:cursor-not-allowed disabled:opacity-50 ${
-                                            drawColor === color ? 'border-teal-300 ring-2 ring-teal-300' : 'border-white/30'
-                                        }`}
-                                        style={{ backgroundColor: color }}
-                                        aria-label={`${t('gallery.edit.color')} ${color}`}
+                        {mode === 'adjust' ? (
+                            <>
+                                <div className="space-y-1.5">
+                                    <Label className="text-xs font-semibold text-white/75">
+                                        {t('gallery.edit.brightness')}: {brightness}%
+                                    </Label>
+                                    <input
+                                        type="range"
+                                        value={brightness}
+                                        min={MIN_ADJUSTMENT_PERCENT}
+                                        max={MAX_ADJUSTMENT_PERCENT}
+                                        step={ADJUSTMENT_STEP_PERCENT}
+                                        onChange={(event) => onBrightnessChange(Number(event.target.value))}
+                                        disabled={isEditingDisabled}
+                                        className="h-2 w-full cursor-pointer accent-teal-400 disabled:cursor-not-allowed disabled:opacity-50"
                                     />
-                                ))}
-                            </div>
-                        </div>
+                                </div>
+                                <div className="space-y-1.5">
+                                    <Label className="text-xs font-semibold text-white/75">
+                                        {t('gallery.edit.contrast')}: {contrast}%
+                                    </Label>
+                                    <input
+                                        type="range"
+                                        value={contrast}
+                                        min={MIN_ADJUSTMENT_PERCENT}
+                                        max={MAX_ADJUSTMENT_PERCENT}
+                                        step={ADJUSTMENT_STEP_PERCENT}
+                                        onChange={(event) => onContrastChange(Number(event.target.value))}
+                                        disabled={isEditingDisabled}
+                                        className="h-2 w-full cursor-pointer accent-teal-400 disabled:cursor-not-allowed disabled:opacity-50"
+                                    />
+                                </div>
+                            </>
+                        ) : null}
+                        {(mode === 'draw' || mode === 'text') ? (
+                            <>
+                                <div className="space-y-1.5">
+                                    <Label className="text-xs font-semibold text-white/75">
+                                        {t('gallery.edit.size')}: {mode === 'text' ? textSize : drawSize}
+                                    </Label>
+                                    <input
+                                        type="range"
+                                        value={mode === 'text' ? textSize : drawSize}
+                                        min={mode === 'text' ? 18 : 2}
+                                        max={mode === 'text' ? 72 : 18}
+                                        step={1}
+                                        onChange={(event) => {
+                                            const value = Number(event.target.value);
+                                            if (mode === 'text') {
+                                                onTextSizeChange(value);
+                                            } else {
+                                                onDrawSizeChange(value);
+                                            }
+                                        }}
+                                        disabled={isEditingDisabled}
+                                        className="h-2 w-full cursor-pointer accent-teal-400 disabled:cursor-not-allowed disabled:opacity-50"
+                                    />
+                                </div>
+                                <div className="space-y-1.5">
+                                    <Label className="text-xs font-semibold text-white/75">
+                                        {t('gallery.edit.color')}
+                                    </Label>
+                                    <div className="flex gap-2">
+                                        {COLOR_SWATCHES.map((color) => (
+                                            <button
+                                                key={color}
+                                                type="button"
+                                                onClick={() => onDrawColorChange(color)}
+                                                disabled={isEditingDisabled}
+                                                className={`h-7 w-7 rounded-full border shadow-sm transition disabled:cursor-not-allowed disabled:opacity-50 ${
+                                                    drawColor === color ? 'border-teal-300 ring-2 ring-teal-300' : 'border-white/30'
+                                                }`}
+                                                style={{ backgroundColor: color }}
+                                                aria-label={`${t('gallery.edit.color')} ${color}`}
+                                            />
+                                        ))}
+                                    </div>
+                                </div>
+                            </>
+                        ) : null}
                     </div>
 
                     <div className="flex flex-wrap items-center gap-2">

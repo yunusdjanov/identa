@@ -3,6 +3,8 @@ import {
     clampCropRectToCanvas,
     drawCropOverlay,
     getSafeCropRectForRotation,
+    isCropRectInsideRotatedImage,
+    isPointInsideRotatedImage,
     renderEditedCanvas,
 } from '@/components/patients/gallery-image-editor-canvas';
 
@@ -117,6 +119,35 @@ describe('getSafeCropRectForRotation', () => {
         expect(crop.height).toBeGreaterThan(0);
         expect(crop.x + crop.width).toBeLessThanOrEqual(313);
         expect(crop.y + crop.height).toBeLessThanOrEqual(177);
+    });
+});
+
+describe('rotated image bounds', () => {
+    it('allows off-center crop rectangles when all corners are still inside the rotated image', () => {
+        const safeCrop = getSafeCropRectForRotation(300, 150, 30);
+        const offCenterCrop = {
+            x: safeCrop.x,
+            y: safeCrop.y - 20,
+            width: 40,
+            height: 24,
+        };
+
+        expect(offCenterCrop.y).toBeLessThan(safeCrop.y);
+        expect(isCropRectInsideRotatedImage(300, 150, 30, offCenterCrop)).toBe(true);
+    });
+
+    it('rejects crop rectangles that would include transparent rotation corners', () => {
+        expect(isCropRectInsideRotatedImage(300, 150, 30, {
+            x: 0,
+            y: 0,
+            width: 80,
+            height: 80,
+        })).toBe(false);
+    });
+
+    it('detects actual rotated-image hit targets instead of the full transparent canvas', () => {
+        expect(isPointInsideRotatedImage(300, 150, 30, { x: 1, y: 1 })).toBe(false);
+        expect(isPointInsideRotatedImage(300, 150, 30, { x: 167, y: 140 })).toBe(true);
     });
 });
 
