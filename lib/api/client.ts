@@ -9,6 +9,7 @@ const CLIENT_ERROR_MESSAGES: Record<AppLocale, Record<string, string>> = {
         'errors.forbidden': 'У вас нет доступа к этому действию.',
         'errors.accountInactive': 'Ваш аккаунт неактивен. Обратитесь к администратору.',
         'errors.unauthorized': 'Не удалось выполнить действие. Войдите снова.',
+        'errors.rateLimited': 'Слишком много попыток. Подождите немного и попробуйте снова.',
         'errors.network': 'Проблема с подключением. Проверьте сеть и повторите попытку.',
         'errors.server': 'Ошибка сервера. Повторите попытку позже.',
     },
@@ -17,6 +18,7 @@ const CLIENT_ERROR_MESSAGES: Record<AppLocale, Record<string, string>> = {
         'errors.forbidden': 'Bu amalni bajarish uchun ruxsat yo‘q.',
         'errors.accountInactive': "Akkauntingiz faol emas. Administrator bilan bog'laning.",
         'errors.unauthorized': 'Amalni bajarib bo‘lmadi. Qayta kiring.',
+        'errors.rateLimited': "Juda ko'p urinish bo'ldi. Biroz kutib, qayta urinib ko'ring.",
         'errors.network': "Ulanish bilan muammo. Tarmoqni tekshirib, qayta urinib ko'ring.",
         'errors.server': 'Server xatosi. Keyinroq qayta urinib ko‘ring.',
     },
@@ -30,6 +32,7 @@ const CLIENT_ERROR_MESSAGES: Record<AppLocale, Record<string, string>> = {
         'errors.plan_entry_image_limit_reached': 'This entry has reached the image limit for your plan.',
         'errors.plan_upload_size_exceeded': 'This file is larger than your current plan allows.',
         'errors.plan_feature_not_available': 'This feature is not available on your current plan.',
+        'errors.rateLimited': 'Too many attempts. Please wait a moment and try again.',
         'errors.network': 'Connection problem. Check your network and try again.',
         'errors.server': 'Server error. Please try again later.',
     },
@@ -567,6 +570,10 @@ export function getApiErrorMessage(error: unknown, fallback = 'Request failed.')
             return getLocalizedClientMessage('errors.sessionExpired', fallback);
         }
 
+        if (status === 429) {
+            return getLocalizedClientMessage('errors.rateLimited', fallback);
+        }
+
         if (nestedErrorCode === 'forbidden') {
             return getLocalizedClientMessage('errors.forbidden', fallback);
         }
@@ -625,6 +632,10 @@ export function getApiErrorMessage(error: unknown, fallback = 'Request failed.')
     }
 
     if (error instanceof Error) {
+        if (/too many attempts/i.test(error.message)) {
+            return getLocalizedClientMessage('errors.rateLimited', fallback);
+        }
+
         if (isGenericNetworkMessage(error.message)) {
             return getLocalizedClientMessage('errors.network', fallback);
         }

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent a
 import type Konva from 'konva';
 import { Image as KonvaImage, Layer, Line, Rect, Stage, Text as KonvaText, Transformer } from 'react-konva';
 import { useI18n } from '@/components/providers/i18n-provider';
+import { getApiErrorMessage } from '@/lib/api/client';
 import { GalleryImageEditorControls } from './gallery-image-editor-controls';
 import { createEditedImageFile, loadEditableImage, normalizeRect, renderEditedCanvas } from './gallery-image-editor-canvas';
 import {
@@ -201,6 +202,7 @@ export function GalleryImageEditor({ image, isSaving = false, onCancel, onSave }
     const cropTransformerRef = useRef<Konva.Transformer | null>(null);
     const activeStrokeRef = useRef<DrawStroke | null>(null);
     const cropStartRef = useRef<Point | null>(null);
+    const saveInFlightRef = useRef(false);
     const textInputRef = useRef<HTMLInputElement | null>(null);
     const textDraftRef = useRef<InlineTextDraft | null>(null);
     const textDraftIdRef = useRef(0);
@@ -555,10 +557,11 @@ export function GalleryImageEditor({ image, isSaving = false, onCancel, onSave }
     };
 
     const saveEditedImage = async () => {
-        if (!source) {
+        if (!source || saveInFlightRef.current) {
             return;
         }
 
+        saveInFlightRef.current = true;
         setError(null);
         setIsRendering(true);
         try {
@@ -584,9 +587,10 @@ export function GalleryImageEditor({ image, isSaving = false, onCancel, onSave }
                 setTextDraft(null);
             }
             await onSave(file);
-        } catch {
-            setError(t('gallery.edit.failed'));
+        } catch (caughtError) {
+            setError(getApiErrorMessage(caughtError, t('gallery.edit.failed')));
         } finally {
+            saveInFlightRef.current = false;
             setIsRendering(false);
         }
     };

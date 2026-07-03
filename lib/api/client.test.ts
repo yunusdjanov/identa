@@ -140,6 +140,26 @@ describe('getApiErrorMessage', () => {
         expect(getApiErrorMessage(error, 'Session expired fallback')).toBe('Your session expired. Please sign in again.');
     });
 
+    it('maps rate limit responses to a clear retry message', () => {
+        const error = new AxiosError(
+            'Request failed',
+            '429',
+            undefined,
+            undefined,
+            {
+                data: {
+                    message: 'Too Many Attempts.',
+                },
+                status: 429,
+                statusText: 'Too Many Requests',
+                headers: {},
+                config: {} as never,
+            }
+        );
+
+        expect(getApiErrorMessage(error, 'Friendly fallback')).toBe('Too many attempts. Please wait a moment and try again.');
+    });
+
     it('falls back for raw backend translation keys and generic network messages', () => {
         const rawKeyError = new AxiosError(
             'Request failed',

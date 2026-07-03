@@ -248,6 +248,39 @@ describe('GalleryImageEditor', () => {
         }));
     });
 
+    it('shows the real save failure reason from the replacement upload flow', async () => {
+        const user = userEvent.setup();
+        const onSave = vi.fn().mockRejectedValue(new Error('Edited photo is too large.'));
+        renderEditor(onSave);
+
+        const saveButton = await screen.findByRole('button', { name: 'Save' });
+        await waitFor(() => expect(saveButton).toBeEnabled());
+        await user.click(saveButton);
+
+        expect(onSave).toHaveBeenCalledWith(expect.any(File));
+        expect(await screen.findByText('Edited photo is too large.')).toBeInTheDocument();
+    });
+
+    it('keeps edited-photo save single-flight while the replacement upload is pending', async () => {
+        const user = userEvent.setup();
+        let resolveSave: () => void = () => undefined;
+        const onSave = vi.fn(() => new Promise<void>((resolve) => {
+            resolveSave = resolve;
+        }));
+        renderEditor(onSave);
+
+        const saveButton = await screen.findByRole('button', { name: 'Save' });
+        await waitFor(() => expect(saveButton).toBeEnabled());
+
+        await user.dblClick(saveButton);
+
+        expect(onSave).toHaveBeenCalledTimes(1);
+        expect(createEditedImageFileMock).toHaveBeenCalledTimes(1);
+
+        resolveSave();
+        await waitFor(() => expect(saveButton).toBeEnabled());
+    });
+
     it('uses a transformer-backed crop selection before applying it', async () => {
         const user = userEvent.setup();
         renderEditor();
