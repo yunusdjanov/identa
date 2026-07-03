@@ -8,9 +8,12 @@ import { Crop, MousePointer2, PenLine, RotateCcw, RotateCw, Save, Type, Undo2 } 
 import {
     ADJUSTMENT_STEP_PERCENT,
     COLOR_SWATCHES,
+    MAX_STRAIGHTEN_ROTATION_DEGREES,
     MAX_ADJUSTMENT_PERCENT,
+    MIN_STRAIGHTEN_ROTATION_DEGREES,
     MIN_ADJUSTMENT_PERCENT,
     MIN_CROP_SIZE,
+    STRAIGHTEN_ROTATION_STEP_DEGREES,
     type CropRect,
     type EditMode,
 } from './gallery-image-editor-types';
@@ -22,6 +25,8 @@ interface GalleryImageEditorControlsProps {
     onBrightnessChange: (value: number) => void;
     contrast: number;
     onContrastChange: (value: number) => void;
+    straightenRotation: number;
+    onStraightenRotationChange: (value: number) => void;
     drawSize: number;
     onDrawSizeChange: (value: number) => void;
     textSize: number;
@@ -88,6 +93,8 @@ export function GalleryImageEditorControls({
     onBrightnessChange,
     contrast,
     onContrastChange,
+    straightenRotation,
+    onStraightenRotationChange,
     drawSize,
     onDrawSizeChange,
     textSize,
@@ -134,6 +141,24 @@ export function GalleryImageEditorControls({
 
                 <div className="grid min-w-0 grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
                     <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
+                        {mode === 'crop' ? (
+                            <div className="space-y-1.5">
+                                <Label className="text-xs font-semibold text-white/75">
+                                    {t('gallery.edit.straighten')}: {straightenRotation}°
+                                </Label>
+                                <input
+                                    type="range"
+                                    aria-label={t('gallery.edit.straighten')}
+                                    value={straightenRotation}
+                                    min={MIN_STRAIGHTEN_ROTATION_DEGREES}
+                                    max={MAX_STRAIGHTEN_ROTATION_DEGREES}
+                                    step={STRAIGHTEN_ROTATION_STEP_DEGREES}
+                                    onChange={(event) => onStraightenRotationChange(Number(event.target.value))}
+                                    disabled={isEditingDisabled}
+                                    className="h-2 w-full cursor-pointer accent-teal-400 disabled:cursor-not-allowed disabled:opacity-50"
+                                />
+                            </div>
+                        ) : null}
                         <div className="space-y-1.5">
                             <Label className="text-xs font-semibold text-white/75">
                                 {t('gallery.edit.brightness')}: {brightness}%

@@ -334,6 +334,32 @@ describe('GalleryImageEditor', () => {
         }));
     });
 
+    it('keeps crop straighten exports inside safe image bounds', async () => {
+        const user = userEvent.setup();
+        renderEditor();
+
+        const cropModeButton = await screen.findByRole('button', { name: 'Crop' });
+        await waitFor(() => expect(cropModeButton).toBeEnabled());
+        await user.click(cropModeButton);
+
+        const straightenSlider = screen.getByRole('slider', { name: 'Straighten' });
+        fireEvent.change(straightenSlider, { target: { value: '5' } });
+        await user.click(screen.getByRole('button', { name: 'Save' }));
+
+        const editPayload = createEditedImageFileMock.mock.calls.at(-1)?.[0];
+        expect(editPayload).toEqual(expect.objectContaining({
+            rotation: 5,
+            cropRect: expect.objectContaining({
+                x: expect.any(Number),
+                y: expect.any(Number),
+                width: expect.any(Number),
+                height: expect.any(Number),
+            }),
+        }));
+        expect(editPayload.cropRect.x).toBeGreaterThan(0);
+        expect(editPayload.cropRect.y).toBeGreaterThan(0);
+    });
+
     it('clamps crop transformer resizes at image edges instead of rejecting them', () => {
         expect(clampCropTransformBox({ x: 260, y: 120, width: 90, height: 45 }, 300, 150, 16)).toEqual({
             x: 210,

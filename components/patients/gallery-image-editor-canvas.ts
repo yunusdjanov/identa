@@ -99,10 +99,10 @@ function canvasToBlob(canvas: HTMLCanvasElement): Promise<Blob> {
     });
 }
 
-function getRotatedSize(source: HTMLImageElement, rotation: number) {
+function getRotatedDimensions(rawWidth: number, rawHeight: number, rotation: number) {
     const normalizedRotation = normalizeRotation(rotation);
-    const naturalWidth = Math.max(1, Math.round(source.naturalWidth || source.width || 1));
-    const naturalHeight = Math.max(1, Math.round(source.naturalHeight || source.height || 1));
+    const naturalWidth = Math.max(1, Math.round(rawWidth || 1));
+    const naturalHeight = Math.max(1, Math.round(rawHeight || 1));
     if (normalizedRotation === 0 || normalizedRotation === 180) {
         return {
             width: naturalWidth,
@@ -133,6 +133,64 @@ function getRotatedSize(source: HTMLImageElement, rotation: number) {
         naturalWidth,
         naturalHeight,
         normalizedRotation,
+    };
+}
+
+function getRotatedSize(source: HTMLImageElement, rotation: number) {
+    return getRotatedDimensions(source.naturalWidth || source.width || 1, source.naturalHeight || source.height || 1, rotation);
+}
+
+/**
+ * Returns the largest centered crop rectangle that stays fully inside a rotated image.
+ */
+export function getSafeCropRectForRotation(sourceWidth: number, sourceHeight: number, rotation: number): CropRect {
+    const { width: canvasWidth, height: canvasHeight, naturalWidth, naturalHeight, normalizedRotation } = getRotatedDimensions(
+        sourceWidth,
+        sourceHeight,
+        rotation
+    );
+
+    if (normalizedRotation % 90 === 0) {
+        return { x: 0, y: 0, width: canvasWidth, height: canvasHeight };
+    }
+
+    const angle = (normalizedRotation * Math.PI) / 180;
+    const sin = Math.abs(Math.sin(angle));
+    const cos = Math.abs(Math.cos(angle));
+    const epsilon = 0.000001;
+
+    if (sin < epsilon || cos < epsilon) {
+        return { x: 0, y: 0, width: canvasWidth, height: canvasHeight };
+    }
+
+    const shortSide = Math.min(naturalWidth, naturalHeight);
+    const longSide = Math.max(naturalWidth, naturalHeight);
+    let safeWidth: number;
+    let safeHeight: number;
+
+    if (shortSide <= 2 * sin * cos * longSide) {
+        const halfShortSide = shortSide / 2;
+        if (naturalWidth >= naturalHeight) {
+            safeWidth = halfShortSide / sin;
+            safeHeight = halfShortSide / cos;
+        } else {
+            safeWidth = halfShortSide / cos;
+            safeHeight = halfShortSide / sin;
+        }
+    } else {
+        const cosDoubleAngle = cos * cos - sin * sin;
+        safeWidth = (naturalWidth * cos - naturalHeight * sin) / cosDoubleAngle;
+        safeHeight = (naturalHeight * cos - naturalWidth * sin) / cosDoubleAngle;
+    }
+
+    const width = clamp(Math.floor(Math.abs(safeWidth)), 1, canvasWidth);
+    const height = clamp(Math.floor(Math.abs(safeHeight)), 1, canvasHeight);
+
+    return {
+        x: Math.max(0, Math.round((canvasWidth - width) / 2)),
+        y: Math.max(0, Math.round((canvasHeight - height) / 2)),
+        width,
+        height,
     };
 }
 

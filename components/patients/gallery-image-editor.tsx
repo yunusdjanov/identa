@@ -6,7 +6,7 @@ import { Image as KonvaImage, Layer, Line, Rect, Stage, Text as KonvaText, Trans
 import { useI18n } from '@/components/providers/i18n-provider';
 import { getApiErrorMessage } from '@/lib/api/client';
 import { GalleryImageEditorControls } from './gallery-image-editor-controls';
-import { createEditedImageFile, loadEditableImage, normalizeRect, renderEditedCanvas } from './gallery-image-editor-canvas';
+import { createEditedImageFile, getSafeCropRectForRotation, loadEditableImage, normalizeRect, renderEditedCanvas } from './gallery-image-editor-canvas';
 import {
     DEFAULT_BRIGHTNESS,
     DEFAULT_CONTRAST,
@@ -14,8 +14,10 @@ import {
     DEFAULT_DRAW_SIZE,
     DEFAULT_TEXT_SIZE,
     MAX_MANUAL_ROTATION_DEGREES,
+    MAX_STRAIGHTEN_ROTATION_DEGREES,
     MIN_CROP_SIZE,
     MIN_MANUAL_ROTATION_DEGREES,
+    MIN_STRAIGHTEN_ROTATION_DEGREES,
     ROTATION_STEP_DEGREES,
     type CropRect,
     type DrawStroke,
@@ -126,13 +128,46 @@ function cropWithinVisibleRect(start: Point, end: Point, visibleRect: CropRect):
     };
 }
 
-function clampStageRect(rect: CropRect, stageWidth: number, stageHeight: number, minimumSize: number): CropRect {
-    const width = clamp(rect.width, minimumSize, stageWidth);
-    const height = clamp(rect.height, minimumSize, stageHeight);
+function cropRectsEqual(left: CropRect, right: CropRect): boolean {
+    return (
+        Math.abs(left.x - right.x) < 0.001
+        && Math.abs(left.y - right.y) < 0.001
+        && Math.abs(left.width - right.width) < 0.001
+        && Math.abs(left.height - right.height) < 0.001
+    );
+}
+
+function intersectCropRects(left: CropRect, right: CropRect): CropRect {
+    const x = Math.max(left.x, right.x);
+    const y = Math.max(left.y, right.y);
+    const rightEdge = Math.min(left.x + left.width, right.x + right.width);
+    const bottomEdge = Math.min(left.y + left.height, right.y + right.height);
 
     return {
-        x: clamp(rect.x, 0, Math.max(0, stageWidth - width)),
-        y: clamp(rect.y, 0, Math.max(0, stageHeight - height)),
+        x,
+        y,
+        width: Math.max(0, rightEdge - x),
+        height: Math.max(0, bottomEdge - y),
+    };
+}
+
+function clampPointToRect(point: Point, rect: CropRect): Point {
+    return {
+        x: clamp(point.x, rect.x, rect.x + rect.width),
+        y: clamp(point.y, rect.y, rect.y + rect.height),
+    };
+}
+
+function clampCropRectToBounds(rect: CropRect, bounds: CropRect, minimumSize: number): CropRect {
+    const safeBoundsWidth = Math.max(1, bounds.width);
+    const safeBoundsHeight = Math.max(1, bounds.height);
+    const safeMinimumSize = clamp(minimumSize, 1, Math.min(safeBoundsWidth, safeBoundsHeight));
+    const width = clamp(rect.width, safeMinimumSize, safeBoundsWidth);
+    const height = clamp(rect.height, safeMinimumSize, safeBoundsHeight);
+
+    return {
+        x: clamp(rect.x, bounds.x, Math.max(bounds.x, bounds.x + bounds.width - width)),
+        y: clamp(rect.y, bounds.y, Math.max(bounds.y, bounds.y + bounds.height - height)),
         width,
         height,
     };
@@ -157,8 +192,13 @@ export function clampCropTransformBox(
     stageHeight: number,
     minimumSize: number
 ): CropRect {
-    const safeStageWidth = Math.max(1, stageWidth);
-    const safeStageHeight = Math.max(1, stageHeight);
+    return clampCropTransformBoxToBounds(box, { x: 0, y: 0, width: stageWidth, height: stageHeight }, minimumSize);
+}
+
+/** Keeps transformer crop boxes inside the provided crop-safe boundary. */
+export function clampCropTransformBoxToBounds(box: CropRect, bounds: CropRect, minimumSize: number): CropRect {
+    const safeStageWidth = Math.max(1, bounds.width);
+    const safeStageHeight = Math.max(1, bounds.height);
     const safeMinimumSize = clamp(minimumSize, 1, Math.min(safeStageWidth, safeStageHeight));
     const rawWidth = Number.isFinite(box.width) ? box.width : safeMinimumSize;
     const rawHeight = Number.isFinite(box.height) ? box.height : safeMinimumSize;
@@ -168,8 +208,16 @@ export function clampCropTransformBox(
     const height = clamp(Math.abs(rawHeight), safeMinimumSize, safeStageHeight);
 
     return {
-        x: clamp(Number.isFinite(normalizedX) ? normalizedX : 0, 0, Math.max(0, safeStageWidth - width)),
-        y: clamp(Number.isFinite(normalizedY) ? normalizedY : 0, 0, Math.max(0, safeStageHeight - height)),
+        x: clamp(
+            Number.isFinite(normalizedX) ? normalizedX : bounds.x,
+            bounds.x,
+            Math.max(bounds.x, bounds.x + bounds.width - width)
+        ),
+        y: clamp(
+            Number.isFinite(normalizedY) ? normalizedY : bounds.y,
+            bounds.y,
+            Math.max(bounds.y, bounds.y + bounds.height - height)
+        ),
         width,
         height,
     };
@@ -211,6 +259,7 @@ export function GalleryImageEditor({ image, isSaving = false, onCancel, onSave }
     const [previewCanvas, setPreviewCanvas] = useState<HTMLCanvasElement | null>(null);
     const [mode, setMode] = useState<EditMode>('adjust');
     const [rotation, setRotation] = useState(0);
+    const [straightenRotation, setStraightenRotation] = useState(0);
     const [brightness, setBrightness] = useState(DEFAULT_BRIGHTNESS);
     const [contrast, setContrast] = useState(DEFAULT_CONTRAST);
     const [cropRect, setCropRect] = useState<CropRect | null>(null);
@@ -226,6 +275,10 @@ export function GalleryImageEditor({ image, isSaving = false, onCancel, onSave }
     const [error, setError] = useState<string | null>(null);
     const isSaveBusy = isSaving || isRendering;
     const isEditingDisabled = isSaveBusy || !source || !previewCanvas;
+    const effectiveRotation = useMemo(
+        () => normalizeRotationStep(rotation + straightenRotation),
+        [rotation, straightenRotation]
+    );
 
     const visibleRect = useMemo<CropRect>(() => ({
         x: cropRect?.x ?? 0,
@@ -233,6 +286,27 @@ export function GalleryImageEditor({ image, isSaving = false, onCancel, onSave }
         width: previewCanvas?.width ?? source?.naturalWidth ?? 1,
         height: previewCanvas?.height ?? source?.naturalHeight ?? 1,
     }), [cropRect?.x, cropRect?.y, previewCanvas?.height, previewCanvas?.width, source?.naturalHeight, source?.naturalWidth]);
+
+    const fullSafeCropBounds = useMemo<CropRect>(() => {
+        if (!source) {
+            return visibleRect;
+        }
+
+        return getSafeCropRectForRotation(
+            source.naturalWidth || source.width || 1,
+            source.naturalHeight || source.height || 1,
+            effectiveRotation
+        );
+    }, [effectiveRotation, source, visibleRect]);
+
+    const cropInteractionBounds = useMemo<CropRect>(() => {
+        const intersection = intersectCropRects(visibleRect, fullSafeCropBounds);
+        if (intersection.width >= MIN_CROP_SIZE && intersection.height >= MIN_CROP_SIZE) {
+            return intersection;
+        }
+
+        return visibleRect;
+    }, [fullSafeCropBounds, visibleRect]);
 
     const stageMetrics = useMemo<StageMetrics>(() => {
         const scale = Math.min(
@@ -248,12 +322,27 @@ export function GalleryImageEditor({ image, isSaving = false, onCancel, onSave }
         };
     }, [visibleRect.height, visibleRect.width, viewportSize.height, viewportSize.width]);
 
-    const allStrokes = useMemo(() => (activeStroke ? [...strokes, activeStroke] : strokes), [activeStroke, strokes]);
-
     const basePointToStagePoint = useCallback((point: Point): Point => ({
         x: (point.x - visibleRect.x) * stageMetrics.scale,
         y: (point.y - visibleRect.y) * stageMetrics.scale,
     }), [stageMetrics.scale, visibleRect.x, visibleRect.y]);
+
+    const stageCropBounds = useMemo<CropRect>(() => {
+        const stagePoint = basePointToStagePoint(cropInteractionBounds);
+
+        return {
+            x: stagePoint.x,
+            y: stagePoint.y,
+            width: cropInteractionBounds.width * stageMetrics.scale,
+            height: cropInteractionBounds.height * stageMetrics.scale,
+        };
+    }, [
+        basePointToStagePoint,
+        cropInteractionBounds,
+        stageMetrics.scale,
+    ]);
+
+    const allStrokes = useMemo(() => (activeStroke ? [...strokes, activeStroke] : strokes), [activeStroke, strokes]);
 
     const stagePointToBasePoint = useCallback((point: Point): Point => ({
         x: point.x / Math.max(stageMetrics.scale, 0.001) + visibleRect.x,
@@ -376,7 +465,7 @@ export function GalleryImageEditor({ image, isSaving = false, onCancel, onSave }
             renderEditedCanvas({
                 canvas,
                 source,
-                rotation,
+                rotation: effectiveRotation,
                 brightness,
                 contrast,
                 cropRect,
@@ -389,7 +478,26 @@ export function GalleryImageEditor({ image, isSaving = false, onCancel, onSave }
             setPreviewCanvas(null);
             setError(t('gallery.edit.failed'));
         }
-    }, [brightness, contrast, cropRect, rotation, source, t]);
+    }, [brightness, contrast, cropRect, effectiveRotation, source, t]);
+
+    useEffect(() => {
+        if (mode !== 'crop') {
+            return;
+        }
+
+        setDraftCropRect((current) => {
+            if (!current) {
+                return current;
+            }
+
+            const nextRect = clampCropRectToBounds(current, cropInteractionBounds, MIN_CROP_SIZE);
+
+            return cropRectsEqual(current, nextRect) ? current : nextRect;
+        });
+    }, [
+        cropInteractionBounds,
+        mode,
+    ]);
 
     useEffect(() => {
         if (mode !== 'crop' || !draftCropRect || !cropRectRef.current || !cropTransformerRef.current) {
@@ -403,6 +511,7 @@ export function GalleryImageEditor({ image, isSaving = false, onCancel, onSave }
 
     const reset = () => {
         setRotation(0);
+        setStraightenRotation(0);
         setBrightness(DEFAULT_BRIGHTNESS);
         setContrast(DEFAULT_CONTRAST);
         setCropRect(null);
@@ -422,17 +531,17 @@ export function GalleryImageEditor({ image, isSaving = false, onCancel, onSave }
         }
 
         const minimumStageSize = MIN_CROP_SIZE * stageMetrics.scale;
-        const nextStageRect = clampStageRect({
+        const nextStageRect = clampCropTransformBoxToBounds({
             x: node.x(),
             y: node.y(),
             width: Math.max(minimumStageSize, node.width() * node.scaleX()),
             height: Math.max(minimumStageSize, node.height() * node.scaleY()),
-        }, stageMetrics.width, stageMetrics.height, minimumStageSize);
+        }, stageCropBounds, minimumStageSize);
 
         node.scaleX(1);
         node.scaleY(1);
         setDraftCropRect(stageRectToBaseRect(nextStageRect));
-    }, [stageMetrics.height, stageMetrics.scale, stageMetrics.width, stageRectToBaseRect]);
+    }, [stageCropBounds, stageMetrics.scale, stageRectToBaseRect]);
 
     const clearDraftCrop = useCallback(() => {
         setDraftCropRect(null);
@@ -441,8 +550,29 @@ export function GalleryImageEditor({ image, isSaving = false, onCancel, onSave }
 
     const rotateBy = useCallback((degrees: number) => {
         clearDraftCrop();
+        setStraightenRotation(0);
         setRotation((value) => normalizeRotationStep(value + degrees));
     }, [clearDraftCrop]);
+
+    const updateStraightenRotation = useCallback((value: number) => {
+        const nextValue = clamp(
+            Math.round(Number.isFinite(value) ? value : 0),
+            MIN_STRAIGHTEN_ROTATION_DEGREES,
+            MAX_STRAIGHTEN_ROTATION_DEGREES
+        );
+
+        cropStartRef.current = null;
+        setStraightenRotation(nextValue);
+        if (nextValue === 0) {
+            return;
+        }
+
+        setDraftCropRect((current) => {
+            const nextRect = clampCropRectToBounds(current ?? cropInteractionBounds, cropInteractionBounds, MIN_CROP_SIZE);
+
+            return current && cropRectsEqual(current, nextRect) ? current : nextRect;
+        });
+    }, [cropInteractionBounds]);
 
     const startTextDraft = (basePoint: Point) => {
         commitTextDraft();
@@ -472,8 +602,9 @@ export function GalleryImageEditor({ image, isSaving = false, onCancel, onSave }
                 return;
             }
 
-            cropStartRef.current = basePoint;
-            setDraftCropRect({ x: basePoint.x, y: basePoint.y, width: 0, height: 0 });
+            const cropStart = clampPointToRect(basePoint, cropInteractionBounds);
+            cropStartRef.current = cropStart;
+            setDraftCropRect({ x: cropStart.x, y: cropStart.y, width: 0, height: 0 });
             event.evt.preventDefault();
             return;
         }
@@ -508,7 +639,7 @@ export function GalleryImageEditor({ image, isSaving = false, onCancel, onSave }
         const basePoint = stagePointToBasePoint(stagePoint);
 
         if (mode === 'crop' && cropStartRef.current) {
-            setDraftCropRect(cropWithinVisibleRect(cropStartRef.current, basePoint, visibleRect));
+            setDraftCropRect(cropWithinVisibleRect(cropStartRef.current, basePoint, cropInteractionBounds));
             event.evt.preventDefault();
             return;
         }
@@ -570,11 +701,17 @@ export function GalleryImageEditor({ image, isSaving = false, onCancel, onSave }
             const committedTextAnnotations = pendingTextAnnotation
                 ? [...textAnnotations, pendingTextAnnotation]
                 : textAnnotations;
-            const effectiveCropRect = isValidCropRect(draftCropRect) ? draftCropRect : cropRect;
+            const selectedCropRect = isValidCropRect(draftCropRect) ? draftCropRect : cropRect;
+            const safeCropRect = selectedCropRect
+                ? clampCropRectToBounds(selectedCropRect, fullSafeCropBounds, MIN_CROP_SIZE)
+                : null;
+            const effectiveCropRect = safeCropRect ?? (
+                straightenRotation === 0 ? null : clampCropRectToBounds(fullSafeCropBounds, fullSafeCropBounds, MIN_CROP_SIZE)
+            );
             const file = await createEditedImageFile({
                 source,
                 image,
-                rotation,
+                rotation: effectiveRotation,
                 brightness,
                 contrast,
                 cropRect: effectiveCropRect,
@@ -696,8 +833,16 @@ export function GalleryImageEditor({ image, isSaving = false, onCancel, onSave }
                                         strokeWidth={1.5}
                                         draggable={!isEditingDisabled}
                                         dragBoundFunc={(position) => ({
-                                            x: clamp(position.x, 0, Math.max(0, stageMetrics.width - stageCropRect.width)),
-                                            y: clamp(position.y, 0, Math.max(0, stageMetrics.height - stageCropRect.height)),
+                                            x: clamp(
+                                                position.x,
+                                                stageCropBounds.x,
+                                                Math.max(stageCropBounds.x, stageCropBounds.x + stageCropBounds.width - stageCropRect.width)
+                                            ),
+                                            y: clamp(
+                                                position.y,
+                                                stageCropBounds.y,
+                                                Math.max(stageCropBounds.y, stageCropBounds.y + stageCropBounds.height - stageCropRect.height)
+                                            ),
                                         })}
                                         onMouseDown={(event) => {
                                             event.cancelBubble = true;
@@ -727,7 +872,7 @@ export function GalleryImageEditor({ image, isSaving = false, onCancel, onSave }
                                             const minimumStageSize = MIN_CROP_SIZE * stageMetrics.scale;
                                             return {
                                                 ...newBox,
-                                                ...clampCropTransformBox(newBox, stageMetrics.width, stageMetrics.height, minimumStageSize),
+                                                ...clampCropTransformBoxToBounds(newBox, stageCropBounds, minimumStageSize),
                                             };
                                         }}
                                     />
@@ -784,6 +929,8 @@ export function GalleryImageEditor({ image, isSaving = false, onCancel, onSave }
                 onBrightnessChange={setBrightness}
                 contrast={contrast}
                 onContrastChange={setContrast}
+                straightenRotation={straightenRotation}
+                onStraightenRotationChange={updateStraightenRotation}
                 drawSize={drawSize}
                 onDrawSizeChange={setDrawSize}
                 textSize={textSize}

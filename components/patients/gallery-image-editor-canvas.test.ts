@@ -1,5 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
-import { clampCropRectToCanvas, drawCropOverlay, renderEditedCanvas } from '@/components/patients/gallery-image-editor-canvas';
+import {
+    clampCropRectToCanvas,
+    drawCropOverlay,
+    getSafeCropRectForRotation,
+    renderEditedCanvas,
+} from '@/components/patients/gallery-image-editor-canvas';
 
 function createMockCanvas(): HTMLCanvasElement {
     const context = {
@@ -84,6 +89,28 @@ describe('drawCropOverlay', () => {
         expect(fillRect).toHaveBeenCalledWith(0, 10, 20, 40);
         expect(fillRect).toHaveBeenCalledWith(50, 10, 50, 40);
         expect(strokeRect).toHaveBeenCalledWith(20, 10, 30, 40);
+    });
+});
+
+describe('getSafeCropRectForRotation', () => {
+    it('keeps right-angle rotations uncropped', () => {
+        expect(getSafeCropRectForRotation(300, 150, 90)).toEqual({
+            x: 0,
+            y: 0,
+            width: 150,
+            height: 300,
+        });
+    });
+
+    it('returns a centered inset crop for straighten rotations', () => {
+        const crop = getSafeCropRectForRotation(300, 150, 5);
+
+        expect(crop.x).toBeGreaterThan(0);
+        expect(crop.y).toBeGreaterThan(0);
+        expect(crop.width).toBeGreaterThan(0);
+        expect(crop.height).toBeGreaterThan(0);
+        expect(crop.x + crop.width).toBeLessThanOrEqual(313);
+        expect(crop.y + crop.height).toBeLessThanOrEqual(177);
     });
 });
 
