@@ -6,7 +6,7 @@ import {
     renderEditedCanvas,
 } from '@/components/patients/gallery-image-editor-canvas';
 
-function createMockCanvas(): HTMLCanvasElement {
+function createMockCanvasWithContext() {
     const context = {
         beginPath: vi.fn(),
         clearRect: vi.fn(),
@@ -31,11 +31,17 @@ function createMockCanvas(): HTMLCanvasElement {
         set textBaseline(_value: CanvasTextBaseline) {},
     } as unknown as CanvasRenderingContext2D;
 
-    return {
+    const canvas = {
         width: 0,
         height: 0,
         getContext: vi.fn(() => context),
     } as unknown as HTMLCanvasElement;
+
+    return { canvas, context };
+}
+
+function createMockCanvas(): HTMLCanvasElement {
+    return createMockCanvasWithContext().canvas;
 }
 
 describe('clampCropRectToCanvas', () => {
@@ -208,5 +214,42 @@ describe('renderEditedCanvas', () => {
         createElementSpy.mockRestore();
         expect(outputCanvas.width).toBe(1);
         expect(outputCanvas.height).toBe(1);
+    });
+
+    it('can render transparent previews without white rotation corners', () => {
+        const { canvas: outputCanvas, context: outputContext } = createMockCanvasWithContext();
+        const { canvas: internalCanvas, context: internalContext } = createMockCanvasWithContext();
+        const source = {
+            naturalWidth: 100,
+            naturalHeight: 50,
+            width: 100,
+            height: 50,
+        } as HTMLImageElement;
+        const originalCreateElement = document.createElement.bind(document);
+        const createElementSpy = vi.spyOn(document, 'createElement').mockImplementation((
+            (tagName: string, options?: ElementCreationOptions) => {
+                if (tagName.toLowerCase() === 'canvas') {
+                    return internalCanvas;
+                }
+
+                return originalCreateElement(tagName, options);
+            }
+        ) as typeof document.createElement);
+
+        renderEditedCanvas({
+            canvas: outputCanvas,
+            source,
+            rotation: 30,
+            brightness: 100,
+            contrast: 100,
+            cropRect: null,
+            strokes: [],
+            textAnnotations: [],
+            backgroundColor: null,
+        });
+
+        createElementSpy.mockRestore();
+        expect(internalContext.fillRect).not.toHaveBeenCalled();
+        expect(outputContext.fillRect).not.toHaveBeenCalled();
     });
 });

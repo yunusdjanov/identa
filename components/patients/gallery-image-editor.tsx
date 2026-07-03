@@ -472,6 +472,7 @@ export function GalleryImageEditor({ image, isSaving = false, onCancel, onSave }
                 draftCropRect: null,
                 strokes: [],
                 textAnnotations: [],
+                backgroundColor: null,
             });
             setPreviewCanvas(canvas);
         } catch {

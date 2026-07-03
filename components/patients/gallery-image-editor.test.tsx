@@ -343,12 +343,14 @@ describe('GalleryImageEditor', () => {
         await user.click(cropModeButton);
 
         const straightenSlider = screen.getByRole('slider', { name: 'Straighten' });
-        fireEvent.change(straightenSlider, { target: { value: '5' } });
+        expect(straightenSlider).toHaveAttribute('min', '-45');
+        expect(straightenSlider).toHaveAttribute('max', '45');
+        fireEvent.change(straightenSlider, { target: { value: '30' } });
         await user.click(screen.getByRole('button', { name: 'Save' }));
 
         const editPayload = createEditedImageFileMock.mock.calls.at(-1)?.[0];
         expect(editPayload).toEqual(expect.objectContaining({
-            rotation: 5,
+            rotation: 30,
             cropRect: expect.objectContaining({
                 x: expect.any(Number),
                 y: expect.any(Number),
@@ -358,6 +360,14 @@ describe('GalleryImageEditor', () => {
         }));
         expect(editPayload.cropRect.x).toBeGreaterThan(0);
         expect(editPayload.cropRect.y).toBeGreaterThan(0);
+    });
+
+    it('renders editor previews with a transparent background', async () => {
+        renderEditor();
+
+        await waitFor(() => expect(renderEditedCanvasMock).toHaveBeenCalledWith(expect.objectContaining({
+            backgroundColor: null,
+        })));
     });
 
     it('clamps crop transformer resizes at image edges instead of rejecting them', () => {

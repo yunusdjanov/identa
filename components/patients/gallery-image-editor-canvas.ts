@@ -198,7 +198,8 @@ function drawRotatedBase(
     source: HTMLImageElement,
     rotation: number,
     brightness: number,
-    contrast: number
+    contrast: number,
+    backgroundColor: string | null
 ): HTMLCanvasElement {
     const { width, height, naturalWidth, naturalHeight, normalizedRotation } = getRotatedSize(source, rotation);
     const canvas = document.createElement('canvas');
@@ -211,8 +212,10 @@ function drawRotatedBase(
     }
 
     context.save();
-    context.fillStyle = '#ffffff';
-    context.fillRect(0, 0, width, height);
+    if (backgroundColor) {
+        context.fillStyle = backgroundColor;
+        context.fillRect(0, 0, width, height);
+    }
     context.filter = `brightness(${brightness}%) contrast(${contrast}%)`;
 
     context.translate(width / 2, height / 2);
@@ -281,6 +284,7 @@ export function renderEditedCanvas({
     draftCropRect,
     strokes,
     textAnnotations,
+    backgroundColor = '#f8fafc',
 }: {
     canvas: HTMLCanvasElement;
     source: HTMLImageElement;
@@ -291,6 +295,7 @@ export function renderEditedCanvas({
     draftCropRect?: CropRect | null;
     strokes: DrawStroke[];
     textAnnotations: TextAnnotation[];
+    backgroundColor?: string | null;
 }) {
     let context: CanvasRenderingContext2D | null = null;
     try {
@@ -302,7 +307,7 @@ export function renderEditedCanvas({
         throw new Error('Canvas is unavailable.');
     }
 
-    const base = drawRotatedBase(source, rotation, brightness, contrast);
+    const base = drawRotatedBase(source, rotation, brightness, contrast, backgroundColor);
     const crop = clampCropRectToCanvas(cropRect, base.width, base.height);
     canvas.width = Math.max(1, Math.round(crop.width));
     canvas.height = Math.max(1, Math.round(crop.height));
@@ -313,8 +318,10 @@ export function renderEditedCanvas({
     }
 
     context.clearRect(0, 0, canvas.width, canvas.height);
-    context.fillStyle = '#f8fafc';
-    context.fillRect(0, 0, canvas.width, canvas.height);
+    if (backgroundColor) {
+        context.fillStyle = backgroundColor;
+        context.fillRect(0, 0, canvas.width, canvas.height);
+    }
     context.drawImage(base, crop.x, crop.y, crop.width, crop.height, 0, 0, canvas.width, canvas.height);
     context.save();
     context.translate(-crop.x, -crop.y);
