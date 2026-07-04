@@ -42,7 +42,6 @@ import {
     Edit,
     FileText,
     Hash,
-    Info,
     Loader2,
     MapPin,
     Maximize2,
@@ -50,7 +49,6 @@ import {
     Pill,
     Plus,
     Trash2,
-    User,
     Wallet,
 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -115,20 +113,6 @@ function getPatientInitials(fullName: string): string {
     }
 
     return `${parts[0][0] ?? ''}${parts[1][0] ?? ''}`.toUpperCase();
-}
-
-function computePatientAge(dateOfBirth: string): number {
-    const birth = new Date(dateOfBirth);
-    if (Number.isNaN(birth.getTime())) {
-        return 0;
-    }
-    const today = new Date();
-    let age = today.getFullYear() - birth.getFullYear();
-    const monthDiff = today.getMonth() - birth.getMonth();
-    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
-        age--;
-    }
-    return Math.max(0, age);
 }
 
 function getOverviewBalanceLines(overview: {
@@ -259,34 +243,79 @@ function VitalStatCell({
     );
 }
 
-function BasicInfoCell({
+type PatientHeaderFactTone = 'teal' | 'rose' | 'amber' | 'slate' | 'sky';
+
+const PATIENT_HEADER_FACT_TONE_CLASSES: Record<PatientHeaderFactTone, { icon: string; value: string; box: string }> = {
+    teal: {
+        icon: 'bg-teal-50 text-teal-600 ring-teal-100',
+        value: 'text-slate-900',
+        box: 'bg-white/70',
+    },
+    rose: {
+        icon: 'bg-rose-50 text-rose-600 ring-rose-100',
+        value: 'text-rose-900',
+        box: 'bg-rose-50/45',
+    },
+    amber: {
+        icon: 'bg-amber-50 text-amber-600 ring-amber-100',
+        value: 'text-amber-950',
+        box: 'bg-amber-50/45',
+    },
+    slate: {
+        icon: 'bg-slate-100 text-slate-500 ring-slate-200/80',
+        value: 'text-slate-800',
+        box: 'bg-white/65',
+    },
+    sky: {
+        icon: 'bg-sky-50 text-sky-600 ring-sky-100',
+        value: 'text-slate-900',
+        box: 'bg-white/70',
+    },
+};
+
+function PatientHeaderDivider() {
+    return <span aria-hidden="true" className="hidden h-8 w-px shrink-0 bg-slate-200/80 lg:block" />;
+}
+
+function PatientHeaderFact({
     icon: Icon,
     label,
-    children,
+    value,
+    title,
+    tone = 'slate',
+    className = '',
+    valueClassName = '',
 }: {
     icon: React.ComponentType<{ className?: string }>;
     label: string;
-    children: React.ReactNode;
+    value: React.ReactNode;
+    title?: string;
+    tone?: PatientHeaderFactTone;
+    className?: string;
+    valueClassName?: string;
 }) {
+    const toneClasses = PATIENT_HEADER_FACT_TONE_CLASSES[tone];
+
     return (
-        <div className="flex min-w-0 gap-2.5 px-1 py-0.5">
-            <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-teal-50 text-teal-600 ring-1 ring-teal-100/80">
-                <Icon className="h-3.5 w-3.5" />
+        <div className={`flex min-w-0 items-center gap-2 rounded-xl px-2 py-1.5 ${toneClasses.box} ${className}`}>
+            <span
+                className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ring-1 ${toneClasses.icon}`}
+                title={label}
+            >
+                <Icon className="h-3.5 w-3.5" aria-hidden="true" />
+                <span className="sr-only">{label}</span>
             </span>
-            <div className="min-w-0 flex-1">
-                <p className="text-[9px] font-bold uppercase tracking-[0.11em] text-slate-500">{label}</p>
-                <div className="mt-0.5 min-w-0 text-[12px] font-semibold leading-4 text-slate-900">
-                    {children}
-                </div>
-            </div>
+            <span
+                className={`min-w-0 truncate text-[12px] font-semibold leading-5 ${toneClasses.value} ${valueClassName}`}
+                title={title}
+            >
+                {value}
+            </span>
         </div>
     );
 }
 
-/**
- * Render one compact medical fact without expanding the profile summary grid.
- */
-function CompactClinicalFact({
+function PatientHeaderClinicalFact({
     icon: Icon,
     label,
     value,
@@ -301,46 +330,20 @@ function CompactClinicalFact({
     truncateLimit: number;
     emptyLabel: string;
 }) {
-    const tones = {
-        rose: {
-            box: 'bg-rose-50/70 text-rose-700 ring-rose-100',
-            labelText: 'text-rose-700',
-            valueText: 'text-rose-900',
-            icon: 'text-rose-600',
-        },
-        amber: {
-            box: 'bg-amber-50/70 text-amber-700 ring-amber-100',
-            labelText: 'text-amber-800',
-            valueText: 'text-amber-950',
-            icon: 'text-amber-600',
-        },
-        slate: {
-            box: 'bg-slate-50 text-slate-600 ring-slate-100',
-            labelText: 'text-slate-600',
-            valueText: 'text-slate-800',
-            icon: 'text-slate-500',
-        },
-    } as const;
-    const t = tones[tone];
     const hasValue = Boolean(value);
     const safeValue = value ?? '';
     const displayValue = hasValue ? truncateForUi(safeValue, truncateLimit) : emptyLabel;
 
     return (
-        <div className={`flex min-w-0 items-center gap-2 rounded-lg px-2.5 py-1.5 ring-1 ${t.box}`}>
-            <div className="flex min-w-0 flex-1 items-center gap-1.5">
-                <Icon className={`h-3.5 w-3.5 shrink-0 ${t.icon}`} />
-                <span className={`min-w-0 truncate text-[9px] font-bold uppercase tracking-[0.08em] ${t.labelText}`}>
-                    {label}
-                </span>
-            </div>
-            <span
-                className={`min-w-0 max-w-[42%] shrink-0 truncate text-right text-[12px] font-semibold ${hasValue ? t.valueText : 'text-slate-400'}`}
-                title={hasValue ? safeValue : emptyLabel}
-            >
-                {displayValue}
-            </span>
-        </div>
+        <PatientHeaderFact
+            icon={Icon}
+            label={label}
+            value={displayValue}
+            title={hasValue ? safeValue : label}
+            tone={tone}
+            className="max-w-[13rem]"
+            valueClassName={hasValue ? '' : 'text-slate-400'}
+        />
     );
 }
 
@@ -661,6 +664,11 @@ export default function PatientDetailPage({
     const oralPhotoUploadMaxMb = currentUser?.subscription?.upload_max_mb ?? DEFAULT_ORAL_PHOTO_UPLOAD_MAX_MB;
     const oralPhotoUploadMaxBytes = oralPhotoUploadMaxMb * 1024 * 1024;
     const isOralPhotoMutationPending = uploadOralPhotoMutation.isPending || deleteOralPhotoMutation.isPending;
+    const compactEmptyValue = '—';
+    const headerPhones = [patient.phone, patient.secondary_phone].filter((phone): phone is string => Boolean(phone));
+    const headerPhoneValue = headerPhones.length > 0 ? headerPhones.join(' / ') : compactEmptyValue;
+    const headerBirthDateValue = patient.date_of_birth ? formatDate(patient.date_of_birth) : compactEmptyValue;
+    const headerAddressValue = patient.address?.trim() ? patient.address : compactEmptyValue;
     const pickOralPhoto = (viewType: ApiPatientClinicalPhotoViewType) => {
         const slot = oralPhotoSlots.find((candidate) => candidate.viewType === viewType);
         if ((slot?.photos.length ?? 0) >= ORAL_PHOTO_MAX_PER_SLOT) {
@@ -733,7 +741,7 @@ export default function PatientDetailPage({
     return (
         <div className="space-y-4">
             {/* Patient header */}
-            <div className="flex flex-col gap-3 rounded-2xl border border-white/80 bg-white px-4 py-3 shadow-sm shadow-slate-200/70 sm:px-5 xl:flex-row xl:items-center xl:justify-between">
+            <div className="grid grid-cols-1 gap-3 rounded-2xl border border-white/80 bg-white px-4 py-3 shadow-sm shadow-slate-200/70 sm:px-5 lg:grid-cols-[minmax(18rem,auto)_auto] lg:items-center xl:grid-cols-[minmax(18rem,auto)_minmax(0,1fr)_auto]">
                 <div className="flex min-w-0 items-center gap-3">
                     <Button
                         variant="ghost"
@@ -804,7 +812,65 @@ export default function PatientDetailPage({
                         </div>
                     </div>
                 </div>
-                <div className="flex flex-wrap items-center gap-2">
+                <div
+                    data-testid="patient-detail-header-facts"
+                    className="flex min-w-0 flex-wrap items-center gap-1 rounded-2xl border border-slate-100 bg-slate-50/70 px-2 py-1.5 shadow-inner shadow-white/60 lg:col-span-2 lg:row-start-2 xl:col-span-1 xl:col-start-2 xl:row-start-1"
+                >
+                    <PatientHeaderFact
+                        icon={Phone}
+                        label={t('patientDetail.phone')}
+                        value={truncateForUi(headerPhoneValue, 34)}
+                        title={headerPhones.length > 0 ? headerPhoneValue : t('patientDetail.notSpecified')}
+                        tone="teal"
+                        className="max-w-[18rem]"
+                        valueClassName="tabular-nums"
+                    />
+                    <PatientHeaderDivider />
+                    <PatientHeaderFact
+                        icon={Calendar}
+                        label={t('patientDetail.birthDate')}
+                        value={headerBirthDateValue}
+                        title={patient.date_of_birth ? headerBirthDateValue : t('patientDetail.notSpecified')}
+                        tone="sky"
+                        className="max-w-[12rem]"
+                        valueClassName="tabular-nums"
+                    />
+                    <PatientHeaderDivider />
+                    <PatientHeaderFact
+                        icon={MapPin}
+                        label={t('patientDetail.address')}
+                        value={truncateForUi(headerAddressValue, 38)}
+                        title={patient.address?.trim() ? patient.address : t('patientDetail.notSpecified')}
+                        tone="teal"
+                        className="max-w-[21rem] flex-1"
+                    />
+                    <PatientHeaderDivider />
+                    <PatientHeaderClinicalFact
+                        icon={AlertCircle}
+                        label={t('patientDetail.allergies')}
+                        value={patient.allergies}
+                        tone="rose"
+                        truncateLimit={PATIENT_ALLERGIES_UI_LIMIT}
+                        emptyLabel={compactEmptyValue}
+                    />
+                    <PatientHeaderClinicalFact
+                        icon={Pill}
+                        label={t('patientDetail.currentMedications')}
+                        value={patient.current_medications}
+                        tone="amber"
+                        truncateLimit={PATIENT_MEDICATIONS_UI_LIMIT}
+                        emptyLabel={compactEmptyValue}
+                    />
+                    <PatientHeaderClinicalFact
+                        icon={FileText}
+                        label={t('patientDetail.medicalHistory.label')}
+                        value={patient.medical_history}
+                        tone="slate"
+                        truncateLimit={PATIENT_MEDICAL_HISTORY_UI_LIMIT}
+                        emptyLabel={compactEmptyValue}
+                    />
+                </div>
+                <div className="flex flex-wrap items-center gap-2 lg:col-start-2 lg:row-start-1 lg:justify-end xl:col-start-3">
                     {isPatientArchived ? (
                         <Badge variant="secondary" className="bg-slate-200 text-slate-800">
                             {t('patients.archived')}
@@ -969,92 +1035,10 @@ export default function PatientDetailPage({
                 />
             </div>
 
-            {/* Premium summary cards: basic info, oral photo, detail. */}
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
-
-                {/* Basic info: contact essentials with stable clinical notes. */}
-                <article className="group/card relative flex h-[19.5rem] flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm shadow-slate-200/40 transition-all hover:-translate-y-0.5 hover:shadow-md hover:shadow-slate-200/70">
-                    <div className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-emerald-400 via-teal-400 to-cyan-400" />
-                    <header className="flex items-center gap-2.5 px-4 pb-2 pt-4">
-                        <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-50 to-teal-50 text-teal-600 ring-1 ring-teal-100/80 shadow-sm shadow-teal-100/40">
-                            <Info className="h-4 w-4" strokeWidth={2.25} />
-                        </span>
-                        <p className="min-w-0 text-[11px] font-bold uppercase leading-4 tracking-[0.08em] text-slate-700">{t('patients.section.basicInfo')}</p>
-                    </header>
-                    <div data-testid="patient-detail-contact-card" className="flex min-h-0 flex-1 flex-col px-4 pb-4">
-                        <div data-testid="patient-detail-contact-primary-row" className="grid grid-cols-2 gap-2 border-b border-slate-100 pb-2.5">
-                            <BasicInfoCell icon={Phone} label={t('patientDetail.phone')}>
-                                <div className="space-y-0.5">
-                                    {patient.phone ? (
-                                        <a
-                                            href={`tel:${patient.phone.replace(/\s/g, '')}`}
-                                            className="block truncate tabular-nums hover:text-teal-700"
-                                            title={patient.phone}
-                                        >
-                                            {patient.phone}
-                                        </a>
-                                    ) : null}
-                                    {patient.secondary_phone ? (
-                                        <a
-                                            href={`tel:${patient.secondary_phone.replace(/\s/g, '')}`}
-                                            className="block truncate tabular-nums hover:text-teal-700"
-                                            title={patient.secondary_phone}
-                                        >
-                                            {patient.secondary_phone}
-                                        </a>
-                                    ) : null}
-                                    {!patient.phone && !patient.secondary_phone ? (
-                                        <span className="text-slate-400">{t('patientDetail.notSpecified')}</span>
-                                    ) : null}
-                                </div>
-                            </BasicInfoCell>
-                            <BasicInfoCell icon={Calendar} label={t('patientDetail.birthDate')}>
-                                <p className="truncate tabular-nums" title={patient.date_of_birth ? formatDate(patient.date_of_birth) : t('patientDetail.notSpecified')}>
-                                    {patient.date_of_birth ? formatDate(patient.date_of_birth) : t('patientDetail.notSpecified')}
-                                </p>
-                            </BasicInfoCell>
-                        </div>
-                        <div data-testid="patient-detail-contact-address-row" className="border-b border-slate-100 py-2.5">
-                            <BasicInfoCell icon={MapPin} label={t('patientDetail.address')}>
-                                <p className="line-clamp-2 break-words" title={patient.address ?? t('patientDetail.notSpecified')}>
-                                    {patient.address || t('patientDetail.notSpecified')}
-                                </p>
-                            </BasicInfoCell>
-                        </div>
-                        <div
-                            data-testid="patient-detail-clinical-facts"
-                            className="grid min-h-0 flex-1 grid-cols-1 gap-1.5 pt-2.5"
-                        >
-                            <CompactClinicalFact
-                                icon={AlertCircle}
-                                label={t('patientDetail.allergies')}
-                                value={patient.allergies}
-                                tone="rose"
-                                truncateLimit={PATIENT_ALLERGIES_UI_LIMIT}
-                                emptyLabel={t('patientDetail.notSpecified')}
-                            />
-                            <CompactClinicalFact
-                                icon={Pill}
-                                label={t('patientDetail.currentMedications')}
-                                value={patient.current_medications}
-                                tone="amber"
-                                truncateLimit={PATIENT_MEDICATIONS_UI_LIMIT}
-                                emptyLabel={t('patientDetail.notSpecified')}
-                            />
-                            <CompactClinicalFact
-                                icon={FileText}
-                                label={t('patientDetail.medicalHistory.label')}
-                                value={patient.medical_history}
-                                tone="slate"
-                                truncateLimit={PATIENT_MEDICAL_HISTORY_UI_LIMIT}
-                                emptyLabel={t('patientDetail.notSpecified')}
-                            />
-                        </div>
-                    </div>
-                </article>
-
+            {/* Premium summary cards: oral photo, detail. */}
+            <div className="grid grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1fr)_17rem] xl:grid-cols-[minmax(0,1fr)_18rem]">
                 {/* Oral photo: compact clinical photo shortcuts */}
-                <article className="group/card relative flex h-[19.5rem] flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm shadow-slate-200/40 transition-all hover:-translate-y-0.5 hover:shadow-md hover:shadow-slate-200/70 md:col-span-2">
+                <article className="group/card relative flex h-[19.5rem] min-w-0 flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm shadow-slate-200/40 transition-all hover:-translate-y-0.5 hover:shadow-md hover:shadow-slate-200/70">
                     <div className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-slate-200 via-slate-300 to-slate-400" />
                     <header className="flex items-center justify-between gap-3 px-4 pt-4 pb-2">
                         <div className="flex min-w-0 items-center gap-2.5">
@@ -1153,7 +1137,7 @@ export default function PatientDetailPage({
                             </span>
                         ) : null}
                     </header>
-                    <div className="mx-px grid flex-1 grid-cols-2 grid-rows-2 gap-px overflow-hidden rounded-b-2xl bg-slate-100/70">
+                    <div className="mx-px flex flex-1 flex-col divide-y divide-slate-100 overflow-hidden rounded-b-2xl bg-white">
                         <VitalStatCell
                             icon={Wallet}
                             label={t('patientDetail.openBalance')}
@@ -1169,11 +1153,6 @@ export default function PatientDetailPage({
                             icon={CalendarCheck}
                             label={t('patientDetail.lastVisit')}
                             value={latestVisitDate ? formatDate(latestVisitDate) : t('patients.never')}
-                        />
-                        <VitalStatCell
-                            icon={User}
-                            label={t('patientDetail.age')}
-                            value={patient.date_of_birth ? t('patientDetail.years', { count: computePatientAge(patient.date_of_birth) }) : '—'}
                         />
                     </div>
                 </article>

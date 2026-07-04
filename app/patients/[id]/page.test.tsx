@@ -229,7 +229,7 @@ describe('PatientDetailPage', () => {
         expect(within(dialog).queryByRole('button', { name: 'Edit' })).not.toBeInTheDocument();
     });
 
-    it('keeps long address values clamped in the contact card', async () => {
+    it('keeps long address values compact in the header facts strip', async () => {
         const longAddress =
             '4501 Garfield Centers, B block 23 floor 334# Room. Main road street side. 4501 Garfield Centers, B block 23 floor 334# Room.';
         vi.mocked(getCurrentUser).mockResolvedValue(dentist as never);
@@ -237,16 +237,20 @@ describe('PatientDetailPage', () => {
 
         await renderPage();
 
+        const headerFacts = await screen.findByTestId('patient-detail-header-facts');
         const addressValue = await screen.findByTitle(longAddress);
-        expect(addressValue).toHaveClass('line-clamp-2');
-        expect(addressValue).toHaveTextContent(longAddress);
+        expect(headerFacts).toContainElement(addressValue);
+        expect(addressValue).toHaveClass('truncate');
+        expect(addressValue).toHaveTextContent('4501 Garfield Centers');
     });
 
-    it('renders contact and medical facts in the same patient info card', async () => {
+    it('renders contact and medical facts in the patient header', async () => {
         vi.mocked(getCurrentUser).mockResolvedValue(dentist as never);
         vi.mocked(getPatient).mockResolvedValue({
             ...patient,
             phone: '+998901234567',
+            date_of_birth: '1990-08-30',
+            address: 'Main road 12',
             allergies: 'Penicillin',
             current_medications: 'Aspirin',
             medical_history: 'Hypertension',
@@ -254,37 +258,30 @@ describe('PatientDetailPage', () => {
 
         await renderPage();
 
-        const contactCard = await screen.findByTestId('patient-detail-contact-card');
-        const primaryRow = within(contactCard).getByTestId('patient-detail-contact-primary-row');
-        const addressRow = within(contactCard).getByTestId('patient-detail-contact-address-row');
-        const clinicalFacts = within(contactCard).getByTestId('patient-detail-clinical-facts');
+        const headerFacts = await screen.findByTestId('patient-detail-header-facts');
 
-        expect(screen.getByText('Basic Information')).toBeInTheDocument();
-        expect(within(primaryRow).getByText('+998901234567')).toBeInTheDocument();
-        expect(within(primaryRow).getByText('Date of Birth')).toBeInTheDocument();
-        expect(within(addressRow).getByText('Address')).toBeInTheDocument();
-        expect(within(clinicalFacts).getByText('Allergies & blood pressure')).toBeInTheDocument();
-        expect(within(clinicalFacts).getByText('Penicillin')).toBeInTheDocument();
-        expect(within(clinicalFacts).getByText('Current Medications')).toBeInTheDocument();
-        expect(within(clinicalFacts).getByText('Aspirin')).toBeInTheDocument();
-        expect(within(clinicalFacts).getByText('Medical history')).toBeInTheDocument();
-        expect(within(clinicalFacts).getByText('Hypertension')).toBeInTheDocument();
+        expect(within(headerFacts).getByText('+998901234567')).toBeInTheDocument();
+        expect(within(headerFacts).getByText('Aug 30, 1990')).toBeInTheDocument();
+        expect(within(headerFacts).getByText('Main road 12')).toBeInTheDocument();
+        expect(within(headerFacts).getByText('Penicillin')).toBeInTheDocument();
+        expect(within(headerFacts).getByText('Aspirin')).toBeInTheDocument();
+        expect(within(headerFacts).getByText('Hypertension')).toBeInTheDocument();
+        expect(screen.queryByText('Basic Information')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('patient-detail-contact-card')).not.toBeInTheDocument();
         expect(screen.queryByTestId('patient-detail-clinical-strip')).not.toBeInTheDocument();
     });
 
-    it('keeps the combined patient info card compact when no medical facts are recorded', async () => {
+    it('keeps the header facts compact when no medical facts are recorded', async () => {
         vi.mocked(getCurrentUser).mockResolvedValue(dentist as never);
         vi.mocked(getPatient).mockResolvedValue(patient as never);
 
         await renderPage();
 
-        const contactCard = await screen.findByTestId('patient-detail-contact-card');
-        const clinicalFacts = within(contactCard).getByTestId('patient-detail-clinical-facts');
+        const headerFacts = await screen.findByTestId('patient-detail-header-facts');
 
-        expect(within(clinicalFacts).getByText('Allergies & blood pressure')).toBeInTheDocument();
-        expect(within(clinicalFacts).getByText('Current Medications')).toBeInTheDocument();
-        expect(within(clinicalFacts).getByText('Medical history')).toBeInTheDocument();
-        expect(within(clinicalFacts).getAllByText('Not specified')).toHaveLength(3);
+        expect(within(headerFacts).getAllByText('—').length).toBeGreaterThanOrEqual(3);
+        expect(screen.queryByText('Basic Information')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('patient-detail-contact-card')).not.toBeInTheDocument();
         expect(screen.queryByTestId('patient-detail-clinical-strip')).not.toBeInTheDocument();
     });
 
