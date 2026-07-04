@@ -273,10 +273,6 @@ const PATIENT_HEADER_FACT_TONE_CLASSES: Record<PatientHeaderFactTone, { icon: st
     },
 };
 
-function PatientHeaderDivider() {
-    return <span aria-hidden="true" className="hidden h-8 w-px shrink-0 bg-slate-200/80 lg:block" />;
-}
-
 function PatientHeaderFact({
     icon: Icon,
     label,
@@ -295,6 +291,7 @@ function PatientHeaderFact({
     valueClassName?: string;
 }) {
     const toneClasses = PATIENT_HEADER_FACT_TONE_CLASSES[tone];
+    const isStringValue = typeof value === 'string';
 
     return (
         <div className={`flex min-w-0 items-center gap-2 rounded-xl px-2 py-1.5 ${toneClasses.box} ${className}`}>
@@ -306,7 +303,7 @@ function PatientHeaderFact({
                 <span className="sr-only">{label}</span>
             </span>
             <span
-                className={`min-w-0 truncate text-[12px] font-semibold leading-5 ${toneClasses.value} ${valueClassName}`}
+                className={`min-w-0 text-[12px] font-semibold leading-5 ${isStringValue ? 'truncate' : ''} ${toneClasses.value} ${valueClassName}`}
                 title={title}
             >
                 {value}
@@ -341,7 +338,7 @@ function PatientHeaderClinicalFact({
             value={displayValue}
             title={hasValue ? safeValue : label}
             tone={tone}
-            className="max-w-[13rem]"
+            className="min-h-10"
             valueClassName={hasValue ? '' : 'text-slate-400'}
         />
     );
@@ -666,7 +663,7 @@ export default function PatientDetailPage({
     const isOralPhotoMutationPending = uploadOralPhotoMutation.isPending || deleteOralPhotoMutation.isPending;
     const compactEmptyValue = '—';
     const headerPhones = [patient.phone, patient.secondary_phone].filter((phone): phone is string => Boolean(phone));
-    const headerPhoneValue = headerPhones.length > 0 ? headerPhones.join(' / ') : compactEmptyValue;
+    const headerPhoneTitle = headerPhones.length > 0 ? headerPhones.join(' / ') : t('patientDetail.notSpecified');
     const headerBirthDateValue = patient.date_of_birth ? formatDate(patient.date_of_birth) : compactEmptyValue;
     const headerAddressValue = patient.address?.trim() ? patient.address : compactEmptyValue;
     const pickOralPhoto = (viewType: ApiPatientClinicalPhotoViewType) => {
@@ -814,61 +811,82 @@ export default function PatientDetailPage({
                 </div>
                 <div
                     data-testid="patient-detail-header-facts"
-                    className="flex min-w-0 flex-wrap items-center gap-1 rounded-2xl border border-slate-100 bg-slate-50/70 px-2 py-1.5 shadow-inner shadow-white/60 lg:col-span-2 lg:row-start-2 xl:col-span-1 xl:col-start-2 xl:row-start-1"
+                    className="grid min-w-0 gap-1.5 rounded-2xl border border-slate-100 bg-slate-50/70 px-2.5 py-2 shadow-inner shadow-white/60 lg:col-span-2 lg:row-start-2 xl:col-span-1 xl:col-start-2 xl:row-start-1"
                 >
-                    <PatientHeaderFact
-                        icon={Phone}
-                        label={t('patientDetail.phone')}
-                        value={truncateForUi(headerPhoneValue, 34)}
-                        title={headerPhones.length > 0 ? headerPhoneValue : t('patientDetail.notSpecified')}
-                        tone="teal"
-                        className="max-w-[18rem]"
-                        valueClassName="tabular-nums"
-                    />
-                    <PatientHeaderDivider />
-                    <PatientHeaderFact
-                        icon={Calendar}
-                        label={t('patientDetail.birthDate')}
-                        value={headerBirthDateValue}
-                        title={patient.date_of_birth ? headerBirthDateValue : t('patientDetail.notSpecified')}
-                        tone="sky"
-                        className="max-w-[12rem]"
-                        valueClassName="tabular-nums"
-                    />
-                    <PatientHeaderDivider />
-                    <PatientHeaderFact
-                        icon={MapPin}
-                        label={t('patientDetail.address')}
-                        value={truncateForUi(headerAddressValue, 38)}
-                        title={patient.address?.trim() ? patient.address : t('patientDetail.notSpecified')}
-                        tone="teal"
-                        className="max-w-[21rem] flex-1"
-                    />
-                    <PatientHeaderDivider />
-                    <PatientHeaderClinicalFact
-                        icon={AlertCircle}
-                        label={t('patientDetail.allergies')}
-                        value={patient.allergies}
-                        tone="rose"
-                        truncateLimit={PATIENT_ALLERGIES_UI_LIMIT}
-                        emptyLabel={compactEmptyValue}
-                    />
-                    <PatientHeaderClinicalFact
-                        icon={Pill}
-                        label={t('patientDetail.currentMedications')}
-                        value={patient.current_medications}
-                        tone="amber"
-                        truncateLimit={PATIENT_MEDICATIONS_UI_LIMIT}
-                        emptyLabel={compactEmptyValue}
-                    />
-                    <PatientHeaderClinicalFact
-                        icon={FileText}
-                        label={t('patientDetail.medicalHistory.label')}
-                        value={patient.medical_history}
-                        tone="slate"
-                        truncateLimit={PATIENT_MEDICAL_HISTORY_UI_LIMIT}
-                        emptyLabel={compactEmptyValue}
-                    />
+                    <div
+                        data-testid="patient-detail-header-contact-facts"
+                        className="grid min-w-0 gap-1.5 md:grid-cols-[minmax(12rem,0.9fr)_minmax(9rem,0.6fr)_minmax(13rem,1.15fr)]"
+                    >
+                        <PatientHeaderFact
+                            icon={Phone}
+                            label={t('patientDetail.phone')}
+                            value={
+                                headerPhones.length > 0 ? (
+                                    <span className="flex min-w-0 flex-col gap-0.5">
+                                        {headerPhones.map((phone) => (
+                                            <span key={phone} className="truncate tabular-nums">
+                                                {phone}
+                                            </span>
+                                        ))}
+                                    </span>
+                                ) : (
+                                    compactEmptyValue
+                                )
+                            }
+                            title={headerPhoneTitle}
+                            tone="teal"
+                            className="min-h-11"
+                            valueClassName={headerPhones.length > 0 ? '' : 'text-slate-400'}
+                        />
+                        <PatientHeaderFact
+                            icon={Calendar}
+                            label={t('patientDetail.birthDate')}
+                            value={headerBirthDateValue}
+                            title={patient.date_of_birth ? headerBirthDateValue : t('patientDetail.notSpecified')}
+                            tone="sky"
+                            className="min-h-11"
+                            valueClassName="tabular-nums"
+                        />
+                        <PatientHeaderFact
+                            icon={MapPin}
+                            label={t('patientDetail.address')}
+                            value={truncateForUi(headerAddressValue, 38)}
+                            title={patient.address?.trim() ? patient.address : t('patientDetail.notSpecified')}
+                            tone="teal"
+                            className="min-h-11"
+                            valueClassName={patient.address?.trim() ? '' : 'text-slate-400'}
+                        />
+                    </div>
+                    <div aria-hidden="true" className="h-px bg-slate-200/70" />
+                    <div
+                        data-testid="patient-detail-header-medical-facts"
+                        className="grid min-w-0 gap-1.5 md:grid-cols-3"
+                    >
+                        <PatientHeaderClinicalFact
+                            icon={AlertCircle}
+                            label={t('patientDetail.allergies')}
+                            value={patient.allergies}
+                            tone="rose"
+                            truncateLimit={PATIENT_ALLERGIES_UI_LIMIT}
+                            emptyLabel={compactEmptyValue}
+                        />
+                        <PatientHeaderClinicalFact
+                            icon={Pill}
+                            label={t('patientDetail.currentMedications')}
+                            value={patient.current_medications}
+                            tone="amber"
+                            truncateLimit={PATIENT_MEDICATIONS_UI_LIMIT}
+                            emptyLabel={compactEmptyValue}
+                        />
+                        <PatientHeaderClinicalFact
+                            icon={FileText}
+                            label={t('patientDetail.medicalHistory.label')}
+                            value={patient.medical_history}
+                            tone="slate"
+                            truncateLimit={PATIENT_MEDICAL_HISTORY_UI_LIMIT}
+                            emptyLabel={compactEmptyValue}
+                        />
+                    </div>
                 </div>
                 <div className="flex flex-wrap items-center gap-2 lg:col-start-2 lg:row-start-1 lg:justify-end xl:col-start-3">
                     {isPatientArchived ? (
