@@ -1796,18 +1796,56 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
         );
     };
 
+    const renderFinancialSummaryCards = () => (
+        <div className="grid min-w-0 flex-1 grid-cols-1 gap-2 sm:grid-cols-3 xl:max-w-4xl">
+            <MetricSummaryCard
+                label={t('patientHistory.totalDebt')}
+                value={formatMoneyBreakdown(summary.totalsByCurrency, 'totalDebt')}
+                tone="red"
+                compact
+                gradient
+                tabular
+                locked={!canViewFinancials}
+            />
+            <MetricSummaryCard
+                label={t('patientHistory.totalPaid')}
+                value={formatMoneyBreakdown(summary.totalsByCurrency, 'totalPaid')}
+                tone="emerald"
+                compact
+                gradient
+                tabular
+                locked={!canViewFinancials}
+            />
+            <MetricSummaryCard
+                label={t('patientHistory.netBalance')}
+                value={hasMixedNetBalanceStatus
+                    ? renderMoneyBreakdownWithBalanceStatuses(summary.totalsByCurrency, t)
+                    : formatMoneyBreakdown(summary.totalsByCurrency, 'netBalance')}
+                tone={netBalanceTone}
+                badge={!hasMixedNetBalanceStatus && netBalanceStatusKey ? t(netBalanceStatusKey) : undefined}
+                badgeTone={netBalanceTone}
+                compact
+                gradient
+                tabular
+                locked={!canViewFinancials}
+            />
+        </div>
+    );
+
     return (
         <>
             <Card className="interactive-card rounded-2xl border-slate-200 shadow-sm">
-                <CardHeader className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-                    <div>
-                        <CardTitle>{t('patientHistory.title')}</CardTitle>
-                    </div>
-                    <div className="flex flex-col gap-2 sm:flex-row">
-                        {subscription?.can_export ? (
-                            <Button
-                                variant="outline"
-                                onClick={async () => {
+                <CardHeader className="flex flex-col gap-3">
+                    <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+                        <div className="flex min-w-0 flex-1 flex-col gap-3 lg:flex-row lg:items-center">
+                            <CardTitle className="shrink-0">{t('patientHistory.title')}</CardTitle>
+                            {renderFinancialSummaryCards()}
+                        </div>
+                        <div className="flex shrink-0 flex-col gap-2 sm:flex-row sm:items-center">
+                            {subscription?.can_export ? (
+                                <Button
+                                    variant="outline"
+                                    onClick={async () => {
                                     // PDF payload mirrors the on-screen gating: viewers
                                     // without `payments.view` get a slimmer PDF with
                                     // clinical columns only. Without this, an
@@ -1896,66 +1934,27 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                     } catch (error) {
                                         toast.error(getApiErrorMessage(error, t('patientHistory.error.loadFailed')));
                                     }
-                                }}
-                            >
-                                <Download className="h-4 w-4" />
-                                {t('common.export')}
-                            </Button>
-                        ) : null}
-                        {historyManageDisplayMode === 'enabled' ? (
-                            <Button onClick={openCreateDialog} variant={isInlineCreateOpen ? 'secondary' : 'default'}>
-                                <Plus className="h-4 w-4" />
-                                {t('patientHistory.addEntry')}
-                            </Button>
-                        ) : historyManageDisplayMode === 'disabled-readonly' ? (
-                            <Button disabled onClick={() => toast.error(manageDeniedMessage)}>
-                                <Plus className="h-4 w-4" />
-                                {t('patientHistory.addEntry')}
-                            </Button>
-                        ) : null}
+                                    }}
+                                >
+                                    <Download className="h-4 w-4" />
+                                    {t('common.export')}
+                                </Button>
+                            ) : null}
+                            {historyManageDisplayMode === 'enabled' ? (
+                                <Button onClick={openCreateDialog} variant={isInlineCreateOpen ? 'secondary' : 'default'}>
+                                    <Plus className="h-4 w-4" />
+                                    {t('patientHistory.addEntry')}
+                                </Button>
+                            ) : historyManageDisplayMode === 'disabled-readonly' ? (
+                                <Button disabled onClick={() => toast.error(manageDeniedMessage)}>
+                                    <Plus className="h-4 w-4" />
+                                    {t('patientHistory.addEntry')}
+                                </Button>
+                            ) : null}
+                        </div>
                     </div>
                 </CardHeader>
                 <CardContent className="space-y-6">
-                    {/* When the viewer lacks payments.view the three financial
-                        cards are kept in the layout but rendered as locked
-                        placeholders (Lock icon + "No access"). The grid
-                        shape stays consistent so the page doesn't visually
-                        collapse — users see WHICH metric they don't have
-                        access to, not just empty space. */}
-                    <div className="grid grid-cols-1 gap-2.5 md:grid-cols-3">
-                        <MetricSummaryCard
-                            label={t('patientHistory.totalDebt')}
-                            value={formatMoneyBreakdown(summary.totalsByCurrency, 'totalDebt')}
-                            tone="red"
-                            compact
-                            gradient
-                            tabular
-                            locked={!canViewFinancials}
-                        />
-                        <MetricSummaryCard
-                            label={t('patientHistory.totalPaid')}
-                            value={formatMoneyBreakdown(summary.totalsByCurrency, 'totalPaid')}
-                            tone="emerald"
-                            compact
-                            gradient
-                            tabular
-                            locked={!canViewFinancials}
-                        />
-                        <MetricSummaryCard
-                            label={t('patientHistory.netBalance')}
-                            value={hasMixedNetBalanceStatus
-                                ? renderMoneyBreakdownWithBalanceStatuses(summary.totalsByCurrency, t)
-                                : formatMoneyBreakdown(summary.totalsByCurrency, 'netBalance')}
-                            tone={netBalanceTone}
-                            badge={!hasMixedNetBalanceStatus && netBalanceStatusKey ? t(netBalanceStatusKey) : undefined}
-                            badgeTone={netBalanceTone}
-                            compact
-                            gradient
-                            tabular
-                            locked={!canViewFinancials}
-                        />
-                    </div>
-
                     {isLoading ? (
                         <div className="relative space-y-3">
                             <div className="absolute bottom-3 left-[84px] top-3 hidden w-px bg-slate-200 md:block" aria-hidden="true" />

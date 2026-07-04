@@ -305,10 +305,14 @@ describe('TreatmentHistoryCard image controls', () => {
         const workTotalCard = getCompactSummaryCard('Work total') as HTMLElement;
         const paidCard = getCompactSummaryCard('Paid') as HTMLElement;
         const remainingCard = getCompactSummaryCard('Remaining') as HTMLElement;
+        const title = screen.getByText('Work History');
+        const addEntryButton = screen.getByRole('button', { name: 'Add Entry' });
 
         expect(workTotalCard).toHaveClass('min-h-14', 'rounded-xl', 'px-3', 'py-2');
         expect(paidCard).toHaveClass('min-h-14', 'rounded-xl', 'px-3', 'py-2');
         expect(remainingCard).toHaveClass('min-h-14', 'rounded-xl', 'px-3', 'py-2');
+        expect(title.compareDocumentPosition(workTotalCard) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+        expect(remainingCard.compareDocumentPosition(addEntryButton) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
         expect(workTotalCard).toHaveClass('bg-gradient-to-br', 'via-red-50/70');
         expect(paidCard).toHaveClass('bg-gradient-to-br', 'via-emerald-50/70');
         expect(remainingCard).toHaveClass('bg-gradient-to-br');
