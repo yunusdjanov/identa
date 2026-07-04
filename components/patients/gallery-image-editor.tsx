@@ -9,6 +9,7 @@ import { getApiErrorMessage } from '@/lib/api/client';
 import { GalleryImageEditorControls } from './gallery-image-editor-controls';
 import {
     createEditedImageFile,
+    findNearestCropRectInsideRotatedImage,
     getSafeCropRectForRotation,
     isCropRectInsideRotatedImage,
     isPointInsideRotatedImage,
@@ -58,6 +59,11 @@ interface StageMetrics {
     width: number;
     height: number;
     scale: number;
+}
+
+interface PendingCropFrame {
+    rotation: number;
+    stageRect: CropRect;
 }
 
 type KonvaPointerEvent = Konva.KonvaEventObject<MouseEvent | TouchEvent>;
@@ -249,9 +255,12 @@ export function GalleryImageEditor({ image, isSaving = false, onCancel, onSave }
     const textInputRef = useRef<HTMLInputElement | null>(null);
     const textDraftRef = useRef<InlineTextDraft | null>(null);
     const textDraftIdRef = useRef(0);
+    const pendingCropFrameRef = useRef<PendingCropFrame | null>(null);
+    const pendingStraightenInitRef = useRef<number | null>(null);
     const [viewportSize, setViewportSize] = useState<EditorViewportSize>(DEFAULT_EDITOR_VIEWPORT);
     const [source, setSource] = useState<HTMLImageElement | null>(null);
     const [previewCanvas, setPreviewCanvas] = useState<HTMLCanvasElement | null>(null);
+    const [previewRotation, setPreviewRotation] = useState<number | null>(null);
     const [mode, setMode] = useState<EditMode>('adjust');
     const [rotation, setRotation] = useState(0);
     const [straightenRotation, setStraightenRotation] = useState(0);
@@ -269,11 +278,12 @@ export function GalleryImageEditor({ image, isSaving = false, onCancel, onSave }
     const [isRendering, setIsRendering] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const isSaveBusy = isSaving || isRendering;
-    const isEditingDisabled = isSaveBusy || !source || !previewCanvas;
     const effectiveRotation = useMemo(
         () => normalizeRotationStep(rotation + straightenRotation),
         [rotation, straightenRotation]
     );
+    const isPreviewReady = Boolean(previewCanvas && previewRotation === effectiveRotation);
+    const isEditingDisabled = isSaveBusy || !source || !isPreviewReady;
 
     const visibleRect = useMemo<CropRect>(() => ({
         x: cropRect?.x ?? 0,
@@ -372,6 +382,37 @@ export function GalleryImageEditor({ image, isSaving = false, onCancel, onSave }
 
         return clampCropRectToBounds(fullSafeCropBounds, visibleRect, MIN_CROP_SIZE);
     }, [fullSafeCropBounds, isBaseCropInsideImage, visibleRect]);
+
+    const resolveBaseCropRectPreservingSize = useCallback((candidate: CropRect, fallback: CropRect): CropRect => {
+        const clampedCandidate = clampCropRectToBounds(candidate, visibleRect, MIN_CROP_SIZE);
+        if (isBaseCropInsideImage(clampedCandidate)) {
+            return clampedCandidate;
+        }
+
+        if (source) {
+            const movedCandidate = findNearestCropRectInsideRotatedImage(
+                sourceDimensions.width,
+                sourceDimensions.height,
+                effectiveRotation,
+                clampedCandidate,
+                visibleRect,
+                MIN_CROP_SIZE
+            );
+            if (movedCandidate) {
+                return movedCandidate;
+            }
+        }
+
+        return resolveBaseCropRect(candidate, fallback);
+    }, [
+        effectiveRotation,
+        isBaseCropInsideImage,
+        resolveBaseCropRect,
+        source,
+        sourceDimensions.height,
+        sourceDimensions.width,
+        visibleRect,
+    ]);
 
     const stageCropBounds = useMemo<CropRect>(() => ({
         x: 0,
@@ -472,6 +513,7 @@ export function GalleryImageEditor({ image, isSaving = false, onCancel, onSave }
         let isMounted = true;
         setSource(null);
         setPreviewCanvas(null);
+        setPreviewRotation(null);
         setError(null);
 
         loadEditableImage(image.src)
@@ -494,6 +536,7 @@ export function GalleryImageEditor({ image, isSaving = false, onCancel, onSave }
     useEffect(() => {
         if (!source) {
             setPreviewCanvas(null);
+            setPreviewRotation(null);
             return;
         }
 
@@ -512,14 +555,22 @@ export function GalleryImageEditor({ image, isSaving = false, onCancel, onSave }
                 backgroundColor: null,
             });
             setPreviewCanvas(canvas);
+            setPreviewRotation(effectiveRotation);
         } catch {
             setPreviewCanvas(null);
+            setPreviewRotation(null);
             setError(t('gallery.edit.failed'));
         }
     }, [brightness, contrast, cropRect, effectiveRotation, source, t]);
 
     useEffect(() => {
         if (mode !== 'crop') {
+            pendingCropFrameRef.current = null;
+            pendingStraightenInitRef.current = null;
+            return;
+        }
+
+        if (previewRotation !== effectiveRotation || pendingCropFrameRef.current) {
             return;
         }
 
@@ -533,8 +584,41 @@ export function GalleryImageEditor({ image, isSaving = false, onCancel, onSave }
             return cropRectsEqual(current, nextRect) ? current : nextRect;
         });
     }, [
+        effectiveRotation,
         mode,
+        previewRotation,
         resolveBaseCropRect,
+    ]);
+
+    useEffect(() => {
+        if (mode !== 'crop' || previewRotation !== effectiveRotation) {
+            return;
+        }
+
+        const pendingFrame = pendingCropFrameRef.current;
+        if (pendingFrame?.rotation === effectiveRotation) {
+            pendingCropFrameRef.current = null;
+            const nextCandidate = stageRectToBaseRect(pendingFrame.stageRect);
+            setDraftCropRect((current) => {
+                const nextRect = resolveBaseCropRectPreservingSize(nextCandidate, current ?? fullSafeCropBounds);
+
+                return current && cropRectsEqual(current, nextRect) ? current : nextRect;
+            });
+            return;
+        }
+
+        if (pendingStraightenInitRef.current === effectiveRotation) {
+            pendingStraightenInitRef.current = null;
+            setDraftCropRect((current) => current ?? resolveBaseCropRect(fullSafeCropBounds, fullSafeCropBounds));
+        }
+    }, [
+        effectiveRotation,
+        fullSafeCropBounds,
+        mode,
+        previewRotation,
+        resolveBaseCropRect,
+        resolveBaseCropRectPreservingSize,
+        stageRectToBaseRect,
     ]);
 
     useEffect(() => {
@@ -548,6 +632,8 @@ export function GalleryImageEditor({ image, isSaving = false, onCancel, onSave }
     }, [draftCropRect, mode, stageMetrics.height, stageMetrics.width]);
 
     const reset = () => {
+        pendingCropFrameRef.current = null;
+        pendingStraightenInitRef.current = null;
         setRotation(0);
         setStraightenRotation(0);
         setBrightness(DEFAULT_BRIGHTNESS);
@@ -605,13 +691,9 @@ export function GalleryImageEditor({ image, isSaving = false, onCancel, onSave }
         };
     }, [resolveStageCropBox]);
 
-    const initializeStraightenCrop = useCallback((current: CropRect | null): CropRect => {
-        const baseRect = current ?? fullSafeCropBounds;
-
-        return resolveBaseCropRect(baseRect, fullSafeCropBounds);
-    }, [fullSafeCropBounds, resolveBaseCropRect]);
-
     const clearDraftCrop = useCallback(() => {
+        pendingCropFrameRef.current = null;
+        pendingStraightenInitRef.current = null;
         setDraftCropRect(null);
         cropStartRef.current = null;
     }, []);
@@ -628,19 +710,16 @@ export function GalleryImageEditor({ image, isSaving = false, onCancel, onSave }
             MIN_STRAIGHTEN_ROTATION_DEGREES,
             MAX_STRAIGHTEN_ROTATION_DEGREES
         );
+        const targetRotation = normalizeRotationStep(rotation + nextValue);
+
+        pendingCropFrameRef.current = draftCropRect
+            ? { rotation: targetRotation, stageRect: baseRectToStageRect(draftCropRect) }
+            : null;
+        pendingStraightenInitRef.current = !draftCropRect && nextValue !== 0 ? targetRotation : null;
 
         cropStartRef.current = null;
         setStraightenRotation(nextValue);
-        if (nextValue === 0) {
-            return;
-        }
-
-        setDraftCropRect((current) => {
-            const nextRect = initializeStraightenCrop(current);
-
-            return current && cropRectsEqual(current, nextRect) ? current : nextRect;
-        });
-    }, [initializeStraightenCrop]);
+    }, [baseRectToStageRect, draftCropRect, rotation]);
 
     const startTextDraft = (basePoint: Point) => {
         commitTextDraft();
@@ -747,6 +826,8 @@ export function GalleryImageEditor({ image, isSaving = false, onCancel, onSave }
             return;
         }
 
+        pendingCropFrameRef.current = null;
+        pendingStraightenInitRef.current = null;
         setCropRect(draftCropRect);
         setDraftCropRect(null);
     };
@@ -809,6 +890,8 @@ export function GalleryImageEditor({ image, isSaving = false, onCancel, onSave }
     };
 
     const resetCrop = () => {
+        pendingCropFrameRef.current = null;
+        pendingStraightenInitRef.current = null;
         setCropRect(null);
         setDraftCropRect(null);
         cropStartRef.current = null;
@@ -821,6 +904,8 @@ export function GalleryImageEditor({ image, isSaving = false, onCancel, onSave }
         setMode(nextMode);
         cropStartRef.current = null;
         if (nextMode !== 'crop') {
+            pendingCropFrameRef.current = null;
+            pendingStraightenInitRef.current = null;
             setDraftCropRect(null);
         }
     };

@@ -362,6 +362,39 @@ describe('GalleryImageEditor', () => {
         expect(editPayload.cropRect.y).toBeGreaterThan(0);
     });
 
+    it('keeps the active crop frame size stable when straighten rotation changes', async () => {
+        const user = userEvent.setup();
+        renderEditedCanvasMock.mockImplementation(({ canvas, rotation }: { canvas: HTMLCanvasElement; rotation: number }) => {
+            canvas.width = rotation === 30 ? 335 : 300;
+            canvas.height = rotation === 30 ? 280 : 150;
+        });
+        renderEditor();
+
+        const cropModeButton = await screen.findByRole('button', { name: 'Crop' });
+        await waitFor(() => expect(cropModeButton).toBeEnabled());
+        await user.click(cropModeButton);
+
+        const stage = screen.getByTestId('gallery-image-editor-stage');
+        fireEvent.mouseDown(stage, { clientX: 100, clientY: 60 });
+        fireEvent.mouseMove(stage, { clientX: 180, clientY: 110 });
+        fireEvent.mouseUp(stage, { clientX: 180, clientY: 110 });
+
+        fireEvent.change(screen.getByRole('slider', { name: 'Straighten' }), { target: { value: '30' } });
+        await waitFor(() => expect(renderEditedCanvasMock).toHaveBeenCalledWith(expect.objectContaining({
+            rotation: 30,
+        })));
+        await user.click(screen.getByRole('button', { name: 'Save' }));
+
+        const editPayload = createEditedImageFileMock.mock.calls.at(-1)?.[0];
+        expect(editPayload).toEqual(expect.objectContaining({
+            rotation: 30,
+            cropRect: expect.objectContaining({
+                width: 80,
+                height: 50,
+            }),
+        }));
+    });
+
     it('renders editor previews with a transparent background', async () => {
         renderEditor();
 

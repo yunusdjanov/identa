@@ -199,6 +199,75 @@ export function isCropRectInsideRotatedImage(
     return corners.every((corner) => isPointInsideRotatedImageDimensions(sourceWidth, sourceHeight, rotation, corner));
 }
 
+function clampCropRectToBounds(rect: CropRect, bounds: CropRect, minimumSize: number): CropRect {
+    const width = clamp(rect.width, minimumSize, Math.max(minimumSize, bounds.width));
+    const height = clamp(rect.height, minimumSize, Math.max(minimumSize, bounds.height));
+
+    return {
+        x: clamp(rect.x, bounds.x, Math.max(bounds.x, bounds.x + bounds.width - width)),
+        y: clamp(rect.y, bounds.y, Math.max(bounds.y, bounds.y + bounds.height - height)),
+        width,
+        height,
+    };
+}
+
+function cropRectDistanceSquared(left: CropRect, right: CropRect): number {
+    return ((left.x - right.x) ** 2) + ((left.y - right.y) ** 2);
+}
+
+/**
+ * Finds the closest same-sized crop position that remains inside a rotated image.
+ */
+export function findNearestCropRectInsideRotatedImage(
+    sourceWidth: number,
+    sourceHeight: number,
+    rotation: number,
+    crop: CropRect,
+    bounds: CropRect,
+    minimumSize = MIN_CROP_SIZE
+): CropRect | null {
+    const base = clampCropRectToBounds(crop, bounds, minimumSize);
+    if (isCropRectInsideRotatedImage(sourceWidth, sourceHeight, rotation, base)) {
+        return base;
+    }
+
+    let best: CropRect | null = null;
+    let bestDistance = Number.POSITIVE_INFINITY;
+    const seen = new Set<string>();
+    const directions = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]];
+    const step = Math.max(2, Math.min(base.width, base.height) / 6);
+    const maxDistance = Math.max(bounds.width, bounds.height);
+
+    const testCandidate = (candidate: CropRect) => {
+        const clamped = clampCropRectToBounds(candidate, bounds, minimumSize);
+        const key = `${Math.round(clamped.x * 100)}:${Math.round(clamped.y * 100)}`;
+        if (seen.has(key) || !isCropRectInsideRotatedImage(sourceWidth, sourceHeight, rotation, clamped)) {
+            return;
+        }
+        seen.add(key);
+        const distance = cropRectDistanceSquared(base, clamped);
+        if (distance < bestDistance) {
+            best = clamped;
+            bestDistance = distance;
+        }
+    };
+
+    for (let distance = step; distance <= maxDistance && !best; distance += step) {
+        directions.forEach(([xDirection, yDirection]) => {
+            testCandidate({ ...base, x: base.x + xDirection * distance, y: base.y + yDirection * distance });
+        });
+    }
+    if (!best) {
+        testCandidate({
+            ...base,
+            x: bounds.x + (bounds.width - base.width) / 2,
+            y: bounds.y + (bounds.height - base.height) / 2,
+        });
+    }
+
+    return best;
+}
+
 /**
  * Returns the largest centered crop rectangle that stays fully inside a rotated image.
  */

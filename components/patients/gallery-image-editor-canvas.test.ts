@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
     clampCropRectToCanvas,
     drawCropOverlay,
+    findNearestCropRectInsideRotatedImage,
     getSafeCropRectForRotation,
     isCropRectInsideRotatedImage,
     isPointInsideRotatedImage,
@@ -148,6 +149,29 @@ describe('rotated image bounds', () => {
     it('detects actual rotated-image hit targets instead of the full transparent canvas', () => {
         expect(isPointInsideRotatedImage(300, 150, 30, { x: 1, y: 1 })).toBe(false);
         expect(isPointInsideRotatedImage(300, 150, 30, { x: 167, y: 140 })).toBe(true);
+    });
+
+    it('moves an edge crop into the rotated image without resizing it', () => {
+        const crop = {
+            x: 0,
+            y: 0,
+            width: 40,
+            height: 24,
+        };
+        const movedCrop = findNearestCropRectInsideRotatedImage(300, 150, 30, crop, {
+            x: 0,
+            y: 0,
+            width: 335,
+            height: 280,
+        });
+
+        expect(movedCrop).not.toBeNull();
+        expect(movedCrop).toEqual(expect.objectContaining({
+            width: crop.width,
+            height: crop.height,
+        }));
+        expect(movedCrop).not.toEqual(crop);
+        expect(isCropRectInsideRotatedImage(300, 150, 30, movedCrop as NonNullable<typeof movedCrop>)).toBe(true);
     });
 });
 
