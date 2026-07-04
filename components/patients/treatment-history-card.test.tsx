@@ -84,11 +84,11 @@ function treatmentsEnvelope(
     } as never;
 }
 
-function getCompactSummaryCard(label: string) {
+function getHeaderSummaryPill(label: string) {
     return screen
         .getAllByText(label)
-        .map((element) => element.closest('.interactive-card'))
-        .find((card): card is HTMLElement => card instanceof HTMLElement && card.classList.contains('min-h-14'));
+        .map((element) => element.closest('[data-testid="history-financial-summary-pill"]'))
+        .find((pill): pill is HTMLElement => pill instanceof HTMLElement);
 }
 
 function normalizeText(value: string | null | undefined) {
@@ -295,33 +295,33 @@ describe('TreatmentHistoryCard image controls', () => {
         expect(uploadButton.parentElement).toHaveStyle({ gridTemplateColumns: '3.25rem' });
     });
 
-    it('renders the financial summary as compact secondary cards', async () => {
+    it('renders the financial summary as a centered slim header strip', async () => {
         renderCard();
 
         await waitFor(() => {
-            expect(getCompactSummaryCard('Work total')).toHaveClass('min-h-14');
+            expect(getHeaderSummaryPill('Work total')).toBeInTheDocument();
         });
 
-        const workTotalCard = getCompactSummaryCard('Work total') as HTMLElement;
-        const paidCard = getCompactSummaryCard('Paid') as HTMLElement;
-        const remainingCard = getCompactSummaryCard('Remaining') as HTMLElement;
+        const summaryStrip = screen.getByTestId('patient-history-financial-summary');
+        const actions = screen.getByTestId('patient-history-actions');
+        const workTotalCard = getHeaderSummaryPill('Work total') as HTMLElement;
+        const paidCard = getHeaderSummaryPill('Paid') as HTMLElement;
+        const remainingCard = getHeaderSummaryPill('Remaining') as HTMLElement;
         const title = screen.getByText('Work History');
-        const addEntryButton = screen.getByRole('button', { name: 'Add Entry' });
 
-        expect(workTotalCard).toHaveClass('min-h-14', 'rounded-xl', 'px-3', 'py-2');
-        expect(paidCard).toHaveClass('min-h-14', 'rounded-xl', 'px-3', 'py-2');
-        expect(remainingCard).toHaveClass('min-h-14', 'rounded-xl', 'px-3', 'py-2');
-        expect(title.compareDocumentPosition(workTotalCard) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-        expect(remainingCard.compareDocumentPosition(addEntryButton) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-        expect(workTotalCard).toHaveClass('bg-gradient-to-br', 'via-red-50/70');
-        expect(paidCard).toHaveClass('bg-gradient-to-br', 'via-emerald-50/70');
-        expect(remainingCard).toHaveClass('bg-gradient-to-br');
-        expect(workTotalCard).not.toHaveClass('metric-hover-card');
-        expect(paidCard).not.toHaveClass('metric-hover-card');
-        expect(remainingCard).not.toHaveClass('metric-hover-card');
+        expect(summaryStrip).toHaveClass('sm:grid-cols-3', 'xl:min-w-[36rem]');
+        expect(actions).toHaveClass('xl:justify-self-end');
+        expect(workTotalCard).toHaveClass('rounded-xl', 'px-3', 'py-2', 'bg-red-50/45');
+        expect(paidCard).toHaveClass('rounded-xl', 'px-3', 'py-2', 'bg-emerald-50/45');
+        expect(remainingCard).toHaveClass('rounded-xl', 'px-3', 'py-2');
+        expect(title.compareDocumentPosition(summaryStrip) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+        expect(summaryStrip.compareDocumentPosition(actions) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+        expect(workTotalCard).not.toHaveClass('interactive-card');
+        expect(paidCard).not.toHaveClass('interactive-card');
+        expect(remainingCard).not.toHaveClass('interactive-card');
         expect(workTotalCard).not.toHaveTextContent('Debt');
         expect(paidCard).not.toHaveTextContent('Debt');
-        expect(remainingCard).toHaveTextContent('Debt');
+        expect(remainingCard).toHaveTextContent('Remaining');
     });
 
     it('hides the settled badge when all financial summary amounts are zero', async () => {
@@ -330,10 +330,10 @@ describe('TreatmentHistoryCard image controls', () => {
         renderCard();
 
         await waitFor(() => {
-            expect(getCompactSummaryCard('Remaining')).toHaveTextContent('0 UZS');
+            expect(getHeaderSummaryPill('Remaining')).toHaveTextContent('0 UZS');
         });
 
-        expect(getCompactSummaryCard('Remaining')).not.toHaveTextContent('Paid');
+        expect(getHeaderSummaryPill('Remaining')).not.toHaveTextContent('Paid');
     });
 
     it('keeps the settled badge when real work is fully paid', async () => {
@@ -365,7 +365,7 @@ describe('TreatmentHistoryCard image controls', () => {
         renderCard();
 
         await waitFor(() => {
-            expect(getCompactSummaryCard('Remaining')).toHaveTextContent('Paid');
+            expect(getHeaderSummaryPill('Remaining')).toHaveTextContent('Paid');
         });
     });
 
@@ -995,10 +995,10 @@ describe('TreatmentHistoryCard image controls', () => {
         renderCard();
 
         await waitFor(() => {
-            expect(getCompactSummaryCard('Remaining')).toHaveTextContent('USD');
+            expect(getHeaderSummaryPill('Remaining')).toHaveTextContent('USD');
         });
 
-        const remainingCard = getCompactSummaryCard('Remaining') as HTMLElement;
+        const remainingCard = getHeaderSummaryPill('Remaining') as HTMLElement;
         const remainingText = normalizeText(remainingCard.textContent);
 
         expect(remainingText).toContain('1 270 000 UZS');

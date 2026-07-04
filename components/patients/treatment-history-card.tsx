@@ -1,7 +1,7 @@
 ﻿'use client';
 
 import dynamic from 'next/dynamic';
-import { type ChangeEvent, type FocusEvent, useEffect, useMemo, useState } from 'react';
+import { type ChangeEvent, type FocusEvent, type ReactNode, useEffect, useMemo, useState } from 'react';
 import { type InfiniteData, useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
     createPatientTreatment,
@@ -25,7 +25,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
-import { MetricSummaryCard } from '@/components/ui/metric-summary-card';
 import type { PreviewGalleryImage } from '@/components/patients/patient-photo-preview-dialog';
 import { optimizeImageFilesForUpload } from '@/lib/browser-image';
 import { getProtectedMediaCrossOrigin, getProtectedMediaPreviewUrl, getProtectedMediaThumbnailUrl, isProtectedMediaApproved } from '@/lib/protected-media';
@@ -389,6 +388,57 @@ function renderMoneyBreakdownWithBalanceStatuses(totals: TreatmentCurrencyTotals
                     ) : null}
                 </span>
             ))}
+        </div>
+    );
+}
+
+function getHistoryFinancialPillToneClasses(tone: 'red' | 'emerald' | 'blue' | 'yellow' | 'slate') {
+    switch (tone) {
+        case 'red':
+            return 'border-red-100 bg-red-50/45 text-red-700';
+        case 'emerald':
+            return 'border-emerald-100 bg-emerald-50/45 text-emerald-700';
+        case 'blue':
+            return 'border-blue-100 bg-blue-50/45 text-blue-700';
+        case 'yellow':
+            return 'border-yellow-100 bg-yellow-50/45 text-amber-700';
+        case 'slate':
+        default:
+            return 'border-slate-200 bg-slate-50/70 text-slate-700';
+    }
+}
+
+function HistoryFinancialPill({
+    label,
+    value,
+    tone,
+    badge,
+    locked,
+}: {
+    label: string;
+    value: ReactNode;
+    tone: 'red' | 'emerald' | 'blue' | 'yellow' | 'slate';
+    badge?: string | null;
+    locked: boolean;
+}) {
+    return (
+        <div
+            data-testid="history-financial-summary-pill"
+            className={`min-w-0 rounded-xl border px-3 py-2 shadow-sm shadow-slate-100/60 ${getHistoryFinancialPillToneClasses(tone)}`}
+        >
+            <div className="flex min-w-0 items-center gap-1.5">
+                <span className="truncate text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">
+                    {label}
+                </span>
+                {badge ? (
+                    <span className="shrink-0 rounded-full border border-current/20 bg-white/55 px-1.5 py-0.5 text-[9px] font-bold leading-none">
+                        {badge}
+                    </span>
+                ) : null}
+            </div>
+            <div className="mt-0.5 min-w-0 truncate text-sm font-bold tabular-nums">
+                {locked ? <span className="inline-flex items-center gap-1"><Lock className="h-3 w-3" />***</span> : value}
+            </div>
         </div>
     );
 }
@@ -1796,37 +1846,30 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
         );
     };
 
-    const renderFinancialSummaryCards = () => (
-        <div className="grid min-w-0 flex-1 grid-cols-1 gap-2 sm:grid-cols-3 xl:max-w-4xl">
-            <MetricSummaryCard
+    const renderFinancialSummaryStrip = () => (
+        <div
+            data-testid="patient-history-financial-summary"
+            className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-3 lg:min-w-[30rem] xl:min-w-[36rem]"
+        >
+            <HistoryFinancialPill
                 label={t('patientHistory.totalDebt')}
                 value={formatMoneyBreakdown(summary.totalsByCurrency, 'totalDebt')}
                 tone="red"
-                compact
-                gradient
-                tabular
                 locked={!canViewFinancials}
             />
-            <MetricSummaryCard
+            <HistoryFinancialPill
                 label={t('patientHistory.totalPaid')}
                 value={formatMoneyBreakdown(summary.totalsByCurrency, 'totalPaid')}
                 tone="emerald"
-                compact
-                gradient
-                tabular
                 locked={!canViewFinancials}
             />
-            <MetricSummaryCard
+            <HistoryFinancialPill
                 label={t('patientHistory.netBalance')}
                 value={hasMixedNetBalanceStatus
                     ? renderMoneyBreakdownWithBalanceStatuses(summary.totalsByCurrency, t)
                     : formatMoneyBreakdown(summary.totalsByCurrency, 'netBalance')}
                 tone={netBalanceTone}
-                badge={!hasMixedNetBalanceStatus && netBalanceStatusKey ? t(netBalanceStatusKey) : undefined}
-                badgeTone={netBalanceTone}
-                compact
-                gradient
-                tabular
+                badge={!hasMixedNetBalanceStatus && netBalanceStatusKey ? t(netBalanceStatusKey) : null}
                 locked={!canViewFinancials}
             />
         </div>
@@ -1836,12 +1879,20 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
         <>
             <Card className="interactive-card rounded-2xl border-slate-200 shadow-sm">
                 <CardHeader className="flex flex-col gap-3">
-                    <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-                        <div className="flex min-w-0 flex-1 flex-col gap-3 lg:flex-row lg:items-center">
-                            <CardTitle className="shrink-0">{t('patientHistory.title')}</CardTitle>
-                            {renderFinancialSummaryCards()}
+                    <div
+                        data-testid="patient-history-header"
+                        className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(12rem,1fr)_auto_minmax(12rem,1fr)] xl:items-center"
+                    >
+                        <div className="min-w-0">
+                            <CardTitle className="truncate">{t('patientHistory.title')}</CardTitle>
                         </div>
-                        <div className="flex shrink-0 flex-col gap-2 sm:flex-row sm:items-center">
+                        <div className="min-w-0 xl:justify-self-center">
+                            {renderFinancialSummaryStrip()}
+                        </div>
+                        <div
+                            data-testid="patient-history-actions"
+                            className="flex shrink-0 flex-col gap-2 sm:flex-row sm:items-center xl:justify-self-end"
+                        >
                             {subscription?.can_export ? (
                                 <Button
                                     variant="outline"
