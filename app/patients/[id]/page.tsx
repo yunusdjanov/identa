@@ -32,6 +32,7 @@ import {
 import {
     Activity,
     AlertCircle,
+    Archive,
     ArrowLeft,
     Calendar,
     CalendarCheck,
@@ -826,46 +827,50 @@ export default function PatientDetailPage({
                     {!isPatientArchived && canManageAppointments ? (
                         <Button
                             variant="outline"
-                            size="sm"
-                            className="h-7 rounded-full px-3 text-xs"
+                            size="icon-lg"
+                            className="rounded-full"
+                            aria-label={t('appointments.dialog.newTitle')}
+                            title={t('appointments.dialog.newTitle')}
                             onClick={() => setIsAppointmentDialogOpen(true)}
                         >
-                            <CalendarPlus className="mr-1.5 h-3 w-3" />
-                            {t('appointments.dialog.newTitle')}
+                            <CalendarPlus className="h-4 w-4" />
                         </Button>
                     ) : !isPatientArchived && isSubscriptionReadOnly(currentUser) && canViewAppointments ? (
                         <Button
                             variant="outline"
-                            size="sm"
-                            className="h-7 rounded-full px-3 text-xs"
+                            size="icon-lg"
+                            className="rounded-full"
+                            aria-label={t('appointments.dialog.newTitle')}
+                            title={t('appointments.dialog.newTitle')}
                             disabled
                             onClick={denyManageAction}
                         >
-                            <CalendarPlus className="mr-1.5 h-3 w-3" />
-                            {t('appointments.dialog.newTitle')}
+                            <CalendarPlus className="h-4 w-4" />
                         </Button>
                     ) : null}
                     {canManagePatients ? (
                         <Button
                             variant="outline"
-                            size="sm"
-                            className="h-7 rounded-full px-3 text-xs"
+                            size="icon-lg"
+                            className="rounded-full"
+                            aria-label={t('patientDetail.editPatient')}
+                            title={t('patientDetail.editPatient')}
                             onClick={() => setIsEditDialogOpen(true)}
                             disabled={isPatientArchived}
                         >
-                            <Edit className="mr-1.5 h-3 w-3" />
-                            {t('patientDetail.editPatient')}
+                            <Edit className="h-4 w-4" />
                         </Button>
                     ) : isSubscriptionReadOnly(currentUser) && canViewPatients ? (
                         <Button
                             variant="outline"
-                            size="sm"
-                            className="h-7 rounded-full px-3 text-xs"
+                            size="icon-lg"
+                            className="rounded-full"
+                            aria-label={t('patientDetail.editPatient')}
+                            title={t('patientDetail.editPatient')}
                             disabled
                             onClick={denyManageAction}
                         >
-                            <Edit className="mr-1.5 h-3 w-3" />
-                            {t('patientDetail.editPatient')}
+                            <Edit className="h-4 w-4" />
                         </Button>
                     ) : null}
                     {isPatientArchived ? (
@@ -926,22 +931,26 @@ export default function PatientDetailPage({
                     ) : canManagePatients ? (
                         <Button
                             variant="outline"
-                            size="sm"
-                            className="h-7 rounded-full px-3 text-xs text-amber-700 hover:text-amber-800"
+                            size="icon-lg"
+                            className="rounded-full text-amber-700 hover:text-amber-800"
+                            aria-label={t('patientDetail.archive')}
+                            title={t('patientDetail.archive')}
                             onClick={() => setIsArchivePatientDialogOpen(true)}
                             disabled={archivePatientMutation.isPending}
                         >
-                            {t('patientDetail.archive')}
+                            <Archive className="h-4 w-4" />
                         </Button>
                     ) : isSubscriptionReadOnly(currentUser) && canViewPatients ? (
                         <Button
                             variant="outline"
-                            size="sm"
-                            className="h-7 rounded-full px-3 text-xs text-amber-700 hover:text-amber-800"
+                            size="icon-lg"
+                            className="rounded-full text-amber-700 hover:text-amber-800"
+                            aria-label={t('patientDetail.archive')}
+                            title={t('patientDetail.archive')}
                             disabled
                             onClick={denyManageAction}
                         >
-                            {t('patientDetail.archive')}
+                            <Archive className="h-4 w-4" />
                         </Button>
                     ) : null}
                 </div>

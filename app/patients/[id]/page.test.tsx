@@ -160,6 +160,13 @@ describe('PatientDetailPage', () => {
         expect(await screen.findByText('John Smith')).toBeInTheDocument();
         const scheduleButton = screen.getByRole('button', { name: 'Schedule Appointment' });
         const editButton = screen.getByRole('button', { name: 'Edit Patient' });
+        const archiveButton = screen.getByRole('button', { name: 'Archive' });
+        expect(scheduleButton).toHaveClass('size-10');
+        expect(editButton).toHaveClass('size-10');
+        expect(archiveButton).toHaveClass('size-10');
+        expect(screen.queryByText('Schedule Appointment')).not.toBeInTheDocument();
+        expect(screen.queryByText('Edit Patient')).not.toBeInTheDocument();
+        expect(screen.queryByText('Archive')).not.toBeInTheDocument();
         expect(scheduleButton.compareDocumentPosition(editButton) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     });
 
