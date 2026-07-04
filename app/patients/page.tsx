@@ -855,44 +855,48 @@ export default function PatientsPage() {
                                             <TableCell className="text-slate-500">
                                                 {rowNumber}
                                             </TableCell>
-                                            <TableCell className="w-28">
+                                            <TableCell className="w-28 overflow-visible">
                                                 {patientPhotoThumbnailUrl !== '' ? (
-                                                    <button
-                                                        type="button"
-                                                        className="group relative inline-flex h-16 w-16 items-center justify-center overflow-hidden rounded-xl border border-slate-200 bg-white p-0 shadow-xs transition hover:border-teal-200 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-300"
-                                                        aria-label={`${t('patients.form.photo')}: ${patient.fullName}`}
-                                                        onClick={(event) => {
-                                                            event.stopPropagation();
-                                                            setPhotoPreview({
-                                                                src: patientPhotoPreviewUrl,
-                                                                thumbnailSrc: patientPhotoThumbnailUrl,
-                                                                alt: patient.fullName,
-                                                                title: patient.fullName,
-                                                            });
-                                                        }}
-                                                        onKeyDown={(event) => event.stopPropagation()}
-                                                    >
-                                                        <Avatar className="h-full w-full rounded-xl">
-                                                            <AvatarImage
-                                                                src={patientPhotoThumbnailUrl}
-                                                                alt={patient.fullName}
-                                                                crossOrigin={getProtectedMediaCrossOrigin(patientPhotoThumbnailUrl)}
-                                                                className="scale-[1.08] rounded-xl"
-                                                            />
-                                                            <AvatarFallback className="rounded-xl bg-slate-100 text-xs font-semibold text-slate-700">
+                                                    <div className="relative h-16 w-20 overflow-visible">
+                                                        <button
+                                                            type="button"
+                                                            className="group absolute left-0 top-1/2 inline-flex h-20 w-20 -translate-y-1/2 items-center justify-center overflow-hidden rounded-xl border border-slate-200 bg-white p-0 shadow-xs transition hover:border-teal-200 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-300"
+                                                            aria-label={`${t('patients.form.photo')}: ${patient.fullName}`}
+                                                            onClick={(event) => {
+                                                                event.stopPropagation();
+                                                                setPhotoPreview({
+                                                                    src: patientPhotoPreviewUrl,
+                                                                    thumbnailSrc: patientPhotoThumbnailUrl,
+                                                                    alt: patient.fullName,
+                                                                    title: patient.fullName,
+                                                                });
+                                                            }}
+                                                            onKeyDown={(event) => event.stopPropagation()}
+                                                        >
+                                                            <Avatar className="h-full w-full rounded-xl">
+                                                                <AvatarImage
+                                                                    src={patientPhotoThumbnailUrl}
+                                                                    alt={patient.fullName}
+                                                                    crossOrigin={getProtectedMediaCrossOrigin(patientPhotoThumbnailUrl)}
+                                                                    className="rounded-xl"
+                                                                />
+                                                                <AvatarFallback className="rounded-xl bg-slate-100 text-sm font-semibold text-slate-700">
+                                                                    {getPatientInitials(patient.fullName)}
+                                                                </AvatarFallback>
+                                                            </Avatar>
+                                                            <span className="pointer-events-none absolute inset-0 flex items-center justify-center bg-slate-950/0 text-white opacity-0 transition group-hover:bg-slate-950/35 group-hover:opacity-100 group-focus-visible:bg-slate-950/35 group-focus-visible:opacity-100">
+                                                                <Maximize2 className="h-4 w-4" />
+                                                            </span>
+                                                        </button>
+                                                    </div>
+                                                ) : (
+                                                    <div className="relative h-16 w-20 overflow-visible">
+                                                        <Avatar className="absolute left-0 top-1/2 h-20 w-20 -translate-y-1/2 rounded-xl border border-dashed border-slate-200 bg-slate-50">
+                                                            <AvatarFallback className="rounded-xl bg-slate-50 text-sm font-semibold text-slate-500">
                                                                 {getPatientInitials(patient.fullName)}
                                                             </AvatarFallback>
                                                         </Avatar>
-                                                        <span className="pointer-events-none absolute inset-0 flex items-center justify-center bg-slate-950/0 text-white opacity-0 transition group-hover:bg-slate-950/35 group-hover:opacity-100 group-focus-visible:bg-slate-950/35 group-focus-visible:opacity-100">
-                                                            <Maximize2 className="h-4 w-4" />
-                                                        </span>
-                                                    </button>
-                                                ) : (
-                                                    <Avatar className="h-16 w-16 rounded-xl border border-dashed border-slate-200 bg-slate-50">
-                                                        <AvatarFallback className="rounded-xl bg-slate-50 text-xs font-semibold text-slate-500">
-                                                            {getPatientInitials(patient.fullName)}
-                                                        </AvatarFallback>
-                                                    </Avatar>
+                                                    </div>
                                                 )}
                                             </TableCell>
                                             <TableCell className="max-w-[24rem]">

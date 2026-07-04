@@ -666,7 +666,8 @@ describe('PatientsPage', () => {
         await user.click(photoTrigger);
 
         expect(pushMock).not.toHaveBeenCalled();
-        expect(photoTrigger).toHaveClass('h-16', 'w-16');
+        expect(photoTrigger).toHaveClass('h-20', 'w-20', 'absolute');
+        expect(photoTrigger.parentElement).toHaveClass('h-16', 'w-20');
         const dialog = await screen.findByRole('dialog');
         expect(dialog).toBeInTheDocument();
         expect(within(dialog).queryByRole('button', { name: 'Edit' })).not.toBeInTheDocument();
