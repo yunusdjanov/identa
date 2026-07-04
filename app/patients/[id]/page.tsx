@@ -755,6 +755,7 @@ export default function PatientDetailPage({
                                     src={patientAvatarUrl}
                                     alt={patient.full_name}
                                     crossOrigin={getProtectedMediaCrossOrigin(patientAvatarUrl)}
+                                    className="scale-[1.08]"
                                 />
                                 <AvatarFallback className="bg-slate-100 text-sm font-semibold text-slate-700">
                                     {getPatientInitials(patient.full_name)}

@@ -71,3 +71,22 @@ if (!HTMLElement.prototype.scrollIntoView) {
         writable: true,
     });
 }
+
+let objectUrlCounter = 0;
+
+if (!URL.createObjectURL) {
+    Object.defineProperty(URL, 'createObjectURL', {
+        value: () => {
+            objectUrlCounter += 1;
+            return `blob:mock-${objectUrlCounter}`;
+        },
+        writable: true,
+    });
+}
+
+if (!URL.revokeObjectURL) {
+    Object.defineProperty(URL, 'revokeObjectURL', {
+        value: () => {},
+        writable: true,
+    });
+}

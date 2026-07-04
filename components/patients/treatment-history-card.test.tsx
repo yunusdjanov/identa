@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { I18nProvider } from '@/components/providers/i18n-provider';
 import { DICTIONARIES } from '@/lib/i18n/dictionaries';
 import { TreatmentHistoryCard } from '@/components/patients/treatment-history-card';
+import { optimizeImageFilesForUpload } from '@/lib/browser-image';
 import {
     createPatientTreatment,
     deletePatientTreatment,
@@ -13,10 +14,15 @@ import {
     getPatientTreatment,
     listAllPatientTreatments,
     listPatientTreatments,
+    replacePatientTreatmentImage,
     updatePatientTreatment,
     uploadPatientTreatmentImage,
     uploadPatientTreatmentImages,
 } from '@/lib/api/dentist';
+
+vi.mock('@/lib/browser-image', () => ({
+    optimizeImageFilesForUpload: vi.fn(async (files: File[]) => files),
+}));
 
 vi.mock('@/lib/api/dentist', () => ({
     createPatientTreatment: vi.fn(),
@@ -26,6 +32,7 @@ vi.mock('@/lib/api/dentist', () => ({
     getPatientTreatment: vi.fn(),
     listAllPatientTreatments: vi.fn(),
     listPatientTreatments: vi.fn(),
+    replacePatientTreatmentImage: vi.fn(),
     updatePatientTreatment: vi.fn(),
     uploadPatientTreatmentImage: vi.fn(),
     uploadPatientTreatmentImages: vi.fn(),
@@ -97,6 +104,8 @@ describe('TreatmentHistoryCard image controls', () => {
         vi.mocked(getPatientTreatment).mockReset();
         vi.mocked(listAllPatientTreatments).mockReset();
         vi.mocked(listPatientTreatments).mockReset();
+        vi.mocked(replacePatientTreatmentImage).mockReset();
+        vi.mocked(optimizeImageFilesForUpload).mockClear();
         vi.mocked(updatePatientTreatment).mockReset();
         vi.mocked(uploadPatientTreatmentImage).mockReset();
         vi.mocked(uploadPatientTreatmentImages).mockReset();
@@ -844,6 +853,35 @@ describe('TreatmentHistoryCard image controls', () => {
         expect(uploadTile.compareDocumentPosition(commentInput) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
         expect(screen.queryByTitle('Tooth #18')).not.toBeInTheDocument();
         expect(screen.queryByTitle('Tooth #48')).not.toBeInTheDocument();
+    });
+
+    it('allows images selected on an unsaved entry to open the editor', async () => {
+        const user = userEvent.setup();
+        const { container } = renderCard();
+
+        await waitFor(() => {
+            expect(screen.getAllByText('Davalash').length).toBeGreaterThan(0);
+        });
+
+        await user.click(screen.getByRole('button', { name: 'Add Entry' }));
+
+        const formCard = screen.getByText('New entry').closest('article') as HTMLElement;
+        const fileInput = container.querySelector<HTMLInputElement>('#historyImages');
+
+        expect(fileInput).toBeInstanceOf(HTMLInputElement);
+
+        await user.upload(
+            fileInput as HTMLInputElement,
+            new File(['draft-image'], 'draft.jpg', { type: 'image/jpeg' })
+        );
+
+        const pendingImageButton = await within(formCard).findByRole('button', { name: 'Image 1' });
+
+        expect(within(formCard).getByRole('button', { name: 'Edit Image 1' })).toBeInTheDocument();
+
+        await user.click(pendingImageButton);
+
+        expect(await screen.findByRole('button', { name: 'Edit' })).toBeEnabled();
     });
 
     it('localizes treatment suggestion chips by active language', async () => {

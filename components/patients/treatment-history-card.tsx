@@ -730,6 +730,7 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
     const [submitAttempted, setSubmitAttempted] = useState(false);
     const [detailLoadingTreatmentId, setDetailLoadingTreatmentId] = useState<string | null>(null);
     const [isPreparingImages, setIsPreparingImages] = useState(false);
+    const [isSavingPendingImageEdit, setIsSavingPendingImageEdit] = useState(false);
 
     const currentUserQuery = useQuery({
         queryKey: ['auth', 'me'],
@@ -741,6 +742,7 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
     const maxHistoryImagesPerEntry = subscription?.entry_image_limit ?? MAX_HISTORY_IMAGES_PER_ENTRY;
     const maxHistoryUploadMb = subscription?.upload_max_mb ?? DEFAULT_HISTORY_UPLOAD_MAX_MB;
     const maxHistoryUploadBytes = maxHistoryUploadMb * 1024 * 1024;
+    const historyImageLabel = t('patientHistory.image');
 
     const treatmentsQuery = useInfiniteQuery({
         queryKey: treatmentsQueryKey,
@@ -1068,6 +1070,17 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
             })),
         [formState.imageFiles]
     );
+    const selectedPreviewGalleryImages = useMemo<PreviewGalleryImage[]>(
+        () =>
+            selectedImagePreviews.map((item, imageIndex) => ({
+                id: item.id,
+                src: item.url,
+                thumbnailSrc: item.url,
+                alt: `${historyImageLabel} ${imageIndex + 1}`,
+                title: `${historyImageLabel} ${imageIndex + 1}`,
+            })),
+        [historyImageLabel, selectedImagePreviews]
+    );
 
     useEffect(() => {
         return () => {
@@ -1076,6 +1089,24 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
             });
         };
     }, [selectedImagePreviews]);
+    useEffect(() => {
+        setPreviewGallery((current) => {
+            if (!current || current.treatmentId) {
+                return current;
+            }
+
+            if (selectedPreviewGalleryImages.length === 0) {
+                return null;
+            }
+
+            return {
+                ...current,
+                images: selectedPreviewGalleryImages,
+                startIndex: Math.min(current.startIndex, selectedPreviewGalleryImages.length - 1),
+                treatmentDate: formState.treatmentDate,
+            };
+        });
+    }, [formState.treatmentDate, selectedPreviewGalleryImages]);
 
     const canManageHistory = canManage(currentUserQuery.data, 'patients');
     // Read-only financial display is gated by payments.view. A
@@ -1369,18 +1400,58 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
     const isInlineCreateOpen = isDialogOpen && editingTreatment === null;
     const renderSelectedPreviewGallery = (startIndex: number) => {
         setPreviewGallery({
-            images: selectedImagePreviews.map((item, imageIndex) => ({
-                id: item.id,
-                src: item.url,
-                alt: `${t('patientHistory.image')} ${imageIndex + 1}`,
-                title: `${t('patientHistory.image')} ${imageIndex + 1}`,
-            })),
+            images: selectedPreviewGalleryImages,
             startIndex,
             fallbackTitle: patientName,
             treatmentId: '',
             treatmentDate: formState.treatmentDate,
         });
     };
+
+    const saveEditedPendingTreatmentImage = async (image: PreviewGalleryImage, file: File) => {
+        const previewIndex = selectedImagePreviews.findIndex((preview) => preview.id === image.id);
+
+        if (previewIndex < 0) {
+            throw new Error(t('gallery.edit.failed'));
+        }
+
+        setIsSavingPendingImageEdit(true);
+
+        try {
+            const [optimizedFile] = await optimizeImageFilesForUpload([file], {
+                concurrency: 1,
+                targetMaxBytes: null,
+            });
+
+            if (!optimizedFile) {
+                throw new Error(t('gallery.edit.failed'));
+            }
+
+            const validationError = validateHistoryImageFile(optimizedFile, t, maxHistoryUploadBytes, maxHistoryUploadMb);
+
+            if (validationError) {
+                throw new Error(validationError);
+            }
+
+            setFormState((current) => {
+                if (previewIndex >= current.imageFiles.length) {
+                    return current;
+                }
+
+                const imageFiles = [...current.imageFiles];
+                imageFiles[previewIndex] = optimizedFile;
+
+                return {
+                    ...current,
+                    imageFiles,
+                };
+            });
+            toast.success(t('patientHistory.toast.imageEdited'));
+        } finally {
+            setIsSavingPendingImageEdit(false);
+        }
+    };
+
     const renderTreatmentFormCard = (mode: 'create' | 'edit') => {
         const existingImages = editingTreatment?.images ?? [];
         const hasImages = existingImages.length > 0 || selectedImagePreviews.length > 0;
@@ -1589,6 +1660,15 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                         title={t('patientHistory.removeImage')}
                                     >
                                         <X className="h-3.5 w-3.5" />
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className="absolute bottom-1.5 right-1.5 inline-flex h-7 w-7 items-center justify-center rounded-full border border-white/80 bg-white/95 text-slate-700 opacity-0 shadow-sm transition-all hover:bg-teal-50 hover:text-teal-700 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 group-hover:opacity-100"
+                                        onClick={() => renderSelectedPreviewGallery(index)}
+                                        aria-label={`${t('common.edit')} ${t('patientHistory.image')} ${existingImages.length + index + 1}`}
+                                        title={`${t('common.edit')} ${t('patientHistory.image')} ${existingImages.length + index + 1}`}
+                                    >
+                                        <Pencil className="h-3.5 w-3.5" />
                                     </button>
                                 </div>
                             ))}
@@ -2122,9 +2202,14 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                     src={previewGallery.images[0]?.src ?? null}
                     alt={previewGallery.images[0]?.alt ?? ''}
                     title={previewGallery.images[0]?.title ?? previewGallery.fallbackTitle ?? patientName}
-                    onSaveEditedImage={historyManageDisplayMode === 'enabled' && previewGallery.treatmentId ? async (image, file) => {
+                    onSaveEditedImage={historyManageDisplayMode === 'enabled' ? async (image, file) => {
                         if (!image.id) {
                             throw new Error(t('gallery.edit.failed'));
+                        }
+
+                        if (!previewGallery.treatmentId) {
+                            await saveEditedPendingTreatmentImage(image, file);
+                            return;
                         }
 
                         await saveEditedTreatmentImageMutation.mutateAsync({
@@ -2133,7 +2218,7 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                             file,
                         });
                     } : undefined}
-                    isEditPending={saveEditedTreatmentImageMutation.isPending}
+                    isEditPending={saveEditedTreatmentImageMutation.isPending || isSavingPendingImageEdit}
                 />
             ) : null}
         </>

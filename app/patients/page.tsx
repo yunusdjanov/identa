@@ -877,7 +877,7 @@ export default function PatientsPage() {
                                                                 src={patientPhotoThumbnailUrl}
                                                                 alt={patient.fullName}
                                                                 crossOrigin={getProtectedMediaCrossOrigin(patientPhotoThumbnailUrl)}
-                                                                className="rounded-xl"
+                                                                className="scale-[1.08] rounded-xl"
                                                             />
                                                             <AvatarFallback className="rounded-xl bg-slate-100 text-xs font-semibold text-slate-700">
                                                                 {getPatientInitials(patient.fullName)}
