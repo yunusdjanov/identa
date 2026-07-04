@@ -662,6 +662,8 @@ describe('PatientsPage', () => {
         });
         expect(screen.queryByRole('button', { name: 'Patient Photo: No Photo Patient' })).not.toBeInTheDocument();
         expect(photoTrigger).toBeEnabled();
+        expect(within(photoTrigger).getByRole('img', { name: 'Photo Preview Patient' }))
+            .toHaveClass('h-full', 'w-full', 'object-cover');
 
         await user.click(photoTrigger);
 

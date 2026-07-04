@@ -43,7 +43,7 @@ import { buildPdfFilename, exportRowsToPdf } from '@/lib/export/pdf';
 import { EmptyState } from '@/components/ui/empty-state';
 import { useI18n } from '@/components/providers/i18n-provider';
 import { useDebouncedValue } from '@/lib/hooks/use-debounced-value';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { getProtectedMediaCrossOrigin, getProtectedMediaPreviewUrl, getProtectedMediaThumbnailUrl } from '@/lib/protected-media';
 import { toast } from 'sonner';
 import { AppErrorState } from '@/components/error/app-error-state';
@@ -873,17 +873,15 @@ export default function PatientsPage() {
                                                             }}
                                                             onKeyDown={(event) => event.stopPropagation()}
                                                         >
-                                                            <Avatar className="h-full w-full rounded-xl">
-                                                                <AvatarImage
-                                                                    src={patientPhotoThumbnailUrl}
-                                                                    alt={patient.fullName}
-                                                                    crossOrigin={getProtectedMediaCrossOrigin(patientPhotoThumbnailUrl)}
-                                                                    className="rounded-xl"
-                                                                />
-                                                                <AvatarFallback className="rounded-xl bg-slate-100 text-sm font-semibold text-slate-700">
-                                                                    {getPatientInitials(patient.fullName)}
-                                                                </AvatarFallback>
-                                                            </Avatar>
+                                                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                            <img
+                                                                src={patientPhotoThumbnailUrl}
+                                                                alt={patient.fullName}
+                                                                crossOrigin={getProtectedMediaCrossOrigin(patientPhotoThumbnailUrl)}
+                                                                className="block h-full w-full rounded-xl object-cover object-center"
+                                                                decoding="async"
+                                                                loading="lazy"
+                                                            />
                                                             <span className="pointer-events-none absolute inset-0 flex items-center justify-center bg-slate-950/0 text-white opacity-0 transition group-hover:bg-slate-950/35 group-hover:opacity-100 group-focus-visible:bg-slate-950/35 group-focus-visible:opacity-100">
                                                                 <Maximize2 className="h-4 w-4" />
                                                             </span>
