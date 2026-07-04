@@ -897,7 +897,7 @@ class MediaUploadSecurityTest extends TestCase
         $dentist = User::factory()->create();
         $patient = Patient::factory()->create(['dentist_id' => $dentist->id]);
 
-        foreach (range(1, 8) as $sortOrder) {
+        foreach (range(1, 10) as $sortOrder) {
             PatientClinicalPhoto::query()->create([
                 'dentist_id' => $dentist->id,
                 'patient_id' => $patient->id,
@@ -931,7 +931,7 @@ class MediaUploadSecurityTest extends TestCase
             ->assertJsonValidationErrors(['photo']);
 
         Storage::disk('local')->assertMissing($path);
-        $this->assertDatabaseCount('patient_clinical_photos', 8);
+        $this->assertDatabaseCount('patient_clinical_photos', 10);
     }
 
     public function test_rejected_oral_photo_replacement_retains_previous_approved_photo(): void

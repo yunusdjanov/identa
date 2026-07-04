@@ -331,10 +331,10 @@ describe('PatientDetailPage', () => {
         expect(screen.queryByText('Appointments')).not.toBeInTheDocument();
         expect(await screen.findByTestId('patient-detail-work-history')).toHaveAttribute('data-patient-id', 'p-1');
         expect(screen.getByTestId('patient-detail-work-history')).toHaveTextContent('Work History for John Smith');
-        expect(screen.getByText('0/8')).toBeInTheDocument();
-        expect(screen.getAllByTitle('Upload')).toHaveLength(8);
+        expect(screen.getByText('0/10')).toBeInTheDocument();
+        expect(screen.getAllByTitle('Upload')).toHaveLength(10);
         expect(screen.getByTestId('patient-detail-oral-photo-grid')).toHaveClass('h-full', 'min-h-0');
-        expect(screen.getAllByTestId('patient-detail-oral-photo-slot')).toHaveLength(8);
+        expect(screen.getAllByTestId('patient-detail-oral-photo-slot')).toHaveLength(10);
         expect(screen.getAllByTestId('patient-detail-oral-photo-slot')[0]).toHaveClass('h-full', 'min-h-0', 'w-full');
         expect(oralPhotoTitle.compareDocumentPosition(detailCard) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     });
@@ -382,8 +382,8 @@ describe('PatientDetailPage', () => {
         expect(screen.queryByText('Smile')).not.toBeInTheDocument();
         expect(screen.queryByText('Top')).not.toBeInTheDocument();
         expect(screen.queryByText('Bottom')).not.toBeInTheDocument();
-        expect(screen.getByText('1/8')).toBeInTheDocument();
-        expect(screen.getAllByTitle('Upload')).toHaveLength(7);
+        expect(screen.getByText('1/10')).toBeInTheDocument();
+        expect(screen.getAllByTitle('Upload')).toHaveLength(9);
         expect(screen.getAllByTitle('View')).toHaveLength(1);
         expect(screen.getAllByTitle('View')[0]).toHaveClass('h-full', 'min-h-0', 'w-full');
         expect(within(screen.getAllByTitle('View')[0]).queryByText('1')).not.toBeInTheDocument();

@@ -1,7 +1,7 @@
 import type { ApiPatient, ApiPatientClinicalPhotoViewType } from '@/lib/api/types';
 
 export const ORAL_PHOTO_POLL_INTERVAL_MS = 2500;
-export const ORAL_PHOTO_MAX_PER_SLOT = 8;
+export const ORAL_PHOTO_MAX_PER_SLOT = 10;
 
 export const ORAL_PHOTO_SLOTS: Array<{
     viewType: ApiPatientClinicalPhotoViewType;

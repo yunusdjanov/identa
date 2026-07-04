@@ -637,7 +637,7 @@ class PatientApiTest extends TestCase
             'dentist_id' => $dentist->id,
         ]);
 
-        foreach (range(1, 8) as $index) {
+        foreach (range(1, 10) as $index) {
             PatientClinicalPhoto::query()->create([
                 'dentist_id' => $dentist->id,
                 'patient_id' => $patient->id,
@@ -660,7 +660,7 @@ class PatientApiTest extends TestCase
             ->assertStatus(422)
             ->assertJsonValidationErrors('photo');
 
-        $this->assertSame(8, PatientClinicalPhoto::query()
+        $this->assertSame(10, PatientClinicalPhoto::query()
             ->where('patient_id', $patient->id)
             ->where('view_type', PatientClinicalPhoto::VIEW_TYPE_BOTTOM)
             ->count());
@@ -675,7 +675,7 @@ class PatientApiTest extends TestCase
         ]);
         $firstPhotoId = null;
 
-        foreach (range(1, 8) as $index) {
+        foreach (range(1, 10) as $index) {
             $photo = PatientClinicalPhoto::query()->create([
                 'dentist_id' => $dentist->id,
                 'patient_id' => $patient->id,
@@ -698,10 +698,10 @@ class PatientApiTest extends TestCase
                 'photo' => UploadedFile::fake()->image('edited-bottom.jpg', 1200, 900),
             ], ['Accept' => 'application/json'])
             ->assertOk()
-            ->assertJsonCount(8, 'data.oral_photo_galleries.bottom')
+            ->assertJsonCount(10, 'data.oral_photo_galleries.bottom')
             ->assertJsonPath('data.oral_photo_galleries.bottom.0.id', $firstPhotoId);
 
-        $this->assertSame(8, PatientClinicalPhoto::query()
+        $this->assertSame(10, PatientClinicalPhoto::query()
             ->where('patient_id', $patient->id)
             ->where('view_type', PatientClinicalPhoto::VIEW_TYPE_BOTTOM)
             ->count());

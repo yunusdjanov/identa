@@ -1075,7 +1075,7 @@ export default function PatientDetailPage({
                     <div className="flex min-h-0 flex-1 px-4 py-3">
                         <div
                             data-testid="patient-detail-oral-photo-grid"
-                            className="grid h-full min-h-0 flex-1 grid-cols-2 grid-rows-[repeat(4,minmax(0,1fr))] gap-2.5 sm:grid-cols-4 sm:grid-rows-[repeat(2,minmax(0,1fr))]"
+                            className="grid h-full min-h-0 flex-1 grid-cols-2 grid-rows-[repeat(5,minmax(0,1fr))] gap-2.5 sm:grid-cols-5 sm:grid-rows-[repeat(2,minmax(0,1fr))]"
                         >
                             {smileOralPhotoPlaceholders.map((photoSlot, index) => {
                                 const isUploadingSlot = uploadOralPhotoMutation.isPending
