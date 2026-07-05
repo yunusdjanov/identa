@@ -161,7 +161,15 @@ describe('PatientDetailPage', () => {
         const scheduleButton = screen.getByRole('button', { name: 'Schedule Appointment' });
         const editButton = screen.getByRole('button', { name: 'Edit Patient' });
         const archiveButton = screen.getByRole('button', { name: 'Archive' });
+        const identity = screen.getByTestId('patient-detail-header-identity');
+        const facts = screen.getByTestId('patient-detail-header-facts');
+        const contactFacts = screen.getByTestId('patient-detail-header-contact-facts');
+        const medicalFacts = screen.getByTestId('patient-detail-header-medical-facts');
         const actionGroup = screen.getByTestId('patient-detail-header-actions');
+        expect(identity).toHaveClass('max-w-[24rem]');
+        expect(facts).toHaveClass('h-[8rem]', 'overflow-hidden');
+        expect(contactFacts).toHaveClass('md:grid-cols-3');
+        expect(medicalFacts).toHaveClass('md:grid-cols-3');
         expect(scheduleButton).toHaveClass('size-10');
         expect(editButton).toHaveClass('size-10');
         expect(archiveButton).toHaveClass('size-10');
@@ -176,14 +184,16 @@ describe('PatientDetailPage', () => {
         vi.mocked(getCurrentUser).mockResolvedValue(dentist as never);
         vi.mocked(getPatient).mockResolvedValue({
             ...patient,
-            full_name: 'Gleb Rahmanov Nigorana Patient',
+            full_name: 'Gleb Rahmanov dilmurod oilasi madinabonu zangiota tumani',
         } as never);
 
         await renderPage();
 
         const headerName = await screen.findByTestId('patient-detail-header-name');
         expect(within(headerName).getByText('Gleb Rahmanov')).toHaveClass('block', 'truncate');
-        expect(within(headerName).getByText('Nigorana Patient')).toHaveClass('block', 'truncate');
+        const secondLine = within(headerName).getByText(/^dilmurod oilasi/);
+        expect(secondLine).toHaveClass('block', 'truncate');
+        expect(secondLine).not.toHaveTextContent('zangiota');
     });
 
     it('returns to the patients list with the restore marker from the header arrow', async () => {

@@ -94,6 +94,7 @@ const TreatmentHistoryCard = dynamic(
 );
 
 const PATIENT_HEADER_NAME_UI_LIMIT = 25;
+const PATIENT_HEADER_NAME_SECOND_LINE_UI_LIMIT = 20;
 const PATIENT_CATEGORY_CHIP_UI_LIMIT = 20;
 const PATIENT_ALLERGIES_UI_LIMIT = INPUT_LIMITS.medicalAllergies;
 const PATIENT_MEDICATIONS_UI_LIMIT = INPUT_LIMITS.medicalMedications;
@@ -308,7 +309,7 @@ function PatientHeaderFact({
     const isStringValue = typeof value === 'string';
 
     return (
-        <div className={`flex min-w-0 items-center gap-2 rounded-xl px-2 py-1.5 ${toneClasses.box} ${className}`}>
+        <div className={`flex min-w-0 items-center gap-2 overflow-hidden rounded-xl px-2 py-1.5 ${toneClasses.box} ${className}`}>
             <span
                 className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ring-1 ${toneClasses.icon}`}
                 title={label}
@@ -317,7 +318,7 @@ function PatientHeaderFact({
                 <span className="sr-only">{label}</span>
             </span>
             <span
-                className={`min-w-0 text-[12px] font-semibold leading-5 ${isStringValue ? 'truncate' : ''} ${toneClasses.value} ${valueClassName}`}
+                className={`min-w-0 overflow-hidden text-[12px] font-semibold leading-5 ${isStringValue ? 'truncate' : ''} ${toneClasses.value} ${valueClassName}`}
                 title={title}
             >
                 {value}
@@ -753,8 +754,11 @@ export default function PatientDetailPage({
     return (
         <div data-testid="patient-detail-page-layout" className="space-y-2.5">
             {/* Patient header */}
-            <div className="grid grid-cols-1 gap-2.5 rounded-2xl border border-white/80 bg-white px-4 py-3 shadow-sm shadow-slate-200/70 sm:px-5 lg:grid-cols-[minmax(18rem,auto)_auto] lg:items-center xl:grid-cols-[minmax(18rem,auto)_minmax(0,1fr)_auto]">
-                <div className="flex min-w-0 items-center gap-3">
+            <div className="grid grid-cols-1 gap-2.5 rounded-2xl border border-white/80 bg-white px-4 py-3 shadow-sm shadow-slate-200/70 sm:px-5 lg:grid-cols-[minmax(22rem,24rem)_minmax(0,1fr)] lg:items-center xl:grid-cols-[minmax(22rem,24rem)_minmax(0,1fr)_auto]">
+                <div
+                    data-testid="patient-detail-header-identity"
+                    className="flex w-full min-w-0 max-w-[24rem] items-center gap-3"
+                >
                     <Button
                         variant="ghost"
                         size="icon"
@@ -796,7 +800,7 @@ export default function PatientDetailPage({
                             </Avatar>
                         </div>
                     )}
-                    <div className="min-w-0">
+                    <div className="min-w-0 flex-1">
                         <h1
                             data-testid="patient-detail-header-name"
                             className="max-w-full text-lg font-bold leading-tight tracking-[-0.02em] text-slate-950"
@@ -807,15 +811,15 @@ export default function PatientDetailPage({
                             </span>
                             {patientHeaderNameLines.secondLine ? (
                                 <span className="block truncate">
-                                    {truncateForUi(patientHeaderNameLines.secondLine, PATIENT_HEADER_NAME_UI_LIMIT)}
+                                    {truncateForUi(patientHeaderNameLines.secondLine, PATIENT_HEADER_NAME_SECOND_LINE_UI_LIMIT)}
                                 </span>
                             ) : null}
                         </h1>
-                        <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
+                        <div className="mt-1.5 flex min-w-0 items-center gap-1.5">
                             {primaryCategory ? (
                                 <Badge
                                     variant="secondary"
-                                    className="max-w-full border border-transparent text-xs [overflow-wrap:anywhere]"
+                                    className="max-w-full truncate border border-transparent text-xs"
                                     style={{
                                         backgroundColor: `${primaryCategory.color}22`,
                                         color: primaryCategory.color,
@@ -825,7 +829,7 @@ export default function PatientDetailPage({
                                     {truncateForUi(primaryCategory.name, PATIENT_CATEGORY_CHIP_UI_LIMIT)}
                                 </Badge>
                             ) : (
-                                <Badge variant="secondary" className="bg-slate-100 text-xs text-slate-600">
+                                <Badge variant="secondary" className="max-w-full truncate bg-slate-100 text-xs text-slate-600">
                                     {t('patients.uncategorized')}
                                 </Badge>
                             )}
@@ -834,11 +838,11 @@ export default function PatientDetailPage({
                 </div>
                 <div
                     data-testid="patient-detail-header-facts"
-                    className="grid min-w-0 gap-1.5 rounded-2xl border border-slate-100 bg-slate-50/70 px-2.5 py-2 shadow-inner shadow-white/60 lg:col-span-2 lg:row-start-2 xl:col-span-1 xl:col-start-2 xl:row-start-1"
+                    className="grid h-[8rem] min-w-0 grid-rows-[1fr_auto_1fr] gap-1.5 overflow-hidden rounded-2xl border border-slate-100 bg-slate-50/70 px-2.5 py-2 shadow-inner shadow-white/60 lg:col-span-2 lg:row-start-2 xl:col-span-1 xl:col-start-2 xl:row-start-1"
                 >
                     <div
                         data-testid="patient-detail-header-contact-facts"
-                        className="grid min-w-0 gap-1.5 md:grid-cols-[minmax(12rem,0.9fr)_minmax(9rem,0.6fr)_minmax(13rem,1.15fr)]"
+                        className="grid min-h-0 min-w-0 gap-1.5 md:grid-cols-3"
                     >
                         <PatientHeaderFact
                             icon={Phone}
@@ -858,7 +862,7 @@ export default function PatientDetailPage({
                             }
                             title={headerPhoneTitle}
                             tone="teal"
-                            className="min-h-11"
+                            className="h-11"
                             valueClassName={headerPhones.length > 0 ? '' : 'text-slate-400'}
                         />
                         <PatientHeaderFact
@@ -867,7 +871,7 @@ export default function PatientDetailPage({
                             value={headerBirthDateValue}
                             title={patient.date_of_birth ? headerBirthDateValue : t('patientDetail.notSpecified')}
                             tone="sky"
-                            className="min-h-11"
+                            className="h-11"
                             valueClassName="tabular-nums"
                         />
                         <PatientHeaderFact
@@ -876,14 +880,14 @@ export default function PatientDetailPage({
                             value={truncateForUi(headerAddressValue, 38)}
                             title={patient.address?.trim() ? patient.address : t('patientDetail.notSpecified')}
                             tone="teal"
-                            className="min-h-11"
+                            className="h-11"
                             valueClassName={patient.address?.trim() ? '' : 'text-slate-400'}
                         />
                     </div>
                     <div aria-hidden="true" className="h-px bg-slate-200/70" />
                     <div
                         data-testid="patient-detail-header-medical-facts"
-                        className="grid min-w-0 gap-1.5 md:grid-cols-3"
+                        className="grid min-h-0 min-w-0 gap-1.5 md:grid-cols-3"
                     >
                         <PatientHeaderClinicalFact
                             icon={AlertCircle}

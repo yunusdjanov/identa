@@ -424,10 +424,10 @@ function HistoryFinancialPill({
     return (
         <div
             data-testid="history-financial-summary-pill"
-            className={`min-w-0 rounded-lg border px-2.5 py-1.5 shadow-sm shadow-slate-100/50 ${getHistoryFinancialPillToneClasses(tone)}`}
+            className={`min-w-0 rounded-lg border px-2 py-1 shadow-sm shadow-slate-100/50 ${getHistoryFinancialPillToneClasses(tone)}`}
         >
             <div className="flex min-w-0 items-center gap-1">
-                <span className="truncate text-[9px] font-bold uppercase leading-3 tracking-[0.11em] text-slate-400">
+                <span className="truncate text-[8px] font-bold uppercase leading-3 tracking-[0.11em] text-slate-400">
                     {label}
                 </span>
                 {badge ? (
@@ -436,7 +436,7 @@ function HistoryFinancialPill({
                     </span>
                 ) : null}
             </div>
-            <div className="mt-0.5 min-w-0 truncate text-[13px] font-bold leading-5 tabular-nums">
+            <div className="min-w-0 truncate text-xs font-bold leading-4 tabular-nums">
                 {locked ? <span className="inline-flex items-center gap-1"><Lock className="h-3 w-3" />***</span> : value}
             </div>
         </div>
@@ -1849,7 +1849,7 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
     const renderFinancialSummaryStrip = () => (
         <div
             data-testid="patient-history-financial-summary"
-            className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-3 xl:w-[30rem] 2xl:w-[32rem]"
+            className="grid min-w-0 grid-cols-1 gap-1.5 sm:grid-cols-3 xl:w-full xl:max-w-[34rem]"
         >
             <HistoryFinancialPill
                 label={t('patientHistory.totalDebt')}
@@ -1881,12 +1881,12 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                 <CardHeader className="flex flex-col gap-3">
                     <div
                         data-testid="patient-history-header"
-                        className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(12rem,1fr)_minmax(0,32rem)_auto] xl:items-center"
+                        className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(10rem,1fr)_minmax(24rem,34rem)_minmax(12rem,1fr)] xl:items-center"
                     >
                         <div className="min-w-0">
                             <CardTitle className="truncate">{t('patientHistory.title')}</CardTitle>
                         </div>
-                        <div className="min-w-0 xl:justify-self-center">
+                        <div className="min-w-0 xl:w-full xl:justify-self-center">
                             {renderFinancialSummaryStrip()}
                         </div>
                         <div
