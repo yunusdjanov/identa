@@ -333,6 +333,8 @@ describe('PatientDetailPage', () => {
         expect(screen.getByTestId('patient-detail-work-history')).toHaveTextContent('Work History for John Smith');
         expect(screen.getByText('0/10')).toBeInTheDocument();
         expect(screen.getAllByTitle('Upload')).toHaveLength(10);
+        expect(screen.getByTestId('patient-detail-page-layout')).toHaveClass('space-y-2.5');
+        expect(screen.getByTestId('patient-detail-summary-grid')).toHaveClass('gap-2.5');
         expect(screen.getByTestId('patient-detail-oral-photo-grid')).toHaveClass('h-full', 'min-h-0');
         expect(screen.getAllByTestId('patient-detail-oral-photo-slot')).toHaveLength(10);
         expect(screen.getAllByTestId('patient-detail-oral-photo-slot')[0]).toHaveClass('h-full', 'min-h-0', 'w-full');

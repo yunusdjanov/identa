@@ -736,9 +736,9 @@ export default function PatientDetailPage({
     };
 
     return (
-        <div className="space-y-4">
+        <div data-testid="patient-detail-page-layout" className="space-y-2.5">
             {/* Patient header */}
-            <div className="grid grid-cols-1 gap-3 rounded-2xl border border-white/80 bg-white px-4 py-3 shadow-sm shadow-slate-200/70 sm:px-5 lg:grid-cols-[minmax(18rem,auto)_auto] lg:items-center xl:grid-cols-[minmax(18rem,auto)_minmax(0,1fr)_auto]">
+            <div className="grid grid-cols-1 gap-2.5 rounded-2xl border border-white/80 bg-white px-4 py-3 shadow-sm shadow-slate-200/70 sm:px-5 lg:grid-cols-[minmax(18rem,auto)_auto] lg:items-center xl:grid-cols-[minmax(18rem,auto)_minmax(0,1fr)_auto]">
                 <div className="flex min-w-0 items-center gap-3">
                     <Button
                         variant="ghost"
@@ -1054,7 +1054,10 @@ export default function PatientDetailPage({
             </div>
 
             {/* Premium summary cards: oral photo, detail. */}
-            <div className="grid grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1fr)_17rem] xl:grid-cols-[minmax(0,1fr)_18rem]">
+            <div
+                data-testid="patient-detail-summary-grid"
+                className="grid grid-cols-1 gap-2.5 lg:grid-cols-[minmax(0,1fr)_17rem] xl:grid-cols-[minmax(0,1fr)_18rem]"
+            >
                 {/* Oral photo: compact clinical photo shortcuts */}
                 <article className="group/card relative flex h-[19.5rem] min-w-0 flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm shadow-slate-200/40 transition-all hover:-translate-y-0.5 hover:shadow-md hover:shadow-slate-200/70">
                     <div className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-slate-200 via-slate-300 to-slate-400" />
