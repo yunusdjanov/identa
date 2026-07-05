@@ -264,27 +264,27 @@ const PATIENT_HEADER_FACT_TONE_CLASSES: Record<PatientHeaderFactTone, { icon: st
     teal: {
         icon: 'bg-teal-50 text-teal-600 ring-teal-100',
         value: 'text-slate-900',
-        box: 'bg-white/70',
+        box: 'border-white/80 bg-white/75',
     },
     rose: {
         icon: 'bg-rose-50 text-rose-600 ring-rose-100',
         value: 'text-rose-900',
-        box: 'bg-rose-50/45',
+        box: 'border-rose-100/70 bg-rose-50/55',
     },
     amber: {
         icon: 'bg-amber-50 text-amber-600 ring-amber-100',
         value: 'text-amber-950',
-        box: 'bg-amber-50/45',
+        box: 'border-amber-100/80 bg-amber-50/55',
     },
     slate: {
         icon: 'bg-slate-100 text-slate-500 ring-slate-200/80',
         value: 'text-slate-800',
-        box: 'bg-white/65',
+        box: 'border-white/80 bg-white/70',
     },
     sky: {
         icon: 'bg-sky-50 text-sky-600 ring-sky-100',
         value: 'text-slate-900',
-        box: 'bg-white/70',
+        box: 'border-white/80 bg-white/75',
     },
 };
 
@@ -309,7 +309,9 @@ function PatientHeaderFact({
     const isStringValue = typeof value === 'string';
 
     return (
-        <div className={`flex min-w-0 items-center gap-2 overflow-hidden rounded-xl px-2 py-1.5 ${toneClasses.box} ${className}`}>
+        <div
+            className={`flex min-w-0 items-center gap-2 overflow-hidden rounded-xl border px-2.5 py-1.5 ${toneClasses.box} ${className}`}
+        >
             <span
                 className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ring-1 ${toneClasses.icon}`}
                 title={label}
@@ -342,8 +344,8 @@ function PatientHeaderClinicalFact({
     truncateLimit: number;
     emptyLabel: string;
 }) {
-    const hasValue = Boolean(value);
-    const safeValue = value ?? '';
+    const safeValue = value?.trim() ?? '';
+    const hasValue = safeValue.length > 0;
     const displayValue = hasValue ? truncateForUi(safeValue, truncateLimit) : emptyLabel;
 
     return (
@@ -353,9 +355,31 @@ function PatientHeaderClinicalFact({
             value={displayValue}
             title={hasValue ? safeValue : label}
             tone={tone}
-            className="min-h-10"
+            className="h-10"
             valueClassName={hasValue ? '' : 'text-slate-400'}
         />
+    );
+}
+
+function PatientHeaderMedicalEmptyState({
+    icon: Icon,
+    label,
+}: {
+    icon: React.ComponentType<{ className?: string }>;
+    label: string;
+}) {
+    return (
+        <div
+            data-testid="patient-detail-header-medical-empty"
+            className="flex h-10 min-w-0 items-center gap-2 overflow-hidden rounded-xl border border-white/80 bg-white/70 px-2.5 py-1.5 text-slate-500 md:col-span-3"
+            title={label}
+        >
+            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-500 ring-1 ring-slate-200/80">
+                <Icon className="h-3.5 w-3.5" aria-hidden="true" />
+                <span className="sr-only">{label}</span>
+            </span>
+            <span className="min-w-0 truncate text-[12px] font-semibold leading-5">{label}</span>
+        </div>
     );
 }
 
@@ -681,6 +705,9 @@ export default function PatientDetailPage({
     const headerPhoneTitle = headerPhones.length > 0 ? headerPhones.join(' / ') : t('patientDetail.notSpecified');
     const headerBirthDateValue = patient.date_of_birth ? formatDate(patient.date_of_birth) : compactEmptyValue;
     const headerAddressValue = patient.address?.trim() ? patient.address : compactEmptyValue;
+    const hasHeaderMedicalFacts = Boolean(
+        patient.allergies?.trim() || patient.current_medications?.trim() || patient.medical_history?.trim()
+    );
     const pickOralPhoto = (viewType: ApiPatientClinicalPhotoViewType) => {
         const slot = oralPhotoSlots.find((candidate) => candidate.viewType === viewType);
         if ((slot?.photos.length ?? 0) >= ORAL_PHOTO_MAX_PER_SLOT) {
@@ -838,11 +865,11 @@ export default function PatientDetailPage({
                 </div>
                 <div
                     data-testid="patient-detail-header-facts"
-                    className="grid h-[8rem] min-w-0 grid-rows-[1fr_auto_1fr] gap-1.5 overflow-hidden rounded-2xl border border-slate-100 bg-slate-50/70 px-2.5 py-2 shadow-inner shadow-white/60 lg:col-span-2 lg:row-start-2 xl:col-span-1 xl:col-start-2 xl:row-start-1"
+                    className="grid h-[8rem] min-w-0 grid-rows-[1fr_auto_1fr] gap-1.5 overflow-hidden rounded-2xl border border-slate-100 bg-slate-50/60 px-2.5 py-2 shadow-sm shadow-slate-200/40 lg:col-span-2 lg:row-start-2 xl:col-span-1 xl:col-start-2 xl:row-start-1"
                 >
                     <div
                         data-testid="patient-detail-header-contact-facts"
-                        className="grid min-h-0 min-w-0 gap-1.5 md:grid-cols-3"
+                        className="grid min-h-0 min-w-0 items-center gap-1.5 md:grid-cols-3"
                     >
                         <PatientHeaderFact
                             icon={Phone}
@@ -887,32 +914,38 @@ export default function PatientDetailPage({
                     <div aria-hidden="true" className="h-px bg-slate-200/70" />
                     <div
                         data-testid="patient-detail-header-medical-facts"
-                        className="grid min-h-0 min-w-0 gap-1.5 md:grid-cols-3"
+                        className="grid min-h-0 min-w-0 items-center gap-1.5 md:grid-cols-3"
                     >
-                        <PatientHeaderClinicalFact
-                            icon={AlertCircle}
-                            label={t('patientDetail.allergies')}
-                            value={patient.allergies}
-                            tone="rose"
-                            truncateLimit={PATIENT_ALLERGIES_UI_LIMIT}
-                            emptyLabel={compactEmptyValue}
-                        />
-                        <PatientHeaderClinicalFact
-                            icon={Pill}
-                            label={t('patientDetail.currentMedications')}
-                            value={patient.current_medications}
-                            tone="amber"
-                            truncateLimit={PATIENT_MEDICATIONS_UI_LIMIT}
-                            emptyLabel={compactEmptyValue}
-                        />
-                        <PatientHeaderClinicalFact
-                            icon={FileText}
-                            label={t('patientDetail.medicalHistory.label')}
-                            value={patient.medical_history}
-                            tone="slate"
-                            truncateLimit={PATIENT_MEDICAL_HISTORY_UI_LIMIT}
-                            emptyLabel={compactEmptyValue}
-                        />
+                        {hasHeaderMedicalFacts ? (
+                            <>
+                                <PatientHeaderClinicalFact
+                                    icon={AlertCircle}
+                                    label={t('patientDetail.allergies')}
+                                    value={patient.allergies}
+                                    tone="rose"
+                                    truncateLimit={PATIENT_ALLERGIES_UI_LIMIT}
+                                    emptyLabel={compactEmptyValue}
+                                />
+                                <PatientHeaderClinicalFact
+                                    icon={Pill}
+                                    label={t('patientDetail.currentMedications')}
+                                    value={patient.current_medications}
+                                    tone="amber"
+                                    truncateLimit={PATIENT_MEDICATIONS_UI_LIMIT}
+                                    emptyLabel={compactEmptyValue}
+                                />
+                                <PatientHeaderClinicalFact
+                                    icon={FileText}
+                                    label={t('patientDetail.medicalHistory.label')}
+                                    value={patient.medical_history}
+                                    tone="slate"
+                                    truncateLimit={PATIENT_MEDICAL_HISTORY_UI_LIMIT}
+                                    emptyLabel={compactEmptyValue}
+                                />
+                            </>
+                        ) : (
+                            <PatientHeaderMedicalEmptyState icon={FileText} label={t('patientDetail.noMedicalInfo')} />
+                        )}
                     </div>
                 </div>
                 <div

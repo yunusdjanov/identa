@@ -297,6 +297,7 @@ describe('PatientDetailPage', () => {
         expect(within(medicalFacts).getByText('Penicillin')).toBeInTheDocument();
         expect(within(medicalFacts).getByText('Aspirin')).toBeInTheDocument();
         expect(within(medicalFacts).getByText('Hypertension')).toBeInTheDocument();
+        expect(within(medicalFacts).queryByTestId('patient-detail-header-medical-empty')).not.toBeInTheDocument();
         expect(screen.queryByText('Basic Information')).not.toBeInTheDocument();
         expect(screen.queryByTestId('patient-detail-contact-card')).not.toBeInTheDocument();
         expect(screen.queryByTestId('patient-detail-clinical-strip')).not.toBeInTheDocument();
@@ -309,8 +310,12 @@ describe('PatientDetailPage', () => {
         await renderPage();
 
         const headerFacts = await screen.findByTestId('patient-detail-header-facts');
+        const medicalFacts = within(headerFacts).getByTestId('patient-detail-header-medical-facts');
 
-        expect(within(headerFacts).getAllByText('—').length).toBeGreaterThanOrEqual(3);
+        expect(within(medicalFacts).getByTestId('patient-detail-header-medical-empty')).toHaveTextContent(
+            'No medical information recorded'
+        );
+        expect(within(headerFacts).getAllByText('—')).toHaveLength(3);
         expect(screen.queryByText('Basic Information')).not.toBeInTheDocument();
         expect(screen.queryByTestId('patient-detail-contact-card')).not.toBeInTheDocument();
         expect(screen.queryByTestId('patient-detail-clinical-strip')).not.toBeInTheDocument();
