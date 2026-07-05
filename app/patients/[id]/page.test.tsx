@@ -161,13 +161,29 @@ describe('PatientDetailPage', () => {
         const scheduleButton = screen.getByRole('button', { name: 'Schedule Appointment' });
         const editButton = screen.getByRole('button', { name: 'Edit Patient' });
         const archiveButton = screen.getByRole('button', { name: 'Archive' });
+        const actionGroup = screen.getByTestId('patient-detail-header-actions');
         expect(scheduleButton).toHaveClass('size-10');
         expect(editButton).toHaveClass('size-10');
         expect(archiveButton).toHaveClass('size-10');
+        expect(actionGroup).toHaveClass('flex-col', 'items-end');
         expect(screen.queryByText('Schedule Appointment')).not.toBeInTheDocument();
         expect(screen.queryByText('Edit Patient')).not.toBeInTheDocument();
         expect(screen.queryByText('Archive')).not.toBeInTheDocument();
         expect(scheduleButton.compareDocumentPosition(editButton) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    });
+
+    it('wraps long patient names after the first two words in the header', async () => {
+        vi.mocked(getCurrentUser).mockResolvedValue(dentist as never);
+        vi.mocked(getPatient).mockResolvedValue({
+            ...patient,
+            full_name: 'Gleb Rahmanov Nigorana Patient',
+        } as never);
+
+        await renderPage();
+
+        const headerName = await screen.findByTestId('patient-detail-header-name');
+        expect(within(headerName).getByText('Gleb Rahmanov')).toHaveClass('block', 'truncate');
+        expect(within(headerName).getByText('Nigorana Patient')).toHaveClass('block', 'truncate');
     });
 
     it('returns to the patients list with the restore marker from the header arrow', async () => {

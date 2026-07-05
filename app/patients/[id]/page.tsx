@@ -101,6 +101,20 @@ const PATIENT_MEDICAL_HISTORY_UI_LIMIT = INPUT_LIMITS.medicalHistory;
 const DEFAULT_ORAL_PHOTO_UPLOAD_MAX_MB = 1;
 const ORAL_PHOTO_UPLOAD_MAX_EDGE = 1600;
 const PROFILE_MONEY_CURRENCIES: ApiMoneyCurrency[] = ['UZS', 'USD'];
+const PATIENT_HEADER_NAME_FIRST_LINE_WORDS = 2;
+
+function getPatientHeaderNameLines(fullName: string) {
+    const nameParts = fullName.trim().split(/\s+/).filter(Boolean);
+
+    if (nameParts.length <= PATIENT_HEADER_NAME_FIRST_LINE_WORDS) {
+        return { firstLine: fullName, secondLine: null };
+    }
+
+    return {
+        firstLine: nameParts.slice(0, PATIENT_HEADER_NAME_FIRST_LINE_WORDS).join(' '),
+        secondLine: nameParts.slice(PATIENT_HEADER_NAME_FIRST_LINE_WORDS).join(' '),
+    };
+}
 
 function getPatientInitials(fullName: string): string {
     const parts = fullName.trim().split(/\s+/).filter(Boolean);
@@ -734,6 +748,7 @@ export default function PatientDetailPage({
             photoId: image.id,
         });
     };
+    const patientHeaderNameLines = getPatientHeaderNameLines(patient.full_name);
 
     return (
         <div data-testid="patient-detail-page-layout" className="space-y-2.5">
@@ -783,10 +798,18 @@ export default function PatientDetailPage({
                     )}
                     <div className="min-w-0">
                         <h1
-                            className="max-w-full truncate text-lg font-bold tracking-[-0.02em] text-slate-950"
+                            data-testid="patient-detail-header-name"
+                            className="max-w-full text-lg font-bold leading-tight tracking-[-0.02em] text-slate-950"
                             title={patient.full_name}
                         >
-                            {truncateForUi(patient.full_name, PATIENT_HEADER_NAME_UI_LIMIT)}
+                            <span className="block truncate">
+                                {truncateForUi(patientHeaderNameLines.firstLine, PATIENT_HEADER_NAME_UI_LIMIT)}
+                            </span>
+                            {patientHeaderNameLines.secondLine ? (
+                                <span className="block truncate">
+                                    {truncateForUi(patientHeaderNameLines.secondLine, PATIENT_HEADER_NAME_UI_LIMIT)}
+                                </span>
+                            ) : null}
                         </h1>
                         <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
                             {primaryCategory ? (
@@ -888,7 +911,10 @@ export default function PatientDetailPage({
                         />
                     </div>
                 </div>
-                <div className="flex flex-wrap items-center gap-2 lg:col-start-2 lg:row-start-1 lg:justify-end xl:col-start-3">
+                <div
+                    data-testid="patient-detail-header-actions"
+                    className="flex flex-col items-end gap-2 lg:col-start-2 lg:row-start-1 lg:justify-end xl:col-start-3"
+                >
                     {isPatientArchived ? (
                         <Badge variant="secondary" className="bg-slate-200 text-slate-800">
                             {t('patients.archived')}
