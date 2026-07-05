@@ -424,20 +424,20 @@ function HistoryFinancialPill({
     return (
         <div
             data-testid="history-financial-summary-pill"
-            className={`min-w-0 rounded-lg border px-2 py-1 shadow-sm shadow-slate-100/50 ${getHistoryFinancialPillToneClasses(tone)}`}
+            className={`min-w-0 rounded-xl border px-2.5 py-1.5 shadow-sm shadow-slate-100/50 ${getHistoryFinancialPillToneClasses(tone)}`}
         >
-            <div className="flex min-w-0 items-center gap-1">
-                <span className="truncate text-[8px] font-bold uppercase leading-3 tracking-[0.11em] text-slate-400">
-                    {label}
-                </span>
+            <div className="truncate text-[8px] font-bold uppercase leading-3 tracking-[0.11em] text-slate-400">
+                {label}
+            </div>
+            <div className="mt-0.5 flex min-w-0 items-center gap-1.5">
+                <div className="min-w-0 truncate text-xs font-bold leading-4 tabular-nums">
+                    {locked ? <span className="inline-flex items-center gap-1"><Lock className="h-3 w-3" />***</span> : value}
+                </div>
                 {badge ? (
                     <span className="shrink-0 rounded-full border border-current/20 bg-white/55 px-1.5 py-0.5 text-[9px] font-bold leading-none">
                         {badge}
                     </span>
                 ) : null}
-            </div>
-            <div className="min-w-0 truncate text-xs font-bold leading-4 tabular-nums">
-                {locked ? <span className="inline-flex items-center gap-1"><Lock className="h-3 w-3" />***</span> : value}
             </div>
         </div>
     );
@@ -1849,7 +1849,7 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
     const renderFinancialSummaryStrip = () => (
         <div
             data-testid="patient-history-financial-summary"
-            className="grid min-w-0 grid-cols-1 gap-1.5 sm:grid-cols-3 xl:w-full xl:max-w-[30rem]"
+            className="grid min-w-0 grid-cols-1 gap-1.5 sm:grid-cols-3 lg:mx-auto lg:w-full lg:max-w-[28rem]"
         >
             <HistoryFinancialPill
                 label={t('patientHistory.totalDebt')}
@@ -1869,7 +1869,7 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                     ? renderMoneyBreakdownWithBalanceStatuses(summary.totalsByCurrency, t)
                     : formatMoneyBreakdown(summary.totalsByCurrency, 'netBalance')}
                 tone={netBalanceTone}
-                badge={!hasMixedNetBalanceStatus && netBalanceStatusKey ? t(netBalanceStatusKey) : null}
+                badge={!hasMixedNetBalanceStatus && netBalanceStatusKey && netBalanceStatusKey !== 'patientHistory.balanceStatus.paid' ? t(netBalanceStatusKey) : null}
                 locked={!canViewFinancials}
             />
         </div>
@@ -1881,17 +1881,17 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                 <CardHeader className="flex flex-col gap-3">
                     <div
                         data-testid="patient-history-header"
-                        className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(10rem,1fr)_minmax(22rem,30rem)_auto] xl:items-center"
+                        className="grid grid-cols-1 gap-3 lg:grid-cols-[minmax(10rem,1fr)_minmax(22rem,28rem)_minmax(16rem,1fr)] lg:items-center"
                     >
-                        <div className="min-w-0 xl:justify-self-start">
+                        <div className="min-w-0 lg:justify-self-start">
                             <CardTitle className="truncate">{t('patientHistory.title')}</CardTitle>
                         </div>
-                        <div className="min-w-0 xl:w-full xl:justify-self-center">
+                        <div className="min-w-0 lg:w-full lg:justify-self-center">
                             {renderFinancialSummaryStrip()}
                         </div>
                         <div
                             data-testid="patient-history-actions"
-                            className="flex shrink-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-end xl:justify-self-end"
+                            className="flex w-full shrink-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-end lg:justify-self-end"
                         >
                             {subscription?.can_export ? (
                                 <Button

@@ -309,11 +309,11 @@ describe('TreatmentHistoryCard image controls', () => {
         const remainingCard = getHeaderSummaryPill('Remaining') as HTMLElement;
         const title = screen.getByText('Work History');
 
-        expect(summaryStrip).toHaveClass('sm:grid-cols-3', 'xl:w-full', 'xl:max-w-[30rem]');
-        expect(actions).toHaveClass('sm:justify-end', 'xl:justify-self-end');
-        expect(workTotalCard).toHaveClass('rounded-lg', 'px-2', 'py-1', 'bg-red-50/45');
-        expect(paidCard).toHaveClass('rounded-lg', 'px-2', 'py-1', 'bg-emerald-50/45');
-        expect(remainingCard).toHaveClass('rounded-lg', 'px-2', 'py-1');
+        expect(summaryStrip).toHaveClass('sm:grid-cols-3', 'lg:w-full', 'lg:max-w-[28rem]');
+        expect(actions).toHaveClass('w-full', 'sm:justify-end', 'lg:justify-self-end');
+        expect(workTotalCard).toHaveClass('rounded-xl', 'px-2.5', 'py-1.5', 'bg-red-50/45');
+        expect(paidCard).toHaveClass('rounded-xl', 'px-2.5', 'py-1.5', 'bg-emerald-50/45');
+        expect(remainingCard).toHaveClass('rounded-xl', 'px-2.5', 'py-1.5');
         expect(title.compareDocumentPosition(summaryStrip) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
         expect(summaryStrip.compareDocumentPosition(actions) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
         expect(workTotalCard).not.toHaveClass('interactive-card');
@@ -322,6 +322,7 @@ describe('TreatmentHistoryCard image controls', () => {
         expect(workTotalCard).not.toHaveTextContent('Debt');
         expect(paidCard).not.toHaveTextContent('Debt');
         expect(remainingCard).toHaveTextContent('Remaining');
+        expect(remainingCard).not.toHaveTextContent('Paid');
     });
 
     it('hides the settled badge when all financial summary amounts are zero', async () => {
@@ -336,7 +337,7 @@ describe('TreatmentHistoryCard image controls', () => {
         expect(getHeaderSummaryPill('Remaining')).not.toHaveTextContent('Paid');
     });
 
-    it('keeps the settled badge when real work is fully paid', async () => {
+    it('hides the settled badge when real work is fully paid', async () => {
         vi.mocked(listPatientTreatments).mockResolvedValue(treatmentsEnvelope([
             {
                 id: 'treatment-settled',
@@ -365,8 +366,10 @@ describe('TreatmentHistoryCard image controls', () => {
         renderCard();
 
         await waitFor(() => {
-            expect(getHeaderSummaryPill('Remaining')).toHaveTextContent('Paid');
+            expect(getHeaderSummaryPill('Remaining')).toHaveTextContent('0 UZS');
         });
+
+        expect(getHeaderSummaryPill('Remaining')).not.toHaveTextContent('Paid');
     });
 
     it('loads the newest page first and fetches older entries on demand', async () => {
