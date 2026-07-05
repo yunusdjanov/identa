@@ -1849,7 +1849,7 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
     const renderFinancialSummaryStrip = () => (
         <div
             data-testid="patient-history-financial-summary"
-            className="grid min-w-0 grid-cols-1 gap-1.5 sm:grid-cols-3 xl:w-full xl:max-w-[34rem]"
+            className="grid min-w-0 grid-cols-1 gap-1.5 sm:grid-cols-3 xl:w-full xl:max-w-[30rem]"
         >
             <HistoryFinancialPill
                 label={t('patientHistory.totalDebt')}
@@ -1881,9 +1881,9 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                 <CardHeader className="flex flex-col gap-3">
                     <div
                         data-testid="patient-history-header"
-                        className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(10rem,1fr)_minmax(24rem,34rem)_minmax(12rem,1fr)] xl:items-center"
+                        className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(10rem,1fr)_minmax(22rem,30rem)_auto] xl:items-center"
                     >
-                        <div className="min-w-0">
+                        <div className="min-w-0 xl:justify-self-start">
                             <CardTitle className="truncate">{t('patientHistory.title')}</CardTitle>
                         </div>
                         <div className="min-w-0 xl:w-full xl:justify-self-center">
@@ -1891,11 +1891,12 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                         </div>
                         <div
                             data-testid="patient-history-actions"
-                            className="flex shrink-0 flex-col gap-2 sm:flex-row sm:items-center xl:justify-self-end"
+                            className="flex shrink-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-end xl:justify-self-end"
                         >
                             {subscription?.can_export ? (
                                 <Button
                                     variant="outline"
+                                    className="h-10 whitespace-nowrap px-4"
                                     onClick={async () => {
                                     // PDF payload mirrors the on-screen gating: viewers
                                     // without `payments.view` get a slimmer PDF with
@@ -1992,12 +1993,20 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                 </Button>
                             ) : null}
                             {historyManageDisplayMode === 'enabled' ? (
-                                <Button onClick={openCreateDialog} variant={isInlineCreateOpen ? 'secondary' : 'default'}>
+                                <Button
+                                    onClick={openCreateDialog}
+                                    variant={isInlineCreateOpen ? 'secondary' : 'default'}
+                                    className="h-10 whitespace-nowrap px-4"
+                                >
                                     <Plus className="h-4 w-4" />
                                     {t('patientHistory.addEntry')}
                                 </Button>
                             ) : historyManageDisplayMode === 'disabled-readonly' ? (
-                                <Button disabled onClick={() => toast.error(manageDeniedMessage)}>
+                                <Button
+                                    disabled
+                                    onClick={() => toast.error(manageDeniedMessage)}
+                                    className="h-10 whitespace-nowrap px-4"
+                                >
                                     <Plus className="h-4 w-4" />
                                     {t('patientHistory.addEntry')}
                                 </Button>
