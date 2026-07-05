@@ -796,10 +796,10 @@ export default function PatientDetailPage({
                         <ArrowLeft className="h-4 w-4" />
                     </Button>
                     {patientAvatarUrl ? (
-                        <div className="relative h-16 w-20 shrink-0 overflow-visible">
+                        <div className="relative h-20 w-24 shrink-0 overflow-visible">
                             <button
                                 type="button"
-                                className="group absolute left-0 top-1/2 h-20 w-20 -translate-y-1/2 overflow-hidden rounded-full border border-white bg-white p-0 shadow-sm shadow-slate-200 transition hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-300"
+                                className="group absolute left-0 top-1/2 h-24 w-24 -translate-y-1/2 overflow-hidden rounded-full border border-white bg-white p-0 shadow-sm shadow-slate-200 transition hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-300"
                                 aria-label={`${t('patients.form.photo')}: ${patient.full_name}`}
                                 onClick={() => setIsPatientPhotoPreviewOpen(true)}
                             >
@@ -819,8 +819,8 @@ export default function PatientDetailPage({
                             </button>
                         </div>
                     ) : (
-                        <div className="relative h-16 w-20 shrink-0 overflow-visible">
-                            <Avatar className="absolute left-0 top-1/2 h-20 w-20 -translate-y-1/2 border border-white bg-slate-100 shadow-sm shadow-slate-200">
+                        <div className="relative h-20 w-24 shrink-0 overflow-visible">
+                            <Avatar className="absolute left-0 top-1/2 h-24 w-24 -translate-y-1/2 border border-white bg-slate-100 shadow-sm shadow-slate-200">
                                 <AvatarFallback className="bg-slate-100 text-base font-semibold text-slate-700">
                                     {getPatientInitials(patient.full_name)}
                                 </AvatarFallback>
