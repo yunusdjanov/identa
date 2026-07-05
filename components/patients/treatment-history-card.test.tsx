@@ -309,11 +309,11 @@ describe('TreatmentHistoryCard image controls', () => {
         const remainingCard = getHeaderSummaryPill('Remaining') as HTMLElement;
         const title = screen.getByText('Work History');
 
-        expect(summaryStrip).toHaveClass('sm:grid-cols-3', 'xl:min-w-[36rem]');
+        expect(summaryStrip).toHaveClass('sm:grid-cols-3', 'xl:w-[30rem]', '2xl:w-[32rem]');
         expect(actions).toHaveClass('xl:justify-self-end');
-        expect(workTotalCard).toHaveClass('rounded-xl', 'px-3', 'py-2', 'bg-red-50/45');
-        expect(paidCard).toHaveClass('rounded-xl', 'px-3', 'py-2', 'bg-emerald-50/45');
-        expect(remainingCard).toHaveClass('rounded-xl', 'px-3', 'py-2');
+        expect(workTotalCard).toHaveClass('rounded-lg', 'px-2.5', 'py-1.5', 'bg-red-50/45');
+        expect(paidCard).toHaveClass('rounded-lg', 'px-2.5', 'py-1.5', 'bg-emerald-50/45');
+        expect(remainingCard).toHaveClass('rounded-lg', 'px-2.5', 'py-1.5');
         expect(title.compareDocumentPosition(summaryStrip) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
         expect(summaryStrip.compareDocumentPosition(actions) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
         expect(workTotalCard).not.toHaveClass('interactive-card');

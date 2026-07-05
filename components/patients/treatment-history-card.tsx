@@ -424,10 +424,10 @@ function HistoryFinancialPill({
     return (
         <div
             data-testid="history-financial-summary-pill"
-            className={`min-w-0 rounded-xl border px-3 py-2 shadow-sm shadow-slate-100/60 ${getHistoryFinancialPillToneClasses(tone)}`}
+            className={`min-w-0 rounded-lg border px-2.5 py-1.5 shadow-sm shadow-slate-100/50 ${getHistoryFinancialPillToneClasses(tone)}`}
         >
-            <div className="flex min-w-0 items-center gap-1.5">
-                <span className="truncate text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">
+            <div className="flex min-w-0 items-center gap-1">
+                <span className="truncate text-[9px] font-bold uppercase leading-3 tracking-[0.11em] text-slate-400">
                     {label}
                 </span>
                 {badge ? (
@@ -436,7 +436,7 @@ function HistoryFinancialPill({
                     </span>
                 ) : null}
             </div>
-            <div className="mt-0.5 min-w-0 truncate text-sm font-bold tabular-nums">
+            <div className="mt-0.5 min-w-0 truncate text-[13px] font-bold leading-5 tabular-nums">
                 {locked ? <span className="inline-flex items-center gap-1"><Lock className="h-3 w-3" />***</span> : value}
             </div>
         </div>
@@ -1849,7 +1849,7 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
     const renderFinancialSummaryStrip = () => (
         <div
             data-testid="patient-history-financial-summary"
-            className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-3 lg:min-w-[30rem] xl:min-w-[36rem]"
+            className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-3 xl:w-[30rem] 2xl:w-[32rem]"
         >
             <HistoryFinancialPill
                 label={t('patientHistory.totalDebt')}
@@ -1881,7 +1881,7 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                 <CardHeader className="flex flex-col gap-3">
                     <div
                         data-testid="patient-history-header"
-                        className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(12rem,1fr)_auto_minmax(12rem,1fr)] xl:items-center"
+                        className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(12rem,1fr)_minmax(0,32rem)_auto] xl:items-center"
                     >
                         <div className="min-w-0">
                             <CardTitle className="truncate">{t('patientHistory.title')}</CardTitle>
