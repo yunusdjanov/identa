@@ -478,27 +478,59 @@ export function PatientDetailLoadingState() {
         <div className="space-y-4">
             {/* Header — matches actual page */}
             <section className="rounded-2xl border border-white/80 bg-white px-4 py-3 shadow-sm shadow-slate-200/70 sm:px-5">
-                <div className="grid grid-cols-1 gap-3 lg:grid-cols-[minmax(18rem,auto)_auto] lg:items-center xl:grid-cols-[minmax(18rem,auto)_minmax(0,1fr)_auto]">
-                    <div className="flex items-center gap-3">
+                <div className="grid grid-cols-1 gap-2.5 lg:grid-cols-[minmax(18rem,20rem)_minmax(0,1fr)] lg:items-center xl:grid-cols-[minmax(18rem,20rem)_minmax(0,1fr)_auto]">
+                    <div
+                        data-testid="patient-detail-header-identity-skeleton"
+                        className="flex w-full min-w-0 max-w-[20rem] items-center gap-3"
+                    >
                         <Skeleton className="h-8 w-8 shrink-0 rounded-xl" />
                         <div className="relative h-16 w-20 shrink-0 overflow-visible">
                             <Skeleton className="absolute left-0 top-1/2 h-20 w-20 -translate-y-1/2 rounded-full" />
                         </div>
-                        <div className="space-y-1.5">
-                            <Skeleton className="h-[22px] w-44 rounded-xl" />
+                        <div className="min-w-0 flex-1 space-y-2">
+                            <Skeleton className="h-[22px] w-full max-w-44 rounded-xl" />
+                            <Skeleton className="h-[22px] w-4/5 max-w-36 rounded-xl" />
                             <Skeleton className="h-5 w-16 rounded-full" />
                         </div>
                     </div>
-                    <div className="flex min-w-0 flex-wrap items-center gap-1 rounded-2xl border border-slate-100 bg-slate-50/70 px-2 py-1.5 shadow-inner shadow-white/60 lg:col-span-2 lg:row-start-2 xl:col-span-1 xl:col-start-2 xl:row-start-1">
-                        {Array.from({ length: 6 }).map((_, index) => (
-                            <div key={index} className="flex min-w-0 items-center gap-2 rounded-xl bg-white/70 px-2 py-1.5">
-                                <Skeleton className="h-7 w-7 shrink-0 rounded-lg" />
-                                <Skeleton className={index === 2 ? 'h-4 w-32 rounded-xl' : 'h-4 w-20 rounded-xl'} />
-                                {index < 3 ? <span aria-hidden="true" className="hidden h-8 w-px shrink-0 bg-slate-200/80 lg:block" /> : null}
-                            </div>
-                        ))}
+                    <div
+                        data-testid="patient-detail-header-facts-skeleton"
+                        className="grid h-[8rem] min-w-0 grid-rows-[1fr_auto_1fr] gap-1.5 overflow-hidden rounded-2xl border border-slate-100 bg-slate-50/60 px-2.5 py-2 shadow-sm shadow-slate-200/40 lg:col-span-2 lg:row-start-2 xl:col-span-1 xl:col-start-2 xl:row-start-1"
+                    >
+                        <div className="grid min-h-0 min-w-0 items-center gap-1.5 md:grid-cols-3">
+                            {Array.from({ length: 3 }).map((_, index) => (
+                                <div
+                                    key={index}
+                                    className="flex h-11 min-w-0 items-center gap-2 overflow-hidden rounded-xl border border-white/80 bg-white/75 px-2.5 py-1.5"
+                                >
+                                    <Skeleton className="h-7 w-7 shrink-0 rounded-lg" />
+                                    <Skeleton
+                                        className={
+                                            index === 2
+                                                ? 'h-4 w-32 max-w-full rounded-xl'
+                                                : 'h-4 w-24 max-w-full rounded-xl'
+                                        }
+                                    />
+                                </div>
+                            ))}
+                        </div>
+                        <div aria-hidden="true" className="h-px bg-slate-200/70" />
+                        <div className="grid min-h-0 min-w-0 items-center gap-1.5 md:grid-cols-3">
+                            {Array.from({ length: 3 }).map((_, index) => (
+                                <div
+                                    key={index}
+                                    className="flex h-10 min-w-0 items-center gap-2 overflow-hidden rounded-xl border border-white/80 bg-white/70 px-2.5 py-1.5"
+                                >
+                                    <Skeleton className="h-7 w-7 shrink-0 rounded-lg" />
+                                    <Skeleton className="h-4 w-16 max-w-full rounded-xl" />
+                                </div>
+                            ))}
+                        </div>
                     </div>
-                    <div className="flex flex-wrap items-center gap-2 lg:col-start-2 lg:row-start-1 lg:justify-end xl:col-start-3">
+                    <div
+                        data-testid="patient-detail-header-actions-skeleton"
+                        className="flex flex-col items-end gap-2 lg:col-start-2 lg:row-start-1 lg:justify-end xl:col-start-3"
+                    >
                         <Skeleton className="h-10 w-10 rounded-full" />
                         <Skeleton className="h-10 w-10 rounded-full" />
                         <Skeleton className="h-10 w-10 rounded-full" />
@@ -519,12 +551,12 @@ export function PatientDetailLoadingState() {
                         </div>
                         <Skeleton className="h-5 w-12 shrink-0 rounded-full" />
                     </div>
-                    <div className="grid flex-1 grid-cols-2 grid-rows-4 gap-2.5 px-4 py-3 sm:grid-cols-4 sm:grid-rows-2">
-                        {Array.from({ length: 8 }).map((_, index) => (
+                    <div className="grid flex-1 grid-cols-2 grid-rows-5 gap-2.5 px-4 py-3 sm:grid-cols-5 sm:grid-rows-2">
+                        {Array.from({ length: 10 }).map((_, index) => (
                             <Skeleton
                                 key={index}
                                 data-testid="patient-detail-oral-photo-slot-skeleton"
-                                className="min-h-[4.25rem] rounded-xl sm:min-h-0"
+                                className="min-h-[3.25rem] rounded-xl sm:min-h-0"
                             />
                         ))}
                     </div>

@@ -83,9 +83,12 @@ describe('page loading skeletons', () => {
         it('renders the patient detail oral photo panel skeleton', () => {
             render(<PatientDetailLoadingState />);
 
+            expect(screen.getByTestId('patient-detail-header-identity-skeleton')).toHaveClass('max-w-[20rem]');
+            expect(screen.getByTestId('patient-detail-header-facts-skeleton')).toHaveClass('h-[8rem]');
+            expect(screen.getByTestId('patient-detail-header-actions-skeleton')).toHaveClass('flex-col');
             expect(screen.getByTestId('patient-detail-oral-photo-skeleton')).toBeInTheDocument();
             expect(screen.queryByTestId('patient-detail-clinical-strip-skeleton')).not.toBeInTheDocument();
-            expect(screen.getAllByTestId('patient-detail-oral-photo-slot-skeleton')).toHaveLength(8);
+            expect(screen.getAllByTestId('patient-detail-oral-photo-slot-skeleton')).toHaveLength(10);
             expect(screen.getByTestId('patient-detail-work-history-skeleton')).toBeInTheDocument();
         });
     });

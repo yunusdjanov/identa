@@ -166,7 +166,7 @@ describe('PatientDetailPage', () => {
         const contactFacts = screen.getByTestId('patient-detail-header-contact-facts');
         const medicalFacts = screen.getByTestId('patient-detail-header-medical-facts');
         const actionGroup = screen.getByTestId('patient-detail-header-actions');
-        expect(identity).toHaveClass('max-w-[24rem]');
+        expect(identity).toHaveClass('max-w-[20rem]');
         expect(facts).toHaveClass('h-[8rem]', 'overflow-hidden');
         expect(contactFacts).toHaveClass('md:grid-cols-3');
         expect(medicalFacts).toHaveClass('md:grid-cols-3');

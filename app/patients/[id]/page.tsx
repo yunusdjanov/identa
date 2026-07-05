@@ -781,10 +781,10 @@ export default function PatientDetailPage({
     return (
         <div data-testid="patient-detail-page-layout" className="space-y-2.5">
             {/* Patient header */}
-            <div className="grid grid-cols-1 gap-2.5 rounded-2xl border border-white/80 bg-white px-4 py-3 shadow-sm shadow-slate-200/70 sm:px-5 lg:grid-cols-[minmax(22rem,24rem)_minmax(0,1fr)] lg:items-center xl:grid-cols-[minmax(22rem,24rem)_minmax(0,1fr)_auto]">
+            <div className="grid grid-cols-1 gap-2.5 rounded-2xl border border-white/80 bg-white px-4 py-3 shadow-sm shadow-slate-200/70 sm:px-5 lg:grid-cols-[minmax(18rem,20rem)_minmax(0,1fr)] lg:items-center xl:grid-cols-[minmax(18rem,20rem)_minmax(0,1fr)_auto]">
                 <div
                     data-testid="patient-detail-header-identity"
-                    className="flex w-full min-w-0 max-w-[24rem] items-center gap-3"
+                    className="flex w-full min-w-0 max-w-[20rem] items-center gap-3"
                 >
                     <Button
                         variant="ghost"
@@ -842,7 +842,7 @@ export default function PatientDetailPage({
                                 </span>
                             ) : null}
                         </h1>
-                        <div className="mt-1.5 flex min-w-0 items-center gap-1.5">
+                        <div className="mt-2 flex min-w-0 items-center gap-1.5">
                             {primaryCategory ? (
                                 <Badge
                                     variant="secondary"
