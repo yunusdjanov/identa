@@ -900,6 +900,147 @@ describe('TreatmentHistoryCard image controls', () => {
         expect(await screen.findByRole('button', { name: 'Edit' })).toBeEnabled();
     });
 
+    it('keeps the entry form and selected images when media sync fails after saving', async () => {
+        const user = userEvent.setup();
+
+        vi.mocked(listPatientTreatments).mockResolvedValue(treatmentsEnvelope([]));
+        vi.mocked(createPatientTreatment).mockResolvedValue({
+            id: 'treatment-created-with-failed-media',
+            patient_id: 'patient-1',
+            patient_name: 'Sardor',
+            patient_phone: '+998 90 123 45 67',
+            patient_secondary_phone: null,
+            patient_code: 'PT-1001',
+            tooth_number: null,
+            teeth: [],
+            treatment_type: 'Restoration with photo',
+            description: null,
+            comment: null,
+            treatment_date: '2026-04-05',
+            cost: null,
+            debt_amount: 0,
+            paid_amount: 0,
+            balance: 0,
+            notes: null,
+            image_count: 0,
+            primary_image: null,
+            images: [],
+            created_at: '2026-04-05T10:00:00Z',
+            updated_at: '2026-04-05T10:00:00Z',
+        } as never);
+        vi.mocked(updatePatientTreatment).mockResolvedValue({
+            id: 'treatment-created-with-failed-media',
+            patient_id: 'patient-1',
+            patient_name: 'Sardor',
+            patient_phone: '+998 90 123 45 67',
+            patient_secondary_phone: null,
+            patient_code: 'PT-1001',
+            tooth_number: null,
+            teeth: [],
+            treatment_type: 'Restoration with photo',
+            description: null,
+            comment: null,
+            treatment_date: '2026-04-05',
+            cost: null,
+            debt_amount: 0,
+            paid_amount: 0,
+            balance: 0,
+            notes: null,
+            image_count: 0,
+            primary_image: null,
+            images: [],
+            created_at: '2026-04-05T10:00:00Z',
+            updated_at: '2026-04-05T10:00:00Z',
+        } as never);
+        vi.mocked(uploadPatientTreatmentImages)
+            .mockRejectedValueOnce(new Error('R2 upload failed'))
+            .mockResolvedValueOnce(0);
+        vi.mocked(getPatientTreatment).mockResolvedValue({
+            id: 'treatment-created-with-failed-media',
+            patient_id: 'patient-1',
+            patient_name: 'Sardor',
+            patient_phone: '+998 90 123 45 67',
+            patient_secondary_phone: null,
+            patient_code: 'PT-1001',
+            tooth_number: null,
+            teeth: [],
+            treatment_type: 'Restoration with photo',
+            description: null,
+            comment: null,
+            treatment_date: '2026-04-05',
+            cost: null,
+            debt_amount: 0,
+            paid_amount: 0,
+            balance: 0,
+            notes: null,
+            image_count: 1,
+            primary_image: {
+                id: 'synced-image-1',
+                mime_type: 'image/jpeg',
+                file_size: 1024,
+                created_at: '2026-04-05T10:02:00Z',
+                url: 'https://example.com/synced.jpg',
+                thumbnail_url: 'https://example.com/synced-thumb.jpg',
+                preview_url: 'https://example.com/synced-preview.jpg',
+            },
+            images: [
+                {
+                    id: 'synced-image-1',
+                    mime_type: 'image/jpeg',
+                    file_size: 1024,
+                    created_at: '2026-04-05T10:02:00Z',
+                    url: 'https://example.com/synced.jpg',
+                    thumbnail_url: 'https://example.com/synced-thumb.jpg',
+                    preview_url: 'https://example.com/synced-preview.jpg',
+                },
+            ],
+            created_at: '2026-04-05T10:00:00Z',
+            updated_at: '2026-04-05T10:02:00Z',
+        } as never);
+
+        const { container } = renderCard();
+
+        await user.click(await screen.findByRole('button', { name: 'Add Entry' }));
+        await user.clear(screen.getByLabelText(/^Date/i));
+        await user.type(screen.getByLabelText(/^Date/i), '2026-04-05');
+        await user.type(screen.getByLabelText(/^Entry/i), 'Restoration with photo');
+
+        const fileInput = container.querySelector<HTMLInputElement>('#historyImages');
+        expect(fileInput).toBeInstanceOf(HTMLInputElement);
+
+        await user.upload(
+            fileInput as HTMLInputElement,
+            new File(['draft-image'], 'draft.jpg', { type: 'image/jpeg' })
+        );
+
+        expect(await screen.findByRole('button', { name: 'Image 1' })).toBeInTheDocument();
+
+        await user.click(screen.getByRole('button', { name: 'Save Changes' }));
+
+        await waitFor(() => {
+            expect(uploadPatientTreatmentImages).toHaveBeenCalledWith(
+                'patient-1',
+                'treatment-created-with-failed-media',
+                expect.any(Array)
+            );
+        });
+
+        expect(await screen.findByText('Editing entry')).toBeInTheDocument();
+        expect(screen.getByLabelText(/^Entry/i)).toHaveValue('Restoration with photo');
+        expect(screen.getByRole('button', { name: 'Image 1' })).toBeInTheDocument();
+
+        await user.click(screen.getByRole('button', { name: 'Save Changes' }));
+
+        await waitFor(() => {
+            expect(updatePatientTreatment).toHaveBeenCalledWith(
+                'patient-1',
+                'treatment-created-with-failed-media',
+                expect.objectContaining({ treatment_type: 'Restoration with photo' })
+            );
+        });
+        expect(createPatientTreatment).toHaveBeenCalledTimes(1);
+    });
+
     it('localizes treatment suggestion chips by active language', async () => {
         const user = userEvent.setup();
 

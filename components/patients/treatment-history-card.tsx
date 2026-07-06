@@ -564,6 +564,44 @@ async function uploadTreatmentImagesInBatches(
     return failedCount;
 }
 
+function upsertTreatmentIntoHistoryPages(
+    current: TreatmentHistoryPages | undefined,
+    updatedTreatment: ApiTreatment
+): TreatmentHistoryPages | undefined {
+    if (!current || current.pages.length === 0) {
+        return current;
+    }
+
+    const alreadyExists = current.pages.some((page) =>
+        page.data.some((treatment) => treatment.id === updatedTreatment.id)
+    );
+    const pagesWithoutTreatment = current.pages.map((page) => ({
+        ...page,
+        data: page.data.filter((treatment) => treatment.id !== updatedTreatment.id),
+    }));
+    const [firstPage, ...restPages] = pagesWithoutTreatment;
+
+    return {
+        ...current,
+        pages: [
+            {
+                ...firstPage,
+                data: [updatedTreatment, ...firstPage.data],
+                meta: firstPage.meta?.pagination && !alreadyExists
+                    ? {
+                        ...firstPage.meta,
+                        pagination: {
+                            ...firstPage.meta.pagination,
+                            total: firstPage.meta.pagination.total + 1,
+                        },
+                    }
+                    : firstPage.meta,
+            },
+            ...restPages,
+        ],
+    };
+}
+
 function HistoryFinanceChip({
     label,
     value,
@@ -866,14 +904,10 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
             getTreatmentDetailQueryKey(updatedTreatment.id),
             updatedTreatment
         );
-    };
-
-    const refreshHistory = async (updatedTreatment?: ApiTreatment) => {
-        if (updatedTreatment) {
-            mergeTreatmentIntoCaches(updatedTreatment);
-        }
-
-        await queryClient.invalidateQueries({ queryKey: treatmentsQueryKey });
+        queryClient.setQueryData<TreatmentHistoryPages>(
+            treatmentsQueryKey,
+            (current) => upsertTreatmentIntoHistoryPages(current, updatedTreatment)
+        );
     };
 
     const loadTreatmentDetail = async (treatment: ApiTreatment): Promise<ApiTreatment> => {
@@ -963,69 +997,61 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
 
             const removeImageIds = [...formState.removeImageIds];
             const imageFiles = [...formState.imageFiles];
-            const treatmentId = treatment.id;
 
-            if (removeImageIds.length > 0 || imageFiles.length > 0) {
-                void (async () => {
-                    let hasMediaSyncFailure = false;
-                    let refreshedTreatment: ApiTreatment | undefined;
+            if (removeImageIds.length === 0 && imageFiles.length === 0) {
+                return { treatment, mediaSyncFailed: false };
+            }
 
-                    try {
-                        const expectedImageCount = Math.max(
-                            0,
-                            getTreatmentImageCount(treatment) - removeImageIds.length + imageFiles.length
-                        );
+            try {
+                const expectedImageCount = Math.max(
+                    0,
+                    getTreatmentImageCount(treatment) - removeImageIds.length + imageFiles.length
+                );
 
-                        if (removeImageIds.length > 0) {
-                            const deleteResults = await Promise.allSettled(
-                                removeImageIds.map((imageId) =>
-                                    deletePatientTreatmentImage(patientId, treatment.id, imageId)
-                                )
-                            );
+                if (removeImageIds.length > 0) {
+                    const deleteResults = await Promise.allSettled(
+                        removeImageIds.map((imageId) =>
+                            deletePatientTreatmentImage(patientId, treatment.id, imageId)
+                        )
+                    );
 
-                            hasMediaSyncFailure = deleteResults.some((result) => result.status === 'rejected');
-                        }
-
-                        if (imageFiles.length > 0) {
-                            const failedUploadCount = await uploadTreatmentImagesInBatches(
-                                imageFiles,
-                                (imageBatch) => uploadPatientTreatmentImages(patientId, treatment.id, imageBatch)
-                            );
-
-                            hasMediaSyncFailure = hasMediaSyncFailure || failedUploadCount > 0;
-                        }
-
-                        if (!hasMediaSyncFailure) {
-                            refreshedTreatment = await waitForTreatmentMediaReady(treatment.id, expectedImageCount);
-                        }
-                    } catch {
-                        hasMediaSyncFailure = true;
-                    } finally {
-                        if (hasMediaSyncFailure) {
-                            toast.error(t('patientHistory.toast.imagesSyncFailed'));
-                        }
-
-                        await refreshHistory(refreshedTreatment);
-                        setMediaSyncingTreatmentIds((current) => current.filter((id) => id !== treatmentId));
+                    if (deleteResults.some((result) => result.status === 'rejected')) {
+                        throw new Error('Treatment image delete failed');
                     }
-                })();
-            }
+                }
 
-            return {
-                treatment,
-                hasBackgroundMediaSync: removeImageIds.length > 0 || imageFiles.length > 0,
-            };
-        },
-        onSuccess: ({ treatment, hasBackgroundMediaSync }) => {
-            toast.success(editingTreatment ? t('patientHistory.toast.updated') : t('patientHistory.toast.created'));
-            if (hasBackgroundMediaSync) {
-                setMediaSyncingTreatmentIds((current) => (
-                    current.includes(treatment.id) ? current : [...current, treatment.id]
-                ));
+                if (imageFiles.length > 0) {
+                    const failedUploadCount = await uploadTreatmentImagesInBatches(
+                        imageFiles,
+                        (imageBatch) => uploadPatientTreatmentImages(patientId, treatment.id, imageBatch)
+                    );
+
+                    if (failedUploadCount > 0) {
+                        throw new Error('Treatment image upload failed');
+                    }
+                }
+
+                const refreshedTreatment = await waitForTreatmentMediaReady(treatment.id, expectedImageCount);
+
+                return { treatment: refreshedTreatment, mediaSyncFailed: false };
+            } catch {
+                return { treatment, mediaSyncFailed: true };
             }
+        },
+        onSuccess: ({ treatment, mediaSyncFailed }) => {
             rememberPatientListFocus(patientId, { currentPage: 1 });
             queryClient.invalidateQueries({ queryKey: ['patients'] });
             queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+
+            if (mediaSyncFailed) {
+                setEditingTreatment(treatment);
+                setIsDialogOpen(true);
+                mergeTreatmentIntoCaches(treatment);
+                toast.error(t('patientHistory.toast.imagesSyncFailed'));
+                return;
+            }
+
+            toast.success(editingTreatment ? t('patientHistory.toast.updated') : t('patientHistory.toast.created'));
             setIsDialogOpen(false);
             setEditingTreatment(null);
             setFormState(createEmptyFormState());
@@ -1453,6 +1479,10 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
     const isLoading = treatmentsQuery.isLoading;
     const isError = treatmentsQuery.isError;
     const isInlineCreateOpen = isDialogOpen && editingTreatment === null;
+    const isInlineEditOpen = isDialogOpen && editingTreatment !== null;
+    const isInlineEditVisibleInList = editingTreatment
+        ? treatments.some((treatment) => treatment.id === editingTreatment.id)
+        : false;
     const renderSelectedPreviewGallery = (startIndex: number) => {
         setPreviewGallery({
             images: selectedPreviewGalleryImages,
@@ -2053,7 +2083,7 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                             <p className="text-sm text-red-600">{getApiErrorMessage(treatmentsQuery.error, t('patientHistory.error.loadFailed'))}</p>
                             <Button variant="outline" onClick={() => treatmentsQuery.refetch()}>{t('common.retry')}</Button>
                         </div>
-                    ) : treatments.length === 0 && !isInlineCreateOpen ? (
+                    ) : treatments.length === 0 && !isInlineCreateOpen && !isInlineEditOpen ? (
                         <div className="rounded-2xl border border-dashed border-slate-200">
                             <EmptyState
                                 icon={CalendarDays}
@@ -2076,6 +2106,7 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                             <div className="relative space-y-3">
                                 <div className="absolute bottom-3 left-[84px] top-3 hidden w-px bg-slate-200 md:block" aria-hidden="true" />
                                 {isInlineCreateOpen ? renderTreatmentFormCard('create') : null}
+                                {isDialogOpen && editingTreatment && !isInlineEditVisibleInList ? renderTreatmentFormCard('edit') : null}
                                 {treatments.map((treatment) => {
                                 const imageCount = getTreatmentImageCount(treatment);
                                 const treatmentCurrency = coerceTreatmentCurrency(treatment.currency);

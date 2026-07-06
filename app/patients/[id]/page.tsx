@@ -32,8 +32,8 @@ import {
 import {
     Activity,
     AlertCircle,
-    Archive,
     ArrowLeft,
+    Ban,
     Calendar,
     CalendarCheck,
     CalendarPlus,
@@ -1085,7 +1085,7 @@ export default function PatientDetailPage({
                             onClick={() => setIsArchivePatientDialogOpen(true)}
                             disabled={archivePatientMutation.isPending}
                         >
-                            <Archive className="h-4 w-4" />
+                            <Ban className="h-4 w-4" />
                         </Button>
                     ) : isSubscriptionReadOnly(currentUser) && canViewPatients ? (
                         <Button
@@ -1097,7 +1097,7 @@ export default function PatientDetailPage({
                             disabled
                             onClick={denyManageAction}
                         >
-                            <Archive className="h-4 w-4" />
+                            <Ban className="h-4 w-4" />
                         </Button>
                     ) : null}
                 </div>
