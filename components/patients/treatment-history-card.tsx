@@ -424,13 +424,13 @@ function HistoryFinancialPill({
     return (
         <div
             data-testid="history-financial-summary-pill"
-            className={`min-h-[3.25rem] min-w-0 rounded-xl border px-3 py-2 shadow-sm shadow-slate-100/50 ${getHistoryFinancialPillToneClasses(tone)}`}
+            className={`flex h-10 min-w-0 flex-col justify-center rounded-xl border px-3 shadow-sm shadow-slate-100/50 ${getHistoryFinancialPillToneClasses(tone)}`}
         >
-            <div className="truncate text-[9px] font-bold uppercase leading-3 tracking-[0.1em] text-slate-400">
+            <div className="truncate text-[9px] font-bold uppercase leading-[0.7rem] tracking-[0.1em] text-slate-400">
                 {label}
             </div>
-            <div className="mt-0.5 flex min-w-0 items-center gap-1.5">
-                <div className="min-w-0 truncate text-sm font-bold leading-5 tabular-nums">
+            <div className="flex min-w-0 items-center gap-1.5">
+                <div className="min-w-0 truncate text-sm font-bold leading-4 tabular-nums">
                     {locked ? <span className="inline-flex items-center gap-1"><Lock className="h-3 w-3" />***</span> : value}
                 </div>
                 {badge ? (
@@ -1880,7 +1880,7 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                 <CardHeader className="flex w-full flex-col items-stretch gap-3">
                     <div
                         data-testid="patient-history-header"
-                        className="grid w-full grid-cols-1 gap-3 xl:grid-cols-[minmax(10rem,12rem)_minmax(34rem,1fr)_max-content] xl:items-center"
+                        className="grid w-full grid-cols-1 gap-3 xl:grid-cols-[minmax(10rem,12rem)_minmax(34rem,1fr)_max-content] xl:items-center xl:gap-4"
                     >
                         <div className="min-w-0 xl:w-[12rem] xl:justify-self-start">
                             <CardTitle className="truncate">{t('patientHistory.title')}</CardTitle>

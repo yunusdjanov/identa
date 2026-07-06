@@ -37,7 +37,13 @@ describe('page loading skeletons', () => {
             render(<PatientsLoadingState />);
 
             expect(screen.getByTestId('patients-list-skeleton')).toBeInTheDocument();
+            expect(screen.getByTestId('patients-filter-toolbar-skeleton')).toBeInTheDocument();
             expect(screen.getByTestId('patients-search-skeleton')).toBeInTheDocument();
+            expect(screen.getByTestId('patients-table-shell-skeleton')).toHaveClass('overflow-x-auto', 'rounded-2xl');
+            expect(screen.getByTestId('patients-table-header-skeleton').children).toHaveLength(7);
+            expect(screen.getAllByTestId('patients-table-row-skeleton')).toHaveLength(6);
+            expect(screen.getAllByTestId('patients-photo-skeleton')[0]).toHaveClass('h-20', 'w-20');
+            expect(screen.getByTestId('patients-pagination-skeleton')).toBeInTheDocument();
         });
 
         it('renders payments loading with 4 summary cards and ledger table', () => {

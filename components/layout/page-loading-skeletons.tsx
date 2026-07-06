@@ -270,41 +270,73 @@ export function AppointmentsLoadingState() {
 export function PatientsLoadingState() {
     return (
         <div className="space-y-5 lg:space-y-6">
-            <PageHeaderSkeleton actions={2} />
-            <Card data-testid="patients-list-skeleton" className="overflow-hidden rounded-2xl bg-white shadow-sm">
+            <PageHeaderSkeleton actions={3} />
+            <Card data-testid="patients-list-skeleton" className="overflow-visible rounded-2xl bg-white shadow-sm">
                 <CardHeader className="gap-4 pb-4">
                     <Skeleton className="h-6 w-32 rounded-xl" />
-                    <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_12rem_12rem_10rem]">
-                        <Skeleton className="h-10 rounded-xl" data-testid="patients-search-skeleton" />
-                        <Skeleton className="h-10 rounded-xl" />
-                        <Skeleton className="h-10 rounded-xl" />
-                        <Skeleton className="h-10 rounded-xl" />
+                    <div
+                        data-testid="patients-filter-toolbar-skeleton"
+                        className="rounded-2xl border border-teal-100/80 bg-white p-3 shadow-sm shadow-teal-100/40 sm:p-4"
+                    >
+                        <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+                            <Skeleton className="h-9 flex-1 rounded-xl" data-testid="patients-search-skeleton" />
+                            <div className="flex flex-wrap items-center gap-2.5 lg:justify-end">
+                                <Skeleton className="h-9 w-full min-w-[168px] rounded-xl md:w-[168px]" />
+                                <Skeleton className="h-9 w-full min-w-[168px] rounded-xl md:w-[168px]" />
+                                <Skeleton className="h-9 min-w-[120px] rounded-xl" />
+                            </div>
+                        </div>
                     </div>
                 </CardHeader>
-                <CardContent className="space-y-3 px-4 pb-5 sm:px-5">
-                    <div className="hidden grid-cols-[3rem_7rem_minmax(0,1.35fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_8rem] gap-3 rounded-t-xl border border-slate-100 bg-slate-50 px-4 py-3 md:grid">
-                        {Array.from({ length: 7 }).map((_, index) => (
-                            <Skeleton key={index} className="h-4 w-full rounded-xl" />
+                <CardContent className="space-y-4 px-4 pb-5 sm:px-5">
+                    <div
+                        data-testid="patients-table-shell-skeleton"
+                        className="min-w-0 max-w-full overflow-x-auto rounded-2xl border border-slate-200/80 bg-white shadow-sm shadow-slate-200/50"
+                    >
+                        <div
+                            data-testid="patients-table-header-skeleton"
+                            className="grid min-w-[760px] grid-cols-[3rem_7rem_minmax(0,1.35fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_8rem] items-center gap-3 bg-slate-50/80 px-4 py-3"
+                        >
+                            {Array.from({ length: 7 }).map((_, index) => (
+                                <Skeleton key={index} className="h-4 w-full rounded-xl" />
+                            ))}
+                        </div>
+                        {Array.from({ length: 6 }).map((_, rowIndex) => (
+                            <div
+                                key={rowIndex}
+                                data-testid="patients-table-row-skeleton"
+                                className="grid min-h-[6.25rem] min-w-[760px] grid-cols-[3rem_7rem_minmax(0,1.35fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_8rem] items-center gap-3 border-t border-slate-100 px-4 py-3"
+                            >
+                                <Skeleton className="h-4 w-5 rounded-xl" />
+                                <div className="relative h-16 w-20 overflow-visible">
+                                    <Skeleton
+                                        data-testid="patients-photo-skeleton"
+                                        className="absolute left-0 top-1/2 h-20 w-20 -translate-y-1/2 rounded-xl"
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <Skeleton className="h-4 w-44 max-w-full rounded-xl" />
+                                    <Skeleton className="h-3.5 w-32 rounded-xl" />
+                                    <Skeleton className="h-5 w-28 rounded-full" />
+                                </div>
+                                <Skeleton className="h-5 w-28 rounded-full" />
+                                <Skeleton className="h-4 w-24 rounded-xl" />
+                                <Skeleton className="h-4 w-24 rounded-xl" />
+                                <Skeleton className="ml-auto h-8 w-28 rounded-lg" />
+                            </div>
                         ))}
                     </div>
-                    {Array.from({ length: 6 }).map((_, rowIndex) => (
-                        <div
-                            key={rowIndex}
-                            className="grid gap-3 rounded-xl border border-slate-100 bg-white p-3 md:grid-cols-[3rem_7rem_minmax(0,1.35fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_8rem]"
-                        >
-                            <Skeleton className="h-4 w-5 rounded-xl" />
-                            <Skeleton className="h-16 w-16 rounded-xl" />
-                            <div className="space-y-2">
-                                <Skeleton className="h-4 w-44 max-w-full rounded-xl" />
-                                <Skeleton className="h-3.5 w-32 rounded-xl" />
-                                <Skeleton className="h-5 w-28 rounded-full" />
-                            </div>
-                            <Skeleton className="h-5 w-28 rounded-full" />
-                            <Skeleton className="h-4 w-24 rounded-xl" />
-                            <Skeleton className="h-4 w-24 rounded-xl" />
-                            <Skeleton className="h-8 w-full rounded-xl" />
+                    <div
+                        data-testid="patients-pagination-skeleton"
+                        className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between"
+                    >
+                        <Skeleton className="h-4 w-40 rounded-xl" />
+                        <div className="flex flex-wrap items-center gap-2 md:justify-end">
+                            <Skeleton className="h-8 w-24 rounded-xl" />
+                            <Skeleton className="h-8 w-32 rounded-xl" />
+                            <Skeleton className="h-8 w-20 rounded-xl" />
                         </div>
-                    ))}
+                    </div>
                 </CardContent>
             </Card>
         </div>

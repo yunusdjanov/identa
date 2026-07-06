@@ -311,13 +311,13 @@ describe('TreatmentHistoryCard image controls', () => {
         const title = screen.getByText('Work History');
 
         expect(header).toHaveClass('w-full');
-        expect(header).toHaveClass('xl:grid-cols-[minmax(10rem,12rem)_minmax(34rem,1fr)_max-content]', 'xl:items-center');
+        expect(header).toHaveClass('xl:grid-cols-[minmax(10rem,12rem)_minmax(34rem,1fr)_max-content]', 'xl:items-center', 'xl:gap-4');
         expect(summaryStrip).toHaveClass('sm:grid-cols-3', 'gap-2', 'xl:w-full');
         expect(summaryStrip).not.toHaveClass('xl:max-w-[42rem]');
         expect(actions).toHaveClass('w-full', 'sm:justify-end', 'xl:justify-self-end');
-        expect(workTotalCard).toHaveClass('rounded-xl', 'min-h-[3.25rem]', 'px-3', 'py-2', 'bg-red-50/45');
-        expect(paidCard).toHaveClass('rounded-xl', 'min-h-[3.25rem]', 'px-3', 'py-2', 'bg-emerald-50/45');
-        expect(remainingCard).toHaveClass('rounded-xl', 'min-h-[3.25rem]', 'px-3', 'py-2');
+        expect(workTotalCard).toHaveClass('rounded-xl', 'h-10', 'px-3', 'justify-center', 'bg-red-50/45');
+        expect(paidCard).toHaveClass('rounded-xl', 'h-10', 'px-3', 'justify-center', 'bg-emerald-50/45');
+        expect(remainingCard).toHaveClass('rounded-xl', 'h-10', 'px-3', 'justify-center');
         expect(title.compareDocumentPosition(summaryStrip) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
         expect(summaryStrip.compareDocumentPosition(actions) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
         expect(workTotalCard).not.toHaveClass('interactive-card');
