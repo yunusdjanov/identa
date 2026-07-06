@@ -86,7 +86,11 @@ describe('page loading skeletons', () => {
             expect(screen.getByTestId('patient-detail-header-identity-skeleton')).toHaveClass('max-w-[20rem]');
             expect(screen.getByTestId('patient-detail-header-facts-skeleton')).toHaveClass('h-[8rem]');
             expect(screen.getByTestId('patient-detail-header-actions-skeleton')).toHaveClass('flex-col');
-            expect(screen.getByTestId('patient-detail-oral-photo-skeleton')).toBeInTheDocument();
+            expect(screen.getByTestId('patient-detail-summary-grid-skeleton')).toHaveClass(
+                'lg:grid-cols-[minmax(0,1fr)_15rem]',
+                'xl:grid-cols-[minmax(0,1fr)_16rem]',
+            );
+            expect(screen.getByTestId('patient-detail-oral-photo-skeleton')).toHaveClass('h-[20.75rem]');
             expect(screen.queryByTestId('patient-detail-clinical-strip-skeleton')).not.toBeInTheDocument();
             expect(screen.getAllByTestId('patient-detail-oral-photo-slot-skeleton')).toHaveLength(10);
             expect(screen.getByTestId('patient-detail-work-history-skeleton')).toBeInTheDocument();

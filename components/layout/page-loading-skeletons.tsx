@@ -539,10 +539,13 @@ export function PatientDetailLoadingState() {
             </section>
 
             {/* Summary cards: general photos and detail */}
-            <div className="grid grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1fr)_17rem] xl:grid-cols-[minmax(0,1fr)_18rem]">
+            <div
+                data-testid="patient-detail-summary-grid-skeleton"
+                className="grid grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1fr)_15rem] xl:grid-cols-[minmax(0,1fr)_16rem]"
+            >
                 <div
                     data-testid="patient-detail-oral-photo-skeleton"
-                    className="flex h-[19.5rem] min-w-0 flex-col overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm shadow-slate-100/80"
+                    className="flex h-[20.75rem] min-w-0 flex-col overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm shadow-slate-100/80"
                 >
                     <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-4 py-1.5">
                         <div className="flex min-w-0 items-center gap-2.5">
@@ -561,7 +564,7 @@ export function PatientDetailLoadingState() {
                         ))}
                     </div>
                 </div>
-                <div className="flex h-[19.5rem] flex-col overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm shadow-slate-100/80">
+                <div className="flex h-[20.75rem] flex-col overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm shadow-slate-100/80">
                     <div className="flex items-center gap-2.5 border-b border-slate-100 px-4 py-1.5">
                         <Skeleton className="h-7 w-7 shrink-0 rounded-lg" />
                         <Skeleton className="h-[14px] w-32 rounded-xl" />

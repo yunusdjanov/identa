@@ -1119,10 +1119,10 @@ export default function PatientDetailPage({
             {/* Premium summary cards: oral photo, detail. */}
             <div
                 data-testid="patient-detail-summary-grid"
-                className="grid grid-cols-1 gap-2.5 lg:grid-cols-[minmax(0,1fr)_17rem] xl:grid-cols-[minmax(0,1fr)_18rem]"
+                className="grid grid-cols-1 gap-2.5 lg:grid-cols-[minmax(0,1fr)_15rem] xl:grid-cols-[minmax(0,1fr)_16rem]"
             >
                 {/* Oral photo: compact clinical photo shortcuts */}
-                <article className="group/card relative flex h-[19.5rem] min-w-0 flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm shadow-slate-200/40 transition-all hover:-translate-y-0.5 hover:shadow-md hover:shadow-slate-200/70">
+                <article className="group/card relative flex h-[20.75rem] min-w-0 flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm shadow-slate-200/40 transition-all hover:-translate-y-0.5 hover:shadow-md hover:shadow-slate-200/70">
                     <div className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-slate-200 via-slate-300 to-slate-400" />
                     <header className="flex items-center justify-between gap-3 px-4 pt-4 pb-2">
                         <div className="flex min-w-0 items-center gap-2.5">
@@ -1205,7 +1205,7 @@ export default function PatientDetailPage({
                 </article>
 
                 {/* Detail: activity and balance snapshot */}
-                <article className="group/card relative flex h-[19.5rem] flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm shadow-slate-200/40 transition-all hover:-translate-y-0.5 hover:shadow-md hover:shadow-slate-200/70">
+                <article className="group/card relative flex h-[20.75rem] flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm shadow-slate-200/40 transition-all hover:-translate-y-0.5 hover:shadow-md hover:shadow-slate-200/70">
                     <div className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-teal-400 via-sky-400 to-indigo-400" />
                     <header className="flex items-center justify-between gap-3 px-4 pt-4 pb-3">
                         <div className="flex items-center gap-2.5">
