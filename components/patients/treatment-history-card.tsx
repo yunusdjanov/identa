@@ -1878,10 +1878,10 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
     return (
         <>
             <Card className="interactive-card rounded-2xl border-slate-200 shadow-sm">
-                <CardHeader className="flex flex-col gap-3">
+                <CardHeader className="flex w-full flex-col items-stretch gap-3">
                     <div
                         data-testid="patient-history-header"
-                        className="grid grid-cols-1 gap-3 lg:grid-cols-[minmax(10rem,1fr)_minmax(22rem,28rem)_minmax(16rem,1fr)] lg:items-center"
+                        className="grid w-full grid-cols-1 gap-3 lg:grid-cols-[minmax(10rem,1fr)_minmax(22rem,28rem)_minmax(16rem,1fr)] lg:items-center"
                     >
                         <div className="min-w-0 lg:justify-self-start">
                             <CardTitle className="truncate">{t('patientHistory.title')}</CardTitle>

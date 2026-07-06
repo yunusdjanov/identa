@@ -304,11 +304,13 @@ describe('TreatmentHistoryCard image controls', () => {
 
         const summaryStrip = screen.getByTestId('patient-history-financial-summary');
         const actions = screen.getByTestId('patient-history-actions');
+        const header = screen.getByTestId('patient-history-header');
         const workTotalCard = getHeaderSummaryPill('Work total') as HTMLElement;
         const paidCard = getHeaderSummaryPill('Paid') as HTMLElement;
         const remainingCard = getHeaderSummaryPill('Remaining') as HTMLElement;
         const title = screen.getByText('Work History');
 
+        expect(header).toHaveClass('w-full');
         expect(summaryStrip).toHaveClass('sm:grid-cols-3', 'lg:w-full', 'lg:max-w-[28rem]');
         expect(actions).toHaveClass('w-full', 'sm:justify-end', 'lg:justify-self-end');
         expect(workTotalCard).toHaveClass('rounded-xl', 'px-2.5', 'py-1.5', 'bg-red-50/45');
