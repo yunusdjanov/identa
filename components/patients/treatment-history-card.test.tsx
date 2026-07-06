@@ -295,7 +295,7 @@ describe('TreatmentHistoryCard image controls', () => {
         expect(uploadButton.parentElement).toHaveStyle({ gridTemplateColumns: '3.25rem' });
     });
 
-    it('renders the financial summary as a centered slim header strip', async () => {
+    it('renders the financial summary as a balanced header strip', async () => {
         renderCard();
 
         await waitFor(() => {
@@ -311,11 +311,13 @@ describe('TreatmentHistoryCard image controls', () => {
         const title = screen.getByText('Work History');
 
         expect(header).toHaveClass('w-full');
-        expect(summaryStrip).toHaveClass('sm:grid-cols-3', 'lg:w-full', 'lg:max-w-[28rem]');
-        expect(actions).toHaveClass('w-full', 'sm:justify-end', 'lg:justify-self-end');
-        expect(workTotalCard).toHaveClass('rounded-xl', 'px-2.5', 'py-1.5', 'bg-red-50/45');
-        expect(paidCard).toHaveClass('rounded-xl', 'px-2.5', 'py-1.5', 'bg-emerald-50/45');
-        expect(remainingCard).toHaveClass('rounded-xl', 'px-2.5', 'py-1.5');
+        expect(header).toHaveClass('xl:grid-cols-[minmax(10rem,12rem)_minmax(34rem,1fr)_max-content]', 'xl:items-center');
+        expect(summaryStrip).toHaveClass('sm:grid-cols-3', 'gap-2', 'xl:w-full');
+        expect(summaryStrip).not.toHaveClass('xl:max-w-[42rem]');
+        expect(actions).toHaveClass('w-full', 'sm:justify-end', 'xl:justify-self-end');
+        expect(workTotalCard).toHaveClass('rounded-xl', 'min-h-[3.25rem]', 'px-3', 'py-2', 'bg-red-50/45');
+        expect(paidCard).toHaveClass('rounded-xl', 'min-h-[3.25rem]', 'px-3', 'py-2', 'bg-emerald-50/45');
+        expect(remainingCard).toHaveClass('rounded-xl', 'min-h-[3.25rem]', 'px-3', 'py-2');
         expect(title.compareDocumentPosition(summaryStrip) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
         expect(summaryStrip.compareDocumentPosition(actions) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
         expect(workTotalCard).not.toHaveClass('interactive-card');
@@ -484,10 +486,14 @@ describe('TreatmentHistoryCard image controls', () => {
         expect(screen.getByRole('button', { name: 'Image 1' })).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Image 2' })).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Image 3' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Image 1' })).not.toHaveTextContent('1');
+        expect(screen.getByRole('button', { name: 'Image 2' })).not.toHaveTextContent('2');
+        expect(screen.getByRole('button', { name: 'Image 3' })).not.toHaveTextContent('3');
         expect(screen.getByRole('button', { name: 'Image 1' }).parentElement).toHaveStyle({ gridTemplateColumns: 'repeat(3, minmax(10rem, 18.75rem)) 3.25rem' });
         expect(screen.getByRole('button', { name: 'Upload' })).toBeInTheDocument();
         expect(screen.queryByText('+1')).not.toBeInTheDocument();
         expect(screen.queryByText('+2')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('history-image-hidden-count')).not.toBeInTheDocument();
     });
 
     it('keeps the slim upload tile visible when exactly four images are shown', async () => {
@@ -583,6 +589,7 @@ describe('TreatmentHistoryCard image controls', () => {
         expect(screen.getByRole('button', { name: 'Image 4' })).toBeInTheDocument();
         expect(screen.queryByRole('button', { name: 'Image 5' })).not.toBeInTheDocument();
         expect(screen.getByText('+4')).toBeInTheDocument();
+        expect(screen.getByTestId('history-image-hidden-count')).toHaveTextContent('+4');
         expect(screen.getByRole('button', { name: 'Upload' })).toHaveClass('h-36', 'w-full', 'min-w-0', 'lg:h-40');
         expect(screen.getByRole('button', { name: 'Image 1' }).parentElement).toHaveStyle({ gridTemplateColumns: 'repeat(4, minmax(10rem, 18.75rem)) 3.25rem' });
     });

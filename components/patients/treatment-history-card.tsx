@@ -424,13 +424,13 @@ function HistoryFinancialPill({
     return (
         <div
             data-testid="history-financial-summary-pill"
-            className={`min-w-0 rounded-xl border px-2.5 py-1.5 shadow-sm shadow-slate-100/50 ${getHistoryFinancialPillToneClasses(tone)}`}
+            className={`min-h-[3.25rem] min-w-0 rounded-xl border px-3 py-2 shadow-sm shadow-slate-100/50 ${getHistoryFinancialPillToneClasses(tone)}`}
         >
-            <div className="truncate text-[8px] font-bold uppercase leading-3 tracking-[0.11em] text-slate-400">
+            <div className="truncate text-[9px] font-bold uppercase leading-3 tracking-[0.1em] text-slate-400">
                 {label}
             </div>
             <div className="mt-0.5 flex min-w-0 items-center gap-1.5">
-                <div className="min-w-0 truncate text-xs font-bold leading-4 tabular-nums">
+                <div className="min-w-0 truncate text-sm font-bold leading-5 tabular-nums">
                     {locked ? <span className="inline-flex items-center gap-1"><Lock className="h-3 w-3" />***</span> : value}
                 </div>
                 {badge ? (
@@ -732,9 +732,14 @@ function HistoryTimelineImageButton({
                 className="h-full w-full object-cover transition-transform group-hover:scale-[1.03]"
                 loading="lazy"
             />
-            <span className="absolute right-1.5 top-1.5 inline-flex h-5 min-w-5 items-center justify-center rounded-md bg-slate-900/75 px-1.5 text-[10px] font-bold text-white">
-                {hiddenCount > 0 ? `+${hiddenCount}` : index + 1}
-            </span>
+            {hiddenCount > 0 ? (
+                <span
+                    data-testid="history-image-hidden-count"
+                    className="absolute right-1.5 top-1.5 inline-flex h-5 min-w-5 items-center justify-center rounded-md bg-slate-900/75 px-1.5 text-[10px] font-bold text-white"
+                >
+                    +{hiddenCount}
+                </span>
+            ) : null}
         </button>
     );
 }
@@ -1667,9 +1672,6 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                                     </span>
                                                 )}
                                             </button>
-                                            <span className="absolute left-1.5 top-1.5 inline-flex h-5 min-w-5 items-center justify-center rounded-md bg-slate-900/75 px-1.5 text-[10px] font-bold text-white">
-                                                {index + 1}
-                                            </span>
                                             <button
                                                 type="button"
                                                 className={`absolute right-1.5 top-1.5 inline-flex h-7 w-7 items-center justify-center rounded-full border text-[10px] shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 ${
@@ -1699,9 +1701,6 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                         {/* eslint-disable-next-line @next/next/no-img-element */}
                                         <img src={preview.url} alt={`${t('patientHistory.image')} ${existingImages.length + index + 1}`} className="h-full w-full object-cover transition-transform group-hover:scale-[1.03]" loading="lazy" />
                                     </button>
-                                    <span className="absolute left-1.5 top-1.5 inline-flex h-5 min-w-5 items-center justify-center rounded-md bg-teal-700/85 px-1.5 text-[10px] font-bold text-white">
-                                        {existingImages.length + index + 1}
-                                    </span>
                                     <button
                                         type="button"
                                         className="absolute right-1.5 top-1.5 inline-flex h-7 w-7 items-center justify-center rounded-full border border-white/80 bg-red-600 text-white shadow-sm transition-colors hover:bg-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500"
@@ -1849,7 +1848,7 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
     const renderFinancialSummaryStrip = () => (
         <div
             data-testid="patient-history-financial-summary"
-            className="grid min-w-0 grid-cols-1 gap-1.5 sm:grid-cols-3 lg:mx-auto lg:w-full lg:max-w-[28rem]"
+            className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-3 xl:w-full"
         >
             <HistoryFinancialPill
                 label={t('patientHistory.totalDebt')}
@@ -1881,17 +1880,17 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                 <CardHeader className="flex w-full flex-col items-stretch gap-3">
                     <div
                         data-testid="patient-history-header"
-                        className="grid w-full grid-cols-1 gap-3 lg:grid-cols-[minmax(10rem,1fr)_minmax(22rem,28rem)_minmax(16rem,1fr)] lg:items-center"
+                        className="grid w-full grid-cols-1 gap-3 xl:grid-cols-[minmax(10rem,12rem)_minmax(34rem,1fr)_max-content] xl:items-center"
                     >
-                        <div className="min-w-0 lg:justify-self-start">
+                        <div className="min-w-0 xl:w-[12rem] xl:justify-self-start">
                             <CardTitle className="truncate">{t('patientHistory.title')}</CardTitle>
                         </div>
-                        <div className="min-w-0 lg:w-full lg:justify-self-center">
+                        <div className="min-w-0 xl:w-full xl:justify-self-stretch">
                             {renderFinancialSummaryStrip()}
                         </div>
                         <div
                             data-testid="patient-history-actions"
-                            className="flex w-full shrink-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-end lg:justify-self-end"
+                            className="flex w-full shrink-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-end xl:w-auto xl:justify-self-end"
                         >
                             {subscription?.can_export ? (
                                 <Button
