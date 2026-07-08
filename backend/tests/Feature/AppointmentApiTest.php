@@ -80,6 +80,59 @@ class AppointmentApiTest extends TestCase
         );
     }
 
+    public function test_guest_appointment_appears_in_the_calendar_list(): void
+    {
+        $dentist = User::factory()->create();
+        $appointmentDate = now()->addDay()->toDateString();
+
+        Appointment::create([
+            'dentist_id' => $dentist->id,
+            'patient_id' => null,
+            'guest_name' => 'Walk In Visitor',
+            'guest_phone' => '+998901234567',
+            'appointment_date' => $appointmentDate,
+            'start_time' => '10:00',
+            'end_time' => '10:30',
+            'status' => Appointment::STATUS_SCHEDULED,
+        ]);
+
+        $this->actingAs($dentist, 'web')
+            ->getJson('/api/v1/appointments')
+            ->assertOk()
+            ->assertJsonPath('meta.pagination.total', 1)
+            ->assertJsonPath('data.0.patient_name', 'Walk In Visitor')
+            ->assertJsonPath('data.0.is_guest', true);
+    }
+
+    public function test_guest_appointment_blocks_its_scheduled_slot(): void
+    {
+        $dentist = User::factory()->create();
+        $patient = Patient::factory()->create(['dentist_id' => $dentist->id]);
+        $appointmentDate = now()->addDay()->toDateString();
+
+        Appointment::create([
+            'dentist_id' => $dentist->id,
+            'patient_id' => null,
+            'guest_name' => 'Walk In Visitor',
+            'guest_phone' => '+998901234567',
+            'appointment_date' => $appointmentDate,
+            'start_time' => '10:00',
+            'end_time' => '10:30',
+            'status' => Appointment::STATUS_SCHEDULED,
+        ]);
+
+        $this->actingAs($dentist, 'web')
+            ->postJson('/api/v1/appointments', [
+                'patient_id' => $patient->id,
+                'appointment_date' => $appointmentDate,
+                'start_time' => '10:15',
+                'end_time' => '10:45',
+                'status' => Appointment::STATUS_SCHEDULED,
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['start_time']);
+    }
+
     public function test_dentist_can_create_patient_card_from_guest_appointment_with_corrected_identity(): void
     {
         $dentist = User::factory()->create();
@@ -632,5 +685,109 @@ class AppointmentApiTest extends TestCase
             ])
             ->assertUnprocessable()
             ->assertJsonValidationErrors(['status']);
+    }
+
+    public function test_archived_patient_appointments_drop_out_of_the_list_and_return_on_restore(): void
+    {
+        // Archiving a patient soft-deletes them but intentionally keeps their
+        // appointment rows for a possible restore. Those rows must NOT linger
+        // in the calendar as ghost entries (their `patient` relation resolves
+        // to null ("Unknown patient"). Restoring the patient brings them back.
+        $dentist = User::factory()->create();
+        $activePatient = Patient::factory()->create([
+            'dentist_id' => $dentist->id,
+            'full_name' => 'Active Patient',
+        ]);
+        $archivedPatient = Patient::factory()->create([
+            'dentist_id' => $dentist->id,
+            'full_name' => 'Archived Patient',
+        ]);
+        $appointmentDate = now()->addDay()->toDateString();
+
+        Appointment::create([
+            'dentist_id' => $dentist->id,
+            'patient_id' => $activePatient->id,
+            'appointment_date' => $appointmentDate,
+            'start_time' => '09:00',
+            'end_time' => '09:30',
+            'status' => Appointment::STATUS_SCHEDULED,
+        ]);
+        Appointment::create([
+            'dentist_id' => $dentist->id,
+            'patient_id' => $archivedPatient->id,
+            'appointment_date' => $appointmentDate,
+            'start_time' => '10:00',
+            'end_time' => '10:30',
+            'status' => Appointment::STATUS_SCHEDULED,
+        ]);
+
+        // Both patients active → both appointments visible.
+        $this->actingAs($dentist, 'web')
+            ->getJson('/api/v1/appointments')
+            ->assertOk()
+            ->assertJsonPath('meta.pagination.total', 2);
+
+        $archivedPatient->delete();
+
+        // Archived patient's appointment is hidden; only the active one remains.
+        $this->actingAs($dentist, 'web')
+            ->getJson('/api/v1/appointments')
+            ->assertOk()
+            ->assertJsonPath('meta.pagination.total', 1)
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.patient_name', 'Active Patient');
+
+        $archivedPatient->restore();
+
+        // Restoring the patient brings the appointment back automatically.
+        $this->actingAs($dentist, 'web')
+            ->getJson('/api/v1/appointments')
+            ->assertOk()
+            ->assertJsonPath('meta.pagination.total', 2);
+    }
+
+    public function test_archived_patient_no_longer_blocks_their_appointment_slot(): void
+    {
+        // A slot held by an archived patient is invisible on the calendar, so
+        // it must also stop blocking new bookings — otherwise the dentist sees
+        // an empty slot but gets a phantom "conflict" error.
+        $dentist = User::factory()->create();
+        $archivedPatient = Patient::factory()->create(['dentist_id' => $dentist->id]);
+        $newPatient = Patient::factory()->create(['dentist_id' => $dentist->id]);
+        $appointmentDate = now()->addDays(2)->toDateString();
+
+        Appointment::create([
+            'dentist_id' => $dentist->id,
+            'patient_id' => $archivedPatient->id,
+            'appointment_date' => $appointmentDate,
+            'start_time' => '10:00',
+            'end_time' => '10:30',
+            'status' => Appointment::STATUS_SCHEDULED,
+        ]);
+
+        // While the patient is active the slot is taken → conflict.
+        $this->actingAs($dentist, 'web')
+            ->postJson('/api/v1/appointments', [
+                'patient_id' => $newPatient->id,
+                'appointment_date' => $appointmentDate,
+                'start_time' => '10:00',
+                'end_time' => '10:30',
+                'status' => Appointment::STATUS_SCHEDULED,
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['start_time']);
+
+        $archivedPatient->delete();
+
+        // After archiving, the freed slot accepts the new booking.
+        $this->actingAs($dentist, 'web')
+            ->postJson('/api/v1/appointments', [
+                'patient_id' => $newPatient->id,
+                'appointment_date' => $appointmentDate,
+                'start_time' => '10:00',
+                'end_time' => '10:30',
+                'status' => Appointment::STATUS_SCHEDULED,
+            ])
+            ->assertCreated();
     }
 }

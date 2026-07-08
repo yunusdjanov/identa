@@ -58,6 +58,7 @@ class AppointmentService
     {
         $query = Appointment::query()
             ->where('dentist_id', $this->dentistId($request))
+            ->forActivePatients()
             ->with([
                 'patient:id,full_name',
                 'createdBy:id,name,role',
@@ -93,6 +94,7 @@ class AppointmentService
     {
         $query = Appointment::query()
             ->where('dentist_id', $this->dentistId($request))
+            ->forActivePatients()
             ->with('patient:id,full_name')
             ->orderByDesc('appointment_date')
             ->orderByDesc('start_time');
@@ -388,6 +390,7 @@ class AppointmentService
         $requestedEndMinutes = $this->minutesFromClock($endTime);
         $query = Appointment::query()
             ->where('dentist_id', $dentistId)
+            ->forActivePatients()
             ->whereDate('appointment_date', $appointmentDate)
             ->whereNotIn('status', self::NON_BLOCKING_STATUSES)
             ->lockForUpdate();

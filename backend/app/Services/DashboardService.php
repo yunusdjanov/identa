@@ -49,12 +49,14 @@ class DashboardService
         if ($includeAppointments) {
             $todayAppointments = Appointment::query()
                 ->where('dentist_id', $tenantDentistId)
+                ->forActivePatients()
                 ->whereDate('appointment_date', $targetDate)
                 ->with(['patient:id,full_name'])
                 ->orderBy('start_time')
                 ->get([
                     'id',
                     'patient_id',
+                    'guest_name',
                     'appointment_date',
                     'start_time',
                     'end_time',
@@ -63,7 +65,9 @@ class DashboardService
                 ])
                 ->map(fn (Appointment $appointment): array => [
                     'id' => (string) $appointment->id,
-                    'patientName' => $appointment->patient?->full_name ?? 'Unknown patient',
+                    'patientName' => $appointment->patient?->full_name
+                        ?? $appointment->guest_name
+                        ?? 'Unknown patient',
                     'appointmentDate' => $appointment->appointment_date?->format('Y-m-d'),
                     'startTime' => (string) $appointment->start_time,
                     'durationMinutes' => $this->durationMinutes(

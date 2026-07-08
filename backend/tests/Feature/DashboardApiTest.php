@@ -94,4 +94,68 @@ class DashboardApiTest extends TestCase
             ->assertOk()
             ->assertJsonCount(4, 'data.todayAppointments');
     }
+
+    public function test_dashboard_today_widget_excludes_archived_patient_appointments(): void
+    {
+        // The dashboard "today" widget must not surface appointments belonging
+        // to an archived patient; they would render as "Unknown patient".
+        $dentist = User::factory()->create();
+        $activePatient = Patient::factory()->create([
+            'dentist_id' => $dentist->id,
+            'full_name' => 'Active Patient',
+        ]);
+        $archivedPatient = Patient::factory()->create([
+            'dentist_id' => $dentist->id,
+            'full_name' => 'Archived Patient',
+        ]);
+        $date = '2026-04-24';
+
+        Appointment::factory()->create([
+            'dentist_id' => $dentist->id,
+            'patient_id' => $activePatient->id,
+            'appointment_date' => $date,
+            'start_time' => '10:00',
+            'end_time' => '10:30',
+            'status' => Appointment::STATUS_SCHEDULED,
+        ]);
+        Appointment::factory()->create([
+            'dentist_id' => $dentist->id,
+            'patient_id' => $archivedPatient->id,
+            'appointment_date' => $date,
+            'start_time' => '11:00',
+            'end_time' => '11:30',
+            'status' => Appointment::STATUS_SCHEDULED,
+        ]);
+
+        $archivedPatient->delete();
+
+        $this->actingAs($dentist, 'web')
+            ->getJson('/api/v1/dashboard/snapshot?date='.$date)
+            ->assertOk()
+            ->assertJsonCount(1, 'data.todayAppointments')
+            ->assertJsonPath('data.todayAppointments.0.patientName', 'Active Patient');
+    }
+
+    public function test_dashboard_today_widget_includes_guest_appointments(): void
+    {
+        $dentist = User::factory()->create();
+        $date = '2026-04-24';
+
+        Appointment::factory()->create([
+            'dentist_id' => $dentist->id,
+            'patient_id' => null,
+            'guest_name' => 'Walk In Visitor',
+            'guest_phone' => '+998901234567',
+            'appointment_date' => $date,
+            'start_time' => '12:00',
+            'end_time' => '12:30',
+            'status' => Appointment::STATUS_SCHEDULED,
+        ]);
+
+        $this->actingAs($dentist, 'web')
+            ->getJson('/api/v1/dashboard/snapshot?date='.$date)
+            ->assertOk()
+            ->assertJsonCount(1, 'data.todayAppointments')
+            ->assertJsonPath('data.todayAppointments.0.patientName', 'Walk In Visitor');
+    }
 }

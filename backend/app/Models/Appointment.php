@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Contracts\TenantOwned;
 use App\Models\Concerns\BelongsToTenant;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -89,5 +90,37 @@ class Appointment extends Model implements TenantOwned
     public function patient(): BelongsTo
     {
         return $this->belongsTo(Patient::class);
+    }
+
+    /**
+     * Limit the query to appointments whose patient still exists and is not
+     * archived (soft-deleted).
+     *
+     * When a dentist archives a patient we deliberately keep the appointment
+     * rows so a later restore brings the full history back. But until then the
+     * appointments must drop out of every active scheduling surface: the
+     * calendar list, the dashboard "today" widget, and slot-conflict checks -
+     * otherwise they linger as ghost rows whose `patient` relation resolves to
+     * null (rendered as "Unknown patient") and keep blocking time slots the
+     * dentist can no longer see. Restoring the patient makes them reappear
+     * automatically, since nothing was deleted. Guest appointments have no
+     * patient row by design, so they stay visible and continue blocking their
+     * scheduled slot.
+     *
+     * @param  Builder<Appointment>  $query
+     * @return Builder<Appointment>
+     */
+    public function scopeForActivePatients(Builder $query): Builder
+    {
+        return $query->where(function (Builder $builder): void {
+            $builder->whereNull('patient_id')
+                ->orWhereExists(function ($subQuery): void {
+                    $subQuery->selectRaw('1')
+                        ->from('patients')
+                        ->whereColumn('patients.id', 'appointments.patient_id')
+                        ->whereColumn('patients.dentist_id', 'appointments.dentist_id')
+                        ->whereNull('patients.deleted_at');
+                });
+        });
     }
 }

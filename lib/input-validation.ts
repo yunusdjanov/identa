@@ -112,9 +112,20 @@ export function setValidationLocale(locale: string | null | undefined): void {
 }
 
 export function normalizePhoneForApi(value: string): string {
-    const digits = value.replace(/\D/g, '');
+    let digits = value.replace(/\D/g, '');
     if (!digits) {
         return '';
+    }
+
+    // Parity with the mobile client (src/lib/phoneFormat.ts
+    // `normalizePhoneDigits`): a bare 9-digit local number — e.g. pasted
+    // "901234567" without passing through the live `formatPhoneInputValue`
+    // formatter — gets the Uzbek country code prepended so the backend always
+    // receives a fully-qualified E.164 number, never a malformed "+901234567".
+    // Partial inputs (1–8 digits) are left alone: the user may be mid-typing
+    // the "+998…" prefix, and inferring there would corrupt the value.
+    if (digits.length === UZBEKISTAN_LOCAL_DIGITS && !digits.startsWith(UZBEKISTAN_COUNTRY_CODE)) {
+        digits = `${UZBEKISTAN_COUNTRY_CODE}${digits}`;
     }
 
     return `+${digits}`;
