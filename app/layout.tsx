@@ -71,11 +71,11 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: [
-      { url: "/favicon.ico", sizes: "any" },
-      { url: "/icon.png", type: "image/png", sizes: "256x256" },
+      { url: "/icon.png?v=20260709", type: "image/png", sizes: "256x256" },
+      { url: "/favicon.ico?v=20260709", sizes: "any" },
     ],
-    shortcut: "/favicon.ico",
-    apple: "/icon.png",
+    shortcut: "/favicon.ico?v=20260709",
+    apple: "/icon.png?v=20260709",
   },
   category: "healthcare",
 };
