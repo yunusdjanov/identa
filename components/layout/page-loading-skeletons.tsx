@@ -516,8 +516,11 @@ export function PatientDetailLoadingState() {
                         className="flex w-full min-w-0 max-w-[20rem] items-center gap-3"
                     >
                         <Skeleton className="h-8 w-8 shrink-0 rounded-xl" />
-                        <div className="relative h-16 w-20 shrink-0 overflow-visible">
-                            <Skeleton className="absolute left-0 top-1/2 h-20 w-20 -translate-y-1/2 rounded-full" />
+                        <div className="relative h-20 w-24 shrink-0 overflow-visible">
+                            <Skeleton
+                                data-testid="patient-detail-header-photo-skeleton"
+                                className="absolute left-0 top-1/2 h-24 w-24 -translate-y-1/2 rounded-xl"
+                            />
                         </div>
                         <div className="min-w-0 flex-1 space-y-2">
                             <Skeleton className="h-[22px] w-full max-w-44 rounded-xl" />

@@ -245,7 +245,7 @@ describe('PatientDetailPage', () => {
         const user = userEvent.setup();
 
         const photoTrigger = await screen.findByRole('button', { name: 'Patient Photo: John Smith' });
-        expect(photoTrigger).toHaveClass('h-24', 'w-24', 'absolute');
+        expect(photoTrigger).toHaveClass('h-24', 'w-24', 'absolute', 'rounded-xl');
         expect(photoTrigger.parentElement).toHaveClass('h-20', 'w-24');
 
         await user.click(photoTrigger);

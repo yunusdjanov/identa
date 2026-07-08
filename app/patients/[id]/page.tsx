@@ -799,29 +799,30 @@ export default function PatientDetailPage({
                         <div className="relative h-20 w-24 shrink-0 overflow-visible">
                             <button
                                 type="button"
-                                className="group absolute left-0 top-1/2 h-24 w-24 -translate-y-1/2 overflow-hidden rounded-full border border-white bg-white p-0 shadow-sm shadow-slate-200 transition hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-300"
+                                className="group absolute left-0 top-1/2 h-24 w-24 -translate-y-1/2 overflow-hidden rounded-xl border border-white bg-white p-0 shadow-sm shadow-slate-200 transition hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-300"
                                 aria-label={`${t('patients.form.photo')}: ${patient.full_name}`}
                                 onClick={() => setIsPatientPhotoPreviewOpen(true)}
                             >
-                                <Avatar className="h-full w-full">
+                                <Avatar className="h-full w-full rounded-xl">
                                     <AvatarImage
                                         src={patientAvatarUrl}
                                         alt={patient.full_name}
+                                        className="rounded-xl"
                                         crossOrigin={getProtectedMediaCrossOrigin(patientAvatarUrl)}
                                     />
-                                    <AvatarFallback className="bg-slate-100 text-base font-semibold text-slate-700">
+                                    <AvatarFallback className="rounded-xl bg-slate-100 text-base font-semibold text-slate-700">
                                         {getPatientInitials(patient.full_name)}
                                     </AvatarFallback>
                                 </Avatar>
-                                <span className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-full bg-slate-950/0 text-white opacity-0 transition group-hover:bg-slate-950/35 group-hover:opacity-100 group-focus-visible:bg-slate-950/35 group-focus-visible:opacity-100">
+                                <span className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-xl bg-slate-950/0 text-white opacity-0 transition group-hover:bg-slate-950/35 group-hover:opacity-100 group-focus-visible:bg-slate-950/35 group-focus-visible:opacity-100">
                                     <Maximize2 className="h-4 w-4" />
                                 </span>
                             </button>
                         </div>
                     ) : (
                         <div className="relative h-20 w-24 shrink-0 overflow-visible">
-                            <Avatar className="absolute left-0 top-1/2 h-24 w-24 -translate-y-1/2 border border-white bg-slate-100 shadow-sm shadow-slate-200">
-                                <AvatarFallback className="bg-slate-100 text-base font-semibold text-slate-700">
+                            <Avatar className="absolute left-0 top-1/2 h-24 w-24 -translate-y-1/2 rounded-xl border border-white bg-slate-100 shadow-sm shadow-slate-200">
+                                <AvatarFallback className="rounded-xl bg-slate-100 text-base font-semibold text-slate-700">
                                     {getPatientInitials(patient.full_name)}
                                 </AvatarFallback>
                             </Avatar>

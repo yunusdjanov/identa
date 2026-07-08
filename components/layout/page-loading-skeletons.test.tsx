@@ -90,6 +90,7 @@ describe('page loading skeletons', () => {
             render(<PatientDetailLoadingState />);
 
             expect(screen.getByTestId('patient-detail-header-identity-skeleton')).toHaveClass('max-w-[20rem]');
+            expect(screen.getByTestId('patient-detail-header-photo-skeleton')).toHaveClass('h-24', 'w-24', 'rounded-xl');
             expect(screen.getByTestId('patient-detail-header-facts-skeleton')).toHaveClass('h-[8rem]');
             expect(screen.getByTestId('patient-detail-header-actions-skeleton')).toHaveClass('flex-col');
             expect(screen.getByTestId('patient-detail-summary-grid-skeleton')).toHaveClass(
