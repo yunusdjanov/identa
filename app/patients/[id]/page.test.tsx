@@ -173,6 +173,7 @@ describe('PatientDetailPage', () => {
         expect(scheduleButton).toHaveClass('size-10');
         expect(editButton).toHaveClass('size-10');
         expect(archiveButton).toHaveClass('size-10');
+        expect(archiveButton.querySelector('svg')).toHaveClass('lucide-archive');
         expect(actionGroup).toHaveClass('flex-col', 'items-end');
         expect(screen.queryByText('Schedule Appointment')).not.toBeInTheDocument();
         expect(screen.queryByText('Edit Patient')).not.toBeInTheDocument();
