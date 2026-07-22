@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Treatment;
 use App\Models\User;
 use App\Services\AnalyticsSummaryService;
 use Illuminate\Http\JsonResponse;
@@ -29,7 +30,9 @@ class AnalyticsController extends Controller
             'current_to' => ['required', 'date_format:Y-m-d', 'after_or_equal:current_from'],
             'previous_from' => ['required', 'date_format:Y-m-d'],
             'previous_to' => ['required', 'date_format:Y-m-d', 'after_or_equal:previous_from'],
+            'currency' => ['sometimes', 'string', Rule::in(Treatment::SUPPORTED_CURRENCIES)],
         ]);
+        $validated['currency'] = (string) ($validated['currency'] ?? Treatment::CURRENCY_UZS);
 
         /** @var User $user */
         $user = $request->user();

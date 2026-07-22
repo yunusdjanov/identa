@@ -19,7 +19,7 @@ class AnalyticsSummaryService
      * queries. This replaces the previous browser-side "fetch every page then
      * aggregate" path without changing the UI's metric semantics.
      *
-     * @param array{range: string, current_from: string, current_to: string, previous_from: string, previous_to: string} $filters
+     * @param array{range: string, current_from: string, current_to: string, previous_from: string, previous_to: string, currency?: string} $filters
      * @return array<string, mixed>
      */
     public function summary(User $user, array $filters): array
@@ -34,6 +34,7 @@ class AnalyticsSummaryService
         $previousEnd = Carbon::parse($filters['previous_to'])->endOfDay();
         $queryStart = $previousStart->copy()->min($currentStart)->toDateString();
         $queryEnd = $currentEnd->copy()->max($previousEnd)->toDateString();
+        $currency = $this->currency($filters['currency'] ?? null);
 
         $canViewPayments = $user->hasPermission(User::PERMISSION_PAYMENTS_VIEW);
         $canViewPatients = $user->hasPermission(User::PERMISSION_PATIENTS_VIEW);
@@ -42,6 +43,9 @@ class AnalyticsSummaryService
         $treatments = $canViewPayments
             ? $this->treatments($dentistId, $queryStart, $queryEnd)
             : collect();
+        $financialTreatments = $treatments
+            ->filter(fn (object $treatment): bool => $this->treatmentCurrency($treatment) === $currency)
+            ->values();
         $patients = $canViewPatients
             ? $this->patients($dentistId, $queryStart, $queryEnd)
             : collect();
@@ -52,23 +56,24 @@ class AnalyticsSummaryService
         $buckets = $this->buckets($range, $currentStart, $currentEnd);
 
         return [
+            'currency' => $currency,
             'permissions' => [
                 'payments' => $canViewPayments,
                 'patients' => $canViewPatients,
                 'appointments' => $canViewAppointments,
             ],
             'kpis' => [
-                'revenue' => $this->revenueKpi($treatments, $currentStart, $currentEnd, $previousStart, $previousEnd),
+                'revenue' => $this->revenueKpi($financialTreatments, $currentStart, $currentEnd, $previousStart, $previousEnd),
                 'debt' => [
-                    'current' => $canViewPayments ? $this->outstandingDebtTotal($dentistId) : 0.0,
+                    'current' => $canViewPayments ? $this->outstandingDebtTotal($dentistId, $currency) : 0.0,
                     'previous' => null,
                 ],
                 'patients' => $this->patientKpi($patients, $currentStart, $currentEnd, $previousStart, $previousEnd),
                 'visits' => $this->visitsKpi($appointments, $treatments, $currentStart, $currentEnd, $previousStart, $previousEnd),
             ],
-            'buckets' => $this->bucketRows($buckets, $treatments, $patients),
+            'buckets' => $this->bucketRows($buckets, $financialTreatments, $patients),
             'appointment_status' => $this->appointmentStatus($appointments, $currentStart, $currentEnd),
-            'top_debtors' => $this->topDebtors($treatments, $currentStart, $currentEnd),
+            'top_debtors' => $this->topDebtors($financialTreatments, $currentStart, $currentEnd),
         ];
     }
 
@@ -78,6 +83,22 @@ class AnalyticsSummaryService
     private function range(string $range): string
     {
         return in_array($range, self::ALLOWED_RANGES, true) ? $range : '30d';
+    }
+
+    private function currency(?string $currency): string
+    {
+        return in_array($currency, Treatment::SUPPORTED_CURRENCIES, true)
+            ? $currency
+            : Treatment::CURRENCY_UZS;
+    }
+
+    private function treatmentCurrency(object $treatment): string
+    {
+        $currency = $treatment->currency ?? null;
+
+        return is_string($currency) && in_array($currency, Treatment::SUPPORTED_CURRENCIES, true)
+            ? $currency
+            : Treatment::CURRENCY_UZS;
     }
 
     private function treatments(int $dentistId, string $dateFrom, string $dateTo)
@@ -95,6 +116,7 @@ class AnalyticsSummaryService
                 'treatments.treatment_date',
                 'treatments.debt_amount',
                 'treatments.paid_amount',
+                'treatments.currency',
                 'patients.full_name as patient_name',
                 'patients.phone as patient_phone',
             ]);
@@ -195,10 +217,16 @@ class AnalyticsSummaryService
         return count($keys);
     }
 
-    private function outstandingDebtTotal(int $dentistId): float
+    private function outstandingDebtTotal(int $dentistId, string $currency): float
     {
         $patientBalances = Treatment::query()
             ->where('dentist_id', $dentistId)
+            ->where(function ($query) use ($currency): void {
+                $query->where('currency', $currency);
+                if ($currency === Treatment::CURRENCY_UZS) {
+                    $query->orWhereNull('currency');
+                }
+            })
             ->selectRaw('patient_id, COALESCE(SUM(debt_amount), 0) AS total_debt, COALESCE(SUM(paid_amount), 0) AS total_paid')
             ->groupBy('patient_id');
 

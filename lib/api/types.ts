@@ -421,6 +421,7 @@ export interface ApiAnalyticsTopDebtor {
 }
 
 export interface ApiAnalyticsSummary {
+    currency: ApiMoneyCurrency;
     permissions: {
         payments: boolean;
         patients: boolean;

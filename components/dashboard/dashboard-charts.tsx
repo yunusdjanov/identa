@@ -7,6 +7,7 @@ import type {
     DashboardPatientGrowthPoint,
     DashboardRevenuePoint,
 } from '@/lib/api/dentist';
+import type { ApiMoneyCurrency } from '@/lib/api/types';
 
 export interface TopDebtorPoint {
     name: string;
@@ -65,6 +66,7 @@ function ChartCard({ title, subtitle, action, children }: { title: string; subti
 export function RevenueChart({
     data,
     rangeLabel,
+    currency = 'UZS',
 }: {
     data: DashboardRevenuePoint[];
     /**
@@ -75,6 +77,7 @@ export function RevenueChart({
      * which doesn't have a selector.
      */
     rangeLabel?: string;
+    currency?: ApiMoneyCurrency;
 }) {
     const { t } = useI18n();
     return (
@@ -89,7 +92,7 @@ export function RevenueChart({
                     <YAxis stroke="#94a3b8" tick={{ fontSize: 10 }} tickLine={false} axisLine={false} tickFormatter={formatShortCurrency} />
                     <Tooltip
                         contentStyle={{ borderRadius: 12, border: '1px solid #e2e8f0', fontSize: 12, padding: '8px 12px' }}
-                        formatter={(value) => formatCurrency(Number(value))}
+                        formatter={(value) => formatCurrency(Number(value), currency)}
                         cursor={{ fill: '#f0fdfa', opacity: 0.5 }}
                     />
                     {/* Use the same vocabulary as the analytics KPI cards
@@ -172,7 +175,13 @@ export function PatientGrowthChart({
     );
 }
 
-export function TopDebtorsCard({ data }: { data: TopDebtorPoint[] }) {
+export function TopDebtorsCard({
+    data,
+    currency = 'UZS',
+}: {
+    data: TopDebtorPoint[];
+    currency?: ApiMoneyCurrency;
+}) {
     const { t } = useI18n();
     const displayedDebtors = data.slice(0, TOP_DEBTORS_LIMIT);
     const maxDebt = displayedDebtors.length > 0 ? Math.max(...displayedDebtors.map((d) => d.debt)) : 1;
@@ -181,7 +190,7 @@ export function TopDebtorsCard({ data }: { data: TopDebtorPoint[] }) {
     return (
         <ChartCard
             title={t('analytics.topDebtors.title') ?? "Eng katta qarzga ega bemorlar"}
-            subtitle={displayedDebtors.length > 0 ? `${t('analytics.topDebtors.totalShort') ?? "Jami"}: ${formatCurrency(topDebtTotal)}` : (t('analytics.topDebtors.subtitle') ?? `TOP ${TOP_DEBTORS_LIMIT}`)}
+            subtitle={displayedDebtors.length > 0 ? `${t('analytics.topDebtors.totalShort') ?? "Jami"}: ${formatCurrency(topDebtTotal, currency)}` : (t('analytics.topDebtors.subtitle') ?? `TOP ${TOP_DEBTORS_LIMIT}`)}
             action={
                 <Link
                     href="/payments?outstanding=1"
@@ -216,7 +225,7 @@ export function TopDebtorsCard({ data }: { data: TopDebtorPoint[] }) {
                                             ) : null}
                                         </div>
                                     </div>
-                                    <span className="shrink-0 text-[13px] font-bold tabular-nums text-red-700">{formatCurrency(item.debt)}</span>
+                                    <span className="shrink-0 text-[13px] font-bold tabular-nums text-red-700">{formatCurrency(item.debt, currency)}</span>
                                 </div>
                                 <div className="h-1.5 overflow-hidden rounded-full bg-slate-100">
                                     <div className="h-full rounded-full bg-gradient-to-r from-red-400 to-red-600 transition-all" style={{ width: `${pct}%` }} />

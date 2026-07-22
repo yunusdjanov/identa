@@ -46,6 +46,7 @@ export interface AnalyticsSummaryParams {
     current_to: string;
     previous_from: string;
     previous_to: string;
+    currency?: ApiMoneyCurrency;
 }
 
 interface QueryOptions {

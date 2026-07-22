@@ -60,6 +60,7 @@ class AnalyticsSummaryApiTest extends TestCase
                 'previous_to' => '2026-06-09',
             ]))
             ->assertOk()
+            ->assertJsonPath('data.currency', Treatment::CURRENCY_UZS)
             ->assertJsonPath('data.kpis.revenue.current', 200)
             ->assertJsonPath('data.kpis.revenue.previous', 50)
             ->assertJsonPath('data.kpis.debt.current', 350)
@@ -72,6 +73,111 @@ class AnalyticsSummaryApiTest extends TestCase
             ->assertJsonPath('data.appointment_status.1.count', 1)
             ->assertJsonPath('data.top_debtors.0.name', $patient->full_name)
             ->assertJsonPath('data.top_debtors.0.debt', 300);
+    }
+
+    public function test_dentist_summary_keeps_financial_metrics_separate_by_currency(): void
+    {
+        $dentist = User::factory()->create();
+        $usdPatient = Patient::factory()->create([
+            'dentist_id' => $dentist->id,
+            'full_name' => 'USD Patient',
+        ]);
+        $uzsPatient = Patient::factory()->create([
+            'dentist_id' => $dentist->id,
+            'full_name' => 'UZS Patient',
+        ]);
+
+        Treatment::factory()->create([
+            'dentist_id' => $dentist->id,
+            'patient_id' => $usdPatient->id,
+            'treatment_date' => '2026-06-10',
+            'debt_amount' => '100.00',
+            'paid_amount' => '40.00',
+            'currency' => Treatment::CURRENCY_USD,
+        ]);
+        Treatment::factory()->create([
+            'dentist_id' => $dentist->id,
+            'patient_id' => $usdPatient->id,
+            'treatment_date' => '2026-06-09',
+            'debt_amount' => '20.00',
+            'paid_amount' => '20.00',
+            'currency' => Treatment::CURRENCY_USD,
+        ]);
+        Treatment::factory()->create([
+            'dentist_id' => $dentist->id,
+            'patient_id' => $uzsPatient->id,
+            'treatment_date' => '2026-06-10',
+            'debt_amount' => '100000.00',
+            'paid_amount' => '40000.00',
+            'currency' => Treatment::CURRENCY_UZS,
+        ]);
+
+        $otherDentist = User::factory()->create();
+        $otherPatient = Patient::factory()->create(['dentist_id' => $otherDentist->id]);
+        Treatment::factory()->create([
+            'dentist_id' => $otherDentist->id,
+            'patient_id' => $otherPatient->id,
+            'treatment_date' => '2026-06-10',
+            'debt_amount' => '9999.00',
+            'paid_amount' => '9999.00',
+            'currency' => Treatment::CURRENCY_USD,
+        ]);
+
+        $baseQuery = [
+            'range' => '7d',
+            'current_from' => '2026-06-10',
+            'current_to' => '2026-06-10',
+            'previous_from' => '2026-06-09',
+            'previous_to' => '2026-06-09',
+        ];
+
+        $this->actingAs($dentist, 'web')
+            ->getJson('/api/v1/analytics/summary?'.http_build_query([
+                ...$baseQuery,
+                'currency' => Treatment::CURRENCY_USD,
+            ]))
+            ->assertOk()
+            ->assertJsonPath('data.currency', Treatment::CURRENCY_USD)
+            ->assertJsonPath('data.kpis.revenue.current', 40)
+            ->assertJsonPath('data.kpis.revenue.previous', 20)
+            ->assertJsonPath('data.kpis.debt.current', 60)
+            ->assertJsonPath('data.kpis.visits.current', 2)
+            ->assertJsonPath('data.kpis.visits.previous', 1)
+            ->assertJsonPath('data.buckets.0.revenue', 40)
+            ->assertJsonPath('data.buckets.0.debt', 60)
+            ->assertJsonPath('data.top_debtors.0.name', 'USD Patient')
+            ->assertJsonPath('data.top_debtors.0.debt', 60);
+
+        $this->actingAs($dentist, 'web')
+            ->getJson('/api/v1/analytics/summary?'.http_build_query([
+                ...$baseQuery,
+                'currency' => Treatment::CURRENCY_UZS,
+            ]))
+            ->assertOk()
+            ->assertJsonPath('data.currency', Treatment::CURRENCY_UZS)
+            ->assertJsonPath('data.kpis.revenue.current', 40000)
+            ->assertJsonPath('data.kpis.revenue.previous', 0)
+            ->assertJsonPath('data.kpis.debt.current', 60000)
+            ->assertJsonPath('data.kpis.visits.current', 2)
+            ->assertJsonPath('data.top_debtors.0.name', 'UZS Patient')
+            ->assertJsonPath('data.top_debtors.0.debt', 60000);
+    }
+
+    public function test_dentist_summary_rejects_unsupported_currency(): void
+    {
+        $dentist = User::factory()->create();
+
+        $this->actingAs($dentist, 'web')
+            ->getJson('/api/v1/analytics/summary?'.http_build_query([
+                'range' => '7d',
+                'current_from' => '2026-06-10',
+                'current_to' => '2026-06-10',
+                'previous_from' => '2026-06-09',
+                'previous_to' => '2026-06-09',
+                'currency' => 'EUR',
+            ]))
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('currency');
     }
 
     public function test_admin_summary_endpoint_returns_empty_state_for_admins(): void
