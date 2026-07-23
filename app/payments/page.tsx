@@ -33,7 +33,13 @@ import {
     listPaymentLedgerPatients,
     updatePaymentExpense,
 } from '@/lib/api/dentist';
-import type { ApiMoneyCurrency, ApiPaymentExpense, ApiPaymentExpenseCurrency, ApiPaymentPatientLedgerRow } from '@/lib/api/types';
+import type {
+    ApiMoneyCurrency,
+    ApiPaymentExpense,
+    ApiPaymentExpenseCurrency,
+    ApiPaymentPatientLedgerRow,
+    ApiSummaryValue,
+} from '@/lib/api/types';
 import { useI18n } from '@/components/providers/i18n-provider';
 import { formatLocalizedDate } from '@/lib/i18n/date';
 import { extractPrimaryPhone, formatCurrency } from '@/lib/utils';
@@ -451,6 +457,32 @@ function ledgerTotalsFromSummary(value: unknown): PatientBalanceRow['balancesByC
     return totals;
 }
 
+function ledgerSummaryFromResponse(summary: Record<string, ApiSummaryValue> | undefined) {
+    const balancesByCurrency = ledgerTotalsFromSummary(summary?.totals_by_currency);
+    const hasCurrencySummary = MONEY_CURRENCIES.some((currency) => (
+        balancesByCurrency[currency].totalDebt !== 0
+        || balancesByCurrency[currency].totalPaid !== 0
+        || balancesByCurrency[currency].balance !== 0
+    ));
+
+    if (!hasCurrencySummary && summary) {
+        balancesByCurrency.UZS = {
+            totalDebt: Number(summary.total_debt ?? 0),
+            totalPaid: Number(summary.total_paid ?? 0),
+            balance: Number(summary.total_balance ?? 0),
+        };
+    }
+
+    return {
+        totalDebt: balancesByCurrency.UZS.totalDebt,
+        totalPaid: balancesByCurrency.UZS.totalPaid,
+        totalBalance: balancesByCurrency.UZS.balance,
+        balancesByCurrency,
+        totalEntries: Number(summary?.total_entries ?? 0),
+        totalPatients: Number(summary?.total_patients ?? 0),
+    };
+}
+
 function formatExpenseTotals(totals: Record<ApiPaymentExpenseCurrency, number>, locale: string) {
     const visibleTotals = EXPENSE_CURRENCIES
         .filter((currency) => totals[currency] > 0)
@@ -546,6 +578,19 @@ export default function PaymentsPage() {
         refetchOnWindowFocus: false,
         refetchOnReconnect: false,
     });
+    const patientOverviewQuery = useQuery({
+        queryKey: ['payments', 'ledger', 'patients', 'overview'],
+        enabled: canViewPayments,
+        queryFn: () =>
+            listPaymentLedgerPatients({
+                page: 1,
+                perPage: 1,
+            }),
+        staleTime: 300000,
+        gcTime: 900000,
+        refetchOnWindowFocus: false,
+        refetchOnReconnect: false,
+    });
     const expensesQuery = useQuery({
         queryKey: [
             'payments',
@@ -563,6 +608,19 @@ export default function PaymentsPage() {
                 },
             }),
         placeholderData: (previousData) => previousData,
+        staleTime: 300000,
+        gcTime: 900000,
+        refetchOnWindowFocus: false,
+        refetchOnReconnect: false,
+    });
+    const expenseOverviewQuery = useQuery({
+        queryKey: ['payments', 'expenses', 'overview'],
+        enabled: canViewPayments && activeTab === 'expenses',
+        queryFn: () =>
+            listPaymentExpenses({
+                page: 1,
+                perPage: 1,
+            }),
         staleTime: 300000,
         gcTime: 900000,
         refetchOnWindowFocus: false,
@@ -628,35 +686,17 @@ export default function PaymentsPage() {
         [expensesQuery.data]
     );
 
-    const overallSummary = useMemo(() => {
-        const summary = patientLedgerQuery.data?.meta?.summary;
-        const balancesByCurrency = ledgerTotalsFromSummary(summary?.totals_by_currency);
-        const hasCurrencySummary = MONEY_CURRENCIES.some((currency) => (
-            balancesByCurrency[currency].totalDebt !== 0
-            || balancesByCurrency[currency].totalPaid !== 0
-            || balancesByCurrency[currency].balance !== 0
-        ));
-
-        if (!hasCurrencySummary && summary) {
-            balancesByCurrency.UZS = {
-                totalDebt: Number(summary.total_debt ?? 0),
-                totalPaid: Number(summary.total_paid ?? 0),
-                balance: Number(summary.total_balance ?? 0),
-            };
-        }
-
-        return {
-            totalDebt: balancesByCurrency.UZS.totalDebt,
-            totalPaid: balancesByCurrency.UZS.totalPaid,
-            totalBalance: balancesByCurrency.UZS.balance,
-            balancesByCurrency,
-            totalEntries: Number(summary?.total_entries ?? 0),
-            totalPatients: Number(summary?.total_patients ?? 0),
-        };
-    }, [patientLedgerQuery.data]);
+    const overallSummary = useMemo(
+        () => ledgerSummaryFromResponse(patientOverviewQuery.data?.meta?.summary),
+        [patientOverviewQuery.data]
+    );
+    const filteredPaymentSummary = useMemo(
+        () => ledgerSummaryFromResponse(patientLedgerQuery.data?.meta?.summary),
+        [patientLedgerQuery.data]
+    );
 
     const expenseSummary = useMemo(() => {
-        const summary = expensesQuery.data?.meta?.summary;
+        const summary = expenseOverviewQuery.data?.meta?.summary;
         return {
             totalCount: Number(summary?.total_count ?? 0),
             totalAmount: Number(summary?.total_amount ?? 0),
@@ -665,7 +705,7 @@ export default function PaymentsPage() {
             currentMonthByCurrency: currencyTotalsFromSummary(summary?.current_month_by_currency),
             latestExpenseDate: typeof summary?.latest_expense_date === 'string' ? summary.latest_expense_date : null,
         };
-    }, [expensesQuery.data]);
+    }, [expenseOverviewQuery.data]);
 
     const patientPagination = patientLedgerQuery.data?.meta?.pagination;
     const expensePagination = expensesQuery.data?.meta?.pagination;
@@ -844,11 +884,11 @@ export default function PaymentsPage() {
                     row.lastEntryDate ? formatLocalizedDate(row.lastEntryDate, locale, { year: 'numeric', month: 'short', day: 'numeric' }) : '-',
                 ]),
                 summary: [
-                    { label: t('payments.summary.totalDebt'), value: formatBalanceBreakdown(overallSummary.balancesByCurrency, 'totalDebt') },
-                    { label: t('payments.summary.totalPaid'), value: formatBalanceBreakdown(overallSummary.balancesByCurrency, 'totalPaid') },
+                    { label: t('payments.summary.totalDebt'), value: formatBalanceBreakdown(filteredPaymentSummary.balancesByCurrency, 'totalDebt') },
+                    { label: t('payments.summary.totalPaid'), value: formatBalanceBreakdown(filteredPaymentSummary.balancesByCurrency, 'totalPaid') },
                     {
                         label: t('payments.summary.totalBalance'),
-                        value: formatBalanceBreakdown(overallSummary.balancesByCurrency, 'balance'),
+                        value: formatBalanceBreakdown(filteredPaymentSummary.balancesByCurrency, 'balance'),
                     },
                 ],
                 orientation: 'landscape',
@@ -906,7 +946,9 @@ export default function PaymentsPage() {
     if (
         currentUserQuery.isLoading
         || (patientLedgerQuery.isLoading && !patientLedgerQuery.data)
+        || (patientOverviewQuery.isLoading && !patientOverviewQuery.data)
         || (activeTab === 'expenses' && expensesQuery.isLoading && !expensesQuery.data)
+        || (activeTab === 'expenses' && expenseOverviewQuery.isLoading && !expenseOverviewQuery.data)
     ) {
         return <PaymentsLoadingState tab={activeTab} />;
     }
@@ -929,7 +971,9 @@ export default function PaymentsPage() {
         (
             currentUserQuery.isError
             || (patientLedgerQuery.isError && !patientLedgerQuery.data)
+            || (patientOverviewQuery.isError && !patientOverviewQuery.data)
             || (activeTab === 'expenses' && expensesQuery.isError && !expensesQuery.data)
+            || (activeTab === 'expenses' && expenseOverviewQuery.isError && !expenseOverviewQuery.data)
         )
     ) {
         return (
@@ -938,14 +982,20 @@ export default function PaymentsPage() {
                 <AppErrorState
                     title={t('common.loadErrorTitle')}
                     description={getApiErrorMessage(
-                        currentUserQuery.error || patientLedgerQuery.error || expensesQuery.error,
+                        currentUserQuery.error
+                        || patientLedgerQuery.error
+                        || patientOverviewQuery.error
+                        || expensesQuery.error
+                        || expenseOverviewQuery.error,
                         t('payments.error.loadFailed')
                     )}
                     retryLabel={t('common.retry')}
                     onRetry={() => {
                         currentUserQuery.refetch();
                         patientLedgerQuery.refetch();
+                        patientOverviewQuery.refetch();
                         expensesQuery.refetch();
+                        expenseOverviewQuery.refetch();
                     }}
                     className="min-h-[20rem] px-0 py-0"
                 />
@@ -953,8 +1003,8 @@ export default function PaymentsPage() {
         );
     }
 
-    const isAccountingLoading = patientLedgerQuery.isLoading && !patientLedgerQuery.data;
-    const isExpensesLoading = expensesQuery.isLoading && !expensesQuery.data;
+    const isAccountingLoading = patientOverviewQuery.isLoading && !patientOverviewQuery.data;
+    const isExpensesLoading = expenseOverviewQuery.isLoading && !expenseOverviewQuery.data;
     const isExpenseFormPending = createExpenseMutation.isPending || updateExpenseMutation.isPending;
     const isEditingExpense = editingExpenseId !== null;
     const hasMixedNetBalanceStatus = hasMixedBalanceStatus(overallSummary.balancesByCurrency);

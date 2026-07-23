@@ -366,6 +366,53 @@ describe('PaymentsPage', () => {
         expect(patientLink).toHaveAttribute('href', '/payments/patients/patient-1');
     });
 
+    it('keeps payment summary cards global while search and debt filters change the table', async () => {
+        renderPage();
+
+        await waitFor(() => {
+            expect(screen.getByText('Jane Doe')).toBeInTheDocument();
+            expect(screen.getByText('John Smith')).toBeInTheDocument();
+        });
+
+        const workTotalLabel = screen
+            .getAllByText('Work total')
+            .find((element) => element.closest('.interactive-card'));
+        const workTotalCard = workTotalLabel?.closest('.interactive-card') as HTMLElement;
+        const paidCard = screen.getByText('Total Paid').closest('.interactive-card') as HTMLElement;
+        const patientCountCard = screen.getByText('Total Patients').closest('.interactive-card') as HTMLElement;
+
+        expect(normalizeText(workTotalCard.textContent)).toContain('170 000 UZS');
+        expect(normalizeText(paidCard.textContent)).toContain('120 000 UZS');
+        expect(normalizeText(patientCountCard.textContent)).toContain('2');
+
+        fireEvent.change(screen.getByPlaceholderText('Search patients by name, phone, or patient ID...'), {
+            target: { value: 'John' },
+        });
+
+        await waitFor(() => {
+            expect(screen.getByText('John Smith')).toBeInTheDocument();
+            expect(screen.queryByText('Jane Doe')).not.toBeInTheDocument();
+        });
+
+        expect(normalizeText(workTotalCard.textContent)).toContain('170 000 UZS');
+        expect(normalizeText(paidCard.textContent)).toContain('120 000 UZS');
+        expect(normalizeText(patientCountCard.textContent)).toContain('2');
+
+        fireEvent.click(screen.getByRole('button', { name: 'With debt' }));
+
+        await waitFor(() => {
+            expect(screen.queryByText('John Smith')).not.toBeInTheDocument();
+        });
+
+        expect(normalizeText(workTotalCard.textContent)).toContain('170 000 UZS');
+        expect(normalizeText(paidCard.textContent)).toContain('120 000 UZS');
+        expect(normalizeText(patientCountCard.textContent)).toContain('2');
+        expect(listPaymentLedgerPatients).toHaveBeenCalledWith({
+            page: 1,
+            perPage: 1,
+        });
+    });
+
     it('labels a negative remaining summary as advance without a minus sign', async () => {
         patientLedgerRows = [
             {
@@ -470,6 +517,38 @@ describe('PaymentsPage', () => {
         expect(screen.queryByText('Clinic Expenses')).not.toBeInTheDocument();
         expect(screen.queryByText('A simple dated log for expense title and amount.')).not.toBeInTheDocument();
         expect(screen.queryByRole('button', { name: 'With debt' })).not.toBeInTheDocument();
+    });
+
+    it('keeps expense summary cards global while expense search changes the table', async () => {
+        renderPage();
+
+        fireEvent.click(await screen.findByRole('button', { name: 'Expenses' }));
+        await waitFor(() => {
+            expect(screen.getByText('Materials')).toBeInTheDocument();
+            expect(screen.getByText('Rent')).toBeInTheDocument();
+        });
+
+        const totalExpensesCard = screen.getByText('Total Expenses').closest('.interactive-card') as HTMLElement;
+        const expenseRecordsCard = screen.getByText('Expense Records').closest('.interactive-card') as HTMLElement;
+
+        expect(normalizeText(totalExpensesCard.textContent)).toContain('450 000 UZS / 1,200 USD');
+        expect(normalizeText(expenseRecordsCard.textContent)).toContain('2');
+
+        fireEvent.change(screen.getByPlaceholderText('Search expenses by title...'), {
+            target: { value: 'Materials' },
+        });
+
+        await waitFor(() => {
+            expect(screen.getByText('Materials')).toBeInTheDocument();
+            expect(screen.queryByText('Rent')).not.toBeInTheDocument();
+        });
+
+        expect(normalizeText(totalExpensesCard.textContent)).toContain('450 000 UZS / 1,200 USD');
+        expect(normalizeText(expenseRecordsCard.textContent)).toContain('2');
+        expect(listPaymentExpenses).toHaveBeenCalledWith({
+            page: 1,
+            perPage: 1,
+        });
     });
 
     it('exports filtered expenses as a PDF', async () => {
