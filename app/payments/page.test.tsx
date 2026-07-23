@@ -339,7 +339,7 @@ describe('PaymentsPage', () => {
         setupLedgerMocks();
     });
 
-    it('renders patient balances and keeps patient history links', async () => {
+    it('renders patient balances and links to the payment-focused patient view', async () => {
         renderPage();
 
         await waitFor(() => {
@@ -362,8 +362,8 @@ describe('PaymentsPage', () => {
         const janeBalanceCell = within(janeRow as HTMLElement).getAllByRole('cell')[6];
         expect(within(janeBalanceCell).getByText('Debt')).toBeInTheDocument();
 
-        const historyLink = within(janeRow as HTMLElement).getByRole('link', { name: 'History' });
-        expect(historyLink).toHaveAttribute('href', '/patients/patient-1/history?from=payments');
+        const patientLink = within(janeRow as HTMLElement).getByRole('link', { name: 'Patient' });
+        expect(patientLink).toHaveAttribute('href', '/payments/patients/patient-1');
     });
 
     it('labels a negative remaining summary as advance without a minus sign', async () => {

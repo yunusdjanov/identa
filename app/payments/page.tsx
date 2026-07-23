@@ -518,7 +518,6 @@ export default function PaymentsPage() {
     const currentUser = currentUserQuery.data;
     const canViewPayments = canView(currentUser, 'payments');
     const canManagePayments = canManage(currentUser, 'payments');
-    const canViewPatients = canView(currentUser, 'patients');
 
     const patientLedgerQuery = useQuery({
         queryKey: [
@@ -1224,21 +1223,11 @@ export default function PaymentsPage() {
                                                             />
                                                         </TableCell>
                                                         <TableCell className="text-right">
-                                                            {canViewPatients ? (
-                                                                <Button asChild variant="outline" size="sm">
-                                                                    <Link href={`/patients/${row.patientId}/history?from=payments`}>
-                                                                        {t('payments.openHistory')}
-                                                                    </Link>
-                                                                </Button>
-                                                            ) : (
-                                                                <Button
-                                                                    variant="outline"
-                                                                    size="sm"
-                                                                    onClick={() => toast.error(t('permissions.deniedDescription'))}
-                                                                >
-                                                                    {t('payments.openHistory')}
-                                                                </Button>
-                                                            )}
+                                                            <Button asChild variant="outline" size="sm">
+                                                                <Link href={`/payments/patients/${row.patientId}`}>
+                                                                    {t('payments.openPatient')}
+                                                                </Link>
+                                                            </Button>
                                                         </TableCell>
                                                     </TableRow>
                                                 ))}
