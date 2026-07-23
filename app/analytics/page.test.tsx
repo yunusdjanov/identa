@@ -145,14 +145,19 @@ describe('AnalyticsPage', () => {
         expect(await screen.findByText((content) => (
             normalizeVisibleText(content) === normalizeVisibleText(uzsRevenue)
         ))).toBeInTheDocument();
-        await user.click(screen.getByRole('combobox', { name: 'Currency' }));
-        await user.click(await screen.findByRole('option', { name: 'USD' }));
+        const uzsButton = screen.getByRole('button', { name: 'UZS' });
+        const usdButton = screen.getByRole('button', { name: 'USD' });
+        expect(uzsButton).toHaveAttribute('aria-pressed', 'true');
+        expect(usdButton).toHaveAttribute('aria-pressed', 'false');
+        await user.click(usdButton);
 
         await waitFor(() => {
             expect(vi.mocked(getAnalyticsSummary)).toHaveBeenLastCalledWith(expect.objectContaining({
                 currency: 'USD',
             }));
         });
+        expect(screen.getByRole('button', { name: 'UZS' })).toHaveAttribute('aria-pressed', 'false');
+        expect(screen.getByRole('button', { name: 'USD' })).toHaveAttribute('aria-pressed', 'true');
         const usdRevenue = formatCurrency(40, 'USD');
         expect(await screen.findByText((content) => (
             normalizeVisibleText(content) === normalizeVisibleText(usdRevenue)

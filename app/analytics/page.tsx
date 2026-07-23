@@ -7,13 +7,6 @@ import { toast } from 'sonner';
 
 import { PageHeader } from '@/components/ui/page-shell';
 import { Button } from '@/components/ui/button';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
 import { getApiErrorMessage } from '@/lib/api/client';
 import {
     getAnalyticsSummary,
@@ -30,7 +23,7 @@ import {
     RevenueChart,
     TopDebtorsCard,
 } from '@/components/dashboard/dashboard-charts';
-import { formatCurrency } from '@/lib/utils';
+import { cn, formatCurrency } from '@/lib/utils';
 import { KpiCard } from '@/components/analytics/kpi-card';
 import {
     type AnalyticsRange,
@@ -62,6 +55,7 @@ function computeDelta(current: number, previous: number): number | null {
 
 const AUTH_QUERY_STALE_TIME_MS = 5 * 60_000;
 const ANALYTICS_QUERY_STALE_TIME_MS = 60_000;
+const ANALYTICS_CURRENCIES: readonly ApiMoneyCurrency[] = ['UZS', 'USD'];
 
 export default function AnalyticsPage() {
     const { t, locale } = useI18n();
@@ -341,29 +335,27 @@ export default function AnalyticsPage() {
             <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
                 <TimeRangeSelector value={range} onChange={setRange} />
                 {canViewPayments ? (
-                    <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-3">
-                        <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-                            {t('payments.expenses.currency')}
-                        </span>
-                        <Select
-                            value={currency}
-                            onValueChange={(value) => {
-                                if (value === 'UZS' || value === 'USD') {
-                                    setCurrency(value);
-                                }
-                            }}
-                        >
-                            <SelectTrigger
-                                aria-label={t('payments.expenses.currency')}
-                                className="min-w-28"
+                    <div
+                        role="group"
+                        aria-label={t('payments.expenses.currency')}
+                        className="inline-flex h-10 w-fit items-center rounded-full border border-slate-200 bg-white p-1 shadow-sm shadow-slate-200/50"
+                    >
+                        {ANALYTICS_CURRENCIES.map((option) => (
+                            <button
+                                key={option}
+                                type="button"
+                                aria-pressed={currency === option}
+                                onClick={() => setCurrency(option)}
+                                className={cn(
+                                    'inline-flex h-8 min-w-14 items-center justify-center rounded-full border px-3 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-1',
+                                    currency === option
+                                        ? 'border-teal-300 bg-teal-50 text-teal-700 shadow-sm shadow-teal-100/60'
+                                        : 'border-transparent bg-transparent text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                                )}
                             >
-                                <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent align="end">
-                                <SelectItem value="UZS">UZS</SelectItem>
-                                <SelectItem value="USD">USD</SelectItem>
-                            </SelectContent>
-                        </Select>
+                                {option}
+                            </button>
+                        ))}
                     </div>
                 ) : null}
             </div>
