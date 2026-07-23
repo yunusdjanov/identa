@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { cleanup, render, screen, within } from '@testing-library/react';
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import AnalyticsPage from '@/app/analytics/page';
 import {
@@ -35,6 +36,7 @@ const assistantNoAccess = {
 
 function createAnalyticsSummary(overrides: Partial<ApiAnalyticsSummary> = {}): ApiAnalyticsSummary {
     return {
+        currency: 'UZS',
         permissions: { payments: true, patients: true, appointments: true },
         kpis: {
             revenue: { current: 0, previous: 0 },
@@ -108,7 +110,59 @@ describe('AnalyticsPage', () => {
             current_to: expect.any(String),
             previous_from: expect.any(String),
             previous_to: expect.any(String),
+            currency: 'UZS',
         }));
+    });
+
+    it('switches financial analytics between UZS and USD without mixing values', async () => {
+        const user = userEvent.setup();
+        vi.mocked(getCurrentUser).mockResolvedValue(dentist as never);
+        vi.mocked(getAnalyticsSummary).mockImplementation(async (params) => {
+            const selectedCurrency = params.currency ?? 'UZS';
+            const isUsd = selectedCurrency === 'USD';
+
+            return createAnalyticsSummary({
+                currency: selectedCurrency,
+                kpis: {
+                    revenue: { current: isUsd ? 40 : 40_000, previous: isUsd ? 20 : 20_000 },
+                    debt: { current: isUsd ? 60 : 60_000, previous: null },
+                    patients: { current: 2, previous: 1 },
+                    visits: { current: 3, previous: 2 },
+                },
+                top_debtors: [
+                    {
+                        name: isUsd ? 'USD Patient' : 'UZS Patient',
+                        phone: '+998900000001',
+                        debt: isUsd ? 60 : 60_000,
+                    },
+                ],
+            });
+        });
+
+        renderPage();
+
+        const uzsRevenue = formatCurrency(40_000, 'UZS');
+        expect(await screen.findByText((content) => (
+            normalizeVisibleText(content) === normalizeVisibleText(uzsRevenue)
+        ))).toBeInTheDocument();
+        await user.click(screen.getByRole('combobox', { name: 'Currency' }));
+        await user.click(await screen.findByRole('option', { name: 'USD' }));
+
+        await waitFor(() => {
+            expect(vi.mocked(getAnalyticsSummary)).toHaveBeenLastCalledWith(expect.objectContaining({
+                currency: 'USD',
+            }));
+        });
+        const usdRevenue = formatCurrency(40, 'USD');
+        expect(await screen.findByText((content) => (
+            normalizeVisibleText(content) === normalizeVisibleText(usdRevenue)
+        ))).toBeInTheDocument();
+        expect(await screen.findByText('USD Patient')).toBeInTheDocument();
+        expect(screen.queryByText('UZS Patient')).not.toBeInTheDocument();
+        const usdDebt = formatCurrency(60, 'USD');
+        expect((await screen.findAllByText((content) => (
+            normalizeVisibleText(content) === normalizeVisibleText(usdDebt)
+        ))).length).toBeGreaterThanOrEqual(2);
     });
 
     it('renders visit totals from the backend summary', async () => {

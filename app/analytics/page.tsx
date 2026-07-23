@@ -7,6 +7,13 @@ import { toast } from 'sonner';
 
 import { PageHeader } from '@/components/ui/page-shell';
 import { Button } from '@/components/ui/button';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 import { getApiErrorMessage } from '@/lib/api/client';
 import {
     getAnalyticsSummary,
@@ -35,6 +42,7 @@ import {
 import { buildChartBuckets } from '@/lib/analytics/chart-buckets';
 import { buildPdfFilename, exportRowsToPdf } from '@/lib/export/pdf';
 import { formatLocalizedDate, getActiveDisplayLocale } from '@/lib/i18n/date';
+import type { ApiMoneyCurrency } from '@/lib/api/types';
 
 function formatApiDate(date: Date): string {
     return [
@@ -58,6 +66,7 @@ const ANALYTICS_QUERY_STALE_TIME_MS = 60_000;
 export default function AnalyticsPage() {
     const { t, locale } = useI18n();
     const [range, setRange] = useState<AnalyticsRange>(DEFAULT_ANALYTICS_RANGE);
+    const [currency, setCurrency] = useState<ApiMoneyCurrency>('UZS');
 
     const currentUserQuery = useQuery({
         queryKey: ['auth', 'me'],
@@ -86,8 +95,9 @@ export default function AnalyticsPage() {
             current_to: formatApiDate(bounds.end),
             previous_from: formatApiDate(previousBounds.start),
             previous_to: formatApiDate(previousBounds.end),
+            currency,
         }),
-        [range, bounds.start, bounds.end, previousBounds.start, previousBounds.end]
+        [range, bounds.start, bounds.end, previousBounds.start, previousBounds.end, currency]
     );
 
     const analyticsQuery = useQuery({
@@ -99,14 +109,16 @@ export default function AnalyticsPage() {
             analyticsSummaryParams.current_to,
             analyticsSummaryParams.previous_from,
             analyticsSummaryParams.previous_to,
+            analyticsSummaryParams.currency,
         ],
         queryFn: () => getAnalyticsSummary(analyticsSummaryParams),
         enabled: canViewPayments || canViewPatients || canViewAppointments,
-        placeholderData: (previousData) => previousData,
+        placeholderData: (previousData) => previousData?.currency === currency ? previousData : undefined,
         staleTime: ANALYTICS_QUERY_STALE_TIME_MS,
     });
 
     const analytics = analyticsQuery.data;
+    const resolvedCurrency = analytics?.currency ?? currency;
 
     const displayLocale = getActiveDisplayLocale();
     const buckets = useMemo(
@@ -199,12 +211,12 @@ export default function AnalyticsPage() {
                 ],
                 rows: revenueByBucket.map((row) => [
                     row.month,
-                    formatCurrency(row.revenue),
-                    formatCurrency(row.debt),
+                    formatCurrency(row.revenue, resolvedCurrency),
+                    formatCurrency(row.debt, resolvedCurrency),
                 ]),
                 summary: [
-                    { label: t('analytics.kpi.revenue'), value: formatCurrency(revenueKpi.current) },
-                    { label: t('analytics.kpi.debt'), value: formatCurrency(debtKpi.current) },
+                    { label: t('analytics.kpi.revenue'), value: formatCurrency(revenueKpi.current, resolvedCurrency) },
+                    { label: t('analytics.kpi.debt'), value: formatCurrency(debtKpi.current, resolvedCurrency) },
                     { label: t('analytics.kpi.patients'), value: String(patientsKpi.current) },
                     {
                         label: t('analytics.kpi.visits'),
@@ -225,6 +237,7 @@ export default function AnalyticsPage() {
         debtKpi,
         patientsKpi,
         visitsKpi,
+        resolvedCurrency,
     ]);
 
     if (currentUserQuery.isLoading) {
@@ -325,14 +338,42 @@ export default function AnalyticsPage() {
                 }
             />
 
-            <TimeRangeSelector value={range} onChange={setRange} />
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+                <TimeRangeSelector value={range} onChange={setRange} />
+                {canViewPayments ? (
+                    <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-3">
+                        <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                            {t('payments.expenses.currency')}
+                        </span>
+                        <Select
+                            value={currency}
+                            onValueChange={(value) => {
+                                if (value === 'UZS' || value === 'USD') {
+                                    setCurrency(value);
+                                }
+                            }}
+                        >
+                            <SelectTrigger
+                                aria-label={t('payments.expenses.currency')}
+                                className="min-w-28"
+                            >
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent align="end">
+                                <SelectItem value="UZS">UZS</SelectItem>
+                                <SelectItem value="USD">USD</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                ) : null}
+            </div>
 
             <div className={kpiGridClass}>
                 {canViewPayments ? (
                     <KpiCard
                         label={t('analytics.kpi.revenue')}
                         description={t('analytics.kpi.revenue.descr')}
-                        value={formatCurrency(revenueKpi.current)}
+                        value={formatCurrency(revenueKpi.current, resolvedCurrency)}
                         deltaPercent={revenueKpi.delta}
                         tone="positive"
                         icon={Wallet}
@@ -343,7 +384,7 @@ export default function AnalyticsPage() {
                     <KpiCard
                         label={t('analytics.kpi.debt')}
                         description={t('analytics.kpi.debt.descr')}
-                        value={formatCurrency(debtKpi.current)}
+                        value={formatCurrency(debtKpi.current, resolvedCurrency)}
                         deltaPercent={debtKpi.delta}
                         tone="negative"
                         icon={Banknote}
@@ -378,7 +419,11 @@ export default function AnalyticsPage() {
                 <div className={firstChartRowClass}>
                     {showRevenueChart ? (
                         <div className={firstChartRowBoth ? 'lg:col-span-2' : undefined}>
-                            <RevenueChart data={revenueByBucket} rangeLabel={t(`analytics.range.${range}`)} />
+                            <RevenueChart
+                                data={revenueByBucket}
+                                rangeLabel={t(`analytics.range.${range}`)}
+                                currency={resolvedCurrency}
+                            />
                         </div>
                     ) : null}
                     {showStatusChart ? (
@@ -390,7 +435,7 @@ export default function AnalyticsPage() {
             {showGrowthChart || showDebtorsCard ? (
                 <div className={secondChartRowClass}>
                     {showGrowthChart ? <PatientGrowthChart data={patientGrowth} rangeLabel={t(`analytics.range.${range}`)} /> : null}
-                    {showDebtorsCard ? <TopDebtorsCard data={topDebtors} /> : null}
+                    {showDebtorsCard ? <TopDebtorsCard data={topDebtors} currency={resolvedCurrency} /> : null}
                 </div>
             ) : null}
         </div>

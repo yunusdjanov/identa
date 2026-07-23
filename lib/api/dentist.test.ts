@@ -220,6 +220,7 @@ describe('dentist api pagination aggregation', () => {
         apiGetMock.mockResolvedValueOnce({
             data: {
                 data: {
+                    currency: 'USD',
                     permissions: { payments: true, patients: true, appointments: true },
                     kpis: {
                         revenue: { current: 0, previous: 0 },
@@ -240,6 +241,7 @@ describe('dentist api pagination aggregation', () => {
             current_to: '2026-06-07',
             previous_from: '2026-05-25',
             previous_to: '2026-05-31',
+            currency: 'USD',
         });
 
         expect(apiGetMock).toHaveBeenCalledWith('/analytics/summary', {
@@ -249,6 +251,7 @@ describe('dentist api pagination aggregation', () => {
                 current_to: '2026-06-07',
                 previous_from: '2026-05-25',
                 previous_to: '2026-05-31',
+                currency: 'USD',
             },
         });
     });

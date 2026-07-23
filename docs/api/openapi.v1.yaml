@@ -1294,6 +1294,14 @@ paths:
           schema:
             type: string
             format: date
+        - name: currency
+          in: query
+          required: false
+          description: Currency used for financial KPIs, chart buckets, and top debtors.
+          schema:
+            type: string
+            enum: [UZS, USD]
+            default: UZS
       responses:
         "200":
           description: Analytics summary
@@ -2586,6 +2594,9 @@ components:
     AnalyticsSummary:
       type: object
       properties:
+        currency:
+          type: string
+          enum: [UZS, USD]
         permissions:
           type: object
           properties:
@@ -2622,7 +2633,7 @@ components:
           maxItems: 4
           items:
             $ref: "#/components/schemas/AnalyticsTopDebtor"
-      required: [permissions, kpis, buckets, appointment_status, top_debtors]
+      required: [currency, permissions, kpis, buckets, appointment_status, top_debtors]
     AdminAnalyticsSummary:
       type: object
       properties:
