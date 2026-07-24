@@ -74,7 +74,7 @@
     "yaml": "^2.9.0"
   },
   "overrides": {
-    "postcss": "^8.5.14",
+    "postcss": "8.5.23",
     "sharp": "0.35.3"
   }
 }
