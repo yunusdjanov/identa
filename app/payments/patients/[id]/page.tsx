@@ -1,17 +1,13 @@
 'use client';
 
-import { use, useMemo, useState, type ComponentType, type ReactNode } from 'react';
+import { use, useMemo, useState, type ComponentType } from 'react';
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import {
-    ArrowLeft,
     BadgeDollarSign,
-    CalendarDays,
     CircleDollarSign,
     Download,
     Loader2,
-    MapPin,
-    Phone,
     ReceiptText,
     UserRound,
     Wallet,
@@ -20,9 +16,8 @@ import { toast } from 'sonner';
 
 import { AccessDeniedState } from '@/components/error/access-denied-state';
 import { AppErrorState } from '@/components/error/app-error-state';
+import { PatientDetailHeader } from '@/components/patients/patient-detail-header';
 import { useI18n } from '@/components/providers/i18n-provider';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { DataTableShell, getDataTableClassName } from '@/components/ui/data-table-shell';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -39,21 +34,19 @@ import {
 import { getApiErrorMessage } from '@/lib/api/client';
 import {
     getCurrentUser,
+    getPatient,
     listPaymentLedgerHistory,
     listPaymentLedgerPatients,
 } from '@/lib/api/dentist';
 import type {
     ApiMoneyCurrency,
+    ApiPatient,
     ApiPaymentHistoryLedgerRow,
     ApiPaymentPatientLedgerRow,
 } from '@/lib/api/types';
 import { canView } from '@/lib/auth/permissions';
 import { buildPdfFilename, exportPatientReportToPdf } from '@/lib/export/pdf';
 import { formatLocalizedDate } from '@/lib/i18n/date';
-import {
-    getProtectedMediaCrossOrigin,
-    getProtectedMediaThumbnailUrl,
-} from '@/lib/protected-media';
 import { cn, formatCurrency } from '@/lib/utils';
 
 const PAGE_SIZE = 10;
@@ -115,54 +108,6 @@ function formatLedgerDate(value: string | null, locale: 'ru' | 'uz' | 'en') {
         month: 'short',
         day: 'numeric',
     });
-}
-
-function getPatientInitials(name: string): string {
-    return name
-        .trim()
-        .split(/\s+/)
-        .filter(Boolean)
-        .slice(0, 2)
-        .map((part) => part[0]?.toUpperCase() ?? '')
-        .join('');
-}
-
-function PatientFact({
-    icon: Icon,
-    label,
-    value,
-    title,
-    tone = 'teal',
-}: {
-    icon: ComponentType<{ className?: string }>;
-    label: string;
-    value: ReactNode;
-    title?: string;
-    tone?: 'teal' | 'sky' | 'slate';
-}) {
-    const tones = {
-        teal: 'bg-teal-50 text-teal-600 ring-teal-100',
-        sky: 'bg-sky-50 text-sky-600 ring-sky-100',
-        slate: 'bg-slate-100 text-slate-500 ring-slate-200/80',
-    } as const;
-
-    return (
-        <div className="flex h-11 min-w-0 items-center gap-2 overflow-hidden rounded-xl border border-white/80 bg-white/75 px-2.5 py-1.5">
-            <span className={cn(
-                'flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ring-1',
-                tones[tone]
-            )} title={label}>
-                <Icon className="h-3.5 w-3.5" aria-hidden="true" />
-                <span className="sr-only">{label}</span>
-            </span>
-            <span
-                className="min-w-0 overflow-hidden truncate text-[12px] font-semibold leading-5 text-slate-900"
-                title={title}
-            >
-                {value}
-            </span>
-        </div>
-    );
 }
 
 function PaymentSummaryCard({
@@ -279,6 +224,7 @@ export default function PaymentPatientPage({
         staleTime: 5 * 60_000,
     });
     const canViewPayments = canView(currentUserQuery.data, 'payments');
+    const canViewPatients = canView(currentUserQuery.data, 'patients');
 
     const patientQuery = useQuery({
         queryKey: ['payments', 'ledger', 'patient', id],
@@ -289,6 +235,14 @@ export default function PaymentPatientPage({
             perPage: 1,
             filter: { patient_id: id },
         }),
+        staleTime: 30_000,
+    });
+
+    const profilePatientQuery = useQuery({
+        queryKey: ['patients', 'detail', id, { rememberRecent: false }],
+        enabled: canViewPayments && canViewPatients,
+        retry: false,
+        queryFn: () => getPatient(id),
         staleTime: 30_000,
     });
 
@@ -341,7 +295,11 @@ export default function PaymentPatientPage({
         );
     }
 
-    if (patientQuery.isLoading || ledgerQuery.isLoading) {
+    if (
+        patientQuery.isLoading
+        || ledgerQuery.isLoading
+        || (canViewPatients && profilePatientQuery.isLoading)
+    ) {
         return <PaymentPatientLoadingState />;
     }
 
@@ -356,6 +314,9 @@ export default function PaymentPatientPage({
                 retryLabel={t('common.retry')}
                 onRetry={() => {
                     patientQuery.refetch();
+                    if (canViewPatients) {
+                        profilePatientQuery.refetch();
+                    }
                     ledgerQuery.refetch();
                 }}
                 backHref="/payments"
@@ -383,15 +344,26 @@ export default function PaymentPatientPage({
     const entries = ledgerQuery.data?.data ?? [];
     const pagination = ledgerQuery.data?.meta?.pagination;
     const effectivePage = Math.min(pagination?.page ?? page, totalPages);
-    const patientAvatarUrl = getProtectedMediaThumbnailUrl({
-        scanStatus: patient.patient_photo_scan_status,
-        thumbnailUrl: patient.patient_photo_thumbnail_url,
-        thumbnailReady: patient.patient_photo_thumbnail_ready,
-        previewUrl: patient.patient_photo_preview_url,
-        previewReady: patient.patient_photo_preview_ready,
-        url: patient.patient_photo_url,
-        allowFullFallback: true,
-    }) ?? undefined;
+    const headerPatient: ApiPatient = profilePatientQuery.data ?? {
+        id: patient.patient_id,
+        patient_id: patient.patient_code ?? '',
+        full_name: patient.patient_name,
+        phone: patient.patient_phone ?? '',
+        secondary_phone: patient.patient_secondary_phone,
+        address: patient.patient_address,
+        date_of_birth: patient.patient_date_of_birth,
+        medical_history: null,
+        allergies: null,
+        current_medications: null,
+        photo_scan_status: patient.patient_photo_scan_status,
+        photo_url: patient.patient_photo_url,
+        photo_thumbnail_url: patient.patient_photo_thumbnail_url,
+        photo_preview_url: patient.patient_photo_preview_url,
+        photo_thumbnail_ready: patient.patient_photo_thumbnail_ready,
+        photo_preview_ready: patient.patient_photo_preview_ready,
+        last_visit_at: patient.last_entry_date,
+        categories: [],
+    };
 
     const formatExportSummary = (field: 'totalDebt' | 'totalPaid' | 'balance') =>
         getVisibleCurrencies(balances)
@@ -501,119 +473,10 @@ export default function PaymentPatientPage({
 
     return (
         <div className="space-y-2.5">
-            <section
-                data-testid="payment-patient-basic-info"
-                className="grid grid-cols-1 gap-2.5 rounded-2xl border border-white/80 bg-white px-4 py-3 shadow-sm shadow-slate-200/70 sm:px-5 lg:grid-cols-[minmax(18rem,20rem)_minmax(0,1fr)] lg:items-center xl:grid-cols-[minmax(18rem,20rem)_minmax(0,1fr)_auto]"
-            >
-                <div
-                    data-testid="payment-patient-header-identity"
-                    className="flex w-full min-w-0 max-w-[20rem] items-center gap-3"
-                >
-                    <Button asChild variant="ghost" size="icon" className="h-8 w-8 shrink-0">
-                        <Link href="/payments" aria-label={t('nav.payments')}>
-                            <ArrowLeft className="h-4 w-4" />
-                        </Link>
-                    </Button>
-                    <div className="relative h-20 w-24 shrink-0 overflow-visible">
-                        <Avatar
-                            data-testid="payment-patient-photo"
-                            data-photo-src={patientAvatarUrl}
-                            className="absolute left-0 top-1/2 h-24 w-24 -translate-y-1/2 rounded-xl border border-white bg-slate-100 shadow-sm shadow-slate-200"
-                        >
-                            {patientAvatarUrl ? (
-                                <AvatarImage
-                                    src={patientAvatarUrl}
-                                    alt={patient.patient_name}
-                                    className="rounded-xl object-cover"
-                                    crossOrigin={getProtectedMediaCrossOrigin(patientAvatarUrl)}
-                                />
-                            ) : null}
-                            <AvatarFallback className="rounded-xl bg-slate-100 text-base font-semibold text-slate-700">
-                                {getPatientInitials(patient.patient_name)}
-                            </AvatarFallback>
-                        </Avatar>
-                    </div>
-                    <div className="min-w-0 flex-1">
-                        <h1 className="truncate text-lg font-bold leading-tight tracking-[-0.02em] text-slate-950" title={patient.patient_name}>
-                            {patient.patient_name}
-                        </h1>
-                        <Badge variant="secondary" className="mt-2 max-w-full truncate bg-slate-100 text-xs text-slate-600">
-                            {t('nav.payments')}
-                        </Badge>
-                    </div>
-                </div>
-
-                <div
-                    data-testid="payment-patient-header-facts"
-                    className="grid h-[8rem] min-w-0 grid-rows-[1fr_auto_1fr] gap-1.5 overflow-hidden rounded-2xl border border-slate-100 bg-slate-50/60 px-2.5 py-2 shadow-sm shadow-slate-200/40 lg:col-span-2 lg:row-start-2 xl:col-span-1 xl:col-start-2 xl:row-start-1"
-                >
-                    <div className="grid min-h-0 min-w-0 items-center gap-1.5 md:grid-cols-3">
-                        <PatientFact
-                            icon={Phone}
-                            label={t('patientDetail.phone')}
-                            value={(
-                                <span className="flex min-w-0 flex-col gap-0.5">
-                                    <span className="truncate tabular-nums">{patient.patient_phone || '-'}</span>
-                                    {patient.patient_secondary_phone ? (
-                                        <span className="truncate tabular-nums">{patient.patient_secondary_phone}</span>
-                                    ) : null}
-                                </span>
-                            )}
-                            title={[patient.patient_phone, patient.patient_secondary_phone].filter(Boolean).join(' / ') || '-'}
-                            tone="teal"
-                        />
-                        <PatientFact
-                            icon={CalendarDays}
-                            label={t('patientDetail.birthDate')}
-                            value={formatLedgerDate(patient.patient_date_of_birth ?? null, locale)}
-                            title={formatLedgerDate(patient.patient_date_of_birth ?? null, locale)}
-                            tone="sky"
-                        />
-                        <PatientFact
-                            icon={MapPin}
-                            label={t('payments.patientLedger.address')}
-                            value={patient.patient_address || '-'}
-                            title={patient.patient_address || '-'}
-                            tone="teal"
-                        />
-                    </div>
-                    <div aria-hidden="true" className="h-px bg-slate-200/70" />
-                    <div className="flex h-10 min-w-0 items-center gap-2 overflow-hidden rounded-xl border border-white/80 bg-white/70 px-2.5 py-1.5 text-slate-500 md:col-span-3">
-                        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-500 ring-1 ring-slate-200/80">
-                            <ReceiptText className="h-3.5 w-3.5" aria-hidden="true" />
-                        </span>
-                        <span className="min-w-0 truncate text-[12px] font-semibold leading-5">
-                            {t('payments.patientLedger.entries')}:{' '}
-                            <strong className="font-semibold tabular-nums text-slate-800">
-                                {patient.entry_count ?? 0}
-                            </strong>
-                        </span>
-                    </div>
-                </div>
-
-                <div
-                    data-testid="payment-patient-header-actions"
-                    className="flex flex-col items-end gap-2 lg:col-start-2 lg:row-start-1 lg:justify-end xl:col-start-3"
-                >
-                    {currentUserQuery.data?.subscription?.can_export ? (
-                        <Button
-                            variant="outline"
-                            size="icon-lg"
-                            className="rounded-full"
-                            aria-label={t('common.export')}
-                            title={t('common.export')}
-                            disabled={isExporting || (patient.entry_count ?? 0) === 0}
-                            onClick={handleExport}
-                        >
-                            {isExporting ? (
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                                <Download className="h-4 w-4" />
-                            )}
-                        </Button>
-                    ) : null}
-                </div>
-            </section>
+            <PatientDetailHeader
+                patient={headerPatient}
+                currentUser={currentUserQuery.data}
+            />
 
             <section className="grid gap-4 md:grid-cols-3">
                 <PaymentSummaryCard
@@ -643,13 +506,32 @@ export default function PaymentPatientPage({
             </section>
 
             <SectionPanel className="space-y-4">
-                <div>
-                    <h2 className="text-base font-bold text-slate-950 sm:text-lg">
-                        {t('payments.patientLedger.tableTitle')}
-                    </h2>
-                    <p className="mt-1 text-sm text-slate-500">
-                        {t('payments.patientLedger.tableDescription')}
-                    </p>
+                <div className="flex items-start justify-between gap-3">
+                    <div>
+                        <h2 className="text-base font-bold text-slate-950 sm:text-lg">
+                            {t('payments.patientLedger.tableTitle')}
+                        </h2>
+                        <p className="mt-1 text-sm text-slate-500">
+                            {t('payments.patientLedger.tableDescription')}
+                        </p>
+                    </div>
+                    {currentUserQuery.data?.subscription?.can_export ? (
+                        <Button
+                            variant="outline"
+                            size="icon-lg"
+                            className="rounded-full"
+                            aria-label={t('common.export')}
+                            title={t('common.export')}
+                            disabled={isExporting || (patient.entry_count ?? 0) === 0}
+                            onClick={handleExport}
+                        >
+                            {isExporting ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                                <Download className="h-4 w-4" />
+                            )}
+                        </Button>
+                    ) : null}
                 </div>
 
                 {entries.length === 0 ? (

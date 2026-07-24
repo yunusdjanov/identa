@@ -7,16 +7,32 @@ import PaymentPatientPage from '@/app/payments/patients/[id]/page';
 import { I18nProvider } from '@/components/providers/i18n-provider';
 import {
     getCurrentUser,
+    getPatient,
     listPaymentLedgerHistory,
     listPaymentLedgerPatients,
 } from '@/lib/api/dentist';
 import { exportPatientReportToPdf } from '@/lib/export/pdf';
 import { DICTIONARIES } from '@/lib/i18n/dictionaries';
 
+const routerMocks = vi.hoisted(() => ({
+    push: vi.fn(),
+    replace: vi.fn(),
+    back: vi.fn(),
+    refresh: vi.fn(),
+}));
+
+vi.mock('next/navigation', () => ({
+    useRouter: () => routerMocks,
+}));
+
 vi.mock('@/lib/api/dentist', () => ({
+    archivePatient: vi.fn(),
     getCurrentUser: vi.fn(),
+    getPatient: vi.fn(),
     listPaymentLedgerHistory: vi.fn(),
     listPaymentLedgerPatients: vi.fn(),
+    permanentlyDeletePatient: vi.fn(),
+    restorePatient: vi.fn(),
 }));
 
 vi.mock('@/lib/export/pdf', () => ({
@@ -80,6 +96,27 @@ const patientResponse = {
     },
 };
 
+const fullPatientResponse = {
+    id: 'p-1',
+    patient_id: 'PT-0001',
+    full_name: 'John Smith',
+    phone: '+998 90 123 45 67',
+    secondary_phone: '+998 91 765 43 21',
+    address: '12 Amir Temur Avenue, Tashkent',
+    date_of_birth: '1992-04-15',
+    medical_history: null,
+    allergies: null,
+    current_medications: null,
+    categories: [],
+    photo_scan_status: 'approved',
+    photo_url: 'https://api.identa.test/api/v1/patients/p-1/photo',
+    photo_thumbnail_url: 'https://api.identa.test/api/v1/patients/p-1/photo?variant=thumbnail',
+    photo_preview_url: 'https://api.identa.test/api/v1/patients/p-1/photo?variant=preview',
+    photo_thumbnail_ready: true,
+    photo_preview_ready: true,
+    last_visit_at: '2026-07-20',
+};
+
 const historyResponse = {
     data: [
         {
@@ -132,12 +169,18 @@ async function renderPage() {
 
 describe('PaymentPatientPage', () => {
     beforeEach(() => {
+        routerMocks.push.mockReset();
+        routerMocks.replace.mockReset();
+        routerMocks.back.mockReset();
+        routerMocks.refresh.mockReset();
         vi.mocked(getCurrentUser).mockReset();
+        vi.mocked(getPatient).mockReset();
         vi.mocked(listPaymentLedgerPatients).mockReset();
         vi.mocked(listPaymentLedgerHistory).mockReset();
         vi.mocked(exportPatientReportToPdf).mockReset();
         vi.mocked(listPaymentLedgerPatients).mockResolvedValue(patientResponse as never);
         vi.mocked(listPaymentLedgerHistory).mockResolvedValue(historyResponse as never);
+        vi.mocked(getPatient).mockResolvedValue(fullPatientResponse as never);
     });
 
     afterEach(() => {
@@ -150,20 +193,27 @@ describe('PaymentPatientPage', () => {
         await renderPage();
 
         expect(await screen.findByRole('heading', { name: 'John Smith' })).toBeInTheDocument();
-        const basicInfo = screen.getByTestId('payment-patient-basic-info');
-        expect(within(basicInfo).queryByText('PT-0001')).not.toBeInTheDocument();
-        expect(within(basicInfo).getByTestId('payment-patient-photo')).toHaveAttribute(
-            'data-photo-src',
-            'https://api.identa.test/api/v1/patients/p-1/photo?variant=thumbnail'
-        );
-        expect(within(basicInfo).getByText('+998 90 123 45 67')).toBeInTheDocument();
-        expect(within(basicInfo).getByText('+998 91 765 43 21')).toBeInTheDocument();
-        expect(within(basicInfo).getByText('Apr 15, 1992')).toBeInTheDocument();
-        expect(within(basicInfo).getByText('12 Amir Temur Avenue, Tashkent')).toBeInTheDocument();
-        expect(basicInfo).toHaveClass('gap-2.5');
-        expect(screen.getByTestId('payment-patient-header-identity')).toHaveClass('max-w-[20rem]');
-        expect(screen.getByTestId('payment-patient-header-facts')).toHaveClass('h-[8rem]');
-        expect(within(basicInfo).getByTestId('payment-patient-photo')).toHaveClass('h-24', 'w-24');
+        const identity = screen.getByTestId('patient-detail-header-identity');
+        const header = identity.parentElement;
+        expect(header).not.toBeNull();
+        expect(within(header as HTMLElement).queryByText('PT-0001')).not.toBeInTheDocument();
+        expect(within(header as HTMLElement).getByRole('button', { name: 'Patient Photo: John Smith' }))
+            .toHaveClass('h-24', 'w-24');
+        expect(within(header as HTMLElement).getByText('+998 90 123 45 67')).toBeInTheDocument();
+        expect(within(header as HTMLElement).getByText('+998 91 765 43 21')).toBeInTheDocument();
+        expect(within(header as HTMLElement).getByText('Apr 15, 1992')).toBeInTheDocument();
+        expect(within(header as HTMLElement).getByText('12 Amir Temur Avenue, Tashkent')).toBeInTheDocument();
+        expect(header).toHaveClass('gap-2.5');
+        expect(identity).toHaveClass('max-w-[20rem]');
+        expect(screen.getByTestId('patient-detail-header-facts')).toHaveClass('h-[8rem]');
+        expect(within(header as HTMLElement).getByRole('button', { name: 'Schedule Appointment' }))
+            .toHaveClass('size-10');
+        expect(within(header as HTMLElement).getByRole('button', { name: 'Edit Patient' }))
+            .toHaveClass('size-10');
+        expect(within(header as HTMLElement).getByRole('button', { name: 'Archive' }))
+            .toHaveClass('size-10');
+        expect(within(header as HTMLElement).getByTestId('patient-detail-header-medical-empty'))
+            .toHaveTextContent('No medical information recorded');
 
         const table = screen.getByRole('table');
         expect(within(table).getByRole('columnheader', { name: 'Date' })).toBeInTheDocument();
@@ -183,6 +233,7 @@ describe('PaymentPatientPage', () => {
             expect(vi.mocked(listPaymentLedgerHistory)).toHaveBeenCalledWith(expect.objectContaining({
                 filter: { patient_id: 'p-1' },
             }));
+            expect(vi.mocked(getPatient)).toHaveBeenCalledWith('p-1');
         });
     });
 
@@ -222,6 +273,7 @@ describe('PaymentPatientPage', () => {
 
         expect(await screen.findByRole('heading', { name: 'John Smith' })).toBeInTheDocument();
         expect(screen.getByRole('table')).toBeInTheDocument();
+        expect(vi.mocked(getPatient)).not.toHaveBeenCalled();
     });
 
     it('denies a user without payments permission before loading ledger data', async () => {
