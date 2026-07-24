@@ -91,7 +91,12 @@ describe('page loading skeletons', () => {
 
             expect(screen.getByTestId('patient-detail-header-identity-skeleton')).toHaveClass('max-w-[20rem]');
             expect(screen.getByTestId('patient-detail-header-photo-skeleton')).toHaveClass('h-24', 'w-24', 'rounded-xl');
-            expect(screen.getByTestId('patient-detail-header-facts-skeleton')).toHaveClass('h-[8rem]');
+            expect(screen.getByTestId('patient-detail-header-facts-skeleton')).toHaveClass(
+                'h-auto',
+                'overflow-visible',
+                'md:h-[8rem]',
+                'md:overflow-hidden'
+            );
             expect(screen.getByTestId('patient-detail-header-actions-skeleton')).toHaveClass('flex-col');
             expect(screen.getByTestId('patient-detail-summary-grid-skeleton')).toHaveClass(
                 'lg:grid-cols-[minmax(0,1fr)_15rem]',
@@ -174,7 +179,9 @@ describe('page loading skeletons', () => {
             // 3 summary cards (this month, this year, all time). Column
             // count for the 6-col table body (Date, Dentist, Plan, Amount,
             // Status, Actions) is enforced in the component source.
-            expect(screen.getAllByTestId('metric-card-skeleton')).toHaveLength(3);
+            const metricCards = screen.getAllByTestId('metric-card-skeleton');
+            expect(metricCards).toHaveLength(3);
+            expect(metricCards[0].parentElement).toHaveClass('lg:grid-cols-3');
         });
 
         it('renders dentist billing loading with admin shell and plan picker grid', () => {

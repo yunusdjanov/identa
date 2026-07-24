@@ -105,6 +105,9 @@ describe('AnalyticsPage', () => {
         expect(
             await screen.findByText('Financial metrics, activity and trends for your clinic.')
         ).toBeInTheDocument();
+        const rangeSelector = screen.getByRole('radiogroup');
+        expect(rangeSelector).toHaveClass('max-w-full', 'overflow-x-auto');
+        expect(within(rangeSelector).getAllByRole('radio')[0]).toHaveClass('shrink-0');
         expect(vi.mocked(getAnalyticsSummary)).toHaveBeenCalledWith(expect.objectContaining({
             current_from: expect.any(String),
             current_to: expect.any(String),

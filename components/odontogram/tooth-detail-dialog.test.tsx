@@ -97,6 +97,12 @@ describe('ToothDetailDialog (history-first mode)', () => {
         expect(screen.getByText((_, element) => normalizeText(element?.textContent) === '1 200 000 UZS')).toBeInTheDocument();
         expect(screen.getByText('Root canal treatment')).toBeInTheDocument();
         expect(screen.getByText('Filling')).toBeInTheDocument();
+        expect(screen.getByTestId('tooth-treatment-financials-t-1')).toHaveClass(
+            'grid-cols-1',
+            'sm:grid-cols-3',
+            'text-left',
+            'sm:text-right'
+        );
     });
 
     it('shows empty state without footer action buttons', () => {

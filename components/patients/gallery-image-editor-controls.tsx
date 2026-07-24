@@ -122,7 +122,7 @@ export function GalleryImageEditorControls({
     const sharedButtonClass = 'border-white/10 bg-white/10 text-white hover:bg-white/15 hover:text-white';
 
     return (
-        <div className="border-t border-white/10 bg-slate-950/95 px-4 py-3 backdrop-blur">
+        <div className="max-h-[50dvh] overflow-y-auto border-t border-white/10 bg-slate-950/95 px-4 py-3 backdrop-blur lg:max-h-none lg:overflow-visible">
             <div className="mx-auto flex max-w-6xl flex-col gap-3">
                 <div className="flex flex-wrap items-center gap-2">
                     <ModeButton mode="adjust" activeMode={mode} label={t('gallery.edit.adjust')} icon={<MousePointer2 className="mr-1.5 h-4 w-4" />} disabled={isEditingDisabled} onClick={onModeChange} />

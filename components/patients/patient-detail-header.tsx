@@ -400,7 +400,7 @@ export function PatientDetailHeader({
                 </div>
                 <div
                     data-testid="patient-detail-header-facts"
-                    className="grid h-[8rem] min-w-0 grid-rows-[1fr_auto_1fr] gap-1.5 overflow-hidden rounded-2xl border border-slate-100 bg-slate-50/60 px-2.5 py-2 shadow-sm shadow-slate-200/40 lg:col-span-2 lg:row-start-2 xl:col-span-1 xl:col-start-2 xl:row-start-1"
+                    className="grid h-auto min-w-0 grid-rows-[auto_auto_auto] gap-1.5 overflow-visible rounded-2xl border border-slate-100 bg-slate-50/60 px-2.5 py-2 shadow-sm shadow-slate-200/40 md:h-[8rem] md:grid-rows-[1fr_auto_1fr] md:overflow-hidden lg:col-span-2 lg:row-start-2 xl:col-span-1 xl:col-start-2 xl:row-start-1"
                 >
                     <div
                         data-testid="patient-detail-header-contact-facts"

@@ -80,5 +80,7 @@ describe('OdontogramPage', () => {
         expect(screen.getByTitle('Tooth #18')).toBeInTheDocument();
         expect(screen.getByTitle('Tooth #21')).toBeInTheDocument();
         expect(screen.getByTitle('Tooth #48')).toBeInTheDocument();
+        expect(screen.getByTestId('odontogram-upper-jaw-scroll')).toHaveClass('overflow-x-auto');
+        expect(screen.getByTestId('odontogram-lower-jaw-scroll')).toHaveClass('overflow-x-auto');
     });
 });

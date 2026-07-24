@@ -191,17 +191,19 @@ export default function OdontogramPage({
         <div className="space-y-5 lg:space-y-6">
                         <div className="space-y-2">
                             <p className="text-sm font-medium text-slate-600 text-center">{t('odontogram.upperJaw')}</p>
-                            <div className="flex justify-center space-x-4 sm:space-x-6 md:space-x-8">
-                                <div>
-                                    <p className="text-xs text-slate-500 text-center mb-2">{t('odontogram.upperRight')}</p>
-                                    <div className="flex gap-0.5 sm:gap-1">
-                                        {TOOTH_LAYOUT.upperRight.map((num) => renderTooth(num))}
+                            <div data-testid="odontogram-upper-jaw-scroll" className="overflow-x-auto pb-2 no-scrollbar">
+                                <div className="flex w-max min-w-full justify-center space-x-4 px-1 sm:space-x-6 md:space-x-8">
+                                    <div>
+                                        <p className="text-xs text-slate-500 text-center mb-2">{t('odontogram.upperRight')}</p>
+                                        <div className="flex gap-0.5 sm:gap-1">
+                                            {TOOTH_LAYOUT.upperRight.map((num) => renderTooth(num))}
+                                        </div>
                                     </div>
-                                </div>
-                                <div>
-                                    <p className="text-xs text-slate-500 text-center mb-2">{t('odontogram.upperLeft')}</p>
-                                    <div className="flex gap-0.5 sm:gap-1">
-                                        {TOOTH_LAYOUT.upperLeft.map((num) => renderTooth(num))}
+                                    <div>
+                                        <p className="text-xs text-slate-500 text-center mb-2">{t('odontogram.upperLeft')}</p>
+                                        <div className="flex gap-0.5 sm:gap-1">
+                                            {TOOTH_LAYOUT.upperLeft.map((num) => renderTooth(num))}
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -211,17 +213,19 @@ export default function OdontogramPage({
 
                         <div className="space-y-2">
                             <p className="text-sm font-medium text-slate-600 text-center">{t('odontogram.lowerJaw')}</p>
-                            <div className="flex justify-center space-x-4 sm:space-x-6 md:space-x-8">
-                                <div>
-                                    <p className="text-xs text-slate-500 text-center mb-2">{t('odontogram.lowerRight')}</p>
-                                    <div className="flex gap-0.5 sm:gap-1">
-                                        {TOOTH_LAYOUT.lowerRight.map((num) => renderTooth(num))}
+                            <div data-testid="odontogram-lower-jaw-scroll" className="overflow-x-auto pb-2 no-scrollbar">
+                                <div className="flex w-max min-w-full justify-center space-x-4 px-1 sm:space-x-6 md:space-x-8">
+                                    <div>
+                                        <p className="text-xs text-slate-500 text-center mb-2">{t('odontogram.lowerRight')}</p>
+                                        <div className="flex gap-0.5 sm:gap-1">
+                                            {TOOTH_LAYOUT.lowerRight.map((num) => renderTooth(num))}
+                                        </div>
                                     </div>
-                                </div>
-                                <div>
-                                    <p className="text-xs text-slate-500 text-center mb-2">{t('odontogram.lowerLeft')}</p>
-                                    <div className="flex gap-0.5 sm:gap-1">
-                                        {TOOTH_LAYOUT.lowerLeft.map((num) => renderTooth(num))}
+                                    <div>
+                                        <p className="text-xs text-slate-500 text-center mb-2">{t('odontogram.lowerLeft')}</p>
+                                        <div className="flex gap-0.5 sm:gap-1">
+                                            {TOOTH_LAYOUT.lowerLeft.map((num) => renderTooth(num))}
+                                        </div>
                                     </div>
                                 </div>
                             </div>

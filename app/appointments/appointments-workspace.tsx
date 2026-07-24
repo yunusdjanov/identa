@@ -1311,11 +1311,11 @@ export function AppointmentsWorkspace({ mode = 'appointments' }: AppointmentsWor
                         </div>
 
                         {hasUrlFilters && activeFilterLabel ? (
-                            <div className="flex items-center justify-between rounded-2xl border border-teal-100 bg-teal-50/80 px-4 py-3">
-                                <p className="text-sm text-teal-800">
+                            <div className="flex flex-col gap-3 rounded-2xl border border-teal-100 bg-teal-50/80 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                                <p className="min-w-0 break-words text-sm text-teal-800">
                                     {t('appointments.filters.active')}: <span className="font-medium">{activeFilterLabel}</span>
                                 </p>
-                                <Button variant="outline" size="sm" onClick={clearUrlFilters}>
+                                <Button className="shrink-0 self-start sm:self-auto" variant="outline" size="sm" onClick={clearUrlFilters}>
                                     {t('appointments.filters.clear')}
                                 </Button>
                             </div>

@@ -94,6 +94,8 @@ describe('AppLayout skeleton header', () => {
 
         expect(screen.getAllByTestId('app-header-desktop-nav-skeleton-item')).toHaveLength(4);
         expect(screen.getAllByTestId('app-header-mobile-nav-skeleton-item')).toHaveLength(4);
+        expect(screen.getAllByTestId('app-header-mobile-nav-skeleton-item')[0].parentElement)
+            .toHaveClass('justify-start', 'overflow-x-auto');
     });
 
     it('keeps the app header above page-level select popovers', () => {

@@ -1,16 +1,13 @@
 'use client';
 
-import { use, useMemo, useState, type ComponentType } from 'react';
+import { use, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import {
-    CircleCheckBig,
-    ClipboardList,
     Download,
     Loader2,
     ReceiptText,
     UserRound,
-    WalletCards,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -98,6 +95,44 @@ function getVisibleCurrencies(balances: PatientBalances): readonly ApiMoneyCurre
     return visible.length > 0 ? visible : ['UZS'];
 }
 
+type PaymentSummaryTone = 'red' | 'emerald' | 'blue' | 'yellow' | 'slate';
+
+function getPaymentSummaryToneClasses(tone: PaymentSummaryTone) {
+    switch (tone) {
+        case 'red':
+            return 'border-red-100 bg-red-50/45 text-red-700';
+        case 'emerald':
+            return 'border-emerald-100 bg-emerald-50/45 text-emerald-700';
+        case 'blue':
+            return 'border-blue-100 bg-blue-50/45 text-blue-700';
+        case 'yellow':
+            return 'border-yellow-100 bg-yellow-50/45 text-amber-700';
+        case 'slate':
+        default:
+            return 'border-slate-200 bg-slate-50/70 text-slate-700';
+    }
+}
+
+function getPaymentBalanceTone(balances: PatientBalances): PaymentSummaryTone {
+    const activeBalances = MONEY_CURRENCIES
+        .map((currency) => balances[currency].balance)
+        .filter((balance) => balance !== 0);
+
+    if (activeBalances.length === 0) {
+        return 'slate';
+    }
+
+    if (activeBalances.every((balance) => balance < 0)) {
+        return 'blue';
+    }
+
+    if (activeBalances.every((balance) => balance > 0)) {
+        return 'yellow';
+    }
+
+    return 'slate';
+}
+
 function formatLedgerDate(value: string | null, locale: 'ru' | 'uz' | 'en') {
     if (!value) {
         return '-';
@@ -111,93 +146,94 @@ function formatLedgerDate(value: string | null, locale: 'ru' | 'uz' | 'en') {
 }
 
 function PaymentSummaryCard({
-    icon: Icon,
     label,
     balances,
     field,
-    tone,
     hint,
 }: {
-    icon: ComponentType<{ className?: string }>;
     label: string;
     balances: PatientBalances;
     field: 'totalDebt' | 'totalPaid' | 'balance';
-    tone: 'red' | 'emerald' | 'amber';
     hint: string;
 }) {
     const { t } = useI18n();
-    const toneClasses = {
-        red: {
-            root: 'metric-hover-red border-red-100 bg-gradient-to-br from-white via-rose-50/70 to-red-50 shadow-red-100/60',
-            label: 'text-slate-700',
-            iconBox: 'bg-red-50/90 text-red-500 ring-red-100',
-            value: 'text-red-700',
-        },
-        emerald: {
-            root: 'metric-hover-emerald border-emerald-100 bg-gradient-to-br from-white via-emerald-50/70 to-teal-50 shadow-emerald-100/60',
-            label: 'text-slate-700',
-            iconBox: 'bg-emerald-50/90 text-emerald-600 ring-emerald-100',
-            value: 'text-emerald-700',
-        },
-        amber: {
-            root: 'metric-hover-amber border-amber-100 bg-gradient-to-br from-white via-amber-50/75 to-orange-50 shadow-amber-100/60',
-            label: 'text-orange-700',
-            iconBox: 'bg-amber-50/90 text-orange-500 ring-amber-100',
-            value: 'text-orange-700',
-        },
-    } as const;
     const currencies = getVisibleCurrencies(balances);
-    const styles = toneClasses[tone];
+    const tone: PaymentSummaryTone = field === 'totalDebt'
+        ? 'red'
+        : field === 'totalPaid'
+            ? 'emerald'
+            : getPaymentBalanceTone(balances);
+    const activeBalances = currencies
+        .map((currency) => balances[currency].balance)
+        .filter((balance) => balance !== 0);
+    const hasMixedBalanceStatus = field === 'balance'
+        && activeBalances.some((balance) => balance > 0)
+        && activeBalances.some((balance) => balance < 0);
+    const sharedBalanceStatus = field === 'balance' && activeBalances.length > 0
+        ? activeBalances.every((balance) => balance < 0)
+            ? t('patientHistory.balanceStatus.advance')
+            : activeBalances.every((balance) => balance > 0)
+                ? t('patientHistory.balanceStatus.debt')
+                : null
+        : null;
+    const formattedValue = currencies
+        .map((currency) => {
+            const rawAmount = balances[currency][field];
+            const amount = field === 'balance' ? Math.abs(rawAmount) : rawAmount;
+            return formatCurrency(amount, currency);
+        })
+        .join(' / ');
 
     return (
         <article
             data-testid={`payment-summary-${field}`}
             title={hint}
             className={cn(
-                'interactive-card metric-hover-card min-h-12 rounded-lg border px-2 py-1.5 shadow-sm',
-                styles.root
+                'flex min-h-10 min-w-0 flex-col justify-center rounded-xl border px-3 py-1.5 shadow-sm shadow-slate-100/50',
+                getPaymentSummaryToneClasses(tone)
             )}
         >
-            <div className="flex min-w-0 items-center gap-2">
-                <span
-                    data-testid={`payment-summary-${field}-icon`}
-                    className={cn(
-                        'flex h-7 w-7 shrink-0 items-center justify-center rounded-md ring-1',
-                        styles.iconBox
-                    )}
-                >
-                    <Icon className="h-3.5 w-3.5" aria-hidden="true" />
-                </span>
-                <div className="flex min-w-0 flex-1 items-center justify-between gap-2">
-                    <header className={cn('shrink-0 truncate text-[11px] font-semibold leading-3.5', styles.label)}>
-                        {label}
-                    </header>
-                    <div className="flex min-w-0 flex-wrap items-center justify-end gap-x-1.5 gap-y-0.5">
-                        {currencies.map((currency) => {
-                            const rawAmount = balances[currency][field];
-                            const amount = field === 'balance' ? Math.abs(rawAmount) : rawAmount;
-
-                            return (
-                                <div key={currency} className="flex min-w-0 items-center gap-1">
-                                    <span className={cn('whitespace-nowrap text-sm font-semibold leading-4 tabular-nums', styles.value)}>
-                                        {formatCurrency(amount, currency)}
-                                    </span>
-                                    {field === 'balance' && rawAmount < 0 ? (
-                                        <span className="rounded-full border border-blue-200 bg-blue-50 px-1 py-px text-[8px] font-semibold leading-3 text-blue-700">
-                                            {t('patientHistory.balanceStatus.advance')}
-                                        </span>
-                                    ) : field === 'balance' && rawAmount > 0 ? (
-                                        <span className="rounded-full border border-amber-200 bg-amber-50 px-1 py-px text-[8px] font-semibold leading-3 text-amber-700">
-                                            {t('patientHistory.balanceStatus.debt')}
-                                        </span>
-                                    ) : null}
-                                </div>
-                            );
-                        })}
-                    </div>
-                </div>
-                <span className="sr-only">{hint}</span>
+            <div className="truncate text-[9px] font-bold uppercase leading-[0.7rem] tracking-[0.1em] text-slate-400">
+                {label}
             </div>
+            <div className="flex min-w-0 items-center gap-1.5">
+                <div className="min-w-0 whitespace-normal break-words text-sm font-bold leading-4 tabular-nums">
+                    {hasMixedBalanceStatus ? (
+                        <div className="flex flex-col gap-0.5 whitespace-normal leading-tight">
+                            {currencies.map((currency) => {
+                                const rawAmount = balances[currency].balance;
+                                return (
+                                    <span key={currency} className="flex flex-wrap items-center gap-1.5">
+                                        <span className="whitespace-nowrap tabular-nums">
+                                            {formatCurrency(Math.abs(rawAmount), currency)}
+                                        </span>
+                                        {rawAmount !== 0 ? (
+                                            <span className={cn(
+                                                'inline-flex items-center rounded-full border px-1.5 py-0.5 text-[10px] font-semibold leading-none',
+                                                rawAmount < 0
+                                                    ? 'border-blue-200 bg-blue-50 text-blue-700'
+                                                    : 'border-yellow-200 bg-yellow-50 text-yellow-700'
+                                            )}>
+                                                {t(rawAmount < 0
+                                                    ? 'patientHistory.balanceStatus.advance'
+                                                    : 'patientHistory.balanceStatus.debt')}
+                                            </span>
+                                        ) : null}
+                                    </span>
+                                );
+                            })}
+                        </div>
+                    ) : (
+                        formattedValue
+                    )}
+                </div>
+                {sharedBalanceStatus ? (
+                    <span className="shrink-0 rounded-full border border-current/20 bg-white/55 px-1.5 py-0.5 text-[9px] font-bold leading-none">
+                        {sharedBalanceStatus}
+                    </span>
+                ) : null}
+            </div>
+            <span className="sr-only">{hint}</span>
         </article>
     );
 }
@@ -209,7 +245,7 @@ function PaymentPatientLoadingState() {
             <Skeleton className="h-28 w-full rounded-2xl" />
             <div className="grid gap-3 md:grid-cols-3">
                 {Array.from({ length: 3 }).map((_, index) => (
-                    <Skeleton key={index} className="h-28 rounded-2xl" />
+                    <Skeleton key={index} className="h-12 rounded-xl" />
                 ))}
             </div>
             <Skeleton className="h-80 w-full rounded-2xl" />
@@ -506,27 +542,21 @@ export default function PaymentPatientPage({
                         className="grid min-w-0 flex-1 gap-2 md:grid-cols-3"
                     >
                         <PaymentSummaryCard
-                            icon={ClipboardList}
                             label={t('payments.summary.totalDebt')}
                             balances={balances}
                             field="totalDebt"
-                            tone="red"
                             hint={t('payments.summary.totalDebtHint')}
                         />
                         <PaymentSummaryCard
-                            icon={CircleCheckBig}
                             label={t('payments.summary.totalPaid')}
                             balances={balances}
                             field="totalPaid"
-                            tone="emerald"
                             hint={t('payments.summary.totalPaidHint')}
                         />
                         <PaymentSummaryCard
-                            icon={WalletCards}
                             label={t('payments.summary.netBalance')}
                             balances={balances}
                             field="balance"
-                            tone="amber"
                             hint={t('payments.summary.netBalanceHint')}
                         />
                     </section>

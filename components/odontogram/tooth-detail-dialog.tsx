@@ -258,8 +258,11 @@ export function ToothDetailDialog({
                                                     of permission — viewers without payments.view see
                                                     Lock + "No access" in each cell so the row width
                                                     stays consistent across permission shapes. */}
-                                                <div className="grid grid-cols-3 gap-3 text-right text-xs sm:flex-none">
-                                                    <div>
+                                                <div
+                                                    data-testid={`tooth-treatment-financials-${treatment.id}`}
+                                                    className="grid grid-cols-1 gap-2 text-left text-xs sm:grid-cols-3 sm:text-right"
+                                                >
+                                                    <div className="flex items-center justify-between gap-3 sm:block">
                                                         <p className="text-xs font-medium uppercase tracking-wide text-slate-400">{t('patientHistory.table.debt')}</p>
                                                         {canViewFinancials ? (
                                                             <p className="whitespace-nowrap text-sm font-semibold tabular-nums text-red-700">{formatCurrency(Number(treatment.debt_amount ?? 0))}</p>
@@ -270,7 +273,7 @@ export function ToothDetailDialog({
                                                             </span>
                                                         )}
                                                     </div>
-                                                    <div>
+                                                    <div className="flex items-center justify-between gap-3 sm:block">
                                                         <p className="text-xs font-medium uppercase tracking-wide text-slate-400">{t('patientHistory.table.paid')}</p>
                                                         {canViewFinancials ? (
                                                             <p className="whitespace-nowrap text-sm font-semibold tabular-nums text-green-700">{formatCurrency(Number(treatment.paid_amount ?? 0))}</p>
@@ -281,7 +284,7 @@ export function ToothDetailDialog({
                                                             </span>
                                                         )}
                                                     </div>
-                                                    <div>
+                                                    <div className="flex items-center justify-between gap-3 sm:block">
                                                         <p className="text-xs font-medium uppercase tracking-wide text-slate-400">{t('patientHistory.table.remaining')}</p>
                                                         {canViewFinancials ? (
                                                             <p

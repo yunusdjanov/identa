@@ -117,7 +117,7 @@ export function TimeRangeSelector({
     );
 
     return (
-        <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-3">
+        <div className="flex min-w-0 max-w-full flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-3">
             {resolvedLabel ? (
                 <span
                     id={`${groupId}-label`}
@@ -130,7 +130,7 @@ export function TimeRangeSelector({
                 role="radiogroup"
                 aria-labelledby={resolvedLabel ? `${groupId}-label` : undefined}
                 className={cn(
-                    'inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white p-1 shadow-sm shadow-slate-200/40',
+                    'inline-flex max-w-full items-center gap-1 overflow-x-auto rounded-xl border border-slate-200 bg-white p-1 shadow-sm shadow-slate-200/40 no-scrollbar',
                     compact ? 'p-0.5' : ''
                 )}
             >
@@ -153,7 +153,7 @@ export function TimeRangeSelector({
                             onClick={() => onChange(range)}
                             onKeyDown={(event) => handleKeyDown(event, index)}
                             className={cn(
-                                'rounded-lg font-semibold transition',
+                                'shrink-0 rounded-lg font-semibold transition',
                                 compact
                                     ? 'px-2 py-1 text-[11px]'
                                     : 'px-2.5 py-1.5 text-xs sm:px-3',

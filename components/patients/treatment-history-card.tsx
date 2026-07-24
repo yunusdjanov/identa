@@ -424,13 +424,13 @@ function HistoryFinancialPill({
     return (
         <div
             data-testid="history-financial-summary-pill"
-            className={`flex h-10 min-w-0 flex-col justify-center rounded-xl border px-3 shadow-sm shadow-slate-100/50 ${getHistoryFinancialPillToneClasses(tone)}`}
+            className={`flex min-h-10 min-w-0 flex-col justify-center rounded-xl border px-3 py-1.5 shadow-sm shadow-slate-100/50 ${getHistoryFinancialPillToneClasses(tone)}`}
         >
             <div className="truncate text-[9px] font-bold uppercase leading-[0.7rem] tracking-[0.1em] text-slate-400">
                 {label}
             </div>
             <div className="flex min-w-0 items-center gap-1.5">
-                <div className="min-w-0 truncate text-sm font-bold leading-4 tabular-nums">
+                <div className="min-w-0 whitespace-normal break-words text-sm font-bold leading-4 tabular-nums">
                     {locked ? <span className="inline-flex items-center gap-1"><Lock className="h-3 w-3" />***</span> : value}
                 </div>
                 {badge ? (
@@ -1878,7 +1878,7 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
     const renderFinancialSummaryStrip = () => (
         <div
             data-testid="patient-history-financial-summary"
-            className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-3 xl:w-full"
+            className="grid min-w-0 grid-cols-1 gap-2 md:grid-cols-3 xl:w-full"
         >
             <HistoryFinancialPill
                 label={t('patientHistory.totalDebt')}

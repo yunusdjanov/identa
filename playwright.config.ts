@@ -38,5 +38,26 @@ export default defineConfig({
             name: 'chromium',
             use: { ...devices['Desktop Chrome'] },
         },
+        {
+            name: 'mobile-chromium',
+            testMatch: /responsive\.spec\.ts/,
+            use: {
+                browserName: 'chromium',
+                viewport: { width: 390, height: 844 },
+                deviceScaleFactor: 1,
+                hasTouch: true,
+                isMobile: true,
+            },
+        },
+        {
+            name: 'tablet-chromium',
+            testMatch: /responsive\.spec\.ts/,
+            use: {
+                browserName: 'chromium',
+                viewport: { width: 768, height: 1024 },
+                deviceScaleFactor: 1,
+                hasTouch: true,
+            },
+        },
     ],
 });

@@ -205,7 +205,12 @@ describe('PaymentPatientPage', () => {
         expect(within(header as HTMLElement).getByText('12 Amir Temur Avenue, Tashkent')).toBeInTheDocument();
         expect(header).toHaveClass('gap-2.5');
         expect(identity).toHaveClass('max-w-[20rem]');
-        expect(screen.getByTestId('patient-detail-header-facts')).toHaveClass('h-[8rem]');
+        expect(screen.getByTestId('patient-detail-header-facts')).toHaveClass(
+            'h-auto',
+            'overflow-visible',
+            'md:h-[8rem]',
+            'md:overflow-hidden'
+        );
         expect(within(header as HTMLElement).getByRole('button', { name: 'Schedule Appointment' }))
             .toHaveClass('size-10');
         expect(within(header as HTMLElement).getByRole('button', { name: 'Edit Patient' }))
@@ -224,15 +229,26 @@ describe('PaymentPatientPage', () => {
         expect(ledgerHeader).toContainElement(summaryGrid);
         expect(ledgerHeader).toHaveClass('xl:flex-row', 'xl:items-center');
         expect(summaryGrid).toHaveClass('flex-1', 'gap-2', 'md:grid-cols-3');
-        expect(workSummary).toHaveClass('min-h-12', 'rounded-lg', 'px-2', 'py-1.5');
-        expect(paidSummary).toHaveClass('min-h-12', 'rounded-lg', 'px-2', 'py-1.5');
-        expect(balanceSummary).toHaveClass('min-h-12', 'rounded-lg', 'px-2', 'py-1.5');
-        expect(within(workSummary).getByTestId('payment-summary-totalDebt-icon').querySelector('svg'))
-            .toHaveClass('lucide-clipboard-list');
-        expect(within(paidSummary).getByTestId('payment-summary-totalPaid-icon').querySelector('svg'))
-            .toHaveClass('lucide-circle-check-big');
-        expect(within(balanceSummary).getByTestId('payment-summary-balance-icon').querySelector('svg'))
-            .toHaveClass('lucide-wallet-cards');
+        expect(workSummary).toHaveClass(
+            'min-h-10',
+            'rounded-xl',
+            'px-3',
+            'py-1.5',
+            'border-red-100',
+            'bg-red-50/45'
+        );
+        expect(paidSummary).toHaveClass(
+            'min-h-10',
+            'rounded-xl',
+            'px-3',
+            'py-1.5',
+            'border-emerald-100',
+            'bg-emerald-50/45'
+        );
+        expect(balanceSummary).toHaveClass('min-h-10', 'rounded-xl', 'px-3', 'py-1.5');
+        expect(workSummary.querySelector('svg')).not.toBeInTheDocument();
+        expect(paidSummary.querySelector('svg')).not.toBeInTheDocument();
+        expect(balanceSummary.querySelector('svg')).not.toBeInTheDocument();
 
         const table = screen.getByRole('table');
         expect(within(table).getByRole('columnheader', { name: 'Date' })).toBeInTheDocument();

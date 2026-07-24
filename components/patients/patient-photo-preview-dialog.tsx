@@ -243,78 +243,83 @@ export function PatientPhotoPreviewDialog({
                 className="!fixed !inset-0 !left-0 !top-0 grid !h-[100dvh] !max-h-none !w-screen !max-w-none !translate-x-0 !translate-y-0 grid-rows-[auto_minmax(0,1fr)_auto] gap-0 overflow-hidden !rounded-none !border-0 bg-slate-950 p-0 text-white !shadow-none sm:!max-w-none"
             >
                 <div className="z-20 flex min-w-0 items-center gap-2 border-b border-white/10 bg-slate-950/90 px-3 py-3 backdrop-blur sm:px-5">
-                    <DialogTitle className="min-w-0 flex-1 truncate text-sm font-semibold tracking-normal text-white sm:text-base">
+                    <DialogTitle className="sr-only sm:not-sr-only sm:min-w-0 sm:flex-1 sm:truncate sm:text-base sm:font-semibold sm:tracking-normal sm:text-white">
                         {activeImage?.title ?? title}
                     </DialogTitle>
-                    {activeImage ? (
-                        <div className="inline-flex h-10 shrink-0 items-center overflow-hidden rounded-full border border-white/10 bg-white/10 text-white/80 shadow-sm backdrop-blur">
+                    <div
+                        data-testid="patient-photo-preview-actions"
+                        className="flex min-w-0 flex-1 items-center justify-end gap-2 overflow-x-auto no-scrollbar sm:flex-none sm:overflow-visible"
+                    >
+                        {activeImage ? (
+                            <div className="inline-flex h-10 shrink-0 items-center overflow-hidden rounded-full border border-white/10 bg-white/10 text-white/80 shadow-sm backdrop-blur">
+                                <button
+                                    type="button"
+                                    onClick={() => updateZoomScale((scale) => scale - ZOOM_STEP)}
+                                    disabled={!canZoomOut}
+                                    className="inline-flex h-10 w-10 items-center justify-center transition hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-teal-300 disabled:cursor-not-allowed disabled:opacity-35"
+                                    aria-label={t('gallery.zoomOut')}
+                                >
+                                    <ZoomOut className="h-4 w-4" />
+                                </button>
+                                <span
+                                    className="min-w-12 px-1 text-center text-xs font-semibold tabular-nums text-white/85"
+                                    aria-label={t('gallery.zoomLevel')}
+                                    aria-live="polite"
+                                >
+                                    {Math.round(zoomScale * 100)}%
+                                </span>
+                                <button
+                                    type="button"
+                                    onClick={() => updateZoomScale((scale) => scale + ZOOM_STEP)}
+                                    disabled={!canZoomIn}
+                                    className="inline-flex h-10 w-10 items-center justify-center transition hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-teal-300 disabled:cursor-not-allowed disabled:opacity-35"
+                                    aria-label={t('gallery.zoomIn')}
+                                >
+                                    <ZoomIn className="h-4 w-4" />
+                                </button>
+                            </div>
+                        ) : null}
+                        {activeImage && onSaveEditedImage ? (
                             <button
                                 type="button"
-                                onClick={() => updateZoomScale((scale) => scale - ZOOM_STEP)}
-                                disabled={!canZoomOut}
-                                className="inline-flex h-10 w-10 items-center justify-center transition hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-teal-300 disabled:cursor-not-allowed disabled:opacity-35"
-                                aria-label={t('gallery.zoomOut')}
+                                onClick={() => setIsEditing((value) => !value)}
+                                disabled={isDeletePending || isEditPending}
+                                className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/10 text-white/80 shadow-sm backdrop-blur transition hover:bg-white/15 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-300 disabled:cursor-not-allowed disabled:opacity-60"
+                                aria-label={t('common.edit')}
                             >
-                                <ZoomOut className="h-4 w-4" />
+                                {isEditPending ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                    <Pencil className="h-4 w-4" />
+                                )}
                             </button>
-                            <span
-                                className="min-w-12 px-1 text-center text-xs font-semibold tabular-nums text-white/85"
-                                aria-label={t('gallery.zoomLevel')}
-                                aria-live="polite"
-                            >
-                                {Math.round(zoomScale * 100)}%
-                            </span>
+                        ) : null}
+                        {activeImage ? (
                             <button
                                 type="button"
-                                onClick={() => updateZoomScale((scale) => scale + ZOOM_STEP)}
-                                disabled={!canZoomIn}
-                                className="inline-flex h-10 w-10 items-center justify-center transition hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-teal-300 disabled:cursor-not-allowed disabled:opacity-35"
-                                aria-label={t('gallery.zoomIn')}
+                                onClick={handleDownload}
+                                className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/10 text-white/80 shadow-sm backdrop-blur transition hover:bg-white/15 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-300"
+                                aria-label={t('gallery.download')}
                             >
-                                <ZoomIn className="h-4 w-4" />
+                                <Download className="h-4 w-4" />
                             </button>
-                        </div>
-                    ) : null}
-                    {activeImage && onSaveEditedImage ? (
-                        <button
-                            type="button"
-                            onClick={() => setIsEditing((value) => !value)}
-                            disabled={isDeletePending || isEditPending}
-                            className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/10 text-white/80 shadow-sm backdrop-blur transition hover:bg-white/15 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-300 disabled:cursor-not-allowed disabled:opacity-60"
-                            aria-label={t('common.edit')}
-                        >
-                            {isEditPending ? (
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                                <Pencil className="h-4 w-4" />
-                            )}
-                        </button>
-                    ) : null}
-                    {activeImage ? (
-                        <button
-                            type="button"
-                            onClick={handleDownload}
-                            className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/10 text-white/80 shadow-sm backdrop-blur transition hover:bg-white/15 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-300"
-                            aria-label={t('gallery.download')}
-                        >
-                            <Download className="h-4 w-4" />
-                        </button>
-                    ) : null}
-                    {activeImage && onDeleteImage ? (
-                        <button
-                            type="button"
-                            onClick={() => onDeleteImage(activeImage)}
-                            disabled={isDeletePending}
-                            className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-red-300/20 bg-red-500/10 text-red-200 shadow-sm backdrop-blur transition hover:bg-red-500/20 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300 disabled:cursor-not-allowed disabled:opacity-60"
-                            aria-label={t('common.delete')}
-                        >
-                            {isDeletePending ? (
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                                <Trash2 className="h-4 w-4" />
-                            )}
-                        </button>
-                    ) : null}
+                        ) : null}
+                        {activeImage && onDeleteImage ? (
+                            <button
+                                type="button"
+                                onClick={() => onDeleteImage(activeImage)}
+                                disabled={isDeletePending}
+                                className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-red-300/20 bg-red-500/10 text-red-200 shadow-sm backdrop-blur transition hover:bg-red-500/20 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300 disabled:cursor-not-allowed disabled:opacity-60"
+                                aria-label={t('common.delete')}
+                            >
+                                {isDeletePending ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                    <Trash2 className="h-4 w-4" />
+                                )}
+                            </button>
+                        ) : null}
+                    </div>
                     <DialogClose className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/10 text-white/80 shadow-sm backdrop-blur transition hover:bg-white/15 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-300">
                         <X className="h-4 w-4" />
                         <span className="sr-only">{t('common.close')}</span>

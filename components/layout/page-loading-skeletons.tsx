@@ -530,7 +530,7 @@ export function PatientDetailLoadingState() {
                     </div>
                     <div
                         data-testid="patient-detail-header-facts-skeleton"
-                        className="grid h-[8rem] min-w-0 grid-rows-[1fr_auto_1fr] gap-1.5 overflow-hidden rounded-2xl border border-slate-100 bg-slate-50/60 px-2.5 py-2 shadow-sm shadow-slate-200/40 lg:col-span-2 lg:row-start-2 xl:col-span-1 xl:col-start-2 xl:row-start-1"
+                        className="grid h-auto min-w-0 grid-rows-[auto_auto_auto] gap-1.5 overflow-visible rounded-2xl border border-slate-100 bg-slate-50/60 px-2.5 py-2 shadow-sm shadow-slate-200/40 md:h-[8rem] md:grid-rows-[1fr_auto_1fr] md:overflow-hidden lg:col-span-2 lg:row-start-2 xl:col-span-1 xl:col-start-2 xl:row-start-1"
                     >
                         <div className="grid min-h-0 min-w-0 items-center gap-1.5 md:grid-cols-3">
                             {Array.from({ length: 3 }).map((_, index) => (
@@ -987,11 +987,11 @@ export function AdminDentistBillingLoadingState() {
                                 </div>
                             </div>
                         </div>
-                        <div className="grid grid-cols-3 divide-x divide-slate-200 lg:col-span-3 lg:grid-cols-subgrid lg:divide-x-0">
+                        <div className="grid grid-cols-1 divide-y divide-slate-200 sm:grid-cols-3 sm:divide-x sm:divide-y-0 lg:col-span-3 lg:grid-cols-subgrid lg:divide-x-0">
                             {Array.from({ length: 3 }).map((_, index) => (
                                 <div
                                     key={index}
-                                    className="min-w-0 space-y-2 px-3 sm:px-4 lg:border-l lg:border-slate-200 lg:px-5"
+                                    className="min-w-0 space-y-2 py-3 first:pt-0 last:pb-0 sm:px-4 sm:py-0 lg:border-l lg:border-slate-200 lg:px-5"
                                 >
                                     <Skeleton className="h-3 w-20 rounded-xl" />
                                     <Skeleton className="h-5 w-28 rounded-xl" />
@@ -1068,17 +1068,17 @@ export function AdminPaymentsLoadingState() {
     // Mirrors the real page (`app/admin/payments/page.tsx`):
     // - Page header (no actions in header itself; filters live in the table card)
     // - 3 gradient summary cards (this month, this year, all time) —
-    //   sm:grid-cols-3
+    //   lg:grid-cols-3
     // - Filter bar inside the table card (date-from, date-to, status select,
     //   search input) — flex-col → lg:flex-row
     // - 6-column data table (Date, Dentist, Plan, Amount, Status, Actions)
     return (
         <AdminShellSkeleton>
             <PageHeaderSkeleton actions={0} />
-            {/* Summary cards: real page uses sm:grid-cols-3, not md:grid-cols-3
+            {/* Summary cards: real page uses lg:grid-cols-3
                 — replicating the same grid breakpoint avoids a relayout flash
                 when the data arrives. */}
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
                 {Array.from({ length: 3 }).map((_, index) => (
                     <Card
                         key={index}

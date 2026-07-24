@@ -690,14 +690,14 @@ export function TeamAccessTab({ canManageTeam, subscription, t }: TeamAccessTabP
                         <Tabs
                             value={status}
                             onValueChange={(value) => updateStatusFilter(value as StaffStatusFilter)}
-                            className="w-full lg:w-auto"
+                            className="w-full min-w-0 overflow-x-auto no-scrollbar lg:w-auto"
                         >
-                            <TabsList className="grid h-10 w-full grid-cols-3 rounded-xl border border-slate-200 bg-white p-1 shadow-xs lg:w-auto">
+                            <TabsList className="inline-flex h-10 w-max min-w-full rounded-xl border border-slate-200 bg-white p-1 shadow-xs lg:min-w-0">
                                 {STAFF_STATUS_FILTERS.map((item) => (
                                     <TabsTrigger
                                         key={item.value}
                                         value={item.value}
-                                        className="rounded-lg px-3 text-xs sm:text-sm"
+                                        className="min-w-max rounded-lg px-3 text-xs sm:text-sm"
                                     >
                                         {t(item.labelKey)}
                                     </TabsTrigger>

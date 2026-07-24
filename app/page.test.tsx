@@ -78,6 +78,11 @@ describe('Landing', () => {
         expect(landingCss).toContain('white-space: nowrap');
     });
 
+    it('keeps landing header controls touch-friendly on mobile', () => {
+        expect(landingCss).toMatch(/\.lang-switch button\s*\{[\s\S]*?min-width:\s*44px;[\s\S]*?min-height:\s*44px;/);
+        expect(landingCss).toMatch(/\.menu-btn\s*\{[\s\S]*?width:\s*44px;\s*height:\s*44px;/);
+    });
+
     it('loads landing fonts in a cold-visit-safe way for Cyrillic copy', () => {
         expect(landingPageSource).toContain('subsets: ["cyrillic", "latin"]');
         expect(landingPageSource).toContain('display: "swap"');

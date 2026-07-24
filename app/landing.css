@@ -379,8 +379,8 @@
   font-family: var(--font-mono);
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  min-width: 34px;
-  min-height: 32px;
+  min-width: 44px;
+  min-height: 44px;
   padding: 6px 10px;
   border-radius: var(--radius-pill);
   color: var(--ink-mute);
@@ -392,7 +392,7 @@
 }
 
 .identa-landing .menu-btn {
-  width: 40px; height: 40px;
+  width: 44px; height: 44px;
   border-radius: 50%;
   border: 1px solid var(--line);
   display: none;
@@ -409,7 +409,7 @@
   .identa-landing .brand-mark { width: 32px; height: 32px; }
   .identa-landing .brand-name { font-size: 16px; }
   .identa-landing .nav-cta { gap: 6px; }
-  .identa-landing .lang-switch button { min-width: 32px; min-height: 32px; padding: 5px 8px; font-size: 11px; }
+  .identa-landing .lang-switch button { min-width: 44px; min-height: 44px; padding: 5px 8px; font-size: 11px; }
   .identa-landing .nav-cta .btn-accent { padding: 9px 13px; font-size: 13px; }
 }
 @media (max-width: 380px) {

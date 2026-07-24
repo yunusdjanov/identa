@@ -345,7 +345,7 @@ function AppLayoutBody({ children }: { children: React.ReactNode }) {
                 {/* Mobile Navigation */}
                 {showHeaderSkeleton ? (
                     <div className="md:hidden border-t border-slate-200/70 bg-white">
-                        <div className="flex justify-center gap-1 overflow-x-auto overflow-y-hidden px-2 py-2 no-scrollbar">
+                        <div className="flex justify-start gap-1 overflow-x-auto overflow-y-hidden px-2 py-2 no-scrollbar">
                             {navigation.map((item) => (
                                 <Skeleton
                                     key={item.href}
@@ -357,7 +357,7 @@ function AppLayoutBody({ children }: { children: React.ReactNode }) {
                     </div>
                 ) : (
                     <div className="md:hidden border-t border-slate-200/70 bg-white">
-                        <nav className="flex justify-center gap-1 overflow-x-auto overflow-y-hidden px-2 py-2 no-scrollbar">
+                        <nav className="flex justify-start gap-1 overflow-x-auto overflow-y-hidden px-2 py-2 no-scrollbar">
                             {navigation.map((item) => {
                                 const isActive = isActiveRoute(item.href);
                                 const Icon = item.icon;

@@ -76,8 +76,8 @@ export function ConfirmActionDialog({
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className={cn('overflow-hidden p-0', className)}>
-                <div className="px-5 pb-4 pt-5 sm:px-6 sm:pt-6">
+            <DialogContent className={cn('flex max-h-[calc(100dvh-1.5rem)] flex-col overflow-hidden p-0', className)}>
+                <div className="min-h-0 overflow-y-auto px-5 pb-4 pt-5 sm:px-6 sm:pt-6">
                     <div className="flex gap-4">
                         <span
                             className={cn(
@@ -115,7 +115,7 @@ export function ConfirmActionDialog({
                         </div>
                     ) : null}
                 </div>
-                <DialogFooter className="border-t border-slate-100 bg-slate-50/80 px-5 py-4 sm:px-6">
+                <DialogFooter className="shrink-0 border-t border-slate-100 bg-slate-50/80 px-5 py-4 sm:px-6">
                     <Button
                         type="button"
                         variant="outline"

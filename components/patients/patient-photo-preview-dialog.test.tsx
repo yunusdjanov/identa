@@ -67,6 +67,10 @@ describe('PatientPhotoPreviewDialog', () => {
         expect(screen.getByRole('button', { name: 'Close' })).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Zoom out' })).toBeDisabled();
         expect(screen.getByRole('button', { name: 'Zoom in' })).toBeEnabled();
+        expect(screen.getByTestId('patient-photo-preview-actions')).toHaveClass(
+            'overflow-x-auto',
+            'sm:overflow-visible'
+        );
         expect(screen.getByText('100%')).toBeInTheDocument();
         expect(screen.getByText('1 / 10')).toBeInTheDocument();
         expect(screen.getByLabelText('Image thumbnails').className).toContain('w-fit');

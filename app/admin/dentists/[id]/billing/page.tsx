@@ -491,11 +491,11 @@ export default function AdminBillingDetailPage() {
                                         <Skeleton className="h-5 w-20 rounded-full" />
                                     </div>
                                 </div>
-                                <div className="grid grid-cols-3 lg:col-span-3 lg:grid-cols-subgrid">
+                                <div className="grid grid-cols-1 divide-y divide-slate-200 sm:grid-cols-3 sm:divide-x sm:divide-y-0 lg:col-span-3 lg:grid-cols-subgrid lg:divide-x-0">
                                     {Array.from({ length: 3 }).map((_, index) => (
                                         <div
                                             key={index}
-                                            className="min-w-0 space-y-2 px-3 sm:px-4 lg:border-l lg:border-slate-200 lg:px-5"
+                                            className="min-w-0 space-y-2 py-3 first:pt-0 last:pb-0 sm:px-4 sm:py-0 lg:border-l lg:border-slate-200 lg:px-5"
                                         >
                                             <Skeleton className="h-3 w-20 rounded-xl" />
                                             <Skeleton className="h-5 w-28 rounded-xl" />
@@ -575,8 +575,8 @@ export default function AdminBillingDetailPage() {
                                 </div>
 
                                 {/* Inline metrics — at lg+ spans cols 2-4 of parent via subgrid (each cell = 1fr of parent) */}
-                                <div className="grid grid-cols-3 divide-x divide-slate-200 lg:col-span-3 lg:grid-cols-subgrid lg:divide-x-0">
-                                    <div className="min-w-0 px-3 sm:px-4 lg:border-l lg:border-slate-200 lg:px-5">
+                                <div className="grid grid-cols-1 divide-y divide-slate-200 sm:grid-cols-3 sm:divide-x sm:divide-y-0 lg:col-span-3 lg:grid-cols-subgrid lg:divide-x-0">
+                                    <div className="min-w-0 py-3 first:pt-0 sm:px-4 sm:py-0 lg:border-l lg:border-slate-200 lg:px-5">
                                         <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">
                                             {t('admin.billing.currentPlan')}
                                         </p>
@@ -600,7 +600,7 @@ export default function AdminBillingDetailPage() {
                                             ) : null}
                                         </div>
                                     </div>
-                                    <div className="min-w-0 px-3 sm:px-4 lg:border-l lg:border-slate-200 lg:px-5">
+                                    <div className="min-w-0 py-3 sm:px-4 sm:py-0 lg:border-l lg:border-slate-200 lg:px-5">
                                         <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">
                                             {t('admin.billing.endsAt')}
                                         </p>
@@ -617,7 +617,7 @@ export default function AdminBillingDetailPage() {
                                             {getBillingPeriodLabel(billing.subscription.billing_period, t)}
                                         </p>
                                     </div>
-                                    <div className="min-w-0 px-3 sm:px-4 lg:border-l lg:border-slate-200 lg:px-5">
+                                    <div className="min-w-0 py-3 last:pb-0 sm:px-4 sm:py-0 lg:border-l lg:border-slate-200 lg:px-5">
                                         <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">
                                             {t('admin.billing.staff')}
                                         </p>
