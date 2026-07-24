@@ -216,10 +216,14 @@ describe('PaymentPatientPage', () => {
             .toHaveTextContent('No medical information recorded');
 
         const summaryGrid = screen.getByTestId('payment-summary-grid');
+        const ledgerHeader = screen.getByTestId('payment-ledger-header');
         const workSummary = within(summaryGrid).getByTestId('payment-summary-totalDebt');
         const paidSummary = within(summaryGrid).getByTestId('payment-summary-totalPaid');
         const balanceSummary = within(summaryGrid).getByTestId('payment-summary-balance');
-        expect(summaryGrid).toHaveClass('gap-2');
+        expect(within(ledgerHeader).getByRole('heading', { name: 'Work payments' })).toBeInTheDocument();
+        expect(ledgerHeader).toContainElement(summaryGrid);
+        expect(ledgerHeader).toHaveClass('xl:flex-row', 'xl:items-center');
+        expect(summaryGrid).toHaveClass('flex-1', 'gap-2', 'md:grid-cols-3');
         expect(workSummary).toHaveClass('min-h-12', 'rounded-lg', 'px-2', 'py-1.5');
         expect(paidSummary).toHaveClass('min-h-12', 'rounded-lg', 'px-2', 'py-1.5');
         expect(balanceSummary).toHaveClass('min-h-12', 'rounded-lg', 'px-2', 'py-1.5');

@@ -487,36 +487,12 @@ export default function PaymentPatientPage({
                 currentUser={currentUserQuery.data}
             />
 
-            <section data-testid="payment-summary-grid" className="grid gap-2 md:grid-cols-3">
-                <PaymentSummaryCard
-                    icon={ClipboardList}
-                    label={t('payments.summary.totalDebt')}
-                    balances={balances}
-                    field="totalDebt"
-                    tone="red"
-                    hint={t('payments.summary.totalDebtHint')}
-                />
-                <PaymentSummaryCard
-                    icon={CircleCheckBig}
-                    label={t('payments.summary.totalPaid')}
-                    balances={balances}
-                    field="totalPaid"
-                    tone="emerald"
-                    hint={t('payments.summary.totalPaidHint')}
-                />
-                <PaymentSummaryCard
-                    icon={WalletCards}
-                    label={t('payments.summary.netBalance')}
-                    balances={balances}
-                    field="balance"
-                    tone="amber"
-                    hint={t('payments.summary.netBalanceHint')}
-                />
-            </section>
-
             <SectionPanel className="space-y-4">
-                <div className="flex items-start justify-between gap-3">
-                    <div>
+                <div
+                    data-testid="payment-ledger-header"
+                    className="flex min-w-0 flex-col gap-2 xl:flex-row xl:items-center"
+                >
+                    <div className="shrink-0 xl:w-52">
                         <h2 className="text-base font-bold text-slate-950 sm:text-lg">
                             {t('payments.patientLedger.tableTitle')}
                         </h2>
@@ -524,11 +500,42 @@ export default function PaymentPatientPage({
                             {t('payments.patientLedger.tableDescription')}
                         </p>
                     </div>
+
+                    <section
+                        data-testid="payment-summary-grid"
+                        className="grid min-w-0 flex-1 gap-2 md:grid-cols-3"
+                    >
+                        <PaymentSummaryCard
+                            icon={ClipboardList}
+                            label={t('payments.summary.totalDebt')}
+                            balances={balances}
+                            field="totalDebt"
+                            tone="red"
+                            hint={t('payments.summary.totalDebtHint')}
+                        />
+                        <PaymentSummaryCard
+                            icon={CircleCheckBig}
+                            label={t('payments.summary.totalPaid')}
+                            balances={balances}
+                            field="totalPaid"
+                            tone="emerald"
+                            hint={t('payments.summary.totalPaidHint')}
+                        />
+                        <PaymentSummaryCard
+                            icon={WalletCards}
+                            label={t('payments.summary.netBalance')}
+                            balances={balances}
+                            field="balance"
+                            tone="amber"
+                            hint={t('payments.summary.netBalanceHint')}
+                        />
+                    </section>
+
                     {currentUserQuery.data?.subscription?.can_export ? (
                         <Button
                             variant="outline"
                             size="icon-lg"
-                            className="rounded-full"
+                            className="shrink-0 self-end rounded-full xl:self-auto"
                             aria-label={t('common.export')}
                             title={t('common.export')}
                             disabled={isExporting || (patient.entry_count ?? 0) === 0}
