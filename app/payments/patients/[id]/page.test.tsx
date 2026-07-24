@@ -59,6 +59,7 @@ const patientResponse = {
         patient_phone: '+998 90 123 45 67',
         patient_secondary_phone: '+998 91 765 43 21',
         patient_address: '12 Amir Temur Avenue, Tashkent',
+        patient_date_of_birth: '1992-04-15',
         patient_photo_scan_status: 'approved',
         patient_photo_url: 'https://api.identa.test/api/v1/patients/p-1/photo',
         patient_photo_thumbnail_url: 'https://api.identa.test/api/v1/patients/p-1/photo?variant=thumbnail',
@@ -157,6 +158,7 @@ describe('PaymentPatientPage', () => {
         );
         expect(within(basicInfo).getByText('+998 90 123 45 67')).toBeInTheDocument();
         expect(within(basicInfo).getByText('+998 91 765 43 21')).toBeInTheDocument();
+        expect(within(basicInfo).getByText('Apr 15, 1992')).toBeInTheDocument();
         expect(within(basicInfo).getByText('12 Amir Temur Avenue, Tashkent')).toBeInTheDocument();
 
         const table = screen.getByRole('table');

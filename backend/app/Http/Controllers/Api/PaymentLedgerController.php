@@ -102,6 +102,7 @@ class PaymentLedgerController extends Controller
                 : $this->photos->disk();
             $payload += [
                 'patient_address' => $patient->address,
+                'patient_date_of_birth' => $patient->date_of_birth?->toDateString(),
                 'patient_photo_scan_status' => $this->photos->displayScanStatus($patient),
                 'patient_photo_url' => $this->photos->url($patient, $request),
                 'patient_photo_thumbnail_url' => $this->photos->url(

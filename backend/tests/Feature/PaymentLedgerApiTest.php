@@ -153,7 +153,7 @@ class PaymentLedgerApiTest extends TestCase
         $this->assertSame(Treatment::CURRENCY_USD, $usdHistoryRow['currency']);
     }
 
-    public function test_payment_ledger_exposes_patient_address_and_approved_profile_photo(): void
+    public function test_payment_ledger_exposes_patient_profile_fields_and_approved_photo(): void
     {
         Storage::fake('local');
         [$dentist, $patient] = $this->seedLedgerRecords();
@@ -161,6 +161,7 @@ class PaymentLedgerApiTest extends TestCase
         Storage::disk('local')->put($photoPath, 'approved-profile-photo');
         $patient->update([
             'address' => '12 Amir Temur Avenue, Tashkent',
+            'date_of_birth' => '1992-04-15',
             'photo_disk' => 'local',
             'photo_path' => $photoPath,
             'scan_status' => 'approved',
@@ -171,6 +172,7 @@ class PaymentLedgerApiTest extends TestCase
             ->getJson('/api/v1/payments/ledger/patients?filter[patient_id]='.urlencode((string) $patient->id))
             ->assertOk()
             ->assertJsonPath('data.0.patient_address', '12 Amir Temur Avenue, Tashkent')
+            ->assertJsonPath('data.0.patient_date_of_birth', '1992-04-15')
             ->assertJsonPath('data.0.patient_photo_scan_status', 'approved')
             ->assertJsonPath(
                 'data.0.patient_photo_thumbnail_url',

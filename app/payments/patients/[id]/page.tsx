@@ -1,11 +1,12 @@
 'use client';
 
-import { use, useMemo, useState, type ComponentType } from 'react';
+import { use, useMemo, useState, type ComponentType, type ReactNode } from 'react';
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import {
     ArrowLeft,
     BadgeDollarSign,
+    CalendarDays,
     CircleDollarSign,
     Download,
     Loader2,
@@ -129,21 +130,34 @@ function PatientFact({
     icon: Icon,
     label,
     value,
+    title,
+    tone = 'teal',
 }: {
     icon: ComponentType<{ className?: string }>;
     label: string;
-    value: string;
+    value: ReactNode;
+    title?: string;
+    tone?: 'teal' | 'sky' | 'slate';
 }) {
+    const tones = {
+        teal: 'bg-teal-50 text-teal-600 ring-teal-100/80',
+        sky: 'bg-sky-50 text-sky-600 ring-sky-100/80',
+        slate: 'bg-slate-100 text-slate-600 ring-slate-200/80',
+    } as const;
+
     return (
-        <div className="flex min-w-0 items-center gap-3 rounded-xl border border-slate-100 bg-slate-50/70 px-3 py-2.5">
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white text-teal-600 shadow-sm ring-1 ring-slate-100">
+        <div className="flex min-h-12 min-w-0 items-center gap-2.5 rounded-xl bg-white/55 px-3 py-2">
+            <span className={cn(
+                'flex h-9 w-9 shrink-0 items-center justify-center rounded-xl shadow-sm ring-1',
+                tones[tone]
+            )}>
                 <Icon className="h-4 w-4" />
             </span>
             <span className="min-w-0">
                 <span className="block text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-400">
                     {label}
                 </span>
-                <span className="block truncate text-sm font-semibold text-slate-800" title={value}>
+                <span className="block truncate text-sm font-semibold text-slate-800" title={title}>
                     {value}
                 </span>
             </span>
@@ -157,62 +171,71 @@ function PaymentSummaryCard({
     balances,
     field,
     tone,
+    hint,
 }: {
     icon: ComponentType<{ className?: string }>;
     label: string;
     balances: PatientBalances;
     field: 'totalDebt' | 'totalPaid' | 'balance';
-    tone: 'slate' | 'emerald' | 'rose';
+    tone: 'red' | 'emerald' | 'amber';
+    hint: string;
 }) {
     const { t } = useI18n();
     const toneClasses = {
-        slate: {
-            accent: 'from-slate-300 via-slate-400 to-slate-500',
-            icon: 'from-slate-50 to-slate-100 text-slate-600 ring-slate-200/80 shadow-slate-100/50',
-            value: 'text-slate-800',
+        red: {
+            root: 'metric-hover-red border-red-100 bg-gradient-to-br from-white via-rose-50/70 to-red-50 shadow-red-100/60',
+            label: 'text-slate-700',
+            icon: 'text-red-500',
+            value: 'text-red-700',
+            hint: 'text-slate-500',
         },
         emerald: {
-            accent: 'from-emerald-400 via-teal-400 to-cyan-400',
-            icon: 'from-emerald-50 to-teal-50 text-emerald-600 ring-emerald-100/80 shadow-emerald-100/50',
+            root: 'metric-hover-emerald border-emerald-100 bg-gradient-to-br from-white via-emerald-50/70 to-teal-50 shadow-emerald-100/60',
+            label: 'text-slate-700',
+            icon: 'text-emerald-600',
             value: 'text-emerald-700',
+            hint: 'text-slate-500',
         },
-        rose: {
-            accent: 'from-amber-400 via-orange-400 to-rose-400',
-            icon: 'from-amber-50 to-rose-50 text-rose-600 ring-rose-100/80 shadow-rose-100/50',
-            value: 'text-rose-700',
+        amber: {
+            root: 'metric-hover-amber border-amber-100 bg-gradient-to-br from-white via-amber-50/75 to-orange-50 shadow-amber-100/60',
+            label: 'text-orange-700',
+            icon: 'text-orange-500',
+            value: 'text-orange-700',
+            hint: 'text-orange-600/80',
         },
     } as const;
     const currencies = getVisibleCurrencies(balances);
     const styles = toneClasses[tone];
 
     return (
-        <article className="group/card relative flex min-h-32 flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm shadow-slate-200/40 transition-all hover:-translate-y-0.5 hover:shadow-md hover:shadow-slate-200/70">
-            <div className={cn('absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r', styles.accent)} />
-            <header className="flex items-center gap-2.5 px-4 pb-3 pt-4">
-                <span className={cn(
-                    'flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ring-1 shadow-sm',
-                    styles.icon
-                )}>
-                    <Icon className="h-4 w-4" />
-                </span>
-                <span className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-700">
+        <article className={cn(
+            'interactive-card metric-hover-card flex min-h-36 flex-col rounded-2xl border p-4 shadow-sm md:p-5',
+            styles.root
+        )}>
+            <header className={cn('flex flex-wrap items-center gap-2 text-sm font-medium', styles.label)}>
+                <Icon className={cn('h-4 w-4', styles.icon)} />
+                <span>
                     {label}
                 </span>
             </header>
-            <div className="flex flex-1 flex-col justify-center border-t border-slate-100 bg-slate-50/35 px-4 py-3">
+            <div className="mt-2 flex flex-1 flex-col justify-center">
                 <div className="space-y-1.5">
                     {currencies.map((currency) => {
                         const rawAmount = balances[currency][field];
-                        const amount = field === 'balance' ? Math.max(0, rawAmount) : rawAmount;
+                        const amount = field === 'balance' ? Math.abs(rawAmount) : rawAmount;
 
                         return (
                             <div key={currency} className="flex flex-wrap items-center gap-2">
-                                <span className={cn('text-lg font-bold tabular-nums', styles.value)}>
+                                <span className={cn('text-xl font-semibold leading-none tabular-nums', styles.value)}>
                                     {formatCurrency(amount, currency)}
                                 </span>
                                 {field === 'balance' && rawAmount < 0 ? (
                                     <span className="rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-700">
                                         {t('patientHistory.balanceStatus.advance')}: {formatCurrency(Math.abs(rawAmount), currency)}
+                                    </span>
+                                ) : field === 'balance' && rawAmount > 0 ? (
+                                    <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700">
+                                        {t('patientHistory.balanceStatus.debt')}
                                     </span>
                                 ) : null}
                             </div>
@@ -220,6 +243,7 @@ function PaymentSummaryCard({
                     })}
                 </div>
             </div>
+            <p className={cn('mt-2 text-xs', styles.hint)}>{hint}</p>
         </article>
     );
 }
@@ -479,10 +503,10 @@ export default function PaymentPatientPage({
         <div className="space-y-5">
             <section
                 data-testid="payment-patient-basic-info"
-                className="grid gap-3 rounded-2xl border border-white/80 bg-white p-4 shadow-sm shadow-slate-200/70 lg:grid-cols-[minmax(18rem,22rem)_minmax(0,1fr)_auto] lg:items-center"
+                className="grid gap-4 rounded-2xl border border-white/80 bg-white px-4 py-3 shadow-sm shadow-slate-200/70 sm:px-5 lg:grid-cols-[minmax(18rem,20rem)_minmax(0,1fr)_auto] lg:items-center"
             >
                 <div className="flex min-w-0 items-center gap-3">
-                    <Button asChild variant="ghost" size="icon" className="h-8 w-8 shrink-0">
+                    <Button asChild variant="ghost" size="icon" className="h-9 w-9 shrink-0 rounded-full">
                         <Link href="/payments" aria-label={t('nav.payments')}>
                             <ArrowLeft className="h-4 w-4" />
                         </Link>
@@ -490,7 +514,7 @@ export default function PaymentPatientPage({
                     <Avatar
                         data-testid="payment-patient-photo"
                         data-photo-src={patientAvatarUrl}
-                        className="h-20 w-20 shrink-0 rounded-xl border border-white bg-slate-100 shadow-sm shadow-slate-200"
+                        className="h-24 w-24 shrink-0 rounded-xl border border-white bg-slate-100 shadow-sm shadow-slate-200"
                     >
                         {patientAvatarUrl ? (
                             <AvatarImage
@@ -508,75 +532,102 @@ export default function PaymentPatientPage({
                         <h1 className="truncate text-lg font-bold leading-tight tracking-[-0.02em] text-slate-950" title={patient.patient_name}>
                             {patient.patient_name}
                         </h1>
-                        <p className="mt-1 text-sm text-slate-500">
-                            {t('payments.patientLedger.subtitle')}
-                        </p>
+                        <span className="mt-2 inline-flex max-w-full rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">
+                            {t('nav.payments')}
+                        </span>
                     </div>
                 </div>
 
-                <div className="grid min-w-0 gap-2 sm:grid-cols-2 xl:grid-cols-4">
-                    <PatientFact
-                        icon={Phone}
-                        label={t('payments.patientLedger.primaryPhone')}
-                        value={patient.patient_phone || '-'}
-                    />
-                    <PatientFact
-                        icon={Phone}
-                        label={t('payments.patientLedger.secondaryPhone')}
-                        value={patient.patient_secondary_phone || '-'}
-                    />
-                    <PatientFact
-                        icon={MapPin}
-                        label={t('payments.patientLedger.address')}
-                        value={patient.patient_address || '-'}
-                    />
-                    <PatientFact
-                        icon={ReceiptText}
-                        label={t('payments.patientLedger.entries')}
-                        value={String(patient.entry_count ?? 0)}
-                    />
+                <div className="grid min-w-0 grid-rows-[1fr_auto_1fr] gap-1.5 overflow-hidden rounded-2xl border border-slate-100 bg-slate-50/60 px-2.5 py-2 shadow-sm shadow-slate-200/40">
+                    <div className="grid min-h-0 min-w-0 items-center gap-1.5 md:grid-cols-3">
+                        <PatientFact
+                            icon={Phone}
+                            label={t('patientDetail.phone')}
+                            value={(
+                                <span className="flex min-w-0 flex-col gap-0.5">
+                                    <span className="truncate tabular-nums">{patient.patient_phone || '-'}</span>
+                                    {patient.patient_secondary_phone ? (
+                                        <span className="truncate tabular-nums">{patient.patient_secondary_phone}</span>
+                                    ) : null}
+                                </span>
+                            )}
+                            title={[patient.patient_phone, patient.patient_secondary_phone].filter(Boolean).join(' / ') || '-'}
+                            tone="teal"
+                        />
+                        <PatientFact
+                            icon={CalendarDays}
+                            label={t('patientDetail.birthDate')}
+                            value={formatLedgerDate(patient.patient_date_of_birth ?? null, locale)}
+                            title={formatLedgerDate(patient.patient_date_of_birth ?? null, locale)}
+                            tone="sky"
+                        />
+                        <PatientFact
+                            icon={MapPin}
+                            label={t('payments.patientLedger.address')}
+                            value={patient.patient_address || '-'}
+                            title={patient.patient_address || '-'}
+                            tone="teal"
+                        />
+                    </div>
+                    <div aria-hidden="true" className="h-px bg-slate-200/70" />
+                    <div className="flex min-h-12 min-w-0 items-center gap-2.5 rounded-xl bg-white/35 px-3 py-2">
+                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-600 shadow-sm ring-1 ring-slate-200/80">
+                            <ReceiptText className="h-4 w-4" />
+                        </span>
+                        <span className="truncate text-sm text-slate-500">
+                            {t('payments.patientLedger.entries')}:{' '}
+                            <strong className="font-semibold tabular-nums text-slate-800">
+                                {patient.entry_count ?? 0}
+                            </strong>
+                        </span>
+                    </div>
                 </div>
 
-                <div className="flex justify-end">
+                <div className="flex justify-end lg:self-start">
                     {currentUserQuery.data?.subscription?.can_export ? (
                         <Button
                             variant="outline"
-                            className="w-full sm:w-auto"
+                            size="icon-lg"
+                            className="rounded-full"
+                            aria-label={t('common.export')}
+                            title={t('common.export')}
                             disabled={isExporting || (patient.entry_count ?? 0) === 0}
                             onClick={handleExport}
                         >
                             {isExporting ? (
-                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                <Loader2 className="h-4 w-4 animate-spin" />
                             ) : (
-                                <Download className="mr-2 h-4 w-4" />
+                                <Download className="h-4 w-4" />
                             )}
-                            {t('common.export')}
                         </Button>
                     ) : null}
                 </div>
             </section>
 
-            <section className="grid gap-3 md:grid-cols-3">
+            <section className="grid gap-4 md:grid-cols-3">
                 <PaymentSummaryCard
                     icon={CircleDollarSign}
-                    label={t('payments.patientLedger.table.price')}
+                    label={t('payments.summary.totalDebt')}
                     balances={balances}
                     field="totalDebt"
-                    tone="slate"
+                    tone="red"
+                    hint={t('payments.summary.totalDebtHint')}
                 />
                 <PaymentSummaryCard
                     icon={BadgeDollarSign}
-                    label={t('payments.patientLedger.table.paid')}
+                    label={t('payments.summary.totalPaid')}
                     balances={balances}
                     field="totalPaid"
                     tone="emerald"
+                    hint={t('payments.summary.totalPaidHint')}
                 />
                 <PaymentSummaryCard
                     icon={Wallet}
-                    label={t('payments.patientLedger.table.debt')}
+                    label={t('payments.summary.netBalance')}
                     balances={balances}
                     field="balance"
-                    tone="rose"
+                    tone="amber"
+                    hint={t('payments.summary.netBalanceHint')}
                 />
             </section>
 

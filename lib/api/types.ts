@@ -352,6 +352,7 @@ export interface ApiPaymentPatientLedgerRow {
     patient_phone?: string | null;
     patient_secondary_phone?: string | null;
     patient_address?: string | null;
+    patient_date_of_birth?: string | null;
     patient_photo_scan_status?: ApiMediaScanStatus | null;
     patient_photo_url?: string | null;
     patient_photo_thumbnail_url?: string | null;
