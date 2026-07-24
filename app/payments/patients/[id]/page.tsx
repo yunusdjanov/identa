@@ -22,6 +22,7 @@ import { AccessDeniedState } from '@/components/error/access-denied-state';
 import { AppErrorState } from '@/components/error/app-error-state';
 import { useI18n } from '@/components/providers/i18n-provider';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { DataTableShell, getDataTableClassName } from '@/components/ui/data-table-shell';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -140,26 +141,25 @@ function PatientFact({
     tone?: 'teal' | 'sky' | 'slate';
 }) {
     const tones = {
-        teal: 'bg-teal-50 text-teal-600 ring-teal-100/80',
-        sky: 'bg-sky-50 text-sky-600 ring-sky-100/80',
-        slate: 'bg-slate-100 text-slate-600 ring-slate-200/80',
+        teal: 'bg-teal-50 text-teal-600 ring-teal-100',
+        sky: 'bg-sky-50 text-sky-600 ring-sky-100',
+        slate: 'bg-slate-100 text-slate-500 ring-slate-200/80',
     } as const;
 
     return (
-        <div className="flex min-h-12 min-w-0 items-center gap-2.5 rounded-xl bg-white/55 px-3 py-2">
+        <div className="flex h-11 min-w-0 items-center gap-2 overflow-hidden rounded-xl border border-white/80 bg-white/75 px-2.5 py-1.5">
             <span className={cn(
-                'flex h-9 w-9 shrink-0 items-center justify-center rounded-xl shadow-sm ring-1',
+                'flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ring-1',
                 tones[tone]
-            )}>
-                <Icon className="h-4 w-4" />
+            )} title={label}>
+                <Icon className="h-3.5 w-3.5" aria-hidden="true" />
+                <span className="sr-only">{label}</span>
             </span>
-            <span className="min-w-0">
-                <span className="block text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-400">
-                    {label}
-                </span>
-                <span className="block truncate text-sm font-semibold text-slate-800" title={title}>
-                    {value}
-                </span>
+            <span
+                className="min-w-0 overflow-hidden truncate text-[12px] font-semibold leading-5 text-slate-900"
+                title={title}
+            >
+                {value}
             </span>
         </div>
     );
@@ -500,45 +500,53 @@ export default function PaymentPatientPage({
     };
 
     return (
-        <div className="space-y-5">
+        <div className="space-y-2.5">
             <section
                 data-testid="payment-patient-basic-info"
-                className="grid gap-4 rounded-2xl border border-white/80 bg-white px-4 py-3 shadow-sm shadow-slate-200/70 sm:px-5 lg:grid-cols-[minmax(18rem,20rem)_minmax(0,1fr)_auto] lg:items-center"
+                className="grid grid-cols-1 gap-2.5 rounded-2xl border border-white/80 bg-white px-4 py-3 shadow-sm shadow-slate-200/70 sm:px-5 lg:grid-cols-[minmax(18rem,20rem)_minmax(0,1fr)] lg:items-center xl:grid-cols-[minmax(18rem,20rem)_minmax(0,1fr)_auto]"
             >
-                <div className="flex min-w-0 items-center gap-3">
-                    <Button asChild variant="ghost" size="icon" className="h-9 w-9 shrink-0 rounded-full">
+                <div
+                    data-testid="payment-patient-header-identity"
+                    className="flex w-full min-w-0 max-w-[20rem] items-center gap-3"
+                >
+                    <Button asChild variant="ghost" size="icon" className="h-8 w-8 shrink-0">
                         <Link href="/payments" aria-label={t('nav.payments')}>
                             <ArrowLeft className="h-4 w-4" />
                         </Link>
                     </Button>
-                    <Avatar
-                        data-testid="payment-patient-photo"
-                        data-photo-src={patientAvatarUrl}
-                        className="h-24 w-24 shrink-0 rounded-xl border border-white bg-slate-100 shadow-sm shadow-slate-200"
-                    >
-                        {patientAvatarUrl ? (
-                            <AvatarImage
-                                src={patientAvatarUrl}
-                                alt={patient.patient_name}
-                                className="rounded-xl object-cover"
-                                crossOrigin={getProtectedMediaCrossOrigin(patientAvatarUrl)}
-                            />
-                        ) : null}
-                        <AvatarFallback className="rounded-xl bg-slate-100 text-base font-semibold text-slate-700">
-                            {getPatientInitials(patient.patient_name)}
-                        </AvatarFallback>
-                    </Avatar>
-                    <div className="min-w-0">
+                    <div className="relative h-20 w-24 shrink-0 overflow-visible">
+                        <Avatar
+                            data-testid="payment-patient-photo"
+                            data-photo-src={patientAvatarUrl}
+                            className="absolute left-0 top-1/2 h-24 w-24 -translate-y-1/2 rounded-xl border border-white bg-slate-100 shadow-sm shadow-slate-200"
+                        >
+                            {patientAvatarUrl ? (
+                                <AvatarImage
+                                    src={patientAvatarUrl}
+                                    alt={patient.patient_name}
+                                    className="rounded-xl object-cover"
+                                    crossOrigin={getProtectedMediaCrossOrigin(patientAvatarUrl)}
+                                />
+                            ) : null}
+                            <AvatarFallback className="rounded-xl bg-slate-100 text-base font-semibold text-slate-700">
+                                {getPatientInitials(patient.patient_name)}
+                            </AvatarFallback>
+                        </Avatar>
+                    </div>
+                    <div className="min-w-0 flex-1">
                         <h1 className="truncate text-lg font-bold leading-tight tracking-[-0.02em] text-slate-950" title={patient.patient_name}>
                             {patient.patient_name}
                         </h1>
-                        <span className="mt-2 inline-flex max-w-full rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">
+                        <Badge variant="secondary" className="mt-2 max-w-full truncate bg-slate-100 text-xs text-slate-600">
                             {t('nav.payments')}
-                        </span>
+                        </Badge>
                     </div>
                 </div>
 
-                <div className="grid min-w-0 grid-rows-[1fr_auto_1fr] gap-1.5 overflow-hidden rounded-2xl border border-slate-100 bg-slate-50/60 px-2.5 py-2 shadow-sm shadow-slate-200/40">
+                <div
+                    data-testid="payment-patient-header-facts"
+                    className="grid h-[8rem] min-w-0 grid-rows-[1fr_auto_1fr] gap-1.5 overflow-hidden rounded-2xl border border-slate-100 bg-slate-50/60 px-2.5 py-2 shadow-sm shadow-slate-200/40 lg:col-span-2 lg:row-start-2 xl:col-span-1 xl:col-start-2 xl:row-start-1"
+                >
                     <div className="grid min-h-0 min-w-0 items-center gap-1.5 md:grid-cols-3">
                         <PatientFact
                             icon={Phone}
@@ -570,11 +578,11 @@ export default function PaymentPatientPage({
                         />
                     </div>
                     <div aria-hidden="true" className="h-px bg-slate-200/70" />
-                    <div className="flex min-h-12 min-w-0 items-center gap-2.5 rounded-xl bg-white/35 px-3 py-2">
-                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-600 shadow-sm ring-1 ring-slate-200/80">
-                            <ReceiptText className="h-4 w-4" />
+                    <div className="flex h-10 min-w-0 items-center gap-2 overflow-hidden rounded-xl border border-white/80 bg-white/70 px-2.5 py-1.5 text-slate-500 md:col-span-3">
+                        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-500 ring-1 ring-slate-200/80">
+                            <ReceiptText className="h-3.5 w-3.5" aria-hidden="true" />
                         </span>
-                        <span className="truncate text-sm text-slate-500">
+                        <span className="min-w-0 truncate text-[12px] font-semibold leading-5">
                             {t('payments.patientLedger.entries')}:{' '}
                             <strong className="font-semibold tabular-nums text-slate-800">
                                 {patient.entry_count ?? 0}
@@ -583,7 +591,10 @@ export default function PaymentPatientPage({
                     </div>
                 </div>
 
-                <div className="flex justify-end lg:self-start">
+                <div
+                    data-testid="payment-patient-header-actions"
+                    className="flex flex-col items-end gap-2 lg:col-start-2 lg:row-start-1 lg:justify-end xl:col-start-3"
+                >
                     {currentUserQuery.data?.subscription?.can_export ? (
                         <Button
                             variant="outline"

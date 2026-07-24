@@ -160,6 +160,10 @@ describe('PaymentPatientPage', () => {
         expect(within(basicInfo).getByText('+998 91 765 43 21')).toBeInTheDocument();
         expect(within(basicInfo).getByText('Apr 15, 1992')).toBeInTheDocument();
         expect(within(basicInfo).getByText('12 Amir Temur Avenue, Tashkent')).toBeInTheDocument();
+        expect(basicInfo).toHaveClass('gap-2.5');
+        expect(screen.getByTestId('payment-patient-header-identity')).toHaveClass('max-w-[20rem]');
+        expect(screen.getByTestId('payment-patient-header-facts')).toHaveClass('h-[8rem]');
+        expect(within(basicInfo).getByTestId('payment-patient-photo')).toHaveClass('h-24', 'w-24');
 
         const table = screen.getByRole('table');
         expect(within(table).getByRole('columnheader', { name: 'Date' })).toBeInTheDocument();
