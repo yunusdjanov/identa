@@ -274,6 +274,7 @@ export default function AnalyticsPage() {
                 showStatusChart={showStatusChart}
                 showGrowthChart={showGrowthChart}
                 showDebtorsCard={showDebtorsCard}
+                showCurrencySelector={canViewPayments}
             />
         );
     }

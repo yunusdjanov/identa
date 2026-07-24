@@ -41,15 +41,15 @@ function CategoriesLoadingSkeleton() {
             {Array.from({ length: 6 }).map((_, index) => (
                 <div
                     key={`category-skeleton-${index}`}
-                    className="flex items-center justify-between rounded-lg border border-slate-200 p-3"
+                    className="flex min-w-0 items-center justify-between gap-3 rounded-lg border border-slate-200 p-3"
                 >
-                    <div className="flex items-center gap-3">
+                    <div className="flex min-w-0 flex-1 items-center gap-3">
                         <Skeleton className="h-3 w-3 rounded-full" />
-                        <Skeleton className="h-4 w-36" />
+                        <Skeleton className="h-4 w-36 max-w-full rounded-xl" />
                     </div>
-                    <div className="flex items-center gap-2">
-                        <Skeleton className="h-8 w-14" />
-                        <Skeleton className="h-8 w-16" />
+                    <div className="flex shrink-0 items-center gap-2">
+                        <Skeleton className="h-8 w-10 rounded-lg sm:w-14" />
+                        <Skeleton className="h-8 w-10 rounded-lg sm:w-16" />
                     </div>
                 </div>
             ))}

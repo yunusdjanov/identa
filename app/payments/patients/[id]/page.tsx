@@ -13,13 +13,13 @@ import { toast } from 'sonner';
 
 import { AccessDeniedState } from '@/components/error/access-denied-state';
 import { AppErrorState } from '@/components/error/app-error-state';
+import { PaymentPatientLoadingState } from '@/components/layout/page-loading-skeletons';
 import { PatientDetailHeader } from '@/components/patients/patient-detail-header';
 import { useI18n } from '@/components/providers/i18n-provider';
 import { Button } from '@/components/ui/button';
 import { DataTableShell, getDataTableClassName } from '@/components/ui/data-table-shell';
 import { EmptyState } from '@/components/ui/empty-state';
 import { SectionPanel } from '@/components/ui/page-shell';
-import { Skeleton } from '@/components/ui/skeleton';
 import {
     Table,
     TableBody,
@@ -235,21 +235,6 @@ function PaymentSummaryCard({
             </div>
             <span className="sr-only">{hint}</span>
         </article>
-    );
-}
-
-function PaymentPatientLoadingState() {
-    return (
-        <div className="space-y-5" aria-label="Loading">
-            <Skeleton className="h-24 w-full rounded-2xl" />
-            <Skeleton className="h-28 w-full rounded-2xl" />
-            <div className="grid gap-3 md:grid-cols-3">
-                {Array.from({ length: 3 }).map((_, index) => (
-                    <Skeleton key={index} className="h-12 rounded-xl" />
-                ))}
-            </div>
-            <Skeleton className="h-80 w-full rounded-2xl" />
-        </div>
     );
 }
 

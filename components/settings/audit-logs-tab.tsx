@@ -198,20 +198,20 @@ function AuditLogsLoadingSkeleton() {
     return (
         <div className="space-y-3">
             {Array.from({ length: 6 }).map((_, index) => (
-                <div key={`audit-log-skeleton-${index}`} className="rounded-lg border border-slate-200 p-4 space-y-2">
-                    <div className="flex items-center justify-between gap-3">
-                        <Skeleton className="h-4 w-44" />
-                        <Skeleton className="h-3 w-28" />
+                <div key={`audit-log-skeleton-${index}`} className="space-y-2 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs">
+                    <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                        <Skeleton className="h-4 w-44 max-w-full rounded-xl" />
+                        <Skeleton className="h-3 w-28 rounded-xl" />
                     </div>
-                    <Skeleton className="h-3 w-60" />
-                    <Skeleton className="h-3 w-72" />
-                    <Skeleton className="h-3 w-64" />
+                    <Skeleton className="h-3 w-60 max-w-full rounded-xl" />
+                    <Skeleton className="h-3 w-72 max-w-full rounded-xl" />
+                    <Skeleton className="h-3 w-64 max-w-full rounded-xl" />
                 </div>
             ))}
-            <div className="flex items-center justify-end gap-2 pt-2">
-                <Skeleton className="h-8 w-20" />
-                <Skeleton className="h-4 w-24" />
-                <Skeleton className="h-8 w-16" />
+            <div className="flex flex-wrap items-center justify-end gap-2 pt-2">
+                <Skeleton className="h-8 w-20 rounded-lg" />
+                <Skeleton className="h-7 w-28 rounded-xl" />
+                <Skeleton className="h-8 w-16 rounded-lg" />
             </div>
         </div>
     );

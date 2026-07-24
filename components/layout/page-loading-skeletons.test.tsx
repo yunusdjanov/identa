@@ -8,11 +8,18 @@ import {
     AdminPlansLoadingState,
     AdminSettingsLoadingState,
     AnalyticsLoadingState,
+    AppointmentsLoadingState,
     AuthFormLoadingState,
+    BillingLoadingState,
+    OdontogramLoadingState,
     PatientDetailLoadingState,
+    PatientHistoryLoadingState,
     PatientsLoadingState,
+    PaymentPatientLoadingState,
     PaymentsLoadingState,
     RouteDashboardLoadingState,
+    SettingsLoadingState,
+    StaffLoadingState,
 } from '@/components/layout/page-loading-skeletons';
 
 // Each admin skeleton wraps in AdminShellSkeleton which carries
@@ -31,6 +38,15 @@ describe('page loading skeletons', () => {
             expect(screen.getByTestId('dashboard-loading')).toBeInTheDocument();
             expect(screen.getByTestId('dashboard-planner-skeleton')).toBeInTheDocument();
             expect(screen.getAllByTestId('dashboard-week-day-skeleton')).toHaveLength(11);
+        });
+
+        it('keeps appointment columns aligned with the xl desktop breakpoint', () => {
+            render(<AppointmentsLoadingState />);
+
+            const days = screen.getAllByTestId('appointments-week-day-skeleton');
+            expect(days).toHaveLength(11);
+            expect(days[0].parentElement).toHaveClass('hidden', 'xl:grid', 'xl:grid-cols-7');
+            expect(days[7].parentElement).toHaveClass('md:grid-cols-2', 'lg:grid-cols-4', 'xl:hidden');
         });
 
         it('renders patients loading with filters inside the list card', () => {
@@ -63,6 +79,10 @@ describe('page loading skeletons', () => {
             expect(screen.getByTestId('payments-loading')).toBeInTheDocument();
             expect(screen.getByTestId('expenses-table-skeleton')).toBeInTheDocument();
             expect(screen.getByTestId('payments-expenses-form-skeleton')).toBeInTheDocument();
+            expect(screen.getByTestId('payments-expenses-form-skeleton')).toHaveClass(
+                'md:grid-cols-2',
+                'xl:grid-cols-[minmax(0,1fr)_11rem_8rem_8rem_11rem_auto]',
+            );
             expect(screen.queryByTestId('payments-outstanding-filter-skeleton')).not.toBeInTheDocument();
             expect(screen.getByTestId('payments-ledger-header-skeleton').children).toHaveLength(5);
             expect(screen.getAllByTestId('payments-ledger-row-skeleton')[0].children).toHaveLength(5);
@@ -76,6 +96,7 @@ describe('page loading skeletons', () => {
                     showStatusChart
                     showGrowthChart
                     showDebtorsCard={false}
+                    showCurrencySelector={false}
                 />
             );
 
@@ -84,6 +105,40 @@ describe('page loading skeletons', () => {
             expect(screen.getByTestId('analytics-status-chart-skeleton')).toBeInTheDocument();
             expect(screen.getByTestId('analytics-growth-chart-skeleton')).toBeInTheDocument();
             expect(screen.queryByTestId('analytics-debtors-card-skeleton')).not.toBeInTheDocument();
+            expect(screen.queryByTestId('analytics-currency-skeleton')).not.toBeInTheDocument();
+            expect(screen.getByTestId('analytics-range-skeleton')).toHaveClass('overflow-x-auto');
+        });
+
+        it('matches settings, billing, staff, history, and odontogram responsive shells', () => {
+            const { unmount } = render(<SettingsLoadingState />);
+            expect(screen.getByTestId('settings-tabs-skeleton').children).toHaveLength(5);
+            unmount();
+
+            render(<BillingLoadingState />);
+            expect(screen.getByTestId('billing-current-plan-skeleton')).toBeInTheDocument();
+            expect(screen.getByTestId('billing-period-skeleton').children).toHaveLength(2);
+            expect(screen.getByTestId('billing-history-skeleton')).toBeInTheDocument();
+            cleanup();
+
+            render(<StaffLoadingState />);
+            expect(screen.getByTestId('staff-tabs-skeleton')).toHaveClass('overflow-x-auto');
+            cleanup();
+
+            render(<PatientHistoryLoadingState />);
+            expect(screen.getByTestId('patient-history-panel-skeleton')).toBeInTheDocument();
+            cleanup();
+
+            render(<OdontogramLoadingState />);
+            expect(screen.getByTestId('odontogram-upper-jaw-skeleton')).toHaveClass('overflow-x-auto');
+            expect(screen.getByTestId('odontogram-lower-jaw-skeleton')).toHaveClass('overflow-x-auto');
+        });
+
+        it('uses the real patient header and ledger shape for finance patient loading', () => {
+            render(<PaymentPatientLoadingState />);
+
+            expect(screen.getByTestId('payment-patient-loading')).toHaveClass('space-y-2');
+            expect(screen.getByTestId('payment-patient-summary-skeleton')).toHaveClass('md:grid-cols-3');
+            expect(screen.getByTestId('payment-patient-table-skeleton')).toHaveClass('overflow-x-auto');
         });
 
         it('renders the patient detail oral photo panel skeleton', () => {
@@ -143,6 +198,8 @@ describe('page loading skeletons', () => {
             render(<AdminDashboardLoadingState />);
 
             expect(screen.getByTestId('admin-shell-loading')).toBeInTheDocument();
+            expect(screen.getByTestId('admin-header-skeleton')).toHaveClass('fixed', 'z-50');
+            expect(screen.getByTestId('admin-header-spacer-skeleton')).toHaveClass('h-[7.5rem]', 'md:h-16');
             // 3 stat cards (Total dentists, Active, Blocked)
             expect(screen.getAllByTestId('metric-card-skeleton')).toHaveLength(3);
             // Column count for the table body is enforced statically in the
@@ -188,6 +245,7 @@ describe('page loading skeletons', () => {
             render(<AdminDentistBillingLoadingState />);
 
             expect(screen.getByTestId('admin-shell-loading')).toBeInTheDocument();
+            expect(screen.getByTestId('admin-billing-danger-zone-skeleton')).toBeInTheDocument();
         });
     });
 });

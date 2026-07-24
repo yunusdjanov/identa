@@ -121,29 +121,34 @@ function TeamAccessLoadingSkeleton() {
             {Array.from({ length: 4 }).map((_, index) => (
                 <div
                     key={`assistant-skeleton-${index}`}
-                    className="rounded-lg border border-slate-200 p-4 space-y-3"
+                    className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs sm:p-5"
                 >
-                    <div className="flex items-start justify-between gap-3">
-                        <div className="space-y-2">
-                            <Skeleton className="h-5 w-40" />
-                            <Skeleton className="h-4 w-56" />
-                            <Skeleton className="h-3 w-44" />
+                    <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                        <div className="flex min-w-0 gap-3">
+                            <Skeleton className="h-11 w-11 shrink-0 rounded-2xl" />
+                            <div className="min-w-0 space-y-2">
+                                <Skeleton className="h-5 w-40 max-w-full rounded-xl" />
+                                <Skeleton className="h-4 w-56 max-w-full rounded-xl" />
+                                <Skeleton className="h-3 w-44 max-w-full rounded-xl" />
+                            </div>
                         </div>
                         <Skeleton className="h-6 w-20 rounded-full" />
                     </div>
-                    <Skeleton className="h-3 w-28" />
-                    <div className="flex flex-wrap gap-2">
-                        <Skeleton className="h-8 w-16" />
-                        <Skeleton className="h-8 w-20" />
-                        <Skeleton className="h-8 w-28" />
-                        <Skeleton className="h-8 w-16" />
+                    <div className="mt-4 flex flex-col gap-3 border-t border-slate-100 pt-3 sm:flex-row sm:items-center sm:justify-between">
+                        <Skeleton className="h-4 w-36 rounded-xl" />
+                        <div className="flex flex-wrap gap-2">
+                            <Skeleton className="h-8 w-16 rounded-lg" />
+                            <Skeleton className="h-8 w-20 rounded-lg" />
+                            <Skeleton className="h-8 w-28 rounded-lg" />
+                            <Skeleton className="h-8 w-16 rounded-lg" />
+                        </div>
                     </div>
                 </div>
             ))}
-            <div className="flex items-center justify-end gap-2 pt-2">
-                <Skeleton className="h-8 w-20" />
-                <Skeleton className="h-4 w-24" />
-                <Skeleton className="h-8 w-16" />
+            <div className="flex flex-wrap items-center justify-end gap-2 pt-2">
+                <Skeleton className="h-8 w-20 rounded-lg" />
+                <Skeleton className="h-7 w-28 rounded-xl" />
+                <Skeleton className="h-8 w-16 rounded-lg" />
             </div>
         </div>
     );
