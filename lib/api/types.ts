@@ -351,6 +351,13 @@ export interface ApiPaymentPatientLedgerRow {
     patient_name: string;
     patient_phone?: string | null;
     patient_secondary_phone?: string | null;
+    patient_address?: string | null;
+    patient_photo_scan_status?: ApiMediaScanStatus | null;
+    patient_photo_url?: string | null;
+    patient_photo_thumbnail_url?: string | null;
+    patient_photo_preview_url?: string | null;
+    patient_photo_thumbnail_ready?: boolean;
+    patient_photo_preview_ready?: boolean;
     total_debt: number;
     total_paid: number;
     balance: number;

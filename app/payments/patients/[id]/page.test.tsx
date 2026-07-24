@@ -1,5 +1,5 @@
 import { Suspense } from 'react';
-import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -10,6 +10,7 @@ import {
     listPaymentLedgerHistory,
     listPaymentLedgerPatients,
 } from '@/lib/api/dentist';
+import { exportPatientReportToPdf } from '@/lib/export/pdf';
 import { DICTIONARIES } from '@/lib/i18n/dictionaries';
 
 vi.mock('@/lib/api/dentist', () => ({
@@ -18,12 +19,22 @@ vi.mock('@/lib/api/dentist', () => ({
     listPaymentLedgerPatients: vi.fn(),
 }));
 
+vi.mock('@/lib/export/pdf', () => ({
+    buildPdfFilename: vi.fn((prefix: string) => `${prefix}.pdf`),
+    exportPatientReportToPdf: vi.fn(),
+}));
+
+vi.mock('sonner', () => ({ toast: { error: vi.fn(), success: vi.fn() } }));
+
 const dentist = {
     id: '1',
     name: 'Demo Dentist',
     email: 'dentist@identa.test',
     role: 'dentist' as const,
     account_status: 'active' as const,
+    subscription: {
+        can_export: true,
+    },
 };
 
 const paymentsAssistant = {
@@ -47,6 +58,13 @@ const patientResponse = {
         patient_name: 'John Smith',
         patient_phone: '+998 90 123 45 67',
         patient_secondary_phone: '+998 91 765 43 21',
+        patient_address: '12 Amir Temur Avenue, Tashkent',
+        patient_photo_scan_status: 'approved',
+        patient_photo_url: 'https://api.identa.test/api/v1/patients/p-1/photo',
+        patient_photo_thumbnail_url: 'https://api.identa.test/api/v1/patients/p-1/photo?variant=thumbnail',
+        patient_photo_preview_url: 'https://api.identa.test/api/v1/patients/p-1/photo?variant=preview',
+        patient_photo_thumbnail_ready: true,
+        patient_photo_preview_ready: true,
         total_debt: 1_000_000,
         total_paid: 400_000,
         balance: 600_000,
@@ -116,6 +134,7 @@ describe('PaymentPatientPage', () => {
         vi.mocked(getCurrentUser).mockReset();
         vi.mocked(listPaymentLedgerPatients).mockReset();
         vi.mocked(listPaymentLedgerHistory).mockReset();
+        vi.mocked(exportPatientReportToPdf).mockReset();
         vi.mocked(listPaymentLedgerPatients).mockResolvedValue(patientResponse as never);
         vi.mocked(listPaymentLedgerHistory).mockResolvedValue(historyResponse as never);
     });
@@ -131,9 +150,14 @@ describe('PaymentPatientPage', () => {
 
         expect(await screen.findByRole('heading', { name: 'John Smith' })).toBeInTheDocument();
         const basicInfo = screen.getByTestId('payment-patient-basic-info');
-        expect(within(basicInfo).getByText('PT-0001')).toBeInTheDocument();
+        expect(within(basicInfo).queryByText('PT-0001')).not.toBeInTheDocument();
+        expect(within(basicInfo).getByTestId('payment-patient-photo')).toHaveAttribute(
+            'data-photo-src',
+            'https://api.identa.test/api/v1/patients/p-1/photo?variant=thumbnail'
+        );
         expect(within(basicInfo).getByText('+998 90 123 45 67')).toBeInTheDocument();
         expect(within(basicInfo).getByText('+998 91 765 43 21')).toBeInTheDocument();
+        expect(within(basicInfo).getByText('12 Amir Temur Avenue, Tashkent')).toBeInTheDocument();
 
         const table = screen.getByRole('table');
         expect(within(table).getByRole('columnheader', { name: 'Date' })).toBeInTheDocument();
@@ -154,6 +178,35 @@ describe('PaymentPatientPage', () => {
                 filter: { patient_id: 'p-1' },
             }));
         });
+    });
+
+    it('exports the complete patient payment ledger with profile and summary data', async () => {
+        vi.mocked(getCurrentUser).mockResolvedValue(dentist as never);
+
+        await renderPage();
+
+        fireEvent.click(await screen.findByRole('button', { name: 'Download PDF' }));
+
+        await waitFor(() => {
+            expect(exportPatientReportToPdf).toHaveBeenCalledTimes(1);
+        });
+        expect(listPaymentLedgerHistory).toHaveBeenCalledWith({
+            page: 1,
+            perPage: 100,
+            filter: { patient_id: 'p-1' },
+        });
+        expect(vi.mocked(exportPatientReportToPdf).mock.calls[0]?.[0]).toMatchObject({
+            filename: 'patient-payments.pdf',
+            title: 'Patient payments',
+            patientName: 'John Smith',
+            patientMeta: [
+                '+998 90 123 45 67',
+                '+998 91 765 43 21',
+                '12 Amir Temur Avenue, Tashkent',
+            ],
+            orientation: 'landscape',
+        });
+        expect(vi.mocked(exportPatientReportToPdf).mock.calls[0]?.[0].sections[0]?.table?.rows).toHaveLength(2);
     });
 
     it('allows a payments-only assistant without patient-history permission', async () => {

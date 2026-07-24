@@ -6,6 +6,7 @@ use App\Models\Patient;
 use App\Models\Treatment;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class PaymentLedgerApiTest extends TestCase
@@ -150,6 +151,44 @@ class PaymentLedgerApiTest extends TestCase
             ->firstWhere('patient_id', (string) $usdPatient->id);
         $this->assertNotNull($usdHistoryRow);
         $this->assertSame(Treatment::CURRENCY_USD, $usdHistoryRow['currency']);
+    }
+
+    public function test_payment_ledger_exposes_patient_address_and_approved_profile_photo(): void
+    {
+        Storage::fake('local');
+        [$dentist, $patient] = $this->seedLedgerRecords();
+        $photoPath = sprintf('patients/%s/avatar.jpg', $patient->id);
+        Storage::disk('local')->put($photoPath, 'approved-profile-photo');
+        $patient->update([
+            'address' => '12 Amir Temur Avenue, Tashkent',
+            'photo_disk' => 'local',
+            'photo_path' => $photoPath,
+            'scan_status' => 'approved',
+            'approved_at' => now(),
+        ]);
+
+        $this->actingAs($dentist, 'web')
+            ->getJson('/api/v1/payments/ledger/patients?filter[patient_id]='.urlencode((string) $patient->id))
+            ->assertOk()
+            ->assertJsonPath('data.0.patient_address', '12 Amir Temur Avenue, Tashkent')
+            ->assertJsonPath('data.0.patient_photo_scan_status', 'approved')
+            ->assertJsonPath(
+                'data.0.patient_photo_thumbnail_url',
+                fn ($value): bool => is_string($value)
+                    && str_contains($value, "/api/v1/patients/{$patient->id}/photo")
+                    && str_contains($value, 'variant=thumbnail')
+            );
+
+        $paymentsAssistant = User::factory()->create([
+            'role' => 'assistant',
+            'dentist_owner_id' => $dentist->id,
+            'assistant_permissions' => [User::PERMISSION_PAYMENTS_VIEW],
+        ]);
+
+        $photoResponse = $this->actingAs($paymentsAssistant, 'web')
+            ->get("/api/v1/patients/{$patient->id}/photo");
+        $photoResponse->assertOk();
+        $this->assertSame('approved-profile-photo', $photoResponse->streamedContent());
     }
 
     public function test_payment_ledger_requires_payments_view_permission(): void

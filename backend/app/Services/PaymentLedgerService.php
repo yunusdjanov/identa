@@ -103,6 +103,12 @@ class PaymentLedgerService
                 'patients.full_name',
                 'patients.phone',
                 'patients.secondary_phone',
+                'patients.address',
+                'patients.photo_disk',
+                'patients.photo_path',
+                'patients.scan_status',
+                'patients.quarantine_path',
+                'patients.updated_at',
             ])
             ->selectRaw('COALESCE(SUM(CASE WHEN COALESCE(treatments.currency, ?) = ? THEN treatments.debt_amount ELSE 0 END), 0) AS total_debt', [
                 Treatment::CURRENCY_UZS,
@@ -154,6 +160,12 @@ class PaymentLedgerService
                 'patients.full_name',
                 'patients.phone',
                 'patients.secondary_phone',
+                'patients.address',
+                'patients.photo_disk',
+                'patients.photo_path',
+                'patients.scan_status',
+                'patients.quarantine_path',
+                'patients.updated_at',
             ]);
 
         $this->applyPatientFilters($query, $request);

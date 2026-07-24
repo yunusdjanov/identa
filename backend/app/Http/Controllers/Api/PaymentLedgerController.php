@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Patient;
 use App\Models\Treatment;
 use App\Models\User;
+use App\Services\PatientPhotoService;
 use App\Services\PaymentLedgerService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -14,6 +15,7 @@ class PaymentLedgerController extends Controller
 {
     public function __construct(
         private readonly PaymentLedgerService $ledger,
+        private readonly PatientPhotoService $photos,
     ) {}
 
     /**
@@ -27,11 +29,16 @@ class PaymentLedgerController extends Controller
     {
         $result = $this->ledger->listPatientBalances($request);
         $rows = $result['rows'];
+        $includePatientProfile = $request->filled('filter.patient_id');
 
         return response()->json([
             'data' => $rows
                 ->getCollection()
-                ->map(fn (Patient $patient): array => $this->patientRow($patient))
+                ->map(fn (Patient $patient): array => $this->patientRow(
+                    $patient,
+                    $request,
+                    $includePatientProfile
+                ))
                 ->values()
                 ->all(),
             'meta' => [
@@ -79,14 +86,48 @@ class PaymentLedgerController extends Controller
     /**
      * @return array<string, mixed>
      */
-    private function patientRow(Patient $patient): array
+    private function patientRow(Patient $patient, Request $request, bool $includePatientProfile): array
     {
-        return [
+        $payload = [
             'patient_id' => (string) $patient->id,
             'patient_code' => $patient->getAttribute('patient_code'),
             'patient_name' => $patient->full_name,
             'patient_phone' => $patient->phone,
             'patient_secondary_phone' => $patient->secondary_phone,
+        ];
+
+        if ($includePatientProfile) {
+            $photoDisk = is_string($patient->photo_disk) && $patient->photo_disk !== ''
+                ? $patient->photo_disk
+                : $this->photos->disk();
+            $payload += [
+                'patient_address' => $patient->address,
+                'patient_photo_scan_status' => $this->photos->displayScanStatus($patient),
+                'patient_photo_url' => $this->photos->url($patient, $request),
+                'patient_photo_thumbnail_url' => $this->photos->url(
+                    $patient,
+                    $request,
+                    PatientPhotoService::IMAGE_VARIANT_THUMBNAIL
+                ),
+                'patient_photo_preview_url' => $this->photos->url(
+                    $patient,
+                    $request,
+                    PatientPhotoService::IMAGE_VARIANT_PREVIEW
+                ),
+                'patient_photo_thumbnail_ready' => $this->photos->variantReady(
+                    $photoDisk,
+                    $patient,
+                    PatientPhotoService::IMAGE_VARIANT_THUMBNAIL
+                ),
+                'patient_photo_preview_ready' => $this->photos->variantReady(
+                    $photoDisk,
+                    $patient,
+                    PatientPhotoService::IMAGE_VARIANT_PREVIEW
+                ),
+            ];
+        }
+
+        return $payload + [
             'total_debt' => (float) $patient->getAttribute('total_debt_uzs'),
             'total_paid' => (float) $patient->getAttribute('total_paid_uzs'),
             'balance' => (float) $patient->getAttribute('balance_uzs'),

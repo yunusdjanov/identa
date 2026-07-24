@@ -226,7 +226,7 @@ Route::prefix('v1')->group(function (): void {
         Route::get('patients/{id}/overview', [PatientController::class, 'overview'])
             ->middleware('permission:'.User::PERMISSION_PATIENTS_VIEW);
         Route::get('patients/{id}/photo', [PatientController::class, 'downloadPhoto'])
-            ->middleware('permission:'.User::PERMISSION_PATIENTS_VIEW);
+            ->middleware('permission:'.User::PERMISSION_PATIENTS_VIEW.'|'.User::PERMISSION_PAYMENTS_VIEW);
         Route::post('patients/{id}/photo/direct-upload', [PatientController::class, 'preparePhotoUpload'])
             ->middleware(['permission:'.User::PERMISSION_PATIENTS_MANAGE, MEDIA_UPLOAD_THROTTLE]);
         Route::post('patients/{id}/photo/direct-upload/{uploadId}/complete', [PatientController::class, 'finalizePhotoUpload'])
