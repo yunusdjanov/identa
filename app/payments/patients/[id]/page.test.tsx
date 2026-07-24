@@ -219,10 +219,10 @@ describe('PaymentPatientPage', () => {
         const workSummary = within(summaryGrid).getByTestId('payment-summary-totalDebt');
         const paidSummary = within(summaryGrid).getByTestId('payment-summary-totalPaid');
         const balanceSummary = within(summaryGrid).getByTestId('payment-summary-balance');
-        expect(summaryGrid).toHaveClass('gap-2.5');
-        expect(workSummary).toHaveClass('min-h-[6rem]', 'rounded-xl', 'p-3');
-        expect(paidSummary).toHaveClass('min-h-[6rem]', 'rounded-xl', 'p-3');
-        expect(balanceSummary).toHaveClass('min-h-[6rem]', 'rounded-xl', 'p-3');
+        expect(summaryGrid).toHaveClass('gap-2');
+        expect(workSummary).toHaveClass('min-h-12', 'rounded-lg', 'px-2', 'py-1.5');
+        expect(paidSummary).toHaveClass('min-h-12', 'rounded-lg', 'px-2', 'py-1.5');
+        expect(balanceSummary).toHaveClass('min-h-12', 'rounded-lg', 'px-2', 'py-1.5');
         expect(within(workSummary).getByTestId('payment-summary-totalDebt-icon').querySelector('svg'))
             .toHaveClass('lucide-clipboard-list');
         expect(within(paidSummary).getByTestId('payment-summary-totalPaid-icon').querySelector('svg'))

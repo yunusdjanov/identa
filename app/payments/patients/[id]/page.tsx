@@ -132,21 +132,18 @@ function PaymentSummaryCard({
             label: 'text-slate-700',
             iconBox: 'bg-red-50/90 text-red-500 ring-red-100',
             value: 'text-red-700',
-            hint: 'text-slate-500',
         },
         emerald: {
             root: 'metric-hover-emerald border-emerald-100 bg-gradient-to-br from-white via-emerald-50/70 to-teal-50 shadow-emerald-100/60',
             label: 'text-slate-700',
             iconBox: 'bg-emerald-50/90 text-emerald-600 ring-emerald-100',
             value: 'text-emerald-700',
-            hint: 'text-slate-500',
         },
         amber: {
             root: 'metric-hover-amber border-amber-100 bg-gradient-to-br from-white via-amber-50/75 to-orange-50 shadow-amber-100/60',
             label: 'text-orange-700',
             iconBox: 'bg-amber-50/90 text-orange-500 ring-amber-100',
             value: 'text-orange-700',
-            hint: 'text-orange-600/80',
         },
     } as const;
     const currencies = getVisibleCurrencies(balances);
@@ -155,41 +152,42 @@ function PaymentSummaryCard({
     return (
         <article
             data-testid={`payment-summary-${field}`}
+            title={hint}
             className={cn(
-                'interactive-card metric-hover-card min-h-[6rem] rounded-xl border p-3 shadow-sm',
+                'interactive-card metric-hover-card min-h-12 rounded-lg border px-2 py-1.5 shadow-sm',
                 styles.root
             )}
         >
-            <div className="flex min-w-0 items-start gap-2.5">
+            <div className="flex min-w-0 items-center gap-2">
                 <span
                     data-testid={`payment-summary-${field}-icon`}
                     className={cn(
-                        'flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ring-1',
+                        'flex h-7 w-7 shrink-0 items-center justify-center rounded-md ring-1',
                         styles.iconBox
                     )}
                 >
-                    <Icon className="h-4 w-4" aria-hidden="true" />
+                    <Icon className="h-3.5 w-3.5" aria-hidden="true" />
                 </span>
-                <div className="min-w-0 flex-1">
-                    <header className={cn('truncate text-xs font-semibold leading-4', styles.label)}>
+                <div className="flex min-w-0 flex-1 items-center justify-between gap-2">
+                    <header className={cn('shrink-0 truncate text-[11px] font-semibold leading-3.5', styles.label)}>
                         {label}
                     </header>
-                    <div className="mt-1 space-y-1">
+                    <div className="flex min-w-0 flex-wrap items-center justify-end gap-x-1.5 gap-y-0.5">
                         {currencies.map((currency) => {
                             const rawAmount = balances[currency][field];
                             const amount = field === 'balance' ? Math.abs(rawAmount) : rawAmount;
 
                             return (
-                                <div key={currency} className="flex min-w-0 flex-wrap items-center gap-1.5">
-                                    <span className={cn('text-base font-semibold leading-5 tabular-nums', styles.value)}>
+                                <div key={currency} className="flex min-w-0 items-center gap-1">
+                                    <span className={cn('whitespace-nowrap text-sm font-semibold leading-4 tabular-nums', styles.value)}>
                                         {formatCurrency(amount, currency)}
                                     </span>
                                     {field === 'balance' && rawAmount < 0 ? (
-                                        <span className="rounded-full border border-blue-200 bg-blue-50 px-1.5 py-px text-[9px] font-semibold leading-3 text-blue-700">
+                                        <span className="rounded-full border border-blue-200 bg-blue-50 px-1 py-px text-[8px] font-semibold leading-3 text-blue-700">
                                             {t('patientHistory.balanceStatus.advance')}
                                         </span>
                                     ) : field === 'balance' && rawAmount > 0 ? (
-                                        <span className="rounded-full border border-amber-200 bg-amber-50 px-1.5 py-px text-[9px] font-semibold leading-3 text-amber-700">
+                                        <span className="rounded-full border border-amber-200 bg-amber-50 px-1 py-px text-[8px] font-semibold leading-3 text-amber-700">
                                             {t('patientHistory.balanceStatus.debt')}
                                         </span>
                                     ) : null}
@@ -197,10 +195,8 @@ function PaymentSummaryCard({
                             );
                         })}
                     </div>
-                    <p className={cn('mt-1 truncate text-[10px] leading-3.5', styles.hint)} title={hint}>
-                        {hint}
-                    </p>
                 </div>
+                <span className="sr-only">{hint}</span>
             </div>
         </article>
     );
@@ -485,13 +481,13 @@ export default function PaymentPatientPage({
     };
 
     return (
-        <div className="space-y-2.5">
+        <div className="space-y-2">
             <PatientDetailHeader
                 patient={headerPatient}
                 currentUser={currentUserQuery.data}
             />
 
-            <section data-testid="payment-summary-grid" className="grid gap-2.5 md:grid-cols-3">
+            <section data-testid="payment-summary-grid" className="grid gap-2 md:grid-cols-3">
                 <PaymentSummaryCard
                     icon={ClipboardList}
                     label={t('payments.summary.totalDebt')}
