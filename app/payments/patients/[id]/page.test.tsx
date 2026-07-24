@@ -215,6 +215,21 @@ describe('PaymentPatientPage', () => {
         expect(within(header as HTMLElement).getByTestId('patient-detail-header-medical-empty'))
             .toHaveTextContent('No medical information recorded');
 
+        const summaryGrid = screen.getByTestId('payment-summary-grid');
+        const workSummary = within(summaryGrid).getByTestId('payment-summary-totalDebt');
+        const paidSummary = within(summaryGrid).getByTestId('payment-summary-totalPaid');
+        const balanceSummary = within(summaryGrid).getByTestId('payment-summary-balance');
+        expect(summaryGrid).toHaveClass('gap-2.5');
+        expect(workSummary).toHaveClass('min-h-[6rem]', 'rounded-xl', 'p-3');
+        expect(paidSummary).toHaveClass('min-h-[6rem]', 'rounded-xl', 'p-3');
+        expect(balanceSummary).toHaveClass('min-h-[6rem]', 'rounded-xl', 'p-3');
+        expect(within(workSummary).getByTestId('payment-summary-totalDebt-icon').querySelector('svg'))
+            .toHaveClass('lucide-clipboard-list');
+        expect(within(paidSummary).getByTestId('payment-summary-totalPaid-icon').querySelector('svg'))
+            .toHaveClass('lucide-circle-check-big');
+        expect(within(balanceSummary).getByTestId('payment-summary-balance-icon').querySelector('svg'))
+            .toHaveClass('lucide-wallet-cards');
+
         const table = screen.getByRole('table');
         expect(within(table).getByRole('columnheader', { name: 'Date' })).toBeInTheDocument();
         expect(within(table).getByRole('columnheader', { name: 'Work title' })).toBeInTheDocument();

@@ -4,13 +4,13 @@ import { use, useMemo, useState, type ComponentType } from 'react';
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import {
-    BadgeDollarSign,
-    CircleDollarSign,
+    CircleCheckBig,
+    ClipboardList,
     Download,
     Loader2,
     ReceiptText,
     UserRound,
-    Wallet,
+    WalletCards,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -130,21 +130,21 @@ function PaymentSummaryCard({
         red: {
             root: 'metric-hover-red border-red-100 bg-gradient-to-br from-white via-rose-50/70 to-red-50 shadow-red-100/60',
             label: 'text-slate-700',
-            icon: 'text-red-500',
+            iconBox: 'bg-red-50/90 text-red-500 ring-red-100',
             value: 'text-red-700',
             hint: 'text-slate-500',
         },
         emerald: {
             root: 'metric-hover-emerald border-emerald-100 bg-gradient-to-br from-white via-emerald-50/70 to-teal-50 shadow-emerald-100/60',
             label: 'text-slate-700',
-            icon: 'text-emerald-600',
+            iconBox: 'bg-emerald-50/90 text-emerald-600 ring-emerald-100',
             value: 'text-emerald-700',
             hint: 'text-slate-500',
         },
         amber: {
             root: 'metric-hover-amber border-amber-100 bg-gradient-to-br from-white via-amber-50/75 to-orange-50 shadow-amber-100/60',
             label: 'text-orange-700',
-            icon: 'text-orange-500',
+            iconBox: 'bg-amber-50/90 text-orange-500 ring-amber-100',
             value: 'text-orange-700',
             hint: 'text-orange-600/80',
         },
@@ -153,42 +153,55 @@ function PaymentSummaryCard({
     const styles = toneClasses[tone];
 
     return (
-        <article className={cn(
-            'interactive-card metric-hover-card flex min-h-36 flex-col rounded-2xl border p-4 shadow-sm md:p-5',
-            styles.root
-        )}>
-            <header className={cn('flex flex-wrap items-center gap-2 text-sm font-medium', styles.label)}>
-                <Icon className={cn('h-4 w-4', styles.icon)} />
-                <span>
-                    {label}
+        <article
+            data-testid={`payment-summary-${field}`}
+            className={cn(
+                'interactive-card metric-hover-card min-h-[6rem] rounded-xl border p-3 shadow-sm',
+                styles.root
+            )}
+        >
+            <div className="flex min-w-0 items-start gap-2.5">
+                <span
+                    data-testid={`payment-summary-${field}-icon`}
+                    className={cn(
+                        'flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ring-1',
+                        styles.iconBox
+                    )}
+                >
+                    <Icon className="h-4 w-4" aria-hidden="true" />
                 </span>
-            </header>
-            <div className="mt-2 flex flex-1 flex-col justify-center">
-                <div className="space-y-1.5">
-                    {currencies.map((currency) => {
-                        const rawAmount = balances[currency][field];
-                        const amount = field === 'balance' ? Math.abs(rawAmount) : rawAmount;
+                <div className="min-w-0 flex-1">
+                    <header className={cn('truncate text-xs font-semibold leading-4', styles.label)}>
+                        {label}
+                    </header>
+                    <div className="mt-1 space-y-1">
+                        {currencies.map((currency) => {
+                            const rawAmount = balances[currency][field];
+                            const amount = field === 'balance' ? Math.abs(rawAmount) : rawAmount;
 
-                        return (
-                            <div key={currency} className="flex flex-wrap items-center gap-2">
-                                <span className={cn('text-xl font-semibold leading-none tabular-nums', styles.value)}>
-                                    {formatCurrency(amount, currency)}
-                                </span>
-                                {field === 'balance' && rawAmount < 0 ? (
-                                    <span className="rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-700">
-                                        {t('patientHistory.balanceStatus.advance')}: {formatCurrency(Math.abs(rawAmount), currency)}
+                            return (
+                                <div key={currency} className="flex min-w-0 flex-wrap items-center gap-1.5">
+                                    <span className={cn('text-base font-semibold leading-5 tabular-nums', styles.value)}>
+                                        {formatCurrency(amount, currency)}
                                     </span>
-                                ) : field === 'balance' && rawAmount > 0 ? (
-                                    <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700">
-                                        {t('patientHistory.balanceStatus.debt')}
-                                    </span>
-                                ) : null}
-                            </div>
-                        );
-                    })}
+                                    {field === 'balance' && rawAmount < 0 ? (
+                                        <span className="rounded-full border border-blue-200 bg-blue-50 px-1.5 py-px text-[9px] font-semibold leading-3 text-blue-700">
+                                            {t('patientHistory.balanceStatus.advance')}
+                                        </span>
+                                    ) : field === 'balance' && rawAmount > 0 ? (
+                                        <span className="rounded-full border border-amber-200 bg-amber-50 px-1.5 py-px text-[9px] font-semibold leading-3 text-amber-700">
+                                            {t('patientHistory.balanceStatus.debt')}
+                                        </span>
+                                    ) : null}
+                                </div>
+                            );
+                        })}
+                    </div>
+                    <p className={cn('mt-1 truncate text-[10px] leading-3.5', styles.hint)} title={hint}>
+                        {hint}
+                    </p>
                 </div>
             </div>
-            <p className={cn('mt-2 text-xs', styles.hint)}>{hint}</p>
         </article>
     );
 }
@@ -478,9 +491,9 @@ export default function PaymentPatientPage({
                 currentUser={currentUserQuery.data}
             />
 
-            <section className="grid gap-4 md:grid-cols-3">
+            <section data-testid="payment-summary-grid" className="grid gap-2.5 md:grid-cols-3">
                 <PaymentSummaryCard
-                    icon={CircleDollarSign}
+                    icon={ClipboardList}
                     label={t('payments.summary.totalDebt')}
                     balances={balances}
                     field="totalDebt"
@@ -488,7 +501,7 @@ export default function PaymentPatientPage({
                     hint={t('payments.summary.totalDebtHint')}
                 />
                 <PaymentSummaryCard
-                    icon={BadgeDollarSign}
+                    icon={CircleCheckBig}
                     label={t('payments.summary.totalPaid')}
                     balances={balances}
                     field="totalPaid"
@@ -496,7 +509,7 @@ export default function PaymentPatientPage({
                     hint={t('payments.summary.totalPaidHint')}
                 />
                 <PaymentSummaryCard
-                    icon={Wallet}
+                    icon={WalletCards}
                     label={t('payments.summary.netBalance')}
                     balances={balances}
                     field="balance"
