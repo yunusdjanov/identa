@@ -524,7 +524,7 @@ export default function PaymentPatientPage({
 
                     <section
                         data-testid="payment-summary-grid"
-                        className="grid min-w-0 flex-1 gap-2 md:grid-cols-3 xl:max-w-[52rem]"
+                        className="grid min-w-0 flex-1 gap-2 md:grid-cols-3 xl:max-w-[36.4rem]"
                     >
                         <PaymentSummaryCard
                             label={t('payments.summary.totalDebt')}
