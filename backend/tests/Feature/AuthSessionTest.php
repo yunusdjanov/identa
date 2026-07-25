@@ -8,6 +8,8 @@ use App\Models\User;
 use App\Services\GoogleIdentityService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Password;
 use Tests\TestCase;
 
 class AuthSessionTest extends TestCase
@@ -101,6 +103,9 @@ class AuthSessionTest extends TestCase
 
         $this->assertIsString($token);
         $this->assertIsString($refreshToken);
+
+        Auth::guard('web')->logout();
+        $this->flushSession();
 
         $this
             ->withHeader('Authorization', "Bearer {$token}")
@@ -438,6 +443,9 @@ class AuthSessionTest extends TestCase
         $this->assertIsString($refreshToken);
         $this->assertDatabaseCount('personal_access_tokens', 2);
 
+        Auth::guard('web')->logout();
+        $this->flushSession();
+
         $refresh = $this->postJson('/api/v1/auth/refresh', [
             'refresh_token' => $refreshToken,
         ])
@@ -465,6 +473,31 @@ class AuthSessionTest extends TestCase
             ->assertJsonPath('data.email', 'mobile-refresh@example.com');
     }
 
+    public function test_mobile_refresh_token_cannot_access_authenticated_api_routes(): void
+    {
+        User::factory()->create([
+            'email' => 'refresh-scope@example.com',
+            'password' => 'password123',
+        ]);
+
+        $login = $this->postJson('/api/v1/auth/login', [
+            'email' => 'refresh-scope@example.com',
+            'password' => 'password123',
+            'device_name' => 'Identa Android',
+        ], $this->csrfHeaders())->assertOk();
+
+        $refreshToken = $login->json('data.tokens.refresh_token');
+        $this->assertIsString($refreshToken);
+
+        Auth::guard('web')->logout();
+        $this->flushSession();
+
+        $this
+            ->withHeader('Authorization', "Bearer {$refreshToken}")
+            ->getJson('/api/v1/auth/me')
+            ->assertForbidden();
+    }
+
     public function test_mobile_logout_revokes_current_bearer_token(): void
     {
         User::factory()->create([
@@ -472,23 +505,95 @@ class AuthSessionTest extends TestCase
             'password' => 'password123',
         ]);
 
-        $token = $this->postJson('/api/v1/auth/login', [
+        $login = $this->postJson('/api/v1/auth/login', [
             'email' => 'mobile-logout@example.com',
             'password' => 'password123',
             'device_name' => 'Identa iPhone',
         ], $this->csrfHeaders())
-            ->assertOk()
-            ->json('data.tokens.access_token');
+            ->assertOk();
+        $accessToken = $login->json('data.tokens.access_token');
+        $refreshToken = $login->json('data.tokens.refresh_token');
 
-        $this->assertIsString($token);
+        $this->assertIsString($accessToken);
+        $this->assertIsString($refreshToken);
         $this->assertDatabaseCount('personal_access_tokens', 2);
 
+        // Ensure Sanctum authenticates this request from the bearer token,
+        // not from the browser session left behind by the login endpoint.
+        Auth::guard('web')->logout();
+        $this->flushSession();
+
         $this
-            ->withHeader('Authorization', "Bearer {$token}")
+            ->withHeader('Authorization', "Bearer {$accessToken}")
             ->postJson('/api/v1/auth/logout')
             ->assertNoContent();
 
         $this->assertDatabaseCount('personal_access_tokens', 0);
+        $this->postJson('/api/v1/auth/refresh', [
+            'refresh_token' => $refreshToken,
+        ])->assertUnauthorized();
+    }
+
+    public function test_forced_password_rotation_blocks_google_link_but_allows_password_change(): void
+    {
+        $user = User::factory()->create([
+            'email' => 'forced-rotation@example.com',
+            'password' => 'temporary123',
+            'provider' => 'email',
+            'google_id' => null,
+            'must_change_password' => true,
+        ]);
+
+        $this->mock(GoogleIdentityService::class, function ($mock): void {
+            $mock->shouldNotReceive('verifyIdToken');
+        });
+
+        $this->actingAs($user, 'web')
+            ->postJson('/api/v1/auth/google/link', [
+                'id_token' => 'must-not-reach-controller',
+            ], $this->csrfHeaders())
+            ->assertForbidden()
+            ->assertJsonPath('error.code', 'password_change_required');
+
+        $this->actingAs($user, 'web')
+            ->postJson('/api/v1/auth/change-password', [
+                'new_password' => 'newpassword123',
+                'new_password_confirmation' => 'newpassword123',
+            ], $this->csrfHeaders())
+            ->assertOk()
+            ->assertJsonPath('data.must_change_password', false);
+    }
+
+    public function test_public_password_reset_revokes_dentist_and_assistant_browser_sessions(): void
+    {
+        config()->set('session.driver', 'database');
+
+        $dentist = User::factory()->create([
+            'email' => 'reset-owner@example.com',
+            'password' => 'oldpassword123',
+            'must_change_password' => true,
+        ]);
+        $assistant = User::factory()->assistant($dentist)->create();
+        $otherUser = User::factory()->create();
+
+        DB::table('sessions')->insert([
+            $this->sessionRow('dentist-session', $dentist),
+            $this->sessionRow('assistant-session', $assistant),
+            $this->sessionRow('other-session', $otherUser),
+        ]);
+
+        $token = Password::broker()->createToken($dentist);
+        $this->postJson('/api/v1/auth/reset-password', [
+            'token' => $token,
+            'email' => $dentist->email,
+            'password' => 'replacement123',
+            'password_confirmation' => 'replacement123',
+        ], $this->csrfHeaders())->assertOk();
+
+        $this->assertDatabaseMissing('sessions', ['id' => 'dentist-session']);
+        $this->assertDatabaseMissing('sessions', ['id' => 'assistant-session']);
+        $this->assertDatabaseHas('sessions', ['id' => 'other-session']);
+        $this->assertFalse((bool) $dentist->fresh()->must_change_password);
     }
 
     public function test_login_rejects_invalid_credentials(): void
@@ -586,5 +691,20 @@ class AuthSessionTest extends TestCase
         ]);
 
         return $plan;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function sessionRow(string $id, User $user): array
+    {
+        return [
+            'id' => $id,
+            'user_id' => $user->id,
+            'ip_address' => '127.0.0.1',
+            'user_agent' => 'PHPUnit',
+            'payload' => 'test-session',
+            'last_activity' => now()->timestamp,
+        ];
     }
 }

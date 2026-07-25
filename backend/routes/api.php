@@ -70,14 +70,14 @@ Route::prefix('v1')->group(function (): void {
             ->middleware(['signed', 'throttle:6,1'])
             ->name('verification.verify');
 
-        Route::middleware('auth:sanctum')->group(function (): void {
+        Route::middleware(['auth:sanctum', 'password.fresh'])->group(function (): void {
             // /auth/me is the most-polled endpoint (every focus refetch,
             // every tab open, every BroadcastChannel sync). Per-user
             // throttle keeps a runaway client / session-enumeration loop
             // from amplifying load. 120 req/min is well above the natural
             // refresh cadence (every 30s = 2 req/min).
             Route::get('/me', [AuthController::class, 'me'])
-                ->middleware('throttle:120,1');
+                ->middleware(['abilities:*', 'throttle:120,1']);
             // Named routes so EnsurePasswordRotated can match by name
             // instead of hardcoded paths — if the URI is ever changed
             // (api prefix bump, route rename) the middleware's
@@ -86,10 +86,10 @@ Route::prefix('v1')->group(function (): void {
                 ->middleware('throttle:15,1')
                 ->name('auth.logout');
             Route::post('/change-password', [AuthController::class, 'changePassword'])
-                ->middleware('throttle:10,1')
+                ->middleware(['abilities:*', 'throttle:10,1'])
                 ->name('auth.change-password');
             Route::post('/email/verification-notification', [AuthController::class, 'resendEmailVerification'])
-                ->middleware('throttle:6,1')
+                ->middleware(['abilities:*', 'throttle:6,1'])
                 ->name('verification.send');
             // Connected Accounts (Settings → Security). Linking is the
             // authenticated counterpart to the public /auth/google flow
@@ -97,10 +97,10 @@ Route::prefix('v1')->group(function (): void {
             // there's no password fallback. Both are throttled to keep
             // the auth surface predictable.
             Route::post('/google/link', [AuthController::class, 'linkGoogle'])
-                ->middleware('throttle:10,1')
+                ->middleware(['abilities:*', 'throttle:10,1'])
                 ->name('auth.google-link');
             Route::delete('/google/link', [AuthController::class, 'unlinkGoogle'])
-                ->middleware('throttle:10,1')
+                ->middleware(['abilities:*', 'throttle:10,1'])
                 ->name('auth.google-unlink');
         });
     });
@@ -113,7 +113,7 @@ Route::prefix('v1')->group(function (): void {
         // `password.fresh` mirrors the dentist/assistant groups below — an
         // admin whose own password was force-reset must rotate it before
         // they can issue further admin mutations. Reads are unaffected.
-        ->middleware(['auth:sanctum', 'role:admin', 'password.fresh', 'throttle:120,1'])
+        ->middleware(['auth:sanctum', 'abilities:*', 'role:admin', 'password.fresh', 'throttle:120,1'])
         ->group(function (): void {
             Route::get('/analytics/summary', [AdminAnalyticsController::class, 'summary']);
             Route::get('/dentists', [DentistAccountController::class, 'index']);
@@ -139,7 +139,7 @@ Route::prefix('v1')->group(function (): void {
     // assistant gets name+email+phone, dentist keeps everything) so this route
     // can safely accept all three roles — and the admin settings page was
     // already calling it. Without 'admin' here, admins silently 403 on save.
-    Route::middleware(['auth:sanctum', 'role:dentist,assistant,admin'])->group(function (): void {
+    Route::middleware(['auth:sanctum', 'abilities:*', 'role:dentist,assistant,admin'])->group(function (): void {
         Route::get('settings/profile', [SettingsProfileController::class, 'show']);
         // Profile update is throttled to defang brute-forced email enumeration
         // and to keep the audit log from being spammed by a compromised session.
@@ -161,7 +161,7 @@ Route::prefix('v1')->group(function (): void {
         // `password.fresh` mirrors the other authenticated groups — a
         // dentist whose password was force-reset can't checkout / cancel /
         // change plan until they rotate. Reads still flow through.
-        ->middleware(['auth:sanctum', 'role:dentist', 'password.fresh'])
+        ->middleware(['auth:sanctum', 'abilities:*', 'role:dentist', 'password.fresh'])
         ->group(function (): void {
             Route::get('plans', [BillingController::class, 'plans']);
             Route::get('current-subscription', [BillingController::class, 'currentSubscription']);
@@ -191,7 +191,7 @@ Route::prefix('v1')->group(function (): void {
     // ceiling (a fast dentist clicks ~30/min) but low enough that a
     // runaway client / compromised token can't hammer the DB. Auth/admin/
     // billing/team groups have their own narrower throttles.
-    Route::middleware(['auth:sanctum', 'role:dentist,assistant', 'password.fresh', 'subscription.access', 'throttle:300,1'])->group(function (): void {
+    Route::middleware(['auth:sanctum', 'abilities:*', 'role:dentist,assistant', 'password.fresh', 'subscription.access', 'throttle:300,1'])->group(function (): void {
         Route::get('analytics/summary', [AnalyticsController::class, 'summary'])
             ->middleware('permission:'.User::PERMISSION_PAYMENTS_VIEW.'|'.User::PERMISSION_PATIENTS_VIEW.'|'.User::PERMISSION_APPOINTMENTS_VIEW);
         Route::get('dashboard/snapshot', [DashboardController::class, 'show'])
@@ -382,7 +382,7 @@ Route::prefix('v1')->group(function (): void {
             ->middleware('permission:'.User::PERMISSION_AUDIT_LOGS_VIEW);
     });
 
-    Route::middleware(['auth:sanctum', 'role:dentist', 'subscription.access'])->group(function (): void {
+    Route::middleware(['auth:sanctum', 'abilities:*', 'role:dentist', 'password.fresh', 'subscription.access'])->group(function (): void {
         Route::get('team/assistants', [TeamAssistantController::class, 'index'])
             ->middleware('permission:'.User::PERMISSION_TEAM_MANAGE);
         // Team mutations are dentist-owner only (permission:team.manage) but

@@ -34,6 +34,12 @@ class ProductionRuntimePolicyValidator
             }
         }
 
+        if ((bool) config('security.runtime.require_database_session_driver', true)) {
+            if ((string) config('session.driver') !== 'database') {
+                $issues[] = 'SESSION_DRIVER must be database in production so password resets can revoke browser sessions.';
+            }
+        }
+
         if ((bool) config('security.runtime.require_hsts', true)) {
             if ((bool) config('security.headers.hsts_enabled', false) !== true) {
                 $issues[] = 'SECURITY_HSTS_ENABLED must be true in production.';

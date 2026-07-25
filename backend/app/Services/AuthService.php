@@ -17,6 +17,7 @@ class AuthService
         private readonly AuditLogger $auditLogger,
         private readonly SubscriptionService $subscriptionService,
         private readonly GoogleIdentityService $googleIdentityService,
+        private readonly SessionRevocationService $sessionRevocation,
     ) {}
 
     /**
@@ -411,6 +412,11 @@ class AuthService
         $user->tokens()
             ->when($currentTokenId !== null, fn ($query) => $query->where('id', '!=', $currentTokenId))
             ->delete();
+
+        $currentSessionId = $request->hasSession()
+            ? $request->session()->getId()
+            : null;
+        $this->sessionRevocation->revokeForUsers([$user], $currentSessionId);
 
         $this->auditLogger->logFromRequest(
             request: $request,

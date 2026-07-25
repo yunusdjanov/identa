@@ -18,6 +18,7 @@ use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Exceptions\ThrottleRequestsException;
 use Illuminate\Http\Request as IlluminateRequest;
 use Illuminate\Validation\ValidationException;
+use Laravel\Sanctum\Http\Middleware\CheckAbilities;
 use Sentry\Laravel\Integration;
 use Symfony\Component\HttpFoundation\Exception\BadRequestException;
 use Symfony\Component\HttpFoundation\Request as SymfonyRequest;
@@ -83,6 +84,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'permission' => EnsurePermission::class,
             'plan.feature' => EnsurePlanFeature::class,
             'subscription.access' => EnsureSubscriptionAccess::class,
+            'abilities' => CheckAbilities::class,
             // `password.fresh` blocks mutations until the user clears
             // `must_change_password` via /auth/change-password. Applied
             // to every authenticated mutation group so the forced-reset

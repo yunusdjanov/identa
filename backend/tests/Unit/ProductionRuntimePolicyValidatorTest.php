@@ -36,10 +36,12 @@ class ProductionRuntimePolicyValidatorTest extends TestCase
     {
         config()->set('app.url', 'https://api.identa.test');
         config()->set('session.secure', true);
+        config()->set('session.driver', 'database');
         config()->set('security.headers.hsts_enabled', true);
         config()->set('sanctum.stateful', ['app.identa.test']);
         config()->set('security.runtime.require_https_app_url', true);
         config()->set('security.runtime.require_session_secure_cookie', true);
+        config()->set('security.runtime.require_database_session_driver', true);
         config()->set('security.runtime.require_hsts', true);
         config()->set('security.runtime.require_sanctum_stateful_domains', true);
         config()->set('security.runtime.require_trusted_proxies', true);
@@ -55,10 +57,12 @@ class ProductionRuntimePolicyValidatorTest extends TestCase
     {
         config()->set('app.url', 'http://localhost:8000');
         config()->set('session.secure', false);
+        config()->set('session.driver', 'array');
         config()->set('security.headers.hsts_enabled', false);
         config()->set('sanctum.stateful', ['localhost:3000']);
         config()->set('security.runtime.require_https_app_url', true);
         config()->set('security.runtime.require_session_secure_cookie', true);
+        config()->set('security.runtime.require_database_session_driver', true);
         config()->set('security.runtime.require_hsts', true);
         config()->set('security.runtime.require_sanctum_stateful_domains', true);
         config()->set('security.runtime.require_trusted_proxies', true);
@@ -72,6 +76,7 @@ class ProductionRuntimePolicyValidatorTest extends TestCase
         $this->assertNotEmpty($issues);
         $this->assertTrue(collect($issues)->contains(fn (string $issue): bool => str_contains($issue, 'APP_URL')));
         $this->assertTrue(collect($issues)->contains(fn (string $issue): bool => str_contains($issue, 'SESSION_SECURE_COOKIE')));
+        $this->assertTrue(collect($issues)->contains(fn (string $issue): bool => str_contains($issue, 'SESSION_DRIVER')));
         $this->assertTrue(collect($issues)->contains(fn (string $issue): bool => str_contains($issue, 'SECURITY_HSTS_ENABLED')));
         $this->assertTrue(collect($issues)->contains(fn (string $issue): bool => str_contains($issue, 'SANCTUM_STATEFUL_DOMAINS')));
         $this->assertTrue(collect($issues)->contains(fn (string $issue): bool => str_contains($issue, 'TRUSTED_PROXIES')));
@@ -81,10 +86,12 @@ class ProductionRuntimePolicyValidatorTest extends TestCase
     {
         config()->set('app.url', 'http://localhost:8000');
         config()->set('session.secure', false);
+        config()->set('session.driver', 'array');
         config()->set('security.headers.hsts_enabled', false);
         config()->set('sanctum.stateful', []);
         config()->set('security.runtime.require_https_app_url', true);
         config()->set('security.runtime.require_session_secure_cookie', true);
+        config()->set('security.runtime.require_database_session_driver', true);
         config()->set('security.runtime.require_hsts', true);
         config()->set('security.runtime.require_sanctum_stateful_domains', true);
         config()->set('security.runtime.require_trusted_proxies', true);

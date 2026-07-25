@@ -11,6 +11,7 @@ use App\Models\BillingPayment;
 use App\Models\Plan;
 use App\Models\Subscription;
 use App\Models\User;
+use App\Services\SessionRevocationService;
 use App\Services\SubscriptionService;
 use App\Support\AuditLogger;
 use App\Support\Search;
@@ -28,6 +29,7 @@ class DentistAccountController extends Controller
     public function __construct(
         private readonly AuditLogger $auditLogger,
         private readonly SubscriptionService $subscriptionService,
+        private readonly SessionRevocationService $sessionRevocation,
     ) {
     }
 
@@ -440,9 +442,12 @@ class DentistAccountController extends Controller
         // owner-tenant, and a dentist credential rotation should not leave
         // assistant PATs alive on the previous owner-state. (Their passwords
         // are separate, but token-bearer access does not need the password.)
+        $sessionUsers = [$dentist];
         foreach ($dentist->assistants as $assistant) {
             $assistant->tokens()->delete();
+            $sessionUsers[] = $assistant;
         }
+        $this->sessionRevocation->revokeForUsers($sessionUsers);
 
         $this->auditLogger->logFromRequest(
             request: $request,

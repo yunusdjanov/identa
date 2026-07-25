@@ -22,6 +22,7 @@ class TeamAssistantService
 
     public function __construct(
         private readonly PlanLimitService $planLimitService,
+        private readonly SessionRevocationService $sessionRevocation,
     ) {}
 
     /**
@@ -166,6 +167,7 @@ class TeamAssistantService
             // sessions are forced to re-authenticate with the new password.
             // Without this, a stolen/active token outlives the reset.
             $assistant->tokens()->delete();
+            $this->sessionRevocation->revokeForUsers([$assistant]);
 
             return $assistant;
         });

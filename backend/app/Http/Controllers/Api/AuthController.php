@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\UserResource;
 use App\Models\User;
 use App\Services\AuthService;
+use App\Services\SessionRevocationService;
 use App\Support\AuditLogger;
 use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Auth\Events\Verified;
@@ -33,6 +34,7 @@ class AuthController extends Controller
     public function __construct(
         private readonly AuditLogger $auditLogger,
         private readonly AuthService $auth,
+        private readonly SessionRevocationService $sessionRevocation,
     ) {}
 
     public function register(Request $request): JsonResponse
@@ -160,24 +162,22 @@ class AuthController extends Controller
                 entityId: (string) $user->id,
             );
 
-            // Delete the SPECIFIC current token by id, not by name. Two
-            // simultaneous mobile devices may legitimately share a token
-            // name ("mobile") — deleting by name would log out the
-            // user's other device too. Use `->delete()` on the
-            // PersonalAccessToken record directly when present.
             $currentToken = $user->currentAccessToken();
             if ($currentToken instanceof PersonalAccessToken) {
-                $currentToken->delete();
-            } elseif ($currentToken !== null && method_exists($currentToken, 'delete')) {
-                // Fallback for non-Sanctum token instances (transient
-                // session token); falls back to the by-name helper.
                 $this->deleteMobileTokensForDevice($user, (string) $currentToken->name);
-            }
-
-            $bearerToken = $request->bearerToken();
-            if ($bearerToken !== null) {
-                $token = PersonalAccessToken::findToken($bearerToken);
-                if ($token !== null && $token->tokenable instanceof User) {
+            } else {
+                // A browser-authenticated request gets Sanctum's transient
+                // token. If it also supplies one of this user's bearer
+                // tokens, revoke the matching mobile access/refresh pair.
+                $bearerToken = $request->bearerToken();
+                $token = $bearerToken !== null
+                    ? PersonalAccessToken::findToken($bearerToken)
+                    : null;
+                if (
+                    $token !== null
+                    && $token->tokenable instanceof User
+                    && $token->tokenable->is($user)
+                ) {
                     $this->deleteMobileTokensForDevice($token->tokenable, (string) $token->name);
                 }
             }
@@ -367,6 +367,7 @@ class AuthController extends Controller
             function (User $user, string $password) use (&$resetUserId, &$resetUser): void {
                 $user->forceFill([
                     'password' => Hash::make($password),
+                    'must_change_password' => false,
                     'remember_token' => Str::random(60),
                 ])->save();
                 $resetUserId = (string) $user->id;
@@ -382,11 +383,15 @@ class AuthController extends Controller
                 // If this user is a dentist, cascade to their assistants
                 // too: a tenant password reset shouldn't leave assistant
                 // PATs alive on the previous credential state.
+                $sessionUsers = [$user];
                 if ($user->isDentist()) {
                     foreach ($user->assistants as $assistant) {
                         $assistant->tokens()->delete();
+                        $sessionUsers[] = $assistant;
                     }
                 }
+
+                $this->sessionRevocation->revokeForUsers($sessionUsers);
 
                 event(new PasswordReset($user));
             }

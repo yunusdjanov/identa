@@ -105,6 +105,28 @@ class TeamAssistantApiTest extends TestCase
             ->assertForbidden();
     }
 
+    public function test_forced_password_rotation_blocks_team_mutations(): void
+    {
+        $dentist = User::factory()->create([
+            'must_change_password' => true,
+        ]);
+
+        $this->actingAs($dentist, 'web')
+            ->postJson('/api/v1/team/assistants', [
+                'name' => 'Blocked Assistant',
+                'email' => 'blocked-by-rotation@example.com',
+                'password' => 'password123',
+                'password_confirmation' => 'password123',
+                'permissions' => [User::PERMISSION_PATIENTS_VIEW],
+            ])
+            ->assertForbidden()
+            ->assertJsonPath('error.code', 'password_change_required');
+
+        $this->assertDatabaseMissing('users', [
+            'email' => 'blocked-by-rotation@example.com',
+        ]);
+    }
+
     public function test_blocked_assistant_cannot_be_reactivated_when_staff_limit_is_full(): void
     {
         $dentist = User::factory()->create([
