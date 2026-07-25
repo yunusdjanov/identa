@@ -873,7 +873,7 @@ export function PaymentPatientLoadingState() {
                         <Skeleton className="h-6 w-40 rounded-xl" />
                         <Skeleton className="h-4 w-48 rounded-xl" />
                     </div>
-                    <div data-testid="payment-patient-summary-skeleton" className="grid min-w-0 flex-1 gap-2 md:grid-cols-3">
+                    <div data-testid="payment-patient-summary-skeleton" className="grid min-w-0 flex-1 gap-2 md:grid-cols-3 xl:max-w-[52rem]">
                         {Array.from({ length: 3 }).map((_, index) => (
                             <div key={index} className="flex h-12 min-w-0 items-center justify-between gap-2 rounded-2xl border border-slate-200 px-3 py-2">
                                 <div className="min-w-0 space-y-1.5">
@@ -884,7 +884,7 @@ export function PaymentPatientLoadingState() {
                             </div>
                         ))}
                     </div>
-                    <Skeleton className="h-10 w-10 shrink-0 self-end rounded-full xl:self-auto" />
+                    <Skeleton className="h-10 w-10 shrink-0 self-end rounded-full xl:ml-auto xl:self-auto" />
                 </div>
                 <div data-testid="payment-patient-table-skeleton" className="min-w-0 max-w-full overflow-x-auto rounded-2xl border border-slate-200/80 bg-white">
                     <div className="grid min-w-[680px] grid-cols-5 gap-3 bg-slate-50/80 px-4 py-3">

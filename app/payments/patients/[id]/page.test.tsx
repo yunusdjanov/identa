@@ -228,7 +228,7 @@ describe('PaymentPatientPage', () => {
         expect(within(ledgerHeader).getByRole('heading', { name: 'Work payments' })).toBeInTheDocument();
         expect(ledgerHeader).toContainElement(summaryGrid);
         expect(ledgerHeader).toHaveClass('xl:flex-row', 'xl:items-center');
-        expect(summaryGrid).toHaveClass('flex-1', 'gap-2', 'md:grid-cols-3');
+        expect(summaryGrid).toHaveClass('flex-1', 'gap-2', 'md:grid-cols-3', 'xl:max-w-[52rem]');
         expect(workSummary).toHaveClass(
             'min-h-10',
             'rounded-xl',

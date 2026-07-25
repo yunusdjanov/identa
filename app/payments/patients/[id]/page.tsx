@@ -524,7 +524,7 @@ export default function PaymentPatientPage({
 
                     <section
                         data-testid="payment-summary-grid"
-                        className="grid min-w-0 flex-1 gap-2 md:grid-cols-3"
+                        className="grid min-w-0 flex-1 gap-2 md:grid-cols-3 xl:max-w-[52rem]"
                     >
                         <PaymentSummaryCard
                             label={t('payments.summary.totalDebt')}
@@ -550,7 +550,7 @@ export default function PaymentPatientPage({
                         <Button
                             variant="outline"
                             size="icon-lg"
-                            className="shrink-0 self-end rounded-full xl:self-auto"
+                            className="shrink-0 self-end rounded-full xl:ml-auto xl:self-auto"
                             aria-label={t('common.export')}
                             title={t('common.export')}
                             disabled={isExporting || (patient.entry_count ?? 0) === 0}
