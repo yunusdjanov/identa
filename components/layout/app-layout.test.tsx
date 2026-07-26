@@ -1,16 +1,26 @@
 import { cleanup, render, screen } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { AdminHeader } from '@/components/admin/admin-header';
 import { AppLayout } from '@/components/layout/app-layout';
 
-vi.mock('@tanstack/react-query', () => ({
-    useQuery: () => ({
-        data: undefined,
+const queryState = vi.hoisted(() => ({
+    current: {
+        data: undefined as undefined | {
+            id: string;
+            name: string;
+            email: string;
+            role: 'dentist';
+            account_status: 'active';
+        },
         isLoading: true,
         isError: false,
         error: null,
-    }),
+    },
+}));
+
+vi.mock('@tanstack/react-query', () => ({
+    useQuery: () => queryState.current,
     useQueryClient: () => ({
         clear: vi.fn(),
     }),
@@ -81,6 +91,15 @@ vi.mock('sonner', () => ({
 }));
 
 describe('AppLayout skeleton header', () => {
+    beforeEach(() => {
+        queryState.current = {
+            data: undefined,
+            isLoading: true,
+            isError: false,
+            error: null,
+        };
+    });
+
     afterEach(() => {
         cleanup();
     });
@@ -115,5 +134,31 @@ describe('AppLayout skeleton header', () => {
 
         expect(container.querySelector('header')).toHaveClass('fixed', 'z-50');
         expect(container.querySelector('[data-admin-header-spacer]')).toHaveClass('h-[7.5rem]', 'md:h-16');
+    });
+
+    it('gives icon-only tablet navigation an accessible name and current-page state', () => {
+        queryState.current = {
+            data: {
+                id: 'dentist-1',
+                name: 'Demo Dentist',
+                email: 'dentist@identa.test',
+                role: 'dentist',
+                account_status: 'active',
+            },
+            isLoading: false,
+            isError: false,
+            error: null,
+        };
+
+        render(
+            <AppLayout>
+                <div>Protected content</div>
+            </AppLayout>
+        );
+
+        const paymentLinks = screen.getAllByRole('link', { name: 'nav.payments' });
+        expect(paymentLinks).toHaveLength(2);
+        expect(paymentLinks.every((link) => link.getAttribute('aria-current') === 'page')).toBe(true);
+        expect(screen.getAllByRole('link', { name: 'nav.dashboard' })).toHaveLength(2);
     });
 });

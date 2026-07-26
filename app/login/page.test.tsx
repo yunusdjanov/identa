@@ -6,14 +6,18 @@ import LoginPage from '@/app/login/page';
 import { I18nProvider } from '@/components/providers/i18n-provider';
 import { DICTIONARIES } from '@/lib/i18n/dictionaries';
 import { useAuthStore } from '@/lib/store';
-import { getCurrentUser } from '@/lib/api/dentist';
+import { getCurrentUser, loginWithPassword } from '@/lib/api/dentist';
 
 const GOOGLE_GSI_SCRIPT_SELECTOR = 'script[src="https://accounts.google.com/gsi/client"]';
+const navigationMocks = vi.hoisted(() => ({
+    push: vi.fn(),
+    replace: vi.fn(),
+}));
 
 vi.mock('next/navigation', () => ({
     useRouter: () => ({
-        push: vi.fn(),
-        replace: vi.fn(),
+        push: navigationMocks.push,
+        replace: navigationMocks.replace,
     }),
 }));
 
@@ -49,9 +53,11 @@ function renderLoginPage() {
 
 describe('LoginPage', () => {
     beforeEach(() => {
+        vi.clearAllMocks();
         vi.mocked(getCurrentUser).mockClear();
         useAuthStore.getState().logout();
         window.sessionStorage.clear();
+        window.history.replaceState({}, '', '/login');
     });
 
     afterEach(() => {
@@ -81,6 +87,31 @@ describe('LoginPage', () => {
 
         await waitFor(() => {
             expect(document.querySelector(GOOGLE_GSI_SCRIPT_SELECTOR)).toBeInTheDocument();
+        });
+    });
+
+    it('returns to a safe protected destination after password login', async () => {
+        window.history.replaceState(
+            {},
+            '',
+            '/login?from=%2Fpatients%2F42%3Ftab%3Dhistory'
+        );
+        vi.mocked(loginWithPassword).mockResolvedValue({
+            id: 'dentist-1',
+            name: 'Demo Dentist',
+            email: 'dentist@identa.test',
+            role: 'dentist',
+            account_status: 'active',
+        });
+        const user = userEvent.setup();
+        renderLoginPage();
+
+        await user.type(screen.getByLabelText(/email/i), 'dentist@identa.test');
+        await user.type(screen.getByLabelText(/^password/i), 'correct-password');
+        await user.click(screen.getByRole('button', { name: /sign in/i }));
+
+        await waitFor(() => {
+            expect(navigationMocks.push).toHaveBeenCalledWith('/patients/42?tab=history');
         });
     });
 });

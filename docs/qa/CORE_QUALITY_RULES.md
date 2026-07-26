@@ -58,3 +58,14 @@ npm run release:preflight:production
 
 `check:core-guardrails` is a fast drift check. It does not replace code
 review, but it catches accidental removal of the most important controls.
+
+## 6. Every routed page uses the shared audit standard
+
+Page audits must use:
+
+- `docs/qa/PAGE_AUDIT_STANDARD.md` for mandatory checks, severity, evidence,
+  and completion rules
+- `docs/qa/PAGE_AUDIT_TRACKER.md` for audit order and per-route status
+
+A page is not release-ready while it has an open P0/P1 or a mandatory
+business/security check is blocked or not tested.

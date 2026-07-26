@@ -154,4 +154,30 @@ describe('proxy auth redirects', () => {
         expect(response.status).toBe(307);
         expect(response.headers.get('location')).toBe('https://identa.uz/admin');
     });
+
+    it('preserves the protected pathname and query in the login return destination', async () => {
+        vi.stubEnv('NODE_ENV', 'production');
+
+        const response = await proxy(
+            new NextRequest('https://identa.uz/patients/42?tab=history&currency=USD')
+        );
+
+        expect(response.status).toBe(307);
+        expect(response.headers.get('location')).toBe(
+            'https://identa.uz/login?from=%2Fpatients%2F42%3Ftab%3Dhistory%26currency%3DUSD'
+        );
+    });
+
+    it('keeps the email verification result page public for logged-out visitors', async () => {
+        vi.stubEnv('NODE_ENV', 'production');
+        const fetchMock = vi.spyOn(globalThis, 'fetch');
+
+        const response = await proxy(
+            new NextRequest('https://identa.uz/verify-email?status=success')
+        );
+
+        expect(response.status).toBe(200);
+        expect(response.headers.get('location')).toBeNull();
+        expect(fetchMock).not.toHaveBeenCalled();
+    });
 });

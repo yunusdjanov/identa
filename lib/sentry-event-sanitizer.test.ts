@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { isSensitiveSentryKey, scrubSentryPayload } from '@/lib/sentry-event-sanitizer';
+import {
+    isSensitiveSentryKey,
+    sanitizeSentryUrl,
+    scrubSentryPayload,
+} from '@/lib/sentry-event-sanitizer';
 
 describe('sentry event sanitizer', () => {
     it('redacts exact and suffix sensitive keys', () => {
@@ -46,5 +50,32 @@ describe('sentry event sanitizer', () => {
         });
 
         expect(scrubSentryPayload(proxy)).toBe('[Unserializable]');
+    });
+
+    it('removes query data and dynamic resource identifiers from URLs', () => {
+        expect(sanitizeSentryUrl('https://identa.uz/patients/123?tab=history#entry'))
+            .toBe('https://identa.uz/patients/[id]');
+        expect(sanitizeSentryUrl('/payments/patients/456?currency=USD'))
+            .toBe('/payments/patients/[id]');
+        expect(sanitizeSentryUrl('/api/v1/patients/550e8400-e29b-41d4-a716-446655440000'))
+            .toBe('/api/v1/patients/[id]');
+        expect(sanitizeSentryUrl('/patients/pat-6')).toBe('/patients/[id]');
+        expect(sanitizeSentryUrl('/patients/PT-4062TF')).toBe('/patients/[id]');
+        expect(sanitizeSentryUrl('/forgot-password')).toBe('/forgot-password');
+        expect(sanitizeSentryUrl('route transition')).toBe('route transition');
+    });
+
+    it('sanitizes URL-shaped breadcrumb fields and request query strings', () => {
+        expect(scrubSentryPayload({
+            from: '/patients/123?tab=history',
+            to: '/payments/patients/456',
+            label: 'navigation',
+            query_string: 'patient=123',
+        })).toEqual({
+            from: '/patients/[id]',
+            to: '/payments/patients/[id]',
+            label: 'navigation',
+            query_string: '[Filtered]',
+        });
     });
 });

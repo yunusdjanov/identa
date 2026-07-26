@@ -307,6 +307,8 @@ function AppLayoutBody({ children }: { children: React.ReactNode }) {
                                                 key={item.key}
                                                 href={item.href}
                                                 onClick={(event) => handleNavigationClick(event, item.href)}
+                                                aria-label={t(item.key)}
+                                                aria-current={isActive ? 'page' : undefined}
                                                 aria-disabled={isLocked}
                                                 className={cn(
                                                     'flex h-9 items-center rounded-xl border px-2.5 text-sm font-semibold transition-colors lg:px-3.5',
@@ -317,7 +319,7 @@ function AppLayoutBody({ children }: { children: React.ReactNode }) {
                                                             : 'border-transparent text-slate-600 hover:bg-teal-50/80 hover:text-teal-700'
                                                 )}
                                             >
-                                                <Icon className="h-4 w-4 lg:mr-2" />
+                                                <Icon className="h-4 w-4 lg:mr-2" aria-hidden="true" />
                                                 <span className="hidden lg:inline">{t(item.key)}</span>
                                             </Link>
                                         );
@@ -367,6 +369,8 @@ function AppLayoutBody({ children }: { children: React.ReactNode }) {
                                         key={item.key}
                                         href={item.href}
                                         onClick={(event) => handleNavigationClick(event, item.href)}
+                                        aria-label={t(item.key)}
+                                        aria-current={isActive ? 'page' : undefined}
                                         aria-disabled={isLocked}
                                         className={cn(
                                             'flex min-w-[72px] shrink-0 flex-col items-center rounded-xl px-2 py-2 text-[11px] font-semibold transition-colors',
@@ -383,7 +387,7 @@ function AppLayoutBody({ children }: { children: React.ReactNode }) {
                                                 isActive ? 'bg-teal-50 text-teal-700' : 'text-slate-500'
                                             )}
                                         >
-                                            <Icon className="h-4 w-4" />
+                                            <Icon className="h-4 w-4" aria-hidden="true" />
                                         </span>
                                         <span className="max-w-[4.4rem] truncate">{t(item.key)}</span>
                                     </Link>

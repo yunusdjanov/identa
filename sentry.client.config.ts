@@ -5,7 +5,7 @@
 // never accumulates a parallel patient-data store. Set
 // `NEXT_PUBLIC_SENTRY_DSN` to enable; empty DSN = no-op.
 import * as Sentry from '@sentry/nextjs';
-import { scrubSentryPayload } from '@/lib/sentry-event-sanitizer';
+import { sanitizeSentryUrl, scrubSentryPayload } from '@/lib/sentry-event-sanitizer';
 
 Sentry.init({
     dsn: process.env.NEXT_PUBLIC_SENTRY_DSN ?? '',
@@ -38,6 +38,9 @@ Sentry.init({
 
     beforeSend(event) {
         try {
+            if (event.transaction) {
+                event.transaction = sanitizeSentryUrl(event.transaction);
+            }
             if (event.request) {
                 event.request = scrubSentryPayload(event.request) as typeof event.request;
             }

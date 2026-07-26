@@ -3,8 +3,16 @@ const FILTERED_VALUE = '[Filtered]';
 const CIRCULAR_VALUE = '[Circular]';
 const TRUNCATED_VALUE = '[Truncated]';
 const UNSERIALIZABLE_VALUE = '[Unserializable]';
+const URL_BASE = 'https://identa.invalid';
+const URL_VALUE_KEYS = new Set(['url', 'href', 'from', 'to', 'referer', 'referrer']);
+const UUID_SEGMENT = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const ULID_SEGMENT = /^[0-9A-HJKMNP-TV-Z]{26}$/i;
+const LONG_HEX_SEGMENT = /^[0-9a-f]{16,}$/i;
+const PREFIXED_ID_SEGMENT = /^[a-z][a-z0-9]*-\d+$/i;
+const OPAQUE_CODE_SEGMENT = /^[a-z]{2,}-(?=[a-z0-9]*\d)[a-z0-9]{4,}$/i;
 
-// Kept in sync with backend `App\Support\SentryEventSanitizer::SENSITIVE_KEYS`.
+// Core business fields mirror backend `App\Support\SentryEventSanitizer`.
+// Browser-only query metadata is included here as an additional boundary.
 // `user_agent` is deliberately not scrubbed: browser-specific debugging needs it.
 const SENSITIVE_KEYS = [
     'password',
@@ -63,7 +71,50 @@ const SENSITIVE_KEYS = [
     'payment_amount',
     'unit_price',
     'total_price',
+    'query_string',
+    'querystring',
 ] as const;
+
+function isDynamicPathSegment(segment: string): boolean {
+    return /^\d+$/.test(segment)
+        || UUID_SEGMENT.test(segment)
+        || ULID_SEGMENT.test(segment)
+        || LONG_HEX_SEGMENT.test(segment)
+        || PREFIXED_ID_SEGMENT.test(segment)
+        || OPAQUE_CODE_SEGMENT.test(segment);
+}
+
+/**
+ * Removes query/fragment data and opaque resource identifiers from URL-shaped
+ * values before they leave the browser. Static route names remain useful for
+ * grouping errors while patient/resource identities are not retained.
+ */
+export function sanitizeSentryUrl(value: string): string {
+    if (!value.startsWith('/') && !/^https?:\/\//i.test(value)) {
+        return value;
+    }
+
+    try {
+        const isAbsolute = /^https?:\/\//i.test(value);
+        const parsed = new URL(value, URL_BASE);
+        const pathname = parsed.pathname
+            .split('/')
+            .map((segment) => {
+                if (!segment) return segment;
+
+                try {
+                    return isDynamicPathSegment(decodeURIComponent(segment)) ? '[id]' : segment;
+                } catch {
+                    return segment;
+                }
+            })
+            .join('/');
+
+        return isAbsolute ? `${parsed.origin}${pathname}` : pathname;
+    } catch {
+        return value;
+    }
+}
 
 /**
  * Checks Sentry payload keys using the same suffix-aware convention as backend sanitization.
@@ -100,8 +151,13 @@ export function scrubSentryPayload(value: unknown, activePath = new WeakSet<obje
 
         const out: Record<string, unknown> = {};
         for (const [key, child] of Object.entries(value as Record<string, unknown>)) {
-            out[key] = isSensitiveSentryKey(key)
-                ? FILTERED_VALUE
+            if (isSensitiveSentryKey(key)) {
+                out[key] = FILTERED_VALUE;
+                continue;
+            }
+
+            out[key] = typeof child === 'string' && URL_VALUE_KEYS.has(key.toLowerCase())
+                ? sanitizeSentryUrl(child)
                 : scrubSentryPayload(child, activePath, depth + 1);
         }
 

@@ -23,6 +23,7 @@ import {
     isClientLogoutInProgress,
 } from '@/lib/auth/client-logout';
 import { postAuthBroadcast, subscribeAuthBroadcast } from '@/lib/auth/auth-broadcast';
+import { resolvePostLoginDestination } from '@/lib/auth/post-login-destination';
 import { useAuthStore } from '@/lib/store';
 import { toast } from 'sonner';
 import { INPUT_LIMITS, getEmailValidationMessage } from '@/lib/input-validation';
@@ -103,6 +104,12 @@ export default function LoginPage() {
         enabled: isAuthenticated && !isLogoutRedirect,
         staleTime: 5 * 60_000,
     });
+    const getPostLoginDestination = (role: string) => resolvePostLoginDestination(
+        typeof window === 'undefined'
+            ? null
+            : new URLSearchParams(window.location.search).get('from'),
+        role
+    );
 
     const loginMutation = useMutation({
         mutationFn: () => loginWithPassword(email.trim(), password, remember, 'app'),
@@ -123,7 +130,7 @@ export default function LoginPage() {
             // or showing a stale "session expired" state) to refresh.
             postAuthBroadcast({ type: 'login' });
             toast.success(t('login.toast.success'));
-            router.push(user.role === 'admin' ? '/admin' : '/dashboard');
+            router.push(getPostLoginDestination(user.role));
         },
         onError: (error) => {
             toast.error(getApiErrorMessage(error, t('login.toast.failed')));
@@ -141,7 +148,7 @@ export default function LoginPage() {
             queryClient.setQueryData(['auth', 'me'], user);
             postAuthBroadcast({ type: 'login' });
             toast.success(t('register.toast.googleSuccess'));
-            router.push('/dashboard');
+            router.push(getPostLoginDestination(user.role));
         },
         onError: (error) => {
             toast.error(getApiErrorMessage(error, t('register.toast.googleFailed')));

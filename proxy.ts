@@ -1,39 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { isProtectedAppPath } from '@/lib/auth/post-login-destination';
 
 const CANONICAL_HOST = 'identa.uz';
 const WWW_HOST = 'www.identa.uz';
 const AUTHENTICATED_LOGIN_PATHS = new Set(['/login', '/admin/login']);
 const SESSION_COOKIE_NAMES = ['identa-session', 'identa_session', 'laravel-session', 'laravel_session'];
 const LARAVEL_REMEMBER_COOKIE_PREFIX = 'remember_web_';
-
-/**
- * First-segment prefixes that always require a Sanctum session. Listing them
- * as a set is faster than a regex and keeps the gate auditable — adding a new
- * protected surface is a single-line change here, not a route-by-route audit.
- *
- * `/admin` is *not* in this set: the admin gate ladders through the role-aware
- * `resolveAdminGateRedirect` below, which handles both mock-mode and the
- * separate `/admin/login` exemption. Adding `/admin` here would short-circuit
- * that to the dentist `/login` page, which is the wrong destination.
- *
- * `/verify-email` is intentionally included — the click-through email URL has
- * a signed token, but landing the dashboard layout from a logged-out browser
- * still flashes its skeleton. Routing through the gate ensures we redirect to
- * `/login?from=...` first, the user signs in, and the verification handler
- * then runs against an authenticated session.
- */
-const PROTECTED_PATH_PREFIXES = [
-    '/dashboard',
-    '/patients',
-    '/appointments',
-    '/payments',
-    '/billing',
-    '/settings',
-    '/staff',
-    '/team',
-    '/analytics',
-    '/verify-email',
-];
 
 // Mock-mode cookies set by the in-app mock API (`app/api/v1/*`). Production
 // (Laravel + Sanctum) never sets these — there `mockModeActive` is false and
@@ -104,15 +76,6 @@ function normalizePathname(pathname: string): string {
     return pathname;
 }
 
-function isProtectedPath(pathname: string): boolean {
-    // Exact match OR prefix match with the next char being `/`. We don't want
-    // `/dashboardfoo` to be gated as `/dashboard` would be — the second
-    // segment check avoids that class of false positives.
-    return PROTECTED_PATH_PREFIXES.some(
-        (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)
-    );
-}
-
 /**
  * Server-side bounce for visitors who hit a protected route with no Sanctum
  * cookie. Without this gate, Next streams the dashboard HTML + the AppLayout
@@ -129,7 +92,7 @@ function isProtectedPath(pathname: string): boolean {
  */
 function resolveProtectedRouteRedirect(request: NextRequest): URL | null {
     const pathname = normalizePathname(request.nextUrl.pathname);
-    if (!isProtectedPath(pathname)) {
+    if (!isProtectedAppPath(pathname)) {
         return null;
     }
     if (hasAuthCookie(request)) {
@@ -140,7 +103,8 @@ function resolveProtectedRouteRedirect(request: NextRequest): URL | null {
     redirectUrl.pathname = '/login';
     // Surface the original destination so /login can bounce the user back
     // after a successful sign-in (handled client-side by reading ?from=).
-    redirectUrl.search = `?from=${encodeURIComponent(pathname)}`;
+    redirectUrl.search = '';
+    redirectUrl.searchParams.set('from', `${pathname}${request.nextUrl.search}`);
     return redirectUrl;
 }
 
