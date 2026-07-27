@@ -1,28 +1,51 @@
 const CLIENT_LOGOUT_STORAGE_KEY = 'identa.clientLogoutStartedAt';
 const CLIENT_LOGOUT_TTL_MS = 30_000;
 
+export const CLIENT_LOGOUT_COOKIE_NAME = 'identa_client_logout';
 export const CLIENT_LOGOUT_FINISHED_EVENT = 'identa:client-logout-finished';
 
+function getLogoutCookieAttributes(maxAgeSeconds: number): string {
+    const secure = typeof window !== 'undefined' && window.location.protocol === 'https:'
+        ? '; Secure'
+        : '';
+
+    return `Path=/; Max-Age=${maxAgeSeconds}; SameSite=Strict${secure}`;
+}
+
+function setClientLogoutCookie(): void {
+    if (typeof document === 'undefined') return;
+    try {
+        document.cookie = `${CLIENT_LOGOUT_COOKIE_NAME}=1; ${getLogoutCookieAttributes(
+            CLIENT_LOGOUT_TTL_MS / 1000
+        )}`;
+    } catch {
+        // Session storage remains the client-side fallback.
+    }
+}
+
+function clearClientLogoutCookie(): void {
+    if (typeof document === 'undefined') return;
+    try {
+        document.cookie = `${CLIENT_LOGOUT_COOKIE_NAME}=; ${getLogoutCookieAttributes(0)}`;
+    } catch {
+        // Best-effort cleanup; the cookie also expires after 30 seconds.
+    }
+}
+
+function hasClientLogoutCookie(): boolean {
+    if (typeof document === 'undefined') return false;
+    try {
+        return document.cookie
+            .split(';')
+            .some((cookie) => cookie.trim() === `${CLIENT_LOGOUT_COOKIE_NAME}=1`);
+    } catch {
+        return false;
+    }
+}
+
 /**
- * Resolve sessionStorage, defending against the *several* runtime contexts in
- * which `window.sessionStorage` is either unavailable or throws on access:
- *
- *   - SSR pre-hydration (`window` undefined).
- *   - Some incognito + strict-policy combinations (Chrome's "Block all cookies",
- *     Safari ITP, Firefox "Strict" tracking protection on cross-site iframes)
- *     throw `SecurityError` even on the property *getter* — so wrapping
- *     `storage.getItem` alone isn't enough; the `window.sessionStorage`
- *     lookup itself must be guarded.
- *   - Embedded WebViews / sandboxed iframes where the storage quota is zero
- *     and even `setItem` of a 1-byte value throws.
- *
- * Every access goes through this helper so a single try/catch swallows all
- * three. Returning `null` makes every caller fall back to the "logout flag
- * unavailable → assume not in progress" branch — the worst case is the bounce-
- * prevention briefly misfires, which is strictly better than the page crashing
- * out to the 500 boundary. (Pre-hardening, an unguarded `getItem` inside the
- * lazy `useState` initializer on `/login` was throwing in incognito with
- * strict policy, surfacing as "Раздел не открылся" / `/login 500`.)
+ * Session storage can be unavailable in SSR, strict private mode, and
+ * sandboxed WebViews. All callers degrade to the same-site cookie marker.
  */
 function getStorage(): Storage | null {
     if (typeof window === 'undefined') {
@@ -37,53 +60,57 @@ function getStorage(): Storage | null {
 
 export function markClientLogoutInProgress(): void {
     const storage = getStorage();
-    if (!storage) return;
-    try {
-        storage.setItem(CLIENT_LOGOUT_STORAGE_KEY, String(Date.now()));
-    } catch {
-        // Quota / SecurityError — the bounce-prevention will silently degrade
-        // but logout still navigates via the hard redirect.
+    if (storage) {
+        try {
+            storage.setItem(CLIENT_LOGOUT_STORAGE_KEY, String(Date.now()));
+        } catch {
+            // The cookie marker still protects the server-side redirect.
+        }
     }
+    setClientLogoutCookie();
 }
 
 export function clearClientLogoutInProgress(): void {
     const storage = getStorage();
-    if (!storage) return;
-    try {
-        storage.removeItem(CLIENT_LOGOUT_STORAGE_KEY);
-    } catch {
-        // Same fall-through as the setter — non-fatal.
+    if (storage) {
+        try {
+            storage.removeItem(CLIENT_LOGOUT_STORAGE_KEY);
+        } catch {
+            // Same fall-through as the setter; non-fatal.
+        }
     }
+    clearClientLogoutCookie();
+
     if (typeof window !== 'undefined') {
         try {
             window.dispatchEvent(new Event(CLIENT_LOGOUT_FINISHED_EVENT));
         } catch {
-            // Very old WebViews can refuse to dispatch synthetic events;
-            // safe to ignore since no listener relies on it for correctness.
+            // Very old WebViews may refuse synthetic events; no listener
+            // relies on this notification for correctness.
         }
     }
 }
 
 export function isClientLogoutInProgress(): boolean {
     const storage = getStorage();
-    if (!storage) return false;
+    if (!storage) return hasClientLogoutCookie();
 
     let rawStartedAt: string | null;
     try {
         rawStartedAt = storage.getItem(CLIENT_LOGOUT_STORAGE_KEY);
     } catch {
-        return false;
+        return hasClientLogoutCookie();
     }
-    if (!rawStartedAt) return false;
+    if (!rawStartedAt) return hasClientLogoutCookie();
 
     const startedAt = Number(rawStartedAt);
     if (!Number.isFinite(startedAt) || Date.now() - startedAt > CLIENT_LOGOUT_TTL_MS) {
         try {
             storage.removeItem(CLIENT_LOGOUT_STORAGE_KEY);
         } catch {
-            // Best-effort cleanup; nothing else hinges on this succeeding.
+            // Best-effort cleanup; the cookie fallback remains bounded by TTL.
         }
-        return false;
+        return hasClientLogoutCookie();
     }
 
     return true;
