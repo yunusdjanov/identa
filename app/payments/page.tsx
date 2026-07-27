@@ -25,7 +25,7 @@ import {
 import { DataTableShell, getDataTableClassName } from '@/components/ui/data-table-shell';
 import { PaymentsLoadingState } from '@/components/layout/page-loading-skeletons';
 import { PageHeader } from '@/components/ui/page-shell';
-import { getApiErrorMessage } from '@/lib/api/client';
+import { buildApiV1Url, getApiErrorMessage } from '@/lib/api/client';
 import {
     createPaymentExpense,
     deletePaymentExpense,
@@ -43,7 +43,7 @@ import type {
 } from '@/lib/api/types';
 import { useI18n } from '@/components/providers/i18n-provider';
 import { formatLocalizedDate } from '@/lib/i18n/date';
-import { extractPrimaryPhone, formatCurrency } from '@/lib/utils';
+import { extractPrimaryPhone, formatCurrency, truncateForUi } from '@/lib/utils';
 import { AlertCircle, CalendarDays, Download, History, Maximize2, Pencil, Phone, Plus, Receipt, Search, Trash2, Users, Wallet, X } from 'lucide-react';
 import { buildPdfFilename, exportRowsToPdf } from '@/lib/export/pdf';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -65,6 +65,7 @@ const PatientPhotoPreviewDialog = dynamic(
 );
 
 const PAGE_SIZE = 10;
+const PATIENT_TABLE_NAME_UI_LIMIT = 25;
 const OUTSTANDING_FILTER_PARAM = 'outstanding';
 const OUTSTANDING_FILTER_VALUE = '1';
 const LEDGER_EXPORT_PAGE_SIZE = 100;
@@ -177,6 +178,21 @@ interface PatientBalanceRow {
     }>;
     entryCount: number;
     lastEntryDate: string | null;
+}
+
+function hasPatientPhotoMetadata(row: ApiPaymentPatientLedgerRow): boolean {
+    return [
+        'patient_photo_scan_status',
+        'patient_photo_url',
+        'patient_photo_thumbnail_url',
+        'patient_photo_preview_url',
+    ].some((key) => Object.prototype.hasOwnProperty.call(row, key));
+}
+
+function buildPatientPhotoUrl(patientId: string, variant: 'thumbnail' | 'preview'): string {
+    return buildApiV1Url(
+        `/patients/${encodeURIComponent(patientId)}/photo?variant=${variant}`
+    );
 }
 
 function getPatientInitials(fullName: string): string {
@@ -363,6 +379,7 @@ function parsePaymentsTab(value: string | null): PaymentsTab {
 
 function toPatientBalanceRow(row: ApiPaymentPatientLedgerRow): PatientBalanceRow {
     const balancesByCurrency = getPatientBalancesByCurrency(row);
+    const photoMetadataAvailable = hasPatientPhotoMetadata(row);
     const patientPhotoThumbnailUrl = getProtectedMediaThumbnailUrl({
         scanStatus: row.patient_photo_scan_status,
         thumbnailUrl: row.patient_photo_thumbnail_url,
@@ -371,12 +388,12 @@ function toPatientBalanceRow(row: ApiPaymentPatientLedgerRow): PatientBalanceRow
         previewReady: row.patient_photo_preview_ready,
         url: row.patient_photo_url,
         allowFullFallback: true,
-    }) ?? undefined;
+    }) ?? (photoMetadataAvailable ? undefined : buildPatientPhotoUrl(row.patient_id, 'thumbnail'));
     const patientPhotoPreviewUrl = getProtectedMediaPreviewUrl({
         scanStatus: row.patient_photo_scan_status,
         previewUrl: row.patient_photo_preview_url,
         url: row.patient_photo_url,
-    }) ?? patientPhotoThumbnailUrl;
+    }) ?? (photoMetadataAvailable ? patientPhotoThumbnailUrl : buildPatientPhotoUrl(row.patient_id, 'preview'));
 
     return {
         patientId: row.patient_id,
@@ -391,6 +408,58 @@ function toPatientBalanceRow(row: ApiPaymentPatientLedgerRow): PatientBalanceRow
         entryCount: Number(row.entry_count ?? 0),
         lastEntryDate: row.last_entry_date ?? null,
     };
+}
+
+function PatientPhotoCell({
+    row,
+    photoLabel,
+    onPreview,
+}: {
+    row: PatientBalanceRow;
+    photoLabel: string;
+    onPreview: (row: PatientBalanceRow) => void;
+}) {
+    const [failedUrl, setFailedUrl] = useState<string | null>(null);
+    const thumbnailUrl = failedUrl === row.patientPhotoThumbnailUrl
+        ? undefined
+        : row.patientPhotoThumbnailUrl;
+
+    return (
+        <TableCell className="w-24 overflow-visible">
+            {thumbnailUrl ? (
+                <div className="relative h-16 w-20 overflow-visible">
+                    <button
+                        type="button"
+                        className="group absolute left-0 top-1/2 inline-flex h-20 w-20 -translate-y-1/2 items-center justify-center overflow-hidden rounded-xl border border-slate-200 bg-white p-0 shadow-xs transition hover:border-teal-200 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-300"
+                        aria-label={`${photoLabel}: ${row.patientName}`}
+                        onClick={() => onPreview(row)}
+                    >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                            src={thumbnailUrl}
+                            alt={row.patientName}
+                            crossOrigin={getProtectedMediaCrossOrigin(thumbnailUrl)}
+                            className="block h-full w-full rounded-xl object-cover object-center"
+                            decoding="async"
+                            loading="lazy"
+                            onError={() => setFailedUrl(thumbnailUrl)}
+                        />
+                        <span className="pointer-events-none absolute inset-0 flex items-center justify-center bg-slate-950/0 text-white opacity-0 transition group-hover:bg-slate-950/35 group-hover:opacity-100 group-focus-visible:bg-slate-950/35 group-focus-visible:opacity-100">
+                            <Maximize2 className="h-4 w-4" />
+                        </span>
+                    </button>
+                </div>
+            ) : (
+                <div className="relative h-16 w-20 overflow-visible">
+                    <Avatar className="absolute left-0 top-1/2 h-20 w-20 -translate-y-1/2 rounded-xl border border-dashed border-slate-200 bg-slate-50">
+                        <AvatarFallback className="rounded-xl bg-slate-50 text-sm font-semibold text-slate-500">
+                            {getPatientInitials(row.patientName)}
+                        </AvatarFallback>
+                    </Avatar>
+                </div>
+            )}
+        </TableCell>
+    );
 }
 
 function toExpenseRow(row: ApiPaymentExpense): ExpenseRow {
@@ -1310,68 +1379,45 @@ export default function PaymentsPage() {
                             ) : (
                                 <>
                                     <DataTableShell>
-                                        <Table className={getDataTableClassName('standard')}>
+                                        <Table className={`${getDataTableClassName('standard')} table-fixed`}>
                                             <TableHeader>
                                                 <TableRow>
-                                                    <TableHead className="w-12">{t('payments.table.number')}</TableHead>
+                                                    <TableHead className="w-10">{t('payments.table.number')}</TableHead>
                                                     <TableHead className="w-24">{t('patients.table.photo')}</TableHead>
-                                                    <TableHead>{t('payments.table.patient')}</TableHead>
-                                                    <TableHead>{t('payments.table.lastEntry')}</TableHead>
-                                                    <TableHead>{t('payments.table.entries')}</TableHead>
-                                                    <TableHead>{t('payments.table.debt')}</TableHead>
-                                                    <TableHead>{t('payments.table.paid')}</TableHead>
-                                                    <TableHead>{t('payments.table.balance')}</TableHead>
-                                                    <TableHead className="text-right">{t('payments.table.actions')}</TableHead>
+                                                    <TableHead className="w-44">{t('payments.table.patient')}</TableHead>
+                                                    <TableHead className="w-24">{t('payments.table.lastEntry')}</TableHead>
+                                                    <TableHead className="w-16">{t('payments.table.entries')}</TableHead>
+                                                    <TableHead className="w-24">{t('payments.table.debt')}</TableHead>
+                                                    <TableHead className="w-24">{t('payments.table.paid')}</TableHead>
+                                                    <TableHead className="w-28">{t('payments.table.balance')}</TableHead>
+                                                    <TableHead className="w-24 text-right">{t('payments.table.actions')}</TableHead>
                                                 </TableRow>
                                             </TableHeader>
                                             <TableBody>
                                                 {paginatedPatientRows.map((row, index) => (
                                                     <TableRow key={row.patientId}>
                                                         <TableCell>{(effectivePatientPage - 1) * PAGE_SIZE + index + 1}</TableCell>
-                                                        <TableCell className="w-28 overflow-visible">
-                                                            {row.patientPhotoThumbnailUrl ? (
-                                                                <div className="relative h-16 w-20 overflow-visible">
-                                                                    <button
-                                                                        type="button"
-                                                                        className="group absolute left-0 top-1/2 inline-flex h-20 w-20 -translate-y-1/2 items-center justify-center overflow-hidden rounded-xl border border-slate-200 bg-white p-0 shadow-xs transition hover:border-teal-200 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-300"
-                                                                        aria-label={`${t('patients.form.photo')}: ${row.patientName}`}
-                                                                        onClick={() => {
-                                                                            setPatientPhotoPreview({
-                                                                                src: row.patientPhotoPreviewUrl ?? row.patientPhotoThumbnailUrl ?? '',
-                                                                                thumbnailSrc: row.patientPhotoThumbnailUrl,
-                                                                                alt: row.patientName,
-                                                                                title: row.patientName,
-                                                                            });
-                                                                        }}
-                                                                    >
-                                                                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                                                                        <img
-                                                                            src={row.patientPhotoThumbnailUrl}
-                                                                            alt={row.patientName}
-                                                                            crossOrigin={getProtectedMediaCrossOrigin(row.patientPhotoThumbnailUrl)}
-                                                                            className="block h-full w-full rounded-xl object-cover object-center"
-                                                                            decoding="async"
-                                                                            loading="lazy"
-                                                                        />
-                                                                        <span className="pointer-events-none absolute inset-0 flex items-center justify-center bg-slate-950/0 text-white opacity-0 transition group-hover:bg-slate-950/35 group-hover:opacity-100 group-focus-visible:bg-slate-950/35 group-focus-visible:opacity-100">
-                                                                            <Maximize2 className="h-4 w-4" />
-                                                                        </span>
-                                                                    </button>
-                                                                </div>
-                                                            ) : (
-                                                                <div className="relative h-16 w-20 overflow-visible">
-                                                                    <Avatar className="absolute left-0 top-1/2 h-20 w-20 -translate-y-1/2 rounded-xl border border-dashed border-slate-200 bg-slate-50">
-                                                                        <AvatarFallback className="rounded-xl bg-slate-50 text-sm font-semibold text-slate-500">
-                                                                            {getPatientInitials(row.patientName)}
-                                                                        </AvatarFallback>
-                                                                    </Avatar>
-                                                                </div>
-                                                            )}
-                                                        </TableCell>
-                                                        <TableCell>
-                                                            <div className="space-y-1">
-                                                                <p className="font-medium text-slate-900">{row.patientName}</p>
-                                                                <p className="text-xs text-slate-500">
+                                                        <PatientPhotoCell
+                                                            row={row}
+                                                            photoLabel={t('patients.form.photo')}
+                                                            onPreview={(patientRow) => {
+                                                                setPatientPhotoPreview({
+                                                                    src: patientRow.patientPhotoPreviewUrl ?? patientRow.patientPhotoThumbnailUrl ?? '',
+                                                                    thumbnailSrc: patientRow.patientPhotoThumbnailUrl,
+                                                                    alt: patientRow.patientName,
+                                                                    title: patientRow.patientName,
+                                                                });
+                                                            }}
+                                                        />
+                                                        <TableCell className="max-w-0">
+                                                            <div className="min-w-0 space-y-1">
+                                                                <p
+                                                                    className="truncate font-medium text-slate-900"
+                                                                    title={row.patientName}
+                                                                >
+                                                                    {truncateForUi(row.patientName, PATIENT_TABLE_NAME_UI_LIMIT)}
+                                                                </p>
+                                                                <p className="truncate text-xs text-slate-500" title={row.patientPhone}>
                                                                     <Phone aria-hidden="true" className="mr-1 inline-block h-3 w-3 text-slate-400" />
                                                                     {row.patientPhone}
                                                                 </p>

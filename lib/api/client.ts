@@ -72,6 +72,12 @@ function resolveApiRootUrl(): string {
     return alignLoopbackHost(apiRootUrl);
 }
 
+export function buildApiV1Url(path: string): string {
+    const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+
+    return `${resolveApiRootUrl()}/v1${normalizedPath}`;
+}
+
 export const apiClient = axios.create({
     baseURL: `${apiRootUrl}/v1`,
     withCredentials: true,
