@@ -4,6 +4,9 @@
 > decision after the payments ledger, image editor, history timeline, recent
 > patients, and direct-upload changes. Run a fresh performance pass before
 > release sign-off.
+>
+> The invoice/payment findings and dataset below are superseded by
+> [Financial Source of Truth](../architecture/FINANCIAL_SOURCE_OF_TRUTH.md).
 
 ## Scope
 - Frontend-only non-deployment track.

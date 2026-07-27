@@ -8,7 +8,7 @@ areas into explicit engineering checks instead of relying on memory.
 Any change touching these areas must be reviewed as high-risk:
 
 - patient data, patient profile, patient history, recent patients
-- payment ledger, balances, invoices, refunds, subscriptions
+- treatment-entry ledger, balances, legacy financial storage, refunds, subscriptions
 - upload prepare, direct upload, finalize, processing, delete, edit
 - login, logout, CSRF retry, session expiry, roles, permissions
 

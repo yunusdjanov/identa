@@ -90,39 +90,6 @@ class AppointmentService
         return $query->paginate($this->perPage($request));
     }
 
-    public function lookup(Request $request): LengthAwarePaginator
-    {
-        $query = Appointment::query()
-            ->where('dentist_id', $this->dentistId($request))
-            ->forActivePatients()
-            ->with('patient:id,full_name')
-            ->orderByDesc('appointment_date')
-            ->orderByDesc('start_time');
-
-        $search = $request->input('filter.search');
-        if (is_string($search) && $search !== '') {
-            $query->where(function (Builder $builder) use ($search): void {
-                $builder->whereHas('patient', function (Builder $patientQuery) use ($search): void {
-                    // Case-insensitive across all DB drivers (Postgres LIKE is
-                    // case-sensitive; mobile keyboards default to lowercase).
-                    Search::ciLike($patientQuery, 'full_name', $search);
-                });
-                Search::ciLike($builder, 'guest_name', $search, 'or');
-                Search::ciLike($builder, 'guest_phone', $search, 'or');
-            });
-        }
-
-        return $query->paginate(min($this->perPage($request), 50), [
-            'id',
-            'patient_id',
-            'guest_name',
-            'guest_phone',
-            'appointment_date',
-            'start_time',
-            'status',
-        ]);
-    }
-
     public function create(StoreAppointmentRequest $request): Appointment
     {
         $validated = $request->validated();

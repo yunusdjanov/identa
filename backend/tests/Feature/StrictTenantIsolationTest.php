@@ -2,9 +2,6 @@
 
 namespace Tests\Feature;
 
-use App\Models\Invoice;
-use App\Models\OdontogramEntry;
-use App\Models\OdontogramEntryImage;
 use App\Models\Patient;
 use App\Models\Treatment;
 use App\Models\TreatmentImage;
@@ -69,54 +66,4 @@ class StrictTenantIsolationTest extends TestCase
             ->assertNotFound();
     }
 
-    public function test_dentist_cannot_download_other_tenant_odontogram_image(): void
-    {
-        $dentist = User::factory()->create();
-        $otherDentist = User::factory()->create();
-        $foreignPatient = Patient::factory()->create(['dentist_id' => $otherDentist->id]);
-        $foreignEntry = OdontogramEntry::factory()->create([
-            'dentist_id' => $otherDentist->id,
-            'patient_id' => $foreignPatient->id,
-        ]);
-        $foreignImage = OdontogramEntryImage::query()->create([
-            'dentist_id' => $otherDentist->id,
-            'odontogram_entry_id' => $foreignEntry->id,
-            'stage' => 'before',
-            'disk' => 'local',
-            'path' => 'approved/foreign-odontogram.jpg',
-            'mime_type' => 'image/jpeg',
-            'file_size' => 1234,
-            'scan_status' => 'approved',
-        ]);
-
-        $this->actingAs($dentist, 'web')
-            ->get("/api/v1/patients/{$foreignPatient->id}/odontogram/{$foreignEntry->id}/images/{$foreignImage->id}")
-            ->assertNotFound();
-    }
-
-    public function test_invoice_update_cannot_switch_to_other_tenant_patient(): void
-    {
-        $dentist = User::factory()->create();
-        $patient = Patient::factory()->create(['dentist_id' => $dentist->id]);
-        $invoice = Invoice::factory()->create([
-            'dentist_id' => $dentist->id,
-            'patient_id' => $patient->id,
-            'total_amount' => 100000,
-            'paid_amount' => 0,
-            'balance' => 100000,
-        ]);
-        $otherDentist = User::factory()->create();
-        $foreignPatient = Patient::factory()->create(['dentist_id' => $otherDentist->id]);
-
-        $this->actingAs($dentist, 'web')
-            ->putJson("/api/v1/invoices/{$invoice->id}", [
-                'patient_id' => $foreignPatient->id,
-                'invoice_date' => '2026-05-05',
-                'items' => [
-                    ['description' => 'Cross tenant switch', 'quantity' => 1, 'unit_price' => 100000],
-                ],
-            ])
-            ->assertUnprocessable()
-            ->assertJsonValidationErrors(['patient_id']);
-    }
 }

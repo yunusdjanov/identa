@@ -1161,7 +1161,7 @@ describe('TreatmentHistoryCard image controls', () => {
         expect(within(remainingCard).queryByText('Paid')).not.toBeInTheDocument();
     });
 
-    it('submits standalone payments without requiring matching debt', async () => {
+    it('stores the paid amount on the same treatment entry', async () => {
         const user = userEvent.setup();
 
         vi.mocked(listPatientTreatments).mockResolvedValue(treatmentsEnvelope([]));

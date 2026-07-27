@@ -48,6 +48,8 @@ import { cn, formatCurrency } from '@/lib/utils';
 
 const PAGE_SIZE = 10;
 const EXPORT_PAGE_SIZE = 100;
+const MAX_EXPORT_ROWS = 5_000;
+const MAX_EXPORT_PAGE_REQUESTS = 100;
 const MONEY_CURRENCIES = ['UZS', 'USD'] as const satisfies readonly ApiMoneyCurrency[];
 
 type PatientBalances = Record<ApiMoneyCurrency, {
@@ -418,15 +420,26 @@ export default function PaymentPatientPage({
             const exportEntries: ApiPaymentHistoryLedgerRow[] = [];
             let exportPage = 1;
             let exportTotalPages = 1;
+            let requestCount = 0;
 
             do {
+                requestCount += 1;
+                if (requestCount > MAX_EXPORT_PAGE_REQUESTS) {
+                    throw new Error('Patient ledger export exceeded the page limit.');
+                }
                 const response = await listPaymentLedgerHistory({
                     page: exportPage,
                     perPage: EXPORT_PAGE_SIZE,
                     filter: { patient_id: id },
                 });
                 exportEntries.push(...response.data);
+                if (exportEntries.length > MAX_EXPORT_ROWS) {
+                    throw new Error('Patient ledger export exceeded the row limit.');
+                }
                 exportTotalPages = response.meta?.pagination?.total_pages ?? 1;
+                if (!Number.isInteger(exportTotalPages) || exportTotalPages < 1) {
+                    throw new Error('Patient ledger export received invalid pagination.');
+                }
                 exportPage += 1;
             } while (exportPage <= exportTotalPages);
 

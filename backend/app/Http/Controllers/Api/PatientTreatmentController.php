@@ -56,35 +56,6 @@ class PatientTreatmentController extends Controller
         ]);
     }
 
-    public function indexAll(Request $request): JsonResponse
-    {
-        $result = $this->treatments->listAll($request);
-        $treatments = $result['treatments'];
-        $includeImages = $result['include_images'];
-
-        return response()->json([
-            'data' => $treatments
-                ->getCollection()
-                ->map(fn (Treatment $treatment): array => $this->treatmentPayload(
-                    $request,
-                    $treatment,
-                    $includeImages,
-                    $includeImages
-                ))
-                ->values()
-                ->all(),
-            'meta' => [
-                'pagination' => [
-                    'page' => $treatments->currentPage(),
-                    'per_page' => $treatments->perPage(),
-                    'total' => $treatments->total(),
-                    'total_pages' => $treatments->lastPage(),
-                ],
-                'summary' => $result['summary'],
-            ],
-        ]);
-    }
-
     public function show(Request $request, string $id, string $treatmentId): JsonResponse
     {
         $treatment = $this->treatments->show($request, $id, $treatmentId);

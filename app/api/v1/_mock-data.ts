@@ -52,41 +52,10 @@ export const TREATMENTS = [
     { id: 'trt-6', patient_id: 'pat-6', patient_name: 'Dilnoza Ergasheva', patient_phone: '+998901006006', patient_secondary_phone: null, patient_code: 'P-006', tooth_number: null, teeth: [], treatment_type: 'Tishlarni oqartirish (Zoom)', description: null, comment: null, treatment_date: '2026-05-20', cost: 850000, debt_amount: 850000, paid_amount: 850000, balance: 0, notes: null, primary_image: null, image_count: 0, images: [], created_at: '2026-05-20T10:00:00Z', updated_at: '2026-05-20T11:00:00Z' },
 ];
 
-export const INVOICES = [
-    { id: 'inv-1', patient_id: 'pat-1', patient_name: 'Alisher Karimov', patient_phone: '+998901001001', invoice_number: 'INV-2026-001', invoice_date: '2026-05-19', due_date: '2026-06-19', total_amount: 350000, paid_amount: 200000, balance: 150000, status: 'partially_paid', notes: null },
-    { id: 'inv-2', patient_id: 'pat-2', patient_name: 'Malika Yusupova', patient_phone: '+998901002002', invoice_number: 'INV-2026-002', invoice_date: '2026-05-23', due_date: null, total_amount: 150000, paid_amount: 150000, balance: 0, status: 'paid', notes: null },
-    { id: 'inv-3', patient_id: 'pat-3', patient_name: 'Bobur Rahimov', patient_phone: '+998901003003', invoice_number: 'INV-2026-003', invoice_date: '2026-04-15', due_date: null, total_amount: 200000, paid_amount: 200000, balance: 0, status: 'paid', notes: null },
-    { id: 'inv-4', patient_id: 'pat-4', patient_name: 'Nilufar Hasanova', patient_phone: '+998901004004', invoice_number: 'INV-2026-004', invoice_date: '2026-05-22', due_date: '2026-06-22', total_amount: 1500000, paid_amount: 0, balance: 1500000, status: 'unpaid', notes: null },
-    { id: 'inv-5', patient_id: 'pat-5', patient_name: 'Jasur Toshmatov', patient_phone: '+998901005005', invoice_number: 'INV-2026-005', invoice_date: '2026-04-01', due_date: '2026-06-01', total_amount: 4500000, paid_amount: 2000000, balance: 2500000, status: 'partially_paid', notes: null },
-    { id: 'inv-6', patient_id: 'pat-6', patient_name: 'Dilnoza Ergasheva', patient_phone: '+998901006006', invoice_number: 'INV-2026-006', invoice_date: '2026-05-20', due_date: null, total_amount: 850000, paid_amount: 850000, balance: 0, status: 'paid', notes: null },
-];
-
-export const PAYMENTS = [
-    { id: 'pay-1', invoice_id: 'inv-1', patient_id: 'pat-1', amount: 200000, payment_method: 'cash', payment_date: '2026-05-19', notes: null, created_at: '2026-05-19T10:00:00Z' },
-    { id: 'pay-2', invoice_id: 'inv-2', patient_id: 'pat-2', amount: 150000, payment_method: 'card', payment_date: '2026-05-23', notes: null, created_at: '2026-05-23T12:30:00Z' },
-    { id: 'pay-3', invoice_id: 'inv-3', patient_id: 'pat-3', amount: 200000, payment_method: 'cash', payment_date: '2026-04-15', notes: null, created_at: '2026-04-15T10:30:00Z' },
-    { id: 'pay-4', invoice_id: 'inv-5', patient_id: 'pat-5', amount: 2000000, payment_method: 'card', payment_date: '2026-05-01', notes: 'Birinchi to\'lov', created_at: '2026-05-01T11:00:00Z' },
-    { id: 'pay-5', invoice_id: 'inv-6', patient_id: 'pat-6', amount: 850000, payment_method: 'cash', payment_date: '2026-05-20', notes: null, created_at: '2026-05-20T11:00:00Z' },
-];
-
 export const PAYMENT_EXPENSES = [
     { id: 'exp-1', title: 'Materials', amount: 450000, quantity: 1, currency: 'UZS', expense_date: '2026-05-24', created_at: '2026-05-24T09:00:00Z', updated_at: '2026-05-24T09:00:00Z' },
     { id: 'exp-2', title: 'Rent', amount: 1200000, quantity: 1, currency: 'UZS', expense_date: '2026-05-01', created_at: '2026-05-01T09:00:00Z', updated_at: '2026-05-01T09:00:00Z' },
 ];
-
-export const ODONTOGRAM: Record<string, unknown[]> = {
-    'pat-1': [
-        { id: 'odo-1', patient_id: 'pat-1', tooth_number: 21, condition_type: 'filling', surface: 'mesial', material: 'composite', severity: null, condition_date: '2026-05-19', notes: null, created_at: '2026-05-19T09:30:00Z', images: [] },
-        { id: 'odo-2', patient_id: 'pat-1', tooth_number: 16, condition_type: 'cavity', surface: 'occlusal', material: null, severity: 'moderate', condition_date: '2026-05-19', notes: null, created_at: '2026-05-19T09:30:00Z', images: [] },
-    ],
-    'pat-4': [
-        { id: 'odo-3', patient_id: 'pat-4', tooth_number: 16, condition_type: 'crown', surface: null, material: 'metal_ceramic', severity: null, condition_date: '2026-05-22', notes: null, created_at: '2026-05-22T09:00:00Z', images: [] },
-    ],
-    'pat-5': [
-        { id: 'odo-4', patient_id: 'pat-5', tooth_number: 36, condition_type: 'implant', surface: null, material: 'titanium', severity: null, condition_date: '2026-04-01', notes: null, created_at: '2026-04-01T09:00:00Z', images: [] },
-        { id: 'odo-5', patient_id: 'pat-5', tooth_number: 46, condition_type: 'extraction', surface: null, material: null, severity: null, condition_date: '2025-10-15', notes: null, created_at: '2025-10-15T10:00:00Z', images: [] },
-    ],
-};
 
 export const PROFILE = {
     id: 'dentist-1',
@@ -104,7 +73,7 @@ export const PROFILE = {
 export const AUDIT_LOGS = [
     { id: 'log-1', event_type: 'patient.created', entity_type: 'patient', entity_id: 'pat-6', actor_role: 'dentist', actor: { id: 'dentist-1', name: 'Zohid Yunusjonov', email: 'yunusdjanov@gmail.com', role: 'dentist' }, ip_address: '127.0.0.1', user_agent: null, metadata: { patient_name: 'Dilnoza Ergasheva' }, created_at: '2026-01-15T10:00:00Z' },
     { id: 'log-2', event_type: 'appointment.created', entity_type: 'appointment', entity_id: 'apt-8', actor_role: 'assistant', actor: { id: 'ast-1', name: 'Zulfiya Nazarova', email: 'zulfiya@identa.uz', role: 'assistant' }, ip_address: '127.0.0.1', user_agent: null, metadata: { patient_name: 'Malika Yusupova' }, created_at: '2026-05-22T09:00:00Z' },
-    { id: 'log-3', event_type: 'payment.created', entity_type: 'payment', entity_id: 'pay-5', actor_role: 'dentist', actor: { id: 'dentist-1', name: 'Zohid Yunusjonov', email: 'yunusdjanov@gmail.com', role: 'dentist' }, ip_address: '127.0.0.1', user_agent: null, metadata: { amount: 850000 }, created_at: '2026-05-20T11:00:00Z' },
+    { id: 'log-3', event_type: 'patient.treatment.updated', entity_type: 'treatment', entity_id: 'trt-6', actor_role: 'dentist', actor: { id: 'dentist-1', name: 'Zohid Yunusjonov', email: 'yunusdjanov@gmail.com', role: 'dentist' }, ip_address: '127.0.0.1', user_agent: null, metadata: { paid_amount: 850000 }, created_at: '2026-05-20T11:00:00Z' },
     { id: 'log-4', event_type: 'auth.login', entity_type: null, entity_id: null, actor_role: 'dentist', actor: { id: 'dentist-1', name: 'Zohid Yunusjonov', email: 'yunusdjanov@gmail.com', role: 'dentist' }, ip_address: '127.0.0.1', user_agent: null, metadata: null, created_at: '2026-05-23T08:00:00Z' },
     // Admin actions on dentist 1 (Zohid) — sorted recent-first when listed
     { id: 'log-adm-1', event_type: 'admin.dentist.subscription_updated', entity_type: 'user', entity_id: '1', actor_role: 'admin', actor: { id: 'admin-1', name: 'Admin', email: 'admin@identa.uz', role: 'admin' }, ip_address: '127.0.0.1', user_agent: null, metadata: { action: 'mark_active', note: 'Aktivatsiya qildim' }, created_at: '2026-05-15T14:00:00Z' },

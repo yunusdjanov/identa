@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\ListPaymentLedgerRequest;
 use App\Models\Patient;
 use App\Models\Treatment;
 use App\Models\User;
@@ -25,7 +26,7 @@ class PaymentLedgerController extends Controller
      * filter[search], filter[outstanding]. Returns patient-level balances
      * plus summary totals for the payments page.
      */
-    public function patients(Request $request): JsonResponse
+    public function patients(ListPaymentLedgerRequest $request): JsonResponse
     {
         $result = $this->ledger->listPatientBalances($request);
         $rows = $result['rows'];
@@ -60,7 +61,7 @@ class PaymentLedgerController extends Controller
      * filter[search], filter[outstanding]. Returns treatment-ledger rows
      * for the payments history table.
      */
-    public function history(Request $request): JsonResponse
+    public function history(ListPaymentLedgerRequest $request): JsonResponse
     {
         $result = $this->ledger->listHistoryRows($request);
         $rows = $result['rows'];

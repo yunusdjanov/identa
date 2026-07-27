@@ -40,35 +40,6 @@ class AppointmentController extends Controller
         ]);
     }
 
-    public function lookup(Request $request): JsonResponse
-    {
-        $appointments = $this->appointments->lookup($request);
-
-        return response()->json([
-            'data' => $appointments
-                ->getCollection()
-                ->map(static fn (Appointment $appointment): array => [
-                    'id' => (string) $appointment->id,
-                    'appointment_date' => $appointment->appointment_date?->toDateString(),
-                    'start_time' => substr((string) $appointment->start_time, 0, 5),
-                    'patient_name' => $appointment->patient?->full_name ?? $appointment->guest_name,
-                    'guest_phone' => $appointment->guest_phone,
-                    'is_guest' => $appointment->patient_id === null,
-                    'status' => $appointment->status,
-                ])
-                ->values()
-                ->all(),
-            'meta' => [
-                'pagination' => [
-                    'page' => $appointments->currentPage(),
-                    'per_page' => $appointments->perPage(),
-                    'total' => $appointments->total(),
-                    'total_pages' => $appointments->lastPage(),
-                ],
-            ],
-        ]);
-    }
-
     public function store(StoreAppointmentRequest $request): JsonResponse
     {
         return response()->json([

@@ -2,7 +2,6 @@
 
 namespace Tests\Feature;
 
-use App\Models\Invoice;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -31,7 +30,7 @@ class AuditLoggingTest extends TestCase
         ]);
     }
 
-    public function test_patient_and_payment_events_are_recorded(): void
+    public function test_patient_event_is_recorded(): void
     {
         $dentist = User::factory()->create();
 
@@ -49,35 +48,6 @@ class AuditLoggingTest extends TestCase
             'actor_id' => $dentist->id,
             'entity_type' => 'patient',
             'entity_id' => $patientId,
-        ]);
-
-        $invoice = Invoice::create([
-            'dentist_id' => $dentist->id,
-            'patient_id' => $patientId,
-            'invoice_number' => 'INV-AUDIT-1',
-            'invoice_date' => '2026-03-01',
-            'total_amount' => '200.00',
-            'paid_amount' => '0.00',
-            'balance' => '200.00',
-            'status' => Invoice::STATUS_UNPAID,
-        ]);
-
-        $paymentResponse = $this->actingAs($dentist, 'web')
-            ->postJson('/api/v1/payments', [
-                'invoice_id' => $invoice->id,
-                'amount' => 50,
-                'payment_method' => 'cash',
-                'payment_date' => '2026-03-02',
-            ])
-            ->assertCreated();
-
-        $paymentId = $paymentResponse->json('data.id');
-
-        $this->assertDatabaseHas('audit_logs', [
-            'event_type' => 'payment.created',
-            'actor_id' => $dentist->id,
-            'entity_type' => 'payment',
-            'entity_id' => $paymentId,
         ]);
     }
 

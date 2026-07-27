@@ -95,11 +95,9 @@ class PatientResource extends JsonResource
     private function resolveLastVisitAt(Patient $patient): ?string
     {
         $lastCompletedAppointmentAt = $this->normalizeDateValue($patient->getAttribute('last_completed_appointment_at'));
-        $lastOdontogramVisitAt = $this->normalizeDateValue($patient->getAttribute('last_odontogram_visit_at'));
         $lastTreatmentVisitAt = $this->normalizeDateValue($patient->getAttribute('last_treatment_visit_at'));
         $visitDates = array_filter([
             $lastCompletedAppointmentAt,
-            $lastOdontogramVisitAt,
             $lastTreatmentVisitAt,
         ], static fn (?string $visitDate): bool => $visitDate !== null);
 

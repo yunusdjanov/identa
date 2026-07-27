@@ -9,7 +9,7 @@ This checklist closes the medical upload hardening phase and should be run befor
 - Run a queue worker for media processing:
   - `php artisan queue:work --queue=default --tries=3 --timeout=180`
 - Keep the media disk private. Do not expose bucket/object URLs publicly.
-- Use signed URLs through the Laravel API for patient photos, treatment images, and odontogram images.
+- Use signed URLs through the Laravel API for patient photos and treatment-entry images.
 
 ## Environment
 
@@ -39,7 +39,7 @@ For R2/S3, also set the existing storage keys used by `config/filesystems.php`.
    - Record starts as `pending`.
    - File is written under `quarantine/`.
    - Queue approves it, stores the sanitized copy under `approved/`, and the image becomes visible.
-2. Upload a clean treatment or odontogram image.
+2. Upload a clean treatment-entry image.
    - UI shows processing while scan/compression runs.
    - Thumbnail loads in list/edit views.
    - Full preview loads only after opening the gallery.

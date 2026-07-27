@@ -99,7 +99,7 @@ class PatientApiTest extends TestCase
         OdontogramEntry::factory()->create([
             'dentist_id' => $dentist->id,
             'patient_id' => $ownedPatient->id,
-            'condition_date' => '2026-01-20',
+            'condition_date' => '2026-02-20',
         ]);
         Treatment::factory()->create([
             'dentist_id' => $dentist->id,
@@ -361,7 +361,7 @@ class PatientApiTest extends TestCase
         OdontogramEntry::factory()->create([
             'dentist_id' => $dentist->id,
             'patient_id' => $patient->id,
-            'condition_date' => '2026-06-13',
+            'condition_date' => '2026-06-14',
         ]);
 
         $this->actingAs($dentist, 'web')
@@ -1074,7 +1074,7 @@ class PatientApiTest extends TestCase
             ->assertJsonPath('data.supported', false);
     }
 
-    public function test_dentist_can_filter_inactive_patients_by_last_visit_threshold(): void
+    public function test_inactive_filter_uses_only_visible_appointment_and_treatment_visits(): void
     {
         $dentist = User::factory()->create();
 
@@ -1090,13 +1090,9 @@ class PatientApiTest extends TestCase
             'dentist_id' => $dentist->id,
             'full_name' => 'Active Patient',
         ]);
-        $inactiveOdontogramPatient = Patient::factory()->create([
+        $legacyOdontogramPatient = Patient::factory()->create([
             'dentist_id' => $dentist->id,
-            'full_name' => 'Inactive Odontogram Patient',
-        ]);
-        $activeOdontogramPatient = Patient::factory()->create([
-            'dentist_id' => $dentist->id,
-            'full_name' => 'Active Odontogram Patient',
+            'full_name' => 'Legacy Odontogram Patient',
         ]);
         $inactiveTreatmentPatient = Patient::factory()->create([
             'dentist_id' => $dentist->id,
@@ -1121,12 +1117,7 @@ class PatientApiTest extends TestCase
         ]);
         OdontogramEntry::factory()->create([
             'dentist_id' => $dentist->id,
-            'patient_id' => $inactiveOdontogramPatient->id,
-            'condition_date' => '2025-07-01',
-        ]);
-        OdontogramEntry::factory()->create([
-            'dentist_id' => $dentist->id,
-            'patient_id' => $activeOdontogramPatient->id,
+            'patient_id' => $legacyOdontogramPatient->id,
             'condition_date' => '2025-10-01',
         ]);
         Treatment::factory()->create([
@@ -1146,10 +1137,9 @@ class PatientApiTest extends TestCase
             ->assertJsonPath('meta.pagination.total', 4)
             ->assertJsonFragment(['full_name' => $noVisitPatient->full_name])
             ->assertJsonFragment(['full_name' => $inactivePatient->full_name])
-            ->assertJsonFragment(['full_name' => $inactiveOdontogramPatient->full_name])
+            ->assertJsonFragment(['full_name' => $legacyOdontogramPatient->full_name])
             ->assertJsonFragment(['full_name' => $inactiveTreatmentPatient->full_name])
             ->assertJsonMissing(['full_name' => $activePatient->full_name])
-            ->assertJsonMissing(['full_name' => $activeOdontogramPatient->full_name])
             ->assertJsonMissing(['full_name' => $activeTreatmentPatient->full_name]);
     }
 

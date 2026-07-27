@@ -80,6 +80,8 @@ class AppServiceProvider extends ServiceProvider
 
         Gate::policy(Appointment::class, TenantOwnedPolicy::class);
         Gate::policy(AuditLog::class, TenantOwnedPolicy::class);
+        // Legacy invoice/payment/odontogram rows remain tenant-scoped while
+        // historical production data is retained; active flows use treatments.
         Gate::policy(Invoice::class, TenantOwnedPolicy::class);
         Gate::policy(OdontogramEntry::class, TenantOwnedPolicy::class);
         Gate::policy(OdontogramEntryImage::class, TenantOwnedPolicy::class);

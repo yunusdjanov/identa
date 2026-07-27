@@ -8,7 +8,6 @@ const CONTRACT_PATH = resolve(REPO_ROOT, 'docs/api/openapi.v1.yaml');
 
 const requiredPaths = [
     '/api/v1/lookups/patients',
-    '/api/v1/lookups/appointments',
     '/api/v1/patients/recent',
     '/api/v1/patients/{id}/photo/direct-upload',
     '/api/v1/patients/{id}/oral-photos/{viewType}/direct-upload',

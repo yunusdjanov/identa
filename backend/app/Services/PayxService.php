@@ -80,7 +80,10 @@ class PayxService
             ]);
         }
 
-        if (! Str::startsWith($payUrl, ['http://', 'https://'])) {
+        // Checkout leaves the trusted app surface and may carry payment
+        // context. Never allow a provider response to downgrade transport to
+        // plaintext HTTP, even if the PayX API itself was reached over HTTPS.
+        if (! Str::startsWith($payUrl, 'https://')) {
             throw ValidationException::withMessages([
                 'payment' => ['PayX pay_url is missing.'],
             ]);

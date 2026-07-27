@@ -4,6 +4,10 @@
 > timeline redesign, image editor, oral photo gallery changes, and guest
 > appointment patient-card flow. Run a fresh WCAG 2.1 AA pass before using it
 > for current release sign-off.
+>
+> References to invoice creation below are historical; the active financial
+> flow is documented in
+> [Financial Source of Truth](../architecture/FINANCIAL_SOURCE_OF_TRUTH.md).
 
 Scope:
 - `app/appointments/page.tsx`

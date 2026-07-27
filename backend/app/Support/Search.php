@@ -20,8 +20,8 @@ use Illuminate\Database\Eloquent\Builder;
  * `LOWER(col)` (Postgres) or rely on `utf8mb4_*_ci` collations (MySQL).
  *
  * Prefer this helper for any user-typed search; keep raw `'like'` only for
- * machine-generated prefixes (e.g. invoice number prefix lookups) where
- * case is irrelevant.
+ * machine-generated prefixes (for example, generated record-code lookups)
+ * where case is irrelevant.
  */
 final class Search
 {

@@ -57,6 +57,8 @@ const OUTSTANDING_FILTER_PARAM = 'outstanding';
 const OUTSTANDING_FILTER_VALUE = '1';
 const LEDGER_EXPORT_PAGE_SIZE = 100;
 const EXPENSE_EXPORT_PAGE_SIZE = 100;
+const MAX_EXPORT_ROWS = 5_000;
+const MAX_EXPORT_PAGE_REQUESTS = 100;
 const URL_SEARCH_CHANGE_EVENT = 'identa:payments-url-search-change';
 const EXPENSE_CURRENCIES = ['UZS', 'USD'] as const satisfies readonly ApiPaymentExpenseCurrency[];
 const MONEY_CURRENCIES = ['UZS', 'USD'] as const satisfies readonly ApiMoneyCurrency[];
@@ -495,8 +497,13 @@ async function fetchExpenseExportRows(search: string): Promise<ExpenseRow[]> {
     const rows: ExpenseRow[] = [];
     let page = 1;
     let totalPages = 1;
+    let requestCount = 0;
 
     do {
+        requestCount += 1;
+        if (requestCount > MAX_EXPORT_PAGE_REQUESTS) {
+            throw new Error('Expense export exceeded the page limit.');
+        }
         const response = await listPaymentExpenses({
             page,
             perPage: EXPENSE_EXPORT_PAGE_SIZE,
@@ -505,7 +512,13 @@ async function fetchExpenseExportRows(search: string): Promise<ExpenseRow[]> {
             },
         });
         rows.push(...response.data.map(toExpenseRow));
+        if (rows.length > MAX_EXPORT_ROWS) {
+            throw new Error('Expense export exceeded the row limit.');
+        }
         totalPages = response.meta?.pagination?.total_pages ?? 1;
+        if (!Number.isInteger(totalPages) || totalPages < 1) {
+            throw new Error('Expense export received invalid pagination.');
+        }
         page += 1;
     } while (page <= totalPages);
 
@@ -827,8 +840,13 @@ export default function PaymentsPage() {
             const rows: PatientBalanceRow[] = [];
             let page = 1;
             let totalPages = 1;
+            let requestCount = 0;
 
             do {
+                requestCount += 1;
+                if (requestCount > MAX_EXPORT_PAGE_REQUESTS) {
+                    throw new Error('Payment export exceeded the page limit.');
+                }
                 const response = await listPaymentLedgerPatients({
                     page,
                     perPage: LEDGER_EXPORT_PAGE_SIZE,
@@ -839,7 +857,13 @@ export default function PaymentsPage() {
                     },
                 });
                 rows.push(...response.data.map(toPatientBalanceRow));
+                if (rows.length > MAX_EXPORT_ROWS) {
+                    throw new Error('Payment export exceeded the row limit.');
+                }
                 totalPages = response.meta?.pagination?.total_pages ?? 1;
+                if (!Number.isInteger(totalPages) || totalPages < 1) {
+                    throw new Error('Payment export received invalid pagination.');
+                }
                 page += 1;
             } while (page <= totalPages);
 

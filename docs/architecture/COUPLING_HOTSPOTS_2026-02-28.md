@@ -4,6 +4,9 @@
 > history timeline, recent patients, direct-upload hardening, and appointment
 > guest patient-card flow. Re-run the coupling review before using it for a
 > current refactoring plan.
+>
+> The invoice/payment findings below are superseded by
+> [Financial Source of Truth](FINANCIAL_SOURCE_OF_TRUTH.md).
 
 ## Scope
 - Frontend billing and destructive-action flows

@@ -6,7 +6,6 @@ use App\Http\Requests\StorePatientRequest;
 use App\Http\Requests\UpdatePatientRequest;
 use App\Jobs\DeleteStoredMediaPaths;
 use App\Models\Appointment;
-use App\Models\OdontogramEntry;
 use App\Models\Patient;
 use App\Models\PatientRecentView;
 use App\Models\Treatment;
@@ -43,7 +42,6 @@ class PatientService
     public function __construct(
         private readonly AuditLogger $auditLogger,
         private readonly PatientPhotoService $photos,
-        private readonly OdontogramImageService $odontogramImages,
         private readonly TreatmentImageDirectUploadService $treatmentImages,
     ) {}
 
@@ -97,10 +95,6 @@ class PatientService
                     $appointments
                         ->where('status', Appointment::STATUS_COMPLETED)
                         ->whereDate('appointment_date', '>=', $inactiveBefore);
-                })
-                ->whereDoesntHave('odontogramEntries', function (Builder $odontogramEntries) use ($inactiveBefore): void {
-                    $odontogramEntries
-                        ->whereDate('condition_date', '>=', $inactiveBefore);
                 })
                 ->whereDoesntHave('treatments', function (Builder $treatments) use ($inactiveBefore): void {
                     $treatments
@@ -396,13 +390,6 @@ class PatientService
                             ->where('patient_id', $id)
                             ->pluck('treatment_date')
                             ->map(static fn ($date): string => substr((string) $date, 0, 10))
-                    )
-                    ->merge(
-                        OdontogramEntry::query()
-                            ->where('dentist_id', $dentistId)
-                            ->where('patient_id', $id)
-                            ->pluck('condition_date')
-                            ->map(static fn ($date): string => substr((string) $date, 0, 10))
                     );
                 $visitCount = $visitDates
                     ->filter(static fn (string $date): bool => preg_match('/^\d{4}-\d{2}-\d{2}$/', $date) === 1)
@@ -570,7 +557,7 @@ class PatientService
 
         $patient->odontogramEntries()->with('images')->get()->each(
             fn ($entry) => $entry->images->each(
-                fn ($image) => $collect($image->disk, $this->odontogramImages->deletePaths((string) $image->path))
+                fn ($image) => $collect($image->disk, $this->treatmentImages->deletePaths((string) $image->path))
             )
         );
         $patient->treatments()->with('images')->get()->each(
@@ -585,8 +572,9 @@ class PatientService
             }
         });
 
-        // Remove the patient (cascades appointments/invoices/payments/odontogram
-        // entries+images/treatments+images/category links) atomically.
+        // Remove the patient and all active plus retained legacy child rows
+        // atomically. Legacy invoice/payment/odontogram rows are not active
+        // product surfaces, but their records and media still need safe cleanup.
         DB::transaction(static function () use ($patient): void {
             $patient->forceDelete();
         });
@@ -719,7 +707,6 @@ class PatientService
                 }],
                 'appointment_date'
             )
-            ->withMax('odontogramEntries as last_odontogram_visit_at', 'condition_date')
             ->withMax('treatments as last_treatment_visit_at', 'treatment_date');
     }
 

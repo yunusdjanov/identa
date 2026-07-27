@@ -9,17 +9,12 @@ use App\Http\Controllers\Api\AppointmentController;
 use App\Http\Controllers\Api\AuditLogController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BillingController;
-use App\Http\Controllers\Api\DashboardController;
-use App\Http\Controllers\Api\InvoiceController;
 use App\Http\Controllers\Api\LandingController;
 use App\Http\Controllers\Api\PatientCategoryController;
 use App\Http\Controllers\Api\PatientController;
-use App\Http\Controllers\Api\PatientOdontogramController;
 use App\Http\Controllers\Api\PatientTreatmentController;
-use App\Http\Controllers\Api\PaymentController;
 use App\Http\Controllers\Api\PaymentExpenseController;
 use App\Http\Controllers\Api\PaymentLedgerController;
-use App\Http\Controllers\Api\QuickPaymentController;
 use App\Http\Controllers\Api\SettingsProfileController;
 use App\Http\Controllers\Api\TeamAssistantController;
 use App\Models\User;
@@ -186,7 +181,7 @@ Route::prefix('v1')->group(function (): void {
     // still render. Without this, a redirect-bypassed client could
     // continue to mutate data using the admin-chosen transient credential.
     // `throttle:300,1` bounds the authenticated CRUD surface (patients,
-    // treatments, appointments, payments, invoices, dashboard, audit-logs)
+    // treatments, appointments, payment ledger, audit-logs)
     // to 300 requests per minute per user. Higher than the natural UX
     // ceiling (a fast dentist clicks ~30/min) but low enough that a
     // runaway client / compromised token can't hammer the DB. Auth/admin/
@@ -194,9 +189,6 @@ Route::prefix('v1')->group(function (): void {
     Route::middleware(['auth:sanctum', 'abilities:*', 'role:dentist,assistant', 'password.fresh', 'subscription.access', 'throttle:300,1'])->group(function (): void {
         Route::get('analytics/summary', [AnalyticsController::class, 'summary'])
             ->middleware('permission:'.User::PERMISSION_PAYMENTS_VIEW.'|'.User::PERMISSION_PATIENTS_VIEW.'|'.User::PERMISSION_APPOINTMENTS_VIEW);
-        Route::get('dashboard/snapshot', [DashboardController::class, 'show'])
-            ->middleware('permission:'.User::PERMISSION_APPOINTMENTS_VIEW.'|'.User::PERMISSION_PAYMENTS_VIEW);
-
         Route::get('patient-categories', [PatientCategoryController::class, 'index'])
             ->middleware('permission:'.User::PERMISSION_PATIENTS_VIEW);
         Route::post('patient-categories', [PatientCategoryController::class, 'store'])
@@ -207,9 +199,7 @@ Route::prefix('v1')->group(function (): void {
             ->middleware('permission:'.User::PERMISSION_PATIENTS_MANAGE);
 
         Route::get('lookups/patients', [PatientController::class, 'lookup'])
-            ->middleware('permission:'.User::PERMISSION_APPOINTMENTS_MANAGE.'|'.User::PERMISSION_PAYMENTS_MANAGE);
-        Route::get('lookups/appointments', [AppointmentController::class, 'lookup'])
-            ->middleware('permission:'.User::PERMISSION_PAYMENTS_MANAGE);
+            ->middleware('permission:'.User::PERMISSION_APPOINTMENTS_MANAGE);
 
         Route::get('patients', [PatientController::class, 'index'])
             ->middleware('permission:'.User::PERMISSION_PATIENTS_VIEW);
@@ -270,31 +260,8 @@ Route::prefix('v1')->group(function (): void {
         Route::delete('patients/{id}/force', [PatientController::class, 'forceDestroy'])
             ->middleware('permission:'.User::PERMISSION_PATIENTS_MANAGE);
 
-        Route::get('patients/{id}/odontogram/summary', [PatientOdontogramController::class, 'summary'])
-            ->middleware('permission:'.User::PERMISSION_PATIENTS_VIEW);
-        Route::get('patients/{id}/odontogram', [PatientOdontogramController::class, 'index'])
-            ->middleware('permission:'.User::PERMISSION_PATIENTS_VIEW);
-        Route::post('patients/{id}/odontogram', [PatientOdontogramController::class, 'store'])
-            ->middleware('permission:'.User::PERMISSION_PATIENTS_MANAGE);
-        Route::put('patients/{id}/odontogram/{entryId}', [PatientOdontogramController::class, 'update'])
-            ->middleware('permission:'.User::PERMISSION_PATIENTS_MANAGE);
-        Route::delete('patients/{id}/odontogram/{entryId}', [PatientOdontogramController::class, 'destroy'])
-            ->middleware('permission:'.User::PERMISSION_PATIENTS_MANAGE);
-        Route::post('patients/{id}/odontogram/{entryId}/images/direct-upload', [PatientOdontogramController::class, 'prepareImageUpload'])
-            ->middleware(['permission:'.User::PERMISSION_PATIENTS_MANAGE, MEDIA_UPLOAD_THROTTLE]);
-        Route::post('patients/{id}/odontogram/{entryId}/images/direct-upload/{uploadId}/complete', [PatientOdontogramController::class, 'finalizeImageUpload'])
-            ->middleware(['permission:'.User::PERMISSION_PATIENTS_MANAGE, MEDIA_UPLOAD_THROTTLE]);
-        Route::post('patients/{id}/odontogram/{entryId}/images', [PatientOdontogramController::class, 'uploadImage'])
-            ->middleware(['permission:'.User::PERMISSION_PATIENTS_MANAGE, MEDIA_UPLOAD_THROTTLE]);
-        Route::get('patients/{id}/odontogram/{entryId}/images/{imageId}', [PatientOdontogramController::class, 'downloadImage'])
-            ->middleware('permission:'.User::PERMISSION_PATIENTS_VIEW);
-        Route::delete('patients/{id}/odontogram/{entryId}/images/{imageId}', [PatientOdontogramController::class, 'deleteImage'])
-            ->middleware('permission:'.User::PERMISSION_PATIENTS_MANAGE);
-
         Route::get('patients/{id}/treatments', [PatientTreatmentController::class, 'index'])
             ->middleware('permission:'.User::PERMISSION_PATIENTS_VIEW);
-        Route::get('treatments', [PatientTreatmentController::class, 'indexAll'])
-            ->middleware('permission:'.User::PERMISSION_PAYMENTS_VIEW);
         Route::get('patients/{id}/treatments/{treatmentId}', [PatientTreatmentController::class, 'show'])
             ->middleware('permission:'.User::PERMISSION_PATIENTS_VIEW);
         Route::post('patients/{id}/treatments', [PatientTreatmentController::class, 'store'])
@@ -336,19 +303,6 @@ Route::prefix('v1')->group(function (): void {
         Route::delete('appointments/{id}', [AppointmentController::class, 'destroy'])
             ->middleware('permission:'.User::PERMISSION_APPOINTMENTS_MANAGE);
 
-        Route::get('invoices/{id}/download', [InvoiceController::class, 'download'])
-            ->middleware(['permission:'.User::PERMISSION_PAYMENTS_VIEW, 'plan.feature:export']);
-        Route::get('invoices', [InvoiceController::class, 'index'])
-            ->middleware('permission:'.User::PERMISSION_PAYMENTS_VIEW);
-        Route::post('invoices', [InvoiceController::class, 'store'])
-            ->middleware('permission:'.User::PERMISSION_PAYMENTS_MANAGE);
-        Route::get('invoices/{id}', [InvoiceController::class, 'show'])
-            ->middleware('permission:'.User::PERMISSION_PAYMENTS_VIEW);
-        Route::put('invoices/{id}', [InvoiceController::class, 'update'])
-            ->middleware('permission:'.User::PERMISSION_PAYMENTS_MANAGE);
-        Route::delete('invoices/{id}', [InvoiceController::class, 'destroy'])
-            ->middleware('permission:'.User::PERMISSION_PAYMENTS_MANAGE);
-
         Route::get('payments/ledger/patients', [PaymentLedgerController::class, 'patients'])
             ->middleware('permission:'.User::PERMISSION_PAYMENTS_VIEW);
         Route::get('payments/ledger/history', [PaymentLedgerController::class, 'history'])
@@ -361,23 +315,6 @@ Route::prefix('v1')->group(function (): void {
             ->middleware('permission:'.User::PERMISSION_PAYMENTS_MANAGE);
         Route::delete('payments/expenses/{id}', [PaymentExpenseController::class, 'destroy'])
             ->middleware('permission:'.User::PERMISSION_PAYMENTS_MANAGE);
-        Route::get('payments', [PaymentController::class, 'index'])
-            ->middleware('permission:'.User::PERMISSION_PAYMENTS_VIEW);
-        Route::post('payments', [PaymentController::class, 'store'])
-            ->middleware('permission:'.User::PERMISSION_PAYMENTS_MANAGE);
-        Route::put('payments/{id}', [PaymentController::class, 'update'])
-            ->middleware('permission:'.User::PERMISSION_PAYMENTS_MANAGE);
-        Route::delete('payments/{id}', [PaymentController::class, 'destroy'])
-            ->middleware('permission:'.User::PERMISSION_PAYMENTS_MANAGE);
-
-        // Mobile-friendly shortcut: create an Invoice + Payment in one
-        // call. See app/Services/QuickPaymentService.php for the rationale
-        // — mobile UI doesn't model Invoices as a separate concept, so we
-        // synthesize one server-side. Uses the same PERMISSION_PAYMENTS_MANAGE
-        // guard as the canonical /payments POST.
-        Route::post('patients/{id}/quick-payments', [QuickPaymentController::class, 'store'])
-            ->middleware('permission:'.User::PERMISSION_PAYMENTS_MANAGE);
-
         Route::get('audit-logs', [AuditLogController::class, 'index'])
             ->middleware('permission:'.User::PERMISSION_AUDIT_LOGS_VIEW);
     });

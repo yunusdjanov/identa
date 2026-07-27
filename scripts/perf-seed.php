@@ -3,9 +3,8 @@
 declare(strict_types=1);
 
 use App\Models\Appointment;
-use App\Models\Invoice;
 use App\Models\Patient;
-use App\Models\Payment;
+use App\Models\Treatment;
 use App\Models\User;
 use Carbon\Carbon;
 
@@ -17,11 +16,11 @@ $kernel->bootstrap();
 
 /**
  * Usage:
- * php scripts/perf-seed.php [targetPatients=300] [extraAppointments=1200] [extraInvoices=250]
+ * php scripts/perf-seed.php [targetPatients=300] [extraAppointments=1200] [extraTreatments=250]
  */
 $targetPatients = max(1, (int) ($argv[1] ?? 300));
 $extraAppointments = max(0, (int) ($argv[2] ?? 1200));
-$extraInvoices = max(0, (int) ($argv[3] ?? 250));
+$extraTreatments = max(0, (int) ($argv[3] ?? 250));
 
 $startedAt = microtime(true);
 
@@ -47,8 +46,7 @@ if (!$dentist) {
 $beforeCounts = [
     'patients' => Patient::query()->where('dentist_id', $dentist->id)->count(),
     'appointments' => Appointment::query()->where('dentist_id', $dentist->id)->count(),
-    'invoices' => Invoice::query()->where('dentist_id', $dentist->id)->count(),
-    'payments' => Payment::query()->where('dentist_id', $dentist->id)->count(),
+    'treatments' => Treatment::query()->where('dentist_id', $dentist->id)->count(),
 ];
 
 $missingPatients = max(0, $targetPatients - $beforeCounts['patients']);
@@ -91,72 +89,32 @@ if ($extraAppointments > 0) {
 
 $focusPatientId = $patientIds[0];
 
-for ($i = 0; $i < $extraInvoices; $i += 1) {
-    $invoiceDate = Carbon::today()->subDays(random_int(0, 180));
-    $totalAmount = (string) random_int(150_000, 2_500_000);
-    $total = (float) $totalAmount;
-    $paid = (float) random_int(0, (int) $total);
-    $balance = max(0, $total - $paid);
-    $status = Invoice::STATUS_UNPAID;
+for ($i = 0; $i < $extraTreatments; $i += 1) {
+    $treatmentDate = Carbon::today()->subDays(random_int(0, 180));
+    $cost = random_int(150_000, 2_500_000);
+    $paid = random_int(0, $cost);
 
-    if ($paid > 0 && $balance > 0) {
-        $status = Invoice::STATUS_PARTIALLY_PAID;
-    } elseif ($balance <= 0) {
-        $status = Invoice::STATUS_PAID;
-    }
-
-    $invoice = Invoice::query()->create([
+    Treatment::query()->create([
         'dentist_id' => $dentist->id,
+        'created_by_user_id' => $dentist->id,
+        'updated_by_user_id' => $dentist->id,
         'patient_id' => $focusPatientId,
-        'invoice_number' => sprintf('INV-PF-%s-%04d', now()->format('YmdHis'), $i),
-        'invoice_date' => $invoiceDate->toDateString(),
-        'due_date' => $invoiceDate->copy()->addDays(10)->toDateString(),
-        'total_amount' => $totalAmount,
+        'teeth' => [random_int(1, 32)],
+        'treatment_type' => 'Performance seed work',
+        'description' => "Seeded treatment {$i}",
+        'treatment_date' => $treatmentDate->toDateString(),
+        'cost' => (string) $cost,
+        'debt_amount' => (string) $cost,
         'paid_amount' => (string) $paid,
-        'balance' => (string) $balance,
-        'status' => $status,
-        'notes' => 'Performance seed invoice',
+        'currency' => Treatment::CURRENCY_UZS,
+        'notes' => 'Performance seed treatment entry',
     ]);
-
-    $invoice->items()->create([
-        'description' => 'Seeded treatment',
-        'quantity' => 1,
-        'unit_price' => $totalAmount,
-        'total_price' => $totalAmount,
-        'sort_order' => 0,
-    ]);
-
-    if ($paid > 0) {
-        $remaining = $paid;
-        $parts = min(3, max(1, random_int(1, 3)));
-
-        for ($part = 1; $part <= $parts; $part += 1) {
-            $isLastPart = $part === $parts;
-            $amount = $isLastPart
-                ? $remaining
-                : round($remaining * (random_int(25, 60) / 100), 2);
-
-            $remaining -= $amount;
-            $remaining = max(0, $remaining);
-
-            Payment::query()->create([
-                'dentist_id' => $dentist->id,
-                'patient_id' => $focusPatientId,
-                'invoice_id' => $invoice->id,
-                'amount' => (string) $amount,
-                'payment_method' => [Payment::METHOD_CASH, Payment::METHOD_CARD, Payment::METHOD_BANK_TRANSFER][array_rand([0, 1, 2])],
-                'payment_date' => $invoiceDate->copy()->addDays(random_int(0, 20))->toDateString(),
-                'notes' => 'Performance seed payment',
-            ]);
-        }
-    }
 }
 
 $afterCounts = [
     'patients' => Patient::query()->where('dentist_id', $dentist->id)->count(),
     'appointments' => Appointment::query()->where('dentist_id', $dentist->id)->count(),
-    'invoices' => Invoice::query()->where('dentist_id', $dentist->id)->count(),
-    'payments' => Payment::query()->where('dentist_id', $dentist->id)->count(),
+    'treatments' => Treatment::query()->where('dentist_id', $dentist->id)->count(),
 ];
 
 $elapsedMs = (int) round((microtime(true) - $startedAt) * 1000);
@@ -165,7 +123,7 @@ echo json_encode([
     'dentist_id' => $dentist->id,
     'target_patients' => $targetPatients,
     'extra_appointments' => $extraAppointments,
-    'extra_invoices' => $extraInvoices,
+    'extra_treatments' => $extraTreatments,
     'before' => $beforeCounts,
     'after' => $afterCounts,
     'elapsed_ms' => $elapsedMs,

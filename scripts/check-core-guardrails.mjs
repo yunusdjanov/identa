@@ -67,11 +67,6 @@ const checks = [
         patterns: [/resolveUploadedObjectSize/, /\$storedSize/, /ensureUploadFileAllowed/],
     },
     {
-        name: 'Odontogram image finalize checks stored size',
-        file: 'backend/app/Services/OdontogramImageService.php',
-        patterns: [/resolveUploadedObjectSize/, /\$storedSize/, /ensureUploadFileAllowed/],
-    },
-    {
         name: 'Upload size bypass regression tests exist',
         file: 'backend/tests/Feature/MediaUploadSecurityTest.php',
         patterns: [
@@ -79,7 +74,6 @@ const checks = [
             /test_patient_oral_photo_direct_upload_enforces_actual_stored_size/,
             /test_treatment_direct_upload_enforces_actual_stored_size/,
             /test_treatment_batch_direct_upload_enforces_actual_stored_size/,
-            /test_odontogram_direct_upload_enforces_actual_stored_size/,
         ],
     },
     {

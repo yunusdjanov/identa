@@ -475,76 +475,7 @@ class MediaUploadSecurityTest extends TestCase
         Queue::assertPushed(ProcessUploadedMedia::class);
     }
 
-    public function test_infected_odontogram_image_upload_is_rejected(): void
-    {
-        Storage::fake('local');
-        $this->app->bind(AntivirusScanner::class, fn () => new class implements AntivirusScanner {
-            public function scanString(string $contents): ScanResult
-            {
-                return ScanResult::infected('test', 'Eicar-Test-Signature FOUND');
-            }
-
-            public function scanPath(string $path): ScanResult
-            {
-                return ScanResult::infected('test', 'Eicar-Test-Signature FOUND');
-            }
-        });
-
-        $dentist = User::factory()->create();
-        $patient = Patient::factory()->create(['dentist_id' => $dentist->id]);
-        $entry = OdontogramEntry::factory()->create([
-            'dentist_id' => $dentist->id,
-            'patient_id' => $patient->id,
-        ]);
-
-        $this->actingAs($dentist, 'web')
-            ->post("/api/v1/patients/{$patient->id}/odontogram/{$entry->id}/images", [
-                'stage' => 'before',
-                'image' => UploadedFile::fake()->image('infected.jpg', 800, 600),
-            ], ['Accept' => 'application/json'])
-            ->assertUnprocessable()
-            ->assertJsonValidationErrors(['image']);
-
-        $this->assertDatabaseHas('odontogram_entry_images', [
-            'odontogram_entry_id' => $entry->id,
-            'scan_status' => 'rejected',
-        ]);
-        $this->assertFalse(collect(Storage::disk('local')->allFiles())->contains(
-            fn (string $path): bool => str_starts_with($path, 'quarantine/')
-        ));
-    }
-
-    public function test_pending_odontogram_image_cannot_be_downloaded(): void
-    {
-        Storage::fake('local');
-        $dentist = User::factory()->create();
-        $patient = Patient::factory()->create(['dentist_id' => $dentist->id]);
-        $entry = OdontogramEntry::factory()->create([
-            'dentist_id' => $dentist->id,
-            'patient_id' => $patient->id,
-        ]);
-        $quarantinePath = 'quarantine/odontogram/pending.jpg';
-        $image = UploadedFile::fake()->image('pending.jpg', 800, 600);
-        Storage::disk('local')->put($quarantinePath, file_get_contents((string) $image->getRealPath()));
-
-        $record = OdontogramEntryImage::query()->create([
-            'dentist_id' => $dentist->id,
-            'odontogram_entry_id' => $entry->id,
-            'stage' => 'before',
-            'disk' => 'local',
-            'path' => $quarantinePath,
-            'mime_type' => 'image/jpeg',
-            'file_size' => Storage::disk('local')->size($quarantinePath),
-            'scan_status' => 'pending',
-            'quarantine_path' => $quarantinePath,
-        ]);
-
-        $this->actingAs($dentist, 'web')
-            ->get("/api/v1/patients/{$patient->id}/odontogram/{$entry->id}/images/{$record->id}")
-            ->assertNotFound();
-    }
-
-    public function test_pending_media_response_has_scan_status_and_no_urls(): void
+    public function test_pending_treatment_media_response_has_scan_status_and_no_urls(): void
     {
         Storage::fake('local');
         $dentist = User::factory()->create();
@@ -572,29 +503,6 @@ class MediaUploadSecurityTest extends TestCase
             ->assertJsonPath('data.images.0.thumbnail_url', null)
             ->assertJsonPath('data.images.0.preview_url', null);
 
-        $entry = OdontogramEntry::factory()->create([
-            'dentist_id' => $dentist->id,
-            'patient_id' => $patient->id,
-        ]);
-        OdontogramEntryImage::query()->create([
-            'dentist_id' => $dentist->id,
-            'odontogram_entry_id' => $entry->id,
-            'stage' => 'before',
-            'disk' => 'local',
-            'path' => 'quarantine/odontogram/pending-response.jpg',
-            'mime_type' => 'image/jpeg',
-            'file_size' => 123,
-            'scan_status' => 'pending',
-            'quarantine_path' => 'quarantine/odontogram/pending-response.jpg',
-        ]);
-
-        $this->actingAs($dentist, 'web')
-            ->getJson("/api/v1/patients/{$patient->id}/odontogram")
-            ->assertOk()
-            ->assertJsonPath('data.0.images.0.scan_status', 'pending')
-            ->assertJsonPath('data.0.images.0.url', null)
-            ->assertJsonPath('data.0.images.0.thumbnail_url', null)
-            ->assertJsonPath('data.0.images.0.preview_url', null);
     }
 
     public function test_rejected_treatment_images_are_hidden_from_treatment_response(): void
@@ -791,44 +699,6 @@ class MediaUploadSecurityTest extends TestCase
 
         $this->assertDatabaseHas('treatment_images', [
             'treatment_id' => $treatment->id,
-            'scan_status' => 'rejected',
-        ]);
-        Storage::disk('local')->assertMissing($path);
-    }
-
-    public function test_infected_odontogram_image_direct_upload_is_rejected(): void
-    {
-        Storage::fake('local');
-        $this->bindInfectedScanner();
-
-        $dentist = User::factory()->create();
-        $patient = Patient::factory()->create(['dentist_id' => $dentist->id]);
-        $entry = OdontogramEntry::factory()->create([
-            'dentist_id' => $dentist->id,
-            'patient_id' => $patient->id,
-        ]);
-        $uploadId = 'odontogram-direct-infected';
-        $path = 'quarantine/odontogram/direct-infected.jpg';
-        $image = UploadedFile::fake()->image('direct-infected.jpg', 800, 600);
-        Storage::disk('local')->put($path, file_get_contents((string) $image->getRealPath()));
-        Cache::put("odontogram-image-upload:{$uploadId}", [
-            'dentist_id' => $dentist->id,
-            'patient_id' => (string) $patient->id,
-            'entry_id' => (string) $entry->id,
-            'stage' => 'before',
-            'disk' => 'local',
-            'path' => $path,
-            'mime_type' => 'image/jpeg',
-            'file_size' => Storage::disk('local')->size($path),
-        ]);
-
-        $this->actingAs($dentist, 'web')
-            ->postJson("/api/v1/patients/{$patient->id}/odontogram/{$entry->id}/images/direct-upload/{$uploadId}/complete")
-            ->assertUnprocessable()
-            ->assertJsonValidationErrors(['image']);
-
-        $this->assertDatabaseHas('odontogram_entry_images', [
-            'odontogram_entry_id' => $entry->id,
             'scan_status' => 'rejected',
         ]);
         Storage::disk('local')->assertMissing($path);
@@ -1121,39 +991,6 @@ class MediaUploadSecurityTest extends TestCase
 
         Storage::disk('local')->assertMissing($path);
         $this->assertDatabaseCount('treatment_images', 0);
-    }
-
-    public function test_odontogram_direct_upload_enforces_actual_stored_size(): void
-    {
-        Storage::fake('local');
-
-        $dentist = $this->createDentistWithTinyUploadLimit();
-        $patient = Patient::factory()->create(['dentist_id' => $dentist->id]);
-        $entry = OdontogramEntry::factory()->create([
-            'dentist_id' => $dentist->id,
-            'patient_id' => $patient->id,
-        ]);
-        $uploadId = 'odontogram-underreported-size';
-        $path = 'quarantine/odontogram/underreported.jpg';
-        Storage::disk('local')->put($path, str_repeat('x', 20_000));
-        Cache::put("odontogram-image-upload:{$uploadId}", [
-            'dentist_id' => $dentist->id,
-            'patient_id' => (string) $patient->id,
-            'entry_id' => (string) $entry->id,
-            'stage' => 'before',
-            'disk' => 'local',
-            'path' => $path,
-            'mime_type' => 'image/jpeg',
-            'file_size' => 1,
-        ]);
-
-        $this->actingAs($dentist, 'web')
-            ->postJson("/api/v1/patients/{$patient->id}/odontogram/{$entry->id}/images/direct-upload/{$uploadId}/complete")
-            ->assertForbidden()
-            ->assertJsonPath('error.code', 'plan_upload_size_exceeded');
-
-        Storage::disk('local')->assertMissing($path);
-        $this->assertDatabaseCount('odontogram_entry_images', 0);
     }
 
     private function variantPath(string $path, string $variant): string

@@ -45,8 +45,8 @@ class PaymentExpenseApiTest extends TestCase
             ->assertJsonPath('meta.pagination.total', 3)
             ->assertJsonPath('meta.pagination.total_pages', 2)
             ->assertJsonPath('meta.summary.total_count', 3)
-            ->assertJsonPath('meta.summary.total_amount', 751200)
-            ->assertJsonPath('meta.summary.current_month_amount', 451200)
+            ->assertJsonPath('meta.summary.total_amount', 750000)
+            ->assertJsonPath('meta.summary.current_month_amount', 450000)
             ->assertJsonPath('meta.summary.totals_by_currency.UZS', 750000)
             ->assertJsonPath('meta.summary.totals_by_currency.USD', 1200)
             ->assertJsonPath('meta.summary.current_month_by_currency.UZS', 450000)
@@ -122,7 +122,7 @@ class PaymentExpenseApiTest extends TestCase
             ->deleteJson("/api/v1/payments/expenses/{$expense->id}")
             ->assertNoContent();
 
-        $this->assertDatabaseMissing('payment_expenses', [
+        $this->assertSoftDeleted('payment_expenses', [
             'id' => $expense->id,
         ]);
     }
@@ -180,6 +180,66 @@ class PaymentExpenseApiTest extends TestCase
             ])
             ->assertUnprocessable()
             ->assertJsonValidationErrors(['title', 'amount', 'quantity', 'currency', 'expense_date']);
+    }
+
+    public function test_expense_list_rejects_invalid_or_unbounded_filters(): void
+    {
+        $dentist = User::factory()->create();
+
+        $this->actingAs($dentist, 'web')
+            ->getJson('/api/v1/payments/expenses?per_page=101&filter[search]='.str_repeat('a', 161))
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['per_page', 'filter.search']);
+
+        $this->actingAs($dentist, 'web')
+            ->getJson('/api/v1/payments/expenses?filter[date_from]=2026-07-10&filter[date_to]=2026-07-01')
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['filter.date_to']);
+    }
+
+    public function test_expense_create_is_idempotent_and_rejects_key_reuse_with_other_payload(): void
+    {
+        $dentist = User::factory()->create();
+        $payload = [
+            'title' => 'Sterilization supplies',
+            'amount' => 240000,
+            'quantity' => 2,
+            'currency' => PaymentExpense::CURRENCY_UZS,
+            'expense_date' => '2026-07-26',
+        ];
+
+        $first = $this->actingAs($dentist, 'web')
+            ->withHeader('Idempotency-Key', 'expense-test-001')
+            ->postJson('/api/v1/payments/expenses', $payload)
+            ->assertCreated();
+
+        $second = $this->actingAs($dentist, 'web')
+            ->withHeader('Idempotency-Key', 'expense-test-001')
+            ->postJson('/api/v1/payments/expenses', $payload)
+            ->assertCreated();
+
+        $this->assertSame($first->json('data.id'), $second->json('data.id'));
+        $this->assertDatabaseCount('payment_expenses', 1);
+        $this->assertDatabaseCount('audit_logs', 1);
+
+        $this->actingAs($dentist, 'web')
+            ->withHeader('Idempotency-Key', 'expense-test-001')
+            ->postJson('/api/v1/payments/expenses', [
+                ...$payload,
+                'amount' => 250000,
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['idempotency_key']);
+
+        $this->actingAs($dentist, 'web')
+            ->deleteJson('/api/v1/payments/expenses/'.$first->json('data.id'))
+            ->assertNoContent();
+
+        $this->actingAs($dentist, 'web')
+            ->withHeader('Idempotency-Key', 'expense-test-001')
+            ->postJson('/api/v1/payments/expenses', $payload)
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['idempotency_key']);
     }
 
     /**

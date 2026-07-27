@@ -241,59 +241,6 @@ export interface ApiAppointment {
     updated_by?: ApiRecordActor | null;
 }
 
-export interface ApiAppointmentLookup {
-    id: string;
-    appointment_date: string;
-    start_time: string;
-    patient_name?: string | null;
-    guest_phone?: string | null;
-    is_guest?: boolean;
-    status: ApiAppointment['status'];
-}
-
-export interface ApiOdontogramEntry {
-    id: string;
-    patient_id: string;
-    tooth_number: number;
-    condition_type: 'healthy' | 'cavity' | 'filling' | 'crown' | 'root_canal' | 'extraction' | 'implant';
-    surface: string | null;
-    material: string | null;
-    severity: string | null;
-    condition_date: string;
-    notes: string | null;
-    created_at: string | null;
-    images?: ApiOdontogramEntryImage[];
-}
-
-export interface ApiOdontogramEntryImage {
-    id: string;
-    stage: 'before' | 'after';
-    mime_type: string;
-    file_size: number;
-    captured_at: string | null;
-    created_at: string | null;
-    url?: string | null;
-    thumbnail_url?: string | null;
-    preview_url?: string | null;
-    thumbnail_ready?: boolean;
-    preview_ready?: boolean;
-    scan_status?: ApiMediaScanStatus | null;
-}
-
-export interface ApiOdontogramSummaryEntry {
-    tooth_number: number;
-    condition_type: ApiOdontogramEntry['condition_type'];
-    history_count: number;
-    condition_date: string | null;
-    created_at: string | null;
-}
-
-export interface ApiOdontogramSummary {
-    total_entries: number;
-    affected_teeth_count: number;
-    latest_conditions: ApiOdontogramSummaryEntry[];
-}
-
 export type ApiMoneyCurrency = 'UZS' | 'USD';
 
 export interface ApiCurrencyTotals {
@@ -334,15 +281,6 @@ export interface ApiTreatment {
     updated_at: string | null;
     created_by?: ApiRecordActor | null;
     updated_by?: ApiRecordActor | null;
-}
-
-export interface ApiPaymentLedgerSummary {
-    total_debt: number;
-    total_paid: number;
-    total_balance: number;
-    total_patients?: number;
-    total_entries: number;
-    totals_by_currency?: Partial<Record<ApiMoneyCurrency, ApiCurrencyTotals>>;
 }
 
 export interface ApiPaymentPatientLedgerRow {
@@ -475,42 +413,6 @@ export interface ApiTreatmentImage {
     thumbnail_ready?: boolean;
     preview_ready?: boolean;
     scan_status?: ApiMediaScanStatus | null;
-}
-
-export interface ApiInvoiceItem {
-    id: string;
-    description: string;
-    odontogram_entry_id?: string | null;
-    quantity: number;
-    unit_price: number;
-    total_price: number;
-}
-
-export interface ApiInvoice {
-    id: string;
-    patient_id: string;
-    patient_name?: string | null;
-    patient_phone?: string | null;
-    invoice_number: string;
-    invoice_date: string;
-    due_date: string | null;
-    total_amount: number;
-    paid_amount: number;
-    balance: number;
-    status: 'unpaid' | 'partially_paid' | 'paid';
-    notes: string | null;
-    items?: ApiInvoiceItem[];
-}
-
-export interface ApiPayment {
-    id: string;
-    invoice_id: string;
-    patient_id: string;
-    amount: number;
-    payment_method: 'cash' | 'card' | 'bank_transfer';
-    payment_date: string;
-    notes: string | null;
-    created_at: string | null;
 }
 
 export interface ApiProfile {

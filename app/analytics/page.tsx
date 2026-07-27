@@ -69,6 +69,8 @@ export default function AnalyticsPage() {
     });
     const currentUser = currentUserQuery.data;
     const canViewPayments = canView(currentUser, 'payments');
+    const canExportAnalytics =
+        canViewPayments && currentUser?.subscription?.can_export === true;
     const canViewPatients = canView(currentUser, 'patients');
     const canViewAppointments = canView(currentUser, 'appointments');
     const canViewVisits = canViewAppointments || canViewPayments;
@@ -320,7 +322,7 @@ export default function AnalyticsPage() {
                 title={t('analytics.title')}
                 description={t('analytics.subtitle')}
                 actions={
-                    canViewPayments ? (
+                    canExportAnalytics ? (
                         <Button
                             variant="outline"
                             onClick={handleExport}
