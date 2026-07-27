@@ -80,6 +80,10 @@ class UserResource extends JsonResource
             'avatar_url' => $user->avatar_url,
             'email_verified_at' => $user->email_verified_at?->toIso8601String(),
             'email_verified' => $user->hasVerifiedEmail(),
+            'email_verification_retention_days' => (int) config(
+                'auth.verification.pending_account_retention_days',
+                30,
+            ),
             'has_password' => $user->password !== null,
             // Tells the Settings → Connected Accounts panel whether the
             // Google identity is currently bound to this user, regardless

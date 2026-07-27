@@ -10,10 +10,8 @@ import { getApiErrorMessage } from '@/lib/api/client';
 import { useI18n } from '@/components/providers/i18n-provider';
 
 /**
- * Soft email-verification nudge. Shows a thin amber banner under the header
- * whenever the authenticated user has not verified their email yet, with a
- * one-click resend. It never blocks the app (soft gate) — best practice for
- * trial-led SaaS onboarding.
+ * Email-verification notice shown on the settings/recovery surface that
+ * remains available while protected application routes are blocked.
  *
  * Spam control: after a successful resend, the button is locked behind a
  * 60-second countdown that survives refreshes via localStorage. This is the
@@ -114,7 +112,9 @@ export function EmailVerificationBanner() {
                         <MailWarning className="h-3.5 w-3.5" />
                     </span>
                     <p className="min-w-0 text-xs font-medium text-amber-900 sm:text-[13px]">
-                        {t('verifyEmail.banner.text')}
+                        {t('verifyEmail.banner.text', {
+                            days: user.email_verification_retention_days ?? 30,
+                        })}
                     </p>
                 </div>
                 <Button

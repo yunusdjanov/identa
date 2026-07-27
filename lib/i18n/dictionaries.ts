@@ -2569,6 +2569,7 @@ Object.assign(ru, {
     'settings.team.password': 'Пароль',
     'settings.team.passwordConfirm': 'Подтвердите пароль',
     'settings.team.permissions': 'Права доступа',
+    'settings.team.permissionsRequired': 'Выберите хотя бы одно право доступа.',
     'settings.team.permissionsCount': 'Разрешений: {{count}}',
     'settings.team.searchPlaceholder': 'Поиск по имени, email или телефону',
     'settings.team.statusAll': 'Все статусы',
@@ -2671,6 +2672,7 @@ Object.assign(uz, {
     'settings.team.password': 'Parol',
     'settings.team.passwordConfirm': 'Parolni tasdiqlang',
     'settings.team.permissions': 'Ruxsatlar',
+    'settings.team.permissionsRequired': 'Kamida bitta ruxsatni tanlang.',
     'settings.team.permissionsCount': 'Ruxsatlar: {{count}}',
     'settings.team.searchPlaceholder': "Ism, email yoki telefon boʻyicha qidirish",
     'settings.team.statusAll': 'Barcha statuslar',
@@ -2772,6 +2774,7 @@ Object.assign(en, {
     'settings.team.password': 'Password',
     'settings.team.passwordConfirm': 'Confirm password',
     'settings.team.permissions': 'Permissions',
+    'settings.team.permissionsRequired': 'Select at least one permission.',
     'settings.team.permissionsCount': 'Permissions: {{count}}',
     'settings.team.searchPlaceholder': 'Search by name, email, or phone',
     'settings.team.statusAll': 'All statuses',
@@ -3981,7 +3984,11 @@ Object.assign(en, {
 });
 
 Object.assign(ru, {
-    'verifyEmail.banner.text': 'Подтвердите свою почту, чтобы защитить аккаунт и восстановление пароля.',
+    'verifyEmail.banner.text': 'Подтвердите почту. Регистрация без данных будет закрыта через {{days}} дней.',
+    'verifyEmail.gate.eyebrow': 'Требуется подтверждение',
+    'verifyEmail.gate.title': 'Подтвердите адрес электронной почты',
+    'verifyEmail.gate.description': 'До подтверждения почты данные пациентов, финансы, сотрудники и биллинг недоступны. Отправьте письмо повторно через баннер выше или исправьте адрес в настройках.',
+    'verifyEmail.gate.action': 'Открыть настройки',
     'verifyEmail.banner.resend': 'Отправить письмо',
     'verifyEmail.banner.sending': 'Отправка...',
     'verifyEmail.banner.cooldown': 'Повторить через {{seconds}}с',
@@ -3997,7 +4004,11 @@ Object.assign(ru, {
 });
 
 Object.assign(uz, {
-    'verifyEmail.banner.text': 'Hisobingiz va parol tiklashni himoyalash uchun pochtangizni tasdiqlang.',
+    'verifyEmail.banner.text': 'Pochtangizni tasdiqlang. Ma’lumot kiritilmagan akkaunt {{days}} kundan keyin yopiladi.',
+    'verifyEmail.gate.eyebrow': 'Tasdiqlash talab qilinadi',
+    'verifyEmail.gate.title': 'Email manzilingizni tasdiqlang',
+    'verifyEmail.gate.description': 'Pochta tasdiqlanmaguncha bemorlar, moliya, xodimlar va billing ma’lumotlari yopiq bo‘ladi. Yuqoridagi banner orqali xatni qayta yuboring yoki sozlamalarda manzilni to‘g‘rilang.',
+    'verifyEmail.gate.action': 'Sozlamalarni ochish',
     'verifyEmail.banner.resend': 'Xat yuborish',
     'verifyEmail.banner.sending': 'Yuborilmoqda...',
     'verifyEmail.banner.cooldown': "{{seconds}}s dan keyin qayta yuborish",
@@ -4013,7 +4024,11 @@ Object.assign(uz, {
 });
 
 Object.assign(en, {
-    'verifyEmail.banner.text': 'Verify your email to secure your account and password recovery.',
+    'verifyEmail.banner.text': 'Verify your email. An empty registration expires after {{days}} days.',
+    'verifyEmail.gate.eyebrow': 'Verification required',
+    'verifyEmail.gate.title': 'Verify your email address',
+    'verifyEmail.gate.description': 'Patient data, finance, staff, and billing stay locked until your email is verified. Resend the email from the banner above or correct the address in Settings.',
+    'verifyEmail.gate.action': 'Open settings',
     'verifyEmail.banner.resend': 'Send email',
     'verifyEmail.banner.sending': 'Sending...',
     'verifyEmail.banner.cooldown': 'Resend in {{seconds}}s',

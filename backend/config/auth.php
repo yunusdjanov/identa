@@ -113,4 +113,9 @@ return [
 
     'password_timeout' => env('AUTH_PASSWORD_TIMEOUT', 10800),
 
+    'verification' => [
+        'expire' => (int) env('AUTH_EMAIL_VERIFICATION_LINK_MINUTES', 60),
+        'pending_account_retention_days' => (int) env('AUTH_UNVERIFIED_ACCOUNT_RETENTION_DAYS', 30),
+    ],
+
 ];

@@ -74,4 +74,28 @@ class AssistantTenantAccessTest extends TestCase
             'full_name' => 'Created By Assistant',
         ]);
     }
+
+    public function test_forced_password_rotation_blocks_sensitive_reads_but_allows_session_probe(): void
+    {
+        $dentist = User::factory()->create();
+        $assistant = User::factory()->assistant($dentist)->create([
+            'assistant_permissions' => [User::PERMISSION_PATIENTS_VIEW],
+            'must_change_password' => true,
+        ]);
+
+        $this->actingAs($assistant, 'web')
+            ->getJson('/api/v1/patients')
+            ->assertForbidden()
+            ->assertJsonPath('error.code', 'password_change_required');
+
+        $this->actingAs($assistant, 'web')
+            ->getJson('/api/v1/settings/profile')
+            ->assertForbidden()
+            ->assertJsonPath('error.code', 'password_change_required');
+
+        $this->actingAs($assistant, 'web')
+            ->getJson('/api/v1/auth/me')
+            ->assertOk()
+            ->assertJsonPath('data.id', (string) $assistant->id);
+    }
 }

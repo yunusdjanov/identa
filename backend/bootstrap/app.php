@@ -3,6 +3,7 @@
 use App\Http\Middleware\AttachRequestContext;
 use App\Http\Middleware\AppendSecurityHeaders;
 use App\Http\Middleware\EnsurePasswordRotated;
+use App\Http\Middleware\EnsureEmailVerified;
 use App\Http\Middleware\EnsurePermission;
 use App\Http\Middleware\EnsurePlanFeature;
 use App\Http\Middleware\EnsureRole;
@@ -91,6 +92,7 @@ return Application::configure(basePath: dirname(__DIR__))
             // contract is enforced server-side, not just by the
             // client's redirect logic. See EnsurePasswordRotated.
             'password.fresh' => EnsurePasswordRotated::class,
+            'email.verified' => EnsureEmailVerified::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

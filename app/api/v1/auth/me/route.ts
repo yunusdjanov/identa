@@ -1,6 +1,6 @@
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
-import { resolveMockUser } from '../../_mock-users';
+import { hasMockActiveAccessChain, resolveMockUser } from '../../_mock-users';
 
 // Local mock only — role + user id are read back from cookies set at
 // login so the session survives page reloads in local dev. Three
@@ -15,5 +15,11 @@ export async function GET() {
 
     const role = cookieStore.get('mock_role')?.value;
     const userId = cookieStore.get('mock_user_id')?.value;
+    if (!hasMockActiveAccessChain(role, userId)) {
+        return NextResponse.json(
+            { error: { code: 'account_inactive', message: 'Account is inactive.' } },
+            { status: 403 }
+        );
+    }
     return NextResponse.json({ data: resolveMockUser(role, userId) });
 }

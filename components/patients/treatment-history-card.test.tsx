@@ -1216,4 +1216,32 @@ describe('TreatmentHistoryCard image controls', () => {
             }));
         });
     });
+
+    it('keeps financial inputs read-only for assistants without payments manage', async () => {
+        const user = userEvent.setup();
+        vi.mocked(getCurrentUser).mockResolvedValue({
+            id: 'assistant-1',
+            name: 'Finance Viewer',
+            email: 'viewer@example.com',
+            role: 'assistant',
+            account_status: 'active',
+            assistant_permissions: [
+                'patients.view',
+                'patients.manage',
+                'payments.view',
+            ],
+            subscription: {
+                is_read_only: false,
+                can_export: true,
+            },
+        } as never);
+        vi.mocked(listPatientTreatments).mockResolvedValue(treatmentsEnvelope([]));
+
+        renderCard();
+
+        await user.click(await screen.findByRole('button', { name: 'Add Entry' }));
+
+        expect(screen.queryByLabelText(/^Work total/i)).not.toBeInTheDocument();
+        expect(screen.queryByLabelText(/^Paid/i)).not.toBeInTheDocument();
+    });
 });

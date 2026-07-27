@@ -250,6 +250,7 @@ class AuthController extends Controller
 
         if (
             $user !== null
+            && $user->account_status !== User::ACCOUNT_STATUS_DELETED
             && hash_equals((string) $hash, sha1($user->getEmailForVerification()))
         ) {
             if ($user->hasVerifiedEmail()) {
@@ -290,6 +291,11 @@ class AuthController extends Controller
 
         try {
             $user->sendEmailVerificationNotification();
+            // Cleanup uses updated_at as the abandonment clock. A user who
+            // explicitly requests another verification email is active, so
+            // grant a fresh retention window only after delivery dispatch
+            // succeeds.
+            $user->touch();
         } catch (\Throwable $exception) {
             Log::warning('Failed to resend verification email', [
                 'user_id' => $user->id,

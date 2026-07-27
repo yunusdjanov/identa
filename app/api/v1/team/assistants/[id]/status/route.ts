@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireDentist } from '../../../../_auth';
 import { getAdminStore, pushAuditEntry, recomputeStaffCounts } from '@/lib/mock/admin-store';
+import { setMockUserAccountStatus } from '../../../../_mock-users';
 
 const MOCK_DENTIST_ID = '1';
 
@@ -38,6 +39,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
     const oldStatus = assistant.account_status;
     assistant.account_status = body.status;
+    setMockUserAccountStatus(id, body.status);
     recomputeStaffCounts(MOCK_DENTIST_ID);
 
     pushAuditEntry({

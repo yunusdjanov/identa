@@ -64,14 +64,7 @@ const VIEW_TO_MANAGE_PERMISSION: Record<string, string> = {
     'payments.view': 'payments.manage',
 };
 
-const DEFAULT_ASSISTANT_PERMISSIONS = [
-    'patients.view',
-    'patients.manage',
-    'appointments.view',
-    'appointments.manage',
-    'payments.view',
-    'payments.manage',
-];
+const DEFAULT_ASSISTANT_PERMISSIONS: string[] = [];
 
 type StaffStatusFilter = 'active' | 'blocked' | 'deleted';
 
@@ -478,9 +471,12 @@ export function TeamAccessTab({ canManageTeam, subscription, t }: TeamAccessTabP
                 ? t('register.passwordMismatch')
                 : null
         : null;
+    const permissionsError = isCreateMode && formState.permissions.length === 0
+        ? t('settings.team.permissionsRequired')
+        : null;
     const formHasBasicErrors = useMemo(
-        () => Boolean(nameError || emailError || phoneError || passwordError || passwordConfirmationError),
-        [emailError, nameError, passwordConfirmationError, passwordError, phoneError]
+        () => Boolean(nameError || emailError || phoneError || passwordError || passwordConfirmationError || permissionsError),
+        [emailError, nameError, passwordConfirmationError, passwordError, permissionsError, phoneError]
     );
 
     const resetPasswordError = getPasswordValidationMessage(resetPasswordValue, { required: true });
@@ -499,7 +495,8 @@ export function TeamAccessTab({ canManageTeam, subscription, t }: TeamAccessTabP
         (formSubmitAttempted ? passwordError : null) ?? formFieldErrors.password ?? null;
     const resolvedPasswordConfirmationError =
         (formSubmitAttempted ? passwordConfirmationError : null) ?? formFieldErrors.password_confirmation ?? null;
-    const resolvedPermissionsError = formFieldErrors.permissions ?? null;
+    const resolvedPermissionsError =
+        (formSubmitAttempted ? permissionsError : null) ?? formFieldErrors.permissions ?? null;
 
     const openCreateDialog = () => {
         setEditingAssistant(null);

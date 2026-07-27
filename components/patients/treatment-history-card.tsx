@@ -972,9 +972,9 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
 
     const saveTreatmentMutation = useMutation({
         mutationFn: async () => {
-            // Only include financial fields in the payload if the viewer
-            // can see them. Backend `TreatmentService::payload` ignores
-            // them too if the actor lacks `payments.view`, so this is
+            // Only include financial fields when the actor can manage
+            // payments. Backend `TreatmentService::payload` ignores them
+            // too if the actor lacks `payments.manage`, so this is
             // defense-in-depth — even a tampered client can't sneak in
             // debt/paid values it shouldn't be able to set, and a
             // legitimate client doesn't accidentally send empty 0s that
@@ -985,7 +985,7 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                 comment: formState.comment.trim() || undefined,
                 teeth: formState.teeth,
                 tooth_number: formState.teeth[0] ?? null,
-                ...(canViewFinancials ? {
+                ...(canManageFinancials ? {
                     debt_amount: parseAmountInput(formState.debtAmount, formState.currency),
                     paid_amount: parseAmountInput(formState.paidAmount, formState.currency),
                     currency: formState.currency,
@@ -1193,9 +1193,10 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
     // Read-only financial display is gated by payments.view. A
     // view-only-patients assistant sees locked placeholders in the summary
     // and compact finance chips, so hidden money fields are explicit.
-    // The edit dialog stays gated by canManageHistory (patients.manage)
-    // because creating a treatment inherently involves setting its price.
+    // Treatment history edits stay gated by patients.manage, while the
+    // financial inputs additionally require payments.manage.
     const canViewFinancials = canView(currentUserQuery.data, 'payments');
+    const canManageFinancials = canManage(currentUserQuery.data, 'payments');
     const manageDeniedMessage = getManageDeniedMessage(currentUserQuery.data, t);
     // AF5: subscription-read-only is the one branch where we keep a
     // disabled affordance (with a toast on click) so the dentist owner
@@ -1798,7 +1799,7 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                         />
                     </div>
 
-                    {canViewFinancials ? (
+                    {canManageFinancials ? (
                         <>
                             <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-3">
                                 <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">

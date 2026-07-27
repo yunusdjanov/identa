@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { findDentist, pushAuditEntry } from '@/lib/mock/admin-store';
 import { requireAdmin } from '../../../../_auth';
+import { setMockUserAccountStatus } from '../../../../_mock-users';
 
 // Local mock: block / activate a dentist account.
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -25,6 +26,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     const oldStatus = dentist.status;
     if (body?.status === 'active' || body?.status === 'blocked') {
         dentist.status = body.status;
+        setMockUserAccountStatus(id, body.status);
         pushAuditEntry({
             eventType: 'admin.dentist.status_updated',
             entityType: 'user',

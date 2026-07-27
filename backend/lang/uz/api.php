@@ -10,6 +10,7 @@ return [
         'email_verification_sent' => 'Tasdiqlash xati pochtangizga yuborildi.',
         'email_already_verified' => 'Email allaqachon tasdiqlangan.',
         'email_verification_send_failed' => 'Xat yuborilmadi. Keyinroq urinib ko‘ring.',
+        'email_verification_required' => 'Klinika ma’lumotlariga kirishdan oldin pochtangizni tasdiqlang.',
         'password_change_required' => 'Davom etishdan oldin parolingizni almashtiring.',
         'google_link_required' => 'Bu email allaqachon ro‘yxatdan o‘tgan. Avval parol bilan kiring, so‘ng Sozlamalardan Google’ni ulang.',
         'google_link_already_linked' => 'Google allaqachon hisobingizga ulangan.',

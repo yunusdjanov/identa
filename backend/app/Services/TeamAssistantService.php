@@ -22,7 +22,7 @@ class TeamAssistantService
 
     public function __construct(
         private readonly PlanLimitService $planLimitService,
-        private readonly SessionRevocationService $sessionRevocation,
+        private readonly AccountAccessRevocationService $accessRevocation,
     ) {}
 
     /**
@@ -107,7 +107,7 @@ class TeamAssistantService
         // rename + assistant self-edit when those paths share a model)
         // serialise. Otherwise the permissions snapshot can stale.
         return DB::transaction(function () use ($id, $dentistId, $validated): User {
-            $assistant = $this->ownedAssistant($id, $dentistId, true, true);
+            $assistant = $this->ownedAssistant($id, $dentistId, false, true);
 
             $permissions = $assistant->assistant_permissions ?? [];
             if (array_key_exists('permissions', $validated)) {
@@ -132,7 +132,7 @@ class TeamAssistantService
 
         return DB::transaction(function () use ($dentistId, $id, $status): User {
             $dentist = $this->lockDentistForAssistantLimit($dentistId);
-            $assistant = $this->ownedAssistant($id, $dentistId, true);
+            $assistant = $this->ownedAssistant($id, $dentistId, false, true);
 
             if (
                 $status === User::ACCOUNT_STATUS_ACTIVE
@@ -144,6 +144,10 @@ class TeamAssistantService
             $assistant->update([
                 'account_status' => $status,
             ]);
+
+            if ($status === User::ACCOUNT_STATUS_BLOCKED) {
+                $this->accessRevocation->revokeForUsers([$assistant]);
+            }
 
             return $assistant->refresh();
         });
@@ -166,8 +170,7 @@ class TeamAssistantService
             // Kill any active Sanctum tokens so the assistant's existing app
             // sessions are forced to re-authenticate with the new password.
             // Without this, a stolen/active token outlives the reset.
-            $assistant->tokens()->delete();
-            $this->sessionRevocation->revokeForUsers([$assistant]);
+            $this->accessRevocation->revokeForUsers([$assistant]);
 
             return $assistant;
         });
@@ -211,7 +214,7 @@ class TeamAssistantService
             // Revoke Sanctum tokens — the email rotation makes future
             // /auth/me fail for stale clients, but tokens-in-flight
             // would still pass `auth:sanctum` until the next request.
-            $assistant->tokens()->delete();
+            $this->accessRevocation->revokeForUsers([$assistant]);
         }
 
         return $assistant;

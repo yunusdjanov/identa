@@ -419,7 +419,7 @@ class User extends Authenticatable implements MustVerifyEmail
      */
     public static function defaultAssistantPermissions(): array
     {
-        return self::STAFF_PERMISSIONS;
+        return [];
     }
 
     /**

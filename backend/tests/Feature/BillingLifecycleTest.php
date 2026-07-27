@@ -9,6 +9,7 @@ use App\Models\User;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 class BillingLifecycleTest extends TestCase
@@ -135,6 +136,9 @@ class BillingLifecycleTest extends TestCase
         $assistants = User::factory()->count(5)->assistant($dentist)->create([
             'account_status' => User::ACCOUNT_STATUS_ACTIVE,
         ]);
+        foreach ($assistants as $assistant) {
+            $assistant->createToken('pre-downgrade-token');
+        }
 
         $subscription = $this->createSubscription($dentist, $pro, [
             // Past the grace window so processing flips it to read-only.
@@ -576,6 +580,14 @@ class BillingLifecycleTest extends TestCase
         $this->assertSame(3, $activeCount, 'Basic plan limits to 3 active staff.');
         $this->assertSame(2, $blockedCount, '2 excess assistants must be auto-blocked.');
         $this->assertSame(5, $assistants->count(), 'No assistants are deleted.');
+
+        $blockedIds = $dentist->assistants()
+            ->where('account_status', User::ACCOUNT_STATUS_BLOCKED)
+            ->pluck('id');
+        $this->assertSame(
+            0,
+            DB::table('personal_access_tokens')->whereIn('tokenable_id', $blockedIds)->count(),
+        );
     }
 
     /**

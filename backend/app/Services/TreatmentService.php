@@ -431,8 +431,8 @@ class TreatmentService
             'notes' => $validated['notes'] ?? null,
         ];
 
-        // Financial fields are gated on `payments.view`. Without this gate,
-        // an assistant with `patients.manage` but no `payments.view` would:
+        // Financial writes are gated on `payments.manage`. Without this gate,
+        // an assistant with `patients.manage` but no `payments.manage` would:
         //   1. Submit an update without the (hidden) debt_amount/paid_amount
         //      fields,
         //   2. Hit the array_key_exists fallback → both default to 0,
@@ -448,7 +448,7 @@ class TreatmentService
         // always pass an explicit User with the right perms when bulk
         // operations need financial writes.
         $canSetFinancials = $actor !== null
-            && $actor->hasPermission(User::PERMISSION_PAYMENTS_VIEW);
+            && $actor->hasPermission(User::PERMISSION_PAYMENTS_MANAGE);
         if ($canSetFinancials) {
             if ($defaultMissingFinancials || array_key_exists('debt_amount', $validated) || array_key_exists('cost', $validated)) {
                 $debtAmount = array_key_exists('debt_amount', $validated)

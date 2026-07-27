@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireDentist } from '../../../_auth';
 import { getAdminStore, pushAuditEntry, recomputeStaffCounts } from '@/lib/mock/admin-store';
+import { setMockUserAccountStatus } from '../../../_mock-users';
 
 const MOCK_DENTIST_ID = '1';
 
@@ -18,6 +19,9 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     const { id } = await params;
     const found = findAssistant(id);
     if (!found) {
+        return NextResponse.json({ message: 'Not found.' }, { status: 404 });
+    }
+    if (found.assistant.account_status === 'deleted') {
         return NextResponse.json({ message: 'Not found.' }, { status: 404 });
     }
 
@@ -56,6 +60,7 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
     // hide it consistently.
     const oldStatus = found.assistant.account_status;
     found.assistant.account_status = 'deleted';
+    setMockUserAccountStatus(id, 'deleted');
     recomputeStaffCounts(MOCK_DENTIST_ID);
 
     pushAuditEntry({

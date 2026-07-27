@@ -72,7 +72,8 @@ Route::prefix('v1')->group(function (): void {
             // from amplifying load. 120 req/min is well above the natural
             // refresh cadence (every 30s = 2 req/min).
             Route::get('/me', [AuthController::class, 'me'])
-                ->middleware(['abilities:*', 'throttle:120,1']);
+                ->middleware(['abilities:*', 'throttle:120,1'])
+                ->name('auth.me');
             // Named routes so EnsurePasswordRotated can match by name
             // instead of hardcoded paths — if the URI is ever changed
             // (api prefix bump, route rename) the middleware's
@@ -107,7 +108,7 @@ Route::prefix('v1')->group(function (): void {
         // expensive `LIKE '%...%'` query path.
         // `password.fresh` mirrors the dentist/assistant groups below — an
         // admin whose own password was force-reset must rotate it before
-        // they can issue further admin mutations. Reads are unaffected.
+        // any admin data can be read or changed.
         ->middleware(['auth:sanctum', 'abilities:*', 'role:admin', 'password.fresh', 'throttle:120,1'])
         ->group(function (): void {
             Route::get('/analytics/summary', [AdminAnalyticsController::class, 'summary']);
@@ -134,15 +135,15 @@ Route::prefix('v1')->group(function (): void {
     // assistant gets name+email+phone, dentist keeps everything) so this route
     // can safely accept all three roles — and the admin settings page was
     // already calling it. Without 'admin' here, admins silently 403 on save.
-    Route::middleware(['auth:sanctum', 'abilities:*', 'role:dentist,assistant,admin'])->group(function (): void {
+    Route::middleware(['auth:sanctum', 'abilities:*', 'role:dentist,assistant,admin', 'password.fresh'])->group(function (): void {
         Route::get('settings/profile', [SettingsProfileController::class, 'show']);
         // Profile update is throttled to defang brute-forced email enumeration
         // and to keep the audit log from being spammed by a compromised session.
-        // `password.fresh` blocks profile edits while `must_change_password`
-        // is set — otherwise a forced-reset user could change their email
-        // out from under the admin who reset them.
+        // `password.fresh` on the group blocks both profile reads and edits
+        // while `must_change_password` is set. The SPA renders its dedicated
+        // password-change card from /auth/me instead.
         Route::put('settings/profile', [SettingsProfileController::class, 'update'])
-            ->middleware(['password.fresh', 'throttle:30,1']);
+            ->middleware('throttle:30,1');
     });
 
     Route::post('webhooks/payx', [BillingController::class, 'payxWebhook'])
@@ -154,9 +155,9 @@ Route::prefix('v1')->group(function (): void {
     // financial data, so the whole group is dentist-only.
     Route::prefix('billing')
         // `password.fresh` mirrors the other authenticated groups — a
-        // dentist whose password was force-reset can't checkout / cancel /
-        // change plan until they rotate. Reads still flow through.
-        ->middleware(['auth:sanctum', 'abilities:*', 'role:dentist', 'password.fresh'])
+        // dentist whose password was force-reset cannot read billing data
+        // or change the subscription until they rotate.
+        ->middleware(['auth:sanctum', 'abilities:*', 'role:dentist', 'password.fresh', 'email.verified'])
         ->group(function (): void {
             Route::get('plans', [BillingController::class, 'plans']);
             Route::get('current-subscription', [BillingController::class, 'currentSubscription']);
@@ -176,17 +177,16 @@ Route::prefix('v1')->group(function (): void {
 
     // `password.fresh` is the server-side enforcement of the
     // must_change_password contract: while the flag is true the middleware
-    // returns 403 with `password_change_required` for any mutating verb.
-    // Reads (GET/HEAD/OPTIONS) pass through so the settings page can
-    // still render. Without this, a redirect-bypassed client could
-    // continue to mutate data using the admin-chosen transient credential.
+    // returns 403 with `password_change_required` for every application
+    // route. Only auth/me, password change, logout, and verification resend
+    // remain available until the transient credential is replaced.
     // `throttle:300,1` bounds the authenticated CRUD surface (patients,
     // treatments, appointments, payment ledger, audit-logs)
     // to 300 requests per minute per user. Higher than the natural UX
     // ceiling (a fast dentist clicks ~30/min) but low enough that a
     // runaway client / compromised token can't hammer the DB. Auth/admin/
     // billing/team groups have their own narrower throttles.
-    Route::middleware(['auth:sanctum', 'abilities:*', 'role:dentist,assistant', 'password.fresh', 'subscription.access', 'throttle:300,1'])->group(function (): void {
+    Route::middleware(['auth:sanctum', 'abilities:*', 'role:dentist,assistant', 'password.fresh', 'email.verified', 'subscription.access', 'throttle:300,1'])->group(function (): void {
         Route::get('analytics/summary', [AnalyticsController::class, 'summary'])
             ->middleware('permission:'.User::PERMISSION_PAYMENTS_VIEW.'|'.User::PERMISSION_PATIENTS_VIEW.'|'.User::PERMISSION_APPOINTMENTS_VIEW);
         Route::get('patient-categories', [PatientCategoryController::class, 'index'])
@@ -319,7 +319,7 @@ Route::prefix('v1')->group(function (): void {
             ->middleware('permission:'.User::PERMISSION_AUDIT_LOGS_VIEW);
     });
 
-    Route::middleware(['auth:sanctum', 'abilities:*', 'role:dentist', 'password.fresh', 'subscription.access'])->group(function (): void {
+    Route::middleware(['auth:sanctum', 'abilities:*', 'role:dentist', 'password.fresh', 'email.verified', 'subscription.access'])->group(function (): void {
         Route::get('team/assistants', [TeamAssistantController::class, 'index'])
             ->middleware('permission:'.User::PERMISSION_TEAM_MANAGE);
         // Team mutations are dentist-owner only (permission:team.manage) but

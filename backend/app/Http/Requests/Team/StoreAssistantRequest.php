@@ -5,6 +5,7 @@ namespace App\Http\Requests\Team;
 use App\Models\User;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Rules\Password as PasswordRule;
 
 class StoreAssistantRequest extends FormRequest
 {
@@ -26,9 +27,14 @@ class StoreAssistantRequest extends FormRequest
         return [
             'name' => ['required', 'string', 'min:3', 'max:255'],
             'email' => ['required', 'string', 'email', 'max:255', Rule::unique('users', 'email')],
-            'password' => ['required', 'string', 'min:8', 'confirmed'],
+            'password' => [
+                'required',
+                'string',
+                'confirmed',
+                PasswordRule::min(8)->letters()->numbers(),
+            ],
             'phone' => ['nullable', 'string', 'max:50', 'regex:/^\+\d{9,15}$/'],
-            'permissions' => ['nullable', 'array'],
+            'permissions' => ['required', 'array', 'min:1'],
             'permissions.*' => ['string', Rule::in($this->allowedPermissions()), 'distinct'],
         ];
     }

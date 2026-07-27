@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 class TeamAssistantApiTest extends TestCase
@@ -180,5 +181,76 @@ class TeamAssistantApiTest extends TestCase
                 ->where('account_status', User::ACCOUNT_STATUS_ACTIVE)
                 ->count()
         );
+    }
+
+    public function test_blocking_assistant_revokes_tokens_sessions_and_remember_cookie(): void
+    {
+        config()->set('session.driver', 'database');
+
+        $dentist = User::factory()->create();
+        $assistant = User::factory()->assistant($dentist)->create([
+            'remember_token' => 'remember-me',
+        ]);
+        $assistant->createToken('stale-mobile-token');
+        DB::table('sessions')->insert([
+            'id' => 'assistant-stale-session',
+            'user_id' => $assistant->id,
+            'ip_address' => '127.0.0.1',
+            'user_agent' => 'test',
+            'payload' => 'test-session',
+            'last_activity' => now()->timestamp,
+        ]);
+
+        $this->actingAs($dentist, 'web')
+            ->patchJson("/api/v1/team/assistants/{$assistant->id}/status", [
+                'status' => User::ACCOUNT_STATUS_BLOCKED,
+            ])
+            ->assertOk();
+
+        $this->assertDatabaseMissing('personal_access_tokens', [
+            'tokenable_id' => $assistant->id,
+        ]);
+        $this->assertDatabaseMissing('sessions', ['id' => 'assistant-stale-session']);
+        $this->assertNull($assistant->fresh()->remember_token);
+    }
+
+    public function test_deleted_assistant_cannot_be_edited_or_reactivated(): void
+    {
+        $dentist = User::factory()->create();
+        $assistant = User::factory()->assistant($dentist)->create([
+            'account_status' => User::ACCOUNT_STATUS_DELETED,
+        ]);
+
+        $this->actingAs($dentist, 'web')
+            ->putJson("/api/v1/team/assistants/{$assistant->id}", [
+                'name' => 'Should stay deleted',
+                'email' => 'restore-hidden@example.com',
+                'permissions' => [User::PERMISSION_PATIENTS_VIEW],
+            ])
+            ->assertNotFound();
+
+        $this->actingAs($dentist, 'web')
+            ->patchJson("/api/v1/team/assistants/{$assistant->id}/status", [
+                'status' => User::ACCOUNT_STATUS_ACTIVE,
+            ])
+            ->assertNotFound();
+
+        $this->assertSame(User::ACCOUNT_STATUS_DELETED, $assistant->fresh()->account_status);
+    }
+
+    public function test_assistant_creation_requires_strong_password_and_explicit_permission(): void
+    {
+        $dentist = User::factory()->create();
+
+        $this->actingAs($dentist, 'web')
+            ->postJson('/api/v1/team/assistants', [
+                'name' => 'Assistant One',
+                'email' => 'weak.assistant@example.com',
+                'password' => '12345678',
+                'password_confirmation' => '12345678',
+                'permissions' => [],
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['password', 'permissions']);
     }
 }

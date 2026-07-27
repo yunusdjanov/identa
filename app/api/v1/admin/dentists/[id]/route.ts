@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { findDentist, pushAuditEntry } from '@/lib/mock/admin-store';
 import { requireAdmin } from '../../../_auth';
+import { setMockUserAccountStatus } from '../../../_mock-users';
 
 // Local mock: show a single dentist / soft-delete (mark deleted).
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -35,6 +36,7 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
 
     const oldStatus = dentist.status;
     dentist.status = 'deleted';
+    setMockUserAccountStatus(id, 'deleted');
 
     pushAuditEntry({
         eventType: 'admin.dentist.deleted',

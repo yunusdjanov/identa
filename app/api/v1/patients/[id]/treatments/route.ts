@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { canViewFinancials, requireAuth, list } from '../../../_auth';
+import { canViewFinancials, hasMockPermission, requireAuth, list } from '../../../_auth';
 import { TREATMENTS } from '../../../_mock-data';
 
 // Mock route mirrors the real TreatmentResource gating: viewers without
@@ -38,12 +38,13 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const { id } = await params;
     const body = await request.json();
     const canSeeFinancials = await canViewFinancials();
+    const canSetFinancials = await hasMockPermission('payments.manage');
     // Mirror the real backend TreatmentService::payload — assistant
-    // without payments.view cannot SET debt/paid on create; defaults to
+    // without payments.manage cannot SET debt/paid on create; defaults to
     // 0. Server-side scrubbing prevents a tampered client from sneaking
     // in values it shouldn't be able to write.
-    const debtAmount = canSeeFinancials ? Number(body.debt_amount ?? body.cost ?? 0) : 0;
-    const paidAmount = canSeeFinancials ? Number(body.paid_amount ?? 0) : 0;
+    const debtAmount = canSetFinancials ? Number(body.debt_amount ?? body.cost ?? 0) : 0;
+    const paidAmount = canSetFinancials ? Number(body.paid_amount ?? 0) : 0;
     const treatment = {
         id: `trt-${Date.now()}`,
         patient_id: id,

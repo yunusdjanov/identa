@@ -10,6 +10,7 @@ return [
         'email_verification_sent' => 'Письмо для подтверждения отправлено на вашу почту.',
         'email_already_verified' => 'Электронная почта уже подтверждена.',
         'email_verification_send_failed' => 'Не удалось отправить письмо. Попробуйте позже.',
+        'email_verification_required' => 'Подтвердите почту перед доступом к данным клиники.',
         'password_change_required' => 'Прежде чем продолжить, измените пароль.',
         'google_link_required' => 'Аккаунт с этой почтой уже существует. Войдите с паролем, затем привяжите Google в настройках.',
         'google_link_already_linked' => 'Google уже привязан к вашему аккаунту.',

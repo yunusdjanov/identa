@@ -102,6 +102,7 @@ export default function SettingsPage() {
         staleTime: 5 * 60_000,
     });
     const currentUser = currentUserQuery.data;
+    const mustChangePassword = Boolean(currentUser?.must_change_password);
     const isDentist = currentUserQuery.data?.role === 'dentist';
     const isAssistant = currentUserQuery.data?.role === 'assistant';
     const isReadOnly = currentUserQuery.data?.subscription?.is_read_only === true;
@@ -116,6 +117,7 @@ export default function SettingsPage() {
         gcTime: 900000,
         refetchOnWindowFocus: false,
         refetchOnReconnect: false,
+        enabled: Boolean(currentUser && !mustChangePassword),
     });
 
     const [profileDraft, setProfileDraft] = useState<DentistProfile | null>(null);
@@ -234,7 +236,10 @@ export default function SettingsPage() {
         updatePartialProfile({ show_record_authors: enabled });
     };
 
-    if (currentUserQuery.isLoading || (canViewSettings && profileQuery.isLoading)) {
+    if (
+        currentUserQuery.isLoading
+        || (canViewSettings && !mustChangePassword && profileQuery.isLoading)
+    ) {
         return <SettingsLoadingState />;
     }
 
@@ -259,7 +264,7 @@ export default function SettingsPage() {
         );
     }
 
-    if (profileQuery.isError) {
+    if (!mustChangePassword && profileQuery.isError) {
         return (
             <AppErrorState
                 title={t('common.loadErrorTitle')}
@@ -275,7 +280,6 @@ export default function SettingsPage() {
     // tab AND disable the others so the user can't navigate away within
     // settings either. The forceReset query param is set by the redirect
     // and surfaces the banner explaining why.
-    const mustChangePassword = Boolean(currentUser?.must_change_password);
     const forceReset = mustChangePassword || searchParams.get('forceReset') === '1';
     const lockedTab = forceReset ? 'security' : undefined;
 

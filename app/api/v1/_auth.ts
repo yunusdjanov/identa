@@ -1,6 +1,6 @@
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
-import { resolveMockUser } from './_mock-users';
+import { hasMockActiveAccessChain, resolveMockUser } from './_mock-users';
 
 /**
  * Backend error responses are uniformly shaped `{ error: { code, message } }`
@@ -19,6 +19,11 @@ export async function requireAuth(): Promise<NextResponse | null> {
     const cookieStore = await cookies();
     if (!cookieStore.get('mock_session')) {
         return envelope('unauthenticated', 'Unauthenticated.', 401);
+    }
+    const role = cookieStore.get('mock_role')?.value;
+    const userId = cookieStore.get('mock_user_id')?.value;
+    if (!hasMockActiveAccessChain(role, userId)) {
+        return envelope('account_inactive', 'Account is inactive.', 403);
     }
     return null;
 }
@@ -55,8 +60,13 @@ export async function requireAdmin(): Promise<NextResponse | null> {
     if (!cookieStore.get('mock_session')) {
         return envelope('unauthenticated', 'Unauthenticated.', 401);
     }
-    if (cookieStore.get('mock_role')?.value !== 'admin') {
+    const role = cookieStore.get('mock_role')?.value;
+    const userId = cookieStore.get('mock_user_id')?.value;
+    if (role !== 'admin') {
         return envelope('forbidden', 'Forbidden.', 403);
+    }
+    if (!hasMockActiveAccessChain(role, userId)) {
+        return envelope('account_inactive', 'Account is inactive.', 403);
     }
     return null;
 }
@@ -73,8 +83,13 @@ export async function requireDentist(): Promise<NextResponse | null> {
     if (!cookieStore.get('mock_session')) {
         return envelope('unauthenticated', 'Unauthenticated.', 401);
     }
-    if (cookieStore.get('mock_role')?.value !== 'dentist') {
+    const role = cookieStore.get('mock_role')?.value;
+    const userId = cookieStore.get('mock_user_id')?.value;
+    if (role !== 'dentist') {
         return envelope('forbidden', 'Forbidden.', 403);
+    }
+    if (!hasMockActiveAccessChain(role, userId)) {
+        return envelope('account_inactive', 'Account is inactive.', 403);
     }
     return null;
 }
@@ -98,6 +113,9 @@ export async function requirePermission(...permissions: string[]): Promise<NextR
     }
     const role = cookieStore.get('mock_role')?.value;
     const userId = cookieStore.get('mock_user_id')?.value;
+    if (!hasMockActiveAccessChain(role, userId)) {
+        return envelope('account_inactive', 'Account is inactive.', 403);
+    }
     if (role === 'dentist' || role === 'admin') {
         return null;
     }
@@ -126,6 +144,9 @@ export async function hasMockPermission(permission: string): Promise<boolean> {
     const cookieStore = await cookies();
     const role = cookieStore.get('mock_role')?.value;
     const userId = cookieStore.get('mock_user_id')?.value;
+    if (!hasMockActiveAccessChain(role, userId)) {
+        return false;
+    }
     if (role === 'dentist' || role === 'admin') {
         return true;
     }

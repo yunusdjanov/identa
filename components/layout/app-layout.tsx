@@ -30,6 +30,7 @@ import { EmailVerificationBanner } from '@/components/layout/email-verification-
 import { LogoutLoadingScreen } from '@/components/layout/logout-loading-screen';
 import { Brand } from '@/components/branding/brand';
 import { AccountMenu } from '@/components/layout/account-menu';
+import { AccessDeniedState } from '@/components/error/access-denied-state';
 import { toast } from 'sonner';
 
 const navigation = [
@@ -236,6 +237,11 @@ function AppLayoutBody({ children }: { children: React.ReactNode }) {
         && currentUser.must_change_password
         && pathname !== '/settings'
     );
+    const isEmailVerificationRequired = Boolean(
+        currentUser
+        && currentUser.email_verified === false
+        && pathname !== '/settings'
+    );
     const showHeaderSkeleton = !isMounted || isUserLoading;
     const isNavLocked = (href: string): boolean => {
         if (href === '/analytics') {
@@ -409,7 +415,15 @@ function AppLayoutBody({ children }: { children: React.ReactNode }) {
 
             {/* Main Content */}
             <main className="mx-auto max-w-[1440px] px-3 py-4 sm:px-6 sm:py-8 lg:px-8">
-                {isForcedResetRedirectPending ? null : children}
+                {isForcedResetRedirectPending ? null : isEmailVerificationRequired ? (
+                    <AccessDeniedState
+                        eyebrow={t('verifyEmail.gate.eyebrow')}
+                        title={t('verifyEmail.gate.title')}
+                        description={t('verifyEmail.gate.description')}
+                        actionLabel={t('verifyEmail.gate.action')}
+                        actionHref="/settings"
+                    />
+                ) : children}
             </main>
         </div>
     );

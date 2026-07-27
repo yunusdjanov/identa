@@ -204,6 +204,37 @@ export function resolveMockUser(role: string | undefined, userId: string | undef
     return DENTIST_USER;
 }
 
+export function hasMockActiveAccessChain(role: string | undefined, userId: string | undefined): boolean {
+    if (role === 'admin') {
+        return ADMIN_USER.account_status === 'active';
+    }
+    if (role === 'dentist') {
+        return DENTIST_USER.account_status === 'active';
+    }
+    if (role === 'assistant' && userId) {
+        const assistant = Object.values(ASSISTANT_USERS).find((user) => user.id === userId);
+        return assistant?.account_status === 'active'
+            && DENTIST_USER.account_status === 'active';
+    }
+
+    return false;
+}
+
+export function setMockUserAccountStatus(
+    userId: string,
+    status: MockUser['account_status']
+): void {
+    if (userId === DENTIST_USER.id || userId === '1') {
+        DENTIST_USER.account_status = status;
+        return;
+    }
+
+    const assistant = Object.values(ASSISTANT_USERS).find((user) => user.id === userId);
+    if (assistant) {
+        assistant.account_status = status;
+    }
+}
+
 /**
  * Resolve which fixture a /auth/login attempt should return based on the
  * posted body. Mirrors the resolution logic the real Laravel backend

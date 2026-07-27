@@ -59,6 +59,7 @@ export interface ApiUser {
     avatar_url?: string | null;
     email_verified_at?: string | null;
     email_verified?: boolean;
+    email_verification_retention_days?: number;
     has_password?: boolean;
     // Mirrors the backend google_id boolean projection — drives the
     // Settings → Connected Accounts panel without exposing the raw

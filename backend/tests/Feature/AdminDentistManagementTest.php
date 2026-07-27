@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 class AdminDentistManagementTest extends TestCase
@@ -125,6 +126,54 @@ class AdminDentistManagementTest extends TestCase
             ->assertJsonPath('data.0.email', 'alpha@example.com');
     }
 
+    public function test_admin_block_revokes_dentist_and_staff_credentials(): void
+    {
+        config()->set('session.driver', 'database');
+
+        $admin = User::factory()->admin()->create();
+        $dentist = User::factory()->create(['remember_token' => 'dentist-remember']);
+        $assistant = User::factory()->assistant($dentist)->create([
+            'remember_token' => 'assistant-remember',
+        ]);
+        $dentist->createToken('dentist-token');
+        $assistant->createToken('assistant-token');
+        DB::table('sessions')->insert([
+            [
+                'id' => 'dentist-session',
+                'user_id' => $dentist->id,
+                'ip_address' => '127.0.0.1',
+                'user_agent' => 'test',
+                'payload' => 'test-session',
+                'last_activity' => now()->timestamp,
+            ],
+            [
+                'id' => 'assistant-session',
+                'user_id' => $assistant->id,
+                'ip_address' => '127.0.0.1',
+                'user_agent' => 'test',
+                'payload' => 'test-session',
+                'last_activity' => now()->timestamp,
+            ],
+        ]);
+
+        $this->actingAs($admin, 'web')
+            ->patchJson("/api/v1/admin/dentists/{$dentist->id}/status", [
+                'status' => User::ACCOUNT_STATUS_BLOCKED,
+            ])
+            ->assertOk();
+
+        $this->assertSame(
+            0,
+            DB::table('personal_access_tokens')
+                ->whereIn('tokenable_id', [$dentist->id, $assistant->id])
+                ->count(),
+        );
+        $this->assertDatabaseMissing('sessions', ['id' => 'dentist-session']);
+        $this->assertDatabaseMissing('sessions', ['id' => 'assistant-session']);
+        $this->assertNull($dentist->fresh()->remember_token);
+        $this->assertNull($assistant->fresh()->remember_token);
+    }
+
     public function test_admin_password_reset_requires_password_confirmation(): void
     {
         $admin = User::factory()->admin()->create();
@@ -239,7 +288,7 @@ class AdminDentistManagementTest extends TestCase
                 'email' => 'assistant-two@example.com',
                 'password' => 'password123',
                 'password_confirmation' => 'password123',
-                'permissions' => User::defaultAssistantPermissions(),
+                'permissions' => [User::PERMISSION_PATIENTS_VIEW],
             ], $this->csrfHeaders())
             ->assertForbidden()
             ->assertJsonPath('error.code', 'plan_staff_limit_reached');

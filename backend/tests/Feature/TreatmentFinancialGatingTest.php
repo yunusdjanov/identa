@@ -13,7 +13,7 @@ use Tests\TestCase;
  * Resource scrubbing from AFD2-C5.
  *
  * Before the fix, an assistant with `patients.manage` but no
- * `payments.view` could:
+ * `payments.manage` could:
  *   1. Open the treatment edit dialog,
  *   2. See the (hidden, empty) debt_amount/paid_amount inputs default
  *      to 0 on submit,
@@ -23,7 +23,7 @@ use Tests\TestCase;
  *
  * The fix has two layers:
  *  - TreatmentService::payload omits financial fields from the payload
- *    when the actor lacks payments.view → model->fill() doesn't touch
+ *    when the actor lacks payments.manage → model->fill() doesn't touch
  *    them → existing values preserved on update.
  *  - TreatmentResource nulls out cost/debt_amount/paid_amount/balance
  *    in the response → assistant sees null where money was, frontend
@@ -100,7 +100,7 @@ class TreatmentFinancialGatingTest extends TestCase
         $this->assertEquals('2026-03-02', $treatment->treatment_date->toDateString());
     }
 
-    public function test_assistant_with_payments_view_sees_and_can_set_financial_fields(): void
+    public function test_assistant_with_payments_manage_can_set_financial_fields(): void
     {
         $dentist = User::factory()->create();
         $patient = Patient::factory()->create(['dentist_id' => $dentist->id]);
@@ -126,6 +126,33 @@ class TreatmentFinancialGatingTest extends TestCase
                 'paid_amount' => 50000.0,
                 'balance' => 100000.0,
             ]);
+    }
+
+    public function test_assistant_with_payments_view_but_without_manage_cannot_set_financial_fields(): void
+    {
+        $dentist = User::factory()->create();
+        $patient = Patient::factory()->create(['dentist_id' => $dentist->id]);
+        $assistant = $this->makeAssistant($dentist, [
+            User::PERMISSION_PATIENTS_VIEW,
+            User::PERMISSION_PATIENTS_MANAGE,
+            User::PERMISSION_PAYMENTS_VIEW,
+        ]);
+
+        $response = $this->actingAs($assistant, 'web')
+            ->postJson("/api/v1/patients/{$patient->id}/treatments", [
+                'treatment_type' => 'Filling',
+                'treatment_date' => '2026-03-05',
+                'teeth' => [21],
+                'debt_amount' => 150_000,
+                'paid_amount' => 50_000,
+                'currency' => Treatment::CURRENCY_USD,
+            ])
+            ->assertCreated();
+
+        $treatment = Treatment::query()->findOrFail($response->json('data.id'));
+        $this->assertEquals(0, (float) $treatment->debt_amount);
+        $this->assertEquals(0, (float) $treatment->paid_amount);
+        $this->assertSame(Treatment::CURRENCY_UZS, $treatment->currency);
     }
 
     public function test_payments_user_partial_update_preserves_financial_fields_when_omitted(): void

@@ -8,6 +8,7 @@ use App\Models\Subscription;
 use App\Models\TreatmentImage;
 use App\Models\User;
 use App\Services\SubscriptionService;
+use App\Services\UnverifiedAccountCleanupService;
 use App\Support\ProductionRuntimePolicyValidator;
 use App\Support\ProductionSecretsValidator;
 use Illuminate\Foundation\Inspiring;
@@ -23,6 +24,28 @@ use Illuminate\Validation\Rules\Password;
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
+
+Artisan::command('accounts:expire-unverified {--days= : Override the configured retention period}', function () {
+    $configuredDays = (int) config('auth.verification.pending_account_retention_days', 30);
+    $days = $this->option('days') !== null ? (int) $this->option('days') : $configuredDays;
+
+    if ($days < 1) {
+        $this->error('Retention days must be at least 1.');
+
+        return 1;
+    }
+
+    $result = app(UnverifiedAccountCleanupService::class)
+        ->expireOlderThan(now()->subDays($days));
+
+    $this->info(sprintf(
+        'Expired %d abandoned registration(s); retained %d account(s) with protected data or changed state.',
+        $result['expired'],
+        $result['retained'],
+    ));
+
+    return 0;
+})->purpose('Soft-delete abandoned unverified registrations without deleting tenant data');
 
 Artisan::command('security:check-secrets', function () {
     /** @var ProductionSecretsValidator $secretValidator */
@@ -392,6 +415,7 @@ Artisan::command('subscriptions:process', function () {
 })->purpose('Send subscription expiry warnings, move expired subscriptions to read-only, and cancel stale pending payments');
 
 Schedule::command('subscriptions:process')->hourly();
+Schedule::command('accounts:expire-unverified')->dailyAt('03:20')->withoutOverlapping();
 
 Artisan::command(
     'app:reset-test-data {--force : Required to confirm destructive cleanup} {--email=admin@identa.uz : Super admin email} {--password= : Super admin password (required, no insecure default)} {--name=Platform Super Admin : Super admin display name}',

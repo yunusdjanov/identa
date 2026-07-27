@@ -12,6 +12,7 @@ const queryState = vi.hoisted(() => ({
             email: string;
             role: 'dentist';
             account_status: 'active';
+            email_verified?: boolean;
         },
         isLoading: true,
         isError: false,
@@ -160,5 +161,32 @@ describe('AppLayout skeleton header', () => {
         expect(paymentLinks).toHaveLength(2);
         expect(paymentLinks.every((link) => link.getAttribute('aria-current') === 'page')).toBe(true);
         expect(screen.getAllByRole('link', { name: 'nav.dashboard' })).toHaveLength(2);
+    });
+
+    it('blocks practice content until the email is verified', () => {
+        queryState.current = {
+            data: {
+                id: 'dentist-1',
+                name: 'Demo Dentist',
+                email: 'dentist@identa.test',
+                role: 'dentist',
+                account_status: 'active',
+                email_verified: false,
+            },
+            isLoading: false,
+            isError: false,
+            error: null,
+        };
+
+        render(
+            <AppLayout>
+                <div>Protected content</div>
+            </AppLayout>
+        );
+
+        expect(screen.queryByText('Protected content')).not.toBeInTheDocument();
+        expect(screen.getByText('verifyEmail.gate.title')).toBeInTheDocument();
+        expect(screen.getByRole('link', { name: 'verifyEmail.gate.action' }))
+            .toHaveAttribute('href', '/settings');
     });
 });

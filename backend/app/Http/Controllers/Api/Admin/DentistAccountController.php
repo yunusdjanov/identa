@@ -11,7 +11,7 @@ use App\Models\BillingPayment;
 use App\Models\Plan;
 use App\Models\Subscription;
 use App\Models\User;
-use App\Services\SessionRevocationService;
+use App\Services\AccountAccessRevocationService;
 use App\Services\SubscriptionService;
 use App\Support\AuditLogger;
 use App\Support\Search;
@@ -29,7 +29,7 @@ class DentistAccountController extends Controller
     public function __construct(
         private readonly AuditLogger $auditLogger,
         private readonly SubscriptionService $subscriptionService,
-        private readonly SessionRevocationService $sessionRevocation,
+        private readonly AccountAccessRevocationService $accessRevocation,
     ) {
     }
 
@@ -392,14 +392,12 @@ class DentistAccountController extends Controller
         // token row persists until expiry. A leaked PAT is the durable
         // attack surface — revoke it explicitly so token deletion is the
         // ground truth for "this account can no longer authenticate".
-        $revokedTokenCount = 0;
+        $revokedCredentials = ['tokens' => 0, 'sessions' => 0];
         if ($status === User::ACCOUNT_STATUS_BLOCKED) {
-            $revokedTokenCount = $dentist->tokens()->count();
-            $dentist->tokens()->delete();
-            foreach ($dentist->assistants as $assistant) {
-                $revokedTokenCount += $assistant->tokens()->count();
-                $assistant->tokens()->delete();
-            }
+            $revokedCredentials = $this->accessRevocation->revokeForUsers([
+                $dentist,
+                ...$dentist->assistants->all(),
+            ]);
         }
 
         $this->auditLogger->logFromRequest(
@@ -410,7 +408,8 @@ class DentistAccountController extends Controller
             metadata: [
                 'old_status' => $oldStatus,
                 'new_status' => $status,
-                'revoked_tokens' => $revokedTokenCount,
+                'revoked_tokens' => $revokedCredentials['tokens'],
+                'revoked_sessions' => $revokedCredentials['sessions'],
             ],
         );
 
@@ -433,21 +432,16 @@ class DentistAccountController extends Controller
             'must_change_password' => true,
         ]);
 
-        // Revoke every active Sanctum personal-access token. Without this,
-        // any session/PAT the dentist already has (or that an attacker has
-        // exfiltrated) survives the password reset and keeps full access —
-        // the same blind spot would defeat the audit trail this method writes.
-        $dentist->tokens()->delete();
+        // Revoke every reusable credential. Without this, an existing
+        // session/PAT (or remember-me cookie) survives the password reset.
         // Cascade to assistants — their tokens were minted under the same
         // owner-tenant, and a dentist credential rotation should not leave
         // assistant PATs alive on the previous owner-state. (Their passwords
         // are separate, but token-bearer access does not need the password.)
-        $sessionUsers = [$dentist];
-        foreach ($dentist->assistants as $assistant) {
-            $assistant->tokens()->delete();
-            $sessionUsers[] = $assistant;
-        }
-        $this->sessionRevocation->revokeForUsers($sessionUsers);
+        $this->accessRevocation->revokeForUsers([
+            $dentist,
+            ...$dentist->assistants->all(),
+        ]);
 
         $this->auditLogger->logFromRequest(
             request: $request,
@@ -555,12 +549,10 @@ class DentistAccountController extends Controller
         // longer hit any endpoint via their existing session/PAT. Without
         // this they keep full access until token/cookie expiry. Cascade to
         // assistants for the same reason — see block-status comment above.
-        $revokedTokenCount = $dentist->tokens()->count();
-        $dentist->tokens()->delete();
-        foreach ($dentist->assistants as $assistant) {
-            $revokedTokenCount += $assistant->tokens()->count();
-            $assistant->tokens()->delete();
-        }
+        $revokedCredentials = $this->accessRevocation->revokeForUsers([
+            $dentist,
+            ...$dentist->assistants->all(),
+        ]);
 
         // Cancel the active subscription so revenue reporting and renewal
         // cycles stop treating a deleted dentist as an active payer.
@@ -588,7 +580,8 @@ class DentistAccountController extends Controller
             metadata: [
                 'old_status' => $oldStatus,
                 'new_status' => User::ACCOUNT_STATUS_DELETED,
-                'revoked_tokens' => $revokedTokenCount,
+                'revoked_tokens' => $revokedCredentials['tokens'],
+                'revoked_sessions' => $revokedCredentials['sessions'],
                 'subscription_cancelled' => $cancelledSubscription,
             ],
         );

@@ -13,6 +13,10 @@ use Illuminate\Validation\ValidationException;
 
 class SubscriptionService
 {
+    public function __construct(
+        private readonly AccountAccessRevocationService $accessRevocation,
+    ) {}
+
     public function currentForOwner(User $owner, bool $forUpdate = false): ?Subscription
     {
         if (! $owner->isDentist()) {
@@ -826,9 +830,15 @@ class SubscriptionService
             return;
         }
 
-        $owner->assistants()
+        $assistantsToBlock = $owner->assistants()
+            ->whereIn('id', $assistantIdsToBlock)
+            ->get();
+
+        User::query()
             ->whereIn('id', $assistantIdsToBlock)
             ->update(['account_status' => User::ACCOUNT_STATUS_BLOCKED]);
+
+        $this->accessRevocation->revokeForUsers($assistantsToBlock);
     }
 
     /**

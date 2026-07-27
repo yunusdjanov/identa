@@ -10,6 +10,7 @@ return [
         'email_verification_sent' => 'A verification link has been sent to your email.',
         'email_already_verified' => 'Email is already verified.',
         'email_verification_send_failed' => 'Could not send the email. Please try again later.',
+        'email_verification_required' => 'Verify your email before accessing practice data.',
         'password_change_required' => 'Please change your password before continuing.',
         'google_link_required' => 'An account with this email already exists. Sign in with your password first, then connect Google from Settings.',
         'google_link_already_linked' => 'Google is already connected to your account.',
