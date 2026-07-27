@@ -8,7 +8,6 @@ use App\Models\Patient;
 use App\Models\Treatment;
 use App\Models\User;
 use App\Support\AuditLogger;
-use App\Support\Search;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -78,83 +77,6 @@ class TreatmentService
 
         return [
             'patient' => $patient,
-            'treatments' => $treatments,
-            'include_images' => $includeImages,
-            'summary' => $summary,
-        ];
-    }
-
-    /**
-     * @return array{
-     *     treatments: LengthAwarePaginator,
-     *     include_images: bool,
-     *     summary: array{total_count: int, total_debt: float, total_paid: float, total_balance: float, totals_by_currency: array<string, array{total_debt: float, total_paid: float, total_balance: float}>}|null
-     * }
-     */
-    public function listAll(Request $request): array
-    {
-        $dentistId = $this->dentistId($request);
-        $includeImages = $this->includeImages($request);
-
-        $baseQuery = Treatment::query()
-            ->where('dentist_id', $dentistId)
-            ->with([
-                'patient:id,full_name,phone,secondary_phone,patient_id',
-                'createdBy:id,name,role',
-                'updatedBy:id,name,role',
-            ]);
-
-        $patientId = $request->input('filter.patient_id');
-        if (is_string($patientId) && $patientId !== '') {
-            $baseQuery->where('patient_id', $patientId);
-        }
-
-        $dateFrom = $request->input('filter.date_from');
-        if (is_string($dateFrom) && $dateFrom !== '') {
-            $baseQuery->whereDate('treatment_date', '>=', $dateFrom);
-        }
-
-        $dateTo = $request->input('filter.date_to');
-        if (is_string($dateTo) && $dateTo !== '') {
-            $baseQuery->whereDate('treatment_date', '<=', $dateTo);
-        }
-
-        $search = $request->input('filter.search');
-        if (is_string($search) && trim($search) !== '') {
-            $search = trim($search);
-            // Case-insensitive everywhere: Postgres LIKE is case-sensitive
-            // and mobile keyboards default to lowercase, so naive LIKE
-            // misses any row whose text starts with a capital letter.
-            $baseQuery->where(function (Builder $builder) use ($search): void {
-                Search::ciLike($builder, 'treatment_type', $search);
-                Search::ciLike($builder, 'comment', $search, 'or');
-                Search::ciLike($builder, 'description', $search, 'or');
-                $builder->orWhereHas('patient', function (Builder $patientBuilder) use ($search): void {
-                    Search::ciLike($patientBuilder, 'full_name', $search);
-                    Search::ciLike($patientBuilder, 'phone', $search, 'or');
-                    Search::ciLike($patientBuilder, 'secondary_phone', $search, 'or');
-                    Search::ciLike($patientBuilder, 'patient_id', $search, 'or');
-                });
-            });
-        }
-
-        $summaryQuery = clone $baseQuery;
-        $query = clone $baseQuery;
-        $query->withCount('images');
-
-        if ($includeImages) {
-            $query->with('images');
-        }
-
-        $this->applySort($query, $request->query('sort', '-treatment_date,-created_at'));
-        $treatments = $query->paginate($this->perPage($request));
-        $summary = null;
-
-        if ($this->includeSummary($request)) {
-            $summary = $this->summaryForQuery($summaryQuery, $treatments->total());
-        }
-
-        return [
             'treatments' => $treatments,
             'include_images' => $includeImages,
             'summary' => $summary,

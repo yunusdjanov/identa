@@ -17,7 +17,7 @@
     "check:runtime-security": "powershell -ExecutionPolicy Bypass -File .\\scripts\\backend-artisan.ps1 security:check-runtime",
     "check:core-guardrails": "node scripts/check-core-guardrails.mjs",
     "check:openapi": "node scripts/validate-openapi.mjs",
-    "audit:frontend": "npm audit --audit-level=high",
+    "audit:frontend": "node scripts/audit-frontend.mjs",
     "audit:backend": "node scripts/backend-composer-audit.mjs",
     "audit:deps": "npm run audit:frontend && npm run audit:backend",
     "check:migrations": "powershell -ExecutionPolicy Bypass -File .\\scripts\\check-backend-migrations.ps1",

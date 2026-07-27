@@ -207,6 +207,21 @@ class PaymentLedgerApiTest extends TestCase
             ->assertForbidden();
     }
 
+    public function test_payment_ledger_rejects_invalid_or_unbounded_filters(): void
+    {
+        $dentist = User::factory()->create();
+
+        $this->actingAs($dentist, 'web')
+            ->getJson('/api/v1/payments/ledger/patients?per_page=101&filter[search]='.str_repeat('a', 161))
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['per_page', 'filter.search']);
+
+        $this->actingAs($dentist, 'web')
+            ->getJson('/api/v1/payments/ledger/history?filter[patient_id]=not-a-uuid')
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['filter.patient_id']);
+    }
+
     /**
      * @return array{User, Patient, Patient}
      */

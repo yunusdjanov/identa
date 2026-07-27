@@ -8,11 +8,12 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class PaymentExpense extends Model implements TenantOwned
 {
     /** @use HasFactory<\Database\Factories\PaymentExpenseFactory> */
-    use BelongsToTenant, HasFactory, HasUuids;
+    use BelongsToTenant, HasFactory, HasUuids, SoftDeletes;
 
     public const CURRENCY_UZS = 'UZS';
 
@@ -43,6 +44,8 @@ class PaymentExpense extends Model implements TenantOwned
         'quantity',
         'currency',
         'expense_date',
+        'idempotency_key',
+        'idempotency_payload_hash',
     ];
 
     /**

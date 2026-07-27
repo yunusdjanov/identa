@@ -55,8 +55,8 @@ class TreatmentResource extends JsonResource
         // restricted to clinical data still receives the full money
         // payload via the API even though the UI hides it; a network-tab
         // inspector or scripted client defeats the frontend filter.
-        // Mirrors the same intent enforced by DashboardService and
-        // PatientService::overview's includePayments branch.
+        // Mirrors the same intent enforced by PatientService::overview's
+        // includePayments branch.
         // Multi-guard resolution: production uses Sanctum tokens
         // (`$request->user()` covers it); tests use `actingAs($u, 'web')`
         // which puts the user in the web guard. Without checking both,

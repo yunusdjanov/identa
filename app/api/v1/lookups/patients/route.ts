@@ -24,11 +24,9 @@ function matchesSearch(patient: (typeof PATIENTS)[number], search: string): bool
 }
 
 export async function GET(request: Request) {
-    // Backend gates `/lookups/patients` with `appointments.manage|payments.manage`
-    // (see routes/api.php line 167-169). The endpoint is used by appointment-
-    // create and quick-payment dialogs to autocomplete a patient; an
-    // assistant without either permission would 403 in production.
-    const denied = await requirePermission('appointments.manage', 'payments.manage');
+    // The visible appointment create/edit dialog uses this lightweight
+    // autocomplete; match the backend's appointments.manage gate.
+    const denied = await requirePermission('appointments.manage');
     if (denied) return denied;
 
     const url = new URL(request.url);

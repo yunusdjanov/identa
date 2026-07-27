@@ -180,6 +180,33 @@ class AnalyticsSummaryApiTest extends TestCase
             ->assertJsonValidationErrors('currency');
     }
 
+    public function test_dentist_summary_rejects_unbounded_or_overlapping_periods(): void
+    {
+        $dentist = User::factory()->create();
+
+        $this->actingAs($dentist, 'web')
+            ->getJson('/api/v1/analytics/summary?'.http_build_query([
+                'range' => '7d',
+                'current_from' => '2026-01-01',
+                'current_to' => '2026-06-30',
+                'previous_from' => '1900-01-01',
+                'previous_to' => '2025-12-31',
+            ]))
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['current_to', 'previous_to', 'previous_from']);
+
+        $this->actingAs($dentist, 'web')
+            ->getJson('/api/v1/analytics/summary?'.http_build_query([
+                'range' => '7d',
+                'current_from' => '2026-06-10',
+                'current_to' => '2026-06-16',
+                'previous_from' => '2026-06-09',
+                'previous_to' => '2026-06-10',
+            ]))
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['previous_to']);
+    }
+
     public function test_admin_summary_endpoint_returns_empty_state_for_admins(): void
     {
         $admin = User::factory()->admin()->create();

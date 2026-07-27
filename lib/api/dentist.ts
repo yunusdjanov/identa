@@ -8,16 +8,12 @@ import type {
     ApiAdminAnalyticsSummary,
     ApiAnalyticsSummary,
     ApiAppointment,
-    ApiAppointmentLookup,
     ApiAssistantAccount,
     ApiAssistantPasswordResetPayload,
     ApiAuditLogEntry,
     ApiCollectionEnvelope,
     ApiEnvelope,
-    ApiInvoice,
     ApiMoneyCurrency,
-    ApiOdontogramEntry,
-    ApiOdontogramSummary,
     ApiBillingPayment,
     ApiPatient,
     ApiPatientLookup,
@@ -29,7 +25,6 @@ import type {
     ApiPaymentHistoryLedgerRow,
     ApiPaymentPatientLedgerRow,
     ApiPlan,
-    ApiPayment,
     ApiProfile,
     ApiSubscriptionSummary,
     ApiTreatment,
@@ -389,14 +384,6 @@ export async function listBillingPayments(): Promise<ApiBillingPayment[]> {
     return data.data;
 }
 
-export async function cancelCurrentSubscription(): Promise<ApiSubscriptionSummary> {
-    const { data } = await withCsrfRetry(() =>
-        apiClient.post<ApiEnvelope<ApiSubscriptionSummary>>('/billing/cancel')
-    );
-
-    return data.data;
-}
-
 export async function listPatients(options?: QueryOptions): Promise<ApiCollectionEnvelope<ApiPatient>> {
     const { data } = await apiClient.get<ApiCollectionEnvelope<ApiPatient>>('/patients', {
         params: buildQueryParams(options),
@@ -672,129 +659,6 @@ export async function listAppointments(
     return data;
 }
 
-export async function listPatientOdontogram(
-    patientId: string,
-    options?: QueryOptions
-): Promise<ApiCollectionEnvelope<ApiOdontogramEntry>> {
-    const { data } = await apiClient.get<ApiCollectionEnvelope<ApiOdontogramEntry>>(
-        `/patients/${patientId}/odontogram`,
-        {
-            params: buildQueryParams(options),
-        }
-    );
-
-    return data;
-}
-
-export async function listAllPatientOdontogram(
-    patientId: string,
-    options?: Omit<QueryOptions, 'page' | 'perPage'>
-): Promise<ApiOdontogramEntry[]> {
-    return collectAllPages((page) =>
-        listPatientOdontogram(patientId, {
-            ...options,
-            page,
-            perPage: MAX_API_PER_PAGE,
-        })
-    );
-}
-
-export async function getPatientOdontogramSummary(
-    patientId: string,
-    limit = 5
-): Promise<ApiOdontogramSummary> {
-    const { data } = await apiClient.get<ApiEnvelope<ApiOdontogramSummary>>(
-        `/patients/${patientId}/odontogram/summary`,
-        {
-            params: {
-                limit,
-            },
-        }
-    );
-
-    return data.data;
-}
-
-export async function createPatientOdontogramEntry(
-    patientId: string,
-    payload: {
-        tooth_number: number;
-        condition_type: ApiOdontogramEntry['condition_type'];
-        surface?: string;
-        material?: string;
-        severity?: string;
-        condition_date: string;
-        notes?: string;
-    }
-): Promise<ApiOdontogramEntry> {
-    await ensureCsrfCookie();
-    const { data } = await apiClient.post<ApiEnvelope<ApiOdontogramEntry>>(
-        `/patients/${patientId}/odontogram`,
-        payload
-    );
-
-    return data.data;
-}
-
-export async function updatePatientOdontogramEntry(
-    patientId: string,
-    entryId: string,
-    payload: {
-        tooth_number: number;
-        condition_type: ApiOdontogramEntry['condition_type'];
-        surface?: string;
-        material?: string;
-        severity?: string;
-        condition_date: string;
-        notes?: string;
-    }
-): Promise<ApiOdontogramEntry> {
-    const { data } = await withCsrfRetry(() =>
-        apiClient.put<ApiEnvelope<ApiOdontogramEntry>>(
-            `/patients/${patientId}/odontogram/${entryId}`,
-            payload
-        )
-    );
-
-    return data.data;
-}
-
-export async function deletePatientOdontogramEntry(patientId: string, entryId: string): Promise<void> {
-    await withCsrfRetry(() => apiClient.delete(`/patients/${patientId}/odontogram/${entryId}`));
-}
-
-export async function uploadPatientOdontogramEntryImage(
-    patientId: string,
-    entryId: string,
-    payload: {
-        stage: 'before' | 'after';
-        image: File;
-        captured_at?: string;
-    }
-): Promise<ApiOdontogramEntry> {
-    const directUpload = await preparePatientOdontogramEntryImageDirectUpload(
-        patientId,
-        entryId,
-        payload
-    );
-
-    if (directUpload.supported && directUpload.upload_id && directUpload.url) {
-        try {
-            await performDirectSignedUpload(payload.image, directUpload);
-        } catch {
-            return uploadPatientOdontogramEntryImageViaApi(patientId, entryId, payload);
-        }
-
-        return finalizePatientOdontogramEntryImageDirectUpload(
-            patientId,
-            entryId,
-            directUpload.upload_id
-        );
-    }
-
-    return uploadPatientOdontogramEntryImageViaApi(patientId, entryId, payload);
-}
-
 async function uploadPatientPhotoViaApi(id: string, photo: File): Promise<ApiPatient> {
     const formData = new FormData();
     formData.append('photo', photo);
@@ -880,57 +744,6 @@ async function finalizePatientOralPhotoDirectUpload(
     return data.data;
 }
 
-async function uploadPatientOdontogramEntryImageViaApi(
-    patientId: string,
-    entryId: string,
-    payload: {
-        stage: 'before' | 'after';
-        image: File;
-        captured_at?: string;
-    }
-): Promise<ApiOdontogramEntry> {
-    const formData = new FormData();
-    formData.append('stage', payload.stage);
-    formData.append('image', payload.image);
-    if (payload.captured_at) {
-        formData.append('captured_at', payload.captured_at);
-    }
-
-    const { data } = await withCsrfRetry(() =>
-        apiClient.post<ApiEnvelope<ApiOdontogramEntry>>(
-            `/patients/${patientId}/odontogram/${entryId}/images`,
-            formData
-        )
-    );
-
-    return data.data;
-}
-
-export async function deletePatientOdontogramEntryImage(
-    patientId: string,
-    entryId: string,
-    imageId: string
-): Promise<void> {
-    await withCsrfRetry(() =>
-        apiClient.delete(`/patients/${patientId}/odontogram/${entryId}/images/${imageId}`)
-    );
-}
-
-export async function downloadPatientOdontogramEntryImage(
-    patientId: string,
-    entryId: string,
-    imageId: string
-): Promise<Blob> {
-    const response = await apiClient.get(
-        `/patients/${patientId}/odontogram/${entryId}/images/${imageId}`,
-        {
-            responseType: 'blob',
-        }
-    );
-
-    return response.data as Blob;
-}
-
 export async function listPatientTreatments(
     patientId: string,
     options?: QueryOptions
@@ -941,14 +754,6 @@ export async function listPatientTreatments(
             params: buildQueryParams(options),
         }
     );
-
-    return data;
-}
-
-export async function listTreatments(options?: QueryOptions): Promise<ApiCollectionEnvelope<ApiTreatment>> {
-    const { data } = await apiClient.get<ApiCollectionEnvelope<ApiTreatment>>('/treatments', {
-        params: buildQueryParams(options),
-    });
 
     return data;
 }
@@ -1024,10 +829,21 @@ export async function createPaymentExpense(payload: {
     currency?: ApiPaymentExpense['currency'];
     expense_date: string;
 }): Promise<ApiPaymentExpense> {
+    // Keep one key across the CSRF retry so a successful first request whose
+    // response was lost cannot create the same expense twice.
+    const idempotencyKey =
+        typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+            ? `expense-${crypto.randomUUID()}`
+            : `expense-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 14)}`;
     const { data } = await withCsrfRetry(() =>
         apiClient.post<ApiEnvelope<ApiPaymentExpense>>(
             '/payments/expenses',
-            payload
+            payload,
+            {
+                headers: {
+                    'Idempotency-Key': idempotencyKey,
+                },
+            }
         )
     );
 
@@ -1064,18 +880,6 @@ export async function deletePaymentExpense(expenseId: string): Promise<void> {
     await withCsrfRetry(() => apiClient.delete(`/payments/expenses/${expenseId}`));
 }
 
-export async function listAllTreatments(
-    options?: Omit<QueryOptions, 'page' | 'perPage'>
-): Promise<ApiTreatment[]> {
-    return collectAllPages((page) =>
-        listTreatments({
-            ...options,
-            page,
-            perPage: MAX_API_PER_PAGE,
-        })
-    );
-}
-
 export async function listAllPatientTreatments(
     patientId: string,
     options?: Omit<QueryOptions, 'page' | 'perPage'>
@@ -1095,49 +899,6 @@ export async function getPatientTreatment(
 ): Promise<ApiTreatment> {
     const { data } = await apiClient.get<ApiEnvelope<ApiTreatment>>(
         `/patients/${patientId}/treatments/${treatmentId}`
-    );
-
-    return data.data;
-}
-
-async function preparePatientOdontogramEntryImageDirectUpload(
-    patientId: string,
-    entryId: string,
-    payload: {
-        stage: 'before' | 'after';
-        image: File;
-        captured_at?: string;
-    }
-): Promise<ApiDirectUploadTicket> {
-    try {
-        const { data } = await withCsrfRetry(() =>
-            apiClient.post<ApiEnvelope<ApiDirectUploadTicket>>(
-                `/patients/${patientId}/odontogram/${entryId}/images/direct-upload`,
-                {
-                    stage: payload.stage,
-                    captured_at: payload.captured_at,
-                    filename: payload.image.name,
-                    content_type: resolveDirectUploadContentType(payload.image),
-                    file_size: payload.image.size,
-                }
-            )
-        );
-
-        return data.data;
-    } catch {
-        return { supported: false };
-    }
-}
-
-async function finalizePatientOdontogramEntryImageDirectUpload(
-    patientId: string,
-    entryId: string,
-    uploadId: string
-): Promise<ApiOdontogramEntry> {
-    const { data } = await withCsrfRetry(() =>
-        apiClient.post<ApiEnvelope<ApiOdontogramEntry>>(
-            `/patients/${patientId}/odontogram/${entryId}/images/direct-upload/${uploadId}/complete`
-        )
     );
 
     return data.data;
@@ -1502,21 +1263,6 @@ export async function replacePatientTreatmentImage(
     return data.data;
 }
 
-export async function downloadPatientTreatmentImage(
-    patientId: string,
-    treatmentId: string,
-    imageId: string
-): Promise<Blob> {
-    const response = await apiClient.get(
-        `/patients/${patientId}/treatments/${treatmentId}/images/${imageId}`,
-        {
-            responseType: 'blob',
-        }
-    );
-
-    return response.data as Blob;
-}
-
 export async function listAllAppointments(
     options?: Omit<QueryOptions, 'page' | 'perPage'>
 ): Promise<ApiAppointment[]> {
@@ -1527,14 +1273,6 @@ export async function listAllAppointments(
             perPage: MAX_API_PER_PAGE,
         })
     );
-}
-
-export async function lookupAppointments(options?: QueryOptions): Promise<ApiCollectionEnvelope<ApiAppointmentLookup>> {
-    const { data } = await apiClient.get<ApiCollectionEnvelope<ApiAppointmentLookup>>('/lookups/appointments', {
-        params: buildQueryParams(options),
-    });
-
-    return data;
 }
 
 export async function createAppointment(payload: {
@@ -1576,147 +1314,6 @@ export async function updateAppointment(
 
 export async function deleteAppointment(id: string): Promise<void> {
     await withCsrfRetry(() => apiClient.delete(`/appointments/${id}`));
-}
-
-export async function listInvoices(options?: QueryOptions): Promise<ApiCollectionEnvelope<ApiInvoice>> {
-    const { data } = await apiClient.get<ApiCollectionEnvelope<ApiInvoice>>('/invoices', {
-        params: buildQueryParams(options),
-    });
-
-    return data;
-}
-
-export async function listAllInvoices(options?: Omit<QueryOptions, 'page' | 'perPage'>): Promise<ApiInvoice[]> {
-    return collectAllPages((page) =>
-        listInvoices({
-            ...options,
-            page,
-            perPage: MAX_API_PER_PAGE,
-        })
-    );
-}
-
-export async function createInvoice(payload: {
-    patient_id: string;
-    invoice_date: string;
-    items: Array<{
-        description: string;
-        odontogram_entry_id?: string | null;
-        quantity: number;
-        unit_price: number;
-    }>;
-}): Promise<ApiInvoice> {
-    const { data } = await withCsrfRetry(() =>
-        apiClient.post<ApiEnvelope<ApiInvoice>>('/invoices', payload)
-    );
-
-    return data.data;
-}
-
-export async function getInvoice(id: string): Promise<ApiInvoice> {
-    const { data } = await apiClient.get<ApiEnvelope<ApiInvoice>>(`/invoices/${id}`);
-
-    return data.data;
-}
-
-export async function updateInvoice(
-    id: string,
-    payload: {
-        patient_id: string;
-        invoice_date: string;
-        items: Array<{
-            description: string;
-            odontogram_entry_id?: string | null;
-            quantity: number;
-            unit_price: number;
-        }>;
-    }
-): Promise<ApiInvoice> {
-    const { data } = await withCsrfRetry(() =>
-        apiClient.put<ApiEnvelope<ApiInvoice>>(`/invoices/${id}`, payload)
-    );
-
-    return data.data;
-}
-
-export async function deleteInvoice(id: string): Promise<void> {
-    await withCsrfRetry(() => apiClient.delete(`/invoices/${id}`));
-}
-
-export async function downloadInvoicePdf(
-    invoiceId: string,
-    fallbackInvoiceNumber?: string
-): Promise<void> {
-    const response = await apiClient.get(`/invoices/${invoiceId}/download`, {
-        responseType: 'blob',
-    });
-
-    if (typeof window === 'undefined' || typeof document === 'undefined') {
-        return;
-    }
-
-    const dispositionHeader = response.headers['content-disposition'] as string | undefined;
-    const fileNameMatch = dispositionHeader?.match(/filename="?([^"]+)"?/i);
-    const fileName = fileNameMatch?.[1] || `${fallbackInvoiceNumber ?? `invoice-${invoiceId}`}.pdf`;
-
-    const blobUrl = window.URL.createObjectURL(response.data as Blob);
-    const link = document.createElement('a');
-    link.href = blobUrl;
-    link.download = fileName;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    window.URL.revokeObjectURL(blobUrl);
-}
-
-export async function listPayments(options?: QueryOptions): Promise<ApiCollectionEnvelope<ApiPayment>> {
-    const { data } = await apiClient.get<ApiCollectionEnvelope<ApiPayment>>('/payments', {
-        params: buildQueryParams(options),
-    });
-
-    return data;
-}
-
-export async function listAllPayments(options?: Omit<QueryOptions, 'page' | 'perPage'>): Promise<ApiPayment[]> {
-    return collectAllPages((page) =>
-        listPayments({
-            ...options,
-            page,
-            perPage: MAX_API_PER_PAGE,
-        })
-    );
-}
-
-export async function createPayment(payload: {
-    invoice_id: string;
-    amount: number;
-    payment_method: 'cash' | 'card' | 'bank_transfer';
-    payment_date: string;
-}): Promise<ApiPayment> {
-    const { data } = await withCsrfRetry(() =>
-        apiClient.post<ApiEnvelope<ApiPayment>>('/payments', payload)
-    );
-
-    return data.data;
-}
-
-export async function updatePayment(
-    id: string,
-    payload: {
-        amount: number;
-        payment_method: 'cash' | 'card' | 'bank_transfer';
-        payment_date: string;
-    }
-): Promise<ApiPayment> {
-    const { data } = await withCsrfRetry(() =>
-        apiClient.put<ApiEnvelope<ApiPayment>>(`/payments/${id}`, payload)
-    );
-
-    return data.data;
-}
-
-export async function deletePayment(id: string): Promise<void> {
-    await withCsrfRetry(() => apiClient.delete(`/payments/${id}`));
 }
 
 export async function getProfile(): Promise<ApiProfile> {
@@ -1836,18 +1433,6 @@ export async function listAdminDentists(
     });
 
     return data;
-}
-
-export async function listAllAdminDentists(
-    options?: Omit<QueryOptions, 'page' | 'perPage'>
-): Promise<ApiAdminDentist[]> {
-    return collectAllPages((page) =>
-        listAdminDentists({
-            ...options,
-            page,
-            perPage: MAX_API_PER_PAGE,
-        })
-    );
 }
 
 export async function getAdminDentist(id: string): Promise<ApiAdminDentist> {
@@ -2012,16 +1597,6 @@ export async function updateAdminPlan(
     return data.data;
 }
 
-export interface DashboardAppointmentView {
-    id: string;
-    patientName: string;
-    appointmentDate: string;
-    startTime: string;
-    durationMinutes: number;
-    status: ApiAppointment['status'];
-    reason?: string;
-}
-
 export interface DashboardRevenuePoint {
     month: string;
     revenue: number;
@@ -2037,38 +1612,4 @@ export interface DashboardPatientGrowthPoint {
 export interface DashboardAppointmentStatusPoint {
     status: ApiAppointment['status'];
     count: number;
-}
-
-export interface DashboardTopTreatment {
-    name: string;
-    count: number;
-    revenue: number;
-}
-
-export interface DashboardSnapshot {
-    revenueThisMonth: number;
-    outstandingDebtTotal: number;
-    todayAppointments: DashboardAppointmentView[];
-    revenueByMonth?: DashboardRevenuePoint[];
-    patientGrowth?: DashboardPatientGrowthPoint[];
-    appointmentStatus?: DashboardAppointmentStatusPoint[];
-    topTreatments?: DashboardTopTreatment[];
-}
-
-interface DashboardSnapshotOptions {
-    includeFinancials?: boolean;
-    date?: string;
-}
-
-export async function getDashboardSnapshot(
-    options: DashboardSnapshotOptions = {}
-): Promise<DashboardSnapshot> {
-    const { data } = await apiClient.get<ApiEnvelope<DashboardSnapshot>>('/dashboard/snapshot', {
-        params: {
-            include_financials: options.includeFinancials === false ? '0' : '1',
-            date: options.date,
-        },
-    });
-
-    return data.data;
 }

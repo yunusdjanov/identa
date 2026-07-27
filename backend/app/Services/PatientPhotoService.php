@@ -369,9 +369,9 @@ class PatientPhotoService
         // signed-url credentials) either silently return a non-functional URL
         // (Laravel's `Storage::fake('local')` does this) or throw at signing
         // time — neither is useful to a browser uploader. Match the explicit
-        // `=== 's3'` check used by OdontogramImageService + the treatment
-        // image direct-upload service so this stays consistent across the
-        // codebase and the fallback branch is reachable in tests.
+        // `=== 's3'` check used by the treatment image direct-upload service
+        // so this stays consistent across the codebase and the fallback
+        // branch is reachable in tests.
         return (string) config("filesystems.disks.{$disk}.driver") === 's3';
     }
 

@@ -2,7 +2,6 @@
 
 namespace Tests\Feature;
 
-use App\Models\Invoice;
 use App\Models\Patient;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -12,84 +11,26 @@ class ApiIntegrationContractTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_api_flow_enforces_auth_tenancy_and_financial_invariants(): void
+    public function test_retired_duplicate_financial_and_legacy_routes_are_not_registered(): void
     {
         $dentist = User::factory()->create();
-        $otherDentist = User::factory()->create();
-        $patientPhone = '+19998887776';
+        $patient = Patient::factory()->create(['dentist_id' => $dentist->id]);
 
-        $this->getJson('/api/v1/patients')->assertUnauthorized();
+        $requests = [
+            ['getJson', '/api/v1/invoices'],
+            ['getJson', '/api/v1/payments'],
+            ['postJson', "/api/v1/patients/{$patient->id}/quick-payments"],
+            ['getJson', "/api/v1/patients/{$patient->id}/odontogram"],
+            ['getJson', '/api/v1/dashboard/snapshot'],
+            ['getJson', '/api/v1/lookups/appointments'],
+            ['getJson', '/api/v1/treatments'],
+        ];
 
-        $patientResponse = $this->actingAs($dentist, 'web')
-            ->postJson('/api/v1/patients', [
-                'full_name' => 'Flow Contract Patient',
-                'phone' => $patientPhone,
-            ])
-            ->assertCreated();
-
-        $patientId = $patientResponse->json('data.id');
-        $this->assertIsString($patientId);
-
-        $invoiceResponse = $this->actingAs($dentist, 'web')
-            ->postJson('/api/v1/invoices', [
-                'patient_id' => $patientId,
-                'invoice_date' => '2026-03-01',
-                'items' => [
-                    [
-                        'description' => 'Consultation',
-                        'quantity' => 1,
-                        'unit_price' => 120,
-                    ],
-                ],
-            ])
-            ->assertCreated()
-            ->assertJsonPath('data.total_amount', 120)
-            ->assertJsonPath('data.balance', 120)
-            ->assertJsonPath('data.status', Invoice::STATUS_UNPAID);
-
-        $invoiceId = $invoiceResponse->json('data.id');
-        $this->assertIsString($invoiceId);
-
-        $otherPatient = Patient::factory()->create(['dentist_id' => $otherDentist->id]);
-        $otherInvoice = Invoice::create([
-            'dentist_id' => $otherDentist->id,
-            'patient_id' => $otherPatient->id,
-            'invoice_number' => 'INV-INTEGRATION-OTHER',
-            'invoice_date' => '2026-03-01',
-            'total_amount' => '200.00',
-            'paid_amount' => '0.00',
-            'balance' => '200.00',
-            'status' => Invoice::STATUS_UNPAID,
-        ]);
-
-        $this->actingAs($dentist, 'web')
-            ->postJson('/api/v1/payments', [
-                'invoice_id' => $otherInvoice->id,
-                'amount' => 50,
-                'payment_method' => 'cash',
-                'payment_date' => '2026-03-02',
-            ])
-            ->assertStatus(422)
-            ->assertJsonValidationErrors(['invoice_id']);
-
-        $this->actingAs($dentist, 'web')
-            ->postJson('/api/v1/payments', [
-                'invoice_id' => $invoiceId,
-                'amount' => 40,
-                'payment_method' => 'card',
-                'payment_date' => '2026-03-02',
-            ])
-            ->assertCreated()
-            ->assertJsonPath('data.invoice_id', $invoiceId)
-            ->assertJsonPath('data.amount', 40);
-
-        $this->actingAs($dentist, 'web')
-            ->getJson("/api/v1/invoices/{$invoiceId}")
-            ->assertOk()
-            ->assertJsonPath('data.paid_amount', 40)
-            ->assertJsonPath('data.balance', 80)
-            ->assertJsonPath('data.status', Invoice::STATUS_PARTIALLY_PAID);
-
+        foreach ($requests as [$method, $uri]) {
+            $this->actingAs($dentist, 'web')
+                ->{$method}($uri)
+                ->assertNotFound();
+        }
     }
 
     public function test_patient_collection_contract_applies_pagination_filter_and_sort_rules(): void

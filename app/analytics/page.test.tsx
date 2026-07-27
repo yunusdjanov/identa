@@ -192,6 +192,24 @@ describe('AnalyticsPage', () => {
         expect(within(card as HTMLElement).getByText('2')).toBeInTheDocument();
     });
 
+    it('shows PDF export only when the active subscription grants exports', async () => {
+        vi.mocked(getCurrentUser).mockResolvedValue({
+            ...dentist,
+            subscription: { can_export: false },
+        } as never);
+        const rendered = renderPage();
+        await screen.findByText('Analytics');
+        expect(screen.queryByRole('button', { name: 'Export PDF' })).not.toBeInTheDocument();
+
+        rendered.unmount();
+        vi.mocked(getCurrentUser).mockResolvedValue({
+            ...dentist,
+            subscription: { can_export: true },
+        } as never);
+        renderPage();
+        expect(await screen.findByRole('button', { name: 'Export PDF' })).toBeInTheDocument();
+    });
+
     it('shows only the top four debtors with a link to all outstanding payments', async () => {
         vi.mocked(getCurrentUser).mockResolvedValue(dentist as never);
         vi.mocked(getAnalyticsSummary).mockResolvedValue(createAnalyticsSummary({

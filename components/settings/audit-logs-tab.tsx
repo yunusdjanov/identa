@@ -17,18 +17,10 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 
-const HIDDEN_EVENT_TYPES = new Set([
-    'auth.login',
-    'auth.logout',
-    'team.assistant.created',
-    'team.assistant.updated',
-    'team.assistant.status_updated',
-    'team.assistant.password_reset',
-    'team.assistant.deleted',
-]);
-
 const EVENT_TYPE_OPTIONS = [
     'all',
+    'auth.login',
+    'auth.logout',
     'auth.permission_denied',
     'patient.created',
     'patient.updated',
@@ -38,15 +30,21 @@ const EVENT_TYPE_OPTIONS = [
     'appointment.created',
     'appointment.updated',
     'appointment.deleted',
-    'payment.created',
-    'payment.updated',
-    'payment.deleted',
-    'patient.odontogram_entry.created',
-    'patient.odontogram_entry.updated',
-    'patient.odontogram_entry.deleted',
-    'patient.odontogram_entry.image.uploaded',
-    'patient.odontogram_entry.image.deleted',
     'patient.treatment.created',
+    'patient.treatment.updated',
+    'patient.treatment.deleted',
+    'patient.treatment.image.uploaded',
+    'patient.treatment.images.uploaded',
+    'patient.treatment.image.replaced',
+    'patient.treatment.image.deleted',
+    'payment_expense.created',
+    'payment_expense.updated',
+    'payment_expense.deleted',
+    'team.assistant.created',
+    'team.assistant.updated',
+    'team.assistant.status_updated',
+    'team.assistant.password_reset',
+    'team.assistant.deleted',
 ];
 
 const PERMISSION_LABEL_KEY_BY_CODE: Record<string, string> = {
@@ -241,9 +239,7 @@ export function AuditLogsTab({ canViewAuditLogs, t }: AuditLogsTabProps) {
         enabled: canViewAuditLogs,
     });
 
-    const visibleEntries = (logsQuery.data?.data ?? []).filter(
-        (entry) => !HIDDEN_EVENT_TYPES.has(entry.event_type)
-    );
+    const visibleEntries = logsQuery.data?.data ?? [];
 
     const totalPages = logsQuery.data?.meta?.pagination?.total_pages ?? 1;
     const canPrev = page > 1;

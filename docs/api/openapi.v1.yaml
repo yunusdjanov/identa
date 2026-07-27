@@ -13,7 +13,6 @@ tags:
   - name: Auth
   - name: Patients
   - name: Appointments
-  - name: Invoices
   - name: Payments
   - name: Analytics
   - name: Lookups
@@ -174,28 +173,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/PatientLookupCollectionResponse"
-        "401":
-          $ref: "#/components/responses/UnauthorizedError"
-        "403":
-          $ref: "#/components/responses/ForbiddenError"
-  /api/v1/lookups/appointments:
-    get:
-      tags: [Lookups]
-      summary: Search lightweight appointments for payment selectors
-      operationId: lookupAppointments
-      security:
-        - cookieAuth: []
-      parameters:
-        - $ref: "#/components/parameters/Page"
-        - $ref: "#/components/parameters/PerPage"
-        - $ref: "#/components/parameters/SearchFilter"
-      responses:
-        "200":
-          description: Paginated appointment lookup rows
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/AppointmentLookupCollectionResponse"
         "401":
           $ref: "#/components/responses/UnauthorizedError"
         "403":
@@ -518,141 +495,6 @@ paths:
           $ref: "#/components/responses/UnauthorizedError"
         "403":
           $ref: "#/components/responses/ForbiddenError"
-        "422":
-          $ref: "#/components/responses/ValidationError"
-  /api/v1/patients/{id}/odontogram:
-    get:
-      tags: [Patients]
-      summary: List odontogram entries for patient
-      operationId: listPatientOdontogram
-      security:
-        - cookieAuth: []
-      parameters:
-        - $ref: "#/components/parameters/ResourceId"
-        - $ref: "#/components/parameters/Page"
-        - $ref: "#/components/parameters/PerPage"
-        - $ref: "#/components/parameters/Sort"
-        - $ref: "#/components/parameters/ToothNumberFilter"
-      responses:
-        "200":
-          description: Paginated odontogram entries
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/OdontogramEntryCollectionResponse"
-        "401":
-          $ref: "#/components/responses/UnauthorizedError"
-        "403":
-          $ref: "#/components/responses/ForbiddenError"
-        "404":
-          $ref: "#/components/responses/NotFoundError"
-    post:
-      tags: [Patients]
-      summary: Create odontogram entry for patient
-      operationId: createPatientOdontogramEntry
-      security:
-        - cookieAuth: []
-      parameters:
-        - $ref: "#/components/parameters/ResourceId"
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/OdontogramEntryCreateRequest"
-      responses:
-        "201":
-          description: Odontogram entry created
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/OdontogramEntryResponse"
-        "401":
-          $ref: "#/components/responses/UnauthorizedError"
-        "403":
-          $ref: "#/components/responses/ForbiddenError"
-        "404":
-          $ref: "#/components/responses/NotFoundError"
-        "422":
-          $ref: "#/components/responses/ValidationError"
-  /api/v1/patients/{id}/odontogram/summary:
-    get:
-      tags: [Patients]
-      summary: Get odontogram summary for patient detail preview
-      operationId: getPatientOdontogramSummary
-      security:
-        - cookieAuth: []
-      parameters:
-        - $ref: "#/components/parameters/ResourceId"
-        - $ref: "#/components/parameters/OdontogramSummaryLimitFilter"
-      responses:
-        "200":
-          description: Odontogram summary payload
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/OdontogramSummaryResponse"
-        "401":
-          $ref: "#/components/responses/UnauthorizedError"
-        "403":
-          $ref: "#/components/responses/ForbiddenError"
-        "404":
-          $ref: "#/components/responses/NotFoundError"
-  /api/v1/patients/{id}/odontogram/{entryId}/images/direct-upload:
-    post:
-      tags: [Patients]
-      summary: Prepare a direct upload for an odontogram image
-      operationId: prepareOdontogramImageDirectUpload
-      security:
-        - cookieAuth: []
-      parameters:
-        - $ref: "#/components/parameters/ResourceId"
-        - $ref: "#/components/parameters/EntryId"
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/DirectUploadPrepareRequest"
-      responses:
-        "200":
-          description: Signed upload ticket
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/DirectUploadPrepareResponse"
-        "401":
-          $ref: "#/components/responses/UnauthorizedError"
-        "403":
-          $ref: "#/components/responses/ForbiddenError"
-        "404":
-          $ref: "#/components/responses/NotFoundError"
-        "422":
-          $ref: "#/components/responses/ValidationError"
-  /api/v1/patients/{id}/odontogram/{entryId}/images/direct-upload/{uploadId}/complete:
-    post:
-      tags: [Patients]
-      summary: Finalize a direct-uploaded odontogram image
-      operationId: finalizeOdontogramImageDirectUpload
-      security:
-        - cookieAuth: []
-      parameters:
-        - $ref: "#/components/parameters/ResourceId"
-        - $ref: "#/components/parameters/EntryId"
-        - $ref: "#/components/parameters/UploadId"
-      responses:
-        "201":
-          description: Odontogram image created
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/MediaImageResponse"
-        "401":
-          $ref: "#/components/responses/UnauthorizedError"
-        "403":
-          $ref: "#/components/responses/ForbiddenError"
-        "404":
-          $ref: "#/components/responses/NotFoundError"
         "422":
           $ref: "#/components/responses/ValidationError"
   /api/v1/patients/{id}/treatments:
@@ -983,127 +825,6 @@ paths:
           $ref: "#/components/responses/NotFoundError"
         "422":
           $ref: "#/components/responses/ValidationError"
-  /api/v1/invoices:
-    get:
-      tags: [Invoices]
-      summary: List invoices
-      operationId: listInvoices
-      security:
-        - cookieAuth: []
-      parameters:
-        - $ref: "#/components/parameters/Page"
-        - $ref: "#/components/parameters/PerPage"
-        - $ref: "#/components/parameters/Sort"
-        - $ref: "#/components/parameters/PatientIdFilter"
-        - $ref: "#/components/parameters/StatusFilter"
-        - $ref: "#/components/parameters/InvoiceStatusesFilter"
-        - $ref: "#/components/parameters/SearchFilter"
-      responses:
-        "200":
-          description: Paginated invoices
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/InvoiceCollectionResponse"
-        "401":
-          $ref: "#/components/responses/UnauthorizedError"
-        "403":
-          $ref: "#/components/responses/ForbiddenError"
-    post:
-      tags: [Invoices]
-      summary: Create invoice
-      operationId: createInvoice
-      security:
-        - cookieAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/InvoiceUpsertRequest"
-      responses:
-        "201":
-          description: Invoice created
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/InvoiceResponse"
-        "401":
-          $ref: "#/components/responses/UnauthorizedError"
-        "403":
-          $ref: "#/components/responses/ForbiddenError"
-        "422":
-          $ref: "#/components/responses/ValidationError"
-  /api/v1/invoices/{id}:
-    get:
-      tags: [Invoices]
-      summary: Get invoice detail
-      operationId: getInvoice
-      security:
-        - cookieAuth: []
-      parameters:
-        - $ref: "#/components/parameters/ResourceId"
-      responses:
-        "200":
-          description: Invoice detail
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/InvoiceResponse"
-        "401":
-          $ref: "#/components/responses/UnauthorizedError"
-        "403":
-          $ref: "#/components/responses/ForbiddenError"
-        "404":
-          $ref: "#/components/responses/NotFoundError"
-    put:
-      tags: [Invoices]
-      summary: Update invoice
-      operationId: updateInvoice
-      security:
-        - cookieAuth: []
-      parameters:
-        - $ref: "#/components/parameters/ResourceId"
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/InvoiceUpsertRequest"
-      responses:
-        "200":
-          description: Invoice updated
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/InvoiceResponse"
-        "401":
-          $ref: "#/components/responses/UnauthorizedError"
-        "403":
-          $ref: "#/components/responses/ForbiddenError"
-        "404":
-          $ref: "#/components/responses/NotFoundError"
-        "422":
-          $ref: "#/components/responses/ValidationError"
-    delete:
-      tags: [Invoices]
-      summary: Delete invoice
-      operationId: deleteInvoice
-      security:
-        - cookieAuth: []
-      parameters:
-        - $ref: "#/components/parameters/ResourceId"
-      responses:
-        "204":
-          description: Invoice deleted
-        "401":
-          $ref: "#/components/responses/UnauthorizedError"
-        "403":
-          $ref: "#/components/responses/ForbiddenError"
-        "404":
-          $ref: "#/components/responses/NotFoundError"
-        "422":
-          $ref: "#/components/responses/ValidationError"
   /api/v1/payments/ledger/patients:
     get:
       tags: [Payments]
@@ -1114,7 +835,7 @@ paths:
       parameters:
         - $ref: "#/components/parameters/Page"
         - $ref: "#/components/parameters/PerPage"
-        - $ref: "#/components/parameters/SearchFilter"
+        - $ref: "#/components/parameters/PaymentSearchFilter"
         - $ref: "#/components/parameters/PatientIdFilter"
         - $ref: "#/components/parameters/OutstandingFilter"
       responses:
@@ -1138,7 +859,7 @@ paths:
       parameters:
         - $ref: "#/components/parameters/Page"
         - $ref: "#/components/parameters/PerPage"
-        - $ref: "#/components/parameters/SearchFilter"
+        - $ref: "#/components/parameters/PaymentSearchFilter"
         - $ref: "#/components/parameters/PatientIdFilter"
         - $ref: "#/components/parameters/OutstandingFilter"
       responses:
@@ -1162,7 +883,9 @@ paths:
       parameters:
         - $ref: "#/components/parameters/Page"
         - $ref: "#/components/parameters/PerPage"
-        - $ref: "#/components/parameters/SearchFilter"
+        - $ref: "#/components/parameters/PaymentSearchFilter"
+        - $ref: "#/components/parameters/DateFromFilter"
+        - $ref: "#/components/parameters/DateToFilter"
       responses:
         "200":
           description: Paginated clinic expense rows
@@ -1180,6 +903,8 @@ paths:
       operationId: createPaymentExpense
       security:
         - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
       requestBody:
         required: true
         content:
@@ -1360,57 +1085,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AdminAnalyticsSummaryResponse"
-        "401":
-          $ref: "#/components/responses/UnauthorizedError"
-        "403":
-          $ref: "#/components/responses/ForbiddenError"
-        "422":
-          $ref: "#/components/responses/ValidationError"
-  /api/v1/payments:
-    get:
-      tags: [Payments]
-      summary: List payments
-      operationId: listPayments
-      security:
-        - cookieAuth: []
-      parameters:
-        - $ref: "#/components/parameters/Page"
-        - $ref: "#/components/parameters/PerPage"
-        - $ref: "#/components/parameters/Sort"
-        - $ref: "#/components/parameters/PatientIdFilter"
-        - $ref: "#/components/parameters/DateFromFilter"
-        - $ref: "#/components/parameters/DateToFilter"
-        - $ref: "#/components/parameters/InvoiceIdFilter"
-      responses:
-        "200":
-          description: Paginated payments
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/PaymentCollectionResponse"
-        "401":
-          $ref: "#/components/responses/UnauthorizedError"
-        "403":
-          $ref: "#/components/responses/ForbiddenError"
-    post:
-      tags: [Payments]
-      summary: Record invoice payment
-      operationId: createPayment
-      security:
-        - cookieAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/PaymentCreateRequest"
-      responses:
-        "201":
-          description: Payment recorded
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/PaymentResponse"
         "401":
           $ref: "#/components/responses/UnauthorizedError"
         "403":
@@ -1610,13 +1284,6 @@ components:
       schema:
         type: string
         format: uuid
-    EntryId:
-      name: entryId
-      in: path
-      required: true
-      schema:
-        type: string
-        format: uuid
     TreatmentId:
       name: treatmentId
       in: path
@@ -1658,6 +1325,21 @@ components:
       in: query
       schema:
         type: string
+    PaymentSearchFilter:
+      name: filter[search]
+      in: query
+      schema:
+        type: string
+        maxLength: 160
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: false
+      description: Reuse the same key to safely retry an expense creation request.
+      schema:
+        type: string
+        maxLength: 100
+        pattern: "^[A-Za-z0-9._:-]+$"
     PatientIdFilter:
       name: filter[patient_id]
       in: query
@@ -1693,45 +1375,17 @@ components:
       in: query
       schema:
         type: string
-    InvoiceStatusesFilter:
-      name: filter[statuses]
-      in: query
-      description: Comma-separated invoice statuses for multi-select filtering.
-      schema:
-        type: string
-        example: unpaid,partially_paid
     AccountStatusFilter:
       name: filter[status]
       in: query
       schema:
         type: string
         enum: [active, blocked, deleted]
-    InvoiceIdFilter:
-      name: filter[invoice_id]
-      in: query
-      schema:
-        type: string
-        format: uuid
     OutstandingFilter:
       name: filter[outstanding]
       in: query
       schema:
         type: boolean
-    ToothNumberFilter:
-      name: filter[tooth_number]
-      in: query
-      schema:
-        type: integer
-        minimum: 1
-        maximum: 32
-    OdontogramSummaryLimitFilter:
-      name: limit
-      in: query
-      schema:
-        type: integer
-        minimum: 1
-        maximum: 10
-        default: 5
   responses:
     ValidationError:
       description: Validation failed
@@ -1800,24 +1454,6 @@ components:
           type: integer
         total_pages:
           type: integer
-    InvoiceCollectionSummary:
-      type: object
-      properties:
-        total_count:
-          type: integer
-        outstanding_count:
-          type: integer
-        outstanding_total:
-          type: number
-        total_amount:
-          type: number
-    PaymentCollectionSummary:
-      type: object
-      properties:
-        total_count:
-          type: integer
-        total_amount:
-          type: number
     PaymentLedgerSummary:
       type: object
       properties:
@@ -1884,34 +1520,6 @@ components:
         category:
           type: string
           nullable: true
-    AppointmentLookup:
-      type: object
-      properties:
-        id:
-          type: string
-          format: uuid
-        patient_id:
-          type: string
-          format: uuid
-          nullable: true
-        patient_name:
-          type: string
-        guest_name:
-          type: string
-          nullable: true
-        guest_phone:
-          type: string
-          nullable: true
-        is_guest:
-          type: boolean
-        appointment_date:
-          type: string
-          format: date
-        start_time:
-          type: string
-          example: "10:00"
-        status:
-          type: string
     RecentPatient:
       type: object
       properties:
@@ -2161,72 +1769,6 @@ components:
           type: string
           format: date
           nullable: true
-    OdontogramEntry:
-      type: object
-      properties:
-        id:
-          type: string
-          format: uuid
-        patient_id:
-          type: string
-          format: uuid
-        tooth_number:
-          type: integer
-          minimum: 1
-          maximum: 32
-        condition_type:
-          type: string
-          enum: [healthy, cavity, filling, crown, root_canal, extraction, implant]
-        surface:
-          type: string
-          nullable: true
-        material:
-          type: string
-          nullable: true
-        severity:
-          type: string
-          nullable: true
-        condition_date:
-          type: string
-          format: date
-        notes:
-          type: string
-          nullable: true
-        created_at:
-          type: string
-          format: date-time
-          nullable: true
-    OdontogramSummaryCondition:
-      type: object
-      properties:
-        tooth_number:
-          type: integer
-          minimum: 1
-          maximum: 32
-        condition_type:
-          type: string
-          enum: [healthy, cavity, filling, crown, root_canal, extraction, implant]
-        history_count:
-          type: integer
-        condition_date:
-          type: string
-          format: date
-          nullable: true
-        created_at:
-          type: string
-          format: date-time
-          nullable: true
-    OdontogramSummary:
-      type: object
-      properties:
-        total_entries:
-          type: integer
-        affected_teeth_count:
-          type: integer
-        latest_conditions:
-          type: array
-          items:
-            $ref: "#/components/schemas/OdontogramSummaryCondition"
     Treatment:
       type: object
       properties:
@@ -2306,86 +1848,6 @@ components:
         notes:
           type: string
           nullable: true
-    Invoice:
-      type: object
-      properties:
-        id:
-          type: string
-          format: uuid
-        patient_id:
-          type: string
-          format: uuid
-        patient_name:
-          type: string
-          nullable: true
-        patient_phone:
-          type: string
-          nullable: true
-        invoice_number:
-          type: string
-        invoice_date:
-          type: string
-          format: date
-        due_date:
-          type: string
-          format: date
-          nullable: true
-        total_amount:
-          type: number
-        paid_amount:
-          type: number
-        balance:
-          type: number
-        status:
-          type: string
-          enum: [unpaid, partially_paid, paid]
-        notes:
-          type: string
-          nullable: true
-        items:
-          type: array
-          items:
-            $ref: "#/components/schemas/InvoiceItem"
-    InvoiceItem:
-      type: object
-      properties:
-        id:
-          type: string
-          format: uuid
-        description:
-          type: string
-        quantity:
-          type: integer
-        unit_price:
-          type: number
-        total_price:
-          type: number
-    Payment:
-      type: object
-      properties:
-        id:
-          type: string
-          format: uuid
-        invoice_id:
-          type: string
-          format: uuid
-        patient_id:
-          type: string
-          format: uuid
-        amount:
-          type: number
-        payment_method:
-          type: string
-          enum: [cash, card, bank_transfer]
-        payment_date:
-          type: string
-          format: date
-        notes:
-          type: string
-          nullable: true
-        created_at:
-          type: string
-          format: date-time
     PaymentExpense:
       type: object
       properties:
@@ -2406,7 +1868,6 @@ components:
         expense_date:
           type: string
           format: date
-          nullable: true
         created_at:
           type: string
           format: date-time
@@ -2417,17 +1878,20 @@ components:
           nullable: true
     PaymentExpenseCreateRequest:
       type: object
-      required: [title, amount]
+      required: [title, amount, expense_date]
       properties:
         title:
           type: string
-          maxLength: 255
+          minLength: 2
+          maxLength: 160
         amount:
           type: number
-          minimum: 0
+          minimum: 0.01
+          maximum: 99999999.99
         quantity:
           type: number
           minimum: 0.01
+          maximum: 999999.99
           default: 1
         currency:
           type: string
@@ -2436,7 +1900,6 @@ components:
         expense_date:
           type: string
           format: date
-          nullable: true
     PaymentExpenseCollectionSummary:
       type: object
       properties:
@@ -2444,8 +1907,10 @@ components:
           type: integer
         total_amount:
           type: number
+          description: Backward-compatible UZS-only total. Use totals_by_currency for currency-aware UI.
         current_month_amount:
           type: number
+          description: Backward-compatible UZS-only current-month total. Use current_month_by_currency for currency-aware UI.
         totals_by_currency:
           $ref: "#/components/schemas/PaymentExpenseCurrencyTotals"
         current_month_by_currency:
@@ -2782,28 +2247,6 @@ components:
           type: string
         current_medications:
           type: string
-    OdontogramEntryCreateRequest:
-      type: object
-      required: [tooth_number, condition_type, condition_date]
-      properties:
-        tooth_number:
-          type: integer
-          minimum: 1
-          maximum: 32
-        condition_type:
-          type: string
-          enum: [healthy, cavity, filling, crown, root_canal, extraction, implant]
-        surface:
-          type: string
-        material:
-          type: string
-        severity:
-          type: string
-        condition_date:
-          type: string
-          format: date
-        notes:
-          type: string
     TreatmentCreateRequest:
       type: object
       required: [treatment_type, treatment_date]
@@ -2861,55 +2304,6 @@ components:
         status:
           type: string
           enum: [scheduled, completed, cancelled, no_show]
-        notes:
-          type: string
-    InvoiceUpsertRequest:
-      type: object
-      required: [patient_id, invoice_date, items]
-      properties:
-        patient_id:
-          type: string
-          format: uuid
-        invoice_date:
-          type: string
-          format: date
-        due_date:
-          type: string
-          format: date
-        notes:
-          type: string
-        items:
-          type: array
-          minItems: 1
-          items:
-            $ref: "#/components/schemas/InvoiceItemUpsertRequest"
-    InvoiceItemUpsertRequest:
-      type: object
-      required: [description, quantity, unit_price]
-      properties:
-        description:
-          type: string
-        quantity:
-          type: integer
-          minimum: 1
-        unit_price:
-          type: number
-          minimum: 0.01
-    PaymentCreateRequest:
-      type: object
-      required: [invoice_id, amount, payment_method, payment_date]
-      properties:
-        invoice_id:
-          type: string
-          format: uuid
-        amount:
-          type: number
-        payment_method:
-          type: string
-          enum: [cash, card, bank_transfer]
-        payment_date:
-          type: string
-          format: date
         notes:
           type: string
     ProfileUpdateRequest:
@@ -3119,31 +2513,6 @@ components:
           items:
             $ref: "#/components/schemas/MediaImage"
       required: [data]
-    OdontogramEntryResponse:
-      type: object
-      properties:
-        data:
-          $ref: "#/components/schemas/OdontogramEntry"
-      required: [data]
-    OdontogramEntryCollectionResponse:
-      type: object
-      properties:
-        data:
-          type: array
-          items:
-            $ref: "#/components/schemas/OdontogramEntry"
-        meta:
-          type: object
-          properties:
-            pagination:
-              $ref: "#/components/schemas/PaginationMeta"
-      required: [data]
-    OdontogramSummaryResponse:
-      type: object
-      properties:
-        data:
-          $ref: "#/components/schemas/OdontogramSummary"
-      required: [data]
     TreatmentResponse:
       type: object
       properties:
@@ -3176,19 +2545,6 @@ components:
             pagination:
               $ref: "#/components/schemas/PaginationMeta"
       required: [data]
-    AppointmentLookupCollectionResponse:
-      type: object
-      properties:
-        data:
-          type: array
-          items:
-            $ref: "#/components/schemas/AppointmentLookup"
-        meta:
-          type: object
-          properties:
-            pagination:
-              $ref: "#/components/schemas/PaginationMeta"
-      required: [data]
     AppointmentResponse:
       type: object
       properties:
@@ -3206,53 +2562,11 @@ components:
             patient:
               $ref: "#/components/schemas/Patient"
       required: [data]
-    InvoiceCollectionResponse:
-      type: object
-      properties:
-        data:
-          type: array
-          items:
-            $ref: "#/components/schemas/Invoice"
-        meta:
-          type: object
-          properties:
-            pagination:
-              $ref: "#/components/schemas/PaginationMeta"
-            summary:
-              $ref: "#/components/schemas/InvoiceCollectionSummary"
-      required: [data]
-    InvoiceResponse:
-      type: object
-      properties:
-        data:
-          $ref: "#/components/schemas/Invoice"
-      required: [data]
-    PaymentResponse:
-      type: object
-      properties:
-        data:
-          $ref: "#/components/schemas/Payment"
-      required: [data]
     PaymentExpenseResponse:
       type: object
       properties:
         data:
           $ref: "#/components/schemas/PaymentExpense"
-      required: [data]
-    PaymentCollectionResponse:
-      type: object
-      properties:
-        data:
-          type: array
-          items:
-            $ref: "#/components/schemas/Payment"
-        meta:
-          type: object
-          properties:
-            pagination:
-              $ref: "#/components/schemas/PaginationMeta"
-            summary:
-              $ref: "#/components/schemas/PaymentCollectionSummary"
       required: [data]
     PaymentExpenseCollectionResponse:
       type: object

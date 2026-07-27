@@ -45,16 +45,8 @@ class User extends Authenticatable implements MustVerifyEmail
     public const PERMISSION_PATIENTS_MANAGE = 'patients.manage';
     public const PERMISSION_APPOINTMENTS_VIEW = 'appointments.view';
     public const PERMISSION_APPOINTMENTS_MANAGE = 'appointments.manage';
-    public const PERMISSION_INVOICES_VIEW = 'invoices.view';
-    public const PERMISSION_INVOICES_MANAGE = 'invoices.manage';
     public const PERMISSION_PAYMENTS_VIEW = 'payments.view';
     public const PERMISSION_PAYMENTS_MANAGE = 'payments.manage';
-    public const PERMISSION_ODONTOGRAM_VIEW = 'odontogram.view';
-    public const PERMISSION_ODONTOGRAM_MANAGE = 'odontogram.manage';
-    public const PERMISSION_TREATMENTS_VIEW = 'treatments.view';
-    public const PERMISSION_TREATMENTS_MANAGE = 'treatments.manage';
-    public const PERMISSION_PATIENT_CATEGORIES_VIEW = 'patient_categories.view';
-    public const PERMISSION_PATIENT_CATEGORIES_MANAGE = 'patient_categories.manage';
     public const PERMISSION_SETTINGS_VIEW = 'settings.view';
     public const PERMISSION_SETTINGS_MANAGE = 'settings.manage';
     public const STAFF_PERMISSIONS = [
