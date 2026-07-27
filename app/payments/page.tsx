@@ -1,5 +1,6 @@
 ﻿'use client';
 
+import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useDeferredValue, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -43,7 +44,7 @@ import type {
 import { useI18n } from '@/components/providers/i18n-provider';
 import { formatLocalizedDate } from '@/lib/i18n/date';
 import { extractPrimaryPhone, formatCurrency } from '@/lib/utils';
-import { AlertCircle, CalendarDays, Download, History, Pencil, Phone, Plus, Receipt, Search, Trash2, Users, Wallet, X } from 'lucide-react';
+import { AlertCircle, CalendarDays, Download, History, Maximize2, Pencil, Phone, Plus, Receipt, Search, Trash2, Users, Wallet, X } from 'lucide-react';
 import { buildPdfFilename, exportRowsToPdf } from '@/lib/export/pdf';
 import { EmptyState } from '@/components/ui/empty-state';
 import { AppErrorState } from '@/components/error/app-error-state';
@@ -51,6 +52,17 @@ import { AccessDeniedState } from '@/components/error/access-denied-state';
 import { ConfirmActionDialog } from '@/components/ui/confirm-action-dialog';
 import { canManage, canView } from '@/lib/auth/permissions';
 import { toast } from 'sonner';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import {
+    getProtectedMediaCrossOrigin,
+    getProtectedMediaPreviewUrl,
+    getProtectedMediaThumbnailUrl,
+} from '@/lib/protected-media';
+
+const PatientPhotoPreviewDialog = dynamic(
+    () => import('@/components/patients/patient-photo-preview-dialog').then((module) => module.PatientPhotoPreviewDialog),
+    { ssr: false }
+);
 
 const PAGE_SIZE = 10;
 const OUTSTANDING_FILTER_PARAM = 'outstanding';
@@ -153,6 +165,8 @@ interface PatientBalanceRow {
     patientId: string;
     patientName: string;
     patientPhone: string;
+    patientPhotoThumbnailUrl?: string;
+    patientPhotoPreviewUrl?: string;
     totalDebt: number;
     totalPaid: number;
     balance: number;
@@ -163,6 +177,18 @@ interface PatientBalanceRow {
     }>;
     entryCount: number;
     lastEntryDate: string | null;
+}
+
+function getPatientInitials(fullName: string): string {
+    const parts = fullName.trim().split(/\s+/).filter(Boolean);
+    if (parts.length === 0) {
+        return '?';
+    }
+
+    return parts
+        .slice(0, 2)
+        .map((part) => part[0]?.toUpperCase() ?? '')
+        .join('');
 }
 
 function getEmptyMoneyBalances(): PatientBalanceRow['balancesByCurrency'] {
@@ -337,11 +363,27 @@ function parsePaymentsTab(value: string | null): PaymentsTab {
 
 function toPatientBalanceRow(row: ApiPaymentPatientLedgerRow): PatientBalanceRow {
     const balancesByCurrency = getPatientBalancesByCurrency(row);
+    const patientPhotoThumbnailUrl = getProtectedMediaThumbnailUrl({
+        scanStatus: row.patient_photo_scan_status,
+        thumbnailUrl: row.patient_photo_thumbnail_url,
+        thumbnailReady: row.patient_photo_thumbnail_ready,
+        previewUrl: row.patient_photo_preview_url,
+        previewReady: row.patient_photo_preview_ready,
+        url: row.patient_photo_url,
+        allowFullFallback: true,
+    }) ?? undefined;
+    const patientPhotoPreviewUrl = getProtectedMediaPreviewUrl({
+        scanStatus: row.patient_photo_scan_status,
+        previewUrl: row.patient_photo_preview_url,
+        url: row.patient_photo_url,
+    }) ?? patientPhotoThumbnailUrl;
 
     return {
         patientId: row.patient_id,
         patientName: row.patient_name,
         patientPhone: extractPrimaryPhone(row.patient_phone ?? '') || '-',
+        patientPhotoThumbnailUrl,
+        patientPhotoPreviewUrl,
         totalDebt: balancesByCurrency.UZS.totalDebt,
         totalPaid: balancesByCurrency.UZS.totalPaid,
         balance: balancesByCurrency.UZS.balance,
@@ -550,6 +592,12 @@ export default function PaymentsPage() {
     });
     const [editingExpenseId, setEditingExpenseId] = useState<string | null>(null);
     const [expensePendingDelete, setExpensePendingDelete] = useState<ExpenseRow | null>(null);
+    const [patientPhotoPreview, setPatientPhotoPreview] = useState<{
+        src: string;
+        thumbnailSrc?: string;
+        alt: string;
+        title: string;
+    } | null>(null);
     const [isUrlPatientFilterDismissed, setIsUrlPatientFilterDismissed] = useState(false);
     const [isExporting, setIsExporting] = useState(false);
     const patientFilterId = isUrlPatientFilterDismissed ? '' : patientIdFromUrl;
@@ -579,6 +627,7 @@ export default function PaymentsPage() {
             listPaymentLedgerPatients({
                 page: patientPage,
                 perPage: PAGE_SIZE,
+                includePatientPhoto: true,
                 filter: {
                     patient_id: patientFilterId || undefined,
                     outstanding: showOutstandingOnly ? OUTSTANDING_FILTER_VALUE : undefined,
@@ -1264,7 +1313,8 @@ export default function PaymentsPage() {
                                         <Table className={getDataTableClassName('standard')}>
                                             <TableHeader>
                                                 <TableRow>
-                                                    <TableHead>{t('payments.table.number')}</TableHead>
+                                                    <TableHead className="w-12">{t('payments.table.number')}</TableHead>
+                                                    <TableHead className="w-24">{t('patients.table.photo')}</TableHead>
                                                     <TableHead>{t('payments.table.patient')}</TableHead>
                                                     <TableHead>{t('payments.table.lastEntry')}</TableHead>
                                                     <TableHead>{t('payments.table.entries')}</TableHead>
@@ -1278,6 +1328,46 @@ export default function PaymentsPage() {
                                                 {paginatedPatientRows.map((row, index) => (
                                                     <TableRow key={row.patientId}>
                                                         <TableCell>{(effectivePatientPage - 1) * PAGE_SIZE + index + 1}</TableCell>
+                                                        <TableCell className="w-28 overflow-visible">
+                                                            {row.patientPhotoThumbnailUrl ? (
+                                                                <div className="relative h-16 w-20 overflow-visible">
+                                                                    <button
+                                                                        type="button"
+                                                                        className="group absolute left-0 top-1/2 inline-flex h-20 w-20 -translate-y-1/2 items-center justify-center overflow-hidden rounded-xl border border-slate-200 bg-white p-0 shadow-xs transition hover:border-teal-200 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-300"
+                                                                        aria-label={`${t('patients.form.photo')}: ${row.patientName}`}
+                                                                        onClick={() => {
+                                                                            setPatientPhotoPreview({
+                                                                                src: row.patientPhotoPreviewUrl ?? row.patientPhotoThumbnailUrl ?? '',
+                                                                                thumbnailSrc: row.patientPhotoThumbnailUrl,
+                                                                                alt: row.patientName,
+                                                                                title: row.patientName,
+                                                                            });
+                                                                        }}
+                                                                    >
+                                                                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                                        <img
+                                                                            src={row.patientPhotoThumbnailUrl}
+                                                                            alt={row.patientName}
+                                                                            crossOrigin={getProtectedMediaCrossOrigin(row.patientPhotoThumbnailUrl)}
+                                                                            className="block h-full w-full rounded-xl object-cover object-center"
+                                                                            decoding="async"
+                                                                            loading="lazy"
+                                                                        />
+                                                                        <span className="pointer-events-none absolute inset-0 flex items-center justify-center bg-slate-950/0 text-white opacity-0 transition group-hover:bg-slate-950/35 group-hover:opacity-100 group-focus-visible:bg-slate-950/35 group-focus-visible:opacity-100">
+                                                                            <Maximize2 className="h-4 w-4" />
+                                                                        </span>
+                                                                    </button>
+                                                                </div>
+                                                            ) : (
+                                                                <div className="relative h-16 w-20 overflow-visible">
+                                                                    <Avatar className="absolute left-0 top-1/2 h-20 w-20 -translate-y-1/2 rounded-xl border border-dashed border-slate-200 bg-slate-50">
+                                                                        <AvatarFallback className="rounded-xl bg-slate-50 text-sm font-semibold text-slate-500">
+                                                                            {getPatientInitials(row.patientName)}
+                                                                        </AvatarFallback>
+                                                                    </Avatar>
+                                                                </div>
+                                                            )}
+                                                        </TableCell>
                                                         <TableCell>
                                                             <div className="space-y-1">
                                                                 <p className="font-medium text-slate-900">{row.patientName}</p>
@@ -1564,6 +1654,19 @@ export default function PaymentsPage() {
                     )}
                 </CardContent>
             </Card>
+            {patientPhotoPreview ? (
+                <PatientPhotoPreviewDialog
+                    open={patientPhotoPreview !== null}
+                    onOpenChange={(open) => {
+                        if (!open) {
+                            setPatientPhotoPreview(null);
+                        }
+                    }}
+                    images={[patientPhotoPreview]}
+                    alt={patientPhotoPreview.alt}
+                    title={patientPhotoPreview.title}
+                />
+            ) : null}
             <ConfirmActionDialog
                 open={expensePendingDelete !== null}
                 onOpenChange={(open) => {

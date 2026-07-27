@@ -23,14 +23,15 @@ class PaymentLedgerController extends Controller
      * GET /api/v1/payments/ledger/patients
      *
      * Auth: payments.view. Query: page, per_page, filter[patient_id],
-     * filter[search], filter[outstanding]. Returns patient-level balances
-     * plus summary totals for the payments page.
+     * filter[search], filter[outstanding], include_patient_photo. Returns
+     * patient-level balances plus summary totals for the payments page.
      */
     public function patients(ListPaymentLedgerRequest $request): JsonResponse
     {
         $result = $this->ledger->listPatientBalances($request);
         $rows = $result['rows'];
         $includePatientProfile = $request->filled('filter.patient_id');
+        $includePatientPhoto = $includePatientProfile || $request->boolean('include_patient_photo');
 
         return response()->json([
             'data' => $rows
@@ -38,7 +39,8 @@ class PaymentLedgerController extends Controller
                 ->map(fn (Patient $patient): array => $this->patientRow(
                     $patient,
                     $request,
-                    $includePatientProfile
+                    $includePatientProfile,
+                    $includePatientPhoto
                 ))
                 ->values()
                 ->all(),
@@ -87,7 +89,12 @@ class PaymentLedgerController extends Controller
     /**
      * @return array<string, mixed>
      */
-    private function patientRow(Patient $patient, Request $request, bool $includePatientProfile): array
+    private function patientRow(
+        Patient $patient,
+        Request $request,
+        bool $includePatientProfile,
+        bool $includePatientPhoto
+    ): array
     {
         $payload = [
             'patient_id' => (string) $patient->id,
@@ -97,13 +104,11 @@ class PaymentLedgerController extends Controller
             'patient_secondary_phone' => $patient->secondary_phone,
         ];
 
-        if ($includePatientProfile) {
+        if ($includePatientPhoto) {
             $photoDisk = is_string($patient->photo_disk) && $patient->photo_disk !== ''
                 ? $patient->photo_disk
                 : $this->photos->disk();
             $payload += [
-                'patient_address' => $patient->address,
-                'patient_date_of_birth' => $patient->date_of_birth?->toDateString(),
                 'patient_photo_scan_status' => $this->photos->displayScanStatus($patient),
                 'patient_photo_url' => $this->photos->url($patient, $request),
                 'patient_photo_thumbnail_url' => $this->photos->url(
@@ -126,6 +131,13 @@ class PaymentLedgerController extends Controller
                     $patient,
                     PatientPhotoService::IMAGE_VARIANT_PREVIEW
                 ),
+            ];
+        }
+
+        if ($includePatientProfile) {
+            $payload += [
+                'patient_address' => $patient->address,
+                'patient_date_of_birth' => $patient->date_of_birth?->toDateString(),
             ];
         }
 

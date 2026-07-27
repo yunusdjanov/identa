@@ -169,6 +169,22 @@ class PaymentLedgerApiTest extends TestCase
         ]);
 
         $this->actingAs($dentist, 'web')
+            ->getJson('/api/v1/payments/ledger/patients?per_page=10')
+            ->assertOk()
+            ->assertJsonMissingPath('data.0.patient_photo_url');
+
+        $this->actingAs($dentist, 'web')
+            ->getJson('/api/v1/payments/ledger/patients?per_page=10&include_patient_photo=1')
+            ->assertOk()
+            ->assertJsonPath('data.0.patient_photo_scan_status', 'approved')
+            ->assertJsonPath(
+                'data.0.patient_photo_thumbnail_url',
+                fn ($value): bool => is_string($value)
+                    && str_contains($value, "/api/v1/patients/{$patient->id}/photo")
+                    && str_contains($value, 'variant=thumbnail')
+            );
+
+        $this->actingAs($dentist, 'web')
             ->getJson('/api/v1/payments/ledger/patients?filter[patient_id]='.urlencode((string) $patient->id))
             ->assertOk()
             ->assertJsonPath('data.0.patient_address', '12 Amir Temur Avenue, Tashkent')
