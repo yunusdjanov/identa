@@ -51,6 +51,32 @@ describe('proxy auth redirects', () => {
         expect(response.headers.get('location')).toBe('https://identa.uz/dashboard');
     });
 
+    it('does not bounce an active logout from the login page back to the dashboard', async () => {
+        const fetchMock = vi.spyOn(globalThis, 'fetch');
+        const response = await proxy(new NextRequest('https://identa.uz/login', {
+            headers: {
+                cookie: 'identa_session=session-cookie; identa_client_logout=1',
+            },
+        }));
+
+        expect(response.status).toBe(200);
+        expect(response.headers.get('location')).toBeNull();
+        expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it('keeps protected pages closed while logout cookie cleanup is still in flight', async () => {
+        const response = await proxy(new NextRequest('https://identa.uz/dashboard', {
+            headers: {
+                cookie: 'identa_session=session-cookie; identa_client_logout=1',
+            },
+        }));
+
+        expect(response.status).toBe(307);
+        expect(response.headers.get('location')).toBe(
+            'https://identa.uz/login?from=%2Fdashboard'
+        );
+    });
+
     it('identifies mock backend paths without touching the real i18n route', () => {
         expect(isMockApiPath('/api/v1/auth/login')).toBe(true);
         expect(isMockApiPath('/api/v1')).toBe(true);

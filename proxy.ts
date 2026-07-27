@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { isProtectedAppPath } from '@/lib/auth/post-login-destination';
+import { CLIENT_LOGOUT_COOKIE_NAME } from '@/lib/auth/client-logout';
 
 const CANONICAL_HOST = 'identa.uz';
 const WWW_HOST = 'www.identa.uz';
@@ -68,6 +69,10 @@ function hasAuthCookie(request: NextRequest): boolean {
     return isMockApiEnabled() && Boolean(request.cookies.get(MOCK_SESSION_COOKIE)?.value);
 }
 
+function hasClientLogoutMarker(request: NextRequest): boolean {
+    return request.cookies.get(CLIENT_LOGOUT_COOKIE_NAME)?.value === '1';
+}
+
 function normalizePathname(pathname: string): string {
     if (pathname !== '/' && pathname.endsWith('/')) {
         return pathname.slice(0, -1);
@@ -95,7 +100,7 @@ function resolveProtectedRouteRedirect(request: NextRequest): URL | null {
     if (!isProtectedAppPath(pathname)) {
         return null;
     }
-    if (hasAuthCookie(request)) {
+    if (hasAuthCookie(request) && !hasClientLogoutMarker(request)) {
         return null;
     }
 
@@ -109,7 +114,7 @@ function resolveProtectedRouteRedirect(request: NextRequest): URL | null {
 }
 
 async function resolveAuthenticatedDestination(request: NextRequest): Promise<string | null> {
-    if (!hasAuthCookie(request)) {
+    if (!hasAuthCookie(request) || hasClientLogoutMarker(request)) {
         return null;
     }
 
