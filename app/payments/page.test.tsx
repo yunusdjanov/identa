@@ -300,6 +300,10 @@ describe('PaymentsPage', () => {
                 patient_code: 'PT-1002',
                 patient_name: 'John Smith',
                 patient_phone: '+998900000002',
+                patient_photo_scan_status: 'approved',
+                patient_photo_url: null,
+                patient_photo_thumbnail_url: null,
+                patient_photo_preview_url: null,
                 total_debt: 50000,
                 total_paid: 50000,
                 balance: 0,
@@ -375,6 +379,48 @@ describe('PaymentsPage', () => {
         const johnRow = screen.getByText('John Smith').closest('tr');
         expect(johnRow).not.toBeNull();
         expect(within(johnRow as HTMLElement).getByText('JS')).toBeInTheDocument();
+    });
+
+    it('uses the protected photo fallback for legacy ledger rows and constrains long names', async () => {
+        const longPatientName = 'Alexandria Catherine Montgomery-Wellington';
+        patientLedgerRows = [
+            {
+                patient_id: 'patient-legacy',
+                patient_code: 'PT-LEGACY',
+                patient_name: longPatientName,
+                patient_phone: '+998901234567',
+                total_debt: 120000,
+                total_paid: 70000,
+                balance: 50000,
+                entry_count: 1,
+                last_entry_date: '2026-03-14',
+            },
+        ];
+
+        renderPage();
+
+        const truncatedName = `${longPatientName.slice(0, 24)}…`;
+        const nameElement = await screen.findByText(truncatedName);
+        expect(nameElement).toHaveAttribute('title', longPatientName);
+        expect(nameElement).toHaveClass('truncate');
+
+        const patientRow = nameElement.closest('tr');
+        expect(patientRow).not.toBeNull();
+        expect(patientRow?.closest('table')).toHaveClass('table-fixed');
+
+        const fallbackPhoto = within(patientRow as HTMLElement).getByRole('img', {
+            name: longPatientName,
+        });
+        expect(fallbackPhoto.getAttribute('src')).toContain(
+            '/api/v1/patients/patient-legacy/photo?variant=thumbnail'
+        );
+
+        fireEvent.error(fallbackPhoto);
+
+        expect(
+            within(patientRow as HTMLElement).queryByRole('img', { name: longPatientName })
+        ).not.toBeInTheDocument();
+        expect(within(patientRow as HTMLElement).getByText('AC')).toBeInTheDocument();
     });
 
     it('keeps payment summary cards global while search and debt filters change the table', async () => {
