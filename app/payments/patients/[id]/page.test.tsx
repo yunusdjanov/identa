@@ -227,8 +227,19 @@ describe('PaymentPatientPage', () => {
         const balanceSummary = within(summaryGrid).getByTestId('payment-summary-balance');
         expect(within(ledgerHeader).getByRole('heading', { name: 'Work payments' })).toBeInTheDocument();
         expect(ledgerHeader).toContainElement(summaryGrid);
-        expect(ledgerHeader).toHaveClass('xl:flex-row', 'xl:items-center');
-        expect(summaryGrid).toHaveClass('flex-1', 'gap-2', 'md:grid-cols-3', 'xl:max-w-[36.4rem]');
+        expect(ledgerHeader).toHaveClass(
+            'xl:grid',
+            'xl:grid-cols-[minmax(0,1fr)_minmax(0,38.22rem)_minmax(0,1fr)]',
+            'xl:items-center'
+        );
+        expect(summaryGrid).toHaveClass(
+            'flex-1',
+            'gap-2',
+            'md:grid-cols-3',
+            'xl:col-start-2',
+            'xl:w-full',
+            'xl:max-w-[38.22rem]'
+        );
         expect(workSummary).toHaveClass(
             'min-h-10',
             'rounded-xl',

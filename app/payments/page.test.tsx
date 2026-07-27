@@ -11,7 +11,7 @@ import {
     listPaymentLedgerPatients,
     updatePaymentExpense,
 } from '@/lib/api/dentist';
-import type { ApiSubscriptionSummary } from '@/lib/api/types';
+import type { ApiPaymentPatientLedgerRow, ApiSubscriptionSummary } from '@/lib/api/types';
 import { I18nProvider } from '@/components/providers/i18n-provider';
 import { DICTIONARIES } from '@/lib/i18n/dictionaries';
 import { exportRowsToPdf } from '@/lib/export/pdf';
@@ -35,6 +35,7 @@ vi.mock('sonner', () => ({ toast: { error: vi.fn(), success: vi.fn() } }));
 interface MockLedgerOptions {
     page?: number;
     perPage?: number;
+    includePatientPhoto?: boolean;
     filter?: {
         patient_id?: string;
         outstanding?: string;
@@ -42,21 +43,7 @@ interface MockLedgerOptions {
     };
 }
 
-let patientLedgerRows: Array<{
-    patient_id: string;
-    patient_code: string;
-    patient_name: string;
-    patient_phone: string;
-    total_debt: number;
-    total_paid: number;
-    balance: number;
-    balances_by_currency?: {
-        UZS?: { total_debt: number; total_paid: number; balance: number };
-        USD?: { total_debt: number; total_paid: number; balance: number };
-    };
-    entry_count: number;
-    last_entry_date: string | null;
-}>;
+let patientLedgerRows: ApiPaymentPatientLedgerRow[];
 
 let expenseRows: Array<{
     id: string;
@@ -296,6 +283,12 @@ describe('PaymentsPage', () => {
                 patient_code: 'PT-1001',
                 patient_name: 'Jane Doe',
                 patient_phone: '+998900000001',
+                patient_photo_scan_status: 'approved',
+                patient_photo_url: 'https://api.identa.test/api/v1/patients/patient-1/photo',
+                patient_photo_thumbnail_url: 'https://api.identa.test/api/v1/patients/patient-1/photo?variant=thumbnail',
+                patient_photo_preview_url: 'https://api.identa.test/api/v1/patients/patient-1/photo?variant=preview',
+                patient_photo_thumbnail_ready: true,
+                patient_photo_preview_ready: true,
                 total_debt: 120000,
                 total_paid: 70000,
                 balance: 50000,
@@ -353,17 +346,35 @@ describe('PaymentsPage', () => {
         expect(screen.queryByText('Patients in filter: 2')).not.toBeInTheDocument();
         expect(screen.getAllByText('Work total').length).toBeGreaterThan(0);
         expect(screen.getByText('Total Paid')).toBeInTheDocument();
+        expect(listPaymentLedgerPatients).toHaveBeenCalledWith(
+            expect.objectContaining({
+                page: 1,
+                perPage: 10,
+                includePatientPhoto: true,
+            })
+        );
         expect(
             screen.getByText((_, element) => normalizeText(element?.textContent) === '170 000 UZS')
         ).toBeInTheDocument();
+        expect(screen.getByRole('columnheader', { name: 'Photo' })).toBeInTheDocument();
 
         const janeRow = screen.getByText('Jane Doe').closest('tr');
         expect(janeRow).not.toBeNull();
-        const janeBalanceCell = within(janeRow as HTMLElement).getAllByRole('cell')[6];
+        const janePhoto = within(janeRow as HTMLElement).getByRole('img', { name: 'Jane Doe' });
+        expect(janePhoto).toHaveAttribute(
+            'src',
+            'https://api.identa.test/api/v1/patients/patient-1/photo?variant=thumbnail'
+        );
+        expect(janePhoto.closest('button')).toHaveClass('h-20', 'w-20', 'rounded-xl');
+        const janeBalanceCell = within(janeRow as HTMLElement).getAllByRole('cell')[7];
         expect(within(janeBalanceCell).getByText('Debt')).toBeInTheDocument();
 
         const patientLink = within(janeRow as HTMLElement).getByRole('link', { name: 'Patient' });
         expect(patientLink).toHaveAttribute('href', '/payments/patients/patient-1');
+
+        const johnRow = screen.getByText('John Smith').closest('tr');
+        expect(johnRow).not.toBeNull();
+        expect(within(johnRow as HTMLElement).getByText('JS')).toBeInTheDocument();
     });
 
     it('keeps payment summary cards global while search and debt filters change the table', async () => {
@@ -494,7 +505,7 @@ describe('PaymentsPage', () => {
         });
 
         const zeroPatientRow = screen.getByText('Zero Patient').closest('tr') as HTMLElement;
-        const zeroPatientBalanceCell = within(zeroPatientRow).getAllByRole('cell')[6];
+        const zeroPatientBalanceCell = within(zeroPatientRow).getAllByRole('cell')[7];
         expect(normalizeText(zeroPatientBalanceCell.textContent)).toContain('0 UZS');
         expect(within(zeroPatientBalanceCell).queryByText('Paid')).not.toBeInTheDocument();
     });

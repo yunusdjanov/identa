@@ -50,6 +50,7 @@ interface QueryOptions {
     sort?: string;
     filter?: Record<string, FilterValue | undefined>;
     includeImages?: boolean;
+    includePatientPhoto?: boolean;
     includeSummary?: boolean;
 }
 
@@ -120,6 +121,10 @@ function buildQueryParams(options?: QueryOptions): Record<string, unknown> {
 
     if (options?.includeImages !== undefined) {
         params.include_images = options.includeImages ? '1' : '0';
+    }
+
+    if (options?.includePatientPhoto !== undefined) {
+        params.include_patient_photo = options.includePatientPhoto ? '1' : '0';
     }
 
     if (options?.includeSummary !== undefined) {

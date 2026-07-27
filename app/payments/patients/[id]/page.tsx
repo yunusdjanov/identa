@@ -524,9 +524,9 @@ export default function PaymentPatientPage({
             <SectionPanel className="space-y-4">
                 <div
                     data-testid="payment-ledger-header"
-                    className="flex min-w-0 flex-col gap-2 xl:flex-row xl:items-center"
+                    className="flex min-w-0 flex-col gap-2 xl:grid xl:grid-cols-[minmax(0,1fr)_minmax(0,38.22rem)_minmax(0,1fr)] xl:items-center"
                 >
-                    <div className="shrink-0 xl:w-52">
+                    <div className="shrink-0">
                         <h2 className="text-base font-bold text-slate-950 sm:text-lg">
                             {t('payments.patientLedger.tableTitle')}
                         </h2>
@@ -537,7 +537,7 @@ export default function PaymentPatientPage({
 
                     <section
                         data-testid="payment-summary-grid"
-                        className="grid min-w-0 flex-1 gap-2 md:grid-cols-3 xl:max-w-[36.4rem]"
+                        className="grid min-w-0 flex-1 gap-2 md:grid-cols-3 xl:col-start-2 xl:w-full xl:max-w-[38.22rem]"
                     >
                         <PaymentSummaryCard
                             label={t('payments.summary.totalDebt')}
@@ -563,7 +563,7 @@ export default function PaymentPatientPage({
                         <Button
                             variant="outline"
                             size="icon-lg"
-                            className="shrink-0 self-end rounded-full xl:ml-auto xl:self-auto"
+                            className="shrink-0 self-end rounded-full xl:col-start-3 xl:justify-self-end xl:self-auto"
                             aria-label={t('common.export')}
                             title={t('common.export')}
                             disabled={isExporting || (patient.entry_count ?? 0) === 0}
