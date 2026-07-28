@@ -2,7 +2,7 @@
 
 import './globals.css';
 import { useEffect } from 'react';
-import { ErrorScreen } from '@/components/error/error-screen';
+import { ErrorScreen, useErrorLocale } from '@/components/error/error-screen';
 
 export default function GlobalError({
   error,
@@ -11,14 +11,16 @@ export default function GlobalError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  const locale = useErrorLocale();
+
   useEffect(() => {
     console.error(error);
   }, [error]);
 
   return (
-    <html lang="ru">
+    <html lang={locale}>
       <body>
-        <ErrorScreen kind="global-error" digest={error.digest} onRetry={reset} />
+        <ErrorScreen kind="global-error" digest={error.digest} onRetry={reset} localeOverride={locale} />
       </body>
     </html>
   );

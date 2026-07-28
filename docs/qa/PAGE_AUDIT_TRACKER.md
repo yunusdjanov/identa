@@ -3,6 +3,8 @@
 - Inventory date: 2026-07-25
 - Total routed pages: 29
 - Standard: `docs/qa/PAGE_AUDIT_STANDARD.md`
+- Cross-cutting text/layout/PDF audit:
+  `docs/qa/TEXT_LAYOUT_PDF_AUDIT_2026-07-28.md`
 
 Risk tiers:
 

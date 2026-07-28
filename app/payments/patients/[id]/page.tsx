@@ -454,10 +454,16 @@ export default function PaymentPatientPage({
                 locale,
                 patientName: patient.patient_name,
                 patientMeta: [
-                    patient.patient_phone,
-                    patient.patient_secondary_phone,
-                    patient.patient_address,
-                ].filter((value): value is string => Boolean(value?.trim())),
+                    patient.patient_phone?.trim()
+                        ? `${t('patientDetail.phone1')}: ${patient.patient_phone.trim()}`
+                        : null,
+                    patient.patient_secondary_phone?.trim()
+                        ? `${t('patientDetail.phone2')}: ${patient.patient_secondary_phone.trim()}`
+                        : null,
+                    patient.patient_address?.trim()
+                        ? `${t('patientDetail.address')}: ${patient.patient_address.trim()}`
+                        : null,
+                ].filter((value): value is string => Boolean(value)),
                 summary: [
                     {
                         label: t('payments.patientLedger.table.price'),
@@ -490,7 +496,7 @@ export default function PaymentPatientPage({
                             const remainingDebt = Math.max(0, Number(entry.balance_delta ?? 0));
                             const advance = Math.max(0, -Number(entry.balance_delta ?? 0));
                             const balanceLabel = advance > 0
-                                ? `${formatCurrency(remainingDebt, currency)} · ${t('patientHistory.balanceStatus.advance')}: ${formatCurrency(advance, currency)}`
+                                ? `${formatCurrency(remainingDebt, currency)} | ${t('patientHistory.balanceStatus.advance')}: ${formatCurrency(advance, currency)}`
                                 : formatCurrency(remainingDebt, currency);
 
                             return [

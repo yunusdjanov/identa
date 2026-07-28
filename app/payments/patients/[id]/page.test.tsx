@@ -303,9 +303,9 @@ describe('PaymentPatientPage', () => {
             title: 'Patient payments',
             patientName: 'John Smith',
             patientMeta: [
-                '+998 90 123 45 67',
-                '+998 91 765 43 21',
-                '12 Amir Temur Avenue, Tashkent',
+                'Phone 1: +998 90 123 45 67',
+                'Phone 2: +998 91 765 43 21',
+                'Address: 12 Amir Temur Avenue, Tashkent',
             ],
             orientation: 'landscape',
         });

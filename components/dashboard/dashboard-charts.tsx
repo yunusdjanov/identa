@@ -49,10 +49,10 @@ function formatShortCurrency(value: number): string {
 function ChartCard({ title, subtitle, action, children }: { title: string; subtitle?: string; action?: React.ReactNode; children: React.ReactNode }) {
     return (
         <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm">
-            <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-5 py-3">
+            <div className="flex flex-col items-start gap-3 border-b border-slate-100 px-5 py-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="min-w-0">
                     <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">{subtitle ?? ''}</p>
-                    <h3 className="text-sm font-bold tracking-tight text-slate-900">{title}</h3>
+                    <h3 className="break-words text-sm font-bold tracking-tight text-slate-900">{title}</h3>
                 </div>
                 {action}
             </div>
@@ -82,8 +82,8 @@ export function RevenueChart({
     const { t } = useI18n();
     return (
         <ChartCard
-            title={t('dashboard.revenueChart.title') ?? 'Daromad va qarz dinamikasi'}
-            subtitle={rangeLabel ?? t('dashboard.revenueChart.subtitle') ?? '6 oy'}
+            title={t('dashboard.revenueChart.title')}
+            subtitle={rangeLabel ?? t('dashboard.revenueChart.subtitle')}
         >
             <ResponsiveContainer width="100%" height={220}>
                 <BarChart data={data} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
@@ -99,8 +99,8 @@ export function RevenueChart({
                         (revenue / debt) so a viewer reading both the cards and
                         the chart legend doesn't see two different terms for
                         the same number. */}
-                    <Bar dataKey="revenue" name={t('analytics.kpi.revenue') ?? 'Revenue'} fill={TONE.teal} radius={[6, 6, 0, 0]} maxBarSize={32} />
-                    <Bar dataKey="debt" name={t('analytics.kpi.debt') ?? 'Debt'} fill={TONE.yellow} radius={[6, 6, 0, 0]} maxBarSize={32} />
+                    <Bar dataKey="revenue" name={t('analytics.kpi.revenue')} fill={TONE.teal} radius={[6, 6, 0, 0]} maxBarSize={32} />
+                    <Bar dataKey="debt" name={t('analytics.kpi.debt')} fill={TONE.yellow} radius={[6, 6, 0, 0]} maxBarSize={32} />
                 </BarChart>
             </ResponsiveContainer>
         </ChartCard>
@@ -111,7 +111,7 @@ export function AppointmentStatusChart({ data }: { data: DashboardAppointmentSta
     const { t } = useI18n();
     const total = data.reduce((sum, p) => sum + p.count, 0);
     return (
-        <ChartCard title={t('dashboard.statusChart.title') ?? "Qabullar holati"} subtitle={t('dashboard.statusChart.subtitle') ?? `Jami: ${total}`}>
+        <ChartCard title={t('dashboard.statusChart.title')} subtitle={t('dashboard.statusChart.subtitle')}>
             <div className="flex items-center gap-4">
                 <ResponsiveContainer width="55%" height={180}>
                     <PieChart>
@@ -122,7 +122,7 @@ export function AppointmentStatusChart({ data }: { data: DashboardAppointmentSta
                         </Pie>
                         <Tooltip
                             contentStyle={{ borderRadius: 12, border: '1px solid #e2e8f0', fontSize: 12 }}
-                            formatter={(value, name) => [`${value}`, t(`status.${name}`) ?? String(name)]}
+                            formatter={(value, name) => [`${value}`, t(`status.${name}`)]}
                         />
                     </PieChart>
                 </ResponsiveContainer>
@@ -132,7 +132,7 @@ export function AppointmentStatusChart({ data }: { data: DashboardAppointmentSta
                         return (
                             <div key={entry.status} className="flex items-center gap-2">
                                 <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: STATUS_COLOR[entry.status] ?? TONE.slate }} />
-                                <span className="flex-1 truncate text-xs text-slate-600">{t(`status.${entry.status}`) ?? entry.status}</span>
+                                <span className="flex-1 truncate text-xs text-slate-600">{t(`status.${entry.status}`)}</span>
                                 <span className="text-xs font-bold tabular-nums text-slate-900">{entry.count}</span>
                                 <span className="w-9 text-right text-[10px] tabular-nums text-slate-400">{pct}%</span>
                             </div>
@@ -155,8 +155,8 @@ export function PatientGrowthChart({
     const { t } = useI18n();
     return (
         <ChartCard
-            title={t('dashboard.growthChart.title') ?? "Bemorlar bazasining o'sishi"}
-            subtitle={rangeLabel ?? t('dashboard.growthChart.subtitle') ?? '6 oy'}
+            title={t('dashboard.growthChart.title')}
+            subtitle={rangeLabel ?? t('dashboard.growthChart.subtitle')}
         >
             <ResponsiveContainer width="100%" height={200}>
                 <LineChart data={data} margin={{ top: 8, right: 16, left: -16, bottom: 0 }}>
@@ -165,7 +165,7 @@ export function PatientGrowthChart({
                     <YAxis stroke="#94a3b8" tick={{ fontSize: 10 }} tickLine={false} axisLine={false} />
                     <Tooltip
                         contentStyle={{ borderRadius: 12, border: '1px solid #e2e8f0', fontSize: 12 }}
-                        formatter={(value, name) => [value, name === 'total' ? (t('dashboard.totalPatients') ?? 'Total') : (t('dashboard.newPatients') ?? 'New')]}
+                        formatter={(value, name) => [value, name === 'total' ? t('dashboard.totalPatients') : t('dashboard.newPatients')]}
                     />
                     <Line type="monotone" dataKey="total" stroke={TONE.teal} strokeWidth={2.5} dot={{ fill: TONE.teal, r: 4 }} activeDot={{ r: 6 }} />
                     <Line type="monotone" dataKey="new" stroke={TONE.blue} strokeWidth={2} strokeDasharray="4 4" dot={{ fill: TONE.blue, r: 3 }} />
@@ -189,14 +189,14 @@ export function TopDebtorsCard({
 
     return (
         <ChartCard
-            title={t('analytics.topDebtors.title') ?? "Eng katta qarzga ega bemorlar"}
-            subtitle={displayedDebtors.length > 0 ? `${t('analytics.topDebtors.totalShort') ?? "Jami"}: ${formatCurrency(topDebtTotal, currency)}` : (t('analytics.topDebtors.subtitle') ?? `TOP ${TOP_DEBTORS_LIMIT}`)}
+            title={t('analytics.topDebtors.title')}
+            subtitle={displayedDebtors.length > 0 ? `${t('analytics.topDebtors.totalShort')}: ${formatCurrency(topDebtTotal, currency)}` : t('analytics.topDebtors.subtitle')}
             action={
                 <Link
                     href="/payments?outstanding=1"
                     className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 shadow-sm transition hover:border-teal-200 hover:text-teal-700"
                 >
-                    {t('analytics.topDebtors.viewAll') ?? 'All debts'}
+                    {t('analytics.topDebtors.viewAll')}
                 </Link>
             }
         >
@@ -205,7 +205,7 @@ export function TopDebtorsCard({
                     <span className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
                         <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
                     </span>
-                    <p className="text-[13px] font-medium text-slate-600">{t('analytics.topDebtors.empty') ?? "Qarzga ega bemorlar yo'q"}</p>
+                    <p className="text-[13px] font-medium text-slate-600">{t('analytics.topDebtors.empty')}</p>
                 </div>
             ) : (
                 <div className="space-y-3">
@@ -219,9 +219,9 @@ export function TopDebtorsCard({
                                             {idx + 1}
                                         </span>
                                         <div className="min-w-0">
-                                            <p className="truncate text-[13px] font-semibold text-slate-900">{item.name}</p>
+                                            <p className="truncate text-[13px] font-semibold text-slate-900" title={item.name}>{item.name}</p>
                                             {item.phone ? (
-                                                <p className="truncate text-[10px] tabular-nums text-slate-400">{item.phone}</p>
+                                                <p className="truncate text-[10px] tabular-nums text-slate-400" title={item.phone}>{item.phone}</p>
                                             ) : null}
                                         </div>
                                     </div>

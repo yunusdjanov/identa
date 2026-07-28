@@ -53,4 +53,10 @@ describe('ErrorScreen', () => {
         expect(screen.getByText('abc123')).toBeInTheDocument();
         expect(screen.getByText(/Error code:/)).toBeInTheDocument();
     });
+
+    it('uses an explicit locale supplied by the global error document', () => {
+        setLocaleCookie('ru');
+        render(<ErrorScreen kind="global-error" localeOverride="uz" />);
+        expect(screen.getByText('Identa ishga tushmadi')).toBeInTheDocument();
+    });
 });

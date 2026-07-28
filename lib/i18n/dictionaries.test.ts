@@ -53,9 +53,10 @@ describe('i18n dictionaries integrity', () => {
 
     it('has no corrupted/mojibake values', () => {
         const corrupted: string[] = [];
+        const mojibakePattern = /\?\?\?\?|\uFFFD|â€|Ã.|Ð.|Ñ.|вЂ/;
         for (const locale of LOCALES) {
             for (const [key, value] of Object.entries(DICTIONARIES[locale])) {
-                if (/\?\?\?\?/.test(value)) {
+                if (mojibakePattern.test(value)) {
                     corrupted.push(`${locale}:${key}`);
                 }
             }

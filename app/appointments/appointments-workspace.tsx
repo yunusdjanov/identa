@@ -1103,7 +1103,7 @@ export function AppointmentsWorkspace({ mode = 'appointments' }: AppointmentsWor
                                             `${apt.startTime} - ${apt.endTime}`,
                                             apt.patientName,
                                             apt.reason || '-',
-                                            t(`status.${apt.status}`) ?? apt.status,
+                                            t(`status.${apt.status}`),
                                         ]);
                                         const statusCounts = sortedRows.reduce<Record<string, number>>((acc, r) => {
                                             acc[r.status] = (acc[r.status] ?? 0) + 1;

@@ -21,6 +21,27 @@ const APP_REGISTER_URL = '/register';
 const LANG_STORAGE_KEY = 'identa-lang';
 const LANG_CHANGE_EVENT = 'identa-lang-change';
 const DOCUMENT_NAVIGATION_ATTR = 'document';
+const LANDING_A11Y_LABELS: Record<LandingLocale, {
+    language: string;
+    openMenu: string;
+    closeMenu: string;
+}> = {
+    ru: {
+        language: 'Язык',
+        openMenu: 'Открыть меню',
+        closeMenu: 'Закрыть меню',
+    },
+    uz: {
+        language: 'Til',
+        openMenu: 'Menyuni ochish',
+        closeMenu: 'Menyuni yopish',
+    },
+    en: {
+        language: 'Language',
+        openMenu: 'Open menu',
+        closeMenu: 'Close menu',
+    },
+};
 
 type AppEntryLinkProps = {
     href: string;
@@ -99,7 +120,7 @@ function Brand({ onClick }: { onClick?: () => void }) {
 
 function LangSwitch({ lang, setLang }: { lang: LandingLocale; setLang: (l: LandingLocale) => void }) {
     return (
-        <div className="lang-switch" role="tablist" aria-label="Language">
+        <div className="lang-switch" role="tablist" aria-label={LANDING_A11Y_LABELS[lang].language}>
             {LANDING_LOCALES.map((l) => (
                 <button
                     key={l}
@@ -137,7 +158,7 @@ function Nav({ t, lang, setLang, onMenu }: { t: T; lang: LandingLocale; setLang:
                 <div className="nav-cta">
                     <LangSwitch lang={lang} setLang={setLang} />
                     <AppEntryLink href={APP_LOGIN_URL} className="btn btn-ghost btn-sm hide-mobile">{t.nav.login}</AppEntryLink>
-                    <button className="menu-btn" type="button" onClick={onMenu} aria-label="Open menu">
+                    <button className="menu-btn" type="button" onClick={onMenu} aria-label={LANDING_A11Y_LABELS[lang].openMenu}>
                         <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 4h12M2 8h12M2 12h12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>
                     </button>
                 </div>
@@ -151,7 +172,7 @@ function MobileMenu({ open, onClose, t, lang, setLang }: { open: boolean; onClos
         <div className={'mobile-menu' + (open ? ' open' : '')}>
             <div className="mobile-menu-row">
                 <Brand onClick={onClose} />
-                <button className="menu-btn" type="button" onClick={onClose} style={{ display: 'flex' }} aria-label="Close menu">
+                <button className="menu-btn" type="button" onClick={onClose} style={{ display: 'flex' }} aria-label={LANDING_A11Y_LABELS[lang].closeMenu}>
                     <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M2 2l10 10M12 2L2 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>
                 </button>
             </div>
@@ -233,7 +254,7 @@ function Hero({ t }: { t: T }) {
                 </div>
 
                 <div className="hero-preview reveal in">
-                    <div className="dash" role="img" aria-label="Identa dashboard mockup">
+                    <div className="dash" role="img" aria-label={`${t.hero.dash.title} - Identa`}>
                         <div className="dash-bar">
                             <div className="dots"><span /><span /><span /></div>
                             <div className="url">app.identa.uz / dashboard</div>

@@ -18,6 +18,7 @@ interface ErrorScreenProps {
     kind: ErrorScreenKind;
     digest?: string;
     onRetry?: () => void;
+    localeOverride?: AppLocale;
 }
 
 interface ErrorCopy {
@@ -169,16 +170,21 @@ function readLocaleFromCookie(): AppLocale {
     return resolveLocale(match ? decodeURIComponent(match[1]) : null);
 }
 
-export function ErrorScreen({ kind, digest, onRetry }: ErrorScreenProps) {
-    // Resolve the locale from the cookie via useSyncExternalStore: server render
-    // uses DEFAULT_LOCALE, the client reads the real locale. This keeps the
-    // screen self-contained (works in global-error, outside the I18nProvider)
-    // without a setState-in-effect or hydration mismatch.
-    const locale = useSyncExternalStore(
+export function useErrorLocale(): AppLocale {
+    return useSyncExternalStore(
         () => () => undefined,
         readLocaleFromCookie,
         () => DEFAULT_LOCALE,
     );
+}
+
+export function ErrorScreen({ kind, digest, onRetry, localeOverride }: ErrorScreenProps) {
+    // Resolve the locale from the cookie via useSyncExternalStore: server render
+    // uses DEFAULT_LOCALE, the client reads the real locale. This keeps the
+    // screen self-contained (works in global-error, outside the I18nProvider)
+    // without a setState-in-effect or hydration mismatch.
+    const cookieLocale = useErrorLocale();
+    const locale = localeOverride ?? cookieLocale;
 
     const copy = ERROR_COPY[locale][kind];
     const canRetry = typeof onRetry === 'function';

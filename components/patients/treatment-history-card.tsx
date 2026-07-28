@@ -1596,7 +1596,7 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                 placeholder={t('patientHistory.workDonePlaceholder')}
                                 className="h-11 rounded-xl border-slate-200 bg-white px-4 text-sm font-semibold text-slate-950 shadow-sm transition-colors placeholder:text-slate-400 focus-visible:border-teal-300 focus-visible:ring-2 focus-visible:ring-teal-100 sm:text-base"
                             />
-                            <div className="flex flex-wrap gap-1.5" aria-label="Work type suggestions">
+                            <div className="flex flex-wrap gap-1.5" aria-label={t('patientHistory.workTypeSuggestions')}>
                                 {HISTORY_WORK_DONE_SUGGESTION_KEYS.map((suggestionKey) => {
                                     const suggestion = t(suggestionKey);
                                     const isSelected = formState.treatmentType.trim() === suggestion;
@@ -1971,8 +1971,14 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                             locale,
                                             patientName,
                                             patientMeta: [
-                                                t('patientDetail.totalAppointments') + ': ' + exportTreatments.length,
-                                                formatLocalizedDate(new Date(), locale, { year: 'numeric', month: 'short', day: 'numeric' }),
+                                                `${t('patientHistory.snapshot.entries')}: ${exportTreatments.length}`,
+                                                t('export.generated', {
+                                                    date: formatLocalizedDate(new Date(), locale, {
+                                                        year: 'numeric',
+                                                        month: 'short',
+                                                        day: 'numeric',
+                                                    }),
+                                                }),
                                             ],
                                             summary: canViewFinancials
                                                 ? [
@@ -2010,7 +2016,7 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                                     },
                                                 },
                                             ],
-                                            orientation: 'portrait',
+                                            orientation: canViewFinancials ? 'landscape' : 'portrait',
                                         });
                                         toast.success(t('export.downloaded'));
                                     } catch (error) {

@@ -37,6 +37,7 @@ const PRINT_STYLES = `
         padding: var(--pdf-screen-padding-y) var(--pdf-screen-padding-x);
         font-size: 11px;
         line-height: 1.4;
+        overflow-wrap: anywhere;
     }
     .brand-strip {
         height: 4px;
@@ -88,6 +89,8 @@ const PRINT_STYLES = `
         background: #f8fafc;
         border-radius: 8px;
         padding: 10px 14px;
+        break-inside: avoid;
+        page-break-inside: avoid;
     }
     .summary-card .label {
         font-size: 9px;
@@ -109,6 +112,12 @@ const PRINT_STYLES = `
         border-collapse: collapse;
         font-size: 10px;
     }
+    thead { display: table-header-group; }
+    tfoot { display: table-footer-group; }
+    tr {
+        break-inside: avoid;
+        page-break-inside: avoid;
+    }
     thead th {
         background: #f1f5f9;
         color: #64748b;
@@ -127,18 +136,13 @@ const PRINT_STYLES = `
         padding: 9px 12px;
         border-bottom: 1px solid #e2e8f0;
         font-variant-numeric: tabular-nums;
+        overflow-wrap: anywhere;
+        word-break: break-word;
     }
     tbody td:first-child { border-left: 1px solid #e2e8f0; }
     tbody td:last-child { border-right: 1px solid #e2e8f0; }
     tbody tr:nth-child(even) td { background: #f8fafc; }
     tbody tr:nth-child(odd) td { background: #ffffff; }
-    .footer {
-        margin-top: 20px;
-        font-size: 9px;
-        color: #94a3b8;
-        display: flex;
-        justify-content: space-between;
-    }
     @page { margin: 0; size: A4 landscape; }
     @media print {
         body { padding: var(--pdf-print-padding-y) var(--pdf-print-padding-x); }
@@ -154,7 +158,7 @@ function getPdfDate(locale?: AppLocale): string {
         : new Date().toLocaleDateString(undefined, options);
 }
 
-function buildHtml({ title, subtitle, locale, columns, rows, summary }: PdfExportOptions): string {
+function buildRowsBodyHtml({ title, subtitle, locale, columns, rows, summary }: PdfExportOptions): string {
     const dateStr = getPdfDate(locale);
     const headerHtml = `
         <div class="brand-strip"></div>
@@ -187,13 +191,16 @@ function buildHtml({ title, subtitle, locale, columns, rows, summary }: PdfExpor
                 .join('')}</tbody>
         </table>
     `;
-    const footerHtml = `
-        <div class="footer">
-            <span>Identa Dental Management</span>
-            <span>${escapeHtml(dateStr)}</span>
-        </div>
-    `;
-    return headerHtml + summaryHtml + tableHtml + footerHtml;
+    return headerHtml + summaryHtml + tableHtml;
+}
+
+export function buildRowsPdfHtml(options: PdfExportOptions): string {
+    const bodyHtml = buildRowsBodyHtml(options);
+    const pageOrientation = options.orientation ?? 'landscape';
+    const pageRule = `:root { --pdf-print-padding-y: 16mm; --pdf-print-padding-x: 16mm; } @page { margin: 0; size: A4 ${pageOrientation}; }`;
+    const documentLocale = options.locale ?? 'en';
+
+    return `<!DOCTYPE html><html lang="${escapeHtml(documentLocale)}"><head><meta charset="utf-8"><title>${escapeHtml(options.filename)}</title><style>${PRINT_STYLES}${pageRule}</style></head><body>${bodyHtml}</body></html>`;
 }
 
 export function exportRowsToPdf(options: PdfExportOptions): void {
@@ -201,10 +208,7 @@ export function exportRowsToPdf(options: PdfExportOptions): void {
         return;
     }
 
-    const bodyHtml = buildHtml(options);
-    const pageOrientation = options.orientation ?? 'landscape';
-    const pageRule = `:root { --pdf-print-padding-y: 16mm; --pdf-print-padding-x: 16mm; } @page { margin: 0; size: A4 ${pageOrientation}; }`;
-
+    const html = buildRowsPdfHtml(options);
     const printWindow = window.open('', '_blank', 'noopener,noreferrer,width=1024,height=768');
     if (!printWindow) {
         // Popup blocked — fall back to current window using hidden iframe
@@ -220,7 +224,7 @@ export function exportRowsToPdf(options: PdfExportOptions): void {
         const doc = iframe.contentDocument;
         if (doc) {
             doc.open();
-            doc.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${escapeHtml(options.filename)}</title><style>${PRINT_STYLES}${pageRule}</style></head><body>${bodyHtml}</body></html>`);
+            doc.write(html);
             doc.close();
             iframe.onload = () => {
                 iframe.contentWindow?.focus();
@@ -234,7 +238,7 @@ export function exportRowsToPdf(options: PdfExportOptions): void {
     }
 
     printWindow.document.open();
-    printWindow.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${escapeHtml(options.filename)}</title><style>${PRINT_STYLES}${pageRule}</style></head><body>${bodyHtml}</body></html>`);
+    printWindow.document.write(html);
     printWindow.document.close();
 
     const triggerPrint = () => {
@@ -296,6 +300,8 @@ const PATIENT_REPORT_STYLES = `
         border: 1px solid #99f6e4;
         border-radius: 12px;
         margin-bottom: 18px;
+        break-inside: avoid;
+        page-break-inside: avoid;
     }
     .patient-avatar {
         width: 52px;
@@ -316,6 +322,7 @@ const PATIENT_REPORT_STYLES = `
         letter-spacing: -0.02em;
         color: #0f172a;
         margin: 0 0 4px;
+        overflow-wrap: anywhere;
     }
     .patient-meta {
         font-size: 11px;
@@ -329,7 +336,6 @@ const PATIENT_REPORT_STYLES = `
     .patient-meta .dot { color: #cbd5e1; padding: 0 2px; }
     .section {
         margin-top: 16px;
-        page-break-inside: avoid;
     }
     .section-title {
         font-size: 10px;
@@ -340,6 +346,8 @@ const PATIENT_REPORT_STYLES = `
         margin: 0 0 8px;
         padding-bottom: 5px;
         border-bottom: 2px solid #ccfbf1;
+        break-after: avoid;
+        page-break-after: avoid;
     }
     .info-grid {
         display: grid;
@@ -353,9 +361,11 @@ const PATIENT_REPORT_STYLES = `
         padding: 5px 0;
         border-bottom: 1px dashed #f1f5f9;
         font-size: 10px;
+        break-inside: avoid;
+        page-break-inside: avoid;
     }
-    .info-label { color: #64748b; font-weight: 500; }
-    .info-value { color: #0f172a; font-weight: 600; text-align: right; }
+    .info-label { color: #64748b; font-weight: 500; min-width: 0; }
+    .info-value { color: #0f172a; font-weight: 600; text-align: right; min-width: 0; overflow-wrap: anywhere; }
     .empty-state {
         font-size: 10px;
         color: #94a3b8;
@@ -364,7 +374,7 @@ const PATIENT_REPORT_STYLES = `
     }
 `;
 
-function buildPatientHtml(options: PatientReportOptions): string {
+function buildPatientBodyHtml(options: PatientReportOptions): string {
     const initials = options.patientName
         .split(/\s+/)
         .filter(Boolean)
@@ -379,7 +389,7 @@ function buildPatientHtml(options: PatientReportOptions): string {
                 <h2>${escapeHtml(options.patientName)}</h2>
                 ${options.patientMeta && options.patientMeta.length > 0
                     ? `<p class="patient-meta">${options.patientMeta
-                        .map((m, idx) => idx > 0 ? `<span class="dot">·</span><span>${escapeHtml(m)}</span>` : `<span>${escapeHtml(m)}</span>`)
+                        .map((m, idx) => idx > 0 ? `<span class="dot">|</span><span>${escapeHtml(m)}</span>` : `<span>${escapeHtml(m)}</span>`)
                         .join('')}</p>`
                     : ''}
             </div>
@@ -408,7 +418,7 @@ function buildPatientHtml(options: PatientReportOptions): string {
                     .map((row) => `
                         <div class="info-row">
                             <span class="info-label">${escapeHtml(row.label)}</span>
-                            <span class="info-value">${escapeHtml(row.value || '—')}</span>
+                            <span class="info-value">${escapeHtml(row.value || '-')}</span>
                         </div>
                     `)
                     .join('');
@@ -416,7 +426,7 @@ function buildPatientHtml(options: PatientReportOptions): string {
             }
             if (section.table) {
                 if (section.table.rows.length === 0) {
-                    return `<section class="section">${headerHtml}<p class="empty-state">${escapeHtml(section.table.emptyText ?? '—')}</p></section>`;
+                    return `<section class="section">${headerHtml}<p class="empty-state">${escapeHtml(section.table.emptyText ?? '-')}</p></section>`;
                 }
                 const tableHtml = `
                     <table>
@@ -435,14 +445,11 @@ function buildPatientHtml(options: PatientReportOptions): string {
     return patientCard + summaryHtml + sectionsHtml;
 }
 
-export function exportPatientReportToPdf(options: PatientReportOptions): void {
-    if (typeof window === 'undefined') {
-        return;
-    }
-
+export function buildPatientReportPdfHtml(options: PatientReportOptions): string {
     const dateStr = getPdfDate(options.locale);
     const pageOrientation = options.orientation ?? 'portrait';
     const pageRule = `:root { --pdf-print-padding-y: 14mm; --pdf-print-padding-x: 14mm; } @page { margin: 0; size: A4 ${pageOrientation}; }`;
+    const documentLocale = options.locale ?? 'en';
 
     const headerHtml = `
         <div class="brand-strip"></div>
@@ -456,15 +463,18 @@ export function exportPatientReportToPdf(options: PatientReportOptions): void {
             </div>
         </div>
     `;
-    const footerHtml = `
-        <div class="footer">
-            <span>Identa Dental Management</span>
-            <span>${escapeHtml(dateStr)}</span>
-        </div>
-    `;
-    const bodyHtml = headerHtml + buildPatientHtml(options) + footerHtml;
+    const bodyHtml = headerHtml + buildPatientBodyHtml(options);
     const styles = PRINT_STYLES + PATIENT_REPORT_STYLES + pageRule;
-    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${escapeHtml(options.filename)}</title><style>${styles}</style></head><body>${bodyHtml}</body></html>`;
+
+    return `<!DOCTYPE html><html lang="${escapeHtml(documentLocale)}"><head><meta charset="utf-8"><title>${escapeHtml(options.filename)}</title><style>${styles}</style></head><body>${bodyHtml}</body></html>`;
+}
+
+export function exportPatientReportToPdf(options: PatientReportOptions): void {
+    if (typeof window === 'undefined') {
+        return;
+    }
+
+    const html = buildPatientReportPdfHtml(options);
 
     const printWindow = window.open('', '_blank', 'noopener,noreferrer,width=1024,height=768');
     if (!printWindow) {

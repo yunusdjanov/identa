@@ -865,7 +865,7 @@ export function PatientDetailLoadingState() {
 
 export function PaymentPatientLoadingState() {
     return (
-        <div data-testid="payment-patient-loading" className="space-y-2" aria-label="Loading">
+        <div data-testid="payment-patient-loading" className="space-y-2" aria-busy="true">
             <PatientDetailHeaderSkeleton />
             <section className="min-w-0 space-y-4 overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm shadow-slate-200/60 sm:p-6">
                 <div className="flex min-w-0 flex-col gap-2 xl:flex-row xl:items-center">

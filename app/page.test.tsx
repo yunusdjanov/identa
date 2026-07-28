@@ -48,18 +48,20 @@ describe('Landing', () => {
         const user = userEvent.setup();
         render(<Landing />);
 
-        const langTabs = screen.getAllByRole('tablist', { name: 'Language' })[0];
+        const langTabs = screen.getAllByRole('tablist', { name: 'Язык' })[0];
         await user.click(within(langTabs).getByRole('tab', { name: 'en' }));
 
         // English hero CTA now renders; the Russian one is gone
         expect(screen.getAllByRole('link', { name: 'Start free' }).length).toBeGreaterThan(0);
         expect(screen.queryByRole('link', { name: 'Начать бесплатно' })).not.toBeInTheDocument();
+        expect(screen.getAllByRole('tablist', { name: 'Language' }).length).toBeGreaterThan(0);
     });
 
     it('exposes an accessible language switcher', () => {
         render(<Landing />);
-        const langTabs = screen.getAllByRole('tablist', { name: 'Language' })[0];
+        const langTabs = screen.getAllByRole('tablist', { name: 'Язык' })[0];
         expect(within(langTabs).getByRole('tab', { name: 'ru' })).toHaveAttribute('aria-selected', 'true');
+        expect(screen.getByRole('button', { name: 'Открыть меню' })).toBeInTheDocument();
     });
 
     it('uses full document navigation for app entry links', () => {

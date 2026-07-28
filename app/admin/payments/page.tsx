@@ -562,14 +562,14 @@ export default function AdminPaymentsPage() {
                     </CardContent>
 
                     {pagination && totalPages > 1 ? (
-                        <div className="flex items-center justify-between border-t border-slate-200/70 px-4 py-3 sm:px-5">
+                        <div className="flex flex-col items-stretch gap-2 border-t border-slate-200/70 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-5">
                             <p className="text-xs text-slate-500">
                                 {t('admin.payments.pagination', {
                                     page,
                                     total: totalPages,
                                 })}
                             </p>
-                            <div className="flex gap-2">
+                            <div className="flex gap-2 sm:shrink-0">
                                 <Button
                                     variant="outline"
                                     size="sm"

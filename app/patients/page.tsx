@@ -689,7 +689,7 @@ export default function PatientsPage() {
                                     const rows = data.map((patient) => [
                                         patient.full_name,
                                         extractPrimaryPhone(patient.phone) || '-',
-                                        patient.gender ? t(`gender.${patient.gender}`) ?? patient.gender : '-',
+                                        patient.gender ? t(`gender.${patient.gender}`) : '-',
                                         patient.date_of_birth ? formatDate(patient.date_of_birth) : '-',
                                         (patient.categories ?? []).map((c) => c.name).join(', ') || '-',
                                         patient.last_visit_at ? formatDate(patient.last_visit_at) : '-',
@@ -797,7 +797,7 @@ export default function PatientsPage() {
                                         ? t('patients.empty.filtered')
                                         : t('patients.empty.default')
                             }
-                            description={hasActiveFilters ? undefined : (t('patients.searchPlaceholder') ?? undefined)}
+                            description={hasActiveFilters ? undefined : t('patients.searchPlaceholder')}
                             action={hasActiveFilters ? (
                                 <Button variant="outline" onClick={resetFilters}>
                                     <FilterX className="h-4 w-4 mr-1.5" />

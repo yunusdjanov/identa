@@ -560,12 +560,12 @@ export default function BillingPage() {
 
             <Card className="overflow-hidden rounded-2xl border-slate-200 bg-white shadow-sm">
                 <CardHeader className="border-b border-slate-100 bg-slate-50/40 px-5 py-4">
-                    <div className="flex items-center justify-between gap-3">
-                        <div className="flex items-center gap-2.5">
+                    <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="flex min-w-0 items-center gap-2.5">
                             <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-slate-600">
                                 <CreditCard className="h-4 w-4" />
                             </span>
-                            <CardTitle className="text-base font-semibold tracking-tight">{t('billing.paymentHistory')}</CardTitle>
+                            <CardTitle className="break-words text-base font-semibold tracking-tight">{t('billing.paymentHistory')}</CardTitle>
                         </div>
                         <div className="flex items-center gap-2">
                             {subscription?.can_export && (paymentsQuery.data ?? []).length > 0 ? (
