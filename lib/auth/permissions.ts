@@ -106,6 +106,9 @@ export function canManage(user: ApiUser | null | undefined, module: PermissionMo
 }
 
 export function getModuleForPath(pathname: string): PermissionModule | null {
+    if (pathname === '/dashboard' || pathname.startsWith('/dashboard/')) {
+        return 'appointments';
+    }
     if (pathname.startsWith('/patients')) {
         return 'patients';
     }

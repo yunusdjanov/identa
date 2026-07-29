@@ -26,6 +26,7 @@ class AuditLogController extends Controller
                 ->values()
                 ->all(),
             'meta' => [
+                'event_types' => $this->auditLogs->eventTypes($request),
                 'pagination' => [
                     'page' => $entries->currentPage(),
                     'per_page' => $entries->perPage(),

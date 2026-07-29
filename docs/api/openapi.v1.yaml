@@ -727,6 +727,24 @@ paths:
           $ref: "#/components/responses/ForbiddenError"
         "422":
           $ref: "#/components/responses/ValidationError"
+  /api/v1/appointments/configuration:
+    get:
+      tags: [Appointments]
+      summary: Get tenant appointment schedule configuration
+      operationId: getAppointmentConfiguration
+      security:
+        - cookieAuth: []
+      responses:
+        "200":
+          description: Tenant working hours and default appointment duration
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AppointmentConfigurationResponse"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
   /api/v1/appointments/{id}:
     get:
       tags: [Appointments]
@@ -1848,6 +1866,25 @@ components:
         notes:
           type: string
           nullable: true
+    AppointmentConfiguration:
+      type: object
+      required: [working_hours, default_appointment_duration]
+      properties:
+        working_hours:
+          type: object
+          required: [start, end]
+          properties:
+            start:
+              type: string
+              nullable: true
+              example: "09:00"
+            end:
+              type: string
+              nullable: true
+              example: "20:00"
+        default_appointment_duration:
+          type: integer
+          enum: [15, 30, 45, 60]
     PaymentExpense:
       type: object
       properties:
@@ -2550,6 +2587,12 @@ components:
       properties:
         data:
           $ref: "#/components/schemas/Appointment"
+      required: [data]
+    AppointmentConfigurationResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/AppointmentConfiguration"
       required: [data]
     AppointmentPatientCardResponse:
       type: object

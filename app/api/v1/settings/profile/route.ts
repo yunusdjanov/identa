@@ -2,6 +2,7 @@ import { cookies } from 'next/headers';
 import { requireAuth, ok } from '../../_auth';
 import { PROFILE } from '../../_mock-data';
 import { pushAuditEntry } from '@/lib/mock/admin-store';
+import { resolveMockUser, updateMockUserProfile } from '../../_mock-users';
 
 // Local mock: GET / PUT settings/profile.
 //
@@ -24,15 +25,38 @@ const ADMIN_PROFILE = {
     show_record_authors: false,
 };
 
-async function isAdminSession(): Promise<boolean> {
+async function sessionProfile() {
     const cookieStore = await cookies();
-    return cookieStore.get('mock_role')?.value === 'admin';
+    const role = cookieStore.get('mock_role')?.value;
+    if (role === 'admin') {
+        return { role, profile: ADMIN_PROFILE };
+    }
+    if (role === 'assistant') {
+        const user = resolveMockUser(role, cookieStore.get('mock_user_id')?.value);
+        return {
+            role,
+            profile: {
+                id: user.id,
+                name: user.name,
+                email: user.email,
+                phone: user.phone ?? null,
+                practice_name: null,
+                license_number: null,
+                address: null,
+                working_hours: { start: null, end: null },
+                default_appointment_duration: 30,
+                show_record_authors: user.show_record_authors ?? false,
+            },
+        };
+    }
+
+    return { role: 'dentist', profile: PROFILE };
 }
 
 export async function GET() {
     const auth = await requireAuth();
     if (auth) return auth;
-    return ok((await isAdminSession()) ? ADMIN_PROFILE : PROFILE);
+    return ok((await sessionProfile()).profile);
 }
 
 export async function PUT(request: Request) {
@@ -40,14 +64,16 @@ export async function PUT(request: Request) {
     if (auth) return auth;
 
     const body = await request.json().catch(() => ({}));
-    const base = (await isAdminSession()) ? ADMIN_PROFILE : PROFILE;
+    const session = await sessionProfile();
+    const base = session.profile;
 
     // Mirror backend: admins may only mutate name/email; dentists/assistants
     // get the broader set. Filtering here makes the mock truthful about what
     // would actually persist server-side.
-    const isAdmin = await isAdminSession();
-    const allowedKeys = isAdmin
+    const allowedKeys = session.role === 'admin'
         ? new Set(['name', 'email'])
+        : session.role === 'assistant'
+            ? new Set(['name', 'email', 'phone', 'show_record_authors'])
         : new Set([
             'name',
             'email',
@@ -73,6 +99,19 @@ export async function PUT(request: Request) {
     }
     if (filtered.working_hours_end !== undefined) {
         workingHours.end = filtered.working_hours_end as string | null;
+    }
+
+    if (session.role === 'assistant' || session.role === 'dentist') {
+        updateMockUserProfile(base.id, {
+            name: typeof filtered.name === 'string' ? filtered.name : undefined,
+            email: typeof filtered.email === 'string' ? filtered.email : undefined,
+            phone: typeof filtered.phone === 'string' || filtered.phone === null
+                ? filtered.phone
+                : undefined,
+            show_record_authors: typeof filtered.show_record_authors === 'boolean'
+                ? filtered.show_record_authors
+                : undefined,
+        });
     }
 
     // Backend `ProfileSettingsService::update` writes an audit row on every

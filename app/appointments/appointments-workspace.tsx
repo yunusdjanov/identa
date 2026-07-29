@@ -20,8 +20,8 @@ import {
 import {
     createPatientCardFromGuestAppointment,
     deleteAppointment,
+    getAppointmentConfiguration,
     getCurrentUser,
-    getProfile,
     listAllAppointments,
     updateAppointment,
     type CreatePatientPayload,
@@ -378,9 +378,9 @@ export function AppointmentsWorkspace({ mode = 'appointments' }: AppointmentsWor
         refetchOnWindowFocus: false,
         refetchOnReconnect: false,
     });
-    const profileQuery = useQuery({
-        queryKey: ['settings', 'profile'],
-        queryFn: getProfile,
+    const configurationQuery = useQuery({
+        queryKey: ['appointments', 'configuration'],
+        queryFn: getAppointmentConfiguration,
         enabled: canViewAppointments,
         staleTime: 300000,
         gcTime: 900000,
@@ -388,9 +388,10 @@ export function AppointmentsWorkspace({ mode = 'appointments' }: AppointmentsWor
         refetchOnReconnect: false,
     });
     const workingHours = useMemo(
-        () => normalizeAppointmentWorkingHours(profileQuery.data?.working_hours),
-        [profileQuery.data?.working_hours]
+        () => normalizeAppointmentWorkingHours(configurationQuery.data?.working_hours),
+        [configurationQuery.data?.working_hours]
     );
+    const defaultAppointmentDuration = configurationQuery.data?.default_appointment_duration ?? 30;
 
     const appointmentRows = useMemo<AppointmentRow[]>(() => {
         return (appointmentsQuery.data ?? []).map((appointment) => {
@@ -1047,8 +1048,35 @@ export function AppointmentsWorkspace({ mode = 'appointments' }: AppointmentsWor
         });
     };
 
-    if (!isClient || currentUserQuery.isLoading || appointmentsQuery.isLoading) {
+    if (
+        !isClient
+        || currentUserQuery.isLoading
+        || appointmentsQuery.isLoading
+        || configurationQuery.isLoading
+    ) {
         return <AppointmentsLoadingState />;
+    }
+
+    if (
+        currentUserQuery.isError
+        || appointmentsQuery.isError
+        || configurationQuery.isError
+    ) {
+        return (
+            <AppErrorState
+                title={t('common.loadErrorTitle')}
+                description={getApiErrorMessage(
+                    currentUserQuery.error || appointmentsQuery.error || configurationQuery.error,
+                    t('appointments.error.loadFailed')
+                )}
+                retryLabel={t('common.retry')}
+                onRetry={() => {
+                    currentUserQuery.refetch();
+                    appointmentsQuery.refetch();
+                    configurationQuery.refetch();
+                }}
+            />
+        );
     }
 
     if (!canViewAppointments) {
@@ -1058,20 +1086,6 @@ export function AppointmentsWorkspace({ mode = 'appointments' }: AppointmentsWor
                 description={t('permissions.deniedDescription')}
                 actionLabel={t('dashboard.title')}
                 className="min-h-[20rem]"
-            />
-        );
-    }
-
-    if (currentUserQuery.isError || appointmentsQuery.isError) {
-        return (
-            <AppErrorState
-                title={t('common.loadErrorTitle')}
-                description={getApiErrorMessage(currentUserQuery.error || appointmentsQuery.error, t('appointments.error.loadFailed'))}
-                retryLabel={t('common.retry')}
-                onRetry={() => {
-                    currentUserQuery.refetch();
-                    appointmentsQuery.refetch();
-                }}
             />
         );
     }
@@ -1960,6 +1974,7 @@ export function AppointmentsWorkspace({ mode = 'appointments' }: AppointmentsWor
                     prefillStartTime={prefillStartTime}
                     prefillPatientId={urlPrefillPatientId}
                     workingHours={workingHours}
+                    defaultAppointmentDuration={defaultAppointmentDuration}
                 />
             ) : null}
             {isEditDialogOpen && editingAppointment ? (
@@ -1981,6 +1996,7 @@ export function AppointmentsWorkspace({ mode = 'appointments' }: AppointmentsWor
                         reason: editingAppointment.reason,
                     }}
                     workingHours={workingHours}
+                    defaultAppointmentDuration={defaultAppointmentDuration}
                 />
             ) : null}
             {patientCardAppointment ? (

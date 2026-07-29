@@ -1,6 +1,6 @@
 ﻿'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { listAuditLogs } from '@/lib/api/dentist';
 import { getApiErrorMessage } from '@/lib/api/client';
@@ -16,36 +16,9 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-
-const EVENT_TYPE_OPTIONS = [
-    'all',
-    'auth.login',
-    'auth.logout',
-    'auth.permission_denied',
-    'patient.created',
-    'patient.updated',
-    'patient.archived',
-    'patient.restored',
-    'patient.permanently_deleted',
-    'appointment.created',
-    'appointment.updated',
-    'appointment.deleted',
-    'patient.treatment.created',
-    'patient.treatment.updated',
-    'patient.treatment.deleted',
-    'patient.treatment.image.uploaded',
-    'patient.treatment.images.uploaded',
-    'patient.treatment.image.replaced',
-    'patient.treatment.image.deleted',
-    'payment_expense.created',
-    'payment_expense.updated',
-    'payment_expense.deleted',
-    'team.assistant.created',
-    'team.assistant.updated',
-    'team.assistant.status_updated',
-    'team.assistant.password_reset',
-    'team.assistant.deleted',
-];
+import { useI18n } from '@/components/providers/i18n-provider';
+import { formatLocalizedDateTime } from '@/lib/i18n/date';
+import type { AppLocale } from '@/lib/i18n/config';
 
 const PERMISSION_LABEL_KEY_BY_CODE: Record<string, string> = {
     'patients.view': 'settings.team.permissionPatientsView',
@@ -64,7 +37,7 @@ interface AuditLogsTabProps {
 const UUID_SEGMENT_REGEX =
     /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-function formatDateTime(value: string | null): string {
+function formatDateTime(value: string | null, locale: AppLocale): string {
     if (!value) {
         return '-';
     }
@@ -74,7 +47,7 @@ function formatDateTime(value: string | null): string {
         return value;
     }
 
-    return date.toLocaleString();
+    return formatLocalizedDateTime(date, locale);
 }
 
 function formatEventTypeLabel(
@@ -216,6 +189,7 @@ function AuditLogsLoadingSkeleton() {
 }
 
 export function AuditLogsTab({ canViewAuditLogs, t }: AuditLogsTabProps) {
+    const { locale } = useI18n();
     const [search, setSearch] = useState('');
     const [eventType, setEventType] = useState('all');
     const [dateFrom, setDateFrom] = useState('');
@@ -240,6 +214,10 @@ export function AuditLogsTab({ canViewAuditLogs, t }: AuditLogsTabProps) {
     });
 
     const visibleEntries = logsQuery.data?.data ?? [];
+    const eventTypeOptions = useMemo(
+        () => ['all', ...(logsQuery.data?.meta?.event_types ?? [])],
+        [logsQuery.data?.meta?.event_types]
+    );
 
     const totalPages = logsQuery.data?.meta?.pagination?.total_pages ?? 1;
     const canPrev = page > 1;
@@ -267,6 +245,7 @@ export function AuditLogsTab({ canViewAuditLogs, t }: AuditLogsTabProps) {
                 <CardTitle className="text-base">{t('settings.logs.title')}</CardTitle>
                 <div className="grid grid-cols-1 gap-3 rounded-2xl border border-teal-100/80 bg-white p-3 shadow-xs md:grid-cols-2 lg:grid-cols-4">
                     <Input
+                        aria-label={t('settings.logs.searchPlaceholder')}
                         value={search}
                         onChange={(event) => {
                             setSearch(event.target.value);
@@ -282,11 +261,14 @@ export function AuditLogsTab({ canViewAuditLogs, t }: AuditLogsTabProps) {
                             setPage(1);
                         }}
                     >
-                        <SelectTrigger className="h-9 rounded-xl border-slate-200 bg-white shadow-xs">
+                        <SelectTrigger
+                            aria-label={t('settings.logs.eventTypeAll')}
+                            className="h-9 rounded-xl border-slate-200 bg-white shadow-xs"
+                        >
                             <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                            {EVENT_TYPE_OPTIONS.map((eventTypeOption) => (
+                            {eventTypeOptions.map((eventTypeOption) => (
                                 <SelectItem key={eventTypeOption} value={eventTypeOption}>
                                     {eventTypeOption === 'all'
                                         ? t('settings.logs.eventTypeAll')
@@ -296,6 +278,7 @@ export function AuditLogsTab({ canViewAuditLogs, t }: AuditLogsTabProps) {
                         </SelectContent>
                     </Select>
                     <Input
+                        aria-label={t('settings.logs.dateFrom')}
                         type="date"
                         value={dateFrom}
                         onChange={(event) => {
@@ -305,6 +288,7 @@ export function AuditLogsTab({ canViewAuditLogs, t }: AuditLogsTabProps) {
                         className="h-9 rounded-xl border-slate-200 bg-white shadow-xs"
                     />
                     <Input
+                        aria-label={t('settings.logs.dateTo')}
                         type="date"
                         value={dateTo}
                         onChange={(event) => {
@@ -336,7 +320,9 @@ export function AuditLogsTab({ canViewAuditLogs, t }: AuditLogsTabProps) {
                                         <p className="text-sm font-semibold text-slate-900">
                                             {formatEventTypeLabel(entry.event_type, t)}
                                         </p>
-                                        <p className="text-xs text-slate-500">{formatDateTime(entry.created_at)}</p>
+                                        <p className="text-xs text-slate-500">
+                                            {formatDateTime(entry.created_at, locale)}
+                                        </p>
                                     </div>
                                     <p className="text-xs text-slate-600 mt-1">
                                         {t('settings.logs.actor')}: {entry.actor?.name || '-'} (

@@ -104,18 +104,7 @@ export default function OdontogramPage({
         return <OdontogramLoadingState />;
     }
 
-    if (!canViewPatients) {
-        return (
-            <AccessDeniedState
-                title={t('common.forbiddenTitle')}
-                description={t('permissions.deniedDescription')}
-                actionHref="/patients"
-                actionLabel={t('patientDetail.backToPatients')}
-            />
-        );
-    }
-
-    if (currentUserQuery.isError || patientQuery.isError || treatmentsQuery.isError || !patientQuery.data) {
+    if (currentUserQuery.isError) {
         return (
             <AppErrorState
                 title={t('common.loadErrorTitle')}
@@ -134,6 +123,38 @@ export default function OdontogramPage({
             />
         );
     }
+
+    if (!canViewPatients) {
+        return (
+            <AccessDeniedState
+                title={t('common.forbiddenTitle')}
+                description={t('permissions.deniedDescription')}
+                actionHref="/patients"
+                actionLabel={t('patientDetail.backToPatients')}
+            />
+        );
+    }
+
+    if (patientQuery.isError || treatmentsQuery.isError || !patientQuery.data) {
+        return (
+            <AppErrorState
+                title={t('common.loadErrorTitle')}
+                description={getApiErrorMessage(
+                    patientQuery.error || treatmentsQuery.error,
+                    t('odontogram.loadFailed')
+                )}
+                retryLabel={t('common.retry')}
+                onRetry={() => {
+                    patientQuery.refetch();
+                    treatmentsQuery.refetch();
+                }}
+                backHref="/patients"
+                backLabel={t('patientDetail.backToPatients')}
+            />
+        );
+    }
+
+    const patient = patientQuery.data;
 
     const renderTooth = (toothNumber: number) => {
         const toothTreatments = treatmentsByTooth.get(toothNumber) ?? [];
@@ -174,7 +195,7 @@ export default function OdontogramPage({
         <div className="space-y-5 lg:space-y-6">
             <PageHeader
                 title={t('odontogram.title')}
-                description={patientQuery.data.full_name}
+                description={patient.full_name}
                 actions={(
                     <Button variant="outline" onClick={() => router.push(`/patients/${id}`)}>
                         <ArrowLeft className="w-4 h-4" />

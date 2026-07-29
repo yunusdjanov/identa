@@ -5,8 +5,8 @@ import AppointmentsPage from '@/app/appointments/page';
 import {
     createPatientCardFromGuestAppointment,
     deleteAppointment,
+    getAppointmentConfiguration,
     getCurrentUser,
-    getProfile,
     listAllAppointments,
     updateAppointment,
 } from '@/lib/api/dentist';
@@ -20,8 +20,8 @@ const addPatientDialogSpy = vi.fn();
 
 vi.mock('@/lib/api/dentist', () => ({
     createPatientCardFromGuestAppointment: vi.fn(),
+    getAppointmentConfiguration: vi.fn(),
     getCurrentUser: vi.fn(),
-    getProfile: vi.fn(),
     listAllAppointments: vi.fn(),
     updateAppointment: vi.fn(),
     deleteAppointment: vi.fn(),
@@ -138,7 +138,7 @@ describe('AppointmentsPage drag and drop', () => {
     beforeEach(() => {
         vi.mocked(listAllAppointments).mockReset();
         vi.mocked(getCurrentUser).mockReset();
-        vi.mocked(getProfile).mockReset();
+        vi.mocked(getAppointmentConfiguration).mockReset();
         vi.mocked(updateAppointment).mockReset();
         vi.mocked(createPatientCardFromGuestAppointment).mockReset();
         vi.mocked(deleteAppointment).mockReset();
@@ -155,20 +155,12 @@ describe('AppointmentsPage drag and drop', () => {
             role: 'dentist',
             account_status: 'active',
         });
-        vi.mocked(getProfile).mockResolvedValue({
-            id: 'profile-1',
-            name: 'Dr. Test',
-            email: 'doctor@example.test',
-            phone: null,
-            practice_name: 'Test Clinic',
-            license_number: null,
-            address: null,
+        vi.mocked(getAppointmentConfiguration).mockResolvedValue({
             working_hours: {
                 start: '07:00',
                 end: '22:30',
             },
             default_appointment_duration: 30,
-            show_record_authors: false,
         });
     });
 

@@ -30,6 +30,7 @@ import { INPUT_LIMITS, getEmailValidationMessage } from '@/lib/input-validation'
 import { useI18n } from '@/components/providers/i18n-provider';
 import { GoogleAuthButton } from '@/components/auth/google-auth-button';
 import { AuthPageShell } from '@/components/auth/auth-page-shell';
+import type { ApiUser } from '@/lib/api/types';
 import {
     authCardClassName,
     authCardContentClassName,
@@ -104,11 +105,11 @@ export default function LoginPage() {
         enabled: isAuthenticated && !isLogoutRedirect,
         staleTime: 5 * 60_000,
     });
-    const getPostLoginDestination = (role: string) => resolvePostLoginDestination(
+    const getPostLoginDestination = (user: ApiUser) => resolvePostLoginDestination(
         typeof window === 'undefined'
             ? null
             : new URLSearchParams(window.location.search).get('from'),
-        role
+        user
     );
 
     const loginMutation = useMutation({
@@ -130,7 +131,7 @@ export default function LoginPage() {
             // or showing a stale "session expired" state) to refresh.
             postAuthBroadcast({ type: 'login' });
             toast.success(t('login.toast.success'));
-            router.push(getPostLoginDestination(user.role));
+            router.push(getPostLoginDestination(user));
         },
         onError: (error) => {
             toast.error(getApiErrorMessage(error, t('login.toast.failed')));
@@ -148,7 +149,7 @@ export default function LoginPage() {
             queryClient.setQueryData(['auth', 'me'], user);
             postAuthBroadcast({ type: 'login' });
             toast.success(t('register.toast.googleSuccess'));
-            router.push(getPostLoginDestination(user.role));
+            router.push(getPostLoginDestination(user));
         },
         onError: (error) => {
             toast.error(getApiErrorMessage(error, t('register.toast.googleFailed')));
@@ -206,7 +207,7 @@ export default function LoginPage() {
             return;
         }
 
-        router.replace(currentUserQuery.data.role === 'admin' ? '/admin' : '/dashboard');
+        router.replace(getPostLoginDestination(currentUserQuery.data));
     }, [currentUserQuery.data, isLogoutRedirect, router]);
 
     useEffect(() => {

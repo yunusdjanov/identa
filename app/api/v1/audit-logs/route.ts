@@ -1,4 +1,5 @@
-import { canViewFinancials, forbidden, list, requireAuth } from '../_auth';
+import { NextResponse } from 'next/server';
+import { canViewFinancials, forbidden, requireAuth } from '../_auth';
 import { AUDIT_LOGS } from '../_mock-data';
 import { getDynamicAuditEntries } from '@/lib/mock/admin-store';
 import { cookies } from 'next/headers';
@@ -23,6 +24,7 @@ const FINANCIAL_METADATA_KEYS = new Set([
     'payment_amount',
     'price',
 ]);
+const HIDDEN_EVENT_TYPES = new Set(['auth.login', 'auth.logout']);
 
 function scrubFinancialMetadata(metadata: unknown): unknown {
     if (metadata === null || metadata === undefined) return metadata;
@@ -73,7 +75,10 @@ export async function GET(request: Request) {
     // Merge runtime entries (admin mutations performed in mock mode) with
     // the static seed so the UI audit panel reflects everything an admin
     // has done in this session.
-    let items = [...getDynamicAuditEntries(), ...AUDIT_LOGS];
+    const visibleItems = [...getDynamicAuditEntries(), ...AUDIT_LOGS]
+        .filter((entry) => !HIDDEN_EVENT_TYPES.has(entry.event_type));
+    const eventTypes = [...new Set(visibleItems.map((entry) => entry.event_type))].sort();
+    let items = visibleItems;
 
     if (entityType) {
         items = items.filter((entry) => entry.entity_type === entityType);
@@ -123,5 +128,16 @@ export async function GET(request: Request) {
             metadata: scrubFinancialMetadata(entry.metadata) as typeof entry.metadata,
         }));
 
-    return list(scrubbed);
+    return NextResponse.json({
+        data: scrubbed,
+        meta: {
+            event_types: eventTypes,
+            pagination: {
+                page: 1,
+                per_page: 50,
+                total: scrubbed.length,
+                total_pages: 1,
+            },
+        },
+    });
 }

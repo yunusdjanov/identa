@@ -12,6 +12,50 @@ class AppointmentApiTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_appointment_configuration_uses_tenant_dentist_schedule_for_staff(): void
+    {
+        $dentist = User::factory()->create([
+            'working_hours_start' => '08:30',
+            'working_hours_end' => '18:15',
+            'default_appointment_duration' => 45,
+        ]);
+        $assistant = User::factory()->create([
+            'role' => User::ROLE_ASSISTANT,
+            'dentist_owner_id' => $dentist->id,
+            'assistant_permissions' => [User::PERMISSION_APPOINTMENTS_VIEW],
+            'working_hours_start' => '12:00',
+            'working_hours_end' => '13:00',
+            'default_appointment_duration' => 15,
+        ]);
+
+        $this->actingAs($assistant, 'web')
+            ->getJson('/api/v1/appointments/configuration')
+            ->assertOk()
+            ->assertExactJson([
+                'data' => [
+                    'working_hours' => [
+                        'start' => '08:30',
+                        'end' => '18:15',
+                    ],
+                    'default_appointment_duration' => 45,
+                ],
+            ]);
+    }
+
+    public function test_appointment_configuration_requires_view_permission(): void
+    {
+        $dentist = User::factory()->create();
+        $assistant = User::factory()->create([
+            'role' => User::ROLE_ASSISTANT,
+            'dentist_owner_id' => $dentist->id,
+            'assistant_permissions' => [],
+        ]);
+
+        $this->actingAs($assistant, 'web')
+            ->getJson('/api/v1/appointments/configuration')
+            ->assertForbidden();
+    }
+
     public function test_dentist_can_create_appointment_for_owned_patient(): void
     {
         $dentist = User::factory()->create();

@@ -40,6 +40,13 @@ class AppointmentController extends Controller
         ]);
     }
 
+    public function configuration(Request $request): JsonResponse
+    {
+        return response()->json([
+            'data' => $this->appointments->configuration($request),
+        ]);
+    }
+
     public function store(StoreAppointmentRequest $request): JsonResponse
     {
         return response()->json([

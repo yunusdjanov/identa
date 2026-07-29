@@ -16,6 +16,7 @@ export interface ApiCollectionEnvelope<T> {
     meta?: {
         pagination?: PaginationMeta;
         summary?: Record<string, ApiSummaryValue>;
+        event_types?: string[];
     };
 }
 
@@ -240,6 +241,14 @@ export interface ApiAppointment {
     notes: string | null;
     created_by?: ApiRecordActor | null;
     updated_by?: ApiRecordActor | null;
+}
+
+export interface ApiAppointmentConfiguration {
+    working_hours: {
+        start: string | null;
+        end: string | null;
+    };
+    default_appointment_duration: number;
 }
 
 export type ApiMoneyCurrency = 'UZS' | 'USD';

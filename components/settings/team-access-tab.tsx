@@ -43,6 +43,10 @@ import {
 } from '@/lib/input-validation';
 import { cn } from '@/lib/utils';
 import { normalizeAssistantPermissions } from '@/lib/auth/permissions';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { useI18n } from '@/components/providers/i18n-provider';
+import { formatLocalizedDate, formatLocalizedDateTime } from '@/lib/i18n/date';
+import type { AppLocale } from '@/lib/i18n/config';
 
 const PERMISSION_OPTIONS = [
     { code: 'patients.view', labelKey: 'settings.team.permissionPatientsView' },
@@ -153,7 +157,7 @@ interface TeamAccessTabProps {
     t: (key: string, variables?: Record<string, string | number>) => string;
 }
 
-function formatDateTime(value: string | null): string {
+function formatDateTime(value: string | null, locale: AppLocale): string {
     if (!value) {
         return '-';
     }
@@ -163,10 +167,10 @@ function formatDateTime(value: string | null): string {
         return value;
     }
 
-    return date.toLocaleString();
+    return formatLocalizedDateTime(date, locale);
 }
 
-function formatDateLabel(value: string | null): string | null {
+function formatDateLabel(value: string | null, locale: AppLocale): string | null {
     if (!value) {
         return null;
     }
@@ -176,7 +180,11 @@ function formatDateLabel(value: string | null): string | null {
         return value;
     }
 
-    return date.toLocaleDateString();
+    return formatLocalizedDate(date, locale, {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+    });
 }
 
 function getAssistantInitials(name: string): string {
@@ -229,6 +237,7 @@ function getSubscriptionAccessSummary(
 }
 
 export function TeamAccessTab({ canManageTeam, subscription, t }: TeamAccessTabProps) {
+    const { locale } = useI18n();
     const queryClient = useQueryClient();
     const router = useRouter();
     const pathname = usePathname();
@@ -282,7 +291,7 @@ export function TeamAccessTab({ canManageTeam, subscription, t }: TeamAccessTabP
     const activeStaffCount = subscription?.active_staff_count ?? 0;
     const isAtStaffLimit = staffLimit !== null && activeStaffCount >= staffLimit;
     const isReadOnly = subscription?.is_read_only === true;
-    const subscriptionEndsOn = formatDateLabel(subscription?.ends_at ?? null);
+    const subscriptionEndsOn = formatDateLabel(subscription?.ends_at ?? null, locale);
 
     const updateStatusFilter = (nextStatus: StaffStatusFilter) => {
         setPage(1);
@@ -681,6 +690,7 @@ export function TeamAccessTab({ canManageTeam, subscription, t }: TeamAccessTabP
                     ) : null}
                     <div className="flex flex-col gap-3 rounded-2xl border border-teal-100/80 bg-white p-3 shadow-xs lg:flex-row lg:items-center lg:justify-between">
                         <Input
+                            aria-label={t('settings.team.searchPlaceholder')}
                             value={search}
                             onChange={(event) => {
                                 setSearch(event.target.value);
@@ -727,9 +737,15 @@ export function TeamAccessTab({ canManageTeam, subscription, t }: TeamAccessTabP
                                     >
                                         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                                             <div className="flex min-w-0 gap-3">
-                                                <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-teal-50 text-sm font-bold text-teal-700 shadow-sm shadow-teal-100">
-                                                    {getAssistantInitials(assistant.name)}
-                                                </span>
+                                                <Avatar className="h-11 w-11 rounded-2xl shadow-sm shadow-teal-100">
+                                                    <AvatarImage
+                                                        src={assistant.avatar_url ?? undefined}
+                                                        alt={assistant.name}
+                                                    />
+                                                    <AvatarFallback className="rounded-2xl bg-teal-50 text-sm font-bold text-teal-700">
+                                                        {getAssistantInitials(assistant.name)}
+                                                    </AvatarFallback>
+                                                </Avatar>
                                                 <div className="min-w-0">
                                                     <p className="truncate font-semibold text-slate-950">{assistant.name}</p>
                                                     <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-slate-600">
@@ -744,7 +760,8 @@ export function TeamAccessTab({ canManageTeam, subscription, t }: TeamAccessTabP
                                                     </div>
                                                     <p className="mt-1 inline-flex items-center gap-1 text-xs text-slate-500">
                                                         <Clock3 className="h-3.5 w-3.5" />
-                                                        {t('settings.team.lastLogin')}: {formatDateTime(assistant.last_login_at)}
+                                                        {t('settings.team.lastLogin')}:{' '}
+                                                        {formatDateTime(assistant.last_login_at, locale)}
                                                     </p>
                                                 </div>
                                             </div>

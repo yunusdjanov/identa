@@ -567,17 +567,6 @@ export default function PatientDetailPage({
         return <PatientDetailLoadingState />;
     }
 
-    if (!canViewPatients) {
-        return (
-            <AccessDeniedState
-                title={t('common.forbiddenTitle')}
-                description={t('permissions.deniedDescription')}
-                actionHref="/patients"
-                actionLabel={t('patientDetail.backToPatients')}
-            />
-        );
-    }
-
     if (
         currentUserQuery.isError ||
         patientQuery.isError ||
@@ -600,6 +589,17 @@ export default function PatientDetailPage({
                 }}
                 backHref="/patients"
                 backLabel={t('patientDetail.backToPatients')}
+            />
+        );
+    }
+
+    if (!canViewPatients) {
+        return (
+            <AccessDeniedState
+                title={t('common.forbiddenTitle')}
+                description={t('permissions.deniedDescription')}
+                actionHref="/patients"
+                actionLabel={t('patientDetail.backToPatients')}
             />
         );
     }

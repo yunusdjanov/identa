@@ -1095,20 +1095,6 @@ export default function PaymentsPage() {
         return <PaymentsLoadingState tab={activeTab} />;
     }
 
-    if (!canViewPayments) {
-        return (
-            <div className="space-y-6">
-                <PageHeader title={t('payments.title')} description={t('payments.subtitle')} />
-                <AccessDeniedState
-                    title={t('common.forbiddenTitle')}
-                    description={t('permissions.deniedDescription')}
-                    actionLabel={t('dashboard.title')}
-                    className="min-h-[20rem] px-0 py-0"
-                />
-            </div>
-        );
-    }
-
     if (
         (
             currentUserQuery.isError
@@ -1139,6 +1125,20 @@ export default function PaymentsPage() {
                         expensesQuery.refetch();
                         expenseOverviewQuery.refetch();
                     }}
+                    className="min-h-[20rem] px-0 py-0"
+                />
+            </div>
+        );
+    }
+
+    if (!canViewPayments) {
+        return (
+            <div className="space-y-6">
+                <PageHeader title={t('payments.title')} description={t('payments.subtitle')} />
+                <AccessDeniedState
+                    title={t('common.forbiddenTitle')}
+                    description={t('permissions.deniedDescription')}
+                    actionLabel={t('dashboard.title')}
                     className="min-h-[20rem] px-0 py-0"
                 />
             </div>

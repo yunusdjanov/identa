@@ -129,6 +129,17 @@ describe('PatientsPage', () => {
         } as never);
     });
 
+    it('shows the auth load error instead of misclassifying it as access denied', async () => {
+        vi.mocked(getCurrentUser).mockRejectedValueOnce(new Error('Session lookup failed'));
+
+        renderPage();
+
+        expect(await screen.findByRole('heading', { name: 'Could not load data' }))
+            .toBeInTheDocument();
+        expect(screen.queryByText('You do not have access to this section.'))
+            .not.toBeInTheDocument();
+    });
+
     it('restores the previous page and focused patient after returning from details', async () => {
         window.history.replaceState({}, '', '/patients?restore=1');
         markPatientListStateForBackNavigation({

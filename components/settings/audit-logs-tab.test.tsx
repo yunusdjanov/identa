@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { cleanup, render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AuditLogsTab } from '@/components/settings/audit-logs-tab';
 import { listAuditLogs } from '@/lib/api/dentist';
@@ -36,8 +37,8 @@ describe('AuditLogsTab', () => {
         vi.mocked(listAuditLogs).mockResolvedValue({
             data: [
                 {
-                    id: 'log-login',
-                    event_type: 'auth.login',
+                    id: 'log-profile',
+                    event_type: 'settings.profile.updated',
                     entity_type: 'user',
                     entity_id: 'user-1',
                     actor_role: 'dentist',
@@ -71,6 +72,10 @@ describe('AuditLogsTab', () => {
                 },
             ],
             meta: {
+                event_types: [
+                    'settings.profile.updated',
+                    'team.assistant.updated',
+                ],
                 pagination: {
                     page: 1,
                     per_page: 10,
@@ -86,11 +91,19 @@ describe('AuditLogsTab', () => {
         vi.clearAllMocks();
     });
 
-    it('shows security and staff events returned by the paginated API', async () => {
+    it('shows visible events and builds the filter from backend metadata', async () => {
+        const user = userEvent.setup();
         renderTab();
 
-        expect(await screen.findByText('Signed in')).toBeInTheDocument();
+        expect(await screen.findByText('Settings profile updated')).toBeInTheDocument();
         expect(screen.getByText('Staff member updated')).toBeInTheDocument();
+        expect(screen.getByRole('textbox', { name: /search by event/i })).toBeInTheDocument();
+        expect(screen.getByLabelText('Start date')).toBeInTheDocument();
+        expect(screen.getByLabelText('End date')).toBeInTheDocument();
+
+        await user.click(screen.getByRole('combobox', { name: 'All event types' }));
+        expect(screen.getByRole('option', { name: 'Settings profile updated' })).toBeInTheDocument();
+        expect(screen.queryByRole('option', { name: 'Signed in' })).not.toBeInTheDocument();
         expect(screen.queryByText('No log entries found.')).not.toBeInTheDocument();
     });
 });

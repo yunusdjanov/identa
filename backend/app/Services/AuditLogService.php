@@ -97,6 +97,26 @@ class AuditLogService
         return $query->paginate($this->perPage($request));
     }
 
+    /**
+     * Event types are derived from the tenant's visible audit trail so the
+     * frontend filter cannot drift behind newly added backend events.
+     *
+     * @return list<string>
+     */
+    public function eventTypes(Request $request): array
+    {
+        return AuditLog::query()
+            ->where('dentist_id', $this->dentistId($request))
+            ->whereNotIn('event_type', self::HIDDEN_EVENT_TYPES)
+            ->whereNotNull('event_type')
+            ->distinct()
+            ->orderBy('event_type')
+            ->pluck('event_type')
+            ->filter(fn (mixed $eventType): bool => is_string($eventType) && $eventType !== '')
+            ->values()
+            ->all();
+    }
+
     private function dentistId(Request $request): int
     {
         /** @var User|null $actor */

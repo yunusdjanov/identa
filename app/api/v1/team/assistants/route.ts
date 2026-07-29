@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { list, requireDentist } from '../../_auth';
 import { getAdminStore, pushAuditEntry, recomputeStaffCounts } from '@/lib/mock/admin-store';
+import { normalizeAssistantPermissions } from '@/lib/auth/permissions';
 
 // The mock dentist session (/auth/me id 'dentist-1') is the same person seeded
 // in the admin store under id '1'. Reading and mutating staffByDentist['1']
@@ -31,19 +32,42 @@ export async function POST(request: Request) {
     const auth = await requireDentist();
     if (auth) return auth;
 
-    const body = await request.json().catch(() => ({}));
+    const body = await request.json().catch(() => ({})) as Record<string, unknown>;
+    const permissions = Array.isArray(body.permissions)
+        ? body.permissions.filter((permission): permission is string => typeof permission === 'string')
+        : [];
+    const password = typeof body.password === 'string' ? body.password : '';
+    const passwordConfirmation = typeof body.password_confirmation === 'string'
+        ? body.password_confirmation
+        : '';
+    if (
+        typeof body.name !== 'string'
+        || body.name.trim().length < 3
+        || typeof body.email !== 'string'
+        || !body.email.includes('@')
+        || permissions.length === 0
+        || password.length < 8
+        || !/[A-Za-z]/.test(password)
+        || !/\d/.test(password)
+        || password !== passwordConfirmation
+    ) {
+        return NextResponse.json({
+            message: 'Validation failed.',
+            errors: {
+                assistant: ['Name, email, permissions, and a confirmed password with letters and numbers are required.'],
+            },
+        }, { status: 422 });
+    }
     const staff = getStaff();
     const id = `ast-${Date.now()}`;
     const assistant = {
         id,
-        name: String(body?.name ?? 'New Assistant'),
-        email: String(body?.email ?? `assistant${id}@identa.test`),
-        phone: body?.phone ?? null,
+        name: body.name.trim(),
+        email: body.email.trim(),
+        phone: typeof body.phone === 'string' ? body.phone : null,
         avatar_url: null,
         account_status: 'active' as const,
-        assistant_permissions: Array.isArray(body?.assistant_permissions)
-            ? body.assistant_permissions
-            : [],
+        assistant_permissions: normalizeAssistantPermissions(permissions),
         must_change_password: true,
         last_login_at: null,
         created_at: new Date().toISOString(),

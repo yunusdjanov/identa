@@ -106,23 +106,53 @@ class TeamAssistantService
         // Lock the assistant row so two concurrent admin edits (or admin
         // rename + assistant self-edit when those paths share a model)
         // serialise. Otherwise the permissions snapshot can stale.
-        return DB::transaction(function () use ($id, $dentistId, $validated): User {
+        $result = DB::transaction(function () use ($id, $dentistId, $validated): array {
             $assistant = $this->ownedAssistant($id, $dentistId, false, true);
+            $nextEmail = trim((string) $validated['email']);
+            $emailChanged = $assistant->email !== $nextEmail;
 
             $permissions = $assistant->assistant_permissions ?? [];
             if (array_key_exists('permissions', $validated)) {
                 $permissions = $this->sanitizePermissions($validated['permissions'] ?? []);
             }
 
-            $assistant->update([
+            $attributes = [
                 'name' => trim((string) $validated['name']),
-                'email' => trim((string) $validated['email']),
+                'email' => $nextEmail,
                 'phone' => $validated['phone'] ?? null,
                 'assistant_permissions' => $permissions,
-            ]);
+            ];
 
-            return $assistant->fresh();
+            if ($emailChanged) {
+                // Changing the login identifier is an identity transfer, not
+                // a cosmetic profile edit. The new address must be proven,
+                // and any linked Google identity must not silently follow it.
+                $attributes = [
+                    ...$attributes,
+                    'email_verified_at' => null,
+                    'google_id' => null,
+                    'provider' => 'email',
+                ];
+            }
+
+            $assistant->forceFill($attributes)->save();
+
+            return [
+                'assistant' => $assistant->fresh(),
+                'email_changed' => $emailChanged,
+            ];
         });
+
+        /** @var User $assistant */
+        $assistant = $result['assistant'];
+        if ($result['email_changed'] === true) {
+            // Revoke after the identity update commits so a rollback never
+            // logs the assistant out while leaving the old email in place.
+            $this->accessRevocation->revokeForUsers([$assistant]);
+            $assistant = $assistant->fresh();
+        }
+
+        return $assistant;
     }
 
     public function updateStatus(UpdateAssistantStatusRequest $request, string $id): User

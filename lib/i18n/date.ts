@@ -133,3 +133,19 @@ export function formatLocalizedDate(
     return date.toLocaleDateString(localeToTag(locale), options);
 }
 
+export function formatLocalizedDateTime(
+    value: Date | string,
+    locale: AppLocale,
+    options: Intl.DateTimeFormatOptions = {
+        dateStyle: 'medium',
+        timeStyle: 'short',
+    }
+): string {
+    const date = toDate(value);
+    if (Number.isNaN(date.getTime())) {
+        return '';
+    }
+
+    return new Intl.DateTimeFormat(localeToTag(locale), options).format(date);
+}
+

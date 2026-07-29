@@ -289,6 +289,8 @@ Route::prefix('v1')->group(function (): void {
 
         Route::get('appointments', [AppointmentController::class, 'index'])
             ->middleware('permission:'.User::PERMISSION_APPOINTMENTS_VIEW);
+        Route::get('appointments/configuration', [AppointmentController::class, 'configuration'])
+            ->middleware('permission:'.User::PERMISSION_APPOINTMENTS_VIEW);
         Route::post('appointments', [AppointmentController::class, 'store'])
             ->middleware('permission:'.User::PERMISSION_APPOINTMENTS_MANAGE);
         Route::get('appointments/{id}', [AppointmentController::class, 'show'])

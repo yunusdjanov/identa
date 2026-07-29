@@ -90,6 +90,38 @@ class AppointmentService
         return $query->paginate($this->perPage($request));
     }
 
+    /**
+     * Return the tenant practice schedule used by both the dentist and staff.
+     *
+     * @return array{
+     *     working_hours: array{start: string|null, end: string|null},
+     *     default_appointment_duration: int
+     * }
+     */
+    public function configuration(Request $request): array
+    {
+        $dentist = User::query()
+            ->select([
+                'id',
+                'working_hours_start',
+                'working_hours_end',
+                'default_appointment_duration',
+            ])
+            ->findOrFail($this->dentistId($request));
+
+        return [
+            'working_hours' => [
+                'start' => $dentist->working_hours_start
+                    ? substr((string) $dentist->working_hours_start, 0, 5)
+                    : null,
+                'end' => $dentist->working_hours_end
+                    ? substr((string) $dentist->working_hours_end, 0, 5)
+                    : null,
+            ],
+            'default_appointment_duration' => (int) ($dentist->default_appointment_duration ?: 30),
+        ];
+    }
+
     public function create(StoreAppointmentRequest $request): Appointment
     {
         $validated = $request->validated();

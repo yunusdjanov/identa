@@ -8,6 +8,7 @@ import type {
     ApiAdminAnalyticsSummary,
     ApiAnalyticsSummary,
     ApiAppointment,
+    ApiAppointmentConfiguration,
     ApiAssistantAccount,
     ApiAssistantPasswordResetPayload,
     ApiAuditLogEntry,
@@ -662,6 +663,14 @@ export async function listAppointments(
     });
 
     return data;
+}
+
+export async function getAppointmentConfiguration(): Promise<ApiAppointmentConfiguration> {
+    const { data } = await apiClient.get<ApiEnvelope<ApiAppointmentConfiguration>>(
+        '/appointments/configuration'
+    );
+
+    return data.data;
 }
 
 async function uploadPatientPhotoViaApi(id: string, photo: File): Promise<ApiPatient> {

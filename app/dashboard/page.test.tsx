@@ -5,8 +5,8 @@ import DashboardPage from '@/app/dashboard/page';
 import {
     createPatientCardFromGuestAppointment,
     deleteAppointment,
+    getAppointmentConfiguration,
     getCurrentUser,
-    getProfile,
     listAllAppointments,
     updateAppointment,
 } from '@/lib/api/dentist';
@@ -20,8 +20,8 @@ const addPatientDialogSpy = vi.fn();
 vi.mock('@/lib/api/dentist', () => ({
     createPatientCardFromGuestAppointment: vi.fn(),
     deleteAppointment: vi.fn(),
+    getAppointmentConfiguration: vi.fn(),
     getCurrentUser: vi.fn(),
-    getProfile: vi.fn(),
     listAllAppointments: vi.fn(),
     updateAppointment: vi.fn(),
 }));
@@ -108,7 +108,7 @@ describe('DashboardPage', () => {
         vi.mocked(createPatientCardFromGuestAppointment).mockReset();
         vi.mocked(deleteAppointment).mockReset();
         vi.mocked(getCurrentUser).mockReset();
-        vi.mocked(getProfile).mockReset();
+        vi.mocked(getAppointmentConfiguration).mockReset();
         vi.mocked(listAllAppointments).mockReset();
         vi.mocked(updateAppointment).mockReset();
 
@@ -119,26 +119,29 @@ describe('DashboardPage', () => {
             role: 'dentist',
             account_status: 'active',
         });
-        vi.mocked(getProfile).mockResolvedValue({
-            id: 'profile-1',
-            name: 'Demo Dentist',
-            email: 'dentist@identa.test',
-            phone: null,
-            practice_name: 'Identa',
-            license_number: null,
-            address: null,
+        vi.mocked(getAppointmentConfiguration).mockResolvedValue({
             working_hours: {
                 start: '09:00',
                 end: '18:00',
             },
             default_appointment_duration: 30,
-            show_record_authors: false,
         });
         vi.mocked(listAllAppointments).mockResolvedValue([]);
     });
 
     afterEach(() => {
         cleanup();
+    });
+
+    it('shows the auth load error instead of misclassifying it as access denied', async () => {
+        vi.mocked(getCurrentUser).mockRejectedValueOnce(new Error('Session lookup failed'));
+
+        renderPage();
+
+        expect(await screen.findByRole('heading', { name: 'Could not load data' }))
+            .toBeInTheDocument();
+        expect(screen.queryByText('You do not have access to this section.'))
+            .not.toBeInTheDocument();
     });
 
     it('renders the dashboard header and planner without summary stats', async () => {

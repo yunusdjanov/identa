@@ -68,6 +68,8 @@ export interface MockUser {
     has_password?: boolean;
     provider?: 'password' | 'google' | null;
     avatar_url?: string | null;
+    phone?: string | null;
+    show_record_authors?: boolean;
     dentist_owner_id?: string | null;
     assistant_permissions?: string[];
     can_export?: boolean;
@@ -103,6 +105,20 @@ const DENTIST_SUBSCRIPTION: MockSubscription = {
     payment_method: 'p2p',
     payment_amount: 300000,
     note: null,
+};
+
+const ASSISTANT_SUBSCRIPTION: MockSubscription = {
+    ...DENTIST_SUBSCRIPTION,
+    payment_method: null,
+    payment_amount: null,
+    note: null,
+    pending_plan_id: null,
+    pending_plan_code: null,
+    pending_plan_name: null,
+    pending_billing_period: null,
+    pending_change_effective_at: null,
+    cancel_at_period_end: false,
+    cancelled_at: null,
 };
 
 const DENTIST_USER: MockUser = {
@@ -149,7 +165,7 @@ const ASSISTANT_USERS: Record<string, MockUser> = {
             'appointments.view',
             'appointments.manage',
         ],
-        subscription: DENTIST_SUBSCRIPTION,
+        subscription: ASSISTANT_SUBSCRIPTION,
     },
     'sardor@identa.uz': {
         id: '102',
@@ -168,7 +184,7 @@ const ASSISTANT_USERS: Record<string, MockUser> = {
             'payments.view',
             'payments.manage',
         ],
-        subscription: DENTIST_SUBSCRIPTION,
+        subscription: ASSISTANT_SUBSCRIPTION,
     },
     'madina@identa.uz': {
         id: '103',
@@ -185,7 +201,7 @@ const ASSISTANT_USERS: Record<string, MockUser> = {
         avatar_url: 'https://i.pravatar.cc/96?u=madina',
         dentist_owner_id: 'dentist-1',
         assistant_permissions: ['patients.view'],
-        subscription: DENTIST_SUBSCRIPTION,
+        subscription: ASSISTANT_SUBSCRIPTION,
     },
 };
 
@@ -232,6 +248,44 @@ export function setMockUserAccountStatus(
     const assistant = Object.values(ASSISTANT_USERS).find((user) => user.id === userId);
     if (assistant) {
         assistant.account_status = status;
+    }
+}
+
+export function updateMockUserProfile(
+    userId: string,
+    attributes: Partial<Pick<MockUser, 'name' | 'email' | 'phone' | 'show_record_authors'>>
+): void {
+    const definedAttributes = Object.fromEntries(
+        Object.entries(attributes).filter(([, value]) => value !== undefined)
+    ) as typeof attributes;
+
+    if (userId === DENTIST_USER.id || userId === '1') {
+        const emailChanged = typeof definedAttributes.email === 'string'
+            && definedAttributes.email !== DENTIST_USER.email;
+        Object.assign(DENTIST_USER, definedAttributes);
+        if (emailChanged) {
+            DENTIST_USER.email_verified = false;
+            DENTIST_USER.email_verified_at = null;
+        }
+        return;
+    }
+
+    const entry = Object.entries(ASSISTANT_USERS).find(([, user]) => user.id === userId);
+    if (!entry) {
+        return;
+    }
+
+    const [oldEmail, assistant] = entry;
+    const emailChanged = typeof definedAttributes.email === 'string'
+        && definedAttributes.email !== assistant.email;
+    Object.assign(assistant, definedAttributes);
+    if (emailChanged) {
+        assistant.email_verified = false;
+        assistant.email_verified_at = null;
+    }
+    if (definedAttributes.email && definedAttributes.email.toLowerCase() !== oldEmail) {
+        delete ASSISTANT_USERS[oldEmail];
+        ASSISTANT_USERS[definedAttributes.email.toLowerCase()] = assistant;
     }
 }
 

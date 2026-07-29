@@ -51,6 +51,7 @@ const APPOINTMENT_LOOKUP_NAME_UI_LIMIT = 25;
 const APPOINTMENT_LOOKUP_PHONE_UI_LIMIT = 20;
 const APPOINTMENT_SELECTED_PATIENT_UI_LIMIT = 40;
 const GUEST_PHONE_RX = /^\+\d{9,15}$/;
+const ALLOWED_APPOINTMENT_DURATIONS = [15, 30, 45, 60] as const;
 
 type PatientLookupOption = ApiPatientLookup;
 
@@ -76,6 +77,7 @@ interface AddAppointmentDialogProps {
     prefillPatientId?: string;
     editingAppointment?: EditableAppointment;
     workingHours?: AppointmentWorkingHours;
+    defaultAppointmentDuration?: number;
 }
 
 function createEditingPatientSnapshot(editingAppointment?: EditableAppointment): PatientLookupOption | null {
@@ -97,7 +99,8 @@ function createInitialFormData(
     prefillStartTime?: string,
     prefillPatientId?: string,
     editingAppointment?: EditableAppointment,
-    workingHours?: AppointmentWorkingHours
+    workingHours?: AppointmentWorkingHours,
+    defaultAppointmentDuration = 30
 ) {
     const normalizedWorkingHours = normalizeAppointmentWorkingHours(workingHours);
 
@@ -125,7 +128,11 @@ function createInitialFormData(
         guestPhone: '',
         appointmentDate,
         startTime,
-        durationMinutes: 30,
+        durationMinutes: ALLOWED_APPOINTMENT_DURATIONS.includes(
+            defaultAppointmentDuration as (typeof ALLOWED_APPOINTMENT_DURATIONS)[number]
+        )
+            ? defaultAppointmentDuration
+            : 30,
         status: 'scheduled' as AppointmentStatus,
         reason: '',
     };
@@ -284,6 +291,7 @@ export function AddAppointmentDialog({
     prefillPatientId,
     editingAppointment,
     workingHours,
+    defaultAppointmentDuration,
 }: AddAppointmentDialogProps) {
     const { t } = useI18n();
     const queryClient = useQueryClient();
@@ -291,7 +299,14 @@ export function AddAppointmentDialog({
     const patientComboboxRef = useRef<HTMLDivElement | null>(null);
     const normalizedWorkingHours = normalizeAppointmentWorkingHours(workingHours);
     const [formData, setFormData] = useState(() =>
-        createInitialFormData(prefillDate, prefillStartTime, prefillPatientId, editingAppointment, normalizedWorkingHours)
+        createInitialFormData(
+            prefillDate,
+            prefillStartTime,
+            prefillPatientId,
+            editingAppointment,
+            normalizedWorkingHours,
+            defaultAppointmentDuration
+        )
     );
     const [patientSearch, setPatientSearch] = useState(editingAppointment?.patientName ?? '');
     const [debouncedPatientSearch, setDebouncedPatientSearch] = useState(editingAppointment?.patientName ?? '');
@@ -305,8 +320,22 @@ export function AddAppointmentDialog({
     // the booking. Closes only the OS-level navigation hole; in-app
     // dialog dismiss is intentional and untracked. FA-X7 G9.
     const initialFormSnapshot = useMemo(
-        () => createInitialFormData(prefillDate, prefillStartTime, prefillPatientId, editingAppointment, normalizedWorkingHours),
-        [prefillDate, prefillStartTime, prefillPatientId, editingAppointment, normalizedWorkingHours]
+        () => createInitialFormData(
+            prefillDate,
+            prefillStartTime,
+            prefillPatientId,
+            editingAppointment,
+            normalizedWorkingHours,
+            defaultAppointmentDuration
+        ),
+        [
+            prefillDate,
+            prefillStartTime,
+            prefillPatientId,
+            editingAppointment,
+            normalizedWorkingHours,
+            defaultAppointmentDuration,
+        ]
     );
     const isDirty = open && JSON.stringify(formData) !== JSON.stringify(initialFormSnapshot);
     useDirtyFormWarning(isDirty);
@@ -478,7 +507,14 @@ export function AddAppointmentDialog({
                 ['appointments', 'availability', savedAppointment.appointment_date],
                 (current) => upsertAppointmentInCollection(current, savedAppointment)
             );
-            setFormData(createInitialFormData(prefillDate, prefillStartTime, prefillPatientId, editingAppointment, normalizedWorkingHours));
+            setFormData(createInitialFormData(
+                prefillDate,
+                prefillStartTime,
+                prefillPatientId,
+                editingAppointment,
+                normalizedWorkingHours,
+                defaultAppointmentDuration
+            ));
             setPatientSearch(editingAppointment?.patientName ?? '');
             setDebouncedPatientSearch(editingAppointment?.patientName ?? '');
             setSubmitAttempted(false);
@@ -868,7 +904,11 @@ export function AddAppointmentDialog({
                                 });
                             }}
                         >
-                            <SelectTrigger id="duration" className="w-full">
+                            <SelectTrigger
+                                id="duration"
+                                aria-label={t('appointments.dialog.duration')}
+                                className="w-full"
+                            >
                                 <SelectValue />
                             </SelectTrigger>
                             <SelectContent>

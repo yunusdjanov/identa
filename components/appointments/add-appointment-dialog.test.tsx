@@ -211,6 +211,27 @@ describe('AddAppointmentDialog', () => {
         });
     });
 
+    it('uses the tenant default appointment duration for a new appointment', async () => {
+        const queryClient = new QueryClient({
+            defaultOptions: {
+                queries: { retry: false },
+                mutations: { retry: false },
+            },
+        });
+
+        render(
+            <Providers client={queryClient}>
+                <AddAppointmentDialog
+                    open={true}
+                    onOpenChange={vi.fn()}
+                    defaultAppointmentDuration={45}
+                />
+            </Providers>
+        );
+
+        expect(screen.getByText('45')).toBeInTheDocument();
+    });
+
     it('prefills patient selection from prefillPatientId', async () => {
         const queryClient = new QueryClient({
             defaultOptions: {

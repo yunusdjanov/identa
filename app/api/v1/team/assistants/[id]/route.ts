@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { requireDentist } from '../../../_auth';
 import { getAdminStore, pushAuditEntry, recomputeStaffCounts } from '@/lib/mock/admin-store';
-import { setMockUserAccountStatus } from '../../../_mock-users';
+import { setMockUserAccountStatus, updateMockUserProfile } from '../../../_mock-users';
+import { normalizeAssistantPermissions } from '@/lib/auth/permissions';
 
 const MOCK_DENTIST_ID = '1';
 
@@ -25,8 +26,8 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
         return NextResponse.json({ message: 'Not found.' }, { status: 404 });
     }
 
-    const body = await request.json().catch(() => ({}));
-    const allowedKeys = new Set(['name', 'email', 'phone', 'assistant_permissions']);
+    const body = await request.json().catch(() => ({})) as Record<string, unknown>;
+    const allowedKeys = new Set(['name', 'email', 'phone']);
     const before = { ...found.assistant };
     const target = found.assistant as unknown as Record<string, unknown>;
     for (const [key, value] of Object.entries(body ?? {})) {
@@ -34,6 +35,16 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
             target[key] = value;
         }
     }
+    if (Array.isArray(body.permissions)) {
+        target.assistant_permissions = normalizeAssistantPermissions(
+            body.permissions.filter((permission): permission is string => typeof permission === 'string')
+        );
+    }
+    updateMockUserProfile(id, {
+        name: typeof body.name === 'string' ? body.name : undefined,
+        email: typeof body.email === 'string' ? body.email : undefined,
+        phone: typeof body.phone === 'string' || body.phone === null ? body.phone : undefined,
+    });
 
     pushAuditEntry({
         eventType: 'team.assistant.updated',

@@ -55,6 +55,22 @@ export default function PatientHistoryPage({
         return <PatientHistoryLoadingState />;
     }
 
+    if (currentUserQuery.isError) {
+        return (
+            <AppErrorState
+                title={t('common.loadErrorTitle')}
+                description={getApiErrorMessage(currentUserQuery.error || patientQuery.error, t('patientDetail.error.loadFailed'))}
+                retryLabel={t('common.retry')}
+                onRetry={() => {
+                    currentUserQuery.refetch();
+                    patientQuery.refetch();
+                }}
+                backHref={backHref}
+                backLabel={backLabel}
+            />
+        );
+    }
+
     if (!canViewPatients) {
         return (
             <AccessDeniedState
@@ -66,16 +82,13 @@ export default function PatientHistoryPage({
         );
     }
 
-    if (currentUserQuery.isError || patientQuery.isError || !patientQuery.data) {
+    if (patientQuery.isError || !patientQuery.data) {
         return (
             <AppErrorState
                 title={t('common.loadErrorTitle')}
-                description={getApiErrorMessage(currentUserQuery.error || patientQuery.error, t('patientDetail.error.loadFailed'))}
+                description={getApiErrorMessage(patientQuery.error, t('patientDetail.error.loadFailed'))}
                 retryLabel={t('common.retry')}
-                onRetry={() => {
-                    currentUserQuery.refetch();
-                    patientQuery.refetch();
-                }}
+                onRetry={() => patientQuery.refetch()}
                 backHref={backHref}
                 backLabel={backLabel}
             />

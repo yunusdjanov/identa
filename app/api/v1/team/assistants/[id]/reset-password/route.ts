@@ -35,6 +35,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
             errors: { new_password: ['The new password may not be greater than 255 characters.'] },
         }, { status: 422 });
     }
+    if (!/[A-Za-z]/.test(newPassword) || !/\d/.test(newPassword)) {
+        return NextResponse.json({
+            message: 'Validation failed.',
+            errors: { new_password: ['The new password must contain letters and numbers.'] },
+        }, { status: 422 });
+    }
     if (newPassword !== confirmation) {
         return NextResponse.json({
             message: 'Validation failed.',

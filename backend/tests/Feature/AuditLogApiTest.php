@@ -32,6 +32,7 @@ class AuditLogApiTest extends TestCase
             ->getJson('/api/v1/audit-logs')
             ->assertOk()
             ->assertJsonPath('meta.pagination.total', 1)
+            ->assertJsonPath('meta.event_types.0', 'patient.created')
             ->assertJsonPath('data.0.event_type', 'patient.created')
             ->assertJsonPath('data.0.actor.id', (string) $assistant->id)
             ->assertJsonPath('data.0.actor.role', User::ROLE_ASSISTANT);
@@ -92,7 +93,7 @@ class AuditLogApiTest extends TestCase
 
     public function test_hidden_event_types_are_not_returned_in_audit_logs_response(): void
     {
-        // auth.* events stay hidden from the dentist-facing log (they're noisy
+        // High-volume login/logout events stay hidden from the dentist-facing log
         // and the dentist already sees the session list / suspicious login
         // banner). team.assistant.* events used to be hidden too, but AF7
         // surfaced them so a dentist can review what their staff did. The
@@ -130,6 +131,10 @@ class AuditLogApiTest extends TestCase
             ->assertJsonFragment([
                 'event_type' => 'team.assistant.created',
                 'entity_id' => 'assistant-event',
+            ])
+            ->assertJsonPath('meta.event_types', [
+                'patient.created',
+                'team.assistant.created',
             ])
             ->assertJsonMissing([
                 'event_type' => 'auth.login',

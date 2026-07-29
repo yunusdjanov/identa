@@ -4,6 +4,7 @@ import {
     canManage,
     canView,
     canViewAnalytics,
+    getModuleForPath,
     hasPermission,
     isSubscriptionReadOnly,
     normalizeAssistantPermissions,
@@ -139,6 +140,13 @@ describe('canViewAnalytics', () => {
         expect(canViewAnalytics(patientsOnly)).toBe(true);
         expect(canViewAnalytics(paymentsOnly)).toBe(true);
         expect(canViewAnalytics(noPerms)).toBe(false);
+    });
+});
+
+describe('getModuleForPath', () => {
+    it('gates dashboard through the appointments permission', () => {
+        expect(getModuleForPath('/dashboard')).toBe('appointments');
+        expect(getModuleForPath('/appointments')).toBe('appointments');
     });
 });
 

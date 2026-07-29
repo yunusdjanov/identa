@@ -610,31 +610,48 @@ export function StaffLoadingState() {
                             <Skeleton className="h-6 w-44 rounded-xl" />
                             <Skeleton className="h-4 w-64 max-w-full rounded-xl" />
                         </div>
-                        <div className="flex gap-2">
-                            <Skeleton className="h-10 w-28 rounded-xl" />
-                            <Skeleton className="h-10 w-32 rounded-xl" />
+                        <Skeleton className="h-10 w-40 rounded-xl" />
+                    </div>
+                    <div className="rounded-2xl border border-teal-100 bg-teal-50/45 px-4 py-3">
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                            <div className="space-y-2">
+                                <Skeleton className="h-4 w-52 max-w-full rounded-xl" />
+                                <Skeleton className="h-3 w-40 rounded-xl" />
+                            </div>
+                            <Skeleton className="h-3 w-28 rounded-xl" />
                         </div>
                     </div>
-                    <div className="flex max-w-full gap-1 overflow-x-auto rounded-xl border border-slate-200 bg-white p-1 no-scrollbar">
-                        {Array.from({ length: 3 }).map((_, index) => (
-                            <Skeleton key={index} className="h-8 w-24 shrink-0 rounded-lg" />
-                        ))}
+                    <div className="flex flex-col gap-3 rounded-2xl border border-teal-100 bg-white p-3 lg:flex-row lg:items-center lg:justify-between">
+                        <Skeleton className="h-9 w-full rounded-xl lg:max-w-md" />
+                        <div className="flex max-w-full gap-1 overflow-x-auto rounded-xl border border-slate-200 bg-white p-1 no-scrollbar">
+                            {Array.from({ length: 3 }).map((_, index) => (
+                                <Skeleton key={index} className="h-8 w-24 shrink-0 rounded-lg" />
+                            ))}
+                        </div>
                     </div>
                 </CardHeader>
                 <CardContent className="space-y-3 px-4 pb-5 sm:px-5">
                     {Array.from({ length: 4 }).map((_, index) => (
-                        <div key={index} className="space-y-3 rounded-lg border border-slate-200 p-4">
+                        <div key={index} className="space-y-3 rounded-2xl border border-slate-200 p-4 sm:p-5">
                             <div className="flex items-start justify-between gap-3">
-                                <div className="space-y-2">
-                                    <Skeleton className="h-5 w-40 rounded-xl" />
-                                    <Skeleton className="h-4 w-56 max-w-full rounded-xl" />
+                                <div className="flex min-w-0 gap-3">
+                                    <Skeleton className="h-11 w-11 shrink-0 rounded-2xl" />
+                                    <div className="space-y-2">
+                                        <Skeleton className="h-5 w-40 rounded-xl" />
+                                        <Skeleton className="h-4 w-56 max-w-full rounded-xl" />
+                                        <Skeleton className="h-3 w-44 max-w-full rounded-xl" />
+                                    </div>
                                 </div>
                                 <Skeleton className="h-6 w-20 rounded-full" />
                             </div>
-                            <div className="flex flex-wrap gap-2">
-                                <Skeleton className="h-8 w-16 rounded-lg" />
-                                <Skeleton className="h-8 w-20 rounded-lg" />
-                                <Skeleton className="h-8 w-28 rounded-lg" />
+                            <div className="flex flex-col gap-3 border-t border-slate-100 pt-3 sm:flex-row sm:items-center sm:justify-between">
+                                <Skeleton className="h-4 w-36 rounded-xl" />
+                                <div className="flex flex-wrap gap-2">
+                                    <Skeleton className="h-8 w-16 rounded-lg" />
+                                    <Skeleton className="h-8 w-20 rounded-lg" />
+                                    <Skeleton className="h-8 w-28 rounded-lg" />
+                                    <Skeleton className="h-8 w-16 rounded-lg" />
+                                </div>
                             </div>
                         </div>
                     ))}

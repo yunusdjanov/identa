@@ -214,6 +214,76 @@ class TeamAssistantApiTest extends TestCase
         $this->assertNull($assistant->fresh()->remember_token);
     }
 
+    public function test_changing_assistant_email_requires_reverification_and_revokes_credentials(): void
+    {
+        config()->set('session.driver', 'database');
+
+        $dentist = User::factory()->create();
+        $assistant = User::factory()->assistant($dentist)->create([
+            'email' => 'old.assistant@example.com',
+            'email_verified_at' => now(),
+            'google_id' => 'linked-google-subject',
+            'provider' => 'google',
+            'remember_token' => 'remember-me',
+        ]);
+        $assistant->createToken('stale-mobile-token');
+        DB::table('sessions')->insert([
+            'id' => 'assistant-email-change-session',
+            'user_id' => $assistant->id,
+            'ip_address' => '127.0.0.1',
+            'user_agent' => 'test',
+            'payload' => 'test-session',
+            'last_activity' => now()->timestamp,
+        ]);
+
+        $this->actingAs($dentist, 'web')
+            ->putJson("/api/v1/team/assistants/{$assistant->id}", [
+                'name' => $assistant->name,
+                'email' => 'new.assistant@example.com',
+                'phone' => $assistant->phone,
+                'permissions' => $assistant->assistant_permissions,
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.email', 'new.assistant@example.com');
+
+        $fresh = $assistant->fresh();
+        $this->assertNull($fresh->email_verified_at);
+        $this->assertNull($fresh->google_id);
+        $this->assertSame('email', $fresh->provider);
+        $this->assertNull($fresh->remember_token);
+        $this->assertDatabaseMissing('personal_access_tokens', [
+            'tokenable_id' => $assistant->id,
+        ]);
+        $this->assertDatabaseMissing('sessions', [
+            'id' => 'assistant-email-change-session',
+        ]);
+    }
+
+    public function test_editing_assistant_without_changing_email_keeps_credentials_valid(): void
+    {
+        $dentist = User::factory()->create();
+        $assistant = User::factory()->assistant($dentist)->create([
+            'email' => 'same.assistant@example.com',
+            'email_verified_at' => now(),
+        ]);
+        $assistant->createToken('active-mobile-token');
+
+        $this->actingAs($dentist, 'web')
+            ->putJson("/api/v1/team/assistants/{$assistant->id}", [
+                'name' => 'Renamed Assistant',
+                'email' => 'same.assistant@example.com',
+                'phone' => $assistant->phone,
+                'permissions' => $assistant->assistant_permissions,
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.name', 'Renamed Assistant');
+
+        $this->assertNotNull($assistant->fresh()->email_verified_at);
+        $this->assertDatabaseHas('personal_access_tokens', [
+            'tokenable_id' => $assistant->id,
+        ]);
+    }
+
     public function test_deleted_assistant_cannot_be_edited_or_reactivated(): void
     {
         $dentist = User::factory()->create();
