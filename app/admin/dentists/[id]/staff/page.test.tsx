@@ -67,4 +67,29 @@ describe('AdminDentistStaffPage', () => {
             await screen.findByText('Staff members attached to this dentist account.')
         ).toBeInTheDocument();
     });
+
+    it('shows permission names and forced password-reset status', async () => {
+        vi.mocked(getCurrentUser).mockResolvedValue(admin as never);
+        vi.mocked(getAdminDentist).mockResolvedValue(dentist as never);
+        vi.mocked(listAdminDentistStaff).mockResolvedValue({
+            data: [{
+                id: 'staff-1',
+                name: 'Assistant One',
+                email: 'assistant@clinic.test',
+                phone: null,
+                avatar_url: null,
+                account_status: 'active',
+                assistant_permissions: ['patients.view', 'payments.manage'],
+                must_change_password: true,
+                last_login_at: null,
+                created_at: '2026-06-01T00:00:00Z',
+            }],
+        } as never);
+
+        renderPage();
+
+        expect((await screen.findAllByText('Patients: view')).length).toBeGreaterThan(0);
+        expect(screen.getAllByText('Finance: manage').length).toBeGreaterThan(0);
+        expect(screen.getAllByText('Password change required').length).toBeGreaterThan(0);
+    });
 });

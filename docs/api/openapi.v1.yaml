@@ -1200,6 +1200,62 @@ paths:
           $ref: "#/components/responses/ForbiddenError"
         "422":
           $ref: "#/components/responses/ValidationError"
+  /api/v1/admin/dentists/{id}/staff:
+    get:
+      tags: [Admin]
+      summary: List staff attached to a dentist account
+      operationId: adminListDentistStaff
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+      responses:
+        "200":
+          description: Dentist staff collection
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+  /api/v1/admin/dentists/{id}/billing:
+    get:
+      tags: [Admin, Billing]
+      summary: Get dentist subscription, usage, and bounded billing history
+      operationId: adminGetDentistBilling
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+      responses:
+        "200":
+          description: Dentist billing snapshot with per-currency paid totals
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+  /api/v1/admin/dentists/{id}/audit-logs:
+    get:
+      tags: [Admin, Audit]
+      summary: Get the dentist-scoped admin audit timeline
+      operationId: adminListDentistAuditLogs
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PerPage"
+      responses:
+        "200":
+          description: Paginated dentist audit timeline
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
   /api/v1/admin/dentists/{id}/status:
     patch:
       tags: [Admin]
@@ -1222,6 +1278,44 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AdminDentistResponse"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+  /api/v1/admin/dentists/{id}/subscription:
+    post:
+      tags: [Admin, Billing]
+      summary: Manage a dentist subscription
+      operationId: adminManageDentistSubscription
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [action]
+              properties:
+                action:
+                  type: string
+                payment_method:
+                  type: string
+                  enum: [cash, p2p, bank_transfer]
+                payment_amount:
+                  type: number
+                  minimum: 0
+                note:
+                  type: string
+      responses:
+        "200":
+          description: Updated dentist and subscription
         "401":
           $ref: "#/components/responses/UnauthorizedError"
         "403":
@@ -1260,7 +1354,142 @@ paths:
           $ref: "#/components/responses/NotFoundError"
         "422":
           $ref: "#/components/responses/ValidationError"
+  /api/v1/admin/dentists/{id}/verify-email:
+    post:
+      tags: [Admin]
+      summary: Mark a dentist email as verified
+      operationId: adminVerifyDentistEmail
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+      responses:
+        "200":
+          description: Updated dentist account
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+  /api/v1/admin/dentists/{id}/restore:
+    post:
+      tags: [Admin]
+      summary: Restore a deleted dentist account
+      operationId: adminRestoreDentist
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+      responses:
+        "200":
+          description: Restored dentist account
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+  /api/v1/admin/payments:
+    get:
+      tags: [Admin, Billing]
+      summary: List subscription payments with per-currency revenue totals
+      operationId: adminListPayments
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PerPage"
+        - $ref: "#/components/parameters/SearchFilter"
+      responses:
+        "200":
+          description: Paginated admin payment ledger
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+  /api/v1/admin/payments/{id}/refund:
+    post:
+      tags: [Admin, Billing]
+      summary: Mark an externally refunded payment as refunded
+      description: Identa does not initiate the provider or bank refund. The money must be returned externally first.
+      operationId: adminMarkPaymentRefunded
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+      responses:
+        "200":
+          description: Payment marked refunded
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+  /api/v1/admin/plans:
+    get:
+      tags: [Admin, Billing]
+      summary: List subscription plans
+      operationId: adminListPlans
+      security:
+        - cookieAuth: []
+      responses:
+        "200":
+          description: Subscription plan collection
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+  /api/v1/admin/plans/{code}:
+    put:
+      tags: [Admin, Billing]
+      summary: Update a subscription plan
+      operationId: adminUpdatePlan
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: code
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [trial, basic, pro]
+      responses:
+        "200":
+          description: Updated subscription plan
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+        "422":
+          $ref: "#/components/responses/ValidationError"
   /api/v1/admin/dentists/{id}:
+    get:
+      tags: [Admin]
+      summary: Get a dentist account
+      operationId: adminGetDentist
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+      responses:
+        "200":
+          description: Dentist account
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminDentistResponse"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
     delete:
       tags: [Admin]
       summary: Delete dentist account (admin only)
@@ -2146,12 +2375,22 @@ components:
               $ref: "#/components/schemas/AnalyticsKpiPair"
             mrr:
               allOf:
-                - $ref: "#/components/schemas/AnalyticsKpiPair"
+                - $ref: "#/components/schemas/AnalyticsKpiOptionalPrevious"
                 - type: object
                   properties:
                     currency:
                       type: string
-                  required: [currency]
+                    totals_by_currency:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          currency:
+                            type: string
+                          current:
+                            type: number
+                        required: [currency, current]
+                  required: [currency, totals_by_currency]
             signups:
               $ref: "#/components/schemas/AnalyticsKpiPair"
             conversion:

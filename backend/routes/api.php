@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\Admin\AdminPaymentController;
 use App\Http\Controllers\Api\Admin\AdminAnalyticsController;
+use App\Http\Controllers\Api\Admin\AdminDentistAuditLogController;
 use App\Http\Controllers\Api\Admin\DentistAccountController;
 use App\Http\Controllers\Api\Admin\PlanController;
 use App\Http\Controllers\Api\AnalyticsController;
@@ -117,6 +118,7 @@ Route::prefix('v1')->group(function (): void {
             Route::get('/dentists/{id}', [DentistAccountController::class, 'show']);
             Route::get('/dentists/{id}/staff', [DentistAccountController::class, 'staff']);
             Route::get('/dentists/{id}/billing', [DentistAccountController::class, 'billing']);
+            Route::get('/dentists/{id}/audit-logs', [AdminDentistAuditLogController::class, 'index']);
             Route::patch('/dentists/{id}/status', [DentistAccountController::class, 'updateStatus']);
             Route::post('/dentists/{id}/subscription', [DentistAccountController::class, 'manageSubscription']);
             Route::post('/dentists/{id}/reset-password', [DentistAccountController::class, 'resetPassword']);
@@ -124,7 +126,9 @@ Route::prefix('v1')->group(function (): void {
             Route::post('/dentists/{id}/restore', [DentistAccountController::class, 'restore']);
             Route::delete('/dentists/{id}', [DentistAccountController::class, 'destroy']);
             Route::get('/payments', [AdminPaymentController::class, 'index']);
-            Route::post('/payments/{id}/refund', [AdminPaymentController::class, 'refund']);
+            // This records a refund that has already been completed outside
+            // Identa. PayX does not expose a refund API in this integration.
+            Route::post('/payments/{id}/refund', [AdminPaymentController::class, 'markRefunded']);
             Route::get('/plans', [PlanController::class, 'index']);
             Route::put('/plans/{code}', [PlanController::class, 'update']);
         });

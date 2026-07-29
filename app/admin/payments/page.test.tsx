@@ -3,7 +3,7 @@ import { cleanup, render, screen, waitFor, within } from '@testing-library/react
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import AdminPaymentsPage from '@/app/admin/payments/page';
-import { getCurrentUser, listAdminPayments, refundAdminPayment } from '@/lib/api/dentist';
+import { getCurrentUser, listAdminPayments, markAdminPaymentRefunded } from '@/lib/api/dentist';
 import { I18nProvider } from '@/components/providers/i18n-provider';
 import { DICTIONARIES } from '@/lib/i18n/dictionaries';
 
@@ -16,7 +16,7 @@ vi.mock('next/navigation', () => ({
 vi.mock('@/lib/api/dentist', () => ({
     getCurrentUser: vi.fn(),
     listAdminPayments: vi.fn(),
-    refundAdminPayment: vi.fn(),
+    markAdminPaymentRefunded: vi.fn(),
 }));
 
 vi.mock('sonner', () => ({ toast: { error: vi.fn(), success: vi.fn() } }));
@@ -51,6 +51,13 @@ function paymentsResponse(rows: Array<typeof paymentRow>) {
                 all_time: 5000000,
                 currency: 'UZS',
                 paid_count: rows.length,
+                totals_by_currency: [{
+                    currency: 'UZS',
+                    this_month: 450000,
+                    this_year: 1200000,
+                    all_time: 5000000,
+                    paid_count: rows.length,
+                }],
             },
         },
     };
@@ -112,24 +119,53 @@ describe('AdminPaymentsPage', () => {
         renderPage();
 
         // dentist email renders as its own text node in the ledger row
-        expect(await screen.findByText('clinic@demo.test')).toBeInTheDocument();
+        expect((await screen.findAllByText('clinic@demo.test')).length).toBeGreaterThan(0);
         // admin.payments.thisMonth (EN) = "This month"
         expect(screen.getByText('This month')).toBeInTheDocument();
     });
 
-    it('refunds a paid payment through the confirm dialog', async () => {
+    it('renders each payment currency separately in the revenue summary', async () => {
+        vi.mocked(getCurrentUser).mockResolvedValue(admin as never);
+        const response = paymentsResponse([paymentRow]);
+        response.meta.summary.totals_by_currency = [
+            {
+                currency: 'UZS',
+                this_month: 450000,
+                this_year: 1200000,
+                all_time: 5000000,
+                paid_count: 1,
+            },
+            {
+                currency: 'USD',
+                this_month: 120,
+                this_year: 300,
+                all_time: 900,
+                paid_count: 2,
+            },
+        ];
+        response.meta.summary.paid_count = 3;
+        vi.mocked(listAdminPayments).mockResolvedValue(response as never);
+
+        renderPage();
+
+        expect((await screen.findAllByText('$120')).length).toBeGreaterThan(0);
+        expect(screen.getByText('3 paid')).toBeInTheDocument();
+    });
+
+    it('marks a paid payment refunded only after an explicit external-refund acknowledgement', async () => {
         vi.mocked(getCurrentUser).mockResolvedValue(admin as never);
         vi.mocked(listAdminPayments).mockResolvedValue(paymentsResponse([paymentRow]) as never);
         renderPage();
         const user = userEvent.setup();
 
         // Open the refund confirmation from the paid row's action button.
-        await user.click(await screen.findByRole('button', { name: 'Refund' }));
+        const markButtons = await screen.findAllByRole('button', { name: 'Mark refunded' });
+        await user.click(markButtons[0]);
 
-        // Confirm inside the dialog (a second "Refund"-labelled button).
         const dialog = await screen.findByRole('dialog');
-        await user.click(within(dialog).getByRole('button', { name: 'Refund' }));
+        expect(within(dialog).getByText(/Identa does not send money back/i)).toBeInTheDocument();
+        await user.click(within(dialog).getByRole('button', { name: 'Mark refunded' }));
 
-        expect(refundAdminPayment).toHaveBeenCalledWith('p-1');
+        expect(markAdminPaymentRefunded).toHaveBeenCalledWith('p-1');
     });
 });

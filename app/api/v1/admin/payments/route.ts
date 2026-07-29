@@ -19,12 +19,6 @@ export async function GET(request: Request) {
 
     let items = getAllPayments();
 
-    if (status) {
-        items = items.filter((p) => p.status === status);
-    }
-    if (provider) {
-        items = items.filter((p) => p.provider === provider);
-    }
     if (dentistId) {
         items = items.filter((p) => p.dentist?.id === dentistId);
     }
@@ -54,6 +48,17 @@ export async function GET(request: Request) {
         );
     }
 
+    // Match production: revenue summary follows dentist/date/search filters
+    // but always aggregates paid rows regardless of the visible
+    // status/provider filter.
+    const summaryItems = items;
+    if (status) {
+        items = items.filter((p) => p.status === status);
+    }
+    if (provider) {
+        items = items.filter((p) => p.provider === provider);
+    }
+
     const total = items.length;
     const totalPages = Math.max(1, Math.ceil(total / perPage));
     const paged = items.slice((page - 1) * perPage, (page - 1) * perPage + perPage);
@@ -62,7 +67,7 @@ export async function GET(request: Request) {
         data: paged,
         meta: {
             pagination: { page, per_page: perPage, total, total_pages: totalPages },
-            summary: paymentsSummary(),
+            summary: paymentsSummary(summaryItems),
         },
     });
 }

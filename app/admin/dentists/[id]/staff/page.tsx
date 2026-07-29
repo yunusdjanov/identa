@@ -9,7 +9,6 @@ import {
     Ban,
     Mail,
     Phone,
-    ShieldCheck,
     UserCheck,
     Users,
 } from 'lucide-react';
@@ -61,6 +60,43 @@ function getStatusBadgeClassName(status: ApiAssistantAccount['account_status']):
     }
 
     return 'border-slate-200 bg-slate-100 text-slate-500';
+}
+
+const STAFF_PERMISSION_LABEL_KEYS: Record<string, string> = {
+    'patients.view': 'settings.team.permissionPatientsView',
+    'patients.manage': 'settings.team.permissionPatientsManage',
+    'appointments.view': 'settings.team.permissionAppointmentsView',
+    'appointments.manage': 'settings.team.permissionAppointmentsManage',
+    'payments.view': 'settings.team.permissionPaymentsView',
+    'payments.manage': 'settings.team.permissionPaymentsManage',
+};
+
+function StaffPermissionBadges({
+    permissions,
+    t,
+}: {
+    permissions: string[];
+    t: (key: string) => string;
+}) {
+    if (permissions.length === 0) {
+        return <span className="text-sm text-slate-400">—</span>;
+    }
+
+    return (
+        <div className="flex max-w-sm flex-wrap gap-1.5">
+            {permissions.map((permission) => (
+                <Badge
+                    key={permission}
+                    variant="outline"
+                    className="border-teal-100 bg-teal-50 text-[10px] font-medium text-teal-800"
+                >
+                    {STAFF_PERMISSION_LABEL_KEYS[permission]
+                        ? t(STAFF_PERMISSION_LABEL_KEYS[permission])
+                        : permission}
+                </Badge>
+            ))}
+        </div>
+    );
 }
 
 // The inline `StaffPageSkeleton` was previously declared here, but it
@@ -265,7 +301,10 @@ export default function AdminDentistStaffPage() {
                             </div>
                         ) : (
                             <>
-                                <DataTableShell className="hidden md:block">
+                                <DataTableShell
+                                    aria-label={t('admin.staffPage.title')}
+                                    className="hidden md:block"
+                                >
                                     <Table className={getDataTableClassName('standard')}>
                                         <TableHeader>
                                             <TableRow>
@@ -318,18 +357,28 @@ export default function AdminDentistStaffPage() {
                                                         </span>
                                                     </TableCell>
                                                     <TableCell>
-                                                        <Badge
-                                                            variant="outline"
-                                                            className={getStatusBadgeClassName(staff.account_status)}
-                                                        >
-                                                            {t(`admin.status.${staff.account_status}`)}
-                                                        </Badge>
+                                                        <div className="flex flex-col items-start gap-1.5">
+                                                            <Badge
+                                                                variant="outline"
+                                                                className={getStatusBadgeClassName(staff.account_status)}
+                                                            >
+                                                                {t(`admin.status.${staff.account_status}`)}
+                                                            </Badge>
+                                                            {staff.must_change_password ? (
+                                                                <Badge
+                                                                    variant="outline"
+                                                                    className="border-amber-200 bg-amber-50 text-[10px] text-amber-800"
+                                                                >
+                                                                    {t('admin.staffPage.passwordResetRequired')}
+                                                                </Badge>
+                                                            ) : null}
+                                                        </div>
                                                     </TableCell>
                                                     <TableCell>
-                                                        <span className="inline-flex items-center gap-1.5 text-sm text-slate-600">
-                                                            <ShieldCheck className="h-3.5 w-3.5 text-teal-500" />
-                                                            {staff.assistant_permissions.length}
-                                                        </span>
+                                                        <StaffPermissionBadges
+                                                            permissions={staff.assistant_permissions}
+                                                            t={t}
+                                                        />
                                                     </TableCell>
                                                     <TableCell className="text-sm text-slate-600">
                                                         {staff.last_login_at
@@ -379,11 +428,18 @@ export default function AdminDentistStaffPage() {
                                             </div>
                                             <div className="mt-4 grid gap-2 text-xs text-slate-500">
                                                 <span>{staff.phone || t('admin.staffDialog.phoneFallback')}</span>
-                                                <span>
-                                                    {t('admin.staffDialog.permissionCount', {
-                                                        count: staff.assistant_permissions.length,
-                                                    })}
-                                                </span>
+                                                {staff.must_change_password ? (
+                                                    <Badge
+                                                        variant="outline"
+                                                        className="w-fit border-amber-200 bg-amber-50 text-[10px] text-amber-800"
+                                                    >
+                                                        {t('admin.staffPage.passwordResetRequired')}
+                                                    </Badge>
+                                                ) : null}
+                                                <StaffPermissionBadges
+                                                    permissions={staff.assistant_permissions}
+                                                    t={t}
+                                                />
                                                 <span>
                                                     {staff.last_login_at
                                                         ? t('admin.staffDialog.lastLogin', {

@@ -125,12 +125,17 @@ export default function AdminAnalyticsPage() {
         return { current, previous, delta: computeDelta(current, previous) };
     }, [analytics]);
 
-    const mrrKpi = useMemo(() => {
-        const current = analytics?.kpis.mrr.current ?? 0;
-        const previous = analytics?.kpis.mrr.previous ?? 0;
-        const currency = analytics?.kpis.mrr.currency ?? 'UZS';
-        return { current, previous, delta: computeDelta(current, previous), currency };
-    }, [analytics]);
+    const mrrRows = analytics?.kpis.mrr.totals_by_currency ?? [{
+        current: analytics?.kpis.mrr.current ?? 0,
+        currency: analytics?.kpis.mrr.currency ?? 'UZS',
+    }];
+    const mrrKpi = {
+        value: mrrRows
+            .map((row) => formatCurrency(row.current, row.currency))
+            .join(' / '),
+        // The API deliberately has no historical MRR baseline.
+        delta: null,
+    };
 
     const signupsKpi = useMemo(() => {
         const current = analytics?.kpis.signups.current ?? 0;
@@ -194,7 +199,7 @@ export default function AdminAnalyticsPage() {
                     },
                     {
                         label: t('admin.analytics.kpi.mrr'),
-                        value: formatCurrency(mrrKpi.current, mrrKpi.currency),
+                        value: mrrKpi.value,
                     },
                     {
                         label: t('admin.analytics.kpi.signups'),
@@ -290,7 +295,7 @@ export default function AdminAnalyticsPage() {
                     <KpiCard
                         label={t('admin.analytics.kpi.mrr')}
                         description={t('admin.analytics.kpi.mrr.descr')}
-                        value={formatCurrency(mrrKpi.current, mrrKpi.currency)}
+                        value={mrrKpi.value}
                         deltaPercent={mrrKpi.delta}
                         tone="positive"
                         icon={TrendingUp}

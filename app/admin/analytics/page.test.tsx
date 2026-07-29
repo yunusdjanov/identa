@@ -23,7 +23,12 @@ function createAdminAnalyticsSummary(): ApiAdminAnalyticsSummary {
     return {
         kpis: {
             active_dentists: { current: 0, previous: 0 },
-            mrr: { current: 0, previous: 0, currency: 'UZS' },
+            mrr: {
+                current: 0,
+                previous: null,
+                currency: 'UZS',
+                totals_by_currency: [{ currency: 'UZS', current: 0 }],
+            },
             signups: { current: 0, previous: 0 },
             conversion: { current: 0, previous: 0 },
         },
@@ -84,5 +89,25 @@ describe('AdminAnalyticsPage', () => {
             previous_from: expect.any(String),
             previous_to: expect.any(String),
         }));
+    });
+
+    it('renders MRR per currency without a fabricated previous-period delta', async () => {
+        const summary = createAdminAnalyticsSummary();
+        summary.kpis.mrr = {
+            current: 450000,
+            previous: null,
+            currency: 'UZS',
+            totals_by_currency: [
+                { currency: 'UZS', current: 450000 },
+                { currency: 'USD', current: 120 },
+            ],
+        };
+        vi.mocked(getCurrentUser).mockResolvedValue(admin as never);
+        vi.mocked(getAdminAnalyticsSummary).mockResolvedValue(summary);
+
+        renderPage();
+
+        expect(await screen.findByText(/120 USD/)).toBeInTheDocument();
+        expect(screen.getAllByText('no data in previous period').length).toBeGreaterThan(0);
     });
 });

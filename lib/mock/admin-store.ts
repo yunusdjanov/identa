@@ -423,44 +423,68 @@ export function findPayment(id: string): { payment: ApiBillingPayment; dentistId
     return undefined;
 }
 
-export function paymentsSummary(): {
+export function paymentsSummary(all: AdminPaymentWithDentist[] = getAllPayments()): {
     this_month: number;
     this_year: number;
     all_time: number;
     paid_count: number;
     currency: string;
-    totals_by_currency: Record<string, number>;
+    totals_by_currency: Array<{
+        currency: string;
+        this_month: number;
+        this_year: number;
+        all_time: number;
+        paid_count: number;
+    }>;
 } {
-    const all = getAllPayments();
     const paid = all.filter((p) => p.status === 'paid');
     const startOfMonth = new Date();
     startOfMonth.setDate(1);
     startOfMonth.setHours(0, 0, 0, 0);
     const startOfYear = new Date(startOfMonth.getFullYear(), 0, 1);
 
-    const thisMonth = paid
-        .filter((p) => p.paid_at !== null && new Date(p.paid_at) >= startOfMonth)
-        .reduce((sum, p) => sum + p.amount, 0);
-    const thisYear = paid
-        .filter((p) => p.paid_at !== null && new Date(p.paid_at) >= startOfYear)
-        .reduce((sum, p) => sum + p.amount, 0);
-    const allTime = paid.reduce((sum, p) => sum + p.amount, 0);
-
-    // Backend AdminPaymentController returns per-currency totals so the UI
-    // can present a real multi-currency breakdown once a tenant starts
-    // billing in something other than UZS. Match that shape here.
-    const totalsByCurrency = paid.reduce<Record<string, number>>((acc, p) => {
+    const grouped = paid.reduce<Record<string, {
+        currency: string;
+        this_month: number;
+        this_year: number;
+        all_time: number;
+        paid_count: number;
+    }>>((acc, p) => {
         const code = p.currency || 'UZS';
-        acc[code] = (acc[code] ?? 0) + p.amount;
+        const row = acc[code] ?? {
+            currency: code,
+            this_month: 0,
+            this_year: 0,
+            all_time: 0,
+            paid_count: 0,
+        };
+        row.all_time += p.amount;
+        row.paid_count += 1;
+        if (p.paid_at !== null && new Date(p.paid_at) >= startOfMonth) {
+            row.this_month += p.amount;
+        }
+        if (p.paid_at !== null && new Date(p.paid_at) >= startOfYear) {
+            row.this_year += p.amount;
+        }
+        acc[code] = row;
         return acc;
     }, {});
+    const totalsByCurrency = Object.values(grouped)
+        .sort((a, b) => b.all_time - a.all_time);
+    const primary = totalsByCurrency[0] ?? {
+        currency: 'UZS',
+        this_month: 0,
+        this_year: 0,
+        all_time: 0,
+        paid_count: 0,
+    };
 
     return {
-        this_month: thisMonth,
-        this_year: thisYear,
-        all_time: allTime,
+        this_month: primary.this_month,
+        this_year: primary.this_year,
+        all_time: primary.all_time,
         paid_count: paid.length,
-        currency: paid[0]?.currency || 'UZS',
+        currency: primary.currency,
         totals_by_currency: totalsByCurrency,
     };
 }

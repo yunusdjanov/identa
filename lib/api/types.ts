@@ -138,7 +138,7 @@ export interface ApiBillingPayment {
     amount: number;
     currency: string;
     status: 'pending' | 'paid' | 'failed' | 'canceled' | 'refunded';
-    provider: 'payx';
+    provider: 'payx' | 'manual_admin';
     provider_payment_id: string | null;
     provider_order_id: string;
     paid_at: string | null;
@@ -397,7 +397,13 @@ export interface ApiAnalyticsSummary {
 export interface ApiAdminAnalyticsSummary {
     kpis: {
         active_dentists: ApiAnalyticsKpiPair;
-        mrr: ApiAnalyticsKpiPair & { currency: string };
+        mrr: ApiAnalyticsKpiOptionalPrevious & {
+            currency: string;
+            totals_by_currency: Array<{
+                currency: string;
+                current: number;
+            }>;
+        };
         signups: ApiAnalyticsKpiPair;
         conversion: ApiAnalyticsKpiPair;
     };
@@ -462,6 +468,17 @@ export interface ApiAdminDentistBilling {
     dentist: ApiAdminDentist;
     subscription: ApiSubscriptionSummary;
     payments: ApiBillingPayment[];
+    payment_history?: {
+        total: number;
+        limit: number;
+        truncated: boolean;
+        paid_count: number;
+        paid_totals_by_currency: Array<{
+            currency: string;
+            total: number;
+            paid_count: number;
+        }>;
+    };
     staff: {
         active: number;
         total: number;
@@ -492,7 +509,15 @@ export interface ApiAdminPaymentsSummary {
      * Per-currency revenue breakdown — backend always returns this; the UI
      * may opt to render it when a tenant bills in more than one currency.
      */
-    totals_by_currency?: Record<string, number>;
+    totals_by_currency: ApiAdminCurrencyPaymentSummary[];
+}
+
+export interface ApiAdminCurrencyPaymentSummary {
+    currency: string;
+    this_month: number;
+    this_year: number;
+    all_time: number;
+    paid_count: number;
 }
 
 export interface ApiAdminPaymentsEnvelope {

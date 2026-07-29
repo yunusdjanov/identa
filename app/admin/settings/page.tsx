@@ -2,7 +2,7 @@
 
 import { useEffect, useState, type FormEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 import { User } from 'lucide-react';
 import { AdminHeader } from '@/components/admin/admin-header';
@@ -39,6 +39,7 @@ interface AdminAccountDraft {
 export default function AdminSettingsPage() {
     const { t } = useI18n();
     const router = useRouter();
+    const searchParams = useSearchParams();
     const queryClient = useQueryClient();
     const handleLogout = useInstantLogout('/admin/login');
     const [accountDraft, setAccountDraft] = useState<AdminAccountDraft | null>(null);
@@ -64,6 +65,8 @@ export default function AdminSettingsPage() {
     });
     const accountEmailError = getEmailValidationMessage(account.email, { required: true });
     const accountHasErrors = Boolean(accountNameError || accountEmailError);
+    const forceReset = Boolean(authQuery.data?.must_change_password)
+        || searchParams.get('forceReset') === '1';
 
     const accountMutation = useMutation({
         mutationFn: updateProfile,
@@ -132,6 +135,16 @@ export default function AdminSettingsPage() {
             <div className="mx-auto max-w-[1440px] space-y-5 lg:space-y-6">
                     <PageHeader title={t('admin.settings.title')} description={t('admin.settings.subtitle')} />
 
+                    {forceReset ? (
+                        <div
+                            role="status"
+                            className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950"
+                        >
+                            <p className="font-semibold">{t('settings.forceReset.title')}</p>
+                            <p className="mt-0.5 text-amber-800">{t('settings.forceReset.description')}</p>
+                        </div>
+                    ) : null}
+
                     {authQuery.isError || !authQuery.data ? (
                         <AppErrorState
                             title={t('common.loadErrorTitle')}
@@ -142,6 +155,7 @@ export default function AdminSettingsPage() {
                         />
                     ) : authQuery.data.role === 'admin' ? (
                         <>
+                            {!forceReset ? (
                             <Card className="interactive-card rounded-2xl bg-white">
                                 <CardHeader>
                                     <CardTitle className="flex items-center">
@@ -213,6 +227,7 @@ export default function AdminSettingsPage() {
                                     </form>
                                 </CardContent>
                             </Card>
+                            ) : null}
 
                             <PasswordSecurityCard user={authQuery.data} className="interactive-card rounded-2xl" />
                         </>

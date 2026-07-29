@@ -24,15 +24,14 @@ class StoreDentistRequest extends FormRequest
     {
         return [
             'name' => ['required', 'string', 'min:3', 'max:255'],
-            // Email unique scope excludes soft-deleted rows so a re-onboarded
-            // dentist can reuse the email of a previously closed account.
+            // Account deletion is reversible, so the email remains reserved.
+            // Re-onboarding must use the existing restore flow instead of
+            // creating a second identity with the same global-unique email.
             'email' => [
                 'required',
                 'email',
                 'max:255',
-                Rule::unique('users', 'email')->where(
-                    fn ($query) => $query->where('account_status', '!=', \App\Models\User::ACCOUNT_STATUS_DELETED),
-                ),
+                Rule::unique('users', 'email'),
             ],
             // Mirror AuthController::register password policy. Without this,
             // admin-created accounts could land with weaker credentials than
@@ -43,6 +42,16 @@ class StoreDentistRequest extends FormRequest
             'practice_name' => ['nullable', 'string', 'min:3', 'max:255'],
             'license_number' => ['nullable', 'string', 'max:50'],
             'address' => ['nullable', 'string', 'min:3', 'max:255'],
+        ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public function messages(): array
+    {
+        return [
+            'email.unique' => 'An account already uses this email. Restore it from the archive if it was deleted.',
         ];
     }
 }

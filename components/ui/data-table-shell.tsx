@@ -23,10 +23,14 @@ interface DataTableShellProps extends React.ComponentProps<'div'> {
 function DataTableShell({
     variant = 'standard',
     className,
+    'aria-label': ariaLabel = 'Scrollable data table',
     ...props
 }: DataTableShellProps) {
     return (
         <div
+            role="region"
+            tabIndex={0}
+            aria-label={ariaLabel}
             className={cn(SHELL_VARIANT_CLASS[variant], className)}
             {...props}
         />

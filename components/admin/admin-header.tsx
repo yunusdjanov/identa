@@ -52,7 +52,10 @@ export function AdminHeader({ active, isLoggingOut = false, onLogout }: AdminHea
                             <Brand href="/admin" variant="text" priority textClassName="w-28 sm:w-36" />
                         </div>
 
-                        <nav className="hidden items-center gap-1 rounded-2xl border border-slate-200/75 bg-white/75 p-1 shadow-sm shadow-slate-200/60 md:flex">
+                        <nav
+                            aria-label={t('admin.nav.primary')}
+                            className="hidden items-center gap-1 rounded-2xl border border-slate-200/75 bg-white/75 p-1 shadow-sm shadow-slate-200/60 md:flex"
+                        >
                             {adminNavigation.map((item) => {
                                 const Icon = item.icon;
                                 const isActive = item.section === active;
@@ -61,6 +64,7 @@ export function AdminHeader({ active, isLoggingOut = false, onLogout }: AdminHea
                                     <Link
                                         key={item.key}
                                         href={item.href}
+                                        aria-current={isActive ? 'page' : undefined}
                                         className={cn(
                                             'flex h-9 shrink-0 items-center rounded-xl border px-3.5 text-sm font-semibold transition-colors',
                                             isActive
@@ -68,7 +72,7 @@ export function AdminHeader({ active, isLoggingOut = false, onLogout }: AdminHea
                                                 : 'border-transparent text-slate-600 hover:bg-teal-50/80 hover:text-teal-700'
                                         )}
                                     >
-                                        <Icon className="mr-2 h-4 w-4" />
+                                        <Icon aria-hidden="true" className="mr-2 h-4 w-4" />
                                         {t(item.key)}
                                     </Link>
                                 );
@@ -89,7 +93,10 @@ export function AdminHeader({ active, isLoggingOut = false, onLogout }: AdminHea
                 </div>
 
                 <div className="border-t border-slate-200/70 bg-white md:hidden">
-                    <nav className="flex gap-1 overflow-x-auto overflow-y-hidden px-2 py-2 no-scrollbar">
+                    <nav
+                        aria-label={t('admin.nav.primary')}
+                        className="flex gap-1 overflow-x-auto overflow-y-hidden px-2 py-2 no-scrollbar"
+                    >
                         {adminNavigation.map((item) => {
                             const Icon = item.icon;
                             const isActive = item.section === active;
@@ -98,6 +105,7 @@ export function AdminHeader({ active, isLoggingOut = false, onLogout }: AdminHea
                                 <Link
                                     key={item.key}
                                     href={item.href}
+                                    aria-current={isActive ? 'page' : undefined}
                                     className={cn(
                                         'flex h-10 min-w-max shrink-0 items-center rounded-xl px-3 text-xs font-semibold transition-colors',
                                         isActive
@@ -105,7 +113,7 @@ export function AdminHeader({ active, isLoggingOut = false, onLogout }: AdminHea
                                             : 'text-slate-600 hover:bg-teal-50/80 hover:text-teal-700'
                                     )}
                                 >
-                                    <Icon className="mr-2 h-4 w-4" />
+                                    <Icon aria-hidden="true" className="mr-2 h-4 w-4" />
                                     {t(item.key)}
                                 </Link>
                             );

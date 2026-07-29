@@ -9,6 +9,7 @@ import { DICTIONARIES } from '@/lib/i18n/dictionaries';
 const pushMock = vi.fn();
 vi.mock('next/navigation', () => ({
     useRouter: () => ({ push: pushMock, replace: vi.fn(), refresh: vi.fn() }),
+    useSearchParams: () => new URLSearchParams(),
 }));
 vi.mock('@/lib/api/dentist', () => ({
     getCurrentUser: vi.fn(),
@@ -59,5 +60,17 @@ describe('AdminSettingsPage', () => {
         renderPage();
         // admin.settings.title (EN) = "Admin Settings"
         expect(await screen.findByText('Admin Settings')).toBeInTheDocument();
+    });
+
+    it('limits a forced-reset admin to password security', async () => {
+        vi.mocked(getCurrentUser).mockResolvedValue({
+            ...admin,
+            must_change_password: true,
+        } as never);
+        renderPage();
+
+        expect(await screen.findByText('Password change required')).toBeInTheDocument();
+        expect(screen.queryByText('Account')).not.toBeInTheDocument();
+        expect(screen.getByText('password-security-card')).toBeInTheDocument();
     });
 });

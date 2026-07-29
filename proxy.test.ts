@@ -181,6 +181,28 @@ describe('proxy auth redirects', () => {
         expect(response.headers.get('location')).toBe('https://identa.uz/admin');
     });
 
+    it('redirects a logged-out production admin request before rendering', async () => {
+        vi.stubEnv('NODE_ENV', 'production');
+
+        const response = await proxy(new NextRequest(
+            'https://identa.uz/admin/payments?status=paid'
+        ));
+
+        expect(response.status).toBe(307);
+        expect(response.headers.get('location')).toBe('https://identa.uz/admin/login');
+    });
+
+    it('allows an admin route with a production session cookie for client role verification', async () => {
+        vi.stubEnv('NODE_ENV', 'production');
+
+        const response = await proxy(new NextRequest('https://identa.uz/admin', {
+            headers: { cookie: 'identa_session=session-cookie' },
+        }));
+
+        expect(response.status).toBe(200);
+        expect(response.headers.get('location')).toBeNull();
+    });
+
     it('preserves the protected pathname and query in the login return destination', async () => {
         vi.stubEnv('NODE_ENV', 'production');
 

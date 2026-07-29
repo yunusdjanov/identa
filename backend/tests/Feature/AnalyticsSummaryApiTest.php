@@ -226,7 +226,7 @@ class AnalyticsSummaryApiTest extends TestCase
                 'data' => [
                     'kpis' => [
                         'active_dentists' => ['current', 'previous'],
-                        'mrr' => ['current', 'previous', 'currency'],
+                        'mrr' => ['current', 'previous', 'currency', 'totals_by_currency'],
                         'signups' => ['current', 'previous'],
                         'conversion' => ['current', 'previous'],
                     ],
@@ -234,6 +234,33 @@ class AnalyticsSummaryApiTest extends TestCase
                     'subscription_health',
                 ],
             ]);
+    }
+
+    public function test_admin_summary_rejects_unbounded_or_overlapping_periods(): void
+    {
+        $admin = User::factory()->admin()->create();
+
+        $this->actingAs($admin, 'web')
+            ->getJson('/api/v1/admin/analytics/summary?'.http_build_query([
+                'range' => '7d',
+                'current_from' => '2026-01-01',
+                'current_to' => '2026-06-30',
+                'previous_from' => '1900-01-01',
+                'previous_to' => '2025-12-31',
+            ]))
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['current_to', 'previous_to', 'previous_from']);
+
+        $this->actingAs($admin, 'web')
+            ->getJson('/api/v1/admin/analytics/summary?'.http_build_query([
+                'range' => '7d',
+                'current_from' => '2026-06-10',
+                'current_to' => '2026-06-16',
+                'previous_from' => '2026-06-09',
+                'previous_to' => '2026-06-10',
+            ]))
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['previous_to']);
     }
 
     public function test_dentist_summary_limits_top_debtors_to_four_largest_balances(): void

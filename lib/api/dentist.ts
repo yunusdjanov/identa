@@ -1461,6 +1461,18 @@ export async function getAdminDentistBilling(id: string): Promise<ApiAdminDentis
     return data.data;
 }
 
+export async function listAdminDentistAuditLogs(
+    id: string,
+    options?: QueryOptions
+): Promise<ApiCollectionEnvelope<ApiAuditLogEntry>> {
+    const { data } = await apiClient.get<ApiCollectionEnvelope<ApiAuditLogEntry>>(
+        `/admin/dentists/${id}/audit-logs`,
+        { params: buildQueryParams(options) }
+    );
+
+    return data;
+}
+
 export async function createAdminDentist(payload: {
     name: string;
     email: string;
@@ -1536,7 +1548,11 @@ export async function listAdminPayments(
     return data;
 }
 
-export async function refundAdminPayment(id: string): Promise<ApiAdminPayment> {
+/**
+ * Records that a payment was refunded outside Identa.
+ * The backend does not initiate a PayX/bank refund.
+ */
+export async function markAdminPaymentRefunded(id: string): Promise<ApiAdminPayment> {
     const { data } = await withCsrfRetry(() =>
         apiClient.post<ApiEnvelope<ApiAdminPayment>>(
             `/admin/payments/${id}/refund`

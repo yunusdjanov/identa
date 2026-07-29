@@ -348,7 +348,10 @@ export default function AdminPlansPage() {
                                 <CardTitle>{t('admin.plans.tableTitle')}</CardTitle>
                             </CardHeader>
                             <CardContent className="px-4 pb-5 sm:px-5">
-                                <DataTableShell>
+                                <DataTableShell
+                                    aria-label={t('admin.plans.tableTitle')}
+                                    className="hidden md:block"
+                                >
                                     <Table className={getDataTableClassName('standard')}>
                                     <TableHeader>
                                         <TableRow>
@@ -427,6 +430,79 @@ export default function AdminPlansPage() {
                                     </TableBody>
                                     </Table>
                                 </DataTableShell>
+                                <div className="grid gap-3 md:hidden">
+                                    {(plansQuery.data ?? []).map((plan) => {
+                                        const updatedDate = formatUpdatedAt(plan.updated_at);
+                                        return (
+                                            <article
+                                                key={plan.code}
+                                                className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm shadow-slate-200/50"
+                                            >
+                                                <div className="flex items-start justify-between gap-3">
+                                                    <div className="min-w-0">
+                                                        <div className="flex flex-wrap items-center gap-2">
+                                                            <Badge
+                                                                variant="outline"
+                                                                className={`font-mono text-[10px] uppercase tracking-wide ${planTierBadgeClass(plan.code)}`}
+                                                            >
+                                                                {plan.code}
+                                                            </Badge>
+                                                            <Badge variant={plan.is_active ? 'secondary' : 'outline'}>
+                                                                {plan.is_active
+                                                                    ? t('admin.plans.active')
+                                                                    : t('admin.plans.inactive')}
+                                                            </Badge>
+                                                        </div>
+                                                        <h3 className="mt-2 font-semibold text-slate-950">
+                                                            {getPlanName(plan.code)}
+                                                        </h3>
+                                                        <p className="mt-0.5 text-sm text-slate-500">
+                                                            {getPlanDescription(plan.code)}
+                                                        </p>
+                                                    </div>
+                                                    <Button
+                                                        type="button"
+                                                        variant="outline"
+                                                        size="sm"
+                                                        onClick={() => openEditor(plan)}
+                                                        disabled={updateMutation.isPending}
+                                                    >
+                                                        {t('common.edit')}
+                                                    </Button>
+                                                </div>
+                                                <dl className="mt-4 grid gap-3 text-sm">
+                                                    <div>
+                                                        <dt className="text-xs text-slate-500">
+                                                            {t('admin.plans.price')}
+                                                        </dt>
+                                                        <dd className="mt-0.5 font-medium tabular-nums text-slate-900">
+                                                            {plan.is_trial
+                                                                ? t('billing.free')
+                                                                : `${formatPrice(plan.monthly_price)} / ${formatPrice(plan.yearly_price)} ${(plan.currency ?? 'UZS').toUpperCase()}`}
+                                                        </dd>
+                                                    </div>
+                                                    <div>
+                                                        <dt className="text-xs text-slate-500">
+                                                            {t('admin.plans.limits')}
+                                                        </dt>
+                                                        <dd className="mt-0.5 text-slate-700">
+                                                            {t('admin.plans.limitSummary', {
+                                                                staff: plan.staff_limit,
+                                                                images: plan.entry_image_limit,
+                                                                upload: plan.upload_max_mb,
+                                                            })}
+                                                        </dd>
+                                                    </div>
+                                                </dl>
+                                                {updatedDate ? (
+                                                    <p className="mt-3 text-[11px] text-slate-400">
+                                                        {t('admin.plans.updatedAt', { date: updatedDate })}
+                                                    </p>
+                                                ) : null}
+                                            </article>
+                                        );
+                                    })}
+                                </div>
                             </CardContent>
                         </Card>
                     )}

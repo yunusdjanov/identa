@@ -18,6 +18,7 @@ use App\Support\Search;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 
@@ -25,6 +26,7 @@ class DentistAccountController extends Controller
 {
     private const DEFAULT_PER_PAGE = 15;
     private const MAX_PER_PAGE = 100;
+    private const BILLING_HISTORY_LIMIT = 100;
 
     public function __construct(
         private readonly AuditLogger $auditLogger,
@@ -202,9 +204,29 @@ class DentistAccountController extends Controller
             'assistants as total_assistants_count',
         ]);
 
-        $payments = $dentist->billingPayments()
+        $billingPayments = $dentist->billingPayments();
+        $paymentHistoryTotal = (clone $billingPayments)->count();
+        $paidTotalsByCurrency = (clone $billingPayments)
+            ->where('status', BillingPayment::STATUS_PAID)
+            ->select([
+                'currency',
+                DB::raw('SUM(amount) AS total'),
+                DB::raw('COUNT(*) AS paid_count'),
+            ])
+            ->groupBy('currency')
+            ->orderByDesc('total')
+            ->get()
+            ->map(fn ($row): array => [
+                'currency' => (string) $row->currency,
+                'total' => (float) $row->total,
+                'paid_count' => (int) $row->paid_count,
+            ])
+            ->values()
+            ->all();
+
+        $payments = (clone $billingPayments)
             ->orderByDesc('created_at')
-            ->limit(100)
+            ->limit(self::BILLING_HISTORY_LIMIT)
             ->get();
 
         return response()->json([
@@ -215,6 +237,13 @@ class DentistAccountController extends Controller
                     ->map(fn (BillingPayment $payment): array => $this->transformBillingPayment($payment))
                     ->values()
                     ->all(),
+                'payment_history' => [
+                    'total' => $paymentHistoryTotal,
+                    'limit' => self::BILLING_HISTORY_LIMIT,
+                    'truncated' => $paymentHistoryTotal > self::BILLING_HISTORY_LIMIT,
+                    'paid_count' => array_sum(array_column($paidTotalsByCurrency, 'paid_count')),
+                    'paid_totals_by_currency' => $paidTotalsByCurrency,
+                ],
                 'staff' => [
                     'active' => $dentist->activeAssistantsCount(),
                     'total' => (int) ($dentist->total_assistants_count ?? $dentist->assistants()->count()),

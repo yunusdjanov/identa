@@ -349,15 +349,16 @@ export default function AdminDashboardPage() {
     // saturating the network on slow links and inflating server load. 300 ms
     // matches the /admin/payments page debounce so behaviour is consistent.
     const debouncedSearch = useDebouncedValue(searchQuery.trim(), 300);
+    const effectiveSearch = debouncedSearch.length >= 2 ? debouncedSearch : '';
 
     const accountsQuery = useQuery({
-        queryKey: ['admin', 'dentists', page, debouncedSearch, viewMode],
+        queryKey: ['admin', 'dentists', page, effectiveSearch, viewMode],
         queryFn: () =>
             listAdminDentists({
                 page,
                 perPage: ADMIN_DENTISTS_PER_PAGE,
                 filter: {
-                    search: debouncedSearch || undefined,
+                    search: effectiveSearch || undefined,
                     status: viewMode === 'archive' ? 'deleted' : undefined,
                 },
             }),
@@ -743,7 +744,7 @@ export default function AdminDashboardPage() {
                             </div>
                         </CardHeader>
                         <CardContent className="px-4 pb-5 sm:px-5">
-                            <DataTableShell>
+                            <DataTableShell aria-label={t('admin.dashboardTitle')}>
                                 <Table className={getDataTableClassName('standard')}>
                                     <TableHeader>
                                         <TableRow>
@@ -760,8 +761,8 @@ export default function AdminDashboardPage() {
                                         {accounts.length === 0 ? (
                                             <TableRow>
                                                 <TableCell colSpan={7} className="text-center text-slate-500 py-8">
-                                                    {debouncedSearch
-                                                        ? t('admin.empty.search', { query: debouncedSearch })
+                                                    {effectiveSearch
+                                                        ? t('admin.empty.search', { query: effectiveSearch })
                                                         : viewMode === 'archive'
                                                             ? t('admin.empty.archive')
                                                             : t('admin.empty')}

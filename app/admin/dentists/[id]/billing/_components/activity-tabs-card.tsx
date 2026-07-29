@@ -4,6 +4,7 @@ import type { LucideIcon } from 'lucide-react';
 import { CreditCard, History } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { EmptyState } from '@/components/ui/empty-state';
+import { AppErrorState } from '@/components/error/app-error-state';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import type { ApiAuditLogEntry, ApiBillingPayment } from '@/lib/api/types';
@@ -13,8 +14,13 @@ import { localizeSubscriptionNote } from '@/lib/i18n/subscription-notes';
 
 interface ActivityTabsCardProps {
     payments: ApiBillingPayment[];
+    paymentHistoryTotal: number;
+    paymentHistoryTruncated: boolean;
+    paidPaymentCount: number;
     auditLoading: boolean;
+    auditError: string | null;
     auditEntries: ApiAuditLogEntry[] | undefined;
+    onRetryAudit: () => void;
     formatTotal: () => string;
     formatPaymentAmount: (payment: ApiBillingPayment) => string;
     getBillingPeriodLabel: (period: string | null | undefined) => string;
@@ -42,8 +48,13 @@ interface ActivityTabsCardProps {
  */
 export function ActivityTabsCard({
     payments,
+    paymentHistoryTotal,
+    paymentHistoryTruncated,
+    paidPaymentCount,
     auditLoading,
+    auditError,
     auditEntries,
+    onRetryAudit,
     formatTotal,
     formatPaymentAmount,
     getBillingPeriodLabel,
@@ -53,7 +64,7 @@ export function ActivityTabsCard({
     getAuditEventVisual,
 }: ActivityTabsCardProps) {
     const { locale, t } = useI18n();
-    const hasPaidPayment = payments.some((p) => p.status === 'paid');
+    const hasPaidPayment = paidPaymentCount > 0;
 
     return (
         <div className="rounded-2xl border border-slate-200 bg-white shadow-sm shadow-slate-200/60">
@@ -82,6 +93,14 @@ export function ActivityTabsCard({
                 </div>
 
                 <TabsContent value="payments" className="p-5">
+                    {paymentHistoryTruncated ? (
+                        <p className="mb-3 text-xs text-slate-500">
+                            {t('admin.billing.paymentHistory.latest', {
+                                shown: payments.length,
+                                total: paymentHistoryTotal,
+                            })}
+                        </p>
+                    ) : null}
                     {payments.length === 0 ? (
                         <EmptyState
                             icon={CreditCard}
@@ -158,6 +177,13 @@ export function ActivityTabsCard({
                             <Skeleton className="h-16 rounded-xl" />
                             <Skeleton className="h-16 rounded-xl" />
                         </div>
+                    ) : auditError ? (
+                        <AppErrorState
+                            title={t('admin.billing.auditLog.loadFailed')}
+                            description={auditError}
+                            onRetry={onRetryAudit}
+                            className="min-h-48"
+                        />
                     ) : auditEntries && auditEntries.length > 0 ? (
                         <div className="space-y-3">
                             {auditEntries.map((entry) => {

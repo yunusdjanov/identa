@@ -2,6 +2,8 @@
 
 namespace Tests\Feature;
 
+use App\Models\BillingPayment;
+use App\Models\Plan;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -10,6 +12,66 @@ use Tests\TestCase;
 class AdminDentistManagementTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_admin_can_read_a_dentist_scoped_audit_timeline(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $dentist = User::factory()->create([
+            'role' => User::ROLE_DENTIST,
+        ]);
+
+        $this->actingAs($admin, 'web')
+            ->patchJson("/api/v1/admin/dentists/{$dentist->id}/status", [
+                'status' => User::ACCOUNT_STATUS_BLOCKED,
+            ])
+            ->assertOk();
+
+        $this->actingAs($admin, 'web')
+            ->getJson("/api/v1/admin/dentists/{$dentist->id}/audit-logs")
+            ->assertOk()
+            ->assertJsonPath('data.0.event_type', 'admin.dentist.status_updated')
+            ->assertJsonPath('data.0.entity_id', (string) $dentist->id)
+            ->assertJsonPath('data.0.actor.id', (string) $admin->id);
+    }
+
+    public function test_admin_billing_summary_keeps_paid_currencies_separate(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $dentist = User::factory()->create(['role' => User::ROLE_DENTIST]);
+        $plan = Plan::query()->where('code', Plan::CODE_BASIC)->firstOrFail();
+
+        foreach ([
+            ['currency' => 'UZS', 'amount' => 450000],
+            ['currency' => 'USD', 'amount' => 100],
+        ] as $index => $row) {
+            $payment = new BillingPayment([
+                'user_id' => $dentist->id,
+                'plan_id' => $plan->id,
+                'plan_code' => $plan->code,
+                'plan_name' => $plan->name,
+                'billing_period' => 'monthly',
+                'amount' => $row['amount'],
+                'currency' => $row['currency'],
+                'provider' => BillingPayment::PROVIDER_MANUAL_ADMIN,
+            ]);
+            $payment->forceFill([
+                'status' => BillingPayment::STATUS_PAID,
+                'provider_order_id' => "admin-billing-summary-{$index}",
+                'paid_at' => now(),
+            ]);
+            $payment->save();
+        }
+
+        $this->actingAs($admin, 'web')
+            ->getJson("/api/v1/admin/dentists/{$dentist->id}/billing")
+            ->assertOk()
+            ->assertJsonPath('data.payment_history.total', 2)
+            ->assertJsonPath('data.payment_history.paid_count', 2)
+            ->assertJsonPath('data.payment_history.paid_totals_by_currency.0.currency', 'UZS')
+            ->assertJsonPath('data.payment_history.paid_totals_by_currency.0.total', 450000)
+            ->assertJsonPath('data.payment_history.paid_totals_by_currency.1.currency', 'USD')
+            ->assertJsonPath('data.payment_history.paid_totals_by_currency.1.total', 100);
+    }
 
     public function test_admin_can_manage_dentist_lifecycle_and_actions_are_audited(): void
     {
@@ -204,6 +266,26 @@ class AdminDentistManagementTest extends TestCase
             ])
             ->assertUnprocessable()
             ->assertJsonValidationErrors(['name', 'practice_name']);
+    }
+
+    public function test_admin_must_restore_a_deleted_dentist_instead_of_reusing_the_email(): void
+    {
+        $admin = User::factory()->admin()->create();
+        User::factory()->create([
+            'role' => User::ROLE_DENTIST,
+            'email' => 'archived-dentist@example.com',
+            'account_status' => User::ACCOUNT_STATUS_DELETED,
+        ]);
+
+        $this->actingAs($admin, 'web')
+            ->postJson('/api/v1/admin/dentists', [
+                'name' => 'Replacement Dentist',
+                'email' => 'archived-dentist@example.com',
+                'password' => 'password123',
+                'password_confirmation' => 'password123',
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['email']);
     }
 
     public function test_admin_can_manage_dentist_subscription_lifecycle(): void

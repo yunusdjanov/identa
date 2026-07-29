@@ -49,4 +49,15 @@ describe('AdminLoginPage', () => {
         renderPage();
         await waitFor(() => expect(replaceMock).toHaveBeenCalledWith('/admin'));
     });
+
+    it('redirects a forced-reset admin to password settings', async () => {
+        vi.mocked(getCurrentUser).mockResolvedValue({
+            ...admin,
+            must_change_password: true,
+        } as never);
+        renderPage();
+        await waitFor(() => expect(replaceMock).toHaveBeenCalledWith(
+            '/admin/settings?forceReset=1'
+        ));
+    });
 });

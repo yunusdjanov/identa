@@ -129,7 +129,7 @@ class AdminPaymentController extends Controller
                     'this_month' => $primary['this_month'],
                     'this_year' => $primary['this_year'],
                     'all_time' => $primary['all_time'],
-                    'paid_count' => $primary['paid_count'],
+                    'paid_count' => array_sum(array_column($totalsByCurrency, 'paid_count')),
                     'currency' => $primary['currency'],
                     'totals_by_currency' => $totalsByCurrency,
                 ],
@@ -175,7 +175,15 @@ class AdminPaymentController extends Controller
         return $query;
     }
 
-    public function refund(Request $request, string $id): JsonResponse
+    /**
+     * Mark an externally completed refund in Identa.
+     *
+     * This method deliberately does not call PayX: the configured PayX
+     * integration has no refund operation. The admin confirmation in the UI
+     * is therefore an acknowledgement that the money was returned through
+     * the provider/bank before this ledger transition is recorded.
+     */
+    public function markRefunded(Request $request, string $id): JsonResponse
     {
         return DB::transaction(function () use ($request, $id): JsonResponse {
             // Lock the row inside the transaction so a concurrent admin double-

@@ -15,6 +15,21 @@ const requiredPaths = [
     '/api/v1/appointments/{id}/patient-card',
     '/api/v1/payments/ledger/patients',
     '/api/v1/payments/ledger/history',
+    '/api/v1/admin/analytics/summary',
+    '/api/v1/admin/dentists',
+    '/api/v1/admin/dentists/{id}',
+    '/api/v1/admin/dentists/{id}/staff',
+    '/api/v1/admin/dentists/{id}/billing',
+    '/api/v1/admin/dentists/{id}/audit-logs',
+    '/api/v1/admin/dentists/{id}/status',
+    '/api/v1/admin/dentists/{id}/subscription',
+    '/api/v1/admin/dentists/{id}/reset-password',
+    '/api/v1/admin/dentists/{id}/verify-email',
+    '/api/v1/admin/dentists/{id}/restore',
+    '/api/v1/admin/payments',
+    '/api/v1/admin/payments/{id}/refund',
+    '/api/v1/admin/plans',
+    '/api/v1/admin/plans/{code}',
 ];
 
 const httpMethods = new Set(['get', 'post', 'put', 'patch', 'delete', 'options', 'head', 'trace']);

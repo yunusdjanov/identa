@@ -68,8 +68,8 @@ export async function POST(request: Request) {
     const isValidEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
     if (!isValidEmail) {
         errors.email = ['Provide a valid email address.'];
-    } else if (store.dentists.some((d) => d.status !== 'deleted' && d.email.toLowerCase() === email.toLowerCase())) {
-        errors.email = ['Email is already in use.'];
+    } else if (store.dentists.some((d) => d.email.toLowerCase() === email.toLowerCase())) {
+        errors.email = ['An account already uses this email. Restore it from the archive if it was deleted.'];
     }
 
     const password = typeof body.password === 'string' ? body.password : '';

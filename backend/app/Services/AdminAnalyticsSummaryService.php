@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Plan;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
 
 class AdminAnalyticsSummaryService
@@ -25,6 +26,10 @@ class AdminAnalyticsSummaryService
         $dentists = User::query()
             ->where('role', User::ROLE_DENTIST)
             ->where('account_status', '!=', User::ACCOUNT_STATUS_DELETED)
+            ->withCount([
+                'assistants as active_assistants_count' => fn (Builder $builder) => $builder
+                    ->where('account_status', User::ACCOUNT_STATUS_ACTIVE),
+            ])
             ->with(['subscriptions.plan'])
             ->get();
         $plans = Plan::query()->get();
@@ -36,10 +41,12 @@ class AdminAnalyticsSummaryService
                 'active_dentists' => $activeKpi,
                 'mrr' => [
                     'current' => $mrr['amount'],
-                    'previous' => $activeKpi['current'] > 0
-                        ? round($mrr['amount'] * ($activeKpi['previous'] / $activeKpi['current']))
-                        : $mrr['amount'],
+                    // Subscription state is not versioned, so historical MRR
+                    // cannot be reconstructed honestly. Do not estimate it
+                    // from the dentist-count ratio.
+                    'previous' => null,
                     'currency' => $mrr['currency'],
+                    'totals_by_currency' => $mrr['totals_by_currency'],
                 ],
                 'signups' => $this->signupsKpi($dentists, $currentStart, $currentEnd, $previousStart, $previousEnd),
                 'conversion' => $this->conversionKpi($dentists, $currentStart, $currentEnd, $previousStart, $previousEnd),
@@ -124,9 +131,7 @@ class AdminAnalyticsSummaryService
     private function mrr($dentists, $plans): array
     {
         $plansByCode = $plans->keyBy('code');
-        $amount = 0.0;
-        $currency = 'UZS';
-        $pickedCurrency = false;
+        $amountsByCurrency = [];
 
         foreach ($dentists as $dentist) {
             $summary = $dentist->subscriptionSummary();
@@ -141,18 +146,30 @@ class AdminAnalyticsSummaryService
             if ($plan === null) {
                 continue;
             }
-            if (! $pickedCurrency) {
-                $currency = $plan->currency ?? 'UZS';
-                $pickedCurrency = true;
-            }
-            $amount += ($summary['billing_period'] ?? null) === 'yearly'
-                ? ((float) $plan->yearly_price) / 12
-                : (float) $plan->monthly_price;
+            $currency = (string) ($plan->currency ?? 'UZS');
+            $amountsByCurrency[$currency] = ($amountsByCurrency[$currency] ?? 0.0)
+                + (($summary['billing_period'] ?? null) === 'yearly'
+                    ? ((float) $plan->yearly_price) / 12
+                    : (float) $plan->monthly_price);
         }
 
+        $totalsByCurrency = collect($amountsByCurrency)
+            ->map(fn (float $amount, string $currency): array => [
+                'currency' => $currency,
+                'current' => round($amount),
+            ])
+            ->sortByDesc('current')
+            ->values()
+            ->all();
+        $primary = $totalsByCurrency[0] ?? [
+            'currency' => 'UZS',
+            'current' => 0,
+        ];
+
         return [
-            'amount' => round($amount),
-            'currency' => $currency,
+            'amount' => $primary['current'],
+            'currency' => $primary['currency'],
+            'totals_by_currency' => $totalsByCurrency,
         ];
     }
 

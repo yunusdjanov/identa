@@ -75,7 +75,9 @@ export default function AdminLoginPage() {
             queryClient.invalidateQueries({ queryKey: ['admin'] });
             postAuthBroadcast({ type: 'login' });
             toast.success(t('admin.login.success'));
-            router.push('/admin');
+            router.push(user.must_change_password
+                ? '/admin/settings?forceReset=1'
+                : '/admin');
         },
         onError: (error) => {
             toast.error(getApiErrorMessage(error, t('admin.login.invalidCredentials')));
@@ -121,7 +123,11 @@ export default function AdminLoginPage() {
             return;
         }
 
-        router.replace(currentUserQuery.data.role === 'admin' ? '/admin' : '/dashboard');
+        router.replace(currentUserQuery.data.role === 'admin'
+            ? (currentUserQuery.data.must_change_password
+                ? '/admin/settings?forceReset=1'
+                : '/admin')
+            : '/dashboard');
     }, [currentUserQuery.data, isLogoutRedirect, router]);
 
     const handleLogin = (event: React.FormEvent<HTMLFormElement>) => {

@@ -38,8 +38,8 @@ import {
     type AdminDentistSubscriptionAction,
     getAdminDentistBilling,
     getCurrentUser,
+    listAdminDentistAuditLogs,
     listAdminPlans,
-    listAuditLogs,
     manageAdminDentistSubscription,
 } from '@/lib/api/dentist';
 import type {
@@ -135,15 +135,33 @@ function formatPlanPrice(amount: number, currency: string, locale: string): stri
     }).format(amount);
 }
 
-function formatPaymentsTotal(payments: ApiBillingPayment[], locale: string): string {
-    const paid = payments.filter((p) => p.status === 'paid');
-    const total = paid.reduce((sum, p) => sum + p.amount, 0);
-    const currency = paid[0]?.currency || payments[0]?.currency || 'UZS';
-    return new Intl.NumberFormat(locale, {
-        style: 'currency',
-        currency,
-        maximumFractionDigits: 0,
-    }).format(total);
+function formatPaymentsTotal(
+    payments: ApiBillingPayment[],
+    locale: string,
+    summary?: Array<{
+        currency: string;
+        total: number;
+    }>
+): string {
+    const totals = summary?.length
+        ? summary
+        : Object.values(payments
+            .filter((payment) => payment.status === 'paid')
+            .reduce<Record<string, { currency: string; total: number }>>((rows, payment) => {
+                const currency = payment.currency || 'UZS';
+                const row = rows[currency] ?? { currency, total: 0 };
+                row.total += payment.amount;
+                rows[currency] = row;
+                return rows;
+            }, {}));
+
+    return totals
+        .map((row) => new Intl.NumberFormat(locale, {
+            style: 'currency',
+            currency: row.currency,
+            maximumFractionDigits: 0,
+        }).format(row.total))
+        .join(' / ');
 }
 
 type Translator = (key: string, variables?: Record<string, string | number>) => string;
@@ -329,15 +347,8 @@ export default function AdminBillingDetailPage() {
     });
 
     const auditQuery = useQuery({
-        queryKey: ['admin', 'audit-logs', id, 'user'],
-        queryFn: () =>
-            listAuditLogs({
-                perPage: 10,
-                filter: {
-                    entity_type: 'user',
-                    entity_id: id,
-                },
-            }),
+        queryKey: ['admin', 'dentists', id, 'audit-logs'],
+        queryFn: () => listAdminDentistAuditLogs(id, { perPage: 10 }),
         enabled: authQuery.data?.role === 'admin' && Boolean(id),
         staleTime: 60_000,
     });
@@ -716,9 +727,21 @@ export default function AdminBillingDetailPage() {
                         {/* Activity card — extracted to _components/activity-tabs-card.tsx */}
                         <ActivityTabsCard
                             payments={billing.payments}
+                            paymentHistoryTotal={billing.payment_history?.total ?? billing.payments.length}
+                            paymentHistoryTruncated={billing.payment_history?.truncated ?? false}
+                            paidPaymentCount={billing.payment_history?.paid_count
+                                ?? billing.payments.filter((payment) => payment.status === 'paid').length}
                             auditLoading={auditQuery.isLoading}
+                            auditError={auditQuery.isError
+                                ? getApiErrorMessage(auditQuery.error, t('admin.billing.auditLog.loadFailed'))
+                                : null}
                             auditEntries={auditQuery.data?.data}
-                            formatTotal={() => formatPaymentsTotal(billing.payments, locale)}
+                            onRetryAudit={() => auditQuery.refetch()}
+                            formatTotal={() => formatPaymentsTotal(
+                                billing.payments,
+                                locale,
+                                billing.payment_history?.paid_totals_by_currency
+                            )}
                             formatPaymentAmount={(payment) => formatBillingAmount(payment, locale)}
                             getBillingPeriodLabel={(period) => getBillingPeriodLabel(period, t)}
                             getPaymentStatusBadgeClasses={getPaymentStatusBadgeClasses}

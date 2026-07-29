@@ -167,6 +167,16 @@ function resolveAdminGateRedirect(request: NextRequest): URL | null {
         return null;
     }
 
+    // Avoid streaming an admin skeleton/page to a logged-out visitor in
+    // production or mock mode. Role verification still happens in the shared
+    // admin layout and on every backend admin endpoint.
+    if (!hasAuthCookie(request) || hasClientLogoutMarker(request)) {
+        const redirectUrl = request.nextUrl.clone();
+        redirectUrl.pathname = '/admin/login';
+        redirectUrl.search = '';
+        return redirectUrl;
+    }
+
     const mockSession = request.cookies.get(MOCK_SESSION_COOKIE);
     const mockRole = request.cookies.get(MOCK_ROLE_COOKIE)?.value;
     const mockModeActive = mockSession !== undefined || mockRole !== undefined;

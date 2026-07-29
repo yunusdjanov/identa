@@ -2,7 +2,12 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import AdminDentistBillingPage from '@/app/admin/dentists/[id]/billing/page';
-import { getCurrentUser, getAdminDentistBilling, listAdminPlans } from '@/lib/api/dentist';
+import {
+    getCurrentUser,
+    getAdminDentistBilling,
+    listAdminDentistAuditLogs,
+    listAdminPlans,
+} from '@/lib/api/dentist';
 import { I18nProvider } from '@/components/providers/i18n-provider';
 import { DICTIONARIES } from '@/lib/i18n/dictionaries';
 
@@ -14,6 +19,7 @@ vi.mock('next/navigation', () => ({
 vi.mock('@/lib/api/dentist', () => ({
     getCurrentUser: vi.fn(),
     getAdminDentistBilling: vi.fn(),
+    listAdminDentistAuditLogs: vi.fn(),
     listAdminPlans: vi.fn(),
     manageAdminDentistSubscription: vi.fn(),
     updateAdminDentistStatus: vi.fn(),
@@ -38,6 +44,12 @@ describe('AdminDentistBillingPage', () => {
         replaceMock.mockClear();
         vi.mocked(getCurrentUser).mockReset();
         vi.mocked(getAdminDentistBilling).mockReset();
+        vi.mocked(listAdminDentistAuditLogs).mockResolvedValue({
+            data: [],
+            meta: {
+                pagination: { page: 1, per_page: 10, total: 0, total_pages: 1 },
+            },
+        } as never);
         vi.mocked(listAdminPlans).mockResolvedValue([] as never);
     });
     afterEach(() => cleanup());

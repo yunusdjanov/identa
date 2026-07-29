@@ -78,7 +78,15 @@ test.describe('Responsive smoke coverage', () => {
     test('admin dashboards stay within the viewport', async ({ page }) => {
         await loginAdmin(page);
 
-        for (const path of ['/admin', '/admin/analytics', '/admin/payments', '/admin/settings']) {
+        for (const path of [
+            '/admin',
+            '/admin/analytics',
+            '/admin/payments',
+            '/admin/plans',
+            '/admin/settings',
+            '/admin/dentists/1/billing',
+            '/admin/dentists/1/staff',
+        ]) {
             await page.goto(path);
             await expect(page.locator('main').first()).toBeVisible();
             await expectNoPageHorizontalOverflow(page);

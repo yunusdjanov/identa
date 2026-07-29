@@ -54,9 +54,12 @@ import { getApiErrorMessage } from '@/lib/api/client';
 import {
     getCurrentUser,
     listAdminPayments,
-    refundAdminPayment,
+    markAdminPaymentRefunded,
 } from '@/lib/api/dentist';
-import type { ApiAdminPayment } from '@/lib/api/types';
+import type {
+    ApiAdminPayment,
+    ApiAdminPaymentsSummary,
+} from '@/lib/api/types';
 import { formatLocalizedDate } from '@/lib/i18n/date';
 import { useDebouncedValue } from '@/lib/hooks/use-debounced-value';
 import { truncateForUi } from '@/lib/utils';
@@ -71,6 +74,45 @@ function formatAmount(amount: number, currency: string, locale: string): string 
         currency: currency || 'UZS',
         maximumFractionDigits: 0,
     }).format(amount);
+}
+
+type PaymentSummaryPeriod = 'this_month' | 'this_year' | 'all_time';
+
+function CurrencySummaryValue({
+    summary,
+    period,
+    locale,
+}: {
+    summary: ApiAdminPaymentsSummary | undefined;
+    period: PaymentSummaryPeriod;
+    locale: string;
+}) {
+    if (!summary) {
+        return <p className="mt-2 text-2xl font-bold text-slate-950">—</p>;
+    }
+
+    const rows = summary.totals_by_currency?.length
+        ? summary.totals_by_currency
+        : [{
+            currency: summary.currency,
+            this_month: summary.this_month,
+            this_year: summary.this_year,
+            all_time: summary.all_time,
+            paid_count: summary.paid_count,
+        }];
+
+    return (
+        <div className="mt-2 space-y-0.5">
+            {rows.map((row) => (
+                <p
+                    key={row.currency}
+                    className="text-xl font-bold tracking-[-0.03em] text-slate-950 tabular-nums sm:text-2xl"
+                >
+                    {formatAmount(row[period], row.currency, locale)}
+                </p>
+            ))}
+        </div>
+    );
 }
 
 function getInitials(name: string): string {
@@ -186,8 +228,8 @@ export default function AdminPaymentsPage() {
         placeholderData: (previous) => previous,
     });
 
-    const refundMutation = useMutation({
-        mutationFn: (id: string) => refundAdminPayment(id),
+    const markRefundedMutation = useMutation({
+        mutationFn: (id: string) => markAdminPaymentRefunded(id),
         onSuccess: () => {
             toast.success(t('admin.payments.toast.refunded'));
             setRefundTarget(null);
@@ -216,7 +258,9 @@ export default function AdminPaymentsPage() {
 
     // Track which row's refund is in flight so the per-row spinner only fires
     // on the specific button the admin clicked.
-    const refundingPaymentId = refundMutation.isPending ? refundMutation.variables ?? null : null;
+    const refundingPaymentId = markRefundedMutation.isPending
+        ? markRefundedMutation.variables ?? null
+        : null;
 
     const payments = paymentsQuery.data?.data ?? [];
     const summary = paymentsQuery.data?.meta.summary;
@@ -265,11 +309,11 @@ export default function AdminPaymentsPage() {
                                 <p className="text-sm font-semibold text-slate-600">
                                     {t('admin.payments.thisMonth')}
                                 </p>
-                                <p className="mt-2 text-2xl font-bold tracking-[-0.03em] text-slate-950">
-                                    {summary
-                                        ? formatAmount(summary.this_month, summary.currency, locale)
-                                        : '—'}
-                                </p>
+                                <CurrencySummaryValue
+                                    summary={summary}
+                                    period="this_month"
+                                    locale={locale}
+                                />
                             </div>
                             <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white text-slate-600 shadow-sm shadow-slate-200/70">
                                 <Wallet className="h-5 w-5" />
@@ -283,11 +327,11 @@ export default function AdminPaymentsPage() {
                                 <p className="text-sm font-semibold text-slate-600">
                                     {t('admin.payments.thisYear')}
                                 </p>
-                                <p className="mt-2 text-2xl font-bold tracking-[-0.03em] text-slate-950">
-                                    {summary
-                                        ? formatAmount(summary.this_year, summary.currency, locale)
-                                        : '—'}
-                                </p>
+                                <CurrencySummaryValue
+                                    summary={summary}
+                                    period="this_year"
+                                    locale={locale}
+                                />
                             </div>
                             <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white text-blue-600 shadow-sm shadow-blue-100/70">
                                 <DollarSign className="h-5 w-5" />
@@ -301,11 +345,11 @@ export default function AdminPaymentsPage() {
                                 <p className="text-sm font-semibold text-slate-600">
                                     {t('admin.payments.total')}
                                 </p>
-                                <p className="mt-2 text-2xl font-bold tracking-[-0.03em] text-slate-950">
-                                    {summary
-                                        ? formatAmount(summary.all_time, summary.currency, locale)
-                                        : '—'}
-                                </p>
+                                <CurrencySummaryValue
+                                    summary={summary}
+                                    period="all_time"
+                                    locale={locale}
+                                />
                                 <p className="text-xs text-slate-500">
                                     {summary
                                         ? t('admin.payments.paidCount', { count: summary.paid_count })
@@ -438,7 +482,11 @@ export default function AdminPaymentsPage() {
                                 size="md"
                             />
                         ) : (
-                            <DataTableShell>
+                            <>
+                            <DataTableShell
+                                aria-label={t('admin.payments.tableTitle')}
+                                className="hidden md:block"
+                            >
                                 <Table className={getDataTableClassName('standard')}>
                                     <TableHeader>
                                         <TableRow>
@@ -537,7 +585,7 @@ export default function AdminPaymentsPage() {
                                                                 size="sm"
                                                                 className="h-8 border-red-200 text-red-700 hover:bg-red-50 hover:text-red-800"
                                                                 onClick={() => setRefundTarget(payment)}
-                                                                disabled={refundMutation.isPending}
+                                                                disabled={markRefundedMutation.isPending}
                                                             >
                                                                 {refundingPaymentId === payment.id ? (
                                                                     <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -558,6 +606,108 @@ export default function AdminPaymentsPage() {
                                     </TableBody>
                                 </Table>
                             </DataTableShell>
+                            <div className="grid gap-3 md:hidden">
+                                {payments.map((payment) => {
+                                    const { Icon: StatusIcon, className: statusIconClass } =
+                                        getStatusIcon(payment.status);
+                                    const dateValue = payment.paid_at ?? payment.created_at;
+
+                                    return (
+                                        <article
+                                            key={payment.id}
+                                            className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm shadow-slate-200/50"
+                                        >
+                                            <div className="flex items-start justify-between gap-3">
+                                                {payment.dentist ? (
+                                                    <Link
+                                                        href={`/admin/dentists/${payment.dentist.id}/billing`}
+                                                        className="flex min-w-0 items-center gap-2.5"
+                                                    >
+                                                        <Avatar>
+                                                            {payment.dentist.avatar_url ? (
+                                                                <AvatarImage
+                                                                    src={payment.dentist.avatar_url}
+                                                                    alt={payment.dentist.name}
+                                                                    referrerPolicy="no-referrer"
+                                                                />
+                                                            ) : null}
+                                                            <AvatarFallback className="bg-teal-50 font-semibold text-teal-700">
+                                                                {getInitials(payment.dentist.name)}
+                                                            </AvatarFallback>
+                                                        </Avatar>
+                                                        <div className="min-w-0">
+                                                            <h3 className="truncate text-sm font-semibold text-slate-950">
+                                                                {t('common.doctorPrefix')}{' '}
+                                                                {truncateForUi(payment.dentist.name, 26)}
+                                                            </h3>
+                                                            <p className="truncate text-xs text-slate-500">
+                                                                {truncateForUi(payment.dentist.email, 32)}
+                                                            </p>
+                                                        </div>
+                                                    </Link>
+                                                ) : (
+                                                    <span className="text-sm text-slate-400">—</span>
+                                                )}
+                                                <span className="inline-flex shrink-0 items-center gap-1.5">
+                                                    <span
+                                                        className={`flex h-6 w-6 items-center justify-center rounded-lg ${statusIconClass}`}
+                                                    >
+                                                        <StatusIcon className="h-3.5 w-3.5" aria-hidden="true" />
+                                                    </span>
+                                                    <Badge
+                                                        variant="outline"
+                                                        className={getStatusBadgeClasses(payment.status)}
+                                                    >
+                                                        {t(`admin.billing.payment.status.${payment.status}`)}
+                                                    </Badge>
+                                                </span>
+                                            </div>
+                                            <div className="mt-4 flex items-end justify-between gap-3">
+                                                <div className="min-w-0 text-sm">
+                                                    <p className="font-medium text-slate-900">
+                                                        {payment.plan_name}
+                                                    </p>
+                                                    <p className="mt-0.5 text-xs text-slate-500">
+                                                        {getBillingPeriodLabel(payment.billing_period, t)}
+                                                        {' · '}
+                                                        {dateValue
+                                                            ? formatLocalizedDate(dateValue, locale, {
+                                                                year: 'numeric',
+                                                                month: 'short',
+                                                                day: 'numeric',
+                                                            })
+                                                            : '—'}
+                                                    </p>
+                                                </div>
+                                                <div className="shrink-0 text-right">
+                                                    <p className="font-semibold tabular-nums text-slate-950">
+                                                        {formatAmount(payment.amount, payment.currency, locale)}
+                                                    </p>
+                                                    {payment.status === 'paid' ? (
+                                                        <Button
+                                                            variant="outline"
+                                                            size="sm"
+                                                            className="mt-2 h-8 border-red-200 text-red-700 hover:bg-red-50 hover:text-red-800"
+                                                            onClick={() => setRefundTarget(payment)}
+                                                            disabled={markRefundedMutation.isPending}
+                                                        >
+                                                            {refundingPaymentId === payment.id ? (
+                                                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                                            ) : (
+                                                                <RotateCcw className="h-3.5 w-3.5" />
+                                                            )}
+                                                            <span className="ml-1.5">
+                                                                {t('admin.payments.refund')}
+                                                            </span>
+                                                        </Button>
+                                                    ) : null}
+                                                </div>
+                                            </div>
+                                        </article>
+                                    );
+                                })}
+                            </div>
+                            </>
                         )}
                     </CardContent>
 
@@ -615,12 +765,12 @@ export default function AdminPaymentsPage() {
                 confirmLabel={t('admin.payments.refund')}
                 pendingLabel={t('admin.payments.refundPending')}
                 cancelLabel={t('common.cancel')}
-                isPending={refundMutation.isPending}
+                isPending={markRefundedMutation.isPending}
                 onConfirm={() => {
                     if (!refundTarget) {
                         return;
                     }
-                    refundMutation.mutate(refundTarget.id);
+                    markRefundedMutation.mutate(refundTarget.id);
                 }}
             />
         </div>
