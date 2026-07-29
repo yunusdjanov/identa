@@ -530,7 +530,7 @@ export default function PaymentPatientPage({
             <SectionPanel className="space-y-4">
                 <div
                     data-testid="payment-ledger-header"
-                    className="flex min-w-0 flex-col gap-2 xl:grid xl:grid-cols-[minmax(0,1fr)_minmax(0,38.22rem)_minmax(0,1fr)] xl:items-center"
+                    className="flex min-w-0 flex-col gap-2 xl:grid xl:grid-cols-[minmax(0,1fr)_minmax(0,40.13rem)_minmax(0,1fr)] xl:items-center"
                 >
                     <div className="shrink-0">
                         <h2 className="text-base font-bold text-slate-950 sm:text-lg">
@@ -540,7 +540,7 @@ export default function PaymentPatientPage({
 
                     <section
                         data-testid="payment-summary-grid"
-                        className="grid min-w-0 flex-1 gap-2 md:grid-cols-3 xl:col-start-2 xl:w-full xl:max-w-[38.22rem]"
+                        className="grid min-w-0 flex-1 gap-2 md:grid-cols-3 xl:col-start-2 xl:w-full xl:max-w-[40.13rem]"
                     >
                         <PaymentSummaryCard
                             label={t('payments.summary.totalDebt')}

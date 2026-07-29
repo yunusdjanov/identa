@@ -885,23 +885,32 @@ export function PaymentPatientLoadingState() {
         <div data-testid="payment-patient-loading" className="space-y-2" aria-busy="true">
             <PatientDetailHeaderSkeleton />
             <section className="min-w-0 space-y-4 overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm shadow-slate-200/60 sm:p-6">
-                <div className="flex min-w-0 flex-col gap-2 xl:flex-row xl:items-center">
-                    <div className="shrink-0 space-y-2 xl:w-52">
+                <div
+                    data-testid="payment-patient-ledger-header-skeleton"
+                    className="flex min-w-0 flex-col gap-2 xl:grid xl:grid-cols-[minmax(0,1fr)_minmax(0,40.13rem)_minmax(0,1fr)] xl:items-center"
+                >
+                    <div className="shrink-0">
                         <Skeleton className="h-6 w-40 rounded-xl" />
-                        <Skeleton className="h-4 w-48 rounded-xl" />
                     </div>
-                    <div data-testid="payment-patient-summary-skeleton" className="grid min-w-0 flex-1 gap-2 md:grid-cols-3 xl:max-w-[36.4rem]">
+                    <div
+                        data-testid="payment-patient-summary-skeleton"
+                        className="grid min-w-0 flex-1 gap-2 md:grid-cols-3 xl:col-start-2 xl:w-full xl:max-w-[40.13rem]"
+                    >
                         {Array.from({ length: 3 }).map((_, index) => (
-                            <div key={index} className="flex h-12 min-w-0 items-center justify-between gap-2 rounded-2xl border border-slate-200 px-3 py-2">
-                                <div className="min-w-0 space-y-1.5">
-                                    <Skeleton className="h-3 w-20 rounded-xl" />
+                            <div
+                                key={index}
+                                data-testid="payment-patient-summary-card-skeleton"
+                                className="flex min-h-10 min-w-0 flex-col justify-center rounded-xl border border-slate-200 px-3 py-1.5"
+                            >
+                                <Skeleton className="h-2 w-20 max-w-full rounded-xl" />
+                                <div className="mt-1 flex min-w-0 items-center gap-1.5">
                                     <Skeleton className="h-4 w-28 max-w-full rounded-xl" />
+                                    {index === 2 ? <Skeleton className="h-4 w-10 shrink-0 rounded-full" /> : null}
                                 </div>
-                                {index === 2 ? <Skeleton className="h-5 w-12 rounded-full" /> : null}
                             </div>
                         ))}
                     </div>
-                    <Skeleton className="h-10 w-10 shrink-0 self-end rounded-full xl:ml-auto xl:self-auto" />
+                    <Skeleton className="h-10 w-10 shrink-0 self-end rounded-full xl:col-start-3 xl:justify-self-end xl:self-auto" />
                 </div>
                 <div data-testid="payment-patient-table-skeleton" className="min-w-0 max-w-full overflow-x-auto rounded-2xl border border-slate-200/80 bg-white">
                     <div className="grid min-w-[680px] grid-cols-5 gap-3 bg-slate-50/80 px-4 py-3">

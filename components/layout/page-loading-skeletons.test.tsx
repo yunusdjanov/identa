@@ -137,7 +137,21 @@ describe('page loading skeletons', () => {
             render(<PaymentPatientLoadingState />);
 
             expect(screen.getByTestId('payment-patient-loading')).toHaveClass('space-y-2');
-            expect(screen.getByTestId('payment-patient-summary-skeleton')).toHaveClass('md:grid-cols-3');
+            expect(screen.getByTestId('payment-patient-ledger-header-skeleton')).toHaveClass(
+                'xl:grid',
+                'xl:grid-cols-[minmax(0,1fr)_minmax(0,40.13rem)_minmax(0,1fr)]',
+                'xl:items-center'
+            );
+            expect(screen.getByTestId('payment-patient-summary-skeleton')).toHaveClass(
+                'md:grid-cols-3',
+                'xl:col-start-2',
+                'xl:w-full',
+                'xl:max-w-[40.13rem]'
+            );
+            expect(screen.getAllByTestId('payment-patient-summary-card-skeleton')).toHaveLength(3);
+            screen.getAllByTestId('payment-patient-summary-card-skeleton').forEach((card) => {
+                expect(card).toHaveClass('min-h-10', 'rounded-xl', 'px-3', 'py-1.5');
+            });
             expect(screen.getByTestId('payment-patient-table-skeleton')).toHaveClass('overflow-x-auto');
         });
 

@@ -229,7 +229,7 @@ describe('PaymentPatientPage', () => {
         expect(ledgerHeader).toContainElement(summaryGrid);
         expect(ledgerHeader).toHaveClass(
             'xl:grid',
-            'xl:grid-cols-[minmax(0,1fr)_minmax(0,38.22rem)_minmax(0,1fr)]',
+            'xl:grid-cols-[minmax(0,1fr)_minmax(0,40.13rem)_minmax(0,1fr)]',
             'xl:items-center'
         );
         expect(summaryGrid).toHaveClass(
@@ -238,7 +238,7 @@ describe('PaymentPatientPage', () => {
             'md:grid-cols-3',
             'xl:col-start-2',
             'xl:w-full',
-            'xl:max-w-[38.22rem]'
+            'xl:max-w-[40.13rem]'
         );
         expect(workSummary).toHaveClass(
             'min-h-10',
