@@ -536,9 +536,6 @@ export default function PaymentPatientPage({
                         <h2 className="text-base font-bold text-slate-950 sm:text-lg">
                             {t('payments.patientLedger.tableTitle')}
                         </h2>
-                        <p className="mt-1 text-sm text-slate-500">
-                            {t('payments.patientLedger.tableDescription')}
-                        </p>
                     </div>
 
                     <section
