@@ -364,4 +364,52 @@ describe('uploadPatientTreatmentImages', () => {
         await expect(uploadPromise).resolves.toBe(0);
         expect(maxActiveUploads).toBe(3);
     });
+
+    it('retries ambiguous batch finalization without multipart duplicates', async () => {
+        const files = [makeTreatmentPhoto(0)];
+        let finalizeCalls = 0;
+
+        vi.mocked(apiClient.post).mockImplementation(async (url, payload) => {
+            if (url === '/patients/patient-1/treatments/treatment-1/images/direct-upload-batch') {
+                const filesPayload = (payload as { files: Array<{ client_id: string }> }).files;
+
+                return {
+                    data: {
+                        data: {
+                            supported: true,
+                            uploads: [{
+                                client_id: filesPayload[0].client_id,
+                                upload_id: 'upload-0',
+                                method: 'PUT',
+                                url: 'https://bucket.test/upload-0.png',
+                            }],
+                        },
+                    },
+                };
+            }
+
+            if (url === '/patients/patient-1/treatments/treatment-1/images/direct-upload-batch/complete') {
+                finalizeCalls += 1;
+                if (finalizeCalls === 1) {
+                    throw new Error('Response lost after commit');
+                }
+
+                return { data: { data: { completed_count: 1, failed: [] } } };
+            }
+
+            if (url === '/patients/patient-1/treatments/treatment-1/images') {
+                throw new Error('Multipart fallback must not run after ambiguous finalization');
+            }
+
+            throw new Error(`Unexpected request: ${url}`);
+        });
+        vi.mocked(fetch).mockResolvedValue({ ok: true } as Response);
+
+        await expect(uploadPatientTreatmentImages('patient-1', 'treatment-1', files)).resolves.toBe(0);
+        expect(finalizeCalls).toBe(2);
+        expect(apiClient.post).not.toHaveBeenCalledWith(
+            '/patients/patient-1/treatments/treatment-1/images',
+            expect.any(FormData)
+        );
+    });
 });

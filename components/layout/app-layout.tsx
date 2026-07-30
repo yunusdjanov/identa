@@ -32,6 +32,7 @@ import { Brand } from '@/components/branding/brand';
 import { AccountMenu } from '@/components/layout/account-menu';
 import { AccessDeniedState } from '@/components/error/access-denied-state';
 import { toast } from 'sonner';
+import { queryKeys } from '@/lib/query-keys';
 
 const navigation = [
     { key: 'nav.dashboard', href: '/dashboard', icon: LayoutDashboard },
@@ -94,7 +95,7 @@ function AppLayoutBody({ children }: { children: React.ReactNode }) {
         isError: isUserError,
         error: userError,
     } = useQuery({
-        queryKey: ['auth', 'me'],
+        queryKey: queryKeys.auth.me(),
         queryFn: getCurrentUser,
         retry: false,
         // 30s staleTime + refetch-on-focus is the security-conscious
@@ -210,7 +211,7 @@ function AppLayoutBody({ children }: { children: React.ReactNode }) {
                 // Sibling tab signed in — refresh `/auth/me` so any
                 // pages this tab is showing pick up the new identity
                 // (the cookie was already rotated server-side).
-                queryClient.invalidateQueries({ queryKey: ['auth', 'me'] });
+                queryClient.invalidateQueries({ queryKey: queryKeys.auth.me() });
             }
         });
 

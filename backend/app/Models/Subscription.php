@@ -71,6 +71,14 @@ class Subscription extends Model
     }
 
     /**
+     * @return BelongsTo<Plan, Subscription>
+     */
+    public function pendingPlan(): BelongsTo
+    {
+        return $this->belongsTo(Plan::class, 'pending_plan_id');
+    }
+
+    /**
      * @return HasMany<BillingPayment>
      */
     public function billingPayments(): HasMany

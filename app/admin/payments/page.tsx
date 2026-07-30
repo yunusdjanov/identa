@@ -63,6 +63,7 @@ import type {
 import { formatLocalizedDate } from '@/lib/i18n/date';
 import { useDebouncedValue } from '@/lib/hooks/use-debounced-value';
 import { truncateForUi } from '@/lib/utils';
+import { queryKeys } from '@/lib/query-keys';
 
 const PAYMENTS_PER_PAGE = 20;
 
@@ -185,7 +186,7 @@ export default function AdminPaymentsPage() {
     const search = useDebouncedValue(searchInput, 300);
 
     const authQuery = useQuery({
-        queryKey: ['auth', 'me'],
+        queryKey: queryKeys.auth.me(),
         queryFn: getCurrentUser,
         retry: false,
     });
@@ -212,7 +213,7 @@ export default function AdminPaymentsPage() {
     }
 
     const paymentsQuery = useQuery({
-        queryKey: ['admin', 'payments', page, search, statusFilter, dateFrom, dateTo],
+        queryKey: queryKeys.admin.payments.list(page, search, statusFilter, dateFrom, dateTo),
         queryFn: () =>
             listAdminPayments({
                 page,
@@ -233,15 +234,16 @@ export default function AdminPaymentsPage() {
         onSuccess: () => {
             toast.success(t('admin.payments.toast.refunded'));
             setRefundTarget(null);
-            queryClient.invalidateQueries({ queryKey: ['admin', 'payments'] });
-            queryClient.invalidateQueries({ queryKey: ['admin', 'dentists'] });
+            queryClient.invalidateQueries({ queryKey: queryKeys.admin.payments.all() });
+            queryClient.invalidateQueries({ queryKey: queryKeys.admin.dentists.all() });
+            queryClient.invalidateQueries({ queryKey: queryKeys.admin.analyticsAll() });
             // Refund cascade may have flipped a dentist's subscription to
             // read_only and written audit entries — refresh the per-dentist
             // billing cache (used by the detail page) and the audit log.
-            queryClient.invalidateQueries({ queryKey: ['admin', 'audit-logs'] });
+            queryClient.invalidateQueries({ queryKey: queryKeys.admin.auditLogs() });
             if (refundTarget?.dentist?.id) {
                 queryClient.invalidateQueries({
-                    queryKey: ['admin', 'dentists', refundTarget.dentist.id, 'billing'],
+                    queryKey: queryKeys.admin.dentists.billing(refundTarget.dentist.id),
                 });
             }
             // The dentist's own billing portal (own queries) may still display

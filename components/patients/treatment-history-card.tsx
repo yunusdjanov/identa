@@ -38,6 +38,7 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { canManage, canView, getManageDeniedMessage, isSubscriptionReadOnly } from '@/lib/auth/permissions';
 import { RecordAuthorBadge } from '@/components/ui/record-author-badge';
 import { rememberPatientListFocus } from '@/lib/patients/patient-list-state';
+import { queryKeys } from '@/lib/query-keys';
 
 interface TreatmentHistoryCardProps {
     patientId: string;
@@ -530,6 +531,8 @@ function buildPreviewGalleryImages(
     return images.map((image, index) => ({
         id: image.id,
         src: getTreatmentImagePreviewUrl(image) ?? '',
+        editSrc: image.editor_url ?? image.url ?? getTreatmentImagePreviewUrl(image) ?? '',
+        downloadSrc: image.url ?? image.editor_url ?? getTreatmentImagePreviewUrl(image) ?? '',
         thumbnailSrc: getTreatmentImageThumbnailUrl(image) ?? undefined,
         alt: `${patientName} ${imageLabel} ${index + 1}`,
         title: `${imageLabel} ${index + 1} - ${formatDate(treatmentDate)}`,
@@ -807,7 +810,7 @@ function HistoryAddImageButton({
 export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistoryCardProps) {
     const { t, locale } = useI18n();
     const queryClient = useQueryClient();
-    const treatmentsQueryKey = ['patients', 'detail', patientId, 'treatments'] as const;
+    const treatmentsQueryKey = queryKeys.patients.treatments(patientId);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [editingTreatment, setEditingTreatment] = useState<ApiTreatment | null>(null);
     const [treatmentToDelete, setTreatmentToDelete] = useState<ApiTreatment | null>(null);
@@ -826,7 +829,7 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
     const [isSavingPendingImageEdit, setIsSavingPendingImageEdit] = useState(false);
 
     const currentUserQuery = useQuery({
-        queryKey: ['auth', 'me'],
+        queryKey: queryKeys.auth.me(),
         queryFn: getCurrentUser,
         staleTime: 5 * 60_000,
     });
@@ -896,7 +899,7 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
     };
 
     const getTreatmentDetailQueryKey = (treatmentId: string) => (
-        ['patients', 'detail', patientId, 'treatments', treatmentId] as const
+        queryKeys.patients.treatment(patientId, treatmentId)
     );
 
     const mergeTreatmentIntoCaches = (updatedTreatment: ApiTreatment) => {
@@ -941,7 +944,7 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
 
         while (Date.now() < deadline) {
             const detail = await queryClient.fetchQuery({
-                queryKey: ['patients', 'detail', patientId, 'treatments', treatmentId],
+                queryKey: queryKeys.patients.treatment(patientId, treatmentId),
                 queryFn: () => getPatientTreatment(patientId, treatmentId),
                 staleTime: 0,
                 gcTime: 300_000,
@@ -1040,8 +1043,11 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
         },
         onSuccess: ({ treatment, mediaSyncFailed }) => {
             rememberPatientListFocus(patientId, { currentPage: 1 });
-            queryClient.invalidateQueries({ queryKey: ['patients'] });
-            queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+            queryClient.invalidateQueries({ queryKey: queryKeys.patients.all() });
+            queryClient.invalidateQueries({ queryKey: queryKeys.patients.overview(patientId) });
+            queryClient.invalidateQueries({ queryKey: queryKeys.payments.all() });
+            queryClient.invalidateQueries({ queryKey: queryKeys.analytics.all() });
+            queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all() });
 
             if (mediaSyncFailed) {
                 setEditingTreatment(treatment);
@@ -1089,8 +1095,11 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
         onSuccess: () => {
             toast.success(t('patientHistory.toast.deleted'));
             rememberPatientListFocus(patientId, { currentPage: 1 });
-            queryClient.invalidateQueries({ queryKey: ['patients'] });
-            queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+            queryClient.invalidateQueries({ queryKey: queryKeys.patients.all() });
+            queryClient.invalidateQueries({ queryKey: queryKeys.patients.overview(patientId) });
+            queryClient.invalidateQueries({ queryKey: queryKeys.payments.all() });
+            queryClient.invalidateQueries({ queryKey: queryKeys.analytics.all() });
+            queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all() });
             invalidateHistory();
         },
         onError: (error, _treatmentId, context) => {
@@ -1265,6 +1274,75 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                 };
             });
             toast.success(t('patientHistory.toast.imageEdited'));
+            invalidateHistory();
+        },
+        onError: (error) => {
+            toast.error(getApiErrorMessage(error, t('patientHistory.toast.imagesSyncFailed')));
+        },
+        onSettled: (_data, _error, variables) => {
+            setMediaSyncingTreatmentIds((current) => (
+                current.filter((id) => id !== variables?.treatmentId)
+            ));
+        },
+    });
+
+    const saveTreatmentImageCopyMutation = useMutation({
+        mutationFn: async ({
+            treatmentId,
+            file,
+        }: {
+            treatmentId: string;
+            file: File;
+        }) => {
+            if (!canManageHistory) {
+                throw new Error(manageDeniedMessage);
+            }
+
+            const [optimizedFile] = await optimizeImageFilesForUpload([file], {
+                concurrency: 1,
+                targetMaxBytes: maxHistoryUploadBytes,
+            });
+            if (!optimizedFile || optimizedFile.size > maxHistoryUploadBytes) {
+                throw new Error(t('patientHistory.validation.imageSize', { sizeMb: maxHistoryUploadMb }));
+            }
+
+            const failedCount = await uploadPatientTreatmentImages(patientId, treatmentId, [optimizedFile]);
+            if (failedCount > 0) {
+                throw new Error(t('patientHistory.toast.imagesSyncFailed'));
+            }
+
+            const detail = await getPatientTreatment(patientId, treatmentId);
+
+            return waitForTreatmentMediaReady(treatmentId, getTreatmentImageCount(detail));
+        },
+        onMutate: ({ treatmentId }) => {
+            setMediaSyncingTreatmentIds((current) => (
+                current.includes(treatmentId) ? current : [...current, treatmentId]
+            ));
+        },
+        onSuccess: (updatedTreatment) => {
+            mergeTreatmentIntoCaches(updatedTreatment);
+            const images = getPreviewableTreatmentImages(updatedTreatment);
+            setPreviewGallery((current) => {
+                if (!current || current.treatmentId !== updatedTreatment.id || images.length === 0) {
+                    return current;
+                }
+
+                const treatmentDate = updatedTreatment.treatment_date ?? current.treatmentDate;
+
+                return {
+                    ...current,
+                    images: buildPreviewGalleryImages(
+                        images,
+                        patientName,
+                        t('patientHistory.image'),
+                        treatmentDate
+                    ),
+                    startIndex: images.length - 1,
+                    treatmentDate,
+                };
+            });
+            toast.success(t('patientHistory.toast.imageCopySaved'));
             invalidateHistory();
         },
         onError: (error) => {
@@ -1538,6 +1616,41 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
         }
     };
 
+    const saveEditedPendingTreatmentImageCopy = async (_image: PreviewGalleryImage, file: File) => {
+        if (visibleExistingImagesCount + formState.imageFiles.length >= maxHistoryImagesPerEntry) {
+            throw new Error(t('patientHistory.validation.maxImages', { max: maxHistoryImagesPerEntry }));
+        }
+
+        setIsSavingPendingImageEdit(true);
+        try {
+            const [optimizedFile] = await optimizeImageFilesForUpload([file], {
+                concurrency: 1,
+                targetMaxBytes: maxHistoryUploadBytes,
+            });
+            if (!optimizedFile) {
+                throw new Error(t('gallery.edit.failed'));
+            }
+
+            const validationError = validateHistoryImageFile(
+                optimizedFile,
+                t,
+                maxHistoryUploadBytes,
+                maxHistoryUploadMb
+            );
+            if (validationError) {
+                throw new Error(validationError);
+            }
+
+            setFormState((current) => ({
+                ...current,
+                imageFiles: [...current.imageFiles, optimizedFile],
+            }));
+            toast.success(t('patientHistory.toast.imageCopySaved'));
+        } finally {
+            setIsSavingPendingImageEdit(false);
+        }
+    };
+
     const renderTreatmentFormCard = (mode: 'create' | 'edit') => {
         const existingImages = editingTreatment?.images ?? [];
         const hasImages = existingImages.length > 0 || selectedImagePreviews.length > 0;
@@ -1674,6 +1787,8 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                                         images: previewableImages.map((existingImage, imageIndex) => ({
                                                             id: existingImage.id,
                                                             src: getTreatmentImagePreviewUrl(existingImage) ?? '',
+                                                            editSrc: existingImage.editor_url ?? existingImage.url ?? getTreatmentImagePreviewUrl(existingImage) ?? '',
+                                                            downloadSrc: existingImage.url ?? existingImage.editor_url ?? getTreatmentImagePreviewUrl(existingImage) ?? '',
                                                             thumbnailSrc: getTreatmentImageThumbnailUrl(existingImage) ?? undefined,
                                                             alt: `${patientName} ${t('patientHistory.image')} ${imageIndex + 1}`,
                                                             title: `${t('patientHistory.image')} ${imageIndex + 1} - ${formatDate(formDate)}`,
@@ -2314,7 +2429,22 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                             file,
                         });
                     } : undefined}
-                    isEditPending={saveEditedTreatmentImageMutation.isPending || isSavingPendingImageEdit}
+                    onSaveEditedCopy={historyManageDisplayMode === 'enabled' ? async (image, file) => {
+                        if (!previewGallery.treatmentId) {
+                            await saveEditedPendingTreatmentImageCopy(image, file);
+                            return;
+                        }
+
+                        await saveTreatmentImageCopyMutation.mutateAsync({
+                            treatmentId: previewGallery.treatmentId,
+                            file,
+                        });
+                    } : undefined}
+                    isEditPending={
+                        saveEditedTreatmentImageMutation.isPending
+                        || saveTreatmentImageCopyMutation.isPending
+                        || isSavingPendingImageEdit
+                    }
                 />
             ) : null}
         </>

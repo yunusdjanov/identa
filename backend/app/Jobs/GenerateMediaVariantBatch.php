@@ -29,6 +29,7 @@ class GenerateMediaVariantBatch implements ShouldQueue
         public int $webpQuality = 80,
     ) {
         $this->afterCommit();
+        $this->onQueue('media');
     }
 
     public function handle(): void
@@ -87,8 +88,10 @@ class GenerateMediaVariantBatch implements ShouldQueue
             Log::warning($logContext.' variant batch item generation failed.', [
                 'exception' => $exception::class,
                 'disk' => $disk,
-                'source_path' => $sourcePath,
+                'source_ref' => hash('sha256', $sourcePath),
             ]);
+
+            throw $exception;
         }
     }
 }

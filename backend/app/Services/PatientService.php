@@ -94,11 +94,11 @@ class PatientService
                 ->whereDoesntHave('appointments', function (Builder $appointments) use ($inactiveBefore): void {
                     $appointments
                         ->where('status', Appointment::STATUS_COMPLETED)
-                        ->whereDate('appointment_date', '>=', $inactiveBefore);
+                        ->where('appointment_date', '>=', $inactiveBefore);
                 })
                 ->whereDoesntHave('treatments', function (Builder $treatments) use ($inactiveBefore): void {
                     $treatments
-                        ->whereDate('treatment_date', '>=', $inactiveBefore);
+                        ->where('treatment_date', '>=', $inactiveBefore);
                 });
         }
 
@@ -348,7 +348,7 @@ class PatientService
                         ->where('dentist_id', $dentistId)
                         ->where('patient_id', $id)
                         ->where('status', Appointment::STATUS_SCHEDULED)
-                        ->whereDate('appointment_date', '>=', today()->toDateString())
+                        ->where('appointment_date', '>=', today()->toDateString())
                         ->orderBy('appointment_date')
                         ->orderBy('start_time')
                         ->limit(3)
@@ -372,48 +372,19 @@ class PatientService
                         ->all();
                 }
 
-                $visitDates = collect();
-                if ($includeAppointments) {
-                    $visitDates = $visitDates->merge(
-                        Appointment::query()
-                            ->where('dentist_id', $dentistId)
-                            ->where('patient_id', $id)
-                            ->where('status', Appointment::STATUS_COMPLETED)
-                            ->pluck('appointment_date')
-                            ->map(static fn ($date): string => substr((string) $date, 0, 10))
-                    );
-                }
-                $visitDates = $visitDates
-                    ->merge(
-                        Treatment::query()
-                            ->where('dentist_id', $dentistId)
-                            ->where('patient_id', $id)
-                            ->pluck('treatment_date')
-                            ->map(static fn ($date): string => substr((string) $date, 0, 10))
-                    );
-                $visitCount = $visitDates
-                    ->filter(static fn (string $date): bool => preg_match('/^\d{4}-\d{2}-\d{2}$/', $date) === 1)
-                    ->unique()
-                    ->count();
+                $visitCount = $this->patientVisitCount(
+                    $dentistId,
+                    $id,
+                    $includeAppointments
+                );
 
                 $totalDebt = 0.0;
                 $totalPaid = 0.0;
                 $totalsByCurrency = [];
                 if ($includePayments) {
-                    $treatmentTotals = Treatment::query()
-                        ->where('dentist_id', $dentistId)
-                        ->where('patient_id', $id)
-                        ->where(function (Builder $builder): void {
-                            $builder
-                                ->where('currency', Treatment::CURRENCY_UZS)
-                                ->orWhereNull('currency');
-                        })
-                        ->selectRaw('COALESCE(SUM(debt_amount), 0) AS total_debt, COALESCE(SUM(paid_amount), 0) AS total_paid')
-                        ->first();
-
-                    $totalDebt = (float) ($treatmentTotals?->getAttribute('total_debt') ?? 0);
-                    $totalPaid = (float) ($treatmentTotals?->getAttribute('total_paid') ?? 0);
                     $totalsByCurrency = $this->treatmentTotalsByCurrency($dentistId, $id);
+                    $totalDebt = $totalsByCurrency[Treatment::CURRENCY_UZS]['total_debt'];
+                    $totalPaid = $totalsByCurrency[Treatment::CURRENCY_UZS]['total_paid'];
                 }
 
                 return [
@@ -429,39 +400,75 @@ class PatientService
         );
     }
 
+    private function patientVisitCount(
+        int $dentistId,
+        string $patientId,
+        bool $includeAppointments
+    ): int {
+        $treatmentDates = DB::table('treatments')
+            ->selectRaw('treatment_date AS visit_date')
+            ->where('dentist_id', $dentistId)
+            ->where('patient_id', $patientId);
+
+        if ($includeAppointments) {
+            $appointmentDates = DB::table('appointments')
+                ->selectRaw('appointment_date AS visit_date')
+                ->where('dentist_id', $dentistId)
+                ->where('patient_id', $patientId)
+                ->where('status', Appointment::STATUS_COMPLETED);
+            $treatmentDates->union($appointmentDates);
+        }
+
+        return (int) DB::query()
+            ->fromSub($treatmentDates, 'patient_visit_dates')
+            ->distinct()
+            ->count('visit_date');
+    }
+
     /**
      * @return array<string, array{total_debt: float, total_paid: float, total_balance: float}>
      */
     private function treatmentTotalsByCurrency(int $dentistId, string $patientId): array
     {
-        $totals = [];
-        foreach (Treatment::SUPPORTED_CURRENCIES as $currency) {
-            $currencyQuery = Treatment::query()
-                ->where('dentist_id', $dentistId)
-                ->where('patient_id', $patientId);
-            if ($currency === Treatment::CURRENCY_UZS) {
-                $currencyQuery->where(function (Builder $builder): void {
-                    $builder
-                        ->where('currency', Treatment::CURRENCY_UZS)
-                        ->orWhereNull('currency');
-                });
-            } else {
-                $currencyQuery->where('currency', $currency);
-            }
+        $row = Treatment::query()
+            ->where('dentist_id', $dentistId)
+            ->where('patient_id', $patientId)
+            ->toBase()
+            ->selectRaw(
+                'COALESCE(SUM(CASE WHEN COALESCE(currency, ?) = ? THEN debt_amount ELSE 0 END), 0) AS debt_uzs',
+                [Treatment::CURRENCY_UZS, Treatment::CURRENCY_UZS]
+            )
+            ->selectRaw(
+                'COALESCE(SUM(CASE WHEN COALESCE(currency, ?) = ? THEN paid_amount ELSE 0 END), 0) AS paid_uzs',
+                [Treatment::CURRENCY_UZS, Treatment::CURRENCY_UZS]
+            )
+            ->selectRaw(
+                'COALESCE(SUM(CASE WHEN COALESCE(currency, ?) = ? THEN debt_amount ELSE 0 END), 0) AS debt_usd',
+                [Treatment::CURRENCY_UZS, Treatment::CURRENCY_USD]
+            )
+            ->selectRaw(
+                'COALESCE(SUM(CASE WHEN COALESCE(currency, ?) = ? THEN paid_amount ELSE 0 END), 0) AS paid_usd',
+                [Treatment::CURRENCY_UZS, Treatment::CURRENCY_USD]
+            )
+            ->first();
 
-            $row = $currencyQuery
-                ->selectRaw('COALESCE(SUM(debt_amount), 0) AS total_debt, COALESCE(SUM(paid_amount), 0) AS total_paid')
-                ->first();
-            $totalDebt = (float) ($row?->getAttribute('total_debt') ?? 0);
-            $totalPaid = (float) ($row?->getAttribute('total_paid') ?? 0);
-            $totals[$currency] = [
-                'total_debt' => $totalDebt,
-                'total_paid' => $totalPaid,
-                'total_balance' => round($totalDebt - $totalPaid, 2),
-            ];
-        }
+        $uzsDebt = (float) ($row?->debt_uzs ?? 0);
+        $uzsPaid = (float) ($row?->paid_uzs ?? 0);
+        $usdDebt = (float) ($row?->debt_usd ?? 0);
+        $usdPaid = (float) ($row?->paid_usd ?? 0);
 
-        return $totals;
+        return [
+            Treatment::CURRENCY_UZS => [
+                'total_debt' => $uzsDebt,
+                'total_paid' => $uzsPaid,
+                'total_balance' => round($uzsDebt - $uzsPaid, 2),
+            ],
+            Treatment::CURRENCY_USD => [
+                'total_debt' => $usdDebt,
+                'total_paid' => $usdPaid,
+                'total_balance' => round($usdDebt - $usdPaid, 2),
+            ],
+        ];
     }
 
     public function archive(Request $request, string $id): void

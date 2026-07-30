@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { registerSubscriptionAccessRevokedHandler } from '@/lib/auth/subscription-access';
+import { queryKeys } from '@/lib/query-keys';
 
 export function QueryProvider({ children }: { children: React.ReactNode }) {
     const [queryClient] = useState(
@@ -50,9 +51,9 @@ export function QueryProvider({ children }: { children: React.ReactNode }) {
         // this the user sees a stale "full access" indicator until they
         // manually reload.
         return registerSubscriptionAccessRevokedHandler(() => {
-            queryClient.invalidateQueries({ queryKey: ['auth', 'me'] });
-            queryClient.invalidateQueries({ queryKey: ['billing', 'current-subscription'] });
-            queryClient.invalidateQueries({ queryKey: ['billing', 'payments'] });
+            queryClient.invalidateQueries({ queryKey: queryKeys.auth.me() });
+            queryClient.invalidateQueries({ queryKey: queryKeys.billing.currentSubscription() });
+            queryClient.invalidateQueries({ queryKey: queryKeys.billing.payments() });
         });
     }, [queryClient]);
 

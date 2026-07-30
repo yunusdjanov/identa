@@ -17,6 +17,7 @@ import { PatientPhotoPreviewDialog, type PreviewGalleryImage } from '@/component
 import { toast } from 'sonner';
 import { CalendarDays, Loader2, Lock } from 'lucide-react';
 import { EmptyState } from '@/components/ui/empty-state';
+import { queryKeys } from '@/lib/query-keys';
 
 interface ToothDetailDialogProps {
     open: boolean;
@@ -109,7 +110,7 @@ export function ToothDetailDialog({
     // the dialog should never expose financials regardless of where it
     // launches from.
     const currentUserQuery = useQuery({
-        queryKey: ['auth', 'me'],
+        queryKey: queryKeys.auth.me(),
         queryFn: getCurrentUser,
         staleTime: 30_000,
     });
@@ -155,7 +156,7 @@ export function ToothDetailDialog({
         }
 
         return queryClient.fetchQuery({
-            queryKey: ['patients', 'detail', patientId, 'treatments', treatment.id],
+            queryKey: queryKeys.patients.treatment(patientId, treatment.id),
             queryFn: () => getPatientTreatment(patientId, treatment.id),
             staleTime: 300_000,
             gcTime: 300_000,
@@ -176,6 +177,7 @@ export function ToothDetailDialog({
             setPreviewGallery({
                 images: images.map((image, index) => ({
                     src: getTreatmentImagePreviewUrl(image) ?? '',
+                    downloadSrc: image.url ?? image.editor_url ?? getTreatmentImagePreviewUrl(image) ?? '',
                     thumbnailSrc: getTreatmentImageThumbnailUrl(image) ?? undefined,
                     alt: `${t('patientHistory.image')} ${index + 1} ${formatDate(detailedTreatment.treatment_date)}`,
                     title: `${t('patientHistory.image')} ${index + 1} - ${formatDate(detailedTreatment.treatment_date)}`,

@@ -23,8 +23,8 @@ class PaymentLedgerController extends Controller
      * GET /api/v1/payments/ledger/patients
      *
      * Auth: payments.view. Query: page, per_page, filter[patient_id],
-     * filter[search], filter[outstanding], include_patient_photo. Returns
-     * patient-level balances plus summary totals for the payments page.
+     * filter[search], filter[outstanding], include_patient_photo, include_summary.
+     * Returns patient-level balances and optional summary totals.
      */
     public function patients(ListPaymentLedgerRequest $request): JsonResponse
     {
@@ -32,6 +32,18 @@ class PaymentLedgerController extends Controller
         $rows = $result['rows'];
         $includePatientProfile = $request->filled('filter.patient_id');
         $includePatientPhoto = $includePatientProfile || $request->boolean('include_patient_photo');
+
+        $meta = [
+            'pagination' => [
+                'page' => $rows->currentPage(),
+                'per_page' => $rows->perPage(),
+                'total' => $rows->total(),
+                'total_pages' => $rows->lastPage(),
+            ],
+        ];
+        if ($result['summary'] !== null) {
+            $meta['summary'] = $result['summary'];
+        }
 
         return response()->json([
             'data' => $rows
@@ -44,15 +56,7 @@ class PaymentLedgerController extends Controller
                 ))
                 ->values()
                 ->all(),
-            'meta' => [
-                'pagination' => [
-                    'page' => $rows->currentPage(),
-                    'per_page' => $rows->perPage(),
-                    'total' => $rows->total(),
-                    'total_pages' => $rows->lastPage(),
-                ],
-                'summary' => $result['summary'],
-            ],
+            'meta' => $meta,
         ]);
     }
 
@@ -60,13 +64,25 @@ class PaymentLedgerController extends Controller
      * GET /api/v1/payments/ledger/history
      *
      * Auth: payments.view. Query: page, per_page, filter[patient_id],
-     * filter[search], filter[outstanding]. Returns treatment-ledger rows
-     * for the payments history table.
+     * filter[search], filter[outstanding], include_summary. Returns
+     * treatment-ledger rows and optional summary totals.
      */
     public function history(ListPaymentLedgerRequest $request): JsonResponse
     {
         $result = $this->ledger->listHistoryRows($request);
         $rows = $result['rows'];
+
+        $meta = [
+            'pagination' => [
+                'page' => $rows->currentPage(),
+                'per_page' => $rows->perPage(),
+                'total' => $rows->total(),
+                'total_pages' => $rows->lastPage(),
+            ],
+        ];
+        if ($result['summary'] !== null) {
+            $meta['summary'] = $result['summary'];
+        }
 
         return response()->json([
             'data' => $rows
@@ -74,15 +90,7 @@ class PaymentLedgerController extends Controller
                 ->map(fn (Treatment $treatment): array => $this->historyRow($treatment))
                 ->values()
                 ->all(),
-            'meta' => [
-                'pagination' => [
-                    'page' => $rows->currentPage(),
-                    'per_page' => $rows->perPage(),
-                    'total' => $rows->total(),
-                    'total_pages' => $rows->lastPage(),
-                ],
-                'summary' => $result['summary'],
-            ],
+            'meta' => $meta,
         ]);
     }
 

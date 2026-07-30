@@ -32,6 +32,7 @@ import {
 import { ConfirmActionDialog } from '@/components/ui/confirm-action-dialog';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
+import { queryKeys } from '@/lib/query-keys';
 import {
     INPUT_LIMITS,
     formatPhoneInputValue,
@@ -259,7 +260,7 @@ export function TeamAccessTab({ canManageTeam, subscription, t }: TeamAccessTabP
     const [deleteTarget, setDeleteTarget] = useState<ApiAssistantAccount | null>(null);
 
     const assistantsQuery = useQuery({
-        queryKey: ['settings', 'team-assistants', search, status, page],
+        queryKey: queryKeys.settings.teamAssistants(search, status, page),
         queryFn: () =>
             listAssistants({
                 page,
@@ -303,8 +304,8 @@ export function TeamAccessTab({ canManageTeam, subscription, t }: TeamAccessTabP
     };
 
     const refreshTeamAccessData = () => {
-        queryClient.invalidateQueries({ queryKey: ['settings', 'team-assistants'] });
-        queryClient.invalidateQueries({ queryKey: ['auth', 'me'] });
+        queryClient.invalidateQueries({ queryKey: queryKeys.settings.teamAssistants() });
+        queryClient.invalidateQueries({ queryKey: queryKeys.auth.me() });
     };
 
     const setMutationErrors = (error: unknown, fallbackMessage: string) => {

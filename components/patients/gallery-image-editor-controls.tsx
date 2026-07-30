@@ -42,10 +42,12 @@ interface GalleryImageEditorControlsProps {
     onReset: () => void;
     onCancel: () => void;
     onSave: () => void;
+    onSaveCopy?: () => void;
     onRotateLeft: () => void;
     onRotateRight: () => void;
     isEditingDisabled: boolean;
     isSaveBusy: boolean;
+    hasUnsavedChanges: boolean;
 }
 
 function modeButtonClass(isActive: boolean): string {
@@ -110,16 +112,19 @@ export function GalleryImageEditorControls({
     onReset,
     onCancel,
     onSave,
+    onSaveCopy,
     onRotateLeft,
     onRotateRight,
     isEditingDisabled,
     isSaveBusy,
+    hasUnsavedChanges,
 }: GalleryImageEditorControlsProps) {
     const { t } = useI18n();
     const canApplyCrop = Boolean(
         draftCropRect && draftCropRect.width >= MIN_CROP_SIZE && draftCropRect.height >= MIN_CROP_SIZE
     );
     const sharedButtonClass = 'border-white/10 bg-white/10 text-white hover:bg-white/15 hover:text-white';
+    const controlId = (name: string) => `gallery-image-editor-${name}`;
 
     return (
         <div className="max-h-[50dvh] overflow-y-auto border-t border-white/10 bg-slate-950/95 px-4 py-3 backdrop-blur lg:max-h-none lg:overflow-visible">
@@ -143,12 +148,14 @@ export function GalleryImageEditorControls({
                     <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
                         {mode === 'crop' ? (
                             <div className="space-y-1.5">
-                                <Label className="text-xs font-semibold text-white/75">
+                                <Label htmlFor={controlId('straighten')} className="text-xs font-semibold text-white/75">
                                     {t('gallery.edit.straighten')}: {straightenRotation}°
                                 </Label>
                                 <input
                                     type="range"
+                                    id={controlId('straighten')}
                                     aria-label={t('gallery.edit.straighten')}
+                                    aria-valuetext={`${straightenRotation}°`}
                                     value={straightenRotation}
                                     min={MIN_STRAIGHTEN_ROTATION_DEGREES}
                                     max={MAX_STRAIGHTEN_ROTATION_DEGREES}
@@ -162,11 +169,14 @@ export function GalleryImageEditorControls({
                         {mode === 'adjust' ? (
                             <>
                                 <div className="space-y-1.5">
-                                    <Label className="text-xs font-semibold text-white/75">
+                                    <Label htmlFor={controlId('brightness')} className="text-xs font-semibold text-white/75">
                                         {t('gallery.edit.brightness')}: {brightness}%
                                     </Label>
                                     <input
                                         type="range"
+                                        id={controlId('brightness')}
+                                        aria-label={t('gallery.edit.brightness')}
+                                        aria-valuetext={`${brightness}%`}
                                         value={brightness}
                                         min={MIN_ADJUSTMENT_PERCENT}
                                         max={MAX_ADJUSTMENT_PERCENT}
@@ -177,11 +187,14 @@ export function GalleryImageEditorControls({
                                     />
                                 </div>
                                 <div className="space-y-1.5">
-                                    <Label className="text-xs font-semibold text-white/75">
+                                    <Label htmlFor={controlId('contrast')} className="text-xs font-semibold text-white/75">
                                         {t('gallery.edit.contrast')}: {contrast}%
                                     </Label>
                                     <input
                                         type="range"
+                                        id={controlId('contrast')}
+                                        aria-label={t('gallery.edit.contrast')}
+                                        aria-valuetext={`${contrast}%`}
                                         value={contrast}
                                         min={MIN_ADJUSTMENT_PERCENT}
                                         max={MAX_ADJUSTMENT_PERCENT}
@@ -196,11 +209,14 @@ export function GalleryImageEditorControls({
                         {(mode === 'draw' || mode === 'text') ? (
                             <>
                                 <div className="space-y-1.5">
-                                    <Label className="text-xs font-semibold text-white/75">
+                                    <Label htmlFor={controlId('annotation-size')} className="text-xs font-semibold text-white/75">
                                         {t('gallery.edit.size')}: {mode === 'text' ? textSize : drawSize}
                                     </Label>
                                     <input
                                         type="range"
+                                        id={controlId('annotation-size')}
+                                        aria-label={t('gallery.edit.size')}
+                                        aria-valuetext={String(mode === 'text' ? textSize : drawSize)}
                                         value={mode === 'text' ? textSize : drawSize}
                                         min={mode === 'text' ? 18 : 2}
                                         max={mode === 'text' ? 72 : 18}
@@ -233,6 +249,7 @@ export function GalleryImageEditorControls({
                                                 }`}
                                                 style={{ backgroundColor: color }}
                                                 aria-label={`${t('gallery.edit.color')} ${color}`}
+                                                aria-pressed={drawColor === color}
                                             />
                                         ))}
                                     </div>
@@ -264,9 +281,15 @@ export function GalleryImageEditorControls({
                         <Button type="button" variant="ghost" size="sm" className="text-white/75 hover:bg-white/10 hover:text-white" onClick={onCancel} disabled={isSaveBusy}>
                             {t('common.cancel')}
                         </Button>
-                        <Button type="button" size="sm" className="bg-teal-500 text-slate-950 hover:bg-teal-400" onClick={onSave} disabled={isEditingDisabled}>
+                        {onSaveCopy ? (
+                            <Button type="button" variant="outline" size="sm" className={sharedButtonClass} onClick={onSaveCopy} disabled={isEditingDisabled || !hasUnsavedChanges}>
+                                <Save className="mr-1.5 h-4 w-4" />
+                                {t('gallery.edit.saveCopy')}
+                            </Button>
+                        ) : null}
+                        <Button type="button" size="sm" className="bg-teal-500 text-slate-950 hover:bg-teal-400" onClick={onSave} disabled={isEditingDisabled || !hasUnsavedChanges}>
                             <Save className="mr-1.5 h-4 w-4" />
-                            {isSaveBusy ? t('gallery.edit.saving') : t('gallery.edit.saveOriginal')}
+                            {isSaveBusy ? t('gallery.edit.saving') : t('gallery.edit.replaceOriginal')}
                         </Button>
                     </div>
                 </div>

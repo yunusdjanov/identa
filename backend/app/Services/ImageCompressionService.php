@@ -17,14 +17,13 @@ class ImageCompressionService
      * The legacy iterative degradation (WEBP_QUALITIES / JPEG_QUALITIES) is kept
      * as a fallback for when an explicit byte ceiling is passed — admin-driven
      * override path. In auto mode (targetMaxBytes=null) we trust the high-quality
-     * result and skip recompression entirely if the source is already efficient.
+     * result. Approved media is always re-encoded so EXIF/GPS metadata and
+     * trailing non-image bytes never reach long-lived storage.
      */
     private const MAX_EDGE_AUTO = 1800;
     private const MIN_EDGE = 720;
     private const AUTO_WEBP_QUALITY = 82;
     private const AUTO_JPEG_QUALITY = 85;
-    /** Output >= 90% of original byte size means recompression is wasted work. */
-    private const SKIP_RECOMPRESSION_THRESHOLD = 0.90;
     private const WEBP_QUALITIES = [82, 76, 70, 64, 58];
     private const JPEG_QUALITIES = [84, 78, 72, 66, 60];
 
@@ -97,10 +96,9 @@ class ImageCompressionService
      * Two modes:
      * - **Auto** (targetMaxBytes=null): single-pass high-quality encode at
      *   {@see AUTO_WEBP_QUALITY}/{@see AUTO_JPEG_QUALITY}, only resizing when the
-     *   source exceeds {@see MAX_EDGE_AUTO}. If the recompressed output is not
-     *   meaningfully smaller than the source AND no resize happened, the source
-     *   is returned unchanged to avoid pointless quality loss on already-optimized
-     *   files. This is the default path — admins don't have to tune anything.
+     *   source exceeds {@see MAX_EDGE_AUTO}. The decoded bitmap is always
+     *   re-encoded to strip metadata and trailing bytes. This remains the
+     *   default path for all accepted uploads.
      * - **Ceiling** (targetMaxBytes set): the legacy iterative degradation kicks
      *   in if the auto result still exceeds the explicit byte ceiling. Used when
      *   a hard cap is required (currently no callers in auto mode).
@@ -109,6 +107,8 @@ class ImageCompressionService
      */
     public function optimizeContents(string $contents, ?string $fallbackMimeType, ?int $targetMaxBytes): ?array
     {
+        unset($fallbackMimeType);
+
         if (! function_exists('imagecreatefromstring') || ! function_exists('imagecreatetruecolor')) {
             return null;
         }
@@ -133,13 +133,19 @@ class ImageCompressionService
         }
 
         try {
+            $orientedSource = $this->applyExifOrientation($source, $this->jpegExifOrientation($contents));
+            if ($orientedSource !== $source) {
+                imagedestroy($source);
+                $source = $orientedSource;
+            }
+
             $sourceWidth = imagesx($source);
             $sourceHeight = imagesy($source);
             if ($sourceWidth <= 0 || $sourceHeight <= 0) {
                 return null;
             }
 
-            $autoResult = $this->encodeAuto($source, $contents, $fallbackMimeType, $sourceWidth, $sourceHeight);
+            $autoResult = $this->encodeAuto($source, $sourceWidth, $sourceHeight);
 
             // Auto mode: trust the single-pass high-quality result.
             if ($targetMaxBytes === null) {
@@ -160,12 +166,12 @@ class ImageCompressionService
 
     /**
      * Single-pass high-quality encode. Resizes only when source exceeds the
-     * auto ceiling. Skips recompression when it would barely save space.
+     * auto ceiling and always returns sanitized, newly encoded bytes.
      *
      * @param  resource|object  $source
      * @return array{contents: string, mime_type: string, extension: string, file_size: int}|null
      */
-    private function encodeAuto(mixed $source, string $sourceContents, ?string $sourceMimeType, int $sourceWidth, int $sourceHeight): ?array
+    private function encodeAuto(mixed $source, int $sourceWidth, int $sourceHeight): ?array
     {
         $largestEdge = max($sourceWidth, $sourceHeight);
         $needsResize = $largestEdge > self::MAX_EDGE_AUTO;
@@ -177,42 +183,22 @@ class ImageCompressionService
         }
 
         try {
-            $best = null;
-            foreach ($this->autoEncodingCandidates() as $candidate) {
+            $candidate = $this->autoEncodingCandidate($target);
+            $encoded = $this->encodeImage($target, $candidate['mime_type'], $candidate['quality']);
+            if ($encoded === null && $candidate['mime_type'] === 'image/webp') {
+                $candidate = $this->fallbackEncodingCandidate($target);
                 $encoded = $this->encodeImage($target, $candidate['mime_type'], $candidate['quality']);
-                if ($encoded === null) {
-                    continue;
-                }
-                $fileSize = strlen($encoded);
-                if ($best === null || $fileSize < $best['file_size']) {
-                    $best = [
-                        'contents' => $encoded,
-                        'mime_type' => $candidate['mime_type'],
-                        'extension' => $candidate['extension'],
-                        'file_size' => $fileSize,
-                    ];
-                }
             }
-
-            if ($best === null) {
+            if ($encoded === null) {
                 return null;
             }
 
-            // Smart skip: when the source wasn't resized and recompression barely
-            // shrinks the file, prefer the original bytes (no cumulative quality loss).
-            $sourceSize = strlen($sourceContents);
-            if (! $needsResize && $sourceSize > 0 && $best['file_size'] >= (int) round($sourceSize * self::SKIP_RECOMPRESSION_THRESHOLD)) {
-                $normalizedMime = $this->normalizeMimeType($sourceMimeType);
-
-                return [
-                    'contents' => $sourceContents,
-                    'mime_type' => $normalizedMime,
-                    'extension' => $this->extensionForMimeType($normalizedMime),
-                    'file_size' => $sourceSize,
-                ];
-            }
-
-            return $best;
+            return [
+                'contents' => $encoded,
+                'mime_type' => $candidate['mime_type'],
+                'extension' => $candidate['extension'],
+                'file_size' => strlen($encoded),
+            ];
         } finally {
             imagedestroy($target);
         }
@@ -243,7 +229,7 @@ class ImageCompressionService
             }
 
             try {
-                foreach ($this->encodingCandidates() as $candidate) {
+                foreach ($this->encodingCandidates($this->hasTransparency($target)) as $candidate) {
                     foreach ($candidate['qualities'] as $quality) {
                         $encoded = $this->encodeImage($target, $candidate['mime_type'], $quality);
                         if ($encoded === null) {
@@ -270,26 +256,45 @@ class ImageCompressionService
     }
 
     /**
-     * @return list<array{mime_type: string, extension: string, quality: int}>
+     * WebP preserves alpha and is the preferred production format. Choosing a
+     * single encoder avoids both a full alpha scan and a second encode on every
+     * normal upload. Hosts without WebP retain the PNG/JPEG fallback.
+     *
+     * @param  resource|object  $image
+     * @return array{mime_type: string, extension: string, quality: int}
      */
-    private function autoEncodingCandidates(): array
+    private function autoEncodingCandidate(mixed $image): array
     {
-        $candidates = [];
         if (function_exists('imagewebp')) {
-            $candidates[] = [
+            return [
                 'mime_type' => 'image/webp',
                 'extension' => 'webp',
                 'quality' => self::AUTO_WEBP_QUALITY,
             ];
         }
 
-        $candidates[] = [
+        return $this->fallbackEncodingCandidate($image);
+    }
+
+    /**
+     * @param  resource|object  $image
+     * @return array{mime_type: string, extension: string, quality: int}
+     */
+    private function fallbackEncodingCandidate(mixed $image): array
+    {
+        if ($this->hasTransparency($image)) {
+            return [
+                'mime_type' => 'image/png',
+                'extension' => 'png',
+                'quality' => 6,
+            ];
+        }
+
+        return [
             'mime_type' => 'image/jpeg',
             'extension' => 'jpg',
             'quality' => self::AUTO_JPEG_QUALITY,
         ];
-
-        return $candidates;
     }
 
     /**
@@ -317,7 +322,7 @@ class ImageCompressionService
     /**
      * @return list<array{mime_type: string, extension: string, qualities: list<int>}>
      */
-    private function encodingCandidates(): array
+    private function encodingCandidates(bool $preserveTransparency): array
     {
         $candidates = [];
         if (function_exists('imagewebp')) {
@@ -328,11 +333,19 @@ class ImageCompressionService
             ];
         }
 
-        $candidates[] = [
-            'mime_type' => 'image/jpeg',
-            'extension' => 'jpg',
-            'qualities' => self::JPEG_QUALITIES,
-        ];
+        if ($preserveTransparency) {
+            $candidates[] = [
+                'mime_type' => 'image/png',
+                'extension' => 'png',
+                'qualities' => [6],
+            ];
+        } else {
+            $candidates[] = [
+                'mime_type' => 'image/jpeg',
+                'extension' => 'jpg',
+                'qualities' => self::JPEG_QUALITIES,
+            ];
+        }
 
         return $candidates;
     }
@@ -345,6 +358,7 @@ class ImageCompressionService
         ob_start();
         $encoded = match ($mimeType) {
             'image/webp' => function_exists('imagewebp') ? imagewebp($image, null, $quality) : false,
+            'image/png' => imagepng($image, null, $quality),
             default => imagejpeg($image, null, $quality),
         };
         $contents = ob_get_clean();
@@ -375,21 +389,185 @@ class ImageCompressionService
         };
     }
 
-    private function normalizeMimeType(?string $mimeType): string
+    /**
+     * @param resource|object $image
+     */
+    private function hasTransparency(mixed $image): bool
     {
-        $normalized = strtolower(trim((string) $mimeType));
+        if (imagecolortransparent($image) >= 0) {
+            return true;
+        }
 
-        return in_array($normalized, ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'], true)
-            ? ($normalized === 'image/jpg' ? 'image/jpeg' : $normalized)
-            : 'image/jpeg';
+        $width = imagesx($image);
+        $height = imagesy($image);
+        for ($y = 0; $y < $height; $y++) {
+            for ($x = 0; $x < $width; $x++) {
+                if (((imagecolorat($image, $x, $y) >> 24) & 0x7f) > 0) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
-    private function extensionForMimeType(?string $mimeType): string
+    /**
+     * @param resource|object $source
+     * @return resource|object
+     */
+    private function applyExifOrientation(mixed $source, int $orientation): mixed
     {
-        return match ($this->normalizeMimeType($mimeType)) {
-            'image/png' => 'png',
-            'image/webp' => 'webp',
-            default => 'jpg',
+        return match ($orientation) {
+            2 => $this->flippedImage($source, IMG_FLIP_HORIZONTAL),
+            3 => $this->rotatedImage($source, 180),
+            4 => $this->flippedImage($source, IMG_FLIP_VERTICAL),
+            5 => $this->flippedAndRotatedImage($source, IMG_FLIP_HORIZONTAL, 90),
+            6 => $this->rotatedImage($source, -90),
+            7 => $this->flippedAndRotatedImage($source, IMG_FLIP_HORIZONTAL, -90),
+            8 => $this->rotatedImage($source, 90),
+            default => $source,
         };
+    }
+
+    /**
+     * @param resource|object $source
+     * @return resource|object
+     */
+    private function flippedImage(mixed $source, int $mode): mixed
+    {
+        $copy = $this->resizeImage(
+            $source,
+            imagesx($source),
+            imagesy($source),
+            max(imagesx($source), imagesy($source))
+        );
+        if ($copy === null || ! imageflip($copy, $mode)) {
+            return $source;
+        }
+
+        return $copy;
+    }
+
+    /**
+     * @param resource|object $source
+     * @return resource|object
+     */
+    private function rotatedImage(mixed $source, int $angle): mixed
+    {
+        $rotated = imagerotate($source, $angle, 0);
+
+        return is_object($rotated) || is_resource($rotated) ? $rotated : $source;
+    }
+
+    /**
+     * @param resource|object $source
+     * @return resource|object
+     */
+    private function flippedAndRotatedImage(mixed $source, int $flipMode, int $angle): mixed
+    {
+        $flipped = $this->flippedImage($source, $flipMode);
+        $rotated = $this->rotatedImage($flipped, $angle);
+        if ($flipped !== $source && $rotated !== $flipped) {
+            imagedestroy($flipped);
+        }
+
+        return $rotated;
+    }
+
+    private function jpegExifOrientation(string $contents): int
+    {
+        if (strlen($contents) < 4 || substr($contents, 0, 2) !== "\xFF\xD8") {
+            return 1;
+        }
+
+        $length = strlen($contents);
+        $offset = 2;
+        while ($offset + 4 <= $length) {
+            if (ord($contents[$offset]) !== 0xFF) {
+                break;
+            }
+
+            $marker = ord($contents[$offset + 1]);
+            $offset += 2;
+            if ($marker === 0xD9 || $marker === 0xDA) {
+                break;
+            }
+
+            $segmentLength = $this->readUnsigned16($contents, $offset, false);
+            if ($segmentLength < 2 || $offset + $segmentLength > $length) {
+                break;
+            }
+
+            if ($marker === 0xE1 && substr($contents, $offset + 2, 6) === "Exif\x00\x00") {
+                return $this->tiffOrientation(substr($contents, $offset + 8, $segmentLength - 8));
+            }
+
+            $offset += $segmentLength;
+        }
+
+        return 1;
+    }
+
+    private function tiffOrientation(string $tiff): int
+    {
+        if (strlen($tiff) < 8) {
+            return 1;
+        }
+
+        $littleEndian = substr($tiff, 0, 2) === 'II';
+        if (! $littleEndian && substr($tiff, 0, 2) !== 'MM') {
+            return 1;
+        }
+
+        if ($this->readUnsigned16($tiff, 2, $littleEndian) !== 42) {
+            return 1;
+        }
+
+        $ifdOffset = $this->readUnsigned32($tiff, 4, $littleEndian);
+        if ($ifdOffset < 0 || $ifdOffset + 2 > strlen($tiff)) {
+            return 1;
+        }
+
+        $entryCount = $this->readUnsigned16($tiff, $ifdOffset, $littleEndian);
+        for ($index = 0; $index < $entryCount; $index++) {
+            $entryOffset = $ifdOffset + 2 + ($index * 12);
+            if ($entryOffset + 12 > strlen($tiff)) {
+                break;
+            }
+
+            if (
+                $this->readUnsigned16($tiff, $entryOffset, $littleEndian) === 0x0112
+                && $this->readUnsigned16($tiff, $entryOffset + 2, $littleEndian) === 3
+                && $this->readUnsigned32($tiff, $entryOffset + 4, $littleEndian) === 1
+            ) {
+                $orientation = $this->readUnsigned16($tiff, $entryOffset + 8, $littleEndian);
+
+                return in_array($orientation, range(1, 8), true) ? $orientation : 1;
+            }
+        }
+
+        return 1;
+    }
+
+    private function readUnsigned16(string $contents, int $offset, bool $littleEndian): int
+    {
+        if ($offset < 0 || $offset + 2 > strlen($contents)) {
+            return -1;
+        }
+
+        $value = unpack($littleEndian ? 'vvalue' : 'nvalue', substr($contents, $offset, 2));
+
+        return (int) ($value['value'] ?? -1);
+    }
+
+    private function readUnsigned32(string $contents, int $offset, bool $littleEndian): int
+    {
+        if ($offset < 0 || $offset + 4 > strlen($contents)) {
+            return -1;
+        }
+
+        $value = unpack($littleEndian ? 'Vvalue' : 'Nvalue', substr($contents, $offset, 4));
+
+        return (int) ($value['value'] ?? -1);
     }
 }

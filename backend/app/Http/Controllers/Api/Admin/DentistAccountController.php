@@ -71,7 +71,7 @@ class DentistAccountController extends Controller
             // Eager-load subscriptions + plan so `subscriptionSummary()` →
             // `currentForOwner()` reuses the preloaded relation instead of
             // hitting the DB once per dentist row (former N+1).
-            ->with(['subscriptions.plan'])
+            ->with(['latestSubscription.plan', 'latestSubscription.pendingPlan'])
             ->orderByDesc('created_at');
 
         if (is_string($search) && $search !== '') {
@@ -88,13 +88,20 @@ class DentistAccountController extends Controller
         }
 
         $dentists = $query->paginate($this->resolvePerPage($request));
-        $totalCount = (clone $summaryQuery)->count();
-        $activeCount = (clone $summaryQuery)
-            ->where('account_status', User::ACCOUNT_STATUS_ACTIVE)
-            ->count();
-        $newRegistrations7d = (clone $summaryQuery)
-            ->whereDate('created_at', '>=', now()->subDays(6)->startOfDay()->toDateString())
-            ->count();
+        $summary = $summaryQuery
+            ->selectRaw(
+                'COUNT(*) as total_count,
+                SUM(CASE WHEN account_status = ? THEN 1 ELSE 0 END) as active_count,
+                SUM(CASE WHEN created_at >= ? THEN 1 ELSE 0 END) as new_registrations_7d',
+                [
+                    User::ACCOUNT_STATUS_ACTIVE,
+                    now()->subDays(6)->startOfDay(),
+                ]
+            )
+            ->first();
+        $totalCount = (int) ($summary?->total_count ?? 0);
+        $activeCount = (int) ($summary?->active_count ?? 0);
+        $newRegistrations7d = (int) ($summary?->new_registrations_7d ?? 0);
 
         return response()->json([
             'data' => collect($dentists->items())

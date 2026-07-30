@@ -72,12 +72,12 @@ class AppointmentService
 
         $dateFrom = $request->input('filter.date_from');
         if (is_string($dateFrom) && $dateFrom !== '') {
-            $query->whereDate('appointment_date', '>=', $dateFrom);
+            $query->where('appointment_date', '>=', $dateFrom);
         }
 
         $dateTo = $request->input('filter.date_to');
         if (is_string($dateTo) && $dateTo !== '') {
-            $query->whereDate('appointment_date', '<=', $dateTo);
+            $query->where('appointment_date', '<=', $dateTo);
         }
 
         $status = $request->input('filter.status');
@@ -390,7 +390,7 @@ class AppointmentService
         $query = Appointment::query()
             ->where('dentist_id', $dentistId)
             ->forActivePatients()
-            ->whereDate('appointment_date', $appointmentDate)
+            ->where('appointment_date', $appointmentDate)
             ->whereNotIn('status', self::NON_BLOCKING_STATUSES)
             ->lockForUpdate();
 

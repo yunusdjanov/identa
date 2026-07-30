@@ -1,7 +1,7 @@
 'use client';
 
-import { Fragment, useEffect, useRef, useState, useSyncExternalStore } from 'react';
-import type { CSSProperties, ReactNode } from 'react';
+import { Fragment, useCallback, useEffect, useId, useRef, useState, useSyncExternalStore } from 'react';
+import type { CSSProperties, ReactNode, RefObject } from 'react';
 import {
     LANDING_CONTENT,
     LANDING_LOCALES,
@@ -25,21 +25,37 @@ const LANDING_A11Y_LABELS: Record<LandingLocale, {
     language: string;
     openMenu: string;
     closeMenu: string;
+    mainNavigation: string;
+    mobileNavigation: string;
+    mobileMenu: string;
+    skipToContent: string;
 }> = {
     ru: {
         language: 'Язык',
         openMenu: 'Открыть меню',
         closeMenu: 'Закрыть меню',
+        mainNavigation: 'Основная навигация',
+        mobileNavigation: 'Мобильная навигация',
+        mobileMenu: 'Меню сайта',
+        skipToContent: 'Перейти к основному содержимому',
     },
     uz: {
         language: 'Til',
         openMenu: 'Menyuni ochish',
         closeMenu: 'Menyuni yopish',
+        mainNavigation: 'Asosiy navigatsiya',
+        mobileNavigation: 'Mobil navigatsiya',
+        mobileMenu: 'Sayt menyusi',
+        skipToContent: 'Asosiy kontentga oʻtish',
     },
     en: {
         language: 'Language',
         openMenu: 'Open menu',
         closeMenu: 'Close menu',
+        mainNavigation: 'Main navigation',
+        mobileNavigation: 'Mobile navigation',
+        mobileMenu: 'Site menu',
+        skipToContent: 'Skip to main content',
     },
 };
 
@@ -120,13 +136,13 @@ function Brand({ onClick }: { onClick?: () => void }) {
 
 function LangSwitch({ lang, setLang }: { lang: LandingLocale; setLang: (l: LandingLocale) => void }) {
     return (
-        <div className="lang-switch" role="tablist" aria-label={LANDING_A11Y_LABELS[lang].language}>
+        <div className="lang-switch" role="group" aria-label={LANDING_A11Y_LABELS[lang].language}>
             {LANDING_LOCALES.map((l) => (
                 <button
                     key={l}
                     type="button"
-                    role="tab"
-                    aria-selected={lang === l}
+                    aria-pressed={lang === l}
+                    lang={l}
                     className={lang === l ? 'active' : ''}
                     onClick={() => setLang(l)}
                 >
@@ -137,7 +153,21 @@ function LangSwitch({ lang, setLang }: { lang: LandingLocale; setLang: (l: Landi
     );
 }
 
-function Nav({ t, lang, setLang, onMenu }: { t: T; lang: LandingLocale; setLang: (l: LandingLocale) => void; onMenu: () => void }) {
+function Nav({
+    t,
+    lang,
+    setLang,
+    menuOpen,
+    onMenu,
+    menuButtonRef,
+}: {
+    t: T;
+    lang: LandingLocale;
+    setLang: (l: LandingLocale) => void;
+    menuOpen: boolean;
+    onMenu: () => void;
+    menuButtonRef: RefObject<HTMLButtonElement | null>;
+}) {
     const [scrolled, setScrolled] = useState(false);
     useEffect(() => {
         const onScroll = () => setScrolled(window.scrollY > 8);
@@ -148,7 +178,7 @@ function Nav({ t, lang, setLang, onMenu }: { t: T; lang: LandingLocale; setLang:
         <header className={'nav' + (scrolled ? ' scrolled' : '')}>
             <div className="container nav-row">
                 <Brand />
-                <nav className="nav-links">
+                <nav className="nav-links" aria-label={LANDING_A11Y_LABELS[lang].mainNavigation}>
                     <a href="#why">{t.nav.features}</a>
                     {t.nav.mobile ? <a href="#mobile">{t.nav.mobile}</a> : null}
                     <a href="#pricing">{t.nav.pricing}</a>
@@ -158,7 +188,15 @@ function Nav({ t, lang, setLang, onMenu }: { t: T; lang: LandingLocale; setLang:
                 <div className="nav-cta">
                     <LangSwitch lang={lang} setLang={setLang} />
                     <AppEntryLink href={APP_LOGIN_URL} className="btn btn-ghost btn-sm hide-mobile">{t.nav.login}</AppEntryLink>
-                    <button className="menu-btn" type="button" onClick={onMenu} aria-label={LANDING_A11Y_LABELS[lang].openMenu}>
+                    <button
+                        ref={menuButtonRef}
+                        className="menu-btn"
+                        type="button"
+                        onClick={onMenu}
+                        aria-label={LANDING_A11Y_LABELS[lang].openMenu}
+                        aria-expanded={menuOpen}
+                        aria-controls="landing-mobile-menu"
+                    >
                         <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 4h12M2 8h12M2 12h12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>
                     </button>
                 </div>
@@ -167,22 +205,73 @@ function Nav({ t, lang, setLang, onMenu }: { t: T; lang: LandingLocale; setLang:
     );
 }
 
-function MobileMenu({ open, onClose, t, lang, setLang }: { open: boolean; onClose: () => void; t: T; lang: LandingLocale; setLang: (l: LandingLocale) => void }) {
+function MobileMenu({
+    open,
+    onClose,
+    t,
+    lang,
+    setLang,
+}: {
+    open: boolean;
+    onClose: (restoreFocus?: boolean) => void;
+    t: T;
+    lang: LandingLocale;
+    setLang: (l: LandingLocale) => void;
+}) {
+    const closeButtonRef = useRef<HTMLButtonElement | null>(null);
+
+    useEffect(() => {
+        if (!open) {
+            return;
+        }
+
+        const previousOverflow = document.body.style.overflow;
+        const onKeyDown = (event: KeyboardEvent) => {
+            if (event.key === 'Escape') {
+                onClose(true);
+            }
+        };
+
+        document.body.style.overflow = 'hidden';
+        window.addEventListener('keydown', onKeyDown);
+        closeButtonRef.current?.focus();
+
+        return () => {
+            document.body.style.overflow = previousOverflow;
+            window.removeEventListener('keydown', onKeyDown);
+        };
+    }, [onClose, open]);
+
     return (
-        <div className={'mobile-menu' + (open ? ' open' : '')}>
+        <div
+            id="landing-mobile-menu"
+            className={'mobile-menu' + (open ? ' open' : '')}
+            role="dialog"
+            aria-modal="true"
+            aria-label={LANDING_A11Y_LABELS[lang].mobileMenu}
+            aria-hidden={!open}
+            inert={!open}
+        >
             <div className="mobile-menu-row">
-                <Brand onClick={onClose} />
-                <button className="menu-btn" type="button" onClick={onClose} style={{ display: 'flex' }} aria-label={LANDING_A11Y_LABELS[lang].closeMenu}>
+                <Brand onClick={() => onClose(false)} />
+                <button
+                    ref={closeButtonRef}
+                    className="menu-btn"
+                    type="button"
+                    onClick={() => onClose(true)}
+                    style={{ display: 'flex' }}
+                    aria-label={LANDING_A11Y_LABELS[lang].closeMenu}
+                >
                     <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M2 2l10 10M12 2L2 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>
                 </button>
             </div>
-            <div className="mobile-links">
-                <a href="#why" onClick={onClose}>{t.nav.features}</a>
-                {t.nav.mobile ? <a href="#mobile" onClick={onClose}>{t.nav.mobile}</a> : null}
-                <a href="#pricing" onClick={onClose}>{t.nav.pricing}</a>
-                <a href="#steps" onClick={onClose}>{t.nav.howto}</a>
-                <a href="#faq" onClick={onClose}>{t.nav.faq}</a>
-            </div>
+            <nav className="mobile-links" aria-label={LANDING_A11Y_LABELS[lang].mobileNavigation}>
+                <a href="#why" onClick={() => onClose(false)}>{t.nav.features}</a>
+                {t.nav.mobile ? <a href="#mobile" onClick={() => onClose(false)}>{t.nav.mobile}</a> : null}
+                <a href="#pricing" onClick={() => onClose(false)}>{t.nav.pricing}</a>
+                <a href="#steps" onClick={() => onClose(false)}>{t.nav.howto}</a>
+                <a href="#faq" onClick={() => onClose(false)}>{t.nav.faq}</a>
+            </nav>
             <div style={{ marginTop: 32, display: 'flex', gap: 12, alignItems: 'center' }}>
                 <LangSwitch lang={lang} setLang={setLang} />
                 <AppEntryLink href={APP_LOGIN_URL} className="btn btn-ghost btn-sm">{t.nav.login}</AppEntryLink>
@@ -305,7 +394,7 @@ function Hero({ t }: { t: T }) {
 
 function StatsStrip({ t }: { t: T }) {
     return (
-        <section className="stats">
+        <section className="stats" aria-label={t.stats.eyebrow}>
             <div className="container">
                 <div className="stats-row">
                     {t.stats.items.map((s, i) => (
@@ -470,9 +559,25 @@ function Pricing({ t, lang, plans }: { t: T; lang: LandingLocale; plans: Landing
                     <div className="eyebrow">{t.pricing.eyebrow}</div>
                     <h2 className="h-section">{t.pricing.title[0]}<em>{t.pricing.title[1]}</em></h2>
                     <p className="lede">{t.pricing.lede}</p>
-                    <div className="toggle-bill" role="tablist">
-                        <button type="button" className={!yearly ? 'active' : ''} onClick={() => setYearly(false)}>{t.pricing.monthly}</button>
-                        <button type="button" className={yearly ? 'active' : ''} onClick={() => setYearly(true)}>
+                    <div
+                        className="toggle-bill"
+                        role="group"
+                        aria-label={`${t.pricing.monthly} / ${t.pricing.yearly}`}
+                    >
+                        <button
+                            type="button"
+                            aria-pressed={!yearly}
+                            className={!yearly ? 'active' : ''}
+                            onClick={() => setYearly(false)}
+                        >
+                            {t.pricing.monthly}
+                        </button>
+                        <button
+                            type="button"
+                            aria-pressed={yearly}
+                            className={yearly ? 'active' : ''}
+                            onClick={() => setYearly(true)}
+                        >
                             {t.pricing.yearly}{t.pricing.save ? <span className="save">{t.pricing.save}</span> : null}
                         </button>
                     </div>
@@ -485,9 +590,9 @@ function Pricing({ t, lang, plans }: { t: T; lang: LandingLocale; plans: Landing
                         const features = buildPlanFeatures(dbPlan, lang, t.pricing.feature);
                         const price = planPriceLabel(dbPlan, t.pricing.feature, { yearly });
                         return (
-                            <div key={p.code} className={'price reveal' + (p.featured ? ' featured' : '')}>
+                            <article key={p.code} className={'price reveal' + (p.featured ? ' featured' : '')}>
                                 {p.flag && <div className="price-flag">{p.flag}</div>}
-                                <div className="name">{p.name}</div>
+                                <h3 className="name">{p.name}</h3>
                                 <div className="desc">{p.desc}</div>
                                 <div className="price-amt">
                                     <em style={{ fontFamily: 'var(--font-display)', fontStyle: 'italic', fontSize: '34px' }}>{price.amount}</em>
@@ -497,7 +602,7 @@ function Pricing({ t, lang, plans }: { t: T; lang: LandingLocale; plans: Landing
                                     {features.map((f, j) => <li key={j}>{f}</li>)}
                                 </ul>
                                 <AppEntryLink href={APP_REGISTER_URL} className={'btn ' + (p.featured ? 'btn-accent' : 'btn-ghost')}>{p.cta}</AppEntryLink>
-                            </div>
+                            </article>
                         );
                     })}
                 </div>
@@ -517,11 +622,11 @@ function Steps({ t }: { t: T }) {
                 </div>
                 <div className="steps-grid">
                     {t.steps.items.map((s, i) => (
-                        <div key={i} className="step reveal">
+                        <article key={i} className="step reveal">
                             <div className="n">{s.n}</div>
-                            <h4>{s.t}</h4>
+                            <h3>{s.t}</h3>
                             <p>{s.d}</p>
-                        </div>
+                        </article>
                     ))}
                 </div>
             </div>
@@ -531,6 +636,7 @@ function Steps({ t }: { t: T }) {
 
 function Faq({ t }: { t: T }) {
     const [open, setOpen] = useState(0);
+    const faqId = useId();
     return (
         <section id="faq">
             <div className="container">
@@ -543,11 +649,26 @@ function Faq({ t }: { t: T }) {
                     <div className="faq-list reveal">
                         {t.faq.items.map((it, i) => (
                             <div key={i} className={'faq-item' + (open === i ? ' open' : '')}>
-                                <button type="button" className="faq-q" aria-expanded={open === i} onClick={() => setOpen(open === i ? -1 : i)}>
+                                <button
+                                    id={`${faqId}-question-${i}`}
+                                    type="button"
+                                    className="faq-q"
+                                    aria-expanded={open === i}
+                                    aria-controls={`${faqId}-answer-${i}`}
+                                    onClick={() => setOpen(open === i ? -1 : i)}
+                                >
                                     <span>{it.q}</span>
                                     <span className="ic" aria-hidden="true">+</span>
                                 </button>
-                                <div className="faq-a">{it.a}</div>
+                                <div
+                                    id={`${faqId}-answer-${i}`}
+                                    className="faq-a"
+                                    role="region"
+                                    aria-labelledby={`${faqId}-question-${i}`}
+                                    aria-hidden={open !== i}
+                                >
+                                    {it.a}
+                                </div>
                             </div>
                         ))}
                     </div>
@@ -596,10 +717,18 @@ export function Landing({ fontClassName = '', plans = [] }: { fontClassName?: st
     const lang = useSyncExternalStore(subscribeLang, readStoredLang, () => DEFAULT_LANDING_LOCALE);
     const [menuOpen, setMenuOpen] = useState(false);
     const rootRef = useRef<HTMLDivElement | null>(null);
+    const menuButtonRef = useRef<HTMLButtonElement | null>(null);
 
     const setLangAndPersist = (l: LandingLocale) => {
         persistLang(l);
     };
+
+    const closeMobileMenu = useCallback((restoreFocus = false) => {
+        setMenuOpen(false);
+        if (restoreFocus) {
+            window.requestAnimationFrame(() => menuButtonRef.current?.focus());
+        }
+    }, []);
 
     // Scroll-reveal animation, re-armed whenever the language (and thus the
     // DOM) changes.
@@ -637,9 +766,19 @@ export function Landing({ fontClassName = '', plans = [] }: { fontClassName?: st
                 ['--font-mono' as string]: 'var(--font-geist-mono), ui-monospace, "SF Mono", Menlo, monospace',
             }}
         >
-            <Nav t={t} lang={lang} setLang={setLangAndPersist} onMenu={() => setMenuOpen(true)} />
-            <MobileMenu open={menuOpen} onClose={() => setMenuOpen(false)} t={t} lang={lang} setLang={setLangAndPersist} />
-            <main>
+            <a className="skip-link" href="#main-content">
+                {LANDING_A11Y_LABELS[lang].skipToContent}
+            </a>
+            <Nav
+                t={t}
+                lang={lang}
+                setLang={setLangAndPersist}
+                menuOpen={menuOpen}
+                onMenu={() => setMenuOpen(true)}
+                menuButtonRef={menuButtonRef}
+            />
+            <MobileMenu open={menuOpen} onClose={closeMobileMenu} t={t} lang={lang} setLang={setLangAndPersist} />
+            <main id="main-content">
                 <Hero t={t} />
                 <StatsStrip t={t} />
                 <Why t={t} />

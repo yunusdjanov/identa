@@ -12,6 +12,7 @@ import {
     CalendarPlus,
     Edit,
     FileText,
+    Loader2,
     MapPin,
     Maximize2,
     Phone,
@@ -46,6 +47,7 @@ import {
     getProtectedMediaThumbnailUrl,
 } from '@/lib/protected-media';
 import { formatDate, getDaysSinceLastVisit, truncateForUi } from '@/lib/utils';
+import { queryKeys } from '@/lib/query-keys';
 
 const EditPatientDialog = dynamic(
     () => import('@/components/patients/edit-patient-dialog').then((module) => module.EditPatientDialog),
@@ -249,9 +251,11 @@ export function PatientDetailHeader({
         onSuccess: () => {
             toast.success(t('patientDetail.toast.archived'));
             setIsArchivePatientDialogOpen(false);
-            queryClient.invalidateQueries({ queryKey: ['patients'] });
-            queryClient.invalidateQueries({ queryKey: ['patients', 'detail', patient.id] });
-            queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+            queryClient.invalidateQueries({ queryKey: queryKeys.patients.all() });
+            queryClient.invalidateQueries({ queryKey: queryKeys.patients.detail(patient.id) });
+            queryClient.invalidateQueries({ queryKey: queryKeys.payments.all() });
+            queryClient.invalidateQueries({ queryKey: queryKeys.analytics.all() });
+            queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all() });
         },
         onError: (error) => {
             toast.error(getApiErrorMessage(error, t('patientDetail.toast.archiveFailed')));
@@ -263,9 +267,11 @@ export function PatientDetailHeader({
         onSuccess: () => {
             toast.success(t('patientDetail.toast.restored'));
             setIsRestorePatientDialogOpen(false);
-            queryClient.invalidateQueries({ queryKey: ['patients'] });
-            queryClient.invalidateQueries({ queryKey: ['patients', 'detail', patient.id] });
-            queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+            queryClient.invalidateQueries({ queryKey: queryKeys.patients.all() });
+            queryClient.invalidateQueries({ queryKey: queryKeys.patients.detail(patient.id) });
+            queryClient.invalidateQueries({ queryKey: queryKeys.payments.all() });
+            queryClient.invalidateQueries({ queryKey: queryKeys.analytics.all() });
+            queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all() });
         },
         onError: (error) => {
             toast.error(getApiErrorMessage(error, t('patientDetail.toast.restoreFailed')));
@@ -277,8 +283,10 @@ export function PatientDetailHeader({
         onSuccess: () => {
             toast.success(t('patientDetail.toast.permanentlyDeleted'));
             setIsPermanentDeletePatientDialogOpen(false);
-            queryClient.invalidateQueries({ queryKey: ['patients'] });
-            queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+            queryClient.invalidateQueries({ queryKey: queryKeys.patients.all() });
+            queryClient.invalidateQueries({ queryKey: queryKeys.payments.all() });
+            queryClient.invalidateQueries({ queryKey: queryKeys.analytics.all() });
+            queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all() });
             router.push('/patients');
         },
         onError: (error) => {
@@ -301,6 +309,8 @@ export function PatientDetailHeader({
         previewUrl: patient.photo_preview_url,
         url: patient.photo_url,
     }) ?? patientAvatarUrl;
+    const isPatientPhotoProcessing = patient.photo_processing_status === 'pending';
+    const isPatientPhotoRejected = patient.photo_processing_status === 'rejected';
     const compactEmptyValue = '—';
     const headerPhones = [patient.phone, patient.secondary_phone].filter((phone): phone is string => Boolean(phone));
     const headerPhoneTitle = headerPhones.length > 0 ? headerPhones.join(' / ') : t('patientDetail.notSpecified');
@@ -351,6 +361,17 @@ export function PatientDetailHeader({
                                 <span className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-xl bg-slate-950/0 text-white opacity-0 transition group-hover:bg-slate-950/35 group-hover:opacity-100 group-focus-visible:bg-slate-950/35 group-focus-visible:opacity-100">
                                     <Maximize2 className="h-4 w-4" />
                                 </span>
+                                {isPatientPhotoProcessing ? (
+                                    <span className="absolute right-1.5 top-1.5 rounded-full bg-slate-950/75 p-1.5 text-white" title={t('patientDetail.oralPhoto.processing')}>
+                                        <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+                                        <span className="sr-only">{t('patientDetail.oralPhoto.processing')}</span>
+                                    </span>
+                                ) : isPatientPhotoRejected ? (
+                                    <span className="absolute right-1.5 top-1.5 rounded-full bg-red-600 p-1.5 text-white" title={t('patientDetail.oralPhoto.rejected')}>
+                                        <AlertCircle className="h-3.5 w-3.5" aria-hidden="true" />
+                                        <span className="sr-only">{t('patientDetail.oralPhoto.rejected')}</span>
+                                    </span>
+                                ) : null}
                             </button>
                         </div>
                     ) : (
@@ -360,6 +381,17 @@ export function PatientDetailHeader({
                                     {getPatientInitials(patient.full_name)}
                                 </AvatarFallback>
                             </Avatar>
+                            {isPatientPhotoProcessing ? (
+                                <span className="absolute right-1.5 top-0 rounded-full bg-slate-700 p-1.5 text-white" title={t('patientDetail.oralPhoto.processing')}>
+                                    <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+                                    <span className="sr-only">{t('patientDetail.oralPhoto.processing')}</span>
+                                </span>
+                            ) : isPatientPhotoRejected ? (
+                                <span className="absolute right-1.5 top-0 rounded-full bg-red-600 p-1.5 text-white" title={t('patientDetail.oralPhoto.rejected')}>
+                                    <AlertCircle className="h-3.5 w-3.5" aria-hidden="true" />
+                                    <span className="sr-only">{t('patientDetail.oralPhoto.rejected')}</span>
+                                </span>
+                            ) : null}
                         </div>
                     )}
                     <div className="min-w-0 flex-1">
@@ -645,7 +677,7 @@ export function PatientDetailHeader({
                         setIsAppointmentDialogOpen(open);
                         if (!open) {
                             queryClient.invalidateQueries({
-                                queryKey: ['patients', 'detail', patient.id, 'overview'],
+                                queryKey: queryKeys.patients.overview(patient.id),
                             });
                         }
                     }}
@@ -659,6 +691,7 @@ export function PatientDetailHeader({
                     onOpenChange={setIsPatientPhotoPreviewOpen}
                     images={[{
                         src: patientAvatarPreviewUrl,
+                        downloadSrc: patient.photo_url ?? patientAvatarPreviewUrl,
                         thumbnailSrc: patientAvatarUrl,
                         alt: patient.full_name,
                         title: patient.full_name,

@@ -48,20 +48,46 @@ describe('Landing', () => {
         const user = userEvent.setup();
         render(<Landing />);
 
-        const langTabs = screen.getAllByRole('tablist', { name: 'Язык' })[0];
-        await user.click(within(langTabs).getByRole('tab', { name: 'en' }));
+        const langSwitches = screen.getAllByRole('group', { name: 'Язык' });
+        await user.click(within(langSwitches[0]).getByRole('button', { name: 'en' }));
 
         // English hero CTA now renders; the Russian one is gone
         expect(screen.getAllByRole('link', { name: 'Start free' }).length).toBeGreaterThan(0);
         expect(screen.queryByRole('link', { name: 'Начать бесплатно' })).not.toBeInTheDocument();
-        expect(screen.getAllByRole('tablist', { name: 'Language' }).length).toBeGreaterThan(0);
+        expect(screen.getAllByRole('group', { name: 'Language' }).length).toBeGreaterThan(0);
     });
 
     it('exposes an accessible language switcher', () => {
         render(<Landing />);
-        const langTabs = screen.getAllByRole('tablist', { name: 'Язык' })[0];
-        expect(within(langTabs).getByRole('tab', { name: 'ru' })).toHaveAttribute('aria-selected', 'true');
-        expect(screen.getByRole('button', { name: 'Открыть меню' })).toBeInTheDocument();
+        const langSwitch = screen.getAllByRole('group', { name: 'Язык' })[0];
+        expect(within(langSwitch).getByRole('button', { name: 'ru' })).toHaveAttribute('aria-pressed', 'true');
+
+        const menuButton = screen.getByRole('button', { name: 'Открыть меню' });
+        expect(menuButton).toHaveAttribute('aria-expanded', 'false');
+        expect(menuButton).toHaveAttribute('aria-controls', 'landing-mobile-menu');
+        expect(screen.getByRole('link', { name: 'Перейти к основному содержимому' })).toHaveAttribute(
+            'href',
+            '#main-content'
+        );
+    });
+
+    it('keeps the closed mobile menu out of the accessibility tree and closes it with Escape', async () => {
+        const user = userEvent.setup();
+        render(<Landing />);
+
+        const menuButton = screen.getByRole('button', { name: 'Открыть меню' });
+        expect(screen.queryByRole('dialog', { name: 'Меню сайта' })).not.toBeInTheDocument();
+
+        await user.click(menuButton);
+
+        expect(menuButton).toHaveAttribute('aria-expanded', 'true');
+        expect(screen.getByRole('dialog', { name: 'Меню сайта' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Закрыть меню' })).toHaveFocus();
+
+        await user.keyboard('{Escape}');
+
+        expect(menuButton).toHaveAttribute('aria-expanded', 'false');
+        expect(menuButton).toHaveFocus();
     });
 
     it('uses full document navigation for app entry links', () => {
@@ -89,5 +115,12 @@ describe('Landing', () => {
         expect(landingPageSource).toContain('subsets: ["cyrillic", "latin"]');
         expect(landingPageSource).toContain('display: "swap"');
         expect(landingPageSource).not.toContain('display: "optional"');
+    });
+
+    it('uses semantic headings for plans and onboarding steps', () => {
+        render(<Landing />);
+
+        expect(screen.getByRole('heading', { level: 3, name: 'Пробный' })).toBeInTheDocument();
+        expect(screen.getByRole('heading', { level: 3, name: 'Зарегистрируйтесь' })).toBeInTheDocument();
     });
 });

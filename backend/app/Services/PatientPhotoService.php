@@ -349,6 +349,21 @@ class PatientPhotoService
         return $this->isDisplayable($patient) ? 'approved' : $status;
     }
 
+    /**
+     * Return the lifecycle state of the latest upload attempt independently
+     * from the approved image that may still be displayed.
+     */
+    public function processingScanStatus(Patient $patient): ?string
+    {
+        if ($patient->rejected_at !== null) {
+            return 'rejected';
+        }
+
+        $status = trim((string) $patient->scan_status);
+
+        return $status !== '' ? $status : null;
+    }
+
     public function disk(): string
     {
         return (string) config('filesystems.media_disk', 'local');

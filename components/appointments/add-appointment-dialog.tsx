@@ -43,6 +43,7 @@ import {
 import type { ApiAppointment, ApiCollectionEnvelope, ApiPatientLookup } from '@/lib/api/types';
 import { useI18n } from '@/components/providers/i18n-provider';
 import { AppointmentTimePicker } from '@/components/appointments/appointment-time-picker';
+import { queryKeys } from '@/lib/query-keys';
 
 type AppointmentStatus = 'scheduled' | 'completed' | 'cancelled' | 'no_show';
 const PATIENT_LOOKUP_PAGE_SIZE = 20;
@@ -349,7 +350,7 @@ export function AddAppointmentDialog({
     }, [patientSearch]);
 
     const patientsQuery = useQuery({
-        queryKey: ['patients', 'lookup', debouncedPatientSearch],
+        queryKey: queryKeys.patients.lookup(debouncedPatientSearch),
         enabled: open && isPatientMenuOpen,
         queryFn: () =>
             lookupPatients({
@@ -368,7 +369,7 @@ export function AddAppointmentDialog({
         [formData.patientId, patients]
     );
     const selectedPatientQuery = useQuery({
-        queryKey: ['patients', 'lookup', 'selected', formData.patientId],
+        queryKey: queryKeys.patients.lookup('selected', formData.patientId),
         enabled: open && Boolean(formData.patientId) && !selectedPatientFromList,
         queryFn: async () => {
             const response = await lookupPatients({
@@ -390,7 +391,7 @@ export function AddAppointmentDialog({
         [patientSearch, patients]
     );
     const dayAppointmentsQuery = useQuery({
-        queryKey: ['appointments', 'availability', formData.appointmentDate],
+        queryKey: queryKeys.appointments.availability(formData.appointmentDate),
         enabled: open && formData.appointmentDate !== '',
         queryFn: () =>
             listAppointments({
@@ -522,8 +523,10 @@ export function AddAppointmentDialog({
             setIsGuestMode(Boolean(editingAppointment?.isGuest));
             setIsPatientMenuOpen(false);
             onOpenChange(false);
-            queryClient.invalidateQueries({ queryKey: ['appointments'] });
-            queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+            queryClient.invalidateQueries({ queryKey: queryKeys.appointments.all() });
+            queryClient.invalidateQueries({ queryKey: queryKeys.patients.all() });
+            queryClient.invalidateQueries({ queryKey: queryKeys.analytics.all() });
+            queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all() });
         },
         onError: (error) => {
             toast.error(

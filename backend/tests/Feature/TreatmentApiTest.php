@@ -254,10 +254,14 @@ class TreatmentApiTest extends TestCase
         $this->assertIsString($firstImageId);
         $thumbnailUrl = $firstUpload->json('data.images.0.thumbnail_url');
         $previewUrl = $firstUpload->json('data.images.0.preview_url');
+        $editorUrl = $firstUpload->json('data.images.0.editor_url');
         $this->assertIsString($thumbnailUrl);
         $this->assertIsString($previewUrl);
+        $this->assertIsString($editorUrl);
         $this->assertNotSame('', $thumbnailUrl);
         $this->assertNotSame('', $previewUrl);
+        $this->assertStringContainsString('/api/v1/patients/', $editorUrl);
+        $this->assertStringContainsString('?v=', $editorUrl);
         $firstImage = TreatmentImage::query()->findOrFail($firstImageId);
         $firstPath = (string) $firstImage->path;
         $firstThumbnailPath = sprintf(

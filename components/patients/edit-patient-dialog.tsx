@@ -27,6 +27,7 @@ import { getApiErrorMessage } from '@/lib/api/client';
 import { optimizeImageFileForUpload } from '@/lib/browser-image';
 import type { ApiPatient } from '@/lib/api/types';
 import { toast } from 'sonner';
+import { queryKeys } from '@/lib/query-keys';
 import { useI18n } from '@/components/providers/i18n-provider';
 import {
     INPUT_LIMITS,
@@ -113,7 +114,7 @@ export function EditPatientDialog({
     );
     useDirtyFormWarning(isDirty);
     const categoriesQuery = useQuery({
-        queryKey: ['patient-categories', 'list'],
+        queryKey: queryKeys.patientCategories.list(),
         queryFn: () => listPatientCategories(),
         staleTime: 60_000,
     });
@@ -194,9 +195,10 @@ export function EditPatientDialog({
             if (photoActionError) {
                 toast.error(photoActionError);
             }
-            queryClient.invalidateQueries({ queryKey: ['patients'] });
-            queryClient.invalidateQueries({ queryKey: ['patients', 'detail', patient.id] });
-            queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+            queryClient.invalidateQueries({ queryKey: queryKeys.patients.all() });
+            queryClient.invalidateQueries({ queryKey: queryKeys.patients.detail(patient.id) });
+            queryClient.invalidateQueries({ queryKey: queryKeys.payments.all() });
+            queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all() });
             rememberPatientListFocus(patient.id, { currentPage: 1 });
             handleDialogOpenChange(false);
         },

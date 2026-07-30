@@ -5,8 +5,19 @@ import { PatientPhotoPreviewDialog } from '@/components/patients/patient-photo-p
 import { I18nProvider } from '@/components/providers/i18n-provider';
 import { DICTIONARIES } from '@/lib/i18n/dictionaries';
 
+const galleryEditorPropsMock = vi.hoisted(() => vi.fn());
+
 vi.mock('@/components/patients/gallery-image-editor', () => ({
-    GalleryImageEditor: () => (
+    GalleryImageEditor: (props: {
+        image: { src: string };
+        onCancel: () => void;
+        onSave: (file: File) => void;
+        onSaveCopy?: (file: File) => void;
+        onDirtyChange?: (dirty: boolean) => void;
+    }) => {
+        galleryEditorPropsMock(props);
+
+        return (
         <div data-testid="mock-gallery-image-editor">
             <p>Brightness: 100%</p>
             <p>Contrast: 100%</p>
@@ -17,10 +28,15 @@ vi.mock('@/components/patients/gallery-image-editor', () => ({
             <button type="button">Left</button>
             <button type="button">Right</button>
             <button type="button">Reset</button>
-            <button type="button">Cancel</button>
-            <button type="button">Save</button>
+            <button type="button" onClick={() => props.onDirtyChange?.(true)}>Mark dirty</button>
+            <button type="button" onClick={props.onCancel}>Cancel</button>
+            <button type="button" onClick={() => props.onSave(new File(['edited'], 'edited.jpg'))}>Save</button>
+            {props.onSaveCopy ? (
+                <button type="button" onClick={() => props.onSaveCopy?.(new File(['copy'], 'copy.jpg'))}>Save copy</button>
+            ) : null}
         </div>
-    ),
+        );
+    },
 }));
 
 function buildImages(count: number) {
@@ -43,6 +59,9 @@ function wrapper({ children }: { children: React.ReactNode }) {
 describe('PatientPhotoPreviewDialog', () => {
     afterEach(() => {
         cleanup();
+        galleryEditorPropsMock.mockReset();
+        vi.unstubAllGlobals();
+        vi.restoreAllMocks();
     });
 
     it('renders and navigates a 10-image gallery', async () => {
@@ -211,5 +230,78 @@ describe('PatientPhotoPreviewDialog', () => {
         expect(screen.getByRole('button', { name: 'Reset' })).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Cancel' })).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Save' })).toBeInTheDocument();
+    });
+
+    it('edits and downloads the protected full-resolution source', async () => {
+        const user = userEvent.setup();
+        const fetchMock = vi.fn().mockResolvedValue({
+            ok: true,
+            blob: () => Promise.resolve(new Blob(['image'], { type: 'image/jpeg' })),
+        });
+        vi.stubGlobal('fetch', fetchMock);
+        vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:download');
+        vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined);
+        vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
+
+        render(
+            <PatientPhotoPreviewDialog
+                open={true}
+                onOpenChange={() => {}}
+                alt="Image"
+                title="Gallery"
+                images={[{
+                    src: 'https://cdn.example.com/preview.jpg',
+                    editSrc: '/api/v1/patients/1/photo?v=2',
+                    downloadSrc: '/api/v1/patients/1/photo?v=2',
+                    alt: 'Patient',
+                }]}
+                onSaveEditedImage={vi.fn()}
+            />,
+            { wrapper }
+        );
+
+        await user.click(screen.getByRole('button', { name: 'Edit' }));
+        expect(galleryEditorPropsMock.mock.calls.at(-1)?.[0].image.src)
+            .toBe('/api/v1/patients/1/photo?v=2');
+
+        await user.click(screen.getByRole('button', { name: 'Edit' }));
+        await user.click(screen.getByRole('button', { name: 'Download image' }));
+        expect(fetchMock).toHaveBeenCalledWith(
+            '/api/v1/patients/1/photo?v=2',
+            expect.objectContaining({ credentials: 'same-origin' })
+        );
+    });
+
+    it('confirms before discarding dirty edits and supports saving a copy', async () => {
+        const user = userEvent.setup();
+        const onOpenChange = vi.fn();
+        const onSaveEditedCopy = vi.fn();
+
+        render(
+            <PatientPhotoPreviewDialog
+                open={true}
+                onOpenChange={onOpenChange}
+                alt="Image"
+                title="Gallery"
+                images={buildImages(1)}
+                onSaveEditedImage={vi.fn()}
+                onSaveEditedCopy={onSaveEditedCopy}
+            />,
+            { wrapper }
+        );
+
+        await user.click(screen.getByRole('button', { name: 'Edit' }));
+        await user.click(screen.getByRole('button', { name: 'Mark dirty' }));
+        await user.click(screen.getByRole('button', { name: 'Cancel' }));
+
+        expect(screen.getByText('Discard changes?')).toBeInTheDocument();
+        expect(onOpenChange).not.toHaveBeenCalledWith(false);
+        await user.click(screen.getByRole('button', { name: 'Keep editing' }));
+        await user.click(screen.getByRole('button', { name: 'Save copy' }));
+
+        expect(onSaveEditedCopy).toHaveBeenCalledWith(
+            expect.objectContaining({ src: 'https://example.com/image-1.jpg' }),
+            expect.any(File)
+        );
     });
 });

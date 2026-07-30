@@ -6,7 +6,9 @@ use App\Models\Appointment;
 use App\Models\Patient;
 use App\Models\Treatment;
 use App\Models\User;
+use App\Support\AnalyticsCacheVersion;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
 class AnalyticsSummaryService
@@ -23,6 +25,30 @@ class AnalyticsSummaryService
      * @return array<string, mixed>
      */
     public function summary(User $user, array $filters): array
+    {
+        $cacheKey = 'analytics:summary:'.hash('sha256', json_encode([
+            'tenant' => $user->tenantDentistId(),
+            'version' => AnalyticsCacheVersion::tenant((int) $user->tenantDentistId()),
+            'filters' => $filters,
+            'permissions' => [
+                User::PERMISSION_PAYMENTS_VIEW => $user->hasPermission(User::PERMISSION_PAYMENTS_VIEW),
+                User::PERMISSION_PATIENTS_VIEW => $user->hasPermission(User::PERMISSION_PATIENTS_VIEW),
+                User::PERMISSION_APPOINTMENTS_VIEW => $user->hasPermission(User::PERMISSION_APPOINTMENTS_VIEW),
+            ],
+        ], JSON_THROW_ON_ERROR));
+
+        return Cache::remember(
+            $cacheKey,
+            now()->addSeconds(45),
+            fn (): array => $this->buildSummary($user, $filters)
+        );
+    }
+
+    /**
+     * @param array{range: string, current_from: string, current_to: string, previous_from: string, previous_to: string, currency?: string} $filters
+     * @return array<string, mixed>
+     */
+    private function buildSummary(User $user, array $filters): array
     {
         $dentistId = $user->tenantDentistId();
         abort_unless($dentistId !== null, 403);
@@ -71,7 +97,13 @@ class AnalyticsSummaryService
                 'patients' => $this->patientKpi($patients, $currentStart, $currentEnd, $previousStart, $previousEnd),
                 'visits' => $this->visitsKpi($appointments, $treatments, $currentStart, $currentEnd, $previousStart, $previousEnd),
             ],
-            'buckets' => $this->bucketRows($buckets, $financialTreatments, $patients),
+            'buckets' => $this->bucketRows(
+                $buckets,
+                $financialTreatments,
+                $patients,
+                $currentStart,
+                $currentEnd
+            ),
             'appointment_status' => $this->appointmentStatus($appointments, $currentStart, $currentEnd),
             'top_debtors' => $this->topDebtors($financialTreatments, $currentStart, $currentEnd),
         ];
@@ -109,8 +141,7 @@ class AnalyticsSummaryService
                     ->on('patients.dentist_id', '=', 'treatments.dentist_id');
             })
             ->where('treatments.dentist_id', $dentistId)
-            ->whereDate('treatments.treatment_date', '>=', $dateFrom)
-            ->whereDate('treatments.treatment_date', '<=', $dateTo)
+            ->whereBetween('treatments.treatment_date', [$dateFrom, $dateTo])
             ->get([
                 'treatments.patient_id',
                 'treatments.treatment_date',
@@ -126,7 +157,10 @@ class AnalyticsSummaryService
     {
         return Patient::query()
             ->where('dentist_id', $dentistId)
-            ->whereBetween(DB::raw('DATE(created_at)'), [$dateFrom, $dateTo])
+            ->whereBetween('created_at', [
+                Carbon::parse($dateFrom)->startOfDay(),
+                Carbon::parse($dateTo)->endOfDay(),
+            ])
             ->get(['id', 'created_at']);
     }
 
@@ -134,8 +168,7 @@ class AnalyticsSummaryService
     {
         return Appointment::query()
             ->where('dentist_id', $dentistId)
-            ->whereDate('appointment_date', '>=', $dateFrom)
-            ->whereDate('appointment_date', '<=', $dateTo)
+            ->whereBetween('appointment_date', [$dateFrom, $dateTo])
             ->get(['id', 'patient_id', 'appointment_date', 'status']);
     }
 
@@ -236,9 +269,16 @@ class AnalyticsSummaryService
             ->value('total');
     }
 
-    private function bucketRows(array $buckets, $treatments, $patients): array
+    private function bucketRows(
+        array $buckets,
+        $treatments,
+        $patients,
+        Carbon $rangeStart,
+        Carbon $rangeEnd
+    ): array
     {
         $rows = [];
+        $bucketByDate = [];
 
         foreach ($buckets as $bucket) {
             $rows[$bucket['key']] = [
@@ -248,10 +288,17 @@ class AnalyticsSummaryService
                 'new_patients' => 0,
                 'cumulative_patients' => 0,
             ];
+
+            $cursor = $bucket['start']->copy()->max($rangeStart)->startOfDay();
+            $end = $bucket['end']->copy()->min($rangeEnd)->endOfDay();
+            while ($cursor <= $end) {
+                $bucketByDate[$cursor->toDateString()] = $bucket['key'];
+                $cursor->addDay();
+            }
         }
 
         foreach ($treatments as $treatment) {
-            $key = $this->bucketKey((string) $treatment->treatment_date, $buckets);
+            $key = $bucketByDate[$this->dateKey((string) $treatment->treatment_date) ?? ''] ?? null;
             if ($key === null || ! isset($rows[$key])) {
                 continue;
             }
@@ -259,17 +306,17 @@ class AnalyticsSummaryService
             $rows[$key]['debt'] += $this->outstandingBalance($treatment);
         }
 
+        foreach ($patients as $patient) {
+            $createdAt = $patient->created_at?->toDateString();
+            $key = $createdAt !== null ? ($bucketByDate[$createdAt] ?? null) : null;
+            if ($key !== null && isset($rows[$key])) {
+                $rows[$key]['new_patients'] += 1;
+            }
+        }
+
         $cumulative = 0;
         foreach ($buckets as $bucket) {
-            $newPatients = 0;
-            foreach ($patients as $patient) {
-                $createdAt = $patient->created_at?->toDateString();
-                if ($createdAt !== null && $this->dateBetween($createdAt, $bucket['start'], $bucket['end'])) {
-                    $newPatients += 1;
-                }
-            }
-            $cumulative += $newPatients;
-            $rows[$bucket['key']]['new_patients'] = $newPatients;
+            $cumulative += $rows[$bucket['key']]['new_patients'];
             $rows[$bucket['key']]['cumulative_patients'] = $cumulative;
         }
 
@@ -401,17 +448,6 @@ class AnalyticsSummaryService
         return $buckets;
     }
 
-    private function bucketKey(string $value, array $buckets): ?string
-    {
-        foreach ($buckets as $bucket) {
-            if ($this->dateBetween($value, $bucket['start'], $bucket['end'])) {
-                return $bucket['key'];
-            }
-        }
-
-        return null;
-    }
-
     private function dateKey(?string $value): ?string
     {
         if ($value === null || $value === '') {
@@ -428,8 +464,6 @@ class AnalyticsSummaryService
             return false;
         }
 
-        $date = Carbon::parse($day)->startOfDay();
-
-        return $date >= $start->copy()->startOfDay() && $date <= $end->copy()->endOfDay();
+        return $day >= $start->toDateString() && $day <= $end->toDateString();
     }
 }

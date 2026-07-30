@@ -163,6 +163,46 @@ class AnalyticsSummaryApiTest extends TestCase
             ->assertJsonPath('data.top_debtors.0.debt', 60000);
     }
 
+    public function test_weekly_bucket_does_not_pull_previous_period_rows_across_range_boundary(): void
+    {
+        $dentist = User::factory()->create();
+        $patient = Patient::factory()->create([
+            'dentist_id' => $dentist->id,
+            'created_at' => '2026-06-10 09:00:00',
+            'updated_at' => '2026-06-10 09:00:00',
+        ]);
+
+        Treatment::factory()->create([
+            'dentist_id' => $dentist->id,
+            'patient_id' => $patient->id,
+            'treatment_date' => '2026-06-09',
+            'debt_amount' => '100.00',
+            'paid_amount' => '50.00',
+        ]);
+        Treatment::factory()->create([
+            'dentist_id' => $dentist->id,
+            'patient_id' => $patient->id,
+            'treatment_date' => '2026-06-10',
+            'debt_amount' => '500.00',
+            'paid_amount' => '200.00',
+        ]);
+
+        $this->actingAs($dentist, 'web')
+            ->getJson('/api/v1/analytics/summary?'.http_build_query([
+                'range' => '90d',
+                'current_from' => '2026-06-10',
+                'current_to' => '2026-06-10',
+                'previous_from' => '2026-06-09',
+                'previous_to' => '2026-06-09',
+            ]))
+            ->assertOk()
+            ->assertJsonPath('data.kpis.revenue.current', 200)
+            ->assertJsonPath('data.kpis.revenue.previous', 50)
+            ->assertJsonPath('data.buckets.0.revenue', 200)
+            ->assertJsonPath('data.buckets.0.debt', 300)
+            ->assertJsonPath('data.buckets.0.new_patients', 1);
+    }
+
     public function test_dentist_summary_rejects_unsupported_currency(): void
     {
         $dentist = User::factory()->create();
@@ -178,6 +218,37 @@ class AnalyticsSummaryApiTest extends TestCase
             ]))
             ->assertUnprocessable()
             ->assertJsonValidationErrors('currency');
+    }
+
+    public function test_dentist_summary_cache_is_invalidated_by_tenant_writes(): void
+    {
+        $dentist = User::factory()->create();
+        $patient = Patient::factory()->create(['dentist_id' => $dentist->id]);
+        $query = http_build_query([
+            'range' => '7d',
+            'current_from' => '2026-06-10',
+            'current_to' => '2026-06-10',
+            'previous_from' => '2026-06-09',
+            'previous_to' => '2026-06-09',
+        ]);
+
+        $this->actingAs($dentist, 'web')
+            ->getJson("/api/v1/analytics/summary?{$query}")
+            ->assertOk()
+            ->assertJsonPath('data.kpis.revenue.current', 0);
+
+        Treatment::factory()->create([
+            'dentist_id' => $dentist->id,
+            'patient_id' => $patient->id,
+            'treatment_date' => '2026-06-10',
+            'debt_amount' => 200,
+            'paid_amount' => 125,
+        ]);
+
+        $this->actingAs($dentist, 'web')
+            ->getJson("/api/v1/analytics/summary?{$query}")
+            ->assertOk()
+            ->assertJsonPath('data.kpis.revenue.current', 125);
     }
 
     public function test_dentist_summary_rejects_unbounded_or_overlapping_periods(): void

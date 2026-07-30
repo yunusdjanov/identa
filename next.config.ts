@@ -126,6 +126,9 @@ const noIndexHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  // Keep deployment traces scoped to this application even when the checkout
+  // lives inside a Git worktree whose parent repository has another lockfile.
+  outputFileTracingRoot: process.cwd(),
   experimental: {
     optimizePackageImports: ["lucide-react", "date-fns", "radix-ui"],
   },
@@ -153,7 +156,7 @@ const nextConfig: NextConfig = {
       },
       {
         source:
-          "/:path(login|register|forgot-password|reset-password|dashboard|patients|appointments|payments|billing|settings|staff|team|admin|api)(.*)",
+          "/:path(login|register|forgot-password|reset-password|verify-email|dashboard|patients|appointments|payments|billing|analytics|settings|staff|team|admin|api)(.*)",
         headers: noIndexHeaders,
       },
     ];

@@ -1,10 +1,10 @@
 'use client';
 
 import type { LucideIcon } from 'lucide-react';
-import { CreditCard, History } from 'lucide-react';
+import { AlertTriangle, CreditCard, History, RefreshCw } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
-import { AppErrorState } from '@/components/error/app-error-state';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import type { ApiAuditLogEntry, ApiBillingPayment } from '@/lib/api/types';
@@ -178,12 +178,27 @@ export function ActivityTabsCard({
                             <Skeleton className="h-16 rounded-xl" />
                         </div>
                     ) : auditError ? (
-                        <AppErrorState
-                            title={t('admin.billing.auditLog.loadFailed')}
-                            description={auditError}
-                            onRetry={onRetryAudit}
-                            className="min-h-48"
-                        />
+                        <div
+                            role="alert"
+                            className="flex flex-col gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 sm:flex-row sm:items-center sm:justify-between"
+                        >
+                            <div className="flex min-w-0 items-center gap-3">
+                                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-700">
+                                    <AlertTriangle className="h-4 w-4" />
+                                </span>
+                                <p className="font-medium text-slate-900">{auditError}</p>
+                            </div>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={onRetryAudit}
+                                className="shrink-0"
+                            >
+                                <RefreshCw className="h-4 w-4" />
+                                {t('common.retry')}
+                            </Button>
+                        </div>
                     ) : auditEntries && auditEntries.length > 0 ? (
                         <div className="space-y-3">
                             {auditEntries.map((entry) => {

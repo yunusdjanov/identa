@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Support\MediaUploadLimits;
 use Illuminate\Foundation\Http\FormRequest;
 
 class PreparePatientPhotoUploadRequest extends FormRequest
@@ -19,7 +20,7 @@ class PreparePatientPhotoUploadRequest extends FormRequest
         return [
             'filename' => ['required', 'string', 'max:255'],
             'content_type' => ['required', 'string', 'in:image/jpeg,image/jpg,image/png,image/webp'],
-            'file_size' => ['required', 'integer', 'min:1', 'max:5242880'],
+            'file_size' => ['required', 'integer', 'min:1', 'max:'.MediaUploadLimits::maxBytes()],
         ];
     }
 }

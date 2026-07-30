@@ -189,6 +189,7 @@ export interface ApiPatient {
     photo_thumbnail_ready?: boolean;
     photo_preview_ready?: boolean;
     photo_scan_status?: ApiMediaScanStatus | null;
+    photo_processing_status?: ApiMediaScanStatus | null;
     oral_photo?: ApiPatientClinicalPhoto | null;
     oral_photos?: Partial<Record<ApiPatientClinicalPhotoViewType, ApiPatientClinicalPhoto | null>>;
     oral_photo_galleries?: Partial<Record<ApiPatientClinicalPhotoViewType, ApiPatientClinicalPhoto[]>>;
@@ -424,6 +425,7 @@ export interface ApiTreatmentImage {
     file_size: number;
     created_at: string | null;
     url?: string | null;
+    editor_url?: string | null;
     thumbnail_url?: string | null;
     preview_url?: string | null;
     thumbnail_ready?: boolean;

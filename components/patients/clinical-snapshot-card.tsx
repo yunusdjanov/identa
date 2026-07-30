@@ -13,6 +13,7 @@ import { canView } from '@/lib/auth/permissions';
 import { ToothDetailDialog } from '@/components/odontogram/tooth-detail-dialog';
 import { formatToothNumber, TOOTH_LAYOUT } from '@/lib/tooth-numbering';
 import { getBalanceMetricTone } from '@/components/ui/metric-summary-card';
+import { queryKeys } from '@/lib/query-keys';
 
 interface ClinicalSnapshotCardProps {
     patientId: string;
@@ -89,7 +90,7 @@ export function ClinicalSnapshotCard({
     // assistant without that perm doesn't see the patient's outstanding
     // balance in the snapshot header.
     const currentUserQuery = useQuery({
-        queryKey: ['auth', 'me'],
+        queryKey: queryKeys.auth.me(),
         queryFn: getCurrentUser,
         staleTime: 30_000,
     });

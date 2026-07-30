@@ -36,6 +36,7 @@ import { AdminAnalyticsLoadingState } from '@/components/layout/page-loading-ske
 import { buildChartBuckets } from '@/lib/analytics/chart-buckets';
 import { getActiveDisplayLocale } from '@/lib/i18n/date';
 import { buildPdfFilename, exportRowsToPdf } from '@/lib/export/pdf';
+import { queryKeys } from '@/lib/query-keys';
 
 function formatApiDate(date: Date): string {
     return [
@@ -62,7 +63,7 @@ export default function AdminAnalyticsPage() {
     const [range, setRange] = useState<AnalyticsRange>(DEFAULT_ANALYTICS_RANGE);
 
     const authQuery = useQuery({
-        queryKey: ['auth', 'me'],
+        queryKey: queryKeys.auth.me(),
         queryFn: getCurrentUser,
         retry: false,
         staleTime: ADMIN_AUTH_QUERY_STALE_TIME_MS,
@@ -97,16 +98,7 @@ export default function AdminAnalyticsPage() {
     );
 
     const summaryQuery = useQuery({
-        queryKey: [
-            'admin',
-            'analytics',
-            'summary',
-            analyticsSummaryParams.range,
-            analyticsSummaryParams.current_from,
-            analyticsSummaryParams.current_to,
-            analyticsSummaryParams.previous_from,
-            analyticsSummaryParams.previous_to,
-        ],
+        queryKey: queryKeys.admin.analytics(analyticsSummaryParams),
         queryFn: () => getAdminAnalyticsSummary(analyticsSummaryParams),
         enabled: isAdmin,
         placeholderData: (previousData) => previousData,
@@ -125,17 +117,14 @@ export default function AdminAnalyticsPage() {
         return { current, previous, delta: computeDelta(current, previous) };
     }, [analytics]);
 
-    const mrrRows = analytics?.kpis.mrr.totals_by_currency ?? [{
-        current: analytics?.kpis.mrr.current ?? 0,
-        currency: analytics?.kpis.mrr.currency ?? 'UZS',
+    const mrr = analytics?.kpis.mrr;
+    const mrrRows = mrr?.totals_by_currency ?? [{
+        current: mrr?.current ?? 0,
+        currency: mrr?.currency ?? 'UZS',
     }];
-    const mrrKpi = {
-        value: mrrRows
-            .map((row) => formatCurrency(row.current, row.currency))
-            .join(' / '),
-        // The API deliberately has no historical MRR baseline.
-        delta: null,
-    };
+    const mrrValue = mrrRows
+        .map((row) => formatCurrency(row.current, row.currency))
+        .join(' / ');
 
     const signupsKpi = useMemo(() => {
         const current = analytics?.kpis.signups.current ?? 0;
@@ -199,7 +188,7 @@ export default function AdminAnalyticsPage() {
                     },
                     {
                         label: t('admin.analytics.kpi.mrr'),
-                        value: mrrKpi.value,
+                        value: mrrValue,
                     },
                     {
                         label: t('admin.analytics.kpi.signups'),
@@ -221,7 +210,7 @@ export default function AdminAnalyticsPage() {
         range,
         signupGrowth,
         activeKpi,
-        mrrKpi,
+        mrrValue,
         signupsKpi,
         conversionKpi,
     ]);
@@ -295,8 +284,8 @@ export default function AdminAnalyticsPage() {
                     <KpiCard
                         label={t('admin.analytics.kpi.mrr')}
                         description={t('admin.analytics.kpi.mrr.descr')}
-                        value={mrrKpi.value}
-                        deltaPercent={mrrKpi.delta}
+                        value={mrrValue}
+                        deltaPercent={null}
                         tone="positive"
                         icon={TrendingUp}
                         accent="emerald"

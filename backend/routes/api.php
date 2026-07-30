@@ -118,7 +118,8 @@ Route::prefix('v1')->group(function (): void {
             Route::get('/dentists/{id}', [DentistAccountController::class, 'show']);
             Route::get('/dentists/{id}/staff', [DentistAccountController::class, 'staff']);
             Route::get('/dentists/{id}/billing', [DentistAccountController::class, 'billing']);
-            Route::get('/dentists/{id}/audit-logs', [AdminDentistAuditLogController::class, 'index']);
+            Route::get('/dentists/{id}/audit-logs', [AdminDentistAuditLogController::class, 'index'])
+                ->name('admin.dentists.audit-logs.index');
             Route::patch('/dentists/{id}/status', [DentistAccountController::class, 'updateStatus']);
             Route::post('/dentists/{id}/subscription', [DentistAccountController::class, 'manageSubscription']);
             Route::post('/dentists/{id}/reset-password', [DentistAccountController::class, 'resetPassword']);

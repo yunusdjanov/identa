@@ -127,6 +127,19 @@ class PatientApiTest extends TestCase
             'dentist_id' => $dentist->id,
             'patient_id' => $patient->id,
             'treatment_date' => '2026-06-13',
+            'debt_amount' => 100000,
+            'paid_amount' => 40000,
+            'currency' => Treatment::CURRENCY_UZS,
+        ]);
+        Treatment::factory()->create([
+            'dentist_id' => $dentist->id,
+            'patient_id' => $patient->id,
+            // A completed appointment and treatment on the same day are one
+            // visit, even though both contribute their own business data.
+            'treatment_date' => '2026-06-10',
+            'debt_amount' => 50,
+            'paid_amount' => 10,
+            'currency' => Treatment::CURRENCY_USD,
         ]);
 
         $this->actingAs($dentist, 'web')
@@ -368,7 +381,11 @@ class PatientApiTest extends TestCase
             ->getJson("/api/v1/patients/{$patient->id}/overview")
             ->assertOk()
             ->assertJsonPath('data.appointment_count', 2)
-            ->assertJsonPath('data.visit_count', 2);
+            ->assertJsonPath('data.visit_count', 2)
+            ->assertJsonPath('data.total_debt', 100000)
+            ->assertJsonPath('data.total_paid', 40000)
+            ->assertJsonPath('data.totals_by_currency.UZS.total_balance', 60000)
+            ->assertJsonPath('data.totals_by_currency.USD.total_balance', 40);
     }
 
     public function test_patient_create_validates_name_phone_and_optional_text_lengths(): void

@@ -185,7 +185,7 @@ class TreatmentImageService
 
         ProcessUploadedMedia::dispatchSync(TreatmentImage::class, (string) $image->id, (int) $owner->id);
         $image->refresh();
-        if ((string) $image->scan_status === 'rejected') {
+        if ($image->rejected_at !== null) {
             throw ValidationException::withMessages([
                 'image' => [__('api.treatments.image_store_failed')],
             ]);
@@ -215,6 +215,9 @@ class TreatmentImageService
             'scan_status' => $isApproved ? 'approved' : (string) ($image->scan_status ?? 'approved'),
             'created_at' => $image->created_at?->toIso8601String(),
             'url' => $isApproved ? $this->url($treatment, $image) : null,
+            // Canvas-based editing must use the authenticated API URL instead
+            // of a cross-origin signed object URL, which would taint exports.
+            'editor_url' => $isApproved ? $this->protectedApiUrl($treatment, $image) : null,
             'thumbnail_url' => $isApproved ? $this->url(
                 $treatment,
                 $image,
@@ -360,12 +363,7 @@ class TreatmentImageService
         $disk = trim((string) $image->disk) !== '' ? trim((string) $image->disk) : $this->mediaDisk();
         $path = trim((string) $image->path);
 
-        $apiUrl = url(sprintf(
-            '/api/v1/patients/%s/treatments/%s/images/%s',
-            (string) $treatment->patient_id,
-            (string) $treatment->id,
-            (string) $image->id
-        ));
+        $apiUrl = $this->protectedApiUrl($treatment, $image);
 
         if ($variant === null) {
             $temporaryUrl = $this->temporaryUrl(
@@ -386,14 +384,14 @@ class TreatmentImageService
                 $thumbnailPath = $this->variantPath($path, self::IMAGE_VARIANT_THUMBNAIL);
 
                 return $this->temporaryUrl($disk, $thumbnailPath, now()->addMinutes(10), $this->guessMimeType($thumbnailPath))
-                    ?? ($apiUrl.'?variant='.self::IMAGE_VARIANT_THUMBNAIL);
+                    ?? $this->protectedApiUrl($treatment, $image, self::IMAGE_VARIANT_THUMBNAIL);
             }
 
             if ($previewReady) {
                 $previewPath = $this->variantPath($path, self::IMAGE_VARIANT_PREVIEW);
 
                 return $this->temporaryUrl($disk, $previewPath, now()->addMinutes(10), $this->guessMimeType($previewPath))
-                    ?? ($apiUrl.'?variant='.self::IMAGE_VARIANT_PREVIEW);
+                    ?? $this->protectedApiUrl($treatment, $image, self::IMAGE_VARIANT_PREVIEW);
             }
 
             return $this->temporaryUrl($disk, $path, now()->addMinutes(10), $image->mime_type) ?? $apiUrl;
@@ -406,13 +404,32 @@ class TreatmentImageService
                 $previewPath = $this->variantPath($path, self::IMAGE_VARIANT_PREVIEW);
 
                 return $this->temporaryUrl($disk, $previewPath, now()->addMinutes(10), $this->guessMimeType($previewPath))
-                    ?? ($apiUrl.'?variant='.self::IMAGE_VARIANT_PREVIEW);
+                    ?? $this->protectedApiUrl($treatment, $image, self::IMAGE_VARIANT_PREVIEW);
             }
 
             return $this->temporaryUrl($disk, $path, now()->addMinutes(10), $image->mime_type) ?? $apiUrl;
         }
 
-        return $apiUrl.'?variant='.$variant;
+        return $this->protectedApiUrl($treatment, $image, $variant);
+    }
+
+    private function protectedApiUrl(
+        Treatment $treatment,
+        TreatmentImage $image,
+        ?string $variant = null
+    ): string {
+        $url = url(sprintf(
+            '/api/v1/patients/%s/treatments/%s/images/%s',
+            (string) $treatment->patient_id,
+            (string) $treatment->id,
+            (string) $image->id
+        ));
+        $query = ['v' => (string) ($image->updated_at?->getTimestamp() ?? 0)];
+        if ($variant !== null) {
+            $query['variant'] = $variant;
+        }
+
+        return $url.'?'.http_build_query($query);
     }
 
     private function isDisplayable(TreatmentImage $image): bool

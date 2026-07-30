@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\User;
+use App\Support\MediaUploadLimits;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -67,6 +68,15 @@ class PlanLimitService
             $this->deny(
                 code: 'plan_upload_size_exceeded',
                 message: __('api.subscription.image_type_not_allowed')
+            );
+        }
+
+        $platformLimit = MediaUploadLimits::maxBytes();
+        if ($fileSize > $platformLimit) {
+            $this->deny(
+                code: 'upload_size_exceeded',
+                message: __('api.subscription.upload_size_exceeded', ['limit' => $this->formatBytesAsMb($platformLimit)]),
+                meta: ['limit_bytes' => $platformLimit]
             );
         }
 

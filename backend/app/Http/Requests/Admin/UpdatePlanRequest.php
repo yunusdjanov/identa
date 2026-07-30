@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Admin;
 
+use App\Support\MediaUploadLimits;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -70,7 +71,7 @@ class UpdatePlanRequest extends FormRequest
             'currency' => ['required', 'string', 'size:3', Rule::in(['UZS', 'USD', 'EUR'])],
             'staff_limit' => ['required', 'integer', 'min:1', 'max:1000'],
             'entry_image_limit' => ['required', 'integer', 'min:0', 'max:100'],
-            'upload_max_mb' => ['required', 'numeric', 'gt:0', 'max:100'],
+            'upload_max_mb' => ['required', 'numeric', 'gt:0', 'max:'.MediaUploadLimits::maxMegabytes()],
             'stored_image_max_mb' => ['required', 'numeric', 'gt:0', 'max:9999.99'],
             'can_export' => ['required', 'boolean'],
             'is_active' => ['required', 'boolean'],

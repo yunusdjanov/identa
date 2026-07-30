@@ -342,6 +342,58 @@ paths:
           $ref: "#/components/responses/ForbiddenError"
         "404":
           $ref: "#/components/responses/NotFoundError"
+  /api/v1/patients/{id}/photo:
+    get:
+      tags: [Patients]
+      summary: Download the approved patient profile photo
+      operationId: downloadPatientPhoto
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+      responses:
+        "200":
+          description: Approved image bytes
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+    post:
+      tags: [Patients]
+      summary: Upload or safely replace a patient profile photo
+      operationId: uploadPatientPhoto
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: "#/components/schemas/PhotoMultipartRequest"
+      responses:
+        "200":
+          description: Patient updated and media scan queued
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PatientResponse"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+    delete:
+      tags: [Patients]
+      summary: Delete the patient profile photo
+      operationId: deletePatientPhoto
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+      responses:
+        "200":
+          description: Patient photo deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PatientResponse"
   /api/v1/patients/{id}/photo/direct-upload:
     post:
       tags: [Patients]
@@ -442,6 +494,135 @@ paths:
           $ref: "#/components/responses/UnauthorizedError"
         "403":
           $ref: "#/components/responses/ForbiddenError"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+  /api/v1/patients/{id}/oral-photos/{viewType}:
+    get:
+      tags: [Patients]
+      summary: Download the primary approved oral photo for a clinical view
+      operationId: downloadPrimaryOralPhoto
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+        - $ref: "#/components/parameters/OralPhotoViewType"
+      responses:
+        "200":
+          description: Approved image bytes
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+    post:
+      tags: [Patients]
+      summary: Upload an oral photo for a clinical view
+      operationId: uploadOralPhoto
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+        - $ref: "#/components/parameters/OralPhotoViewType"
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: "#/components/schemas/PhotoMultipartRequest"
+      responses:
+        "200":
+          description: Patient updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PatientResponse"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+    delete:
+      tags: [Patients]
+      summary: Delete all oral photos for a clinical view
+      operationId: deleteOralPhotoView
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+        - $ref: "#/components/parameters/OralPhotoViewType"
+      responses:
+        "200":
+          description: Patient updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PatientResponse"
+  /api/v1/patients/{id}/oral-photos/{viewType}/{photoId}:
+    get:
+      tags: [Patients]
+      summary: Download one approved oral photo
+      operationId: downloadOralPhotoItem
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+        - $ref: "#/components/parameters/OralPhotoViewType"
+        - name: photoId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Approved image bytes
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+    delete:
+      tags: [Patients]
+      summary: Delete one oral photo
+      operationId: deleteOralPhotoItem
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+        - $ref: "#/components/parameters/OralPhotoViewType"
+        - name: photoId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Patient updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PatientResponse"
+  /api/v1/patients/{id}/oral-photos/{viewType}/{photoId}/replace:
+    post:
+      tags: [Patients]
+      summary: Safely replace one approved oral photo
+      operationId: replaceOralPhotoItem
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+        - $ref: "#/components/parameters/OralPhotoViewType"
+        - name: photoId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: "#/components/schemas/PhotoMultipartRequest"
+      responses:
+        "200":
+          description: Patient updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PatientResponse"
         "422":
           $ref: "#/components/responses/ValidationError"
   /api/v1/patients/{id}/oral-photos/{viewType}/direct-upload:
@@ -551,6 +732,106 @@ paths:
           $ref: "#/components/responses/NotFoundError"
         "422":
           $ref: "#/components/responses/ValidationError"
+  /api/v1/patients/{id}/treatments/{treatmentId}/images:
+    post:
+      tags: [Patients]
+      summary: Upload a treatment image through multipart fallback
+      operationId: uploadTreatmentImage
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+        - $ref: "#/components/parameters/TreatmentId"
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: "#/components/schemas/ImageMultipartRequest"
+      responses:
+        "201":
+          description: Treatment image created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TreatmentResponse"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+  /api/v1/patients/{id}/treatments/{treatmentId}/images/{imageId}/replace:
+    post:
+      tags: [Patients]
+      summary: Safely replace an approved treatment image
+      operationId: replaceTreatmentImage
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+        - $ref: "#/components/parameters/TreatmentId"
+        - name: imageId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: "#/components/schemas/ImageMultipartRequest"
+      responses:
+        "200":
+          description: Treatment image replaced
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TreatmentResponse"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+  /api/v1/patients/{id}/treatments/{treatmentId}/images/{imageId}:
+    get:
+      tags: [Patients]
+      summary: Download an approved treatment image or variant
+      operationId: downloadTreatmentImage
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+        - $ref: "#/components/parameters/TreatmentId"
+        - name: imageId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: variant
+          in: query
+          schema:
+            type: string
+            enum: [thumbnail, preview]
+      responses:
+        "200":
+          description: Approved image bytes
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+    delete:
+      tags: [Patients]
+      summary: Delete a treatment image
+      operationId: deleteTreatmentImage
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+        - $ref: "#/components/parameters/TreatmentId"
+        - name: imageId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: Treatment image deleted
   /api/v1/patients/{id}/treatments/{treatmentId}/images/direct-upload:
     post:
       tags: [Patients]
@@ -856,6 +1137,8 @@ paths:
         - $ref: "#/components/parameters/PaymentSearchFilter"
         - $ref: "#/components/parameters/PatientIdFilter"
         - $ref: "#/components/parameters/OutstandingFilter"
+        - $ref: "#/components/parameters/IncludePatientPhoto"
+        - $ref: "#/components/parameters/IncludeSummary"
       responses:
         "200":
           description: Paginated patient balance rows
@@ -880,6 +1163,7 @@ paths:
         - $ref: "#/components/parameters/PaymentSearchFilter"
         - $ref: "#/components/parameters/PatientIdFilter"
         - $ref: "#/components/parameters/OutstandingFilter"
+        - $ref: "#/components/parameters/IncludeSummary"
       responses:
         "200":
           description: Paginated treatment ledger rows
@@ -904,6 +1188,7 @@ paths:
         - $ref: "#/components/parameters/PaymentSearchFilter"
         - $ref: "#/components/parameters/DateFromFilter"
         - $ref: "#/components/parameters/DateToFilter"
+        - $ref: "#/components/parameters/IncludeSummary"
       responses:
         "200":
           description: Paginated clinic expense rows
@@ -1633,6 +1918,20 @@ components:
       in: query
       schema:
         type: boolean
+    IncludePatientPhoto:
+      name: include_patient_photo
+      in: query
+      description: Include protected patient photo state and media URLs in ledger rows.
+      schema:
+        type: boolean
+        default: false
+    IncludeSummary:
+      name: include_summary
+      in: query
+      description: Set to false for table-only requests to skip aggregate summary queries.
+      schema:
+        type: boolean
+        default: true
   responses:
     ValidationError:
       description: Validation failed
@@ -1794,6 +2093,10 @@ components:
         url:
           type: string
           nullable: true
+        editor_url:
+          type: string
+          nullable: true
+          description: Same-origin authenticated full-resolution URL for canvas editing
         thumbnail_url:
           type: string
           nullable: true
@@ -1809,6 +2112,27 @@ components:
         view_type:
           type: string
           nullable: true
+        mime_type:
+          type: string
+          nullable: true
+        file_size:
+          type: integer
+    PhotoMultipartRequest:
+      type: object
+      required: [photo]
+      properties:
+        photo:
+          type: string
+          format: binary
+          description: JPEG, PNG, or WebP up to the configured platform and plan ceilings
+    ImageMultipartRequest:
+      type: object
+      required: [image]
+      properties:
+        image:
+          type: string
+          format: binary
+          description: JPEG, PNG, or WebP up to the configured platform and plan ceilings
     DirectUploadPrepareRequest:
       type: object
       required: [filename, content_type, file_size]
@@ -1822,7 +2146,8 @@ components:
         file_size:
           type: integer
           minimum: 1
-          maximum: 5242880
+          maximum: 20971520
+          description: Default platform ceiling is 20 MiB; deployment configuration may lower it
     DirectUploadTicket:
       type: object
       properties:
@@ -2008,6 +2333,16 @@ components:
         current_medications:
           type: string
           nullable: true
+        photo_scan_status:
+          type: string
+          enum: [pending, approved, rejected]
+          nullable: true
+          description: Status used to gate the currently displayable photo
+        photo_processing_status:
+          type: string
+          enum: [pending, approved, rejected]
+          nullable: true
+          description: Lifecycle status of the latest upload or replacement attempt
         created_at:
           type: string
           format: date-time

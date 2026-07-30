@@ -16,6 +16,7 @@ import {
     loadEditableImage,
     normalizeRect,
     renderEditedCanvas,
+    transformPointBetweenRotations,
 } from './gallery-image-editor-canvas';
 import {
     DEFAULT_BRIGHTNESS,
@@ -42,6 +43,8 @@ interface GalleryImageEditorProps {
     isSaving?: boolean;
     onCancel: () => void;
     onSave: (file: File) => Promise<void> | void;
+    onSaveCopy?: (file: File) => Promise<void> | void;
+    onDirtyChange?: (isDirty: boolean) => void;
 }
 
 interface InlineTextDraft {
@@ -67,9 +70,10 @@ interface PendingCropFrame {
 }
 
 type KonvaPointerEvent = Konva.KonvaEventObject<MouseEvent | TouchEvent>;
+type AnnotationHistoryItem = 'stroke' | 'text';
 
 const DEFAULT_EDITOR_VIEWPORT: EditorViewportSize = { width: 760, height: 520 };
-const MIN_STAGE_SIZE_PX = 220;
+const MIN_STAGE_SIZE_PX = 96;
 const STAGE_HORIZONTAL_PADDING_PX = 72;
 const STAGE_VERTICAL_RESERVED_PX = 220;
 const TOUCH_STAGE_HORIZONTAL_PADDING_PX = 24;
@@ -105,6 +109,27 @@ function measureEditorViewport(): EditorViewportSize {
     return {
         width: Math.max(MIN_STAGE_SIZE_PX, window.innerWidth - horizontalPadding),
         height: Math.max(MIN_STAGE_SIZE_PX, window.innerHeight - verticalReserved),
+    };
+}
+
+function measureEditorContainer(element: HTMLDivElement | null): EditorViewportSize {
+    if (!element || typeof window === 'undefined') {
+        return measureEditorViewport();
+    }
+
+    const bounds = element.getBoundingClientRect();
+    const styles = window.getComputedStyle(element);
+    const horizontalPadding = Number.parseFloat(styles.paddingLeft) + Number.parseFloat(styles.paddingRight);
+    const verticalPadding = Number.parseFloat(styles.paddingTop) + Number.parseFloat(styles.paddingBottom);
+    const width = bounds.width - (Number.isFinite(horizontalPadding) ? horizontalPadding : 0);
+    const height = bounds.height - (Number.isFinite(verticalPadding) ? verticalPadding : 0);
+    if (width <= 0 || height <= 0) {
+        return measureEditorViewport();
+    }
+
+    return {
+        width: Math.max(MIN_STAGE_SIZE_PX, width),
+        height: Math.max(MIN_STAGE_SIZE_PX, height),
     };
 }
 
@@ -244,9 +269,17 @@ function isEditableImageTarget(event: KonvaPointerEvent, stage: Konva.Stage | nu
  * Clinical-photo editor for the fullscreen gallery.
  * Konva owns interactive editing, while the existing canvas exporter keeps the upload contract stable.
  */
-export function GalleryImageEditor({ image, isSaving = false, onCancel, onSave }: GalleryImageEditorProps) {
+export function GalleryImageEditor({
+    image,
+    isSaving = false,
+    onCancel,
+    onSave,
+    onSaveCopy,
+    onDirtyChange,
+}: GalleryImageEditorProps) {
     const { t } = useI18n();
     const stageRef = useRef<Konva.Stage | null>(null);
+    const stageContainerRef = useRef<HTMLDivElement | null>(null);
     const cropRectRef = useRef<Konva.Rect | null>(null);
     const cropTransformerRef = useRef<Konva.Transformer | null>(null);
     const activeStrokeRef = useRef<DrawStroke | null>(null);
@@ -257,6 +290,8 @@ export function GalleryImageEditor({ image, isSaving = false, onCancel, onSave }
     const textDraftIdRef = useRef(0);
     const pendingCropFrameRef = useRef<PendingCropFrame | null>(null);
     const pendingStraightenInitRef = useRef<number | null>(null);
+    const previousRotationRef = useRef(0);
+    const previousQuickRotationRef = useRef(0);
     const [viewportSize, setViewportSize] = useState<EditorViewportSize>(DEFAULT_EDITOR_VIEWPORT);
     const [source, setSource] = useState<HTMLImageElement | null>(null);
     const [previewCanvas, setPreviewCanvas] = useState<HTMLCanvasElement | null>(null);
@@ -271,6 +306,7 @@ export function GalleryImageEditor({ image, isSaving = false, onCancel, onSave }
     const [strokes, setStrokes] = useState<DrawStroke[]>([]);
     const [activeStroke, setActiveStroke] = useState<DrawStroke | null>(null);
     const [textAnnotations, setTextAnnotations] = useState<TextAnnotation[]>([]);
+    const [annotationHistory, setAnnotationHistory] = useState<AnnotationHistoryItem[]>([]);
     const [drawColor, setDrawColor] = useState(DEFAULT_DRAW_COLOR);
     const [drawSize, setDrawSize] = useState(DEFAULT_DRAW_SIZE);
     const [textDraft, setTextDraft] = useState<InlineTextDraft | null>(null);
@@ -284,6 +320,17 @@ export function GalleryImageEditor({ image, isSaving = false, onCancel, onSave }
     );
     const isPreviewReady = Boolean(previewCanvas && previewRotation === effectiveRotation);
     const isEditingDisabled = isSaveBusy || !source || !isPreviewReady;
+    const hasUnsavedChanges = Boolean(
+        rotation !== 0
+        || straightenRotation !== 0
+        || brightness !== DEFAULT_BRIGHTNESS
+        || contrast !== DEFAULT_CONTRAST
+        || cropRect
+        || isValidCropRect(draftCropRect)
+        || strokes.length > 0
+        || textAnnotations.length > 0
+        || textDraft?.value.trim()
+    );
 
     const visibleRect = useMemo<CropRect>(() => ({
         x: cropRect?.x ?? 0,
@@ -483,6 +530,7 @@ export function GalleryImageEditor({ image, isSaving = false, onCancel, onSave }
         const annotation = buildTextAnnotation(currentDraft);
         if (annotation) {
             setTextAnnotations((current) => [...current, annotation]);
+            setAnnotationHistory((current) => [...current, 'text']);
         }
         setTextDraft(null);
     }, [buildTextAnnotation, textDraft]);
@@ -493,12 +541,21 @@ export function GalleryImageEditor({ image, isSaving = false, onCancel, onSave }
     }, []);
 
     useEffect(() => {
-        setViewportSize(measureEditorViewport());
+        const updateViewport = () => setViewportSize(measureEditorContainer(stageContainerRef.current));
+        updateViewport();
 
-        const handleResize = () => setViewportSize(measureEditorViewport());
-        window.addEventListener('resize', handleResize);
+        window.addEventListener('resize', updateViewport);
+        const observer = typeof ResizeObserver === 'undefined'
+            ? null
+            : new ResizeObserver(updateViewport);
+        if (stageContainerRef.current) {
+            observer?.observe(stageContainerRef.current);
+        }
 
-        return () => window.removeEventListener('resize', handleResize);
+        return () => {
+            observer?.disconnect();
+            window.removeEventListener('resize', updateViewport);
+        };
     }, []);
 
     useEffect(() => {
@@ -508,6 +565,12 @@ export function GalleryImageEditor({ image, isSaving = false, onCancel, onSave }
     useEffect(() => {
         textInputRef.current?.focus();
     }, [textDraft?.id]);
+
+    useEffect(() => {
+        onDirtyChange?.(hasUnsavedChanges);
+    }, [hasUnsavedChanges, onDirtyChange]);
+
+    useEffect(() => () => onDirtyChange?.(false), [onDirtyChange]);
 
     useEffect(() => {
         let isMounted = true;
@@ -562,6 +625,46 @@ export function GalleryImageEditor({ image, isSaving = false, onCancel, onSave }
             setError(t('gallery.edit.failed'));
         }
     }, [brightness, contrast, cropRect, effectiveRotation, source, t]);
+
+    useEffect(() => {
+        const previousRotation = previousRotationRef.current;
+        const previousQuickRotation = previousQuickRotationRef.current;
+        previousRotationRef.current = effectiveRotation;
+        previousQuickRotationRef.current = rotation;
+        if (!source || previousRotation === effectiveRotation) {
+            return;
+        }
+
+        const transformPoint = (point: Point) => transformPointBetweenRotations(
+            point,
+            sourceDimensions.width,
+            sourceDimensions.height,
+            previousRotation,
+            effectiveRotation
+        );
+
+        setStrokes((current) => current.map((stroke) => ({
+            ...stroke,
+            points: stroke.points.map(transformPoint),
+        })));
+        setTextAnnotations((current) => current.map((annotation) => ({
+            ...annotation,
+            ...transformPoint(annotation),
+        })));
+        if (previousQuickRotation !== rotation) {
+            setCropRect(null);
+            setDraftCropRect(null);
+            cropStartRef.current = null;
+            pendingCropFrameRef.current = null;
+            pendingStraightenInitRef.current = null;
+        }
+    }, [
+        effectiveRotation,
+        rotation,
+        source,
+        sourceDimensions.height,
+        sourceDimensions.width,
+    ]);
 
     useEffect(() => {
         if (mode !== 'crop') {
@@ -643,6 +746,7 @@ export function GalleryImageEditor({ image, isSaving = false, onCancel, onSave }
         setStrokes([]);
         setActiveStroke(null);
         setTextAnnotations([]);
+        setAnnotationHistory([]);
         textDraftRef.current = null;
         setTextDraft(null);
         setError(null);
@@ -814,6 +918,7 @@ export function GalleryImageEditor({ image, isSaving = false, onCancel, onSave }
         if (mode === 'draw' && activeStrokeRef.current) {
             const completedStroke = activeStrokeRef.current;
             setStrokes((current) => [...current, completedStroke]);
+            setAnnotationHistory((current) => [...current, 'stroke']);
             activeStrokeRef.current = null;
             setActiveStroke(null);
         }
@@ -834,18 +939,24 @@ export function GalleryImageEditor({ image, isSaving = false, onCancel, onSave }
 
     const undoAnnotation = () => {
         setError(null);
-        if (mode === 'text' && textAnnotations.length > 0) {
-            setTextAnnotations((current) => current.slice(0, -1));
+        if (textDraftRef.current) {
+            cancelTextDraft();
             return;
         }
 
-        if (strokes.length > 0) {
+        const latest = annotationHistory.at(-1);
+        if (latest === 'text') {
+            setTextAnnotations((current) => current.slice(0, -1));
+        } else if (latest === 'stroke') {
             setStrokes((current) => current.slice(0, -1));
+        }
+        if (latest) {
+            setAnnotationHistory((current) => current.slice(0, -1));
         }
     };
 
-    const saveEditedImage = async () => {
-        if (!source || saveInFlightRef.current) {
+    const saveEditedImage = async (saveMode: 'replace' | 'copy' = 'replace') => {
+        if (!source || !hasUnsavedChanges || saveInFlightRef.current) {
             return;
         }
 
@@ -880,7 +991,11 @@ export function GalleryImageEditor({ image, isSaving = false, onCancel, onSave }
                 textDraftRef.current = null;
                 setTextDraft(null);
             }
-            await onSave(file);
+            if (saveMode === 'copy' && onSaveCopy) {
+                await onSaveCopy(file);
+            } else {
+                await onSave(file);
+            }
         } catch (caughtError) {
             setError(getApiErrorMessage(caughtError, t('gallery.edit.failed')));
         } finally {
@@ -916,8 +1031,12 @@ export function GalleryImageEditor({ image, isSaving = false, onCancel, onSave }
 
     return (
         <div className="grid min-h-0 min-w-0 grid-rows-[minmax(0,1fr)_auto] bg-slate-950">
-            <div className="flex min-h-0 items-center justify-center overflow-hidden px-3 py-3 sm:px-12 sm:py-6">
-                <div className={`relative inline-flex max-h-full max-w-full touch-none rounded-md bg-slate-900 shadow-2xl shadow-black/40 ${cursorClass}`}>
+            <div ref={stageContainerRef} className="flex min-h-0 items-center justify-center overflow-hidden px-3 py-3 sm:px-12 sm:py-6">
+                <div
+                    className={`relative inline-flex max-h-full max-w-full touch-none rounded-md bg-slate-900 shadow-2xl shadow-black/40 ${cursorClass}`}
+                    role="group"
+                    aria-label={image.alt}
+                >
                     <Stage
                         ref={stageRef}
                         data-testid="gallery-image-editor-stage"
@@ -1085,15 +1204,17 @@ export function GalleryImageEditor({ image, isSaving = false, onCancel, onSave }
                 cropRect={cropRect}
                 onApplyCrop={applyCrop}
                 onResetCrop={resetCrop}
-                canUndo={strokes.length > 0 || textAnnotations.length > 0}
+                canUndo={annotationHistory.length > 0 || Boolean(textDraft)}
                 onUndo={undoAnnotation}
                 onReset={reset}
                 onCancel={onCancel}
-                onSave={saveEditedImage}
+                onSave={() => saveEditedImage('replace')}
+                onSaveCopy={onSaveCopy ? () => saveEditedImage('copy') : undefined}
                 onRotateLeft={() => rotateBy(-ROTATION_STEP_DEGREES)}
                 onRotateRight={() => rotateBy(ROTATION_STEP_DEGREES)}
                 isEditingDisabled={isEditingDisabled}
                 isSaveBusy={isSaveBusy}
+                hasUnsavedChanges={hasUnsavedChanges}
             />
             {error ? <p className="mx-auto w-full max-w-6xl bg-slate-950 px-4 pb-3 text-xs font-medium text-red-200">{error}</p> : null}
         </div>

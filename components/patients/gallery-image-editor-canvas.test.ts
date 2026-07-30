@@ -7,6 +7,7 @@ import {
     isCropRectInsideRotatedImage,
     isPointInsideRotatedImage,
     renderEditedCanvas,
+    transformPointBetweenRotations,
 } from '@/components/patients/gallery-image-editor-canvas';
 
 function createMockCanvasWithContext() {
@@ -124,6 +125,19 @@ describe('getSafeCropRectForRotation', () => {
 });
 
 describe('rotated image bounds', () => {
+    it('keeps annotation anchors on the same source pixel after rotation', () => {
+        const transformed = transformPointBetweenRotations(
+            { x: 75, y: 30 },
+            300,
+            150,
+            0,
+            90
+        );
+
+        expect(transformed.x).toBeCloseTo(120);
+        expect(transformed.y).toBeCloseTo(75);
+    });
+
     it('allows off-center crop rectangles when all corners are still inside the rotated image', () => {
         const safeCrop = getSafeCropRectForRotation(300, 150, 30);
         const offCenterCrop = {

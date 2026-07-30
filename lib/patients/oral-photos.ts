@@ -44,3 +44,13 @@ export function hasPendingOralPhotoProcessing(patient: ApiPatient | undefined): 
         getPatientOralPhotoGallery(patient, slot.viewType).some((photo) => photo.scan_status === 'pending')
     );
 }
+
+/**
+ * Return true while profile or oral media is waiting for backend
+ * scan/compression. Profile display status can remain approved during a safe
+ * replacement, so its independent processing status must be checked.
+ */
+export function hasPendingPatientMediaProcessing(patient: ApiPatient | undefined): boolean {
+    return patient?.photo_processing_status === 'pending'
+        || hasPendingOralPhotoProcessing(patient);
+}

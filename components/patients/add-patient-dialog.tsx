@@ -41,6 +41,7 @@ import {
 } from '@/lib/input-validation';
 import { PatientPhotoField } from '@/components/patients/patient-photo-field';
 import { toLocalDateKey } from '@/lib/utils';
+import { queryKeys } from '@/lib/query-keys';
 
 interface AddPatientDialogProps {
     open: boolean;
@@ -92,7 +93,7 @@ export function AddPatientDialog({
     const [photoInputKey, setPhotoInputKey] = useState(0);
     const [isSubmitted, setIsSubmitted] = useState(false);
     const categoriesQuery = useQuery({
-        queryKey: ['patient-categories', 'list'],
+        queryKey: queryKeys.patientCategories.list(),
         queryFn: () => listPatientCategories(),
         staleTime: 60_000,
     });
@@ -172,8 +173,9 @@ export function AddPatientDialog({
             setPhotoInputKey((value) => value + 1);
             setIsSubmitted(false);
             handleDialogOpenChange(false);
-            queryClient.invalidateQueries({ queryKey: ['patients'] });
-            queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+            queryClient.invalidateQueries({ queryKey: queryKeys.patients.all() });
+            queryClient.invalidateQueries({ queryKey: queryKeys.analytics.all() });
+            queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all() });
         },
         onError: (error) => {
             toast.error(getApiErrorMessage(error, t('patients.toast.addFailed')));

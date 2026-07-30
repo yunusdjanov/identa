@@ -105,6 +105,11 @@ class TreatmentImageDirectUploadService
         User $owner,
         string $uploadId
     ): TreatmentImage {
+        $existingImage = $this->findCompletedUpload($treatment, $dentistId, $uploadId);
+        if ($existingImage !== null) {
+            return $this->validatedCompletedUpload($existingImage);
+        }
+
         $ticket = Cache::pull($this->directUploadCacheKey($uploadId));
 
         if (! is_array($ticket)) {
@@ -174,8 +179,14 @@ class TreatmentImageDirectUploadService
                 path: $path,
                 mimeType: (string) ($ticket['mime_type'] ?? 'image/jpeg'),
                 fileSize: $storedSize,
+                uploadId: $uploadId,
             );
         } catch (\Throwable $exception) {
+            $existingImage = $this->findCompletedUpload($treatment, $dentistId, $uploadId);
+            if ($existingImage !== null) {
+                return $this->validatedCompletedUpload($existingImage);
+            }
+
             $this->deleteDirectUploadObject($disk, $path);
 
             throw $exception;
@@ -300,6 +311,17 @@ class TreatmentImageDirectUploadService
         }
 
         foreach ($uploadIds as $uploadId) {
+            $existingImage = $this->findCompletedUpload($treatment, $dentistId, $uploadId);
+            if ($existingImage !== null) {
+                if ((string) $existingImage->scan_status === 'rejected') {
+                    $failed[] = ['upload_id' => $uploadId, 'reason' => 'security'];
+                } else {
+                    $completed[] = $existingImage;
+                }
+
+                continue;
+            }
+
             $ticket = $ticketsByCacheKey[$cacheKeysByUploadId[$uploadId]] ?? null;
             if (! is_array($ticket)) {
                 $failed[] = ['upload_id' => $uploadId, 'reason' => 'expired'];
@@ -347,6 +369,7 @@ class TreatmentImageDirectUploadService
                 throw $exception;
             }
 
+            $wasCreated = true;
             try {
                 $image = $this->createPendingImage(
                     treatment: $treatment,
@@ -357,11 +380,17 @@ class TreatmentImageDirectUploadService
                     mimeType: (string) ($ticket['mime_type'] ?? 'image/jpeg'),
                     fileSize: $storedSize,
                     returnNullWhenFull: true,
+                    uploadId: $uploadId,
                 );
             } catch (\Throwable $exception) {
-                $this->deleteDirectUploadObject($disk, $path);
+                $image = $this->findCompletedUpload($treatment, $dentistId, $uploadId);
+                if ($image !== null) {
+                    $wasCreated = false;
+                } else {
+                    $this->deleteDirectUploadObject($disk, $path);
 
-                throw $exception;
+                    throw $exception;
+                }
             }
 
             if ($image === null) {
@@ -371,7 +400,9 @@ class TreatmentImageDirectUploadService
                 continue;
             }
 
-            ProcessUploadedMedia::dispatch(TreatmentImage::class, (string) $image->id, $owner->id);
+            if ($wasCreated) {
+                ProcessUploadedMedia::dispatch(TreatmentImage::class, (string) $image->id, $owner->id);
+            }
             $image->refresh();
             $scanStatus = (string) $image->scan_status;
 
@@ -431,13 +462,24 @@ class TreatmentImageDirectUploadService
         string $mimeType,
         int $fileSize,
         bool $returnNullWhenFull = false,
+        ?string $uploadId = null,
     ): ?TreatmentImage {
-        return DB::transaction(function () use ($treatment, $owner, $dentistId, $disk, $path, $mimeType, $fileSize, $returnNullWhenFull): ?TreatmentImage {
+        return DB::transaction(function () use ($treatment, $owner, $dentistId, $disk, $path, $mimeType, $fileSize, $returnNullWhenFull, $uploadId): ?TreatmentImage {
             $lockedTreatment = Treatment::query()
                 ->whereKey((string) $treatment->id)
                 ->where('dentist_id', $dentistId)
                 ->lockForUpdate()
                 ->firstOrFail();
+            if ($uploadId !== null) {
+                $existingImage = $lockedTreatment->images()
+                    ->where('dentist_id', $dentistId)
+                    ->where('upload_id', $uploadId)
+                    ->first();
+                if ($existingImage !== null) {
+                    return $existingImage;
+                }
+            }
+
             $currentCount = $lockedTreatment->images()->count();
             $availableSlots = $this->planLimitService->availableEntryImageSlots($owner, $currentCount);
 
@@ -449,6 +491,7 @@ class TreatmentImageDirectUploadService
 
             return $lockedTreatment->images()->create([
                 'dentist_id' => $dentistId,
+                'upload_id' => $uploadId,
                 'disk' => $disk,
                 'path' => $path,
                 'mime_type' => $mimeType,
@@ -472,6 +515,32 @@ class TreatmentImageDirectUploadService
     private function directUploadCacheKey(string $uploadId): string
     {
         return "treatment-image-upload:{$uploadId}";
+    }
+
+    private function findCompletedUpload(
+        Treatment $treatment,
+        int $dentistId,
+        string $uploadId
+    ): ?TreatmentImage {
+        return TreatmentImage::query()
+            ->where('treatment_id', (string) $treatment->id)
+            ->where('dentist_id', $dentistId)
+            ->where('upload_id', $uploadId)
+            ->first();
+    }
+
+    private function validatedCompletedUpload(TreatmentImage $image): TreatmentImage
+    {
+        if ((string) $image->scan_status === 'rejected') {
+            throw ValidationException::withMessages([
+                'image' => [$this->treatmentMessage(
+                    'direct_upload_rejected',
+                    'The uploaded image failed security checks.'
+                )],
+            ]);
+        }
+
+        return $image;
     }
 
     private function buildStoragePath(

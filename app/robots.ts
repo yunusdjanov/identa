@@ -1,6 +1,5 @@
 import type { MetadataRoute } from "next";
-
-const siteUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://identa.uz";
+import { SITE_URL } from "@/lib/seo/site";
 
 export default function robots(): MetadataRoute.Robots {
   return {
@@ -8,25 +7,12 @@ export default function robots(): MetadataRoute.Robots {
       {
         userAgent: "*",
         allow: "/",
-        disallow: [
-          "/admin/",
-          "/api/",
-          "/appointments/",
-          "/billing/",
-          "/dashboard/",
-          "/forgot-password",
-          "/login",
-          "/patients/",
-          "/payments/",
-          "/register",
-          "/reset-password",
-          "/settings/",
-          "/staff/",
-          "/team/",
-        ],
+        // Private HTML routes remain crawlable so crawlers can read their
+        // X-Robots-Tag noindex header. API endpoints have no indexable content.
+        disallow: ["/api/"],
       },
     ],
-    sitemap: `${siteUrl}/sitemap.xml`,
-    host: siteUrl,
+    sitemap: `${SITE_URL}/sitemap.xml`,
+    host: SITE_URL,
   };
 }

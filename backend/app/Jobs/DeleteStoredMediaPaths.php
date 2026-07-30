@@ -28,6 +28,7 @@ class DeleteStoredMediaPaths implements ShouldQueue
         public string $logContext = 'Stored media',
     ) {
         $this->afterCommit();
+        $this->onQueue('cleanup');
     }
 
     public function handle(): void
@@ -54,6 +55,8 @@ class DeleteStoredMediaPaths implements ShouldQueue
                 'disk' => $disk,
                 'path_count' => count($paths),
             ]);
+
+            throw $exception;
         }
     }
 }

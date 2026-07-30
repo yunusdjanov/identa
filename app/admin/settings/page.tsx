@@ -24,6 +24,7 @@ import {
     getEmailValidationMessage,
     getTextValidationMessage,
 } from '@/lib/input-validation';
+import { queryKeys } from '@/lib/query-keys';
 
 interface AdminAccountDraft {
     name: string;
@@ -46,7 +47,7 @@ export default function AdminSettingsPage() {
     const [accountSubmitAttempted, setAccountSubmitAttempted] = useState(false);
 
     const authQuery = useQuery({
-        queryKey: ['auth', 'me'],
+        queryKey: queryKeys.auth.me(),
         queryFn: getCurrentUser,
         retry: false,
     });
@@ -75,7 +76,7 @@ export default function AdminSettingsPage() {
             setAccountDraft(null);
             setAccountSubmitAttempted(false);
             void authQuery.refetch();
-            void queryClient.invalidateQueries({ queryKey: ['auth', 'me'] });
+            void queryClient.invalidateQueries({ queryKey: queryKeys.auth.me() });
         },
         onError: (error) => {
             toast.error(getApiErrorMessage(error, t('settings.profileUpdateFailed')));

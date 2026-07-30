@@ -37,6 +37,7 @@ import { useI18n } from '@/components/providers/i18n-provider';
 import { useInstantLogout } from '@/lib/auth/use-instant-logout';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
+import { queryKeys } from '@/lib/query-keys';
 
 interface PlanForm {
     name: string;
@@ -106,12 +107,12 @@ export default function AdminPlansPage() {
     const [confirmCloseOpen, setConfirmCloseOpen] = useState(false);
 
     const authQuery = useQuery({
-        queryKey: ['auth', 'me'],
+        queryKey: queryKeys.auth.me(),
         queryFn: getCurrentUser,
         retry: false,
     });
     const plansQuery = useQuery({
-        queryKey: ['admin', 'plans'],
+        queryKey: queryKeys.admin.plans.all(),
         queryFn: listAdminPlans,
         enabled: authQuery.data?.role === 'admin',
     });
@@ -208,9 +209,9 @@ export default function AdminPlansPage() {
         onSuccess: () => {
             toast.success(t('admin.plans.saved'), { duration: 3000 });
             performClose();
-            queryClient.invalidateQueries({ queryKey: ['admin', 'plans'] });
-            queryClient.invalidateQueries({ queryKey: ['billing', 'plans'] });
-            queryClient.invalidateQueries({ queryKey: ['plans'] });
+            queryClient.invalidateQueries({ queryKey: queryKeys.admin.plans.all() });
+            queryClient.invalidateQueries({ queryKey: queryKeys.admin.analyticsAll() });
+            queryClient.invalidateQueries({ queryKey: queryKeys.billing.plans() });
         },
         onError: (error) => {
             const serverErrors = getServerFieldErrors(error);

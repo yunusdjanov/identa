@@ -1,6 +1,7 @@
 ﻿'use client';
 
 import { useEffect, useMemo, useRef, useState, type TouchEvent as ReactTouchEvent } from 'react';
+import dynamic from 'next/dynamic';
 import {
     Dialog,
     DialogClose,
@@ -8,14 +9,28 @@ import {
     DialogDescription,
     DialogTitle,
 } from '@/components/ui/dialog';
-import { GalleryImageEditor } from '@/components/patients/gallery-image-editor';
+import { ConfirmActionDialog } from '@/components/ui/confirm-action-dialog';
 import { getProtectedMediaCrossOrigin } from '@/lib/protected-media';
 import { useI18n } from '@/components/providers/i18n-provider';
 import { ChevronLeft, ChevronRight, Download, Loader2, Pencil, Trash2, X, ZoomIn, ZoomOut } from 'lucide-react';
 
+const GalleryImageEditor = dynamic(
+    () => import('@/components/patients/gallery-image-editor').then((module) => module.GalleryImageEditor),
+    {
+        ssr: false,
+        loading: () => (
+            <div className="flex min-h-72 items-center justify-center">
+                <Loader2 className="h-6 w-6 animate-spin text-teal-600" aria-hidden="true" />
+            </div>
+        ),
+    }
+);
+
 export interface PreviewGalleryImage {
     id?: string;
     src: string;
+    editSrc?: string;
+    downloadSrc?: string;
     alt: string;
     title?: string;
     thumbnailSrc?: string;
@@ -44,6 +59,7 @@ interface PatientPhotoPreviewDialogProps {
     startIndex?: number;
     onDeleteImage?: (image: PreviewGalleryImage) => void;
     onSaveEditedImage?: (image: PreviewGalleryImage, file: File) => Promise<void> | void;
+    onSaveEditedCopy?: (image: PreviewGalleryImage, file: File) => Promise<void> | void;
     isDeletePending?: boolean;
     isEditPending?: boolean;
 }
@@ -66,6 +82,7 @@ export function PatientPhotoPreviewDialog({
     startIndex = 0,
     onDeleteImage,
     onSaveEditedImage,
+    onSaveEditedCopy,
     isDeletePending = false,
     isEditPending = false,
 }: PatientPhotoPreviewDialogProps) {
@@ -94,6 +111,8 @@ export function PatientPhotoPreviewDialog({
     const activeImage = resolvedImages[currentIndex];
     const canNavigate = resolvedImages.length > 1;
     const [isEditing, setIsEditing] = useState(false);
+    const [hasUnsavedEdit, setHasUnsavedEdit] = useState(false);
+    const [discardIntent, setDiscardIntent] = useState<'editor' | 'dialog' | null>(null);
     const [zoomState, setZoomState] = useState({ signature: '', imageSrc: '', scale: MIN_ZOOM_SCALE });
     const activeImageSrc = activeImage?.src ?? '';
     const zoomScale = zoomState.signature === gallerySignature && zoomState.imageSrc === activeImageSrc
@@ -105,12 +124,37 @@ export function PatientPhotoPreviewDialog({
     useEffect(() => {
         if (!open) {
             setIsEditing(false);
+            setHasUnsavedEdit(false);
+            setDiscardIntent(null);
         }
     }, [open]);
 
     useEffect(() => {
         setIsEditing(false);
+        setHasUnsavedEdit(false);
     }, [activeImageSrc]);
+
+    const requestDiscard = (intent: 'editor' | 'dialog') => {
+        if (isEditing && hasUnsavedEdit) {
+            setDiscardIntent(intent);
+            return;
+        }
+
+        setIsEditing(false);
+        setHasUnsavedEdit(false);
+        if (intent === 'dialog') {
+            onOpenChange(false);
+        }
+    };
+
+    const handleDialogOpenChange = (nextOpen: boolean) => {
+        if (nextOpen) {
+            onOpenChange(true);
+            return;
+        }
+
+        requestDiscard('dialog');
+    };
 
     const updateCurrentIndex = (getNextIndex: number | ((currentIndex: number) => number)) => {
         if (resolvedImages.length === 0) {
@@ -184,6 +228,17 @@ export function PatientPhotoPreviewDialog({
         }
 
         await onSaveEditedImage(activeImage, file);
+        setHasUnsavedEdit(false);
+        setIsEditing(false);
+    };
+
+    const handleSaveEditedCopy = async (file: File) => {
+        if (!activeImage || !onSaveEditedCopy) {
+            return;
+        }
+
+        await onSaveEditedCopy(activeImage, file);
+        setHasUnsavedEdit(false);
         setIsEditing(false);
     };
 
@@ -192,9 +247,14 @@ export function PatientPhotoPreviewDialog({
             return;
         }
 
-        const openInNewTab = () => window.open(activeImage.src, '_blank', 'noopener,noreferrer');
+        const downloadSrc = activeImage.downloadSrc ?? activeImage.editSrc ?? activeImage.src;
+        const openInNewTab = () => window.open(downloadSrc, '_blank', 'noopener,noreferrer');
         try {
-            const response = await fetch(activeImage.src);
+            const response = await fetch(downloadSrc, {
+                credentials: getProtectedMediaCrossOrigin(downloadSrc) === 'use-credentials'
+                    ? 'include'
+                    : 'same-origin',
+            });
             if (!response.ok) {
                 openInNewTab();
                 return;
@@ -237,7 +297,8 @@ export function PatientPhotoPreviewDialog({
     };
 
     return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
+        <>
+        <Dialog open={open} onOpenChange={handleDialogOpenChange}>
             <DialogContent
                 showCloseButton={false}
                 className="!fixed !inset-0 !left-0 !top-0 grid !h-[100dvh] !max-h-none !w-screen !max-w-none !translate-x-0 !translate-y-0 grid-rows-[auto_minmax(0,1fr)_auto] gap-0 overflow-hidden !rounded-none !border-0 bg-slate-950 p-0 text-white !shadow-none sm:!max-w-none"
@@ -282,7 +343,13 @@ export function PatientPhotoPreviewDialog({
                         {activeImage && onSaveEditedImage ? (
                             <button
                                 type="button"
-                                onClick={() => setIsEditing((value) => !value)}
+                                onClick={() => {
+                                    if (isEditing) {
+                                        requestDiscard('editor');
+                                    } else {
+                                        setIsEditing(true);
+                                    }
+                                }}
                                 disabled={isDeletePending || isEditPending}
                                 className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/10 text-white/80 shadow-sm backdrop-blur transition hover:bg-white/15 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-300 disabled:cursor-not-allowed disabled:opacity-60"
                                 aria-label={t('common.edit')}
@@ -331,10 +398,15 @@ export function PatientPhotoPreviewDialog({
                 {activeImage ? (
                     isEditing && onSaveEditedImage ? (
                         <GalleryImageEditor
-                            image={activeImage}
+                            image={{
+                                ...activeImage,
+                                src: activeImage.editSrc ?? activeImage.downloadSrc ?? activeImage.src,
+                            }}
                             isSaving={isEditPending}
-                            onCancel={() => setIsEditing(false)}
+                            onCancel={() => requestDiscard('editor')}
                             onSave={handleSaveEditedImage}
+                            onSaveCopy={onSaveEditedCopy ? handleSaveEditedCopy : undefined}
+                            onDirtyChange={setHasUnsavedEdit}
                         />
                     ) : (
                     <>
@@ -426,5 +498,28 @@ export function PatientPhotoPreviewDialog({
                 ) : null}
             </DialogContent>
         </Dialog>
+        <ConfirmActionDialog
+            open={discardIntent !== null}
+            onOpenChange={(nextOpen) => {
+                if (!nextOpen) {
+                    setDiscardIntent(null);
+                }
+            }}
+            title={t('gallery.edit.discardTitle')}
+            description={t('gallery.edit.discardChanges')}
+            confirmLabel={t('gallery.edit.discardConfirm')}
+            cancelLabel={t('gallery.edit.keepEditing')}
+            confirmVariant="destructive"
+            onConfirm={() => {
+                const intent = discardIntent;
+                setDiscardIntent(null);
+                setHasUnsavedEdit(false);
+                setIsEditing(false);
+                if (intent === 'dialog') {
+                    onOpenChange(false);
+                }
+            }}
+        />
+        </>
     );
 }

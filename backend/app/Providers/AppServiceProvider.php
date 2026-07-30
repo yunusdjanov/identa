@@ -10,6 +10,8 @@ use App\Models\OdontogramEntryImage;
 use App\Models\Patient;
 use App\Models\PatientCategory;
 use App\Models\Payment;
+use App\Models\Plan;
+use App\Models\Subscription;
 use App\Models\Treatment;
 use App\Models\TreatmentImage;
 use App\Models\User;
@@ -19,6 +21,7 @@ use App\Services\Media\ClamAvAntivirusScanner;
 use App\Services\Media\NullAntivirusScanner;
 use App\Support\ProductionRuntimePolicyValidator;
 use App\Support\ProductionSecretsValidator;
+use App\Support\AnalyticsCacheVersion;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
@@ -90,6 +93,22 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(Payment::class, TenantOwnedPolicy::class);
         Gate::policy(Treatment::class, TenantOwnedPolicy::class);
         Gate::policy(TreatmentImage::class, TenantOwnedPolicy::class);
+
+        $invalidateTenantAnalytics = static function (Patient|Treatment|Appointment $record): void {
+            AnalyticsCacheVersion::bumpTenant((int) $record->dentist_id);
+        };
+        foreach ([Patient::class, Treatment::class, Appointment::class] as $modelClass) {
+            $modelClass::saved($invalidateTenantAnalytics);
+            $modelClass::deleted($invalidateTenantAnalytics);
+        }
+
+        $invalidateAdminAnalytics = static function (User|Plan|Subscription $record): void {
+            AnalyticsCacheVersion::bumpAdmin();
+        };
+        foreach ([User::class, Plan::class, Subscription::class] as $modelClass) {
+            $modelClass::saved($invalidateAdminAnalytics);
+            $modelClass::deleted($invalidateAdminAnalytics);
+        }
     }
 
     private function shouldSkipProductionGuardsForConsoleCommand(): bool

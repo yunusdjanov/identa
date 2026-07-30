@@ -357,8 +357,10 @@ class PatientClinicalPhotoService
     {
         ProcessUploadedMedia::dispatchSync(PatientClinicalPhoto::class, (string) $photo->id, (int) $owner->id);
         $photo->refresh();
-        if ((string) $photo->scan_status === PatientClinicalPhoto::SCAN_STATUS_REJECTED) {
-            $this->delete($photo);
+        if ($photo->rejected_at !== null) {
+            if ((string) $photo->scan_status === PatientClinicalPhoto::SCAN_STATUS_REJECTED) {
+                $this->delete($photo);
+            }
             throw ValidationException::withMessages(['photo' => [$message]]);
         }
 

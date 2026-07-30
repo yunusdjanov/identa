@@ -590,6 +590,33 @@ class BillingLifecycleTest extends TestCase
         );
     }
 
+    public function test_analytics_subscription_snapshot_preserves_grace_status_without_extra_queries(): void
+    {
+        $dentist = User::factory()->create();
+        $plan = $this->createPlan(Plan::CODE_BASIC);
+        $this->createSubscription($dentist, $plan, [
+            'ends_at' => now()->subDay(),
+        ]);
+
+        $analyticsOwner = User::query()
+            ->select(['id', 'created_at', 'account_status'])
+            ->with('latestSubscription:id,user_id,plan_code,billing_period,status,starts_at,ends_at')
+            ->findOrFail($dentist->id);
+        $service = app(\App\Services\SubscriptionService::class);
+
+        DB::flushQueryLog();
+        DB::enableQueryLog();
+        $snapshot = $service->analyticsSnapshot($analyticsOwner);
+        $queries = DB::getQueryLog();
+        DB::disableQueryLog();
+
+        $this->assertSame(User::SUBSCRIPTION_STATUS_GRACE, $snapshot['status']);
+        $this->assertSame(Plan::CODE_BASIC, $snapshot['plan']);
+        $this->assertSame(Subscription::PERIOD_MONTHLY, $snapshot['billing_period']);
+        $this->assertNull($snapshot['trial_ends_at']);
+        $this->assertSame([], $queries, 'The aggregate snapshot must use the eager-loaded subscription.');
+    }
+
     /**
      * @param  array<string, mixed>  $overrides
      */

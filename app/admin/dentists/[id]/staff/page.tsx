@@ -41,6 +41,7 @@ import type { ApiAssistantAccount } from '@/lib/api/types';
 import { useInstantLogout } from '@/lib/auth/use-instant-logout';
 import { formatLocalizedDate } from '@/lib/i18n/date';
 import { cn, truncateForUi } from '@/lib/utils';
+import { queryKeys } from '@/lib/query-keys';
 
 function getStaffInitials(name: string): string {
     const parts = name.trim().split(/\s+/);
@@ -116,20 +117,20 @@ export default function AdminDentistStaffPage() {
         : String(rawDentistId ?? '');
 
     const authQuery = useQuery({
-        queryKey: ['auth', 'me'],
+        queryKey: queryKeys.auth.me(),
         queryFn: getCurrentUser,
         retry: false,
         staleTime: 5 * 60_000,
     });
 
     const dentistQuery = useQuery({
-        queryKey: ['admin', 'dentists', dentistId],
+        queryKey: queryKeys.admin.dentists.detail(dentistId),
         queryFn: () => getAdminDentist(dentistId),
         enabled: authQuery.data?.role === 'admin' && dentistId !== '',
     });
 
     const staffQuery = useQuery({
-        queryKey: ['admin', 'dentists', dentistId, 'staff'],
+        queryKey: queryKeys.admin.dentists.staff(dentistId),
         queryFn: () => listAdminDentistStaff(dentistId),
         enabled: authQuery.data?.role === 'admin' && dentistId !== '',
         staleTime: 30_000,

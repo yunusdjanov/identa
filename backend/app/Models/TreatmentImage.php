@@ -30,6 +30,7 @@ class TreatmentImage extends Model implements TenantOwned
     protected $fillable = [
         'dentist_id',
         'treatment_id',
+        'upload_id',
         'disk',
         'path',
         'mime_type',

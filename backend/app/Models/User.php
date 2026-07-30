@@ -9,6 +9,7 @@ use App\Services\SubscriptionService;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
@@ -560,6 +561,20 @@ class User extends Authenticatable implements MustVerifyEmail
     public function subscriptions(): HasMany
     {
         return $this->hasMany(Subscription::class);
+    }
+
+    /**
+     * Latest subscription only, for list/analytics reads that must not hydrate
+     * the owner's complete billing history.
+     *
+     * @return HasOne<Subscription, User>
+     */
+    public function latestSubscription(): HasOne
+    {
+        return $this->hasOne(Subscription::class)->ofMany([
+            'starts_at' => 'max',
+            'id' => 'max',
+        ]);
     }
 
     /**

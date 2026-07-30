@@ -20,6 +20,7 @@ QUEUE_CONNECTION=database
 MEDIA_DISK=r2
 MEDIA_VERIFY_DIRECT_UPLOADS_ON_FINALIZE=true
 MEDIA_CHECK_REMOTE_VARIANT_EXISTS=false
+MEDIA_MAX_UPLOAD_MB=20
 
 # Current production policy: defer ClamAV while uploads stay authenticated,
 # image-only, magic-byte checked, and tenant-isolated. Set ANTIVIRUS_DRIVER
@@ -54,6 +55,7 @@ For R2/S3, also set the existing storage keys used by `config/filesystems.php`.
    - Request is rejected.
 6. Try oversized uploads for the current plan.
    - Backend returns the plan limit error.
+   - Also verify the absolute `MEDIA_MAX_UPLOAD_MB` ceiling on multipart and direct-upload finalize paths.
 7. Try upload/delete/write actions in read-only subscription mode.
    - Backend returns `subscription_read_only`.
 
@@ -64,3 +66,5 @@ For R2/S3, also set the existing storage keys used by `config/filesystems.php`.
   matrix lives in `docs/release/PRE_DEPLOY_RUNBOOK.md`.
 - Existing media rows default to `approved` during migration so old patient data stays visible.
 - If the queue is down, new uploads remain hidden as `pending` rather than serving unscanned files.
+- Alert when pending media age grows unexpectedly. A useful first threshold is any `pending` row older than 10 minutes.
+- Reconcile approved database paths against private storage regularly and alert on missing approved objects or unreferenced approved objects before deleting anything.

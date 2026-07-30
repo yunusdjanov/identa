@@ -4,18 +4,44 @@ namespace App\Services;
 
 use App\Models\Plan;
 use App\Models\User;
-use Illuminate\Database\Eloquent\Builder;
+use App\Support\AnalyticsCacheVersion;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Cache;
 
 class AdminAnalyticsSummaryService
 {
     private const BILLABLE_STATUSES = ['active', 'grace', 'read_only'];
+
+    public function __construct(
+        private readonly SubscriptionService $subscriptions,
+    ) {}
 
     /**
      * @param array{range: string, current_from: string, current_to: string, previous_from: string, previous_to: string} $filters
      * @return array<string, mixed>
      */
     public function summary(array $filters): array
+    {
+        $cacheKey = 'admin:analytics:summary:'.hash(
+            'sha256',
+            json_encode([
+                'version' => AnalyticsCacheVersion::admin(),
+                'filters' => $filters,
+            ], JSON_THROW_ON_ERROR)
+        );
+
+        return Cache::remember(
+            $cacheKey,
+            now()->addSeconds(60),
+            fn (): array => $this->buildSummary($filters)
+        );
+    }
+
+    /**
+     * @param array{range: string, current_from: string, current_to: string, previous_from: string, previous_to: string} $filters
+     * @return array<string, mixed>
+     */
+    private function buildSummary(array $filters): array
     {
         $range = $this->range($filters['range']);
         $currentStart = Carbon::parse($filters['current_from'])->startOfDay();
@@ -24,16 +50,20 @@ class AdminAnalyticsSummaryService
         $previousEnd = Carbon::parse($filters['previous_to'])->endOfDay();
 
         $dentists = User::query()
+            ->select(['id', 'created_at', 'account_status'])
             ->where('role', User::ROLE_DENTIST)
             ->where('account_status', '!=', User::ACCOUNT_STATUS_DELETED)
-            ->withCount([
-                'assistants as active_assistants_count' => fn (Builder $builder) => $builder
-                    ->where('account_status', User::ACCOUNT_STATUS_ACTIVE),
+            ->with([
+                'latestSubscription:id,user_id,plan_code,billing_period,status,starts_at,ends_at',
             ])
-            ->with(['subscriptions.plan'])
             ->get();
         $plans = Plan::query()->get();
-        $mrr = $this->mrr($dentists, $plans);
+        $subscriptionSummaries = $dentists->mapWithKeys(
+            fn (User $dentist): array => [
+                (int) $dentist->id => $this->subscriptions->analyticsSnapshot($dentist),
+            ]
+        );
+        $mrr = $this->mrr($dentists, $plans, $subscriptionSummaries);
         $activeKpi = $this->activeKpi($dentists, $previousEnd);
 
         return [
@@ -49,10 +79,22 @@ class AdminAnalyticsSummaryService
                     'totals_by_currency' => $mrr['totals_by_currency'],
                 ],
                 'signups' => $this->signupsKpi($dentists, $currentStart, $currentEnd, $previousStart, $previousEnd),
-                'conversion' => $this->conversionKpi($dentists, $currentStart, $currentEnd, $previousStart, $previousEnd),
+                'conversion' => $this->conversionKpi(
+                    $dentists,
+                    $subscriptionSummaries,
+                    $currentStart,
+                    $currentEnd,
+                    $previousStart,
+                    $previousEnd
+                ),
             ],
-            'signup_growth' => $this->signupGrowth($dentists, $this->buckets($range, $currentStart, $currentEnd), $currentEnd),
-            'subscription_health' => $this->subscriptionHealth($dentists),
+            'signup_growth' => $this->signupGrowth(
+                $dentists,
+                $this->buckets($range, $currentStart, $currentEnd),
+                $currentStart,
+                $currentEnd
+            ),
+            'subscription_health' => $this->subscriptionHealth($dentists, $subscriptionSummaries),
         ];
     }
 
@@ -95,15 +137,22 @@ class AdminAnalyticsSummaryService
         return ['current' => $current, 'previous' => $previous];
     }
 
-    private function conversionKpi($dentists, Carbon $currentStart, Carbon $currentEnd, Carbon $previousStart, Carbon $previousEnd): array
+    private function conversionKpi(
+        $dentists,
+        $subscriptionSummaries,
+        Carbon $currentStart,
+        Carbon $currentEnd,
+        Carbon $previousStart,
+        Carbon $previousEnd
+    ): array
     {
         return [
-            'current' => $this->conversionRate($dentists, $currentStart, $currentEnd),
-            'previous' => $this->conversionRate($dentists, $previousStart, $previousEnd),
+            'current' => $this->conversionRate($dentists, $subscriptionSummaries, $currentStart, $currentEnd),
+            'previous' => $this->conversionRate($dentists, $subscriptionSummaries, $previousStart, $previousEnd),
         ];
     }
 
-    private function conversionRate($dentists, Carbon $start, Carbon $end): float
+    private function conversionRate($dentists, $subscriptionSummaries, Carbon $start, Carbon $end): float
     {
         $paid = 0;
         $finishedTrials = 0;
@@ -113,7 +162,7 @@ class AdminAnalyticsSummaryService
             if (! $this->dateBetween($dentist->created_at?->toDateString(), $start, $end)) {
                 continue;
             }
-            $summary = $dentist->subscriptionSummary();
+            $summary = $subscriptionSummaries->get((int) $dentist->id, []);
             if (in_array($summary['status'], self::BILLABLE_STATUSES, true) && ($summary['plan'] ?? null) !== 'trial') {
                 $paid += 1;
             } elseif (($summary['plan'] ?? null) === 'trial'
@@ -128,13 +177,13 @@ class AdminAnalyticsSummaryService
         return $denominator > 0 ? ($paid / $denominator) * 100 : 0.0;
     }
 
-    private function mrr($dentists, $plans): array
+    private function mrr($dentists, $plans, $subscriptionSummaries): array
     {
         $plansByCode = $plans->keyBy('code');
         $amountsByCurrency = [];
 
         foreach ($dentists as $dentist) {
-            $summary = $dentist->subscriptionSummary();
+            $summary = $subscriptionSummaries->get((int) $dentist->id, []);
             if (! in_array($summary['status'], self::BILLABLE_STATUSES, true)) {
                 continue;
             }
@@ -173,37 +222,67 @@ class AdminAnalyticsSummaryService
         ];
     }
 
-    private function signupGrowth($dentists, array $buckets, Carbon $rangeEnd): array
+    private function signupGrowth(
+        $dentists,
+        array $buckets,
+        Carbon $rangeStart,
+        Carbon $rangeEnd
+    ): array
     {
         $rows = [];
+        $bucketByDate = [];
+        $activeBeforeRange = 0;
+        $activeByBucket = [];
 
-        foreach ($buckets as $index => $bucket) {
-            $signups = 0;
-            $cumulative = 0;
-            $cutoff = $index === count($buckets) - 1 ? $rangeEnd : $bucket['end'];
-
-            foreach ($dentists as $dentist) {
-                $createdAt = $dentist->created_at?->toDateString();
-                if ($this->dateBetween($createdAt, $bucket['start'], $bucket['end'])) {
-                    $signups += 1;
-                }
-                if ($dentist->account_status === User::ACCOUNT_STATUS_ACTIVE
-                    && $this->dateBetween($createdAt, Carbon::create(1970, 1, 1)->startOfDay(), $cutoff)) {
-                    $cumulative += 1;
-                }
-            }
-
-            $rows[] = [
+        foreach ($buckets as $bucket) {
+            $rows[$bucket['key']] = [
                 'key' => $bucket['key'],
-                'signups' => $signups,
-                'cumulative' => $cumulative,
+                'signups' => 0,
+                'cumulative' => 0,
             ];
+            $activeByBucket[$bucket['key']] = 0;
+
+            $cursor = $bucket['start']->copy()->max($rangeStart)->startOfDay();
+            $end = $bucket['end']->copy()->min($rangeEnd)->endOfDay();
+            while ($cursor <= $end) {
+                $bucketByDate[$cursor->toDateString()] = $bucket['key'];
+                $cursor->addDay();
+            }
         }
 
-        return $rows;
+        foreach ($dentists as $dentist) {
+            $createdAt = $dentist->created_at?->toDateString();
+            if ($createdAt === null) {
+                continue;
+            }
+
+            $key = $bucketByDate[$createdAt] ?? null;
+            if ($key !== null) {
+                $rows[$key]['signups'] += 1;
+            }
+
+            if ($dentist->account_status !== User::ACCOUNT_STATUS_ACTIVE
+                || $createdAt > $rangeEnd->toDateString()) {
+                continue;
+            }
+
+            if ($createdAt < $rangeStart->toDateString()) {
+                $activeBeforeRange += 1;
+            } elseif ($key !== null) {
+                $activeByBucket[$key] += 1;
+            }
+        }
+
+        $cumulative = $activeBeforeRange;
+        foreach ($buckets as $bucket) {
+            $cumulative += $activeByBucket[$bucket['key']];
+            $rows[$bucket['key']]['cumulative'] = $cumulative;
+        }
+
+        return array_values($rows);
     }
 
-    private function subscriptionHealth($dentists): array
+    private function subscriptionHealth($dentists, $subscriptionSummaries): array
     {
         $counts = [
             'active' => 0,
@@ -215,7 +294,7 @@ class AdminAnalyticsSummaryService
         ];
 
         foreach ($dentists as $dentist) {
-            $status = (string) ($dentist->subscriptionSummary()['status'] ?? 'none');
+            $status = (string) (($subscriptionSummaries->get((int) $dentist->id, []))['status'] ?? 'none');
             $counts[array_key_exists($status, $counts) ? $status : 'none'] += 1;
         }
 
@@ -287,8 +366,6 @@ class AdminAnalyticsSummaryService
         if ($value === null || $value === '') {
             return false;
         }
-        $date = Carbon::parse($value)->startOfDay();
-
-        return $date >= $start->copy()->startOfDay() && $date <= $end->copy()->endOfDay();
+        return $value >= $start->toDateString() && $value <= $end->toDateString();
     }
 }

@@ -28,21 +28,13 @@ class PaymentLedgerService
     public function listPatientBalances(Request $request): array
     {
         $query = $this->patientBalanceQuery($request);
-        $summary = $this->summarizePatientBalances(clone $query);
+        $summary = $this->includeSummary($request)
+            ? $this->summarizePatientBalances(clone $query)
+            : null;
 
         $query
-            ->orderByRaw('ABS(COALESCE(SUM(CASE WHEN COALESCE(treatments.currency, ?) = ? THEN treatments.debt_amount ELSE 0 END), 0) - COALESCE(SUM(CASE WHEN COALESCE(treatments.currency, ?) = ? THEN treatments.paid_amount ELSE 0 END), 0)) DESC', [
-                Treatment::CURRENCY_UZS,
-                Treatment::CURRENCY_UZS,
-                Treatment::CURRENCY_UZS,
-                Treatment::CURRENCY_UZS,
-            ])
-            ->orderByRaw('ABS(COALESCE(SUM(CASE WHEN COALESCE(treatments.currency, ?) = ? THEN treatments.debt_amount ELSE 0 END), 0) - COALESCE(SUM(CASE WHEN COALESCE(treatments.currency, ?) = ? THEN treatments.paid_amount ELSE 0 END), 0)) DESC', [
-                Treatment::CURRENCY_UZS,
-                Treatment::CURRENCY_USD,
-                Treatment::CURRENCY_UZS,
-                Treatment::CURRENCY_USD,
-            ])
+            ->orderByRaw('ABS(balance_uzs) DESC')
+            ->orderByRaw('ABS(balance_usd) DESC')
             ->orderByDesc('last_entry_date')
             ->orderBy('patients.full_name');
 
@@ -63,7 +55,9 @@ class PaymentLedgerService
     public function listHistoryRows(Request $request): array
     {
         $query = $this->historyQuery($request);
-        $summary = $this->summarizeHistoryRows(clone $query);
+        $summary = $this->includeSummary($request)
+            ? $this->summarizeHistoryRows(clone $query)
+            : null;
 
         $query
             ->with([
@@ -110,20 +104,6 @@ class PaymentLedgerService
                 'patients.scan_status',
                 'patients.quarantine_path',
                 'patients.updated_at',
-            ])
-            ->selectRaw('COALESCE(SUM(CASE WHEN COALESCE(treatments.currency, ?) = ? THEN treatments.debt_amount ELSE 0 END), 0) AS total_debt', [
-                Treatment::CURRENCY_UZS,
-                Treatment::CURRENCY_UZS,
-            ])
-            ->selectRaw('COALESCE(SUM(CASE WHEN COALESCE(treatments.currency, ?) = ? THEN treatments.paid_amount ELSE 0 END), 0) AS total_paid', [
-                Treatment::CURRENCY_UZS,
-                Treatment::CURRENCY_UZS,
-            ])
-            ->selectRaw('(COALESCE(SUM(CASE WHEN COALESCE(treatments.currency, ?) = ? THEN treatments.debt_amount ELSE 0 END), 0) - COALESCE(SUM(CASE WHEN COALESCE(treatments.currency, ?) = ? THEN treatments.paid_amount ELSE 0 END), 0)) AS balance', [
-                Treatment::CURRENCY_UZS,
-                Treatment::CURRENCY_UZS,
-                Treatment::CURRENCY_UZS,
-                Treatment::CURRENCY_UZS,
             ])
             ->selectRaw('COALESCE(SUM(CASE WHEN COALESCE(treatments.currency, ?) = ? THEN treatments.debt_amount ELSE 0 END), 0) AS total_debt_uzs', [
                 Treatment::CURRENCY_UZS,
@@ -294,58 +274,47 @@ class PaymentLedgerService
     {
         $row = (clone $query)
             ->toBase()
-            ->where(function ($builder): void {
-                $builder
-                    ->where('currency', Treatment::CURRENCY_UZS)
-                    ->orWhereNull('currency');
-            })
-            ->selectRaw('COALESCE(SUM(debt_amount), 0) AS total_debt')
-            ->selectRaw('COALESCE(SUM(paid_amount), 0) AS total_paid')
+            ->selectRaw(
+                'COALESCE(SUM(CASE WHEN COALESCE(currency, ?) = ? THEN debt_amount ELSE 0 END), 0) AS total_debt_uzs',
+                [Treatment::CURRENCY_UZS, Treatment::CURRENCY_UZS]
+            )
+            ->selectRaw(
+                'COALESCE(SUM(CASE WHEN COALESCE(currency, ?) = ? THEN paid_amount ELSE 0 END), 0) AS total_paid_uzs',
+                [Treatment::CURRENCY_UZS, Treatment::CURRENCY_UZS]
+            )
+            ->selectRaw(
+                'COALESCE(SUM(CASE WHEN COALESCE(currency, ?) = ? THEN debt_amount ELSE 0 END), 0) AS total_debt_usd',
+                [Treatment::CURRENCY_UZS, Treatment::CURRENCY_USD]
+            )
+            ->selectRaw(
+                'COALESCE(SUM(CASE WHEN COALESCE(currency, ?) = ? THEN paid_amount ELSE 0 END), 0) AS total_paid_usd',
+                [Treatment::CURRENCY_UZS, Treatment::CURRENCY_USD]
+            )
+            ->selectRaw('COUNT(*) AS total_entries')
             ->first();
-        $totalDebt = (float) ($row?->total_debt ?? 0);
-        $totalPaid = (float) ($row?->total_paid ?? 0);
+        $uzsDebt = (float) ($row?->total_debt_uzs ?? 0);
+        $uzsPaid = (float) ($row?->total_paid_uzs ?? 0);
+        $usdDebt = (float) ($row?->total_debt_usd ?? 0);
+        $usdPaid = (float) ($row?->total_paid_usd ?? 0);
 
         return [
-            'total_debt' => $totalDebt,
-            'total_paid' => $totalPaid,
-            'total_balance' => $totalDebt - $totalPaid,
-            'total_entries' => (int) (clone $query)->count(),
-            'totals_by_currency' => $this->historyTotalsByCurrency($query),
+            'total_debt' => $uzsDebt,
+            'total_paid' => $uzsPaid,
+            'total_balance' => $uzsDebt - $uzsPaid,
+            'total_entries' => (int) ($row?->total_entries ?? 0),
+            'totals_by_currency' => [
+                Treatment::CURRENCY_UZS => [
+                    'total_debt' => $uzsDebt,
+                    'total_paid' => $uzsPaid,
+                    'total_balance' => $uzsDebt - $uzsPaid,
+                ],
+                Treatment::CURRENCY_USD => [
+                    'total_debt' => $usdDebt,
+                    'total_paid' => $usdPaid,
+                    'total_balance' => $usdDebt - $usdPaid,
+                ],
+            ],
         ];
-    }
-
-    /**
-     * @return array<string, array{total_debt: float, total_paid: float, total_balance: float}>
-     */
-    private function historyTotalsByCurrency(Builder $query): array
-    {
-        $totals = [];
-        foreach (Treatment::SUPPORTED_CURRENCIES as $currency) {
-            $currencyQuery = (clone $query)->toBase();
-            if ($currency === Treatment::CURRENCY_UZS) {
-                $currencyQuery->where(function ($builder): void {
-                    $builder
-                        ->where('currency', Treatment::CURRENCY_UZS)
-                        ->orWhereNull('currency');
-                });
-            } else {
-                $currencyQuery->where('currency', $currency);
-            }
-
-            $row = $currencyQuery
-                ->selectRaw('COALESCE(SUM(debt_amount), 0) AS total_debt')
-                ->selectRaw('COALESCE(SUM(paid_amount), 0) AS total_paid')
-                ->first();
-            $totalDebt = (float) ($row?->total_debt ?? 0);
-            $totalPaid = (float) ($row?->total_paid ?? 0);
-            $totals[$currency] = [
-                'total_debt' => $totalDebt,
-                'total_paid' => $totalPaid,
-                'total_balance' => $totalDebt - $totalPaid,
-            ];
-        }
-
-        return $totals;
     }
 
     private function outstandingPatientIdsSubquery(int $dentistId): \Closure
@@ -427,6 +396,11 @@ class PaymentLedgerService
         }
 
         return min($perPage, self::MAX_PER_PAGE);
+    }
+
+    private function includeSummary(Request $request): bool
+    {
+        return ! $request->has('include_summary') || $request->boolean('include_summary');
     }
 
     private function dentistId(Request $request): int

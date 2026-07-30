@@ -1015,6 +1015,7 @@ export async function uploadPatientTreatmentImages(
             images.map((image, index) => [buildTreatmentImageClientId(index), image])
         );
         const fallbackFiles: File[] = [];
+        let finalizedFailureCount = 0;
         const queuedFallbackFiles = new Set<File>();
         const queueFallbackFile = (image: File | undefined) => {
             if (!image || queuedFallbackFiles.has(image)) {
@@ -1047,30 +1048,34 @@ export async function uploadPatientTreatmentImages(
         });
 
         if (completedUploadIds.length > 0) {
-            try {
-                const completion = await finalizePatientTreatmentImageBatchDirectUpload(
-                    patientId,
-                    treatmentId,
-                    completedUploadIds
-                );
-                const failedUploadIds = new Set(completion.failed.map((failed) => failed.upload_id));
-                directUpload.uploads.forEach((upload) => {
-                    if (failedUploadIds.has(upload.upload_id)) {
-                        queueFallbackFile(filesByClientId.get(upload.client_id));
-                    }
-                });
-            } catch {
-                completedUploads.forEach((upload) => {
+            // The server may have committed before a response was lost.
+            // Retrying the same upload IDs is idempotent; falling back to
+            // multipart here could create duplicate treatment images.
+            const completion = await finalizePatientTreatmentImageBatchDirectUploadWithRetry(
+                patientId,
+                treatmentId,
+                completedUploadIds
+            );
+            directUpload.uploads.forEach((upload) => {
+                const failed = completion.failed.find((candidate) => candidate.upload_id === upload.upload_id);
+                if (!failed) {
+                    return;
+                }
+
+                if (failed.reason === 'expired' || failed.reason === 'missing') {
                     queueFallbackFile(filesByClientId.get(upload.client_id));
-                });
-            }
+                } else {
+                    finalizedFailureCount += 1;
+                }
+            });
         }
 
         if (fallbackFiles.length === 0) {
-            return 0;
+            return finalizedFailureCount;
         }
 
-        return uploadPatientTreatmentImagesViaApi(patientId, treatmentId, fallbackFiles);
+        return finalizedFailureCount
+            + await uploadPatientTreatmentImagesViaApi(patientId, treatmentId, fallbackFiles);
     }
 
     return uploadPatientTreatmentImagesViaApi(patientId, treatmentId, images);
@@ -1160,11 +1165,17 @@ async function finalizePatientTreatmentImageDirectUpload(
     treatmentId: string,
     uploadId: string
 ): Promise<void> {
-    await withCsrfRetry(() =>
+    const finalize = () => withCsrfRetry(() =>
         apiClient.post<ApiEnvelope<ApiTreatment>>(
             `/patients/${patientId}/treatments/${treatmentId}/images/direct-upload/${uploadId}/complete`
         )
     );
+
+    try {
+        await finalize();
+    } catch {
+        await finalize();
+    }
 }
 
 async function finalizePatientTreatmentImageBatchDirectUpload(
@@ -1459,6 +1470,18 @@ export async function getAdminDentistBilling(id: string): Promise<ApiAdminDentis
     const { data } = await apiClient.get<ApiEnvelope<ApiAdminDentistBilling>>(`/admin/dentists/${id}/billing`);
 
     return data.data;
+}
+
+async function finalizePatientTreatmentImageBatchDirectUploadWithRetry(
+    patientId: string,
+    treatmentId: string,
+    uploadIds: string[]
+): Promise<ApiDirectUploadBatchCompletion> {
+    try {
+        return await finalizePatientTreatmentImageBatchDirectUpload(patientId, treatmentId, uploadIds);
+    } catch {
+        return finalizePatientTreatmentImageBatchDirectUpload(patientId, treatmentId, uploadIds);
+    }
 }
 
 export async function listAdminDentistAuditLogs(

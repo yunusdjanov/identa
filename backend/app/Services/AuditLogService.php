@@ -4,9 +4,11 @@ namespace App\Services;
 
 use App\Models\AuditLog;
 use App\Models\User;
+use App\Support\Search;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 
 class AuditLogService
 {
@@ -64,12 +66,12 @@ class AuditLogService
 
         $dateFrom = $request->input('filter.date_from');
         if (is_string($dateFrom) && $dateFrom !== '') {
-            $query->whereDate('created_at', '>=', $dateFrom);
+            $query->where('created_at', '>=', Carbon::parse($dateFrom)->startOfDay());
         }
 
         $dateTo = $request->input('filter.date_to');
         if (is_string($dateTo) && $dateTo !== '') {
-            $query->whereDate('created_at', '<=', $dateTo);
+            $query->where('created_at', '<=', Carbon::parse($dateTo)->endOfDay());
         }
 
         $search = $request->input('filter.search');
@@ -80,15 +82,13 @@ class AuditLogService
         if (mb_strlen($search) >= 2) {
             $term = mb_substr($search, 0, 100);
             $query->where(function (Builder $builder) use ($term): void {
-                $builder
-                    ->where('event_type', 'like', "%{$term}%")
-                    ->orWhere('entity_type', 'like', "%{$term}%")
-                    ->orWhere('entity_id', 'like', "%{$term}%")
-                    ->orWhereHas('actor', function (Builder $actorQuery) use ($term): void {
-                        $actorQuery
-                            ->where('name', 'like', "%{$term}%")
-                            ->orWhere('email', 'like', "%{$term}%");
-                    });
+                Search::ciLike($builder, 'event_type', $term);
+                Search::ciLike($builder, 'entity_type', $term, 'or');
+                Search::ciLike($builder, 'entity_id', $term, 'or');
+                $builder->orWhereHas('actor', function (Builder $actorQuery) use ($term): void {
+                    Search::ciLike($actorQuery, 'name', $term);
+                    Search::ciLike($actorQuery, 'email', $term, 'or');
+                });
             });
         }
 

@@ -23,10 +23,17 @@ class SubscriptionService
             return null;
         }
 
-        // List endpoints (admin dentist index) eager-load `subscriptions.plan`
-        // to batch the otherwise-N+1 subscription fetch. When the relation is
-        // already loaded AND we're on a read path, sort the collection in
-        // PHP instead of issuing another query.
+        // List endpoints eager-load only the latest subscription and both plan
+        // relations. This avoids both N+1 queries and hydrating complete
+        // subscription histories for every dentist.
+        if (! $forUpdate && $owner->relationLoaded('latestSubscription')) {
+            $subscription = $owner->latestSubscription;
+
+            return $subscription instanceof Subscription ? $subscription : null;
+        }
+
+        // Backward-compatible fast path for callers that intentionally loaded
+        // the full relation.
         if (! $forUpdate && $owner->relationLoaded('subscriptions')) {
             $subscription = $owner->subscriptions
                 ->sortByDesc('id')
@@ -37,7 +44,7 @@ class SubscriptionService
         }
 
         $query = $owner->subscriptions()
-            ->with('plan')
+            ->with(['plan', 'pendingPlan'])
             ->latest('starts_at')
             ->latest('id');
 
@@ -619,42 +626,19 @@ class SubscriptionService
     {
         $subscription = $this->currentForOwner($owner);
         $plan = $subscription?->plan;
+        $pendingPlan = $subscription?->pendingPlan;
         $endsAt = $subscription?->ends_at;
-
-        // Derived grace state: a paid subscription whose period has ended but is
-        // still inside the grace window keeps full access (status stays ACTIVE
-        // in the DB) while surfacing a "grace" status + deadline to the client.
-        $graceEndsAt = $subscription !== null ? $this->graceDeadline($subscription) : null;
-        $inGrace = $subscription?->status === Subscription::STATUS_ACTIVE
-            && $endsAt !== null
-            && $endsAt->isPast()
-            && $graceEndsAt !== null
-            && $graceEndsAt->isAfter($endsAt)
-            && now()->lt($graceEndsAt);
-
-        // Derived read-only state: either the DB status is already READ_ONLY,
-        // OR the paid period + grace window have both elapsed but the
-        // scheduled `subscriptions:process` command hasn't flipped the row
-        // yet. This keeps the API contract stable in the gap between the
-        // grace deadline and the next cron tick.
-        $isReadOnly = $subscription?->status === Subscription::STATUS_READ_ONLY
-            || (
-                $subscription?->status === Subscription::STATUS_ACTIVE
-                && $endsAt !== null
-                && $endsAt->isPast()
-                && ! $inGrace
-            );
+        $accessState = $this->accessState($subscription);
+        $inGrace = $accessState['in_grace'];
+        $isReadOnly = $accessState['is_read_only'];
+        $graceEndsAt = $accessState['grace_ends_at'];
 
         return [
             'is_configured' => $subscription !== null,
             'plan' => $subscription?->plan_code,
             'plan_name' => $subscription?->plan_name,
             'billing_period' => $subscription?->billing_period,
-            'status' => $inGrace
-                ? User::SUBSCRIPTION_STATUS_GRACE
-                : ($isReadOnly
-                    ? User::SUBSCRIPTION_STATUS_READ_ONLY
-                    : ($subscription?->status ?? User::SUBSCRIPTION_STATUS_NONE)),
+            'status' => $accessState['status'],
             'access_mode' => $isReadOnly
                 ? User::SUBSCRIPTION_ACCESS_READ_ONLY
                 : User::SUBSCRIPTION_ACCESS_FULL,
@@ -667,8 +651,8 @@ class SubscriptionService
             'cancel_at_period_end' => (bool) ($subscription?->cancel_at_period_end ?? false),
             'cancelled_at' => $owner->subscription_cancelled_at?->toIso8601String(),
             'pending_plan_id' => $subscription?->pending_plan_id !== null ? (string) $subscription->pending_plan_id : null,
-            'pending_plan_code' => $this->resolvePendingPlanField($subscription, 'code'),
-            'pending_plan_name' => $this->resolvePendingPlanField($subscription, 'name'),
+            'pending_plan_code' => $pendingPlan?->code,
+            'pending_plan_name' => $pendingPlan?->name,
             'pending_billing_period' => $subscription?->pending_billing_period,
             'pending_change_effective_at' => $subscription?->pending_change_effective_at?->toIso8601String(),
             'days_remaining' => $endsAt !== null
@@ -690,22 +674,68 @@ class SubscriptionService
     }
 
     /**
-     * Resolve the human-readable code/name for the plan a subscription is
-     * scheduled to switch to at period end. Returns null when no pending
-     * change is set, or when the target plan row has been deleted/disabled.
+     * Minimal subscription projection for aggregate admin analytics.
+     *
+     * Unlike summary(), this deliberately avoids pending-plan and assistant
+     * usage reads. Those fields are not displayed by analytics, and resolving
+     * them for every dentist turns a cached aggregate into an N+1-heavy scan.
+     *
+     * @return array{status: string, plan: ?string, billing_period: ?string, trial_ends_at: ?string}
      */
-    private function resolvePendingPlanField(?Subscription $subscription, string $field): ?string
+    public function analyticsSnapshot(User $owner): array
     {
-        if ($subscription === null || $subscription->pending_plan_id === null) {
-            return null;
-        }
+        $subscription = $this->currentForOwner($owner);
 
-        $plan = Plan::query()->find($subscription->pending_plan_id);
-        if ($plan === null) {
-            return null;
-        }
+        return [
+            'status' => $this->accessState($subscription)['status'],
+            'plan' => $subscription?->plan_code,
+            'billing_period' => $subscription?->billing_period,
+            'trial_ends_at' => $subscription?->billing_period === Subscription::PERIOD_TRIAL
+                ? $subscription->ends_at?->toIso8601String()
+                : null,
+        ];
+    }
 
-        return $field === 'name' ? $plan->name : $plan->code;
+    /**
+     * Keep derived grace/read-only semantics in one place so lightweight
+     * analytics snapshots cannot drift from the public subscription contract.
+     *
+     * @return array{status: string, in_grace: bool, is_read_only: bool, grace_ends_at: ?CarbonInterface}
+     */
+    private function accessState(?Subscription $subscription): array
+    {
+        $endsAt = $subscription?->ends_at;
+
+        // A paid subscription whose period ended but is still inside the grace
+        // window keeps full access while the stored status remains ACTIVE.
+        $graceEndsAt = $subscription !== null ? $this->graceDeadline($subscription) : null;
+        $inGrace = $subscription?->status === Subscription::STATUS_ACTIVE
+            && $endsAt !== null
+            && $endsAt->isPast()
+            && $graceEndsAt !== null
+            && $graceEndsAt->isAfter($endsAt)
+            && now()->lt($graceEndsAt);
+
+        // Derive read-only immediately after grace even if the scheduled
+        // processor has not persisted the status transition yet.
+        $isReadOnly = $subscription?->status === Subscription::STATUS_READ_ONLY
+            || (
+                $subscription?->status === Subscription::STATUS_ACTIVE
+                && $endsAt !== null
+                && $endsAt->isPast()
+                && ! $inGrace
+            );
+
+        return [
+            'status' => $inGrace
+                ? User::SUBSCRIPTION_STATUS_GRACE
+                : ($isReadOnly
+                    ? User::SUBSCRIPTION_STATUS_READ_ONLY
+                    : ($subscription?->status ?? User::SUBSCRIPTION_STATUS_NONE)),
+            'in_grace' => $inGrace,
+            'is_read_only' => $isReadOnly,
+            'grace_ends_at' => $graceEndsAt,
+        ];
     }
 
     private function handleExpiredSubscription(Subscription $subscription): Subscription

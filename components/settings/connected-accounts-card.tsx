@@ -11,6 +11,7 @@ import { useI18n } from '@/components/providers/i18n-provider';
 import { linkGoogleAccount, unlinkGoogleAccount } from '@/lib/api/dentist';
 import { getApiErrorMessage } from '@/lib/api/client';
 import type { ApiUser } from '@/lib/api/types';
+import { queryKeys } from '@/lib/query-keys';
 
 const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ?? '';
 
@@ -115,8 +116,8 @@ export function ConnectedAccountsCard({ user, className }: ConnectedAccountsCard
     const linkMutation = useMutation({
         mutationFn: linkGoogleAccount,
         onSuccess: (updated) => {
-            queryClient.setQueryData(['auth', 'me'], updated);
-            void queryClient.invalidateQueries({ queryKey: ['auth', 'me'] });
+            queryClient.setQueryData(queryKeys.auth.me(), updated);
+            void queryClient.invalidateQueries({ queryKey: queryKeys.auth.me() });
             toast.success(t('settings.connectedAccounts.toast.linked'));
         },
         onError: (error) =>
@@ -126,8 +127,8 @@ export function ConnectedAccountsCard({ user, className }: ConnectedAccountsCard
     const unlinkMutation = useMutation({
         mutationFn: unlinkGoogleAccount,
         onSuccess: (updated) => {
-            queryClient.setQueryData(['auth', 'me'], updated);
-            void queryClient.invalidateQueries({ queryKey: ['auth', 'me'] });
+            queryClient.setQueryData(queryKeys.auth.me(), updated);
+            void queryClient.invalidateQueries({ queryKey: queryKeys.auth.me() });
             toast.success(t('settings.connectedAccounts.toast.unlinked'));
         },
         onError: (error) =>

@@ -19,6 +19,7 @@ import {
 import { useI18n } from '@/components/providers/i18n-provider';
 import { formatLocalizedDateTime } from '@/lib/i18n/date';
 import type { AppLocale } from '@/lib/i18n/config';
+import { queryKeys } from '@/lib/query-keys';
 
 const PERMISSION_LABEL_KEY_BY_CODE: Record<string, string> = {
     'patients.view': 'settings.team.permissionPatientsView',
@@ -197,7 +198,7 @@ export function AuditLogsTab({ canViewAuditLogs, t }: AuditLogsTabProps) {
     const [page, setPage] = useState(1);
 
     const logsQuery = useQuery({
-        queryKey: ['settings', 'audit-logs', search, eventType, dateFrom, dateTo, page],
+        queryKey: queryKeys.settings.auditLogs(search, eventType, dateFrom, dateTo, page),
         queryFn: () =>
             listAuditLogs({
                 page,

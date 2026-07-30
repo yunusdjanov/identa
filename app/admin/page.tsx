@@ -60,6 +60,7 @@ import {
 } from '@/lib/api/dentist';
 import type { ApiAdminDentist, ApiBillingPayment, ApiPlan, ApiSubscriptionSummary } from '@/lib/api/types';
 import { getApiErrorMessage } from '@/lib/api/client';
+import { queryKeys } from '@/lib/query-keys';
 import { toast } from 'sonner';
 import {
     Users,
@@ -341,7 +342,7 @@ export default function AdminDashboardPage() {
     };
 
     const authQuery = useQuery({
-        queryKey: ['auth', 'me'],
+        queryKey: queryKeys.auth.me(),
         queryFn: getCurrentUser,
         retry: false,
     });
@@ -352,7 +353,7 @@ export default function AdminDashboardPage() {
     const effectiveSearch = debouncedSearch.length >= 2 ? debouncedSearch : '';
 
     const accountsQuery = useQuery({
-        queryKey: ['admin', 'dentists', page, effectiveSearch, viewMode],
+        queryKey: queryKeys.admin.dentists.list(page, effectiveSearch, viewMode),
         queryFn: () =>
             listAdminDentists({
                 page,
@@ -367,13 +368,15 @@ export default function AdminDashboardPage() {
     });
 
     const billingDetailsQuery = useQuery({
-        queryKey: ['admin', 'dentists', billingDetailsTarget?.id, 'billing'],
+        queryKey: billingDetailsTarget
+            ? queryKeys.admin.dentists.billing(billingDetailsTarget.id)
+            : queryKeys.admin.dentists.billing('none'),
         queryFn: () => getAdminDentistBilling(billingDetailsTarget?.id ?? ''),
         enabled: authQuery.data?.role === 'admin' && billingDetailsTarget !== null,
     });
 
     const plansQuery = useQuery({
-        queryKey: ['admin', 'plans'],
+        queryKey: queryKeys.admin.plans.all(),
         queryFn: () => listAdminPlans(),
         enabled: authQuery.data?.role === 'admin' && billingDetailsTarget !== null,
         staleTime: 5 * 60_000,
@@ -410,7 +413,8 @@ export default function AdminDashboardPage() {
             setShowCreateModal(false);
             setCreateSubmitAttempted(false);
             setNewDentist({ name: '', email: '', practiceName: '', password: '' });
-            queryClient.invalidateQueries({ queryKey: ['admin', 'dentists'] });
+            queryClient.invalidateQueries({ queryKey: queryKeys.admin.dentists.all() });
+            queryClient.invalidateQueries({ queryKey: queryKeys.admin.analyticsAll() });
         },
         onError: (error) => {
             toast.error(getApiErrorMessage(error, t('admin.error.createAccountFailed')));
@@ -429,11 +433,12 @@ export default function AdminDashboardPage() {
                     ? t('admin.toast.accountBlocked')
                     : t('admin.toast.accountActivated')
             );
-            queryClient.invalidateQueries({ queryKey: ['admin', 'dentists'] });
-            queryClient.invalidateQueries({ queryKey: ['admin', 'dentists', variables.id, 'billing'] });
+            queryClient.invalidateQueries({ queryKey: queryKeys.admin.dentists.all() });
+            queryClient.invalidateQueries({ queryKey: queryKeys.admin.dentists.billing(variables.id) });
+            queryClient.invalidateQueries({ queryKey: queryKeys.admin.analyticsAll() });
             // Status change is audit-worthy — invalidate audit log so the
             // detail page history tab reflects the action without delay.
-            queryClient.invalidateQueries({ queryKey: ['admin', 'audit-logs'] });
+            queryClient.invalidateQueries({ queryKey: queryKeys.admin.auditLogs() });
         },
         onError: (error) => {
             toast.error(getApiErrorMessage(error, t('admin.error.updateStatusFailed')));
@@ -454,11 +459,12 @@ export default function AdminDashboardPage() {
             }));
             setSubscriptionDialog(null);
             setSubscriptionForm(createEmptySubscriptionForm());
-            queryClient.invalidateQueries({ queryKey: ['admin', 'dentists'] });
-            queryClient.invalidateQueries({ queryKey: ['admin', 'dentists', variables.id, 'billing'] });
+            queryClient.invalidateQueries({ queryKey: queryKeys.admin.dentists.all() });
+            queryClient.invalidateQueries({ queryKey: queryKeys.admin.dentists.billing(variables.id) });
+            queryClient.invalidateQueries({ queryKey: queryKeys.admin.analyticsAll() });
             // Refresh audit log too so the action just performed shows up on
             // the detail page's history tab without staleTime delay.
-            queryClient.invalidateQueries({ queryKey: ['admin', 'audit-logs'] });
+            queryClient.invalidateQueries({ queryKey: queryKeys.admin.auditLogs() });
         },
         onError: (error) => {
             toast.error(getApiErrorMessage(error, t('admin.error.subscriptionUpdateFailed')));
@@ -487,9 +493,9 @@ export default function AdminDashboardPage() {
             setResetPasswordTarget(null);
             setResetPasswordForm({ newPassword: '', confirmPassword: '' });
             if (targetId) {
-                queryClient.invalidateQueries({ queryKey: ['admin', 'dentists', targetId, 'billing'] });
+                queryClient.invalidateQueries({ queryKey: queryKeys.admin.dentists.billing(targetId) });
             }
-            queryClient.invalidateQueries({ queryKey: ['admin', 'audit-logs'] });
+            queryClient.invalidateQueries({ queryKey: queryKeys.admin.auditLogs() });
         },
         onError: (error) => {
             toast.error(getApiErrorMessage(error, t('admin.error.resetPasswordFailed')));
@@ -513,9 +519,10 @@ export default function AdminDashboardPage() {
             if (accounts.length === 1 && page > 1) {
                 setPage((current) => Math.max(1, current - 1));
             }
-            queryClient.invalidateQueries({ queryKey: ['admin', 'dentists'] });
-            queryClient.invalidateQueries({ queryKey: ['admin', 'dentists', id, 'billing'] });
-            queryClient.invalidateQueries({ queryKey: ['admin', 'audit-logs'] });
+            queryClient.invalidateQueries({ queryKey: queryKeys.admin.dentists.all() });
+            queryClient.invalidateQueries({ queryKey: queryKeys.admin.dentists.billing(id) });
+            queryClient.invalidateQueries({ queryKey: queryKeys.admin.auditLogs() });
+            queryClient.invalidateQueries({ queryKey: queryKeys.admin.analyticsAll() });
         },
         onError: (error) => {
             toast.error(getApiErrorMessage(error, t('admin.error.deleteAccountFailed')));
@@ -530,9 +537,10 @@ export default function AdminDashboardPage() {
         onSettled: () => setActiveMutationRowId(null),
         onSuccess: (_account, id) => {
             toast.success(t('admin.toast.emailVerified'));
-            queryClient.invalidateQueries({ queryKey: ['admin', 'dentists'] });
-            queryClient.invalidateQueries({ queryKey: ['admin', 'dentists', id, 'billing'] });
-            queryClient.invalidateQueries({ queryKey: ['admin', 'audit-logs'] });
+            queryClient.invalidateQueries({ queryKey: queryKeys.admin.dentists.all() });
+            queryClient.invalidateQueries({ queryKey: queryKeys.admin.dentists.billing(id) });
+            queryClient.invalidateQueries({ queryKey: queryKeys.admin.auditLogs() });
+            queryClient.invalidateQueries({ queryKey: queryKeys.admin.analyticsAll() });
         },
         onError: (error) => {
             toast.error(getApiErrorMessage(error, t('admin.error.verifyEmailFailed')));
@@ -547,9 +555,10 @@ export default function AdminDashboardPage() {
         onSettled: () => setActiveMutationRowId(null),
         onSuccess: (_account, id) => {
             toast.success(t('admin.toast.accountRestored'));
-            queryClient.invalidateQueries({ queryKey: ['admin', 'dentists'] });
-            queryClient.invalidateQueries({ queryKey: ['admin', 'dentists', id, 'billing'] });
-            queryClient.invalidateQueries({ queryKey: ['admin', 'audit-logs'] });
+            queryClient.invalidateQueries({ queryKey: queryKeys.admin.dentists.all() });
+            queryClient.invalidateQueries({ queryKey: queryKeys.admin.dentists.billing(id) });
+            queryClient.invalidateQueries({ queryKey: queryKeys.admin.auditLogs() });
+            queryClient.invalidateQueries({ queryKey: queryKeys.admin.analyticsAll() });
         },
         onError: (error) => {
             toast.error(getApiErrorMessage(error, t('admin.error.restoreFailed')));

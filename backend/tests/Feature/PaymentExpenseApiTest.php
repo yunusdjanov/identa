@@ -82,6 +82,18 @@ class PaymentExpenseApiTest extends TestCase
             ->assertJsonPath('data.0.title', 'Other rent');
     }
 
+    public function test_expense_list_can_skip_summary_for_table_only_requests(): void
+    {
+        [$dentist] = $this->seedExpenseRecords();
+
+        $this->actingAs($dentist, 'web')
+            ->getJson('/api/v1/payments/expenses?per_page=1&include_summary=0')
+            ->assertOk()
+            ->assertJsonMissingPath('meta.summary')
+            ->assertJsonPath('meta.pagination.total', 2)
+            ->assertJsonCount(1, 'data');
+    }
+
     public function test_dentist_can_update_and_delete_own_expenses(): void
     {
         [$dentist, $otherDentist] = $this->seedExpenseRecords();
@@ -195,6 +207,11 @@ class PaymentExpenseApiTest extends TestCase
             ->getJson('/api/v1/payments/expenses?filter[date_from]=2026-07-10&filter[date_to]=2026-07-01')
             ->assertUnprocessable()
             ->assertJsonValidationErrors(['filter.date_to']);
+
+        $this->actingAs($dentist, 'web')
+            ->getJson('/api/v1/payments/expenses?include_summary=invalid')
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['include_summary']);
     }
 
     public function test_expense_create_is_idempotent_and_rejects_key_reuse_with_other_payload(): void

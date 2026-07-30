@@ -56,4 +56,66 @@ class ImageCompressionServiceTest extends TestCase
         $this->assertIsArray($result);
         $this->assertGreaterThan(0, $result['file_size']);
     }
+
+    public function test_optimize_contents_reencodes_and_strips_trailing_metadata_bytes(): void
+    {
+        $image = imagecreatetruecolor(64, 48);
+        ob_start();
+        imagejpeg($image, null, 85);
+        $jpeg = (string) ob_get_clean();
+        imagedestroy($image);
+        $sentinel = 'IDENTA-PRIVATE-METADATA-SENTINEL';
+
+        $result = app(ImageCompressionService::class)->optimizeContents($jpeg.$sentinel, 'image/jpeg', null);
+
+        $this->assertIsArray($result);
+        $this->assertStringNotContainsString($sentinel, $result['contents']);
+        $this->assertNotSame($jpeg.$sentinel, $result['contents']);
+    }
+
+    public function test_optimize_contents_preserves_transparency_without_jpeg_conversion(): void
+    {
+        $image = imagecreatetruecolor(8, 8);
+        imagealphablending($image, false);
+        imagesavealpha($image, true);
+        $transparent = imagecolorallocatealpha($image, 255, 255, 255, 127);
+        imagefill($image, 0, 0, $transparent);
+        ob_start();
+        imagepng($image);
+        $png = (string) ob_get_clean();
+        imagedestroy($image);
+
+        $result = app(ImageCompressionService::class)->optimizeContents($png, 'image/png', null);
+        $decoded = imagecreatefromstring((string) ($result['contents'] ?? ''));
+
+        $this->assertIsArray($result);
+        $this->assertNotSame('image/jpeg', $result['mime_type']);
+        $this->assertNotFalse($decoded);
+        $this->assertGreaterThan(0, (imagecolorat($decoded, 0, 0) >> 24) & 0x7f);
+        imagedestroy($decoded);
+    }
+
+    public function test_optimize_contents_applies_jpeg_exif_orientation_before_stripping_it(): void
+    {
+        $image = imagecreatetruecolor(64, 48);
+        ob_start();
+        imagejpeg($image, null, 85);
+        $jpeg = (string) ob_get_clean();
+        imagedestroy($image);
+
+        $tiff = 'II'.pack('v', 42).pack('V', 8)
+            .pack('v', 1)
+            .pack('v', 0x0112).pack('v', 3).pack('V', 1).pack('v', 6).pack('v', 0)
+            .pack('V', 0);
+        $exif = "Exif\x00\x00".$tiff;
+        $orientedJpeg = substr($jpeg, 0, 2)."\xFF\xE1".pack('n', strlen($exif) + 2).$exif.substr($jpeg, 2);
+
+        $result = app(ImageCompressionService::class)->optimizeContents($orientedJpeg, 'image/jpeg', null);
+        $dimensions = getimagesizefromstring((string) ($result['contents'] ?? ''));
+
+        $this->assertIsArray($result);
+        $this->assertIsArray($dimensions);
+        $this->assertSame(48, $dimensions[0]);
+        $this->assertSame(64, $dimensions[1]);
+    }
 }

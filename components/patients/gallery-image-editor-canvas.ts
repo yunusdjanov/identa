@@ -136,6 +136,29 @@ function getRotatedDimensions(rawWidth: number, rawHeight: number, rotation: num
     };
 }
 
+/** Keeps an image-space point attached to the same source pixel after rotation changes. */
+export function transformPointBetweenRotations(
+    point: Point,
+    sourceWidth: number,
+    sourceHeight: number,
+    fromRotation: number,
+    toRotation: number
+): Point {
+    const from = getRotatedDimensions(sourceWidth, sourceHeight, fromRotation);
+    const to = getRotatedDimensions(sourceWidth, sourceHeight, toRotation);
+    const fromAngle = (from.normalizedRotation * Math.PI) / 180;
+    const toAngle = (to.normalizedRotation * Math.PI) / 180;
+    const fromDx = point.x - from.width / 2;
+    const fromDy = point.y - from.height / 2;
+    const sourceX = fromDx * Math.cos(fromAngle) + fromDy * Math.sin(fromAngle);
+    const sourceY = -fromDx * Math.sin(fromAngle) + fromDy * Math.cos(fromAngle);
+
+    return {
+        x: sourceX * Math.cos(toAngle) - sourceY * Math.sin(toAngle) + to.width / 2,
+        y: sourceX * Math.sin(toAngle) + sourceY * Math.cos(toAngle) + to.height / 2,
+    };
+}
+
 function getRotatedSize(source: HTMLImageElement, rotation: number) {
     return getRotatedDimensions(source.naturalWidth || source.width || 1, source.naturalHeight || source.height || 1, rotation);
 }

@@ -20,6 +20,7 @@ class ListPaymentExpenseRequest extends FormRequest
         return [
             'page' => ['sometimes', 'integer', 'min:1'],
             'per_page' => ['sometimes', 'integer', 'min:1', 'max:100'],
+            'include_summary' => ['sometimes', 'boolean'],
             'filter' => ['sometimes', 'array'],
             'filter.search' => ['sometimes', 'nullable', 'string', 'max:160'],
             'filter.date_from' => ['sometimes', 'nullable', 'date'],

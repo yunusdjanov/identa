@@ -18,7 +18,7 @@ class FinalizeTreatmentImageBatchUploadRequest extends FormRequest
     {
         return [
             'upload_ids' => ['required', 'array', 'min:1', 'max:10'],
-            'upload_ids.*' => ['required', 'string', 'uuid'],
+            'upload_ids.*' => ['required', 'string', 'uuid', 'distinct'],
         ];
     }
 }

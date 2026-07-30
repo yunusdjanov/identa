@@ -159,13 +159,14 @@ function buildLoadedImage() {
     return image;
 }
 
-function renderEditor(onSave = vi.fn()) {
+function renderEditor(onSave = vi.fn(), onSaveCopy?: (file: File) => Promise<void> | void) {
     return render(
         <I18nProvider initialLocale="en" initialDictionary={DICTIONARIES.en}>
             <GalleryImageEditor
                 image={{ src: 'https://example.com/photo.jpg', alt: 'Clinical photo', title: 'Clinical photo' }}
                 onCancel={vi.fn()}
                 onSave={onSave}
+                onSaveCopy={onSaveCopy}
             />
         </I18nProvider>
     );
@@ -207,7 +208,7 @@ describe('GalleryImageEditor', () => {
 
         const inlineTextInput = screen.getByRole('textbox', { name: 'Text' });
         await user.type(inlineTextInput, 'Plaque');
-        await user.click(screen.getByRole('button', { name: 'Save' }));
+        await user.click(screen.getByRole('button', { name: 'Replace original' }));
 
         expect(createEditedImageFileMock).toHaveBeenCalledWith(expect.objectContaining({
             textAnnotations: [
@@ -219,6 +220,25 @@ describe('GalleryImageEditor', () => {
             ],
         }));
         expect(onSave).toHaveBeenCalledWith(expect.any(File));
+    });
+
+    it('does not recompress an unchanged image and exposes save-copy only after edits', async () => {
+        const user = userEvent.setup();
+        const onSave = vi.fn();
+        const onSaveCopy = vi.fn();
+        renderEditor(onSave, onSaveCopy);
+
+        const replaceButton = await screen.findByRole('button', { name: 'Replace original' });
+        const saveCopyButton = screen.getByRole('button', { name: 'Save copy' });
+        expect(replaceButton).toBeDisabled();
+        expect(saveCopyButton).toBeDisabled();
+
+        await user.click(await screen.findByRole('button', { name: 'Right' }));
+        await user.click(saveCopyButton);
+
+        expect(onSave).not.toHaveBeenCalled();
+        expect(onSaveCopy).toHaveBeenCalledWith(expect.any(File));
+        expect(createEditedImageFileMock).toHaveBeenCalledTimes(1);
     });
 
     it('draws on the actual pointer location without offset drift', async () => {
@@ -234,7 +254,7 @@ describe('GalleryImageEditor', () => {
         fireEvent.mouseMove(stage, { clientX: 90, clientY: 70 });
         fireEvent.mouseUp(stage, { clientX: 90, clientY: 70 });
 
-        await user.click(screen.getByRole('button', { name: 'Save' }));
+        await user.click(screen.getByRole('button', { name: 'Replace original' }));
 
         expect(createEditedImageFileMock).toHaveBeenCalledWith(expect.objectContaining({
             strokes: [
@@ -248,12 +268,33 @@ describe('GalleryImageEditor', () => {
         }));
     });
 
+    it('moves annotations with the source image during quick rotation', async () => {
+        const user = userEvent.setup();
+        renderEditor();
+
+        await user.click(await screen.findByRole('button', { name: 'Draw' }));
+        const stage = screen.getByTestId('gallery-image-editor-stage');
+        fireEvent.mouseDown(stage, { clientX: 40, clientY: 20 });
+        fireEvent.mouseMove(stage, { clientX: 90, clientY: 70 });
+        fireEvent.mouseUp(stage, { clientX: 90, clientY: 70 });
+        await user.click(screen.getByRole('button', { name: 'Right' }));
+        await user.click(screen.getByRole('button', { name: 'Replace original' }));
+
+        const editPayload = createEditedImageFileMock.mock.calls.at(-1)?.[0];
+        expect(editPayload.rotation).toBe(90);
+        expect(editPayload.strokes[0].points[0].x).toBeCloseTo(130);
+        expect(editPayload.strokes[0].points[0].y).toBeCloseTo(40);
+        expect(editPayload.strokes[0].points[1].x).toBeCloseTo(80);
+        expect(editPayload.strokes[0].points[1].y).toBeCloseTo(90);
+    });
+
     it('shows the real save failure reason from the replacement upload flow', async () => {
         const user = userEvent.setup();
         const onSave = vi.fn().mockRejectedValue(new Error('Edited photo is too large.'));
         renderEditor(onSave);
 
-        const saveButton = await screen.findByRole('button', { name: 'Save' });
+        await user.click(await screen.findByRole('button', { name: 'Right' }));
+        const saveButton = await screen.findByRole('button', { name: 'Replace original' });
         await waitFor(() => expect(saveButton).toBeEnabled());
         await user.click(saveButton);
 
@@ -269,7 +310,8 @@ describe('GalleryImageEditor', () => {
         }));
         renderEditor(onSave);
 
-        const saveButton = await screen.findByRole('button', { name: 'Save' });
+        await user.click(await screen.findByRole('button', { name: 'Right' }));
+        const saveButton = await screen.findByRole('button', { name: 'Replace original' });
         await waitFor(() => expect(saveButton).toBeEnabled());
 
         await user.dblClick(saveButton);
@@ -297,7 +339,7 @@ describe('GalleryImageEditor', () => {
         expect(screen.getByTestId('konva-transformer')).toBeInTheDocument();
 
         await user.click(screen.getByRole('button', { name: 'Apply crop' }));
-        await user.click(screen.getByRole('button', { name: 'Save' }));
+        await user.click(screen.getByRole('button', { name: 'Replace original' }));
 
         expect(createEditedImageFileMock).toHaveBeenCalledWith(expect.objectContaining({
             cropRect: expect.objectContaining({
@@ -322,7 +364,7 @@ describe('GalleryImageEditor', () => {
         fireEvent.mouseMove(stage, { clientX: 210, clientY: 130 });
         fireEvent.mouseUp(stage, { clientX: 210, clientY: 130 });
 
-        await user.click(screen.getByRole('button', { name: 'Save' }));
+        await user.click(screen.getByRole('button', { name: 'Replace original' }));
 
         expect(createEditedImageFileMock).toHaveBeenCalledWith(expect.objectContaining({
             cropRect: expect.objectContaining({
@@ -346,7 +388,7 @@ describe('GalleryImageEditor', () => {
         expect(straightenSlider).toHaveAttribute('min', '-45');
         expect(straightenSlider).toHaveAttribute('max', '45');
         fireEvent.change(straightenSlider, { target: { value: '30' } });
-        await user.click(screen.getByRole('button', { name: 'Save' }));
+        await user.click(screen.getByRole('button', { name: 'Replace original' }));
 
         const editPayload = createEditedImageFileMock.mock.calls.at(-1)?.[0];
         expect(editPayload).toEqual(expect.objectContaining({
@@ -383,7 +425,7 @@ describe('GalleryImageEditor', () => {
         await waitFor(() => expect(renderEditedCanvasMock).toHaveBeenCalledWith(expect.objectContaining({
             rotation: 30,
         })));
-        await user.click(screen.getByRole('button', { name: 'Save' }));
+        await user.click(screen.getByRole('button', { name: 'Replace original' }));
 
         const editPayload = createEditedImageFileMock.mock.calls.at(-1)?.[0];
         expect(editPayload).toEqual(expect.objectContaining({
@@ -443,7 +485,7 @@ describe('GalleryImageEditor', () => {
         fireEvent.mouseUp(stage, { clientX: 200, clientY: 120 });
 
         await user.click(screen.getByRole('button', { name: 'Right' }));
-        await user.click(screen.getByRole('button', { name: 'Save' }));
+        await user.click(screen.getByRole('button', { name: 'Replace original' }));
 
         expect(createEditedImageFileMock).toHaveBeenCalledWith(expect.objectContaining({
             cropRect: null,

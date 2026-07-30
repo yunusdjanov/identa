@@ -24,13 +24,25 @@ class PaymentExpenseController extends Controller
      * GET /api/v1/payments/expenses
      *
      * Auth: payments.view. Query: page, per_page, filter[search],
-     * filter[date_from], filter[date_to]. Returns practice expenses plus
-     * summary totals for the Expenses tab.
+     * filter[date_from], filter[date_to], include_summary. Returns practice
+     * expenses and optional summary totals for the Expenses tab.
      */
     public function index(ListPaymentExpenseRequest $request): JsonResponse
     {
         $result = $this->expenses->list($request);
         $expenses = $result['expenses'];
+
+        $meta = [
+            'pagination' => [
+                'page' => $expenses->currentPage(),
+                'per_page' => $expenses->perPage(),
+                'total' => $expenses->total(),
+                'total_pages' => $expenses->lastPage(),
+            ],
+        ];
+        if ($result['summary'] !== null) {
+            $meta['summary'] = $result['summary'];
+        }
 
         return response()->json([
             'data' => $expenses
@@ -38,15 +50,7 @@ class PaymentExpenseController extends Controller
                 ->map(fn (PaymentExpense $expense): array => $this->expenseRow($expense))
                 ->values()
                 ->all(),
-            'meta' => [
-                'pagination' => [
-                    'page' => $expenses->currentPage(),
-                    'per_page' => $expenses->perPage(),
-                    'total' => $expenses->total(),
-                    'total_pages' => $expenses->lastPage(),
-                ],
-                'summary' => $result['summary'],
-            ],
+            'meta' => $meta,
         ]);
     }
 

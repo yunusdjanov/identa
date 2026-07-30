@@ -12,6 +12,7 @@ use App\Services\PatientClinicalPhotoService;
 use App\Services\PatientPhotoService;
 use App\Services\PatientService;
 use App\Support\AuditLogger;
+use App\Support\MediaUploadLimits;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
@@ -154,7 +155,7 @@ class PatientController extends Controller
         $this->patients->ensureNotArchived($patient, __('api.patients.archived_restore_before_edit'));
 
         $validated = $request->validate([
-            'photo' => ['required', 'file', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
+            'photo' => ['required', 'file', 'image', 'mimes:jpg,jpeg,png,webp', 'max:'.MediaUploadLimits::maxKilobytes()],
         ]);
 
         /** @var UploadedFile $uploadedPhoto */
@@ -264,7 +265,7 @@ class PatientController extends Controller
         $viewType = $this->clinicalPhotos->normalizeViewType($viewType);
 
         $validated = $request->validate([
-            'photo' => ['required', 'file', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
+            'photo' => ['required', 'file', 'image', 'mimes:jpg,jpeg,png,webp', 'max:'.MediaUploadLimits::maxKilobytes()],
         ]);
 
         /** @var UploadedFile $uploadedPhoto */
@@ -446,7 +447,7 @@ class PatientController extends Controller
         $viewType = $this->clinicalPhotos->normalizeViewType($viewType);
 
         $validated = $request->validate([
-            'photo' => ['required', 'file', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
+            'photo' => ['required', 'file', 'image', 'mimes:jpg,jpeg,png,webp', 'max:'.MediaUploadLimits::maxKilobytes()],
         ]);
 
         /** @var UploadedFile $uploadedPhoto */

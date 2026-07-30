@@ -14,6 +14,7 @@ import { getApiErrorMessage } from '@/lib/api/client';
 import { changeCurrentPassword } from '@/lib/api/dentist';
 import type { ApiUser } from '@/lib/api/types';
 import { INPUT_LIMITS, getPasswordValidationMessage } from '@/lib/input-validation';
+import { queryKeys } from '@/lib/query-keys';
 
 interface PasswordSecurityCardProps {
     user: ApiUser;
@@ -57,7 +58,7 @@ export function PasswordSecurityCard({ user, className }: PasswordSecurityCardPr
                 new_password_confirmation: newPasswordConfirmation,
             }),
         onSuccess: (updatedUser) => {
-            queryClient.setQueryData(['auth', 'me'], updatedUser);
+            queryClient.setQueryData(queryKeys.auth.me(), updatedUser);
             setCurrentPassword('');
             setNewPassword('');
             setNewPasswordConfirmation('');

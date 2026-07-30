@@ -9,6 +9,7 @@ import { LanguageSwitcher } from '@/components/layout/language-switcher';
 import { cn } from '@/lib/utils';
 import { useI18n } from '@/components/providers/i18n-provider';
 import { getCurrentUser } from '@/lib/api/dentist';
+import { queryKeys } from '@/lib/query-keys';
 
 type AdminHeaderSection = 'dashboard' | 'analytics' | 'plans' | 'payments' | 'settings';
 
@@ -37,7 +38,7 @@ const adminNavigation: Array<{
 export function AdminHeader({ active, isLoggingOut = false, onLogout }: AdminHeaderProps) {
     const { t } = useI18n();
     const authQuery = useQuery({
-        queryKey: ['auth', 'me'],
+        queryKey: queryKeys.auth.me(),
         queryFn: getCurrentUser,
         retry: false,
         staleTime: 5 * 60_000,

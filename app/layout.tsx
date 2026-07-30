@@ -5,6 +5,13 @@ import { I18nProvider } from "@/components/providers/i18n-provider";
 import { ClientRuntime } from "@/components/providers/client-runtime";
 import { LOCALE_COOKIE_NAME, resolveLocale } from "@/lib/i18n/config";
 import { DICTIONARIES } from "@/lib/i18n/dictionaries";
+import {
+  SOCIAL_IMAGE_ALT,
+  SOCIAL_IMAGE_PATH,
+  SOCIAL_IMAGE_SIZE,
+  SITE_NAME,
+  SITE_URL,
+} from "@/lib/seo/site";
 
 const apiOrigin = new URL(process.env.NEXT_PUBLIC_API_URL ?? "https://api.identa.uz/api").origin;
 
@@ -15,8 +22,8 @@ export const metadata: Metadata = {
   },
   description:
     "Identa helps private dentists and small clinics manage appointments, patient records, treatment history, and payments in one clear system.",
-  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL ?? "https://identa.uz"),
-  applicationName: "Identa",
+  metadataBase: new URL(SITE_URL),
+  applicationName: SITE_NAME,
   keywords: [
     "dental practice management",
     "dental clinic software",
@@ -27,31 +34,28 @@ export const metadata: Metadata = {
     "clinic management",
     "Identa",
   ],
-  alternates: {
-    canonical: "/",
-  },
   openGraph: {
     type: "website",
-    url: "https://identa.uz",
-    siteName: "Identa",
+    url: SITE_URL,
+    siteName: SITE_NAME,
     title: "Identa | Dental practice management for private dentists and small clinics",
     description:
       "Manage appointments, patient records, treatment history, and payments in one clear system.",
     images: [
       {
-        url: "/brand/identa-full-logo.png",
-        width: 580,
-        height: 680,
-        alt: "Identa logo",
+        url: SOCIAL_IMAGE_PATH,
+        ...SOCIAL_IMAGE_SIZE,
+        alt: SOCIAL_IMAGE_ALT,
+        type: "image/png",
       },
     ],
   },
   twitter: {
-    card: "summary",
+    card: "summary_large_image",
     title: "Identa | Dental practice management for private dentists and small clinics",
     description:
       "Manage appointments, patient records, treatment history, and payments in one clear system.",
-    images: ["/brand/identa-full-logo.png"],
+    images: [{ url: SOCIAL_IMAGE_PATH, alt: SOCIAL_IMAGE_ALT }],
   },
   robots: {
     index: true,

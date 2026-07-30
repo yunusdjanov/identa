@@ -1082,7 +1082,7 @@ Object.assign(ru, {
     'patientDetail.oralPhoto.upload': 'Загрузить',
     'patientDetail.oralPhoto.replace': 'Заменить',
     'patientDetail.oralPhoto.view': 'Открыть',
-    'patientDetail.oralPhoto.limitReached': 'В этом разделе уже 6 фото. Удалите одно фото перед сохранением копии.',
+    'patientDetail.oralPhoto.limitReached': 'В этом разделе уже {{max}} фото. Удалите одно фото перед сохранением копии.',
     'patientDetail.oralPhoto.deleteTitle': 'Удалить оральное фото',
     'patientDetail.oralPhoto.deleteDescription': 'Удалить фото "{{slot}}" пациента {{patientName}}?',
     'patientDetail.contactInfo': 'Контактная информация',
@@ -1170,7 +1170,7 @@ Object.assign(uz, {
     'patientDetail.oralPhoto.upload': 'Yuklash',
     'patientDetail.oralPhoto.replace': 'Almashtirish',
     'patientDetail.oralPhoto.view': "Ko'rish",
-    'patientDetail.oralPhoto.limitReached': 'Bu bo‘limda 6 ta rasm bor. Nusxani saqlashdan oldin bittasini o‘chiring.',
+    'patientDetail.oralPhoto.limitReached': 'Bu bo‘limda {{max}} ta rasm bor. Nusxani saqlashdan oldin bittasini o‘chiring.',
     'patientDetail.oralPhoto.deleteTitle': "Og'iz rasmini o'chirish",
     'patientDetail.oralPhoto.deleteDescription': '{{patientName}} bemorining "{{slot}}" rasmi o\'chirilsinmi?',
     'patientDetail.contactInfo': "Aloqa maʼlumotlari",
@@ -1258,7 +1258,7 @@ Object.assign(en, {
     'patientDetail.oralPhoto.upload': 'Upload',
     'patientDetail.oralPhoto.replace': 'Replace',
     'patientDetail.oralPhoto.view': 'View',
-    'patientDetail.oralPhoto.limitReached': 'This section already has 6 photos. Delete one photo before saving a copy.',
+    'patientDetail.oralPhoto.limitReached': 'This section already has {{max}} photos. Delete one photo before saving a copy.',
     'patientDetail.oralPhoto.deleteTitle': 'Delete oral photo',
     'patientDetail.oralPhoto.deleteDescription': 'Delete the "{{slot}}" oral photo for {{patientName}}?',
     'patientDetail.contactInfo': 'Contact Information',
@@ -4307,6 +4307,11 @@ Object.assign(ru, {
     'gallery.edit.reset': 'Сбросить',
     'gallery.edit.saveCopy': 'Сохранить копию',
     'gallery.edit.saveOriginal': 'Сохранить',
+    'gallery.edit.replaceOriginal': 'Заменить оригинал',
+    'gallery.edit.discardTitle': 'Отменить изменения?',
+    'gallery.edit.discardChanges': 'Отменить несохранённые изменения изображения?',
+    'gallery.edit.discardConfirm': 'Отменить изменения',
+    'gallery.edit.keepEditing': 'Продолжить редактирование',
     'gallery.edit.saving': 'Сохранение...',
     'gallery.edit.failed': 'Не удалось сохранить отредактированное фото.',
     'gallery.edit.loadFailed': 'Не удалось открыть фото для редактирования.',
@@ -4321,6 +4326,7 @@ Object.assign(ru, {
     'gallery.edit.undo': 'Назад',
     'gallery.edit.textPlaceholder': 'Текст заметки',
     'patientHistory.toast.imageEdited': 'Фото обновлено.',
+    'patientHistory.toast.imageCopySaved': 'Копия изображения сохранена.',
 });
 
 Object.assign(uz, {
@@ -4333,6 +4339,11 @@ Object.assign(uz, {
     'gallery.edit.reset': 'Tiklash',
     'gallery.edit.saveCopy': 'Nusxani saqlash',
     'gallery.edit.saveOriginal': 'Saqlash',
+    'gallery.edit.replaceOriginal': 'Originalni almashtirish',
+    'gallery.edit.discardTitle': 'Oʻzgarishlar bekor qilinsinmi?',
+    'gallery.edit.discardChanges': 'Rasmga kiritilgan saqlanmagan oʻzgarishlar bekor qilinsinmi?',
+    'gallery.edit.discardConfirm': 'Oʻzgarishlarni bekor qilish',
+    'gallery.edit.keepEditing': 'Tahrirlashni davom ettirish',
     'gallery.edit.saving': 'Saqlanmoqda...',
     'gallery.edit.failed': 'Tahrirlangan rasmni saqlab boʻlmadi.',
     'gallery.edit.loadFailed': 'Rasmni tahrirlash uchun ochib boʻlmadi.',
@@ -4347,6 +4358,7 @@ Object.assign(uz, {
     'gallery.edit.undo': 'Ortga',
     'gallery.edit.textPlaceholder': 'Izoh matni',
     'patientHistory.toast.imageEdited': 'Rasm yangilandi.',
+    'patientHistory.toast.imageCopySaved': 'Rasm nusxasi saqlandi.',
 });
 
 Object.assign(en, {
@@ -4359,6 +4371,11 @@ Object.assign(en, {
     'gallery.edit.reset': 'Reset',
     'gallery.edit.saveCopy': 'Save copy',
     'gallery.edit.saveOriginal': 'Save',
+    'gallery.edit.replaceOriginal': 'Replace original',
+    'gallery.edit.discardTitle': 'Discard changes?',
+    'gallery.edit.discardChanges': 'Discard unsaved image changes?',
+    'gallery.edit.discardConfirm': 'Discard changes',
+    'gallery.edit.keepEditing': 'Keep editing',
     'gallery.edit.saving': 'Saving...',
     'gallery.edit.failed': 'Could not save the edited photo.',
     'gallery.edit.loadFailed': 'Could not open this photo for editing.',
@@ -4373,6 +4390,7 @@ Object.assign(en, {
     'gallery.edit.undo': 'Undo',
     'gallery.edit.textPlaceholder': 'Annotation text',
     'patientHistory.toast.imageEdited': 'Image updated.',
+    'patientHistory.toast.imageCopySaved': 'Image copy saved.',
 });
 
 Object.assign(ru, {

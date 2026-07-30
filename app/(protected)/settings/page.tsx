@@ -1,0 +1,679 @@
+﻿'use client';
+
+import dynamic from 'next/dynamic';
+import { useSearchParams } from 'next/navigation';
+import { useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { ShieldAlert } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Skeleton } from '@/components/ui/skeleton';
+import { SettingsLoadingState } from '@/components/layout/page-loading-skeletons';
+import { PageHeader } from '@/components/ui/page-shell';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { getCurrentUser, getProfile, updateProfile } from '@/lib/api/dentist';
+import { getApiErrorMessage } from '@/lib/api/client';
+import { toast } from 'sonner';
+import { queryKeys } from '@/lib/query-keys';
+import { User, Building2, Clock, Eye, Lock } from 'lucide-react';
+import type { DentistProfile } from '@/lib/types';
+import { useI18n } from '@/components/providers/i18n-provider';
+import {
+    INPUT_LIMITS,
+    formatPhoneInputValue,
+    getEmailValidationMessage,
+    getPhoneValidationMessage,
+    getTextValidationMessage,
+    normalizePhoneForApi,
+} from '@/lib/input-validation';
+import { isValidTimeInput, sanitizeTimeInput } from '@/lib/utils';
+import { DEFAULT_APPOINTMENT_WORKING_HOURS } from '@/lib/appointments/time-slots';
+import { AppErrorState } from '@/components/error/app-error-state';
+import { AccessDeniedState } from '@/components/error/access-denied-state';
+
+const PasswordSecurityCard = dynamic(
+    () => import('@/components/settings/password-security-card').then((module) => module.PasswordSecurityCard),
+    {
+        ssr: false,
+        loading: () => <Skeleton className="h-44 w-full rounded-2xl" />,
+    }
+);
+
+const ConnectedAccountsCard = dynamic(
+    () => import('@/components/settings/connected-accounts-card').then((module) => module.ConnectedAccountsCard),
+    {
+        // Pulls in the Google Identity Services script lazily — must be
+        // client-only so the SSR pass doesn't see `window.google`.
+        ssr: false,
+        loading: () => <Skeleton className="h-36 w-full rounded-2xl" />,
+    }
+);
+
+const defaultProfile: DentistProfile = {
+    id: '',
+    name: '',
+    email: '',
+    phone: '',
+    practiceName: '',
+    licenseNumber: '',
+    address: '',
+    workingHours: {
+        start: DEFAULT_APPOINTMENT_WORKING_HOURS.start,
+        end: DEFAULT_APPOINTMENT_WORKING_HOURS.end,
+    },
+    defaultAppointmentDuration: 30,
+    showRecordAuthors: false,
+};
+
+function mapProfileToForm(profile: Awaited<ReturnType<typeof getProfile>>): DentistProfile {
+    return {
+        id: profile.id,
+        name: profile.name,
+        email: profile.email,
+        phone: formatPhoneInputValue(profile.phone ?? ''),
+        practiceName: profile.practice_name ?? '',
+        licenseNumber: profile.license_number ?? '',
+        address: profile.address ?? '',
+        workingHours: {
+            start: profile.working_hours.start ?? DEFAULT_APPOINTMENT_WORKING_HOURS.start,
+            end: profile.working_hours.end ?? DEFAULT_APPOINTMENT_WORKING_HOURS.end,
+        },
+        defaultAppointmentDuration: profile.default_appointment_duration || 30,
+        showRecordAuthors: profile.show_record_authors === true,
+    };
+}
+
+export default function SettingsPage() {
+    const { t } = useI18n();
+    const queryClient = useQueryClient();
+    const searchParams = useSearchParams();
+    const currentUserQuery = useQuery({
+        queryKey: queryKeys.auth.me(),
+        queryFn: getCurrentUser,
+        staleTime: 5 * 60_000,
+    });
+    const currentUser = currentUserQuery.data;
+    const mustChangePassword = Boolean(currentUser?.must_change_password);
+    const isDentist = currentUserQuery.data?.role === 'dentist';
+    const isAssistant = currentUserQuery.data?.role === 'assistant';
+    const isReadOnly = currentUserQuery.data?.subscription?.is_read_only === true;
+    const canViewSettings = Boolean(currentUserQuery.data && (isDentist || isAssistant));
+    const canManagePersonalProfile = Boolean(currentUserQuery.data && (isDentist || isAssistant) && !isReadOnly);
+    const canManagePracticeSettings = Boolean(currentUserQuery.data && isDentist && !isReadOnly);
+
+    const profileQuery = useQuery({
+        queryKey: queryKeys.settings.profile(),
+        queryFn: getProfile,
+        staleTime: 300000,
+        gcTime: 900000,
+        refetchOnWindowFocus: false,
+        refetchOnReconnect: false,
+        enabled: Boolean(currentUser && !mustChangePassword),
+    });
+
+    const [profileDraft, setProfileDraft] = useState<DentistProfile | null>(null);
+    const [profileSubmitAttempted, setProfileSubmitAttempted] = useState(false);
+    const [practiceSubmitAttempted, setPracticeSubmitAttempted] = useState(false);
+
+    const profileMutation = useMutation({
+        mutationFn: updateProfile,
+        onSuccess: () => {
+            toast.success(t('settings.profileUpdated'));
+            setProfileDraft(null);
+            void currentUserQuery.refetch();
+            void profileQuery.refetch();
+            void queryClient.invalidateQueries({ queryKey: queryKeys.auth.me() });
+        },
+        onError: (error) => {
+            toast.error(getApiErrorMessage(error, t('settings.profileUpdateFailed')));
+        },
+    });
+
+    const profile = profileDraft ?? (profileQuery.data ? mapProfileToForm(profileQuery.data) : defaultProfile);
+    const profileNameError = getTextValidationMessage(profile.name, {
+        label: t('settings.fullName'),
+        required: true,
+        min: 3,
+        max: INPUT_LIMITS.personName,
+    });
+    const profileEmailError = getEmailValidationMessage(profile.email, { required: true });
+    const profilePhoneError = getPhoneValidationMessage(profile.phone, { required: false });
+    const profileHasErrors = Boolean(profileNameError || profileEmailError || profilePhoneError);
+    const practiceNameError = getTextValidationMessage(profile.practiceName ?? '', {
+        label: t('settings.practiceName'),
+        min: 3,
+        max: INPUT_LIMITS.practiceName,
+    });
+    const practiceAddressError = getTextValidationMessage(profile.address ?? '', {
+        label: t('settings.address'),
+        min: 3,
+        max: INPUT_LIMITS.address,
+    });
+    const practiceHasErrors = Boolean(practiceNameError || practiceAddressError);
+    const workingHoursStartError = !isValidTimeInput(profile.workingHours.start)
+        ? t('settings.timeInvalid')
+        : null;
+    const workingHoursEndError = !isValidTimeInput(profile.workingHours.end)
+        ? t('settings.timeInvalid')
+        : null;
+    const workingHoursHasErrors = Boolean(workingHoursStartError || workingHoursEndError);
+
+    const updatePartialProfile = (payload: Parameters<typeof updateProfile>[0]) => {
+        profileMutation.mutate(payload);
+    };
+
+    const handleProfileUpdate = (event: React.FormEvent) => {
+        event.preventDefault();
+        setProfileSubmitAttempted(true);
+        if (!canManagePersonalProfile) {
+            toast.error(t('settings.noAccess'));
+            return;
+        }
+        if (profileHasErrors) {
+            toast.error(t('settings.profileFixErrors'));
+            return;
+        }
+
+        updatePartialProfile({
+            name: profile.name.trim(),
+            email: profile.email.trim(),
+            phone: profile.phone ? normalizePhoneForApi(profile.phone) : undefined,
+            ...(isDentist ? { license_number: profile.licenseNumber } : {}),
+        });
+    };
+
+    const handlePracticeUpdate = (event: React.FormEvent) => {
+        event.preventDefault();
+        setPracticeSubmitAttempted(true);
+        if (!canManagePracticeSettings) {
+            toast.error(t('settings.readOnlyNotice'));
+            return;
+        }
+        if (practiceHasErrors) {
+            toast.error(t('settings.practiceFixErrors'));
+            return;
+        }
+
+        updatePartialProfile({
+            practice_name: (profile.practiceName ?? '').trim(),
+            address: (profile.address ?? '').trim(),
+        });
+    };
+
+    const handleWorkingHoursUpdate = (event: React.FormEvent) => {
+        event.preventDefault();
+        if (!canManagePracticeSettings) {
+            toast.error(t('settings.readOnlyNotice'));
+            return;
+        }
+        if (workingHoursHasErrors) {
+            toast.error(t('settings.timeInvalid'));
+            return;
+        }
+        updatePartialProfile({
+            working_hours_start: profile.workingHours.start,
+            working_hours_end: profile.workingHours.end,
+            default_appointment_duration: profile.defaultAppointmentDuration,
+        });
+    };
+
+    const handleDisplayPreferenceChange = (enabled: boolean) => {
+        if (!canManagePersonalProfile) {
+            toast.error(t('settings.readOnlyNotice'));
+            return;
+        }
+
+        setProfileDraft({ ...profile, showRecordAuthors: enabled });
+        updatePartialProfile({ show_record_authors: enabled });
+    };
+
+    if (
+        currentUserQuery.isLoading
+        || (canViewSettings && !mustChangePassword && profileQuery.isLoading)
+    ) {
+        return <SettingsLoadingState />;
+    }
+
+    if (currentUserQuery.isError) {
+        return (
+            <AppErrorState
+                title={t('common.loadErrorTitle')}
+                description={getApiErrorMessage(currentUserQuery.error, t('settings.loadFailed'))}
+                retryLabel={t('common.retry')}
+                onRetry={() => currentUserQuery.refetch()}
+            />
+        );
+    }
+
+    if (!canViewSettings) {
+        return (
+            <AccessDeniedState
+                title={t('common.forbiddenTitle')}
+                description={t('settings.noAccess')}
+                actionLabel={t('dashboard.title')}
+            />
+        );
+    }
+
+    if (!mustChangePassword && profileQuery.isError) {
+        return (
+            <AppErrorState
+                title={t('common.loadErrorTitle')}
+                description={getApiErrorMessage(profileQuery.error, t('settings.loadFailed'))}
+                retryLabel={t('common.retry')}
+                onRetry={() => profileQuery.refetch()}
+            />
+        );
+    }
+
+    // When `must_change_password` is true the user is pinned to /settings
+    // by the app-layout redirect. Lock the Tabs component to the security
+    // tab AND disable the others so the user can't navigate away within
+    // settings either. The forceReset query param is set by the redirect
+    // and surfaces the banner explaining why.
+    const forceReset = mustChangePassword || searchParams.get('forceReset') === '1';
+    const lockedTab = forceReset ? 'security' : undefined;
+
+    return (
+        <div className="space-y-5 lg:space-y-6">
+            <PageHeader title={t('settings.title')} description={t('settings.subtitle')} />
+
+            {forceReset ? (
+                <div
+                    role="alert"
+                    className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900"
+                >
+                    <ShieldAlert className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
+                    <div className="space-y-1">
+                        <p className="font-semibold">{t('settings.forceReset.title')}</p>
+                        <p className="text-amber-800">{t('settings.forceReset.description')}</p>
+                    </div>
+                </div>
+            ) : null}
+
+            <Tabs
+                value={lockedTab}
+                defaultValue="profile"
+                className="space-y-6"
+            >
+                <div className="overflow-x-auto overflow-y-hidden no-scrollbar -mx-4 px-4 sm:mx-0 sm:px-0">
+                    <TabsList className="inline-flex w-full sm:w-auto min-w-max">
+                        <TabsTrigger
+                            value="profile"
+                            className="flex-shrink-0"
+                            disabled={forceReset}
+                        >
+                            <User className="w-4 h-4 sm:mr-2" />
+                            <span className="hidden sm:inline">{t('settings.tab.profile')}</span>
+                        </TabsTrigger>
+                        {isDentist ? (
+                            <>
+                                <TabsTrigger
+                                    value="practice"
+                                    className="flex-shrink-0"
+                                    disabled={forceReset}
+                                >
+                                    <Building2 className="w-4 h-4 sm:mr-2" />
+                                    <span className="hidden sm:inline">{t('settings.tab.practice')}</span>
+                                </TabsTrigger>
+                                <TabsTrigger
+                                    value="hours"
+                                    className="flex-shrink-0"
+                                    disabled={forceReset}
+                                >
+                                    <Clock className="w-4 h-4 sm:mr-2" />
+                                    <span className="hidden sm:inline">{t('settings.tab.hours')}</span>
+                                </TabsTrigger>
+                            </>
+                        ) : null}
+                        <TabsTrigger
+                            value="display"
+                            className="flex-shrink-0"
+                            disabled={forceReset}
+                        >
+                            <Eye className="w-4 h-4 sm:mr-2" />
+                            <span className="hidden sm:inline">{t('settings.tab.display')}</span>
+                        </TabsTrigger>
+                        <TabsTrigger value="security" className="flex-shrink-0">
+                            <Lock className="w-4 h-4 sm:mr-2" />
+                            <span className="hidden sm:inline">{t('settings.tab.security')}</span>
+                        </TabsTrigger>
+                    </TabsList>
+                </div>
+
+                <TabsContent value="profile">
+                    <Card className="interactive-card overflow-hidden rounded-2xl bg-white">
+                        <CardHeader className="pb-2">
+                            <CardTitle>{t('settings.personalInfo')}</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <form onSubmit={handleProfileUpdate} className="space-y-4">
+                                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                                    <div className={`space-y-2 ${isDentist ? '' : 'md:col-span-2'}`}>
+                                        <Label htmlFor="name">
+                                            {t('settings.fullName')} <span className="text-red-500">*</span>
+                                        </Label>
+                                        <div className="flex items-center gap-2">
+                                            {isDentist ? (
+                                                <span className="inline-flex h-9 items-center rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-semibold text-slate-700">
+                                                    {t('common.doctorPrefix')}
+                                                </span>
+                                            ) : null}
+                                            <Input
+                                                id="name"
+                                                required
+                                                value={isDentist ? profile.name.replace(/^Dr\.\s*/i, '') : profile.name}
+                                                onChange={(event) =>
+                                                    setProfileDraft({ ...profile, name: event.target.value })
+                                                }
+                                                placeholder={t('settings.form.namePlaceholder')}
+                                                maxLength={INPUT_LIMITS.personName}
+                                                aria-invalid={Boolean(profileSubmitAttempted && profileNameError)}
+                                            />
+                                        </div>
+                                        {profileSubmitAttempted && profileNameError ? (
+                                            <p className="text-xs text-red-600">{profileNameError}</p>
+                                        ) : null}
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <Label htmlFor="email">
+                                            {t('login.email')} <span className="text-red-500">*</span>
+                                        </Label>
+                                        <Input
+                                            id="email"
+                                            type="email"
+                                            required
+                                            value={profile.email}
+                                            onChange={(event) =>
+                                                setProfileDraft({ ...profile, email: event.target.value })
+                                            }
+                                            maxLength={INPUT_LIMITS.email}
+                                            autoComplete="email"
+                                            inputMode="email"
+                                            aria-invalid={Boolean(profileSubmitAttempted && profileEmailError)}
+                                        />
+                                        {profileSubmitAttempted && profileEmailError ? (
+                                            <p className="text-xs text-red-600">{profileEmailError}</p>
+                                        ) : null}
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <Label htmlFor="phone">{t('settings.phone')}</Label>
+                                        <Input
+                                            id="phone"
+                                            value={profile.phone}
+                                            onChange={(event) =>
+                                                setProfileDraft({
+                                                    ...profile,
+                                                    phone: formatPhoneInputValue(event.target.value),
+                                                })
+                                            }
+                                            type="tel"
+                                            placeholder={t('settings.form.phonePlaceholder')}
+                                            maxLength={INPUT_LIMITS.phoneFormatted}
+                                            inputMode="tel"
+                                            autoComplete="tel"
+                                            aria-invalid={Boolean(profileSubmitAttempted && profilePhoneError)}
+                                        />
+                                        {profileSubmitAttempted && profilePhoneError ? (
+                                            <p className="text-xs text-red-600">{profilePhoneError}</p>
+                                        ) : null}
+                                    </div>
+
+                                    {isDentist ? (
+                                        <div className="space-y-2">
+                                            <Label htmlFor="license">{t('settings.licenseNumber')}</Label>
+                                            <Input
+                                                id="license"
+                                                value={profile.licenseNumber || ''}
+                                                onChange={(event) =>
+                                                    setProfileDraft({ ...profile, licenseNumber: event.target.value })
+                                                }
+                                                maxLength={INPUT_LIMITS.licenseNumber}
+                                            />
+                                        </div>
+                                    ) : null}
+                                </div>
+
+                                <div className="flex justify-end">
+                                    <Button type="submit" disabled={profileMutation.isPending || !canManagePersonalProfile}>
+                                        {profileMutation.isPending ? t('common.saving') : t('common.saveChanges')}
+                                    </Button>
+                                </div>
+                            </form>
+                        </CardContent>
+                    </Card>
+                </TabsContent>
+
+                {isDentist ? (
+                    <TabsContent value="practice">
+                    <Card className="interactive-card overflow-hidden rounded-2xl bg-white">
+                        <CardHeader className="pb-2">
+                            <CardTitle>{t('settings.practiceInfo')}</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <form onSubmit={handlePracticeUpdate} className="space-y-4">
+                                <div className="space-y-2">
+                                    <Label htmlFor="practiceName">{t('settings.practiceName')}</Label>
+                                    <Input
+                                        id="practiceName"
+                                        value={profile.practiceName}
+                                        onChange={(event) =>
+                                            setProfileDraft({ ...profile, practiceName: event.target.value })
+                                        }
+                                        maxLength={INPUT_LIMITS.practiceName}
+                                        aria-invalid={Boolean(practiceSubmitAttempted && practiceNameError)}
+                                    />
+                                    {practiceSubmitAttempted && practiceNameError ? (
+                                        <p className="text-xs text-red-600">{practiceNameError}</p>
+                                    ) : null}
+                                </div>
+
+                                <div className="space-y-2">
+                                    <Label htmlFor="address">{t('settings.address')}</Label>
+                                    <Textarea
+                                        id="address"
+                                        value={profile.address || ''}
+                                        onChange={(event) =>
+                                            setProfileDraft({ ...profile, address: event.target.value })
+                                        }
+                                        rows={3}
+                                        maxLength={INPUT_LIMITS.address}
+                                        aria-invalid={Boolean(practiceSubmitAttempted && practiceAddressError)}
+                                    />
+                                    {practiceSubmitAttempted && practiceAddressError ? (
+                                        <p className="text-xs text-red-600">{practiceAddressError}</p>
+                                    ) : null}
+                                </div>
+
+                                <div className="flex justify-end">
+                                    <Button type="submit" disabled={profileMutation.isPending || !canManagePracticeSettings}>
+                                        {profileMutation.isPending ? t('common.saving') : t('common.saveChanges')}
+                                    </Button>
+                                </div>
+                            </form>
+                        </CardContent>
+                    </Card>
+                    </TabsContent>
+                ) : null}
+
+                {isDentist ? (
+                    <TabsContent value="hours">
+                    <Card className="interactive-card overflow-hidden rounded-2xl bg-white">
+                        <CardHeader className="pb-2">
+                            <CardTitle>{t('settings.workingHoursAndAppointments')}</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <form onSubmit={handleWorkingHoursUpdate} className="space-y-4">
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    <div className="space-y-2">
+                                        <Label htmlFor="startTime">
+                                            {t('settings.startTime')} <span className="text-red-500">*</span>
+                                        </Label>
+                                        <Input
+                                            id="startTime"
+                                            type="text"
+                                            inputMode="numeric"
+                                            maxLength={5}
+                                            value={profile.workingHours.start}
+                                            onChange={(event) =>
+                                                setProfileDraft({
+                                                    ...profile,
+                                                    workingHours: {
+                                                        ...profile.workingHours,
+                                                        start: sanitizeTimeInput(event.target.value),
+                                                    },
+                                                })
+                                            }
+                                            placeholder={DEFAULT_APPOINTMENT_WORKING_HOURS.start}
+                                            aria-invalid={Boolean(workingHoursStartError)}
+                                        />
+                                        {workingHoursStartError ? (
+                                            <p className="text-xs text-red-600">{workingHoursStartError}</p>
+                                        ) : null}
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <Label htmlFor="endTime">
+                                            {t('settings.endTime')} <span className="text-red-500">*</span>
+                                        </Label>
+                                        <Input
+                                            id="endTime"
+                                            type="text"
+                                            inputMode="numeric"
+                                            maxLength={5}
+                                            value={profile.workingHours.end}
+                                            onChange={(event) =>
+                                                setProfileDraft({
+                                                    ...profile,
+                                                    workingHours: {
+                                                        ...profile.workingHours,
+                                                        end: sanitizeTimeInput(event.target.value),
+                                                    },
+                                                })
+                                            }
+                                            placeholder={DEFAULT_APPOINTMENT_WORKING_HOURS.end}
+                                            aria-invalid={Boolean(workingHoursEndError)}
+                                        />
+                                        {workingHoursEndError ? (
+                                            <p className="text-xs text-red-600">{workingHoursEndError}</p>
+                                        ) : null}
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <Label htmlFor="duration">
+                                            {t('settings.defaultAppointmentDuration')} <span className="text-red-500">*</span>
+                                        </Label>
+                                        <Select
+                                            value={String(profile.defaultAppointmentDuration)}
+                                            onValueChange={(value) =>
+                                                setProfileDraft({
+                                                    ...profile,
+                                                    defaultAppointmentDuration: Number(value),
+                                                })
+                                            }
+                                        >
+                                            <SelectTrigger id="duration" className="w-full">
+                                                <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="15">{t('appointments.minutesShort', { count: 15 })}</SelectItem>
+                                                <SelectItem value="30">{t('appointments.minutesShort', { count: 30 })}</SelectItem>
+                                                <SelectItem value="45">{t('appointments.minutesShort', { count: 45 })}</SelectItem>
+                                                <SelectItem value="60">{t('settings.duration.oneHour')}</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                </div>
+
+                                <div className="bg-teal-50 border border-teal-200 rounded-lg p-4">
+                                    <p className="text-sm text-teal-800">
+                                        <strong>{t('settings.currentSchedule')}</strong> {profile.workingHours.start} - {profile.workingHours.end}
+                                    </p>
+                                    <p className="text-sm text-teal-600 mt-1">
+                                        {t('settings.appointmentsDurationHint', {
+                                            count: profile.defaultAppointmentDuration,
+                                        })}
+                                    </p>
+                                </div>
+
+                                <div className="flex justify-end">
+                                    <Button type="submit" disabled={profileMutation.isPending || !canManagePracticeSettings || workingHoursHasErrors}>
+                                        {profileMutation.isPending ? t('common.saving') : t('common.saveChanges')}
+                                    </Button>
+                                </div>
+                            </form>
+                        </CardContent>
+                    </Card>
+                    </TabsContent>
+                ) : null}
+
+                <TabsContent value="display">
+                    <Card className="interactive-card overflow-hidden rounded-2xl bg-white">
+                        <CardHeader className="pb-2">
+                            <CardTitle>{t('settings.displayPreferences')}</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-slate-50/70 p-4 sm:flex-row sm:items-center sm:justify-between">
+                                <div className="min-w-0">
+                                    <Label htmlFor="showRecordAuthors" className="text-sm font-semibold text-slate-900">
+                                        {t('settings.showRecordAuthors.title')}
+                                    </Label>
+                                    <p className="mt-1 text-sm text-slate-600">
+                                        {t('settings.showRecordAuthors.description')}
+                                    </p>
+                                </div>
+                                <button
+                                    id="showRecordAuthors"
+                                    type="button"
+                                    role="switch"
+                                    aria-checked={profile.showRecordAuthors}
+                                    aria-label={t('settings.showRecordAuthors.title')}
+                                    disabled={!canManagePersonalProfile || profileMutation.isPending}
+                                    onClick={() => handleDisplayPreferenceChange(!profile.showRecordAuthors)}
+                                    className={`relative inline-flex h-7 w-12 shrink-0 rounded-full border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 ${
+                                        profile.showRecordAuthors
+                                            ? 'border-teal-500 bg-teal-500'
+                                            : 'border-slate-300 bg-slate-200'
+                                    }`}
+                                >
+                                    <span
+                                        className={`mt-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition-transform ${
+                                            profile.showRecordAuthors ? 'translate-x-6' : 'translate-x-0.5'
+                                        }`}
+                                    />
+                                </button>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </TabsContent>
+
+                <TabsContent value="security" className="space-y-5">
+                    {currentUserQuery.data ? (
+                        <div className="grid items-start gap-5 xl:grid-cols-2">
+                            <PasswordSecurityCard user={currentUserQuery.data} className="interactive-card" />
+                            {/* Assistants share the dentist owner's sign-in
+                                surface only conceptually — their own account
+                                lives under a dentist_owner_id. Linking a
+                                Google identity is a per-account choice, so
+                                we surface the panel for every viewer who
+                                can reach Settings (dentist + assistant). */}
+                            <ConnectedAccountsCard user={currentUserQuery.data} className="interactive-card" />
+                        </div>
+                    ) : null}
+                </TabsContent>
+            </Tabs>
+        </div>
+    );
+}

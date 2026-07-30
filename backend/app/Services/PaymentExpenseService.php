@@ -28,7 +28,9 @@ class PaymentExpenseService
     public function list(Request $request): array
     {
         $query = $this->baseQuery($request);
-        $summary = $this->summarize(clone $query);
+        $summary = $this->includeSummary($request)
+            ? $this->summarize(clone $query)
+            : null;
 
         $query
             ->orderByDesc('expense_date')
@@ -134,12 +136,12 @@ class PaymentExpenseService
 
         $dateFrom = $request->input('filter.date_from');
         if (is_string($dateFrom) && $dateFrom !== '') {
-            $query->whereDate('expense_date', '>=', $dateFrom);
+            $query->where('expense_date', '>=', $dateFrom);
         }
 
         $dateTo = $request->input('filter.date_to');
         if (is_string($dateTo) && $dateTo !== '') {
-            $query->whereDate('expense_date', '<=', $dateTo);
+            $query->where('expense_date', '<=', $dateTo);
         }
 
         return $query;
@@ -173,26 +175,42 @@ class PaymentExpenseService
                     $currentMonthEnd,
                 ]
             )
+            ->selectRaw(
+                'COALESCE(SUM(CASE WHEN COALESCE(currency, ?) = ? THEN amount ELSE 0 END), 0) AS total_uzs',
+                [PaymentExpense::CURRENCY_UZS, PaymentExpense::CURRENCY_UZS]
+            )
+            ->selectRaw(
+                'COALESCE(SUM(CASE WHEN COALESCE(currency, ?) = ? THEN amount ELSE 0 END), 0) AS total_usd',
+                [PaymentExpense::CURRENCY_UZS, PaymentExpense::CURRENCY_USD]
+            )
+            ->selectRaw(
+                'COALESCE(SUM(CASE WHEN COALESCE(currency, ?) = ? AND expense_date BETWEEN ? AND ? THEN amount ELSE 0 END), 0) AS current_month_uzs',
+                [
+                    PaymentExpense::CURRENCY_UZS,
+                    PaymentExpense::CURRENCY_UZS,
+                    $currentMonthStart,
+                    $currentMonthEnd,
+                ]
+            )
+            ->selectRaw(
+                'COALESCE(SUM(CASE WHEN COALESCE(currency, ?) = ? AND expense_date BETWEEN ? AND ? THEN amount ELSE 0 END), 0) AS current_month_usd',
+                [
+                    PaymentExpense::CURRENCY_UZS,
+                    PaymentExpense::CURRENCY_USD,
+                    $currentMonthStart,
+                    $currentMonthEnd,
+                ]
+            )
             ->selectRaw('MAX(expense_date) AS latest_expense_date')
             ->first();
-        $totalsByCurrency = $this->emptyCurrencyTotals();
-        $currentMonthByCurrency = $this->emptyCurrencyTotals();
-        $currencyRows = (clone $query)
-            ->toBase()
-            ->selectRaw('currency')
-            ->selectRaw('COALESCE(SUM(amount), 0) AS total_amount')
-            ->selectRaw(
-                'COALESCE(SUM(CASE WHEN expense_date BETWEEN ? AND ? THEN amount ELSE 0 END), 0) AS current_month_amount',
-                [$currentMonthStart, $currentMonthEnd]
-            )
-            ->groupBy('currency')
-            ->get();
-
-        foreach ($currencyRows as $currencyRow) {
-            $currency = $this->currency(is_string($currencyRow->currency ?? null) ? $currencyRow->currency : null);
-            $totalsByCurrency[$currency] = (float) ($currencyRow->total_amount ?? 0);
-            $currentMonthByCurrency[$currency] = (float) ($currencyRow->current_month_amount ?? 0);
-        }
+        $totalsByCurrency = [
+            PaymentExpense::CURRENCY_UZS => (float) ($row?->total_uzs ?? 0),
+            PaymentExpense::CURRENCY_USD => (float) ($row?->total_usd ?? 0),
+        ];
+        $currentMonthByCurrency = [
+            PaymentExpense::CURRENCY_UZS => (float) ($row?->current_month_uzs ?? 0),
+            PaymentExpense::CURRENCY_USD => (float) ($row?->current_month_usd ?? 0),
+        ];
 
         $latestExpenseDate = $row?->latest_expense_date
             ? Carbon::parse((string) $row->latest_expense_date)->toDateString()
@@ -230,6 +248,11 @@ class PaymentExpenseService
         return min($perPage, self::MAX_PER_PAGE);
     }
 
+    private function includeSummary(Request $request): bool
+    {
+        return ! $request->has('include_summary') || $request->boolean('include_summary');
+    }
+
     private function dentistId(Request $request): int
     {
         /** @var User|null $actor */
@@ -252,14 +275,6 @@ class PaymentExpenseService
         }
 
         return $expense;
-    }
-
-    /**
-     * @return array<string, float>
-     */
-    private function emptyCurrencyTotals(): array
-    {
-        return array_fill_keys(PaymentExpense::CURRENCIES, 0.0);
     }
 
     private function currency(?string $currency): string

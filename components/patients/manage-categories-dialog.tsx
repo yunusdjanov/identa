@@ -26,6 +26,7 @@ import { toast } from 'sonner';
 import { INPUT_LIMITS, getTextValidationMessage } from '@/lib/input-validation';
 import { useI18n } from '@/components/providers/i18n-provider';
 import { truncateForUi } from '@/lib/utils';
+import { queryKeys } from '@/lib/query-keys';
 
 interface ManageCategoriesDialogProps {
     open: boolean;
@@ -71,7 +72,7 @@ export function ManageCategoriesDialog({ open, onOpenChange }: ManageCategoriesD
     const [categoryToDelete, setCategoryToDelete] = useState<{ id: string; name: string } | null>(null);
 
     const categoriesQuery = useQuery({
-        queryKey: ['patient-categories', 'list'],
+        queryKey: queryKeys.patientCategories.list(),
         queryFn: () => listPatientCategories(),
         enabled: open,
     });
@@ -107,8 +108,8 @@ export function ManageCategoriesDialog({ open, onOpenChange }: ManageCategoriesD
             setNewName('');
             setNewColor(DEFAULT_COLOR);
             setCreateSubmitAttempted(false);
-            queryClient.invalidateQueries({ queryKey: ['patient-categories'] });
-            queryClient.invalidateQueries({ queryKey: ['patients'] });
+            queryClient.invalidateQueries({ queryKey: queryKeys.patientCategories.all() });
+            queryClient.invalidateQueries({ queryKey: queryKeys.patients.all() });
         },
         onError: (error) => {
             toast.error(getApiErrorMessage(error, t('patients.categories.createFailed')));
@@ -128,8 +129,8 @@ export function ManageCategoriesDialog({ open, onOpenChange }: ManageCategoriesD
             setEditingName('');
             setEditingColor(DEFAULT_COLOR);
             setEditSubmitAttempted(false);
-            queryClient.invalidateQueries({ queryKey: ['patient-categories'] });
-            queryClient.invalidateQueries({ queryKey: ['patients'] });
+            queryClient.invalidateQueries({ queryKey: queryKeys.patientCategories.all() });
+            queryClient.invalidateQueries({ queryKey: queryKeys.patients.all() });
         },
         onError: (error) => {
             toast.error(getApiErrorMessage(error, t('patients.categories.updateFailed')));
@@ -142,8 +143,8 @@ export function ManageCategoriesDialog({ open, onOpenChange }: ManageCategoriesD
             toast.success(t('patients.categories.deleted'));
             setIsDeleteDialogOpen(false);
             setCategoryToDelete(null);
-            queryClient.invalidateQueries({ queryKey: ['patient-categories'] });
-            queryClient.invalidateQueries({ queryKey: ['patients'] });
+            queryClient.invalidateQueries({ queryKey: queryKeys.patientCategories.all() });
+            queryClient.invalidateQueries({ queryKey: queryKeys.patients.all() });
         },
         onError: (error) => {
             toast.error(getApiErrorMessage(error, t('patients.categories.deleteFailed')));

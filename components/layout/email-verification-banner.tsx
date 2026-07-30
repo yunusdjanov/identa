@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { getCurrentUser, resendEmailVerification } from '@/lib/api/dentist';
 import { getApiErrorMessage } from '@/lib/api/client';
 import { useI18n } from '@/components/providers/i18n-provider';
+import { queryKeys } from '@/lib/query-keys';
 
 /**
  * Email-verification notice shown on the settings/recovery surface that
@@ -51,7 +52,7 @@ function writeCooldownUntil(timestamp: number): void {
 export function EmailVerificationBanner() {
     const { t } = useI18n();
     const { data: user } = useQuery({
-        queryKey: ['auth', 'me'],
+        queryKey: queryKeys.auth.me(),
         queryFn: getCurrentUser,
         staleTime: 5 * 60_000,
     });

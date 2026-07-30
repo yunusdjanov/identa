@@ -23,6 +23,7 @@ import { LanguageSwitcher } from '@/components/layout/language-switcher';
 import Link from 'next/link';
 import { Brand } from '@/components/branding/brand';
 import { AuthFormLoadingState } from '@/components/layout/page-loading-skeletons';
+import { queryKeys } from '@/lib/query-keys';
 
 export default function AdminLoginPage() {
     const { t } = useI18n();
@@ -39,7 +40,7 @@ export default function AdminLoginPage() {
     const passwordError = credentials.password ? null : t('admin.login.passwordRequired');
     const hasValidationErrors = Boolean(emailError || passwordError);
     const currentUserQuery = useQuery({
-        queryKey: ['auth', 'me'],
+        queryKey: queryKeys.auth.me(),
         queryFn: getCurrentUser,
         retry: false,
         enabled: !isLogoutRedirect,
@@ -71,8 +72,8 @@ export default function AdminLoginPage() {
             // below becomes redundant after the clear, but kept as belt-
             // and-braces in case clear() is removed accidentally later.
             queryClient.clear();
-            queryClient.setQueryData(['auth', 'me'], user);
-            queryClient.invalidateQueries({ queryKey: ['admin'] });
+            queryClient.setQueryData(queryKeys.auth.me(), user);
+            queryClient.invalidateQueries({ queryKey: queryKeys.admin.all() });
             postAuthBroadcast({ type: 'login' });
             toast.success(t('admin.login.success'));
             router.push(user.must_change_password
@@ -103,7 +104,7 @@ export default function AdminLoginPage() {
             if (message.type === 'login') {
                 clearClientLogoutInProgress();
                 setIsLogoutRedirect(false);
-                queryClient.invalidateQueries({ queryKey: ['auth', 'me'] });
+                queryClient.invalidateQueries({ queryKey: queryKeys.auth.me() });
             }
         });
 

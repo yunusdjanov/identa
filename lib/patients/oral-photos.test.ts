@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { getPatientOralPhoto, getPatientOralPhotoGallery, hasPendingOralPhotoProcessing } from '@/lib/patients/oral-photos';
+import {
+    getPatientOralPhoto,
+    getPatientOralPhotoGallery,
+    hasPendingOralPhotoProcessing,
+    hasPendingPatientMediaProcessing,
+} from '@/lib/patients/oral-photos';
 import type { ApiPatient } from '@/lib/api/types';
 
 const basePatient = {
@@ -81,6 +86,19 @@ describe('oral photo helpers', () => {
                 },
                 bottom: null,
             },
+        } as ApiPatient)).toBe(false);
+    });
+
+    it('keeps polling while a profile-photo replacement is processing', () => {
+        expect(hasPendingPatientMediaProcessing({
+            ...basePatient,
+            photo_scan_status: 'approved',
+            photo_processing_status: 'pending',
+        } as ApiPatient)).toBe(true);
+        expect(hasPendingPatientMediaProcessing({
+            ...basePatient,
+            photo_scan_status: 'approved',
+            photo_processing_status: 'rejected',
         } as ApiPatient)).toBe(false);
     });
 });

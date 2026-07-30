@@ -34,6 +34,7 @@ import { DangerZoneSection } from './_components/danger-zone-section';
 import { PlanPickerSection } from './_components/plan-picker-section';
 
 import { getApiErrorMessage } from '@/lib/api/client';
+import { queryKeys } from '@/lib/query-keys';
 import {
     type AdminDentistSubscriptionAction,
     getAdminDentistBilling,
@@ -328,26 +329,26 @@ export default function AdminBillingDetailPage() {
     const [subscriptionForm, setSubscriptionForm] = useState<ManageSubscriptionForm>(createEmptySubscriptionForm());
 
     const authQuery = useQuery({
-        queryKey: ['auth', 'me'],
+        queryKey: queryKeys.auth.me(),
         queryFn: getCurrentUser,
         retry: false,
     });
 
     const billingQuery = useQuery({
-        queryKey: ['admin', 'dentists', id, 'billing'],
+        queryKey: queryKeys.admin.dentists.billing(id),
         queryFn: () => getAdminDentistBilling(id),
         enabled: authQuery.data?.role === 'admin' && Boolean(id),
     });
 
     const plansQuery = useQuery({
-        queryKey: ['admin', 'plans'],
+        queryKey: queryKeys.admin.plans.all(),
         queryFn: listAdminPlans,
         enabled: authQuery.data?.role === 'admin',
         staleTime: 5 * 60_000,
     });
 
     const auditQuery = useQuery({
-        queryKey: ['admin', 'dentists', id, 'audit-logs'],
+        queryKey: queryKeys.admin.dentists.auditLogs(id),
         queryFn: () => listAdminDentistAuditLogs(id, { perPage: 10 }),
         enabled: authQuery.data?.role === 'admin' && Boolean(id),
         staleTime: 60_000,
@@ -371,16 +372,16 @@ export default function AdminBillingDetailPage() {
             }));
             setSubscriptionDialog(null);
             setSubscriptionForm(createEmptySubscriptionForm());
-            queryClient.invalidateQueries({ queryKey: ['admin', 'dentists'] });
-            queryClient.invalidateQueries({ queryKey: ['admin', 'dentists', id, 'billing'] });
+            queryClient.invalidateQueries({ queryKey: queryKeys.admin.dentists.all() });
+            queryClient.invalidateQueries({ queryKey: queryKeys.admin.dentists.billing(id) });
             // Audit panel reads `['admin','audit-logs', id, 'user']` and stays
             // stale for the configured staleTime (60s) — force refresh so the
             // event admin just triggered shows up at the top of the timeline.
-            queryClient.invalidateQueries({ queryKey: ['admin', 'audit-logs', id] });
+            queryClient.invalidateQueries({ queryKey: queryKeys.admin.dentists.auditLogs(id) });
             // Manual apply/extend actions also create a BillingPayment row on
             // the backend — refresh the global admin payments list so the new
             // row shows up if the admin opens it next.
-            queryClient.invalidateQueries({ queryKey: ['admin', 'payments'] });
+            queryClient.invalidateQueries({ queryKey: queryKeys.admin.payments.all() });
         },
         onError: (error) => {
             toast.error(getApiErrorMessage(error, t('admin.error.subscriptionUpdateFailed')));
@@ -733,7 +734,7 @@ export default function AdminBillingDetailPage() {
                                 ?? billing.payments.filter((payment) => payment.status === 'paid').length}
                             auditLoading={auditQuery.isLoading}
                             auditError={auditQuery.isError
-                                ? getApiErrorMessage(auditQuery.error, t('admin.billing.auditLog.loadFailed'))
+                                ? t('admin.billing.auditLog.loadFailed')
                                 : null}
                             auditEntries={auditQuery.data?.data}
                             onRetryAudit={() => auditQuery.refetch()}

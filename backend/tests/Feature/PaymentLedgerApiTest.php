@@ -59,6 +59,25 @@ class PaymentLedgerApiTest extends TestCase
         );
     }
 
+    public function test_ledger_can_skip_summary_for_table_only_requests(): void
+    {
+        [$dentist, $patientWithDebt] = $this->seedLedgerRecords();
+
+        $this->actingAs($dentist, 'web')
+            ->getJson('/api/v1/payments/ledger/patients?per_page=1&include_summary=0')
+            ->assertOk()
+            ->assertJsonMissingPath('meta.summary')
+            ->assertJsonPath('meta.pagination.total', 2)
+            ->assertJsonPath('data.0.patient_id', (string) $patientWithDebt->id);
+
+        $this->actingAs($dentist, 'web')
+            ->getJson('/api/v1/payments/ledger/history?per_page=1&include_summary=0')
+            ->assertOk()
+            ->assertJsonMissingPath('meta.summary')
+            ->assertJsonPath('meta.pagination.total', 3)
+            ->assertJsonCount(1, 'data');
+    }
+
     public function test_patient_ledger_includes_zero_row_when_specific_patient_has_no_treatments(): void
     {
         $dentist = User::factory()->create();
@@ -236,6 +255,11 @@ class PaymentLedgerApiTest extends TestCase
             ->getJson('/api/v1/payments/ledger/history?filter[patient_id]=not-a-uuid')
             ->assertUnprocessable()
             ->assertJsonValidationErrors(['filter.patient_id']);
+
+        $this->actingAs($dentist, 'web')
+            ->getJson('/api/v1/payments/ledger/history?include_summary=invalid')
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['include_summary']);
     }
 
     /**

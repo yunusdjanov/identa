@@ -7,6 +7,7 @@ import { QueryProvider } from '@/components/providers/query-provider';
 import { LogoutLoadingScreen } from '@/components/layout/logout-loading-screen';
 import { AdminDashboardLoadingState } from '@/components/layout/page-loading-skeletons';
 import { getCurrentUser } from '@/lib/api/dentist';
+import { queryKeys } from '@/lib/query-keys';
 import { useAuthStore } from '@/lib/store';
 
 function AdminAccessGate({ children }: { children: React.ReactNode }) {
@@ -14,7 +15,7 @@ function AdminAccessGate({ children }: { children: React.ReactNode }) {
     const router = useRouter();
     const isLoginPage = pathname === '/admin/login';
     const authQuery = useQuery({
-        queryKey: ['auth', 'me'],
+        queryKey: queryKeys.auth.me(),
         queryFn: getCurrentUser,
         retry: false,
         enabled: !isLoginPage,

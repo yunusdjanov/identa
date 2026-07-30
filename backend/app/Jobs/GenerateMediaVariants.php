@@ -32,6 +32,7 @@ class GenerateMediaVariants implements ShouldQueue
         public int $webpQuality = 80,
     ) {
         $this->afterCommit();
+        $this->onQueue('media');
     }
 
     public function handle(): void
@@ -77,8 +78,10 @@ class GenerateMediaVariants implements ShouldQueue
             Log::warning($this->logContext.' variant generation failed.', [
                 'exception' => $exception::class,
                 'disk' => $disk,
-                'source_path' => $sourcePath,
+                'source_ref' => hash('sha256', $sourcePath),
             ]);
+
+            throw $exception;
         }
     }
 }
