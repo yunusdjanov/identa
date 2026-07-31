@@ -50,7 +50,7 @@ class AdminAnalyticsSummaryService
         $previousEnd = Carbon::parse($filters['previous_to'])->endOfDay();
 
         $dentists = User::query()
-            ->select(['id', 'created_at', 'account_status'])
+            ->select(['id', 'role', 'created_at', 'account_status'])
             ->where('role', User::ROLE_DENTIST)
             ->where('account_status', '!=', User::ACCOUNT_STATUS_DELETED)
             ->with('latestSubscription')

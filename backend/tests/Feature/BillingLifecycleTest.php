@@ -599,7 +599,7 @@ class BillingLifecycleTest extends TestCase
         ]);
 
         $analyticsOwner = User::query()
-            ->select(['id', 'created_at', 'account_status'])
+            ->select(['id', 'role', 'created_at', 'account_status'])
             ->with('latestSubscription')
             ->findOrFail($dentist->id);
         $service = app(\App\Services\SubscriptionService::class);
