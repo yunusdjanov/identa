@@ -21,6 +21,7 @@ class AssistantAccessRevocationTest extends TestCase
         $dentist = User::factory()->create();
         $assistant = User::factory()->assistant($dentist)->create([
             'assistant_permissions' => [User::PERMISSION_PATIENTS_VIEW],
+            'must_change_password' => false,
         ]);
 
         $this->actingAs($assistant->fresh(), 'web')
@@ -38,6 +39,7 @@ class AssistantAccessRevocationTest extends TestCase
         $dentist = User::factory()->create();
         $assistant = User::factory()->assistant($dentist)->create([
             'assistant_permissions' => [User::PERMISSION_PATIENTS_VIEW],
+            'must_change_password' => false,
         ]);
 
         $dentist->update(['account_status' => User::ACCOUNT_STATUS_BLOCKED]);
@@ -82,6 +84,7 @@ class AssistantAccessRevocationTest extends TestCase
         $dentist = User::factory()->create(['account_status' => User::ACCOUNT_STATUS_BLOCKED]);
         $assistant = User::factory()->assistant($dentist)->create([
             'assistant_permissions' => [User::PERMISSION_PATIENTS_VIEW],
+            'must_change_password' => false,
         ]);
 
         // Reactivating the owner restores access with no per-staff fixups —

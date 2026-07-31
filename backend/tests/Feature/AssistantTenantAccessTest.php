@@ -17,6 +17,7 @@ class AssistantTenantAccessTest extends TestCase
         $otherDentist = User::factory()->create();
         $assistant = User::factory()->assistant($dentist)->create([
             'assistant_permissions' => [User::PERMISSION_PATIENTS_VIEW],
+            'must_change_password' => false,
         ]);
 
         Patient::factory()->create([

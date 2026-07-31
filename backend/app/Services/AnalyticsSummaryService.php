@@ -141,7 +141,8 @@ class AnalyticsSummaryService
                     ->on('patients.dentist_id', '=', 'treatments.dentist_id');
             })
             ->where('treatments.dentist_id', $dentistId)
-            ->whereBetween('treatments.treatment_date', [$dateFrom, $dateTo])
+            ->where('treatments.treatment_date', '>=', $dateFrom)
+            ->where('treatments.treatment_date', '<', Carbon::parse($dateTo)->addDay()->toDateString())
             ->get([
                 'treatments.patient_id',
                 'treatments.treatment_date',
@@ -168,7 +169,8 @@ class AnalyticsSummaryService
     {
         return Appointment::query()
             ->where('dentist_id', $dentistId)
-            ->whereBetween('appointment_date', [$dateFrom, $dateTo])
+            ->where('appointment_date', '>=', $dateFrom)
+            ->where('appointment_date', '<', Carbon::parse($dateTo)->addDay()->toDateString())
             ->get(['id', 'patient_id', 'appointment_date', 'status']);
     }
 

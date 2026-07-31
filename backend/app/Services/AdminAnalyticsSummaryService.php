@@ -54,7 +54,7 @@ class AdminAnalyticsSummaryService
             ->where('role', User::ROLE_DENTIST)
             ->where('account_status', '!=', User::ACCOUNT_STATUS_DELETED)
             ->with([
-                'latestSubscription:id,user_id,plan_code,billing_period,status,starts_at,ends_at',
+                'latestSubscription:subscriptions.id,subscriptions.user_id,subscriptions.plan_code,subscriptions.billing_period,subscriptions.status,subscriptions.starts_at,subscriptions.ends_at',
             ])
             ->get();
         $plans = Plan::query()->get();

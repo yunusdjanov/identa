@@ -13,6 +13,7 @@ use App\Support\Search;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -77,7 +78,7 @@ class AppointmentService
 
         $dateTo = $request->input('filter.date_to');
         if (is_string($dateTo) && $dateTo !== '') {
-            $query->where('appointment_date', '<=', $dateTo);
+            $query->where('appointment_date', '<', Carbon::parse($dateTo)->addDay()->toDateString());
         }
 
         $status = $request->input('filter.status');
@@ -390,7 +391,8 @@ class AppointmentService
         $query = Appointment::query()
             ->where('dentist_id', $dentistId)
             ->forActivePatients()
-            ->where('appointment_date', $appointmentDate)
+            ->where('appointment_date', '>=', $appointmentDate)
+            ->where('appointment_date', '<', Carbon::parse($appointmentDate)->addDay()->toDateString())
             ->whereNotIn('status', self::NON_BLOCKING_STATUSES)
             ->lockForUpdate();
 

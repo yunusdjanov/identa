@@ -127,19 +127,6 @@ class PatientApiTest extends TestCase
             'dentist_id' => $dentist->id,
             'patient_id' => $patient->id,
             'treatment_date' => '2026-06-13',
-            'debt_amount' => 100000,
-            'paid_amount' => 40000,
-            'currency' => Treatment::CURRENCY_UZS,
-        ]);
-        Treatment::factory()->create([
-            'dentist_id' => $dentist->id,
-            'patient_id' => $patient->id,
-            // A completed appointment and treatment on the same day are one
-            // visit, even though both contribute their own business data.
-            'treatment_date' => '2026-06-10',
-            'debt_amount' => 50,
-            'paid_amount' => 10,
-            'currency' => Treatment::CURRENCY_USD,
         ]);
 
         $this->actingAs($dentist, 'web')
@@ -370,6 +357,19 @@ class PatientApiTest extends TestCase
             'dentist_id' => $dentist->id,
             'patient_id' => $patient->id,
             'treatment_date' => '2026-06-13',
+            'debt_amount' => 100000,
+            'paid_amount' => 40000,
+            'currency' => Treatment::CURRENCY_UZS,
+        ]);
+        Treatment::factory()->create([
+            'dentist_id' => $dentist->id,
+            'patient_id' => $patient->id,
+            // A completed appointment and treatment on the same day are one
+            // visit, even though both contribute their own business data.
+            'treatment_date' => '2026-06-10',
+            'debt_amount' => 50,
+            'paid_amount' => 10,
+            'currency' => Treatment::CURRENCY_USD,
         ]);
         OdontogramEntry::factory()->create([
             'dentist_id' => $dentist->id,
