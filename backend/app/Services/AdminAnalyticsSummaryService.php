@@ -5,7 +5,6 @@ namespace App\Services;
 use App\Models\Plan;
 use App\Models\User;
 use App\Support\AnalyticsCacheVersion;
-use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 
@@ -54,19 +53,7 @@ class AdminAnalyticsSummaryService
             ->select(['id', 'created_at', 'account_status'])
             ->where('role', User::ROLE_DENTIST)
             ->where('account_status', '!=', User::ACCOUNT_STATUS_DELETED)
-            ->with([
-                'latestSubscription' => static function (HasOne $subscription): void {
-                    $subscription->select([
-                        'subscriptions.id as id',
-                        'subscriptions.user_id as user_id',
-                        'subscriptions.plan_code as plan_code',
-                        'subscriptions.billing_period as billing_period',
-                        'subscriptions.status as status',
-                        'subscriptions.starts_at as starts_at',
-                        'subscriptions.ends_at as ends_at',
-                    ]);
-                },
-            ])
+            ->with('latestSubscription')
             ->get();
         $plans = Plan::query()->get();
         $subscriptionSummaries = $dentists->mapWithKeys(
