@@ -726,7 +726,7 @@ export function Landing({ fontClassName = '', plans = [] }: { fontClassName?: st
     const closeMobileMenu = useCallback((restoreFocus = false) => {
         setMenuOpen(false);
         if (restoreFocus) {
-            window.requestAnimationFrame(() => menuButtonRef.current?.focus());
+            menuButtonRef.current?.focus();
         }
     }, []);
 

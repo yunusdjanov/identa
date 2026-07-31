@@ -8,7 +8,7 @@ return new class extends Migration
     /**
      * PostgreSQL cannot create concurrent indexes inside a transaction.
      */
-    public bool $withinTransaction = false;
+    public $withinTransaction = false;
 
     /**
      * Add targeted trigram indexes for the user-facing contains searches that
