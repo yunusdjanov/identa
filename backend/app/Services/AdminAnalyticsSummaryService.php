@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Plan;
 use App\Models\User;
 use App\Support\AnalyticsCacheVersion;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 
@@ -54,7 +55,17 @@ class AdminAnalyticsSummaryService
             ->where('role', User::ROLE_DENTIST)
             ->where('account_status', '!=', User::ACCOUNT_STATUS_DELETED)
             ->with([
-                'latestSubscription:subscriptions.id,subscriptions.user_id,subscriptions.plan_code,subscriptions.billing_period,subscriptions.status,subscriptions.starts_at,subscriptions.ends_at',
+                'latestSubscription' => static function (HasOne $subscription): void {
+                    $subscription->select([
+                        'subscriptions.id as id',
+                        'subscriptions.user_id as user_id',
+                        'subscriptions.plan_code as plan_code',
+                        'subscriptions.billing_period as billing_period',
+                        'subscriptions.status as status',
+                        'subscriptions.starts_at as starts_at',
+                        'subscriptions.ends_at as ends_at',
+                    ]);
+                },
             ])
             ->get();
         $plans = Plan::query()->get();
@@ -242,8 +253,8 @@ class AdminAnalyticsSummaryService
             ];
             $activeByBucket[$bucket['key']] = 0;
 
-            $cursor = $bucket['start']->copy()->max($rangeStart)->startOfDay();
-            $end = $bucket['end']->copy()->min($rangeEnd)->endOfDay();
+            $cursor = $bucket['start']->copy()->max($rangeStart)->copy()->startOfDay();
+            $end = $bucket['end']->copy()->min($rangeEnd)->copy()->endOfDay();
             while ($cursor <= $end) {
                 $bucketByDate[$cursor->toDateString()] = $bucket['key'];
                 $cursor->addDay();

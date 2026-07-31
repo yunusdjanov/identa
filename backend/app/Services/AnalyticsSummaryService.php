@@ -291,8 +291,8 @@ class AnalyticsSummaryService
                 'cumulative_patients' => 0,
             ];
 
-            $cursor = $bucket['start']->copy()->max($rangeStart)->startOfDay();
-            $end = $bucket['end']->copy()->min($rangeEnd)->endOfDay();
+            $cursor = $bucket['start']->copy()->max($rangeStart)->copy()->startOfDay();
+            $end = $bucket['end']->copy()->min($rangeEnd)->copy()->endOfDay();
             while ($cursor <= $end) {
                 $bucketByDate[$cursor->toDateString()] = $bucket['key'];
                 $cursor->addDay();

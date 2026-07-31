@@ -600,7 +600,19 @@ class BillingLifecycleTest extends TestCase
 
         $analyticsOwner = User::query()
             ->select(['id', 'created_at', 'account_status'])
-            ->with('latestSubscription:subscriptions.id,subscriptions.user_id,subscriptions.plan_code,subscriptions.billing_period,subscriptions.status,subscriptions.starts_at,subscriptions.ends_at')
+            ->with([
+                'latestSubscription' => static function (\Illuminate\Database\Eloquent\Relations\HasOne $subscription): void {
+                    $subscription->select([
+                        'subscriptions.id as id',
+                        'subscriptions.user_id as user_id',
+                        'subscriptions.plan_code as plan_code',
+                        'subscriptions.billing_period as billing_period',
+                        'subscriptions.status as status',
+                        'subscriptions.starts_at as starts_at',
+                        'subscriptions.ends_at as ends_at',
+                    ]);
+                },
+            ])
             ->findOrFail($dentist->id);
         $service = app(\App\Services\SubscriptionService::class);
 
