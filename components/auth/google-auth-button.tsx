@@ -42,6 +42,8 @@ interface GoogleAuthButtonProps {
     isPending: boolean;
     label: string;
     unavailableLabel: string;
+    retryLabel?: string;
+    hasLoadError?: boolean;
     isLoadRequested?: boolean;
     onLoadRequest?: () => void;
 }
@@ -53,6 +55,8 @@ export function GoogleAuthButton({
     isPending,
     label,
     unavailableLabel,
+    retryLabel = 'Retry',
+    hasLoadError = false,
     isLoadRequested = true,
     onLoadRequest,
 }: GoogleAuthButtonProps) {
@@ -85,10 +89,10 @@ export function GoogleAuthButton({
                 className="h-10 w-full justify-center gap-3 rounded-full border-slate-300/80 bg-white px-4 text-sm font-semibold text-slate-800 shadow-sm shadow-teal-950/5 backdrop-blur transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-70"
                 disabled={isPending}
                 onClick={onLoadRequest}
-                aria-label={label}
+                aria-label={hasLoadError ? retryLabel : label}
             >
                 <GoogleMark />
-                <span className="truncate">{label}</span>
+                <span className="truncate">{hasLoadError ? retryLabel : label}</span>
             </Button>
         );
     }

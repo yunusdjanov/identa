@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
@@ -29,6 +29,8 @@ export default function AdminLoginPage() {
     const { t } = useI18n();
     const router = useRouter();
     const queryClient = useQueryClient();
+    const emailInputRef = useRef<HTMLInputElement | null>(null);
+    const passwordInputRef = useRef<HTMLInputElement | null>(null);
     const [credentials, setCredentials] = useState({
         email: '',
         password: '',
@@ -136,6 +138,11 @@ export default function AdminLoginPage() {
         setIsSubmitted(true);
         if (hasValidationErrors) {
             toast.error(t('admin.form.fixErrors'));
+            if (emailError) {
+                emailInputRef.current?.focus();
+            } else {
+                passwordInputRef.current?.focus();
+            }
             return;
         }
 
@@ -147,7 +154,7 @@ export default function AdminLoginPage() {
     }
 
     return (
-        <div className="relative min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50 flex items-center justify-center p-4">
+        <main className="relative min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50 flex items-center justify-center p-4">
             <div className="absolute right-4 top-4 sm:right-6 sm:top-6">
                 <LanguageSwitcher variant="compact" />
             </div>
@@ -171,7 +178,9 @@ export default function AdminLoginPage() {
                                     {t('login.email')} <span className="text-red-500">*</span>
                                 </Label>
                                 <Input
+                                    ref={emailInputRef}
                                     id="email"
+                                    name="email"
                                     type="email"
                                     value={credentials.email}
                                     onChange={(event) =>
@@ -183,9 +192,10 @@ export default function AdminLoginPage() {
                                     autoComplete="email"
                                     autoFocus
                                     aria-invalid={Boolean(isSubmitted && emailError)}
+                                    aria-describedby={isSubmitted && emailError ? 'admin-login-email-error' : undefined}
                                 />
                                 {isSubmitted && emailError ? (
-                                    <p className="text-xs text-red-600">{emailError}</p>
+                                    <p id="admin-login-email-error" role="alert" className="text-xs text-red-600">{emailError}</p>
                                 ) : null}
                             </div>
 
@@ -194,7 +204,9 @@ export default function AdminLoginPage() {
                                     {t('login.password')} <span className="text-red-500">*</span>
                                 </Label>
                                 <PasswordInput
+                                    ref={passwordInputRef}
                                     id="password"
+                                    name="password"
                                     value={credentials.password}
                                     onChange={(event) =>
                                         setCredentials({ ...credentials, password: event.target.value })
@@ -203,11 +215,12 @@ export default function AdminLoginPage() {
                                     maxLength={INPUT_LIMITS.password}
                                     autoComplete="current-password"
                                     aria-invalid={Boolean(isSubmitted && passwordError)}
+                                    aria-describedby={isSubmitted && passwordError ? 'admin-login-password-error' : undefined}
                                     showLabel={t('login.showPassword')}
                                     hideLabel={t('login.hidePassword')}
                                 />
                                 {isSubmitted && passwordError ? (
-                                    <p className="text-xs text-red-600">{passwordError}</p>
+                                    <p id="admin-login-password-error" role="alert" className="text-xs text-red-600">{passwordError}</p>
                                 ) : null}
                             </div>
 
@@ -215,6 +228,7 @@ export default function AdminLoginPage() {
                                 <label className="flex items-center gap-3 text-sm text-slate-600">
                                     <input
                                         type="checkbox"
+                                        name="remember"
                                         checked={remember}
                                         onChange={(event) => setRemember(event.target.checked)}
                                         className="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-500"
@@ -249,6 +263,6 @@ export default function AdminLoginPage() {
                     {t('admin.login.notice')}
                 </p>
             </div>
-        </div>
+        </main>
     );
 }

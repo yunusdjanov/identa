@@ -1,10 +1,10 @@
 ﻿'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useMutation } from '@tanstack/react-query';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -20,6 +20,7 @@ export default function ForgotPasswordPage() {
     const { t } = useI18n();
     const searchParams = useSearchParams();
     const backToLoginHref = searchParams.get('from') === 'admin' ? '/admin/login' : '/login';
+    const emailInputRef = useRef<HTMLInputElement | null>(null);
     const [email, setEmail] = useState('');
     const [isSubmitted, setIsSubmitted] = useState(false);
     const [isSent, setIsSent] = useState(false);
@@ -42,6 +43,7 @@ export default function ForgotPasswordPage() {
 
         if (emailError) {
             toast.error(t('forgotPassword.fixErrors'));
+            emailInputRef.current?.focus();
             return;
         }
 
@@ -49,7 +51,7 @@ export default function ForgotPasswordPage() {
     };
 
     return (
-        <div className="relative flex min-h-screen items-center justify-center bg-gradient-to-br from-teal-50 via-white to-teal-50 p-4">
+        <main className="relative flex min-h-screen items-center justify-center bg-gradient-to-br from-teal-50 via-white to-teal-50 p-4">
             <div className="absolute right-4 top-4 sm:right-6 sm:top-6">
                 <LanguageSwitcher variant="compact" />
             </div>
@@ -63,7 +65,9 @@ export default function ForgotPasswordPage() {
 
                 <Card className="shadow-xl">
                     <CardHeader>
-                        <CardTitle className="text-center text-2xl">{t('forgotPassword.title')}</CardTitle>
+                        <h1 className="text-center text-2xl font-semibold tracking-[-0.01em] text-slate-950">
+                            {t('forgotPassword.title')}
+                        </h1>
                     </CardHeader>
                     <CardContent>
                         <form onSubmit={handleSubmit} className="space-y-5">
@@ -72,7 +76,9 @@ export default function ForgotPasswordPage() {
                                     {t('login.email')} <span className="text-red-500">*</span>
                                 </Label>
                                 <Input
+                                    ref={emailInputRef}
                                     id="email"
+                                    name="email"
                                     type="email"
                                     value={email}
                                     onChange={(event) => setEmail(event.target.value)}
@@ -81,9 +87,12 @@ export default function ForgotPasswordPage() {
                                     autoComplete="email"
                                     inputMode="email"
                                     aria-invalid={Boolean(isSubmitted && emailError)}
+                                    aria-describedby={isSubmitted && emailError ? 'forgot-password-email-error' : undefined}
                                 />
                                 {isSubmitted && emailError ? (
-                                    <p className="text-xs text-red-600">{emailError}</p>
+                                    <p id="forgot-password-email-error" role="alert" className="text-xs text-red-600">
+                                        {emailError}
+                                    </p>
                                 ) : null}
                             </div>
 
@@ -119,6 +128,6 @@ export default function ForgotPasswordPage() {
                     </CardContent>
                 </Card>
             </div>
-        </div>
+        </main>
     );
 }

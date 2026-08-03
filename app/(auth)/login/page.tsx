@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowRight } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { PasswordInput } from '@/components/ui/password-input';
@@ -29,6 +29,7 @@ import { toast } from 'sonner';
 import { INPUT_LIMITS, getEmailValidationMessage } from '@/lib/input-validation';
 import { useI18n } from '@/components/providers/i18n-provider';
 import { GoogleAuthButton } from '@/components/auth/google-auth-button';
+import { useGoogleIdentityButton } from '@/components/auth/use-google-identity-button';
 import { AuthPageShell } from '@/components/auth/auth-page-shell';
 import type { ApiUser } from '@/lib/api/types';
 import {
@@ -41,40 +42,6 @@ import {
 } from '@/components/auth/auth-form-styles';
 import { queryKeys } from '@/lib/query-keys';
 
-interface GoogleCredentialResponse {
-    credential?: string;
-}
-
-interface GoogleAccountsId {
-    initialize: (options: {
-        client_id: string;
-        callback: (response: GoogleCredentialResponse) => void;
-    }) => void;
-    renderButton: (
-        parent: HTMLElement,
-        options: {
-            theme: 'outline';
-            size: 'large';
-            type: 'standard';
-            text: 'continue_with';
-            shape: 'rectangular' | 'pill';
-            logo_alignment?: 'left' | 'center';
-            locale?: string;
-            width: number;
-        }
-    ) => void;
-}
-
-declare global {
-    interface Window {
-        google?: {
-            accounts?: {
-                id?: GoogleAccountsId;
-            };
-        };
-    }
-}
-
 export default function LoginPage() {
     const router = useRouter();
     const queryClient = useQueryClient();
@@ -82,20 +49,13 @@ export default function LoginPage() {
     const { t, locale } = useI18n();
     const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ?? '';
     const googleButtonRef = useRef<HTMLDivElement | null>(null);
-    // Guards the one-time GSI initialize()+renderButton(). Without it, the
-    // effect below re-runs whenever `t`/`locale`/the mutation object change
-    // identity and calls initialize() again — GSI logs "initialize() is
-    // called multiple times" and the rendered button binds to a superseded
-    // instance, leaving it unclickable.
-    const googleInitializedRef = useRef(false);
-
+    const emailInputRef = useRef<HTMLInputElement | null>(null);
+    const passwordInputRef = useRef<HTMLInputElement | null>(null);
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [remember, setRemember] = useState(true);
     const [isSubmitted, setIsSubmitted] = useState(false);
     const [isLogoutRedirect, setIsLogoutRedirect] = useState(() => isClientLogoutInProgress());
-    const [isGoogleLoadRequested, setIsGoogleLoadRequested] = useState(false);
-    const [googleReady, setGoogleReady] = useState(false);
     const emailError = getEmailValidationMessage(email, { required: true });
     const passwordError = password ? null : t('login.passwordRequired');
     const hasValidationErrors = Boolean(emailError || passwordError);
@@ -157,6 +117,21 @@ export default function LoginPage() {
         },
     });
 
+    const googleIdentity = useGoogleIdentityButton({
+        clientId: googleClientId,
+        enabled: !isLogoutRedirect,
+        locale,
+        mountRef: googleButtonRef,
+        onCredential: (credential) => {
+            if (!credential) {
+                toast.error(t('register.toast.googleFailed'));
+                return;
+            }
+            googleMutation.mutate(credential);
+        },
+        onLoadError: () => toast.error(t('register.toast.googleFailed')),
+    });
+
     useEffect(() => {
         // Best-effort CSRF prefetch — swallow failures so a transient
         // csrf-token endpoint error (or offline/test environment) doesn't
@@ -211,99 +186,16 @@ export default function LoginPage() {
         router.replace(getPostLoginDestination(currentUserQuery.data));
     }, [currentUserQuery.data, isLogoutRedirect, router]);
 
-    useEffect(() => {
-        if (!googleClientId || typeof window === 'undefined' || isLogoutRedirect || !isGoogleLoadRequested) {
-            return;
-        }
-
-        const existingScript = document.querySelector<HTMLScriptElement>('script[src="https://accounts.google.com/gsi/client"]');
-        let pollHandle = 0;
-        let cancelled = false;
-
-        const initializeGoogle = () => {
-            if (cancelled) return;
-            const googleId = window.google?.accounts?.id;
-            if (!googleId || !googleButtonRef.current) {
-                // Script tag is in the DOM but the global hasn't been
-                // attached yet (race between `appendChild` and `load`)
-                // OR the React tree mounted the ref a tick later than
-                // we expected. Re-poll up to ~2s so we don't silently
-                // strand the user with the disabled placeholder.
-                pollHandle = window.setTimeout(initializeGoogle, 100);
-                return;
-            }
-            // Initialize + render exactly once per mount. A re-run that calls
-            // initialize() again triggers GSI's "called multiple times"
-            // warning and can strand the rendered button against the stale
-            // instance; later invocations only re-assert the ready flag.
-            if (googleInitializedRef.current) {
-                setGoogleReady(true);
-                return;
-            }
-            googleInitializedRef.current = true;
-            googleButtonRef.current.innerHTML = '';
-            googleId.initialize({
-                client_id: googleClientId,
-                callback: (response) => {
-                    if (!response.credential) {
-                        toast.error(t('register.toast.googleFailed'));
-                        return;
-                    }
-                    googleMutation.mutate(response.credential);
-                },
-            });
-            googleId.renderButton(googleButtonRef.current, {
-                theme: 'outline',
-                size: 'large',
-                type: 'standard',
-                text: 'continue_with',
-                // `pill` matches the app's rounded-full buttons (the
-                // primary "Войти" submit is rounded-full); `rectangular`
-                // looked foreign next to it.
-                shape: 'pill',
-                // Render Google's button in the same language the user
-                // picked in the app so "Continue with Google" isn't stuck
-                // in English next to a Russian/Uzbek form.
-                locale,
-                logo_alignment: 'left',
-                // GSI caps width at 400px. Fill the container so the
-                // Google button spans the same width as the submit button
-                // above it instead of floating narrow in the middle.
-                width: Math.max(240, Math.min(400, Math.floor(googleButtonRef.current.getBoundingClientRect().width || 400))),
-            });
-            setGoogleReady(true);
-        };
-
-        if (existingScript) {
-            initializeGoogle();
-            existingScript.addEventListener('load', initializeGoogle);
-
-            return () => {
-                cancelled = true;
-                window.clearTimeout(pollHandle);
-                existingScript.removeEventListener('load', initializeGoogle);
-            };
-        }
-
-        const script = document.createElement('script');
-        script.src = 'https://accounts.google.com/gsi/client';
-        script.async = true;
-        script.defer = true;
-        script.addEventListener('load', initializeGoogle);
-        document.head.appendChild(script);
-
-        return () => {
-            cancelled = true;
-            window.clearTimeout(pollHandle);
-            script.removeEventListener('load', initializeGoogle);
-        };
-    }, [googleMutation, isGoogleLoadRequested, isLogoutRedirect, t, locale, googleClientId]);
-
     const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault();
         setIsSubmitted(true);
         if (hasValidationErrors) {
             toast.error(t('login.toast.fixErrors'));
+            if (emailError) {
+                emailInputRef.current?.focus();
+            } else {
+                passwordInputRef.current?.focus();
+            }
             return;
         }
 
@@ -315,9 +207,9 @@ export default function LoginPage() {
             <Card className={authCardClassName}>
                 <CardHeader className={authCardHeaderClassName}>
                     <div className="space-y-1">
-                        <CardTitle className="text-[1.45rem] font-black leading-tight tracking-normal text-slate-950 sm:text-[1.55rem]">
+                        <h1 className="text-[1.45rem] font-black leading-tight tracking-normal text-slate-950 sm:text-[1.55rem]">
                             {t('login.cardTitle')}
-                        </CardTitle>
+                        </h1>
                         <p className="text-sm leading-5 text-slate-600">{t('login.subtitle')}</p>
                     </div>
                 </CardHeader>
@@ -328,7 +220,9 @@ export default function LoginPage() {
                                     {t('login.email')} <span className="text-red-500">*</span>
                                 </Label>
                                 <Input
+                                    ref={emailInputRef}
                                     id="email"
+                                    name="email"
                                     type="email"
                                     value={email}
                                     onChange={(event) => setEmail(event.target.value)}
@@ -338,9 +232,10 @@ export default function LoginPage() {
                                     inputMode="email"
                                     className={authInputClassName}
                                     aria-invalid={Boolean(isSubmitted && emailError)}
+                                    aria-describedby={isSubmitted && emailError ? 'login-email-error' : undefined}
                                 />
                                 {isSubmitted && emailError ? (
-                                    <p className="text-xs text-red-600">{emailError}</p>
+                                    <p id="login-email-error" role="alert" className="text-xs text-red-600">{emailError}</p>
                                 ) : null}
                             </div>
 
@@ -349,7 +244,9 @@ export default function LoginPage() {
                                     {t('login.password')} <span className="text-red-500">*</span>
                                 </Label>
                                 <PasswordInput
+                                    ref={passwordInputRef}
                                     id="password"
+                                    name="password"
                                     value={password}
                                     onChange={(event) => setPassword(event.target.value)}
                                     required
@@ -357,11 +254,12 @@ export default function LoginPage() {
                                     autoComplete="current-password"
                                     className={authInputClassName}
                                     aria-invalid={Boolean(isSubmitted && passwordError)}
+                                    aria-describedby={isSubmitted && passwordError ? 'login-password-error' : undefined}
                                     showLabel={t('login.showPassword')}
                                     hideLabel={t('login.hidePassword')}
                                 />
                                 {isSubmitted && passwordError ? (
-                                    <p className="text-xs text-red-600">{passwordError}</p>
+                                    <p id="login-password-error" role="alert" className="text-xs text-red-600">{passwordError}</p>
                                 ) : null}
                             </div>
 
@@ -369,6 +267,7 @@ export default function LoginPage() {
                                 <label className="flex min-h-8 min-w-0 items-center gap-2 text-sm text-slate-600">
                                     <input
                                         type="checkbox"
+                                        name="remember"
                                         checked={remember}
                                         onChange={(event) => setRemember(event.target.checked)}
                                         className="h-5 w-5 rounded border-slate-300 text-teal-700 focus:ring-teal-600"
@@ -402,12 +301,14 @@ export default function LoginPage() {
                         <GoogleAuthButton
                             mountRef={googleButtonRef}
                             isConfigured={Boolean(googleClientId) && !isLogoutRedirect}
-                            isReady={googleReady}
+                            isReady={googleIdentity.isReady}
                             isPending={loginMutation.isPending || googleMutation.isPending}
                             label={t('register.googleContinue')}
                             unavailableLabel={t('register.googleNotConfigured')}
-                            isLoadRequested={isGoogleLoadRequested}
-                            onLoadRequest={() => setIsGoogleLoadRequested(true)}
+                            retryLabel={t('common.retry')}
+                            hasLoadError={googleIdentity.hasLoadError}
+                            isLoadRequested={googleIdentity.isLoadRequested}
+                            onLoadRequest={googleIdentity.requestLoad}
                         />
 
                         <p className="text-center text-sm leading-6 text-slate-600">

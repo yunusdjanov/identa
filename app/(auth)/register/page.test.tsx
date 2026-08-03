@@ -32,13 +32,14 @@ describe('RegisterPage', () => {
     afterEach(() => {
         cleanup();
         document.querySelectorAll(GOOGLE_GSI_SCRIPT_SELECTOR).forEach((script) => script.remove());
+        delete window.google;
         vi.unstubAllEnvs();
     });
 
     it('renders the registration card', async () => {
         renderPage();
         // register.cardTitle (EN) = "Start with Identa"
-        expect(await screen.findByText('Start with Identa')).toBeInTheDocument();
+        expect(await screen.findByRole('heading', { level: 1, name: 'Start with Identa' })).toBeInTheDocument();
     });
 
     it('loads the Google sign-up script only after the Google button is requested', async () => {

@@ -6,15 +6,70 @@ use App\Models\Plan;
 use App\Models\Subscription;
 use App\Models\User;
 use App\Services\GoogleIdentityService;
+use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Password;
 use Tests\TestCase;
 
 class AuthSessionTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_admin_password_reset_email_preserves_admin_login_context(): void
+    {
+        Notification::fake();
+
+        $admin = User::factory()->create([
+            'email' => 'admin-reset@example.com',
+            'role' => User::ROLE_ADMIN,
+        ]);
+
+        $this->postJson('/api/v1/auth/forgot-password', [
+            'email' => $admin->email,
+        ], $this->csrfHeaders())->assertOk();
+
+        Notification::assertSentTo(
+            $admin,
+            ResetPassword::class,
+            function (ResetPassword $notification) use ($admin): bool {
+                $resetUrl = $notification->toMail($admin)->actionUrl;
+                parse_str((string) parse_url($resetUrl, PHP_URL_QUERY), $query);
+
+                return ($query['email'] ?? null) === $admin->email
+                    && ($query['from'] ?? null) === 'admin'
+                    && is_string($query['token'] ?? null)
+                    && $query['token'] !== '';
+            }
+        );
+    }
+
+    public function test_public_auth_endpoints_reject_oversized_credentials(): void
+    {
+        $this->postJson('/api/v1/auth/login', [
+            'email' => 'dentist@example.com',
+            'password' => str_repeat('x', 256),
+        ], $this->csrfHeaders())
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('password');
+
+        $this->postJson('/api/v1/auth/forgot-password', [
+            'email' => str_repeat('a', 245).'@example.com',
+        ], $this->csrfHeaders())
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('email');
+
+        $this->postJson('/api/v1/auth/reset-password', [
+            'token' => str_repeat('t', 256),
+            'email' => 'dentist@example.com',
+            'password' => 'replacement123',
+            'password_confirmation' => 'replacement123',
+        ], $this->csrfHeaders())
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('token');
+    }
 
     public function test_public_registration_creates_dentist_with_trial_subscription(): void
     {

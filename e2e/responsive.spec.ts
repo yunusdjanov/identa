@@ -29,7 +29,14 @@ async function expectInsideViewport(page: Page, selector: string): Promise<void>
 
 test.describe('Responsive smoke coverage', () => {
     test('public landing and auth shells stay within the viewport', async ({ page }) => {
-        for (const path of ['/', '/login', '/register']) {
+        for (const path of [
+            '/',
+            '/login',
+            '/register',
+            '/forgot-password',
+            '/reset-password?token=invalid&email=test%40example.com',
+            '/admin/login',
+        ]) {
             await page.goto(path);
             await expect(page.locator('main').first()).toBeVisible();
             await expectNoPageHorizontalOverflow(page);

@@ -70,11 +70,24 @@ class AppServiceProvider extends ServiceProvider
         ResetPassword::createUrlUsing(function (User $user, string $token): string {
             $frontendUrl = rtrim((string) env('FRONTEND_URL', 'http://localhost:3000'), '/');
 
-            return sprintf(
-                '%s/reset-password?token=%s&email=%s',
-                $frontendUrl,
-                urlencode($token),
-                urlencode((string) $user->email)
+            $query = [
+                'token' => $token,
+                'email' => (string) $user->email,
+            ];
+
+            // The reset endpoint is shared by every role, but admins must
+            // return to the isolated admin login surface after completion.
+            // Derive this flag from the persisted role instead of trusting a
+            // caller-provided redirect target.
+            if ($user->isAdmin()) {
+                $query['from'] = 'admin';
+            }
+
+            return $frontendUrl.'/reset-password?'.http_build_query(
+                $query,
+                '',
+                '&',
+                PHP_QUERY_RFC3986
             );
         });
 

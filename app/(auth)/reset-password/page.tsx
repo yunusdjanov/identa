@@ -1,10 +1,10 @@
 ﻿'use client';
 
 import Link from 'next/link';
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useMutation } from '@tanstack/react-query';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { PasswordInput } from '@/components/ui/password-input';
@@ -27,6 +27,10 @@ export default function ResetPasswordPage() {
     const searchParams = useSearchParams();
     const token = searchParams.get('token') ?? '';
     const initialEmail = searchParams.get('email') ?? '';
+    const loginHref = searchParams.get('from') === 'admin' ? '/admin/login' : '/login';
+    const emailInputRef = useRef<HTMLInputElement | null>(null);
+    const passwordInputRef = useRef<HTMLInputElement | null>(null);
+    const confirmationInputRef = useRef<HTMLInputElement | null>(null);
 
     const [email, setEmail] = useState(initialEmail);
     const [password, setPassword] = useState('');
@@ -58,7 +62,7 @@ export default function ResetPasswordPage() {
             }),
         onSuccess: (message) => {
             toast.success(message || t('resetPassword.success'));
-            router.push('/login');
+            router.push(loginHref);
         },
         onError: (error) => {
             toast.error(getApiErrorMessage(error, t('resetPassword.failed')));
@@ -71,6 +75,13 @@ export default function ResetPasswordPage() {
 
         if (emailError || passwordError || passwordConfirmationError || tokenError) {
             toast.error(t('resetPassword.fixErrors'));
+            if (emailError) {
+                emailInputRef.current?.focus();
+            } else if (passwordError) {
+                passwordInputRef.current?.focus();
+            } else if (passwordConfirmationError) {
+                confirmationInputRef.current?.focus();
+            }
             return;
         }
 
@@ -78,7 +89,7 @@ export default function ResetPasswordPage() {
     };
 
     return (
-        <div className="relative flex min-h-screen items-center justify-center bg-gradient-to-br from-teal-50 via-white to-teal-50 p-4">
+        <main className="relative flex min-h-screen items-center justify-center bg-gradient-to-br from-teal-50 via-white to-teal-50 p-4">
             <div className="absolute right-4 top-4 sm:right-6 sm:top-6">
                 <LanguageSwitcher variant="compact" />
             </div>
@@ -92,7 +103,9 @@ export default function ResetPasswordPage() {
 
                 <Card className="shadow-xl">
                     <CardHeader>
-                        <CardTitle className="text-center text-2xl">{t('resetPassword.title')}</CardTitle>
+                        <h1 className="text-center text-2xl font-semibold tracking-[-0.01em] text-slate-950">
+                            {t('resetPassword.title')}
+                        </h1>
                     </CardHeader>
                     <CardContent>
                         <form onSubmit={handleSubmit} className="space-y-5">
@@ -101,7 +114,9 @@ export default function ResetPasswordPage() {
                                     {t('login.email')} <span className="text-red-500">*</span>
                                 </Label>
                                 <Input
+                                    ref={emailInputRef}
                                     id="email"
+                                    name="email"
                                     type="email"
                                     value={email}
                                     onChange={(event) => setEmail(event.target.value)}
@@ -110,9 +125,12 @@ export default function ResetPasswordPage() {
                                     autoComplete="email"
                                     inputMode="email"
                                     aria-invalid={Boolean(isSubmitted && emailError)}
+                                    aria-describedby={isSubmitted && emailError ? 'reset-password-email-error' : undefined}
                                 />
                                 {isSubmitted && emailError ? (
-                                    <p className="text-xs text-red-600">{emailError}</p>
+                                    <p id="reset-password-email-error" role="alert" className="text-xs text-red-600">
+                                        {emailError}
+                                    </p>
                                 ) : null}
                             </div>
 
@@ -121,18 +139,23 @@ export default function ResetPasswordPage() {
                                     {t('login.password')} <span className="text-red-500">*</span>
                                 </Label>
                                 <PasswordInput
+                                    ref={passwordInputRef}
                                     id="password"
+                                    name="password"
                                     value={password}
                                     onChange={(event) => setPassword(event.target.value)}
                                     required
                                     maxLength={INPUT_LIMITS.password}
                                     autoComplete="new-password"
                                     aria-invalid={Boolean(isSubmitted && passwordError)}
+                                    aria-describedby={isSubmitted && passwordError ? 'reset-password-password-error' : undefined}
                                     showLabel={t('login.showPassword')}
                                     hideLabel={t('login.hidePassword')}
                                 />
                                 {isSubmitted && passwordError ? (
-                                    <p className="text-xs text-red-600">{passwordError}</p>
+                                    <p id="reset-password-password-error" role="alert" className="text-xs text-red-600">
+                                        {passwordError}
+                                    </p>
                                 ) : null}
                             </div>
 
@@ -141,23 +164,28 @@ export default function ResetPasswordPage() {
                                     {t('resetPassword.passwordConfirmation')} <span className="text-red-500">*</span>
                                 </Label>
                                 <PasswordInput
+                                    ref={confirmationInputRef}
                                     id="password_confirmation"
+                                    name="password_confirmation"
                                     value={passwordConfirmation}
                                     onChange={(event) => setPasswordConfirmation(event.target.value)}
                                     required
                                     maxLength={INPUT_LIMITS.password}
                                     autoComplete="new-password"
                                     aria-invalid={Boolean(isSubmitted && passwordConfirmationError)}
+                                    aria-describedby={isSubmitted && passwordConfirmationError ? 'reset-password-confirmation-error' : undefined}
                                     showLabel={t('login.showPassword')}
                                     hideLabel={t('login.hidePassword')}
                                 />
                                 {isSubmitted && passwordConfirmationError ? (
-                                    <p className="text-xs text-red-600">{passwordConfirmationError}</p>
+                                    <p id="reset-password-confirmation-error" role="alert" className="text-xs text-red-600">
+                                        {passwordConfirmationError}
+                                    </p>
                                 ) : null}
                             </div>
 
                             {isSubmitted && tokenError ? (
-                                <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                                <div role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
                                     {tokenError}
                                 </div>
                             ) : null}
@@ -174,7 +202,7 @@ export default function ResetPasswordPage() {
 
                             <div className="text-center">
                                 <Link
-                                    href="/login"
+                                    href={loginHref}
                                     className="text-sm font-medium text-teal-600 transition hover:text-teal-700"
                                 >
                                     {t('forgotPassword.backToLogin')}
@@ -184,6 +212,6 @@ export default function ResetPasswordPage() {
                     </CardContent>
                 </Card>
             </div>
-        </div>
+        </main>
     );
 }

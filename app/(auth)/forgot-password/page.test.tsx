@@ -5,8 +5,12 @@ import ForgotPasswordPage from '@/app/(auth)/forgot-password/page';
 import { I18nProvider } from '@/components/providers/i18n-provider';
 import { DICTIONARIES } from '@/lib/i18n/dictionaries';
 
+const navigationMocks = vi.hoisted(() => ({
+    searchParams: new URLSearchParams(),
+}));
+
 vi.mock('next/navigation', () => ({
-    useSearchParams: () => new URLSearchParams(),
+    useSearchParams: () => navigationMocks.searchParams,
     useRouter: () => ({ push: vi.fn(), replace: vi.fn(), refresh: vi.fn() }),
 }));
 vi.mock('@/lib/api/dentist', () => ({
@@ -26,11 +30,22 @@ function renderPage() {
 }
 
 describe('ForgotPasswordPage', () => {
-    afterEach(() => cleanup());
+    afterEach(() => {
+        cleanup();
+        navigationMocks.searchParams = new URLSearchParams();
+    });
 
     it('renders the reset-request form', async () => {
         renderPage();
         // forgotPassword.title (EN) = "Reset password"
         expect(await screen.findByText('Reset password')).toBeInTheDocument();
+    });
+
+    it('returns an admin reset request to the admin login page', async () => {
+        navigationMocks.searchParams = new URLSearchParams('from=admin');
+        renderPage();
+
+        expect(await screen.findByRole('link', { name: 'Back to sign in' }))
+            .toHaveAttribute('href', '/admin/login');
     });
 });

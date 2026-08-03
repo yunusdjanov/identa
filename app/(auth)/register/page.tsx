@@ -1,17 +1,18 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { ArrowRight, CheckCircle2 } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { PasswordInput } from '@/components/ui/password-input';
 import { Label } from '@/components/ui/label';
 import { useI18n } from '@/components/providers/i18n-provider';
 import { GoogleAuthButton } from '@/components/auth/google-auth-button';
+import { useGoogleIdentityButton } from '@/components/auth/use-google-identity-button';
 import { AuthPageShell } from '@/components/auth/auth-page-shell';
 import {
     authCardClassName,
@@ -30,40 +31,6 @@ import { postAuthBroadcast } from '@/lib/auth/auth-broadcast';
 import { toast } from 'sonner';
 import { queryKeys } from '@/lib/query-keys';
 
-interface GoogleCredentialResponse {
-    credential?: string;
-}
-
-interface GoogleAccountsId {
-    initialize: (options: {
-        client_id: string;
-        callback: (response: GoogleCredentialResponse) => void;
-    }) => void;
-    renderButton: (
-        parent: HTMLElement,
-        options: {
-            theme: 'outline';
-            size: 'large';
-            type: 'standard';
-            text: 'continue_with';
-            shape: 'rectangular' | 'pill';
-            logo_alignment?: 'left' | 'center';
-            locale?: string;
-            width: number;
-        }
-    ) => void;
-}
-
-declare global {
-    interface Window {
-        google?: {
-            accounts?: {
-                id?: GoogleAccountsId;
-            };
-        };
-    }
-}
-
 export default function RegisterPage() {
     const router = useRouter();
     const queryClient = useQueryClient();
@@ -71,19 +38,15 @@ export default function RegisterPage() {
     const { t, locale } = useI18n();
     const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ?? '';
     const googleButtonRef = useRef<HTMLDivElement | null>(null);
-    // One-time GSI init guard — see login/page.tsx. Without it the effect
-    // re-runs on t/locale/mutation identity changes and re-initializes the
-    // GSI singleton, which strands the rendered button (unclickable) and logs
-    // "initialize() is called multiple times".
-    const googleInitializedRef = useRef(false);
-
+    const nameInputRef = useRef<HTMLInputElement | null>(null);
+    const emailInputRef = useRef<HTMLInputElement | null>(null);
+    const passwordInputRef = useRef<HTMLInputElement | null>(null);
+    const confirmationInputRef = useRef<HTMLInputElement | null>(null);
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [passwordConfirmation, setPasswordConfirmation] = useState('');
     const [isSubmitted, setIsSubmitted] = useState(false);
-    const [isGoogleLoadRequested, setIsGoogleLoadRequested] = useState(false);
-    const [googleReady, setGoogleReady] = useState(false);
 
     const nameError = name.trim() ? null : t('register.nameRequired');
     const emailError = getEmailValidationMessage(email, { required: true });
@@ -141,84 +104,19 @@ export default function RegisterPage() {
         },
     });
 
-    useEffect(() => {
-        if (!googleClientId || typeof window === 'undefined' || !isGoogleLoadRequested) {
-            return;
-        }
-
-        const existingScript = document.querySelector<HTMLScriptElement>('script[src="https://accounts.google.com/gsi/client"]');
-        let pollHandle = 0;
-        let cancelled = false;
-
-        const initializeGoogle = () => {
-            if (cancelled) return;
-            const googleId = window.google?.accounts?.id;
-            if (!googleId || !googleButtonRef.current) {
-                // GSI tag is in the DOM but the global hasn't been
-                // attached yet, OR React mounted the ref a tick later
-                // than we expected. Re-poll up to ~2s so we don't
-                // silently strand the user with the disabled placeholder
-                // when the script's `load` event already fired.
-                pollHandle = window.setTimeout(initializeGoogle, 100);
+    const googleIdentity = useGoogleIdentityButton({
+        clientId: googleClientId,
+        locale,
+        mountRef: googleButtonRef,
+        onCredential: (credential) => {
+            if (!credential) {
+                toast.error(t('register.toast.googleFailed'));
                 return;
             }
-            // Initialize + render exactly once per mount (see login/page.tsx).
-            if (googleInitializedRef.current) {
-                setGoogleReady(true);
-                return;
-            }
-            googleInitializedRef.current = true;
-            googleButtonRef.current.innerHTML = '';
-            googleId.initialize({
-                client_id: googleClientId,
-                callback: (response) => {
-                    if (!response.credential) {
-                        toast.error(t('register.toast.googleFailed'));
-                        return;
-                    }
-                    googleMutation.mutate(response.credential);
-                },
-            });
-            googleId.renderButton(googleButtonRef.current, {
-                theme: 'outline',
-                size: 'large',
-                type: 'standard',
-                text: 'continue_with',
-                // Match the app's rounded-full buttons + render in the
-                // user's chosen UI language; see login/page.tsx for the
-                // full rationale.
-                shape: 'pill',
-                locale,
-                logo_alignment: 'left',
-                width: Math.max(240, Math.min(400, Math.floor(googleButtonRef.current.getBoundingClientRect().width || 400))),
-            });
-            setGoogleReady(true);
-        };
-
-        if (existingScript) {
-            initializeGoogle();
-            existingScript.addEventListener('load', initializeGoogle);
-
-            return () => {
-                cancelled = true;
-                window.clearTimeout(pollHandle);
-                existingScript.removeEventListener('load', initializeGoogle);
-            };
-        }
-
-        const script = document.createElement('script');
-        script.src = 'https://accounts.google.com/gsi/client';
-        script.async = true;
-        script.defer = true;
-        script.addEventListener('load', initializeGoogle);
-        document.head.appendChild(script);
-
-        return () => {
-            cancelled = true;
-            window.clearTimeout(pollHandle);
-            script.removeEventListener('load', initializeGoogle);
-        };
-    }, [googleMutation, isGoogleLoadRequested, t, locale, googleClientId]);
+            googleMutation.mutate(credential);
+        },
+        onLoadError: () => toast.error(t('register.toast.googleFailed')),
+    });
 
     const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault();
@@ -226,6 +124,15 @@ export default function RegisterPage() {
 
         if (hasValidationErrors) {
             toast.error(t('register.toast.fixErrors'));
+            if (nameError) {
+                nameInputRef.current?.focus();
+            } else if (emailError) {
+                emailInputRef.current?.focus();
+            } else if (passwordError) {
+                passwordInputRef.current?.focus();
+            } else {
+                confirmationInputRef.current?.focus();
+            }
             return;
         }
 
@@ -237,9 +144,9 @@ export default function RegisterPage() {
             <Card className={authCardClassName}>
                 <CardHeader className="space-y-1.5 px-5 pb-2.5 pt-5 text-center sm:px-7 sm:pb-3 sm:pt-6">
                     <div className="space-y-0.5">
-                        <CardTitle className="text-[1.32rem] font-black leading-tight tracking-normal text-slate-950 sm:text-[1.42rem]">
+                        <h1 className="text-[1.32rem] font-black leading-tight tracking-normal text-slate-950 sm:text-[1.42rem]">
                             {t('register.cardTitle')}
-                        </CardTitle>
+                        </h1>
                         <p className="text-[13px] leading-5 text-slate-600">{t('register.subtitle')}</p>
                     </div>
                 </CardHeader>
@@ -261,16 +168,19 @@ export default function RegisterPage() {
                                     {t('register.name')} <span className="text-red-500">*</span>
                                 </Label>
                                 <Input
+                                    ref={nameInputRef}
                                     id="name"
+                                    name="name"
                                     value={name}
                                     onChange={(event) => setName(event.target.value)}
                                     maxLength={INPUT_LIMITS.personName}
                                     autoComplete="name"
                                     className={authInputClassName}
                                     aria-invalid={Boolean(isSubmitted && nameError)}
+                                    aria-describedby={isSubmitted && nameError ? 'register-name-error' : undefined}
                                 />
                                 {isSubmitted && nameError ? (
-                                    <p className="text-xs text-red-600">{nameError}</p>
+                                    <p id="register-name-error" role="alert" className="text-xs text-red-600">{nameError}</p>
                                 ) : null}
                             </div>
 
@@ -279,7 +189,9 @@ export default function RegisterPage() {
                                     {t('register.email')} <span className="text-red-500">*</span>
                                 </Label>
                                 <Input
+                                    ref={emailInputRef}
                                     id="email"
+                                    name="email"
                                     type="email"
                                     value={email}
                                     onChange={(event) => setEmail(event.target.value)}
@@ -288,9 +200,10 @@ export default function RegisterPage() {
                                     inputMode="email"
                                     className={authInputClassName}
                                     aria-invalid={Boolean(isSubmitted && emailError)}
+                                    aria-describedby={isSubmitted && emailError ? 'register-email-error' : undefined}
                                 />
                                 {isSubmitted && emailError ? (
-                                    <p className="text-xs text-red-600">{emailError}</p>
+                                    <p id="register-email-error" role="alert" className="text-xs text-red-600">{emailError}</p>
                                 ) : null}
                             </div>
 
@@ -299,18 +212,21 @@ export default function RegisterPage() {
                                     {t('register.password')} <span className="text-red-500">*</span>
                                 </Label>
                                 <PasswordInput
+                                    ref={passwordInputRef}
                                     id="password"
+                                    name="password"
                                     value={password}
                                     onChange={(event) => setPassword(event.target.value)}
                                     maxLength={INPUT_LIMITS.password}
                                     autoComplete="new-password"
                                     className={authInputClassName}
                                     aria-invalid={Boolean(isSubmitted && passwordError)}
+                                    aria-describedby={isSubmitted && passwordError ? 'register-password-error' : undefined}
                                     showLabel={t('login.showPassword')}
                                     hideLabel={t('login.hidePassword')}
                                 />
                                 {isSubmitted && passwordError ? (
-                                    <p className="text-xs text-red-600">{passwordError}</p>
+                                    <p id="register-password-error" role="alert" className="text-xs text-red-600">{passwordError}</p>
                                 ) : null}
                             </div>
 
@@ -319,18 +235,23 @@ export default function RegisterPage() {
                                     {t('register.confirmPassword')} <span className="text-red-500">*</span>
                                 </Label>
                                 <PasswordInput
+                                    ref={confirmationInputRef}
                                     id="password_confirmation"
+                                    name="password_confirmation"
                                     value={passwordConfirmation}
                                     onChange={(event) => setPasswordConfirmation(event.target.value)}
                                     maxLength={INPUT_LIMITS.password}
                                     autoComplete="new-password"
                                     className={authInputClassName}
                                     aria-invalid={Boolean(isSubmitted && passwordConfirmationError)}
+                                    aria-describedby={isSubmitted && passwordConfirmationError ? 'register-confirmation-error' : undefined}
                                     showLabel={t('login.showPassword')}
                                     hideLabel={t('login.hidePassword')}
                                 />
                                 {isSubmitted && passwordConfirmationError ? (
-                                    <p className="text-xs text-red-600">{passwordConfirmationError}</p>
+                                    <p id="register-confirmation-error" role="alert" className="text-xs text-red-600">
+                                        {passwordConfirmationError}
+                                    </p>
                                 ) : null}
                             </div>
 
@@ -353,12 +274,14 @@ export default function RegisterPage() {
                         <GoogleAuthButton
                             mountRef={googleButtonRef}
                             isConfigured={Boolean(googleClientId)}
-                            isReady={googleReady}
+                            isReady={googleIdentity.isReady}
                             isPending={registerMutation.isPending || googleMutation.isPending}
                             label={t('register.googleContinue')}
                             unavailableLabel={t('register.googleNotConfigured')}
-                            isLoadRequested={isGoogleLoadRequested}
-                            onLoadRequest={() => setIsGoogleLoadRequested(true)}
+                            retryLabel={t('common.retry')}
+                            hasLoadError={googleIdentity.hasLoadError}
+                            isLoadRequested={googleIdentity.isLoadRequested}
+                            onLoadRequest={googleIdentity.requestLoad}
                         />
 
                         <p className="text-center text-sm leading-6 text-slate-600">

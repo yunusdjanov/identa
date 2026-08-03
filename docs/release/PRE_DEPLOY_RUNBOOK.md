@@ -1,6 +1,6 @@
 # Pre-Deploy Runbook
 
-Status: canonical Railway/GitHub production runbook as of 2026-06-26.
+Status: canonical Railway/GitHub production runbook as of 2026-08-01.
 
 Audience: whoever is doing the production deploy.
 
@@ -182,9 +182,38 @@ It must exit 0. If it fails, stop — the deploy will fail at boot anyway.
 ## T+0 — Deploy
 
 Railway deployment is triggered from the release commit/tag on GitHub.
-Treat each Railway service (`identa`, `identa-worker`, Redis, Postgres) as
-part of one coordinated release. The Docker Compose playbook is historical
-and must not be used as the canonical production procedure.
+Treat each Railway service (`identa`, `identa-worker`, the two cron services,
+Redis, Postgres) as part of one coordinated release. The Docker Compose
+playbook is historical and must not be used as the canonical production
+procedure.
+
+### Railway scheduled services
+
+Use two short-lived Railway Cron services sourced from the same release as
+the API. Do not run `php artisan schedule:work` as a Railway Cron start
+command: Railway expects a scheduled process to finish, while
+`schedule:work` is intentionally long-running.
+
+| Service | Root directory | Start command | Railway cron schedule (UTC) |
+| --- | --- | --- | --- |
+| `identa-subscription-cron` | `/backend` | `php artisan subscriptions:process` | `0 * * * *` |
+| `identa-account-cleanup-cron` | `/backend` | `php artisan accounts:expire-unverified` | `20 22 * * *` |
+
+`20 22 * * *` UTC is 03:20 in `Asia/Tashkent` on the following calendar
+day. Both services must:
+
+- use the same GitHub branch/commit as `identa`;
+- reference the API service's production variables rather than duplicating
+  secrets, including `APP_KEY`, `APP_TIMEZONE`, database, cache, mail and
+  Sentry values;
+- have no public domain;
+- exit with code 0 after a successful run;
+- retain deployment logs so a missed or failed execution is visible.
+
+The cleanup command only soft-deletes an unverified registration after the
+configured retention period and retains accounts that own protected tenant
+data. Do not manually trigger either production command merely as a health
+check because both commands intentionally mutate production state.
 
 1. [ ] Take application out of rotation OR enable maintenance mode
    (`php artisan down --secret=...`).
@@ -203,8 +232,10 @@ and must not be used as the canonical production procedure.
    ```
 5. [ ] Restart queue worker(s) / confirm the `identa-worker` deployment is
    on the same commit as the API service.
-6. [ ] Bring application back up (`php artisan up`).
-7. [ ] Confirm the frontend deployment for `identa.uz` points at the same
+6. [ ] Confirm both cron services are enabled, use the schedules above, and
+   point at the same commit and production variable references as the API.
+7. [ ] Bring application back up (`php artisan up`).
+8. [ ] Confirm the frontend deployment for `identa.uz` points at the same
    release commit and `https://api.identa.uz/api`.
 
 ## T+5m — Smoke matrix
@@ -237,6 +268,8 @@ Run every row before declaring the deploy successful. Time-box: 10 min.
   matrix).
 - [ ] Database connection count stable; no spike in `pg_stat_activity`.
 - [ ] Queue depth ≈ 0 after the deploy minute.
+- [ ] Latest due run for each cron service exited 0; no cron deployment is
+  stuck in an active/running state.
 - [ ] CDN cache hit rate ≥ baseline on static assets.
 
 ## Rollback

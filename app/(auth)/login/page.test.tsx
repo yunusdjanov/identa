@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import LoginPage from '@/app/(auth)/login/page';
@@ -63,6 +63,7 @@ describe('LoginPage', () => {
     afterEach(() => {
         cleanup();
         document.querySelectorAll(GOOGLE_GSI_SCRIPT_SELECTOR).forEach((script) => script.remove());
+        delete window.google;
         vi.unstubAllEnvs();
     });
 
@@ -88,6 +89,41 @@ describe('LoginPage', () => {
         await waitFor(() => {
             expect(document.querySelector(GOOGLE_GSI_SCRIPT_SELECTOR)).toBeInTheDocument();
         });
+    });
+
+    it('recovers with a retry control when the Google script fails', async () => {
+        vi.stubEnv('NEXT_PUBLIC_GOOGLE_CLIENT_ID', 'google-client-id');
+        const user = userEvent.setup();
+        renderLoginPage();
+
+        await user.click(screen.getByRole('button', { name: 'Continue with Google' }));
+        const script = await waitFor(() => {
+            const candidate = document.querySelector<HTMLScriptElement>(GOOGLE_GSI_SCRIPT_SELECTOR);
+            expect(candidate).not.toBeNull();
+            return candidate as HTMLScriptElement;
+        });
+
+        fireEvent.error(script);
+
+        expect(await screen.findByRole('button', { name: 'Retry' })).toBeEnabled();
+        expect(document.querySelector(GOOGLE_GSI_SCRIPT_SELECTOR)).not.toBeInTheDocument();
+    });
+
+    it('uses a semantic heading and focuses the first invalid field', () => {
+        renderLoginPage();
+
+        expect(screen.getByRole('heading', { level: 1, name: 'Sign in to Identa' })).toBeInTheDocument();
+        const emailInput = screen.getByLabelText(/email/i);
+        const form = emailInput.closest('form');
+        expect(form).not.toBeNull();
+
+        fireEvent.submit(form as HTMLFormElement);
+
+        expect(emailInput).toHaveFocus();
+        expect(emailInput).toHaveAttribute('name', 'email');
+        expect(emailInput).toHaveAttribute('aria-describedby', 'login-email-error');
+        expect(screen.getByText('Email is required.')).toHaveAttribute('id', 'login-email-error');
+        expect(screen.getByText('Email is required.')).toHaveAttribute('role', 'alert');
     });
 
     it('returns to a safe protected destination after password login', async () => {

@@ -25,6 +25,12 @@ use Laravel\Sanctum\PersonalAccessToken;
 
 class AuthController extends Controller
 {
+    private const MAX_EMAIL_LENGTH = 255;
+
+    private const MAX_PASSWORD_LENGTH = 255;
+
+    private const MAX_RESET_TOKEN_LENGTH = 255;
+
     private const MOBILE_ACCESS_TTL_MINUTES = 15;
 
     private const MOBILE_REFRESH_TTL_DAYS = 30;
@@ -41,8 +47,8 @@ class AuthController extends Controller
     {
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')],
-            'password' => ['required', 'string', 'confirmed', PasswordRule::min(8)->letters()->numbers()],
+            'email' => ['required', 'email', 'max:'.self::MAX_EMAIL_LENGTH, Rule::unique('users', 'email')],
+            'password' => ['required', 'string', 'max:'.self::MAX_PASSWORD_LENGTH, 'confirmed', PasswordRule::min(8)->letters()->numbers()],
         ]);
 
         return response()->json([
@@ -97,8 +103,8 @@ class AuthController extends Controller
     public function login(Request $request): JsonResponse
     {
         $credentials = $request->validate([
-            'email' => ['required', 'email'],
-            'password' => ['required', 'string'],
+            'email' => ['required', 'email', 'max:'.self::MAX_EMAIL_LENGTH],
+            'password' => ['required', 'string', 'max:'.self::MAX_PASSWORD_LENGTH],
             'remember' => ['nullable', 'boolean'],
             'portal' => ['nullable', 'string', Rule::in(['app', 'admin'])],
             'device_name' => ['nullable', 'string', 'max:120'],
@@ -196,13 +202,13 @@ class AuthController extends Controller
         $user = $request->user();
 
         $rules = [
-            'new_password' => ['required', 'string', 'confirmed', PasswordRule::min(8)->letters()->numbers()],
+            'new_password' => ['required', 'string', 'max:'.self::MAX_PASSWORD_LENGTH, 'confirmed', PasswordRule::min(8)->letters()->numbers()],
         ];
 
         $requiresCurrentPassword = ! $user->must_change_password && $user->password !== null;
 
         if ($requiresCurrentPassword) {
-            $rules['current_password'] = ['required', 'string'];
+            $rules['current_password'] = ['required', 'string', 'max:'.self::MAX_PASSWORD_LENGTH];
         }
 
         $validated = $request->validate($rules);
@@ -316,7 +322,7 @@ class AuthController extends Controller
     public function forgotPassword(Request $request): JsonResponse
     {
         $request->validate([
-            'email' => ['required', 'email'],
+            'email' => ['required', 'email', 'max:'.self::MAX_EMAIL_LENGTH],
         ]);
 
         // Resolve the dentist whose account is being abused so the audit
@@ -359,9 +365,9 @@ class AuthController extends Controller
     public function resetPassword(Request $request): JsonResponse
     {
         $request->validate([
-            'token' => ['required', 'string'],
-            'email' => ['required', 'email'],
-            'password' => ['required', 'string', 'confirmed', PasswordRule::min(8)->letters()->numbers()],
+            'token' => ['required', 'string', 'max:'.self::MAX_RESET_TOKEN_LENGTH],
+            'email' => ['required', 'email', 'max:'.self::MAX_EMAIL_LENGTH],
+            'password' => ['required', 'string', 'max:'.self::MAX_PASSWORD_LENGTH, 'confirmed', PasswordRule::min(8)->letters()->numbers()],
         ]);
 
         $resetUserId = null;
