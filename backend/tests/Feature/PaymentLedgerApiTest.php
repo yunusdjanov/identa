@@ -5,7 +5,9 @@ namespace Tests\Feature;
 use App\Models\Patient;
 use App\Models\Treatment;
 use App\Models\User;
+use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
@@ -170,6 +172,53 @@ class PaymentLedgerApiTest extends TestCase
             ->firstWhere('patient_id', (string) $usdPatient->id);
         $this->assertNotNull($usdHistoryRow);
         $this->assertSame(Treatment::CURRENCY_USD, $usdHistoryRow['currency']);
+    }
+
+    public function test_patient_ledger_uses_postgres_portable_absolute_balance_ordering(): void
+    {
+        $dentist = User::factory()->create();
+        $debtPatient = Patient::factory()->create([
+            'dentist_id' => $dentist->id,
+            'full_name' => 'Smaller debt',
+        ]);
+        $creditPatient = Patient::factory()->create([
+            'dentist_id' => $dentist->id,
+            'full_name' => 'Larger credit',
+        ]);
+
+        Treatment::factory()->create([
+            'dentist_id' => $dentist->id,
+            'patient_id' => $debtPatient->id,
+            'debt_amount' => 100000,
+            'paid_amount' => 0,
+            'currency' => Treatment::CURRENCY_UZS,
+        ]);
+        Treatment::factory()->create([
+            'dentist_id' => $dentist->id,
+            'patient_id' => $creditPatient->id,
+            'debt_amount' => 0,
+            'paid_amount' => 200000,
+            'currency' => Treatment::CURRENCY_UZS,
+        ]);
+
+        $ledgerQueries = [];
+        DB::listen(function (QueryExecuted $query) use (&$ledgerQueries): void {
+            if (str_contains($query->sql, 'from "patients"') && str_contains($query->sql, 'order by')) {
+                $ledgerQueries[] = $query->sql;
+            }
+        });
+
+        $this->actingAs($dentist, 'web')
+            ->getJson('/api/v1/payments/ledger/patients?per_page=10&include_summary=0')
+            ->assertOk()
+            ->assertJsonPath('data.0.patient_id', (string) $creditPatient->id)
+            ->assertJsonPath('data.0.balance', -200000);
+
+        $this->assertNotEmpty($ledgerQueries);
+        $ledgerSql = implode("\n", $ledgerQueries);
+        $this->assertStringNotContainsString('ABS(balance_uzs)', $ledgerSql);
+        $this->assertStringNotContainsString('ABS(balance_usd)', $ledgerSql);
+        $this->assertStringContainsString('ABS((COALESCE(SUM(', $ledgerSql);
     }
 
     public function test_payment_ledger_exposes_patient_profile_fields_and_approved_photo(): void

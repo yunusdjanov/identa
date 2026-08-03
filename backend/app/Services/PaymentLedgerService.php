@@ -15,6 +15,7 @@ class PaymentLedgerService
 {
     private const DEFAULT_PER_PAGE = 10;
     private const MAX_PER_PAGE = 100;
+    private const BALANCE_EXPRESSION = '(COALESCE(SUM(CASE WHEN COALESCE(treatments.currency, ?) = ? THEN treatments.debt_amount ELSE 0 END), 0) - COALESCE(SUM(CASE WHEN COALESCE(treatments.currency, ?) = ? THEN treatments.paid_amount ELSE 0 END), 0))';
 
     /**
      * Return patient-level balances for the payments screen without loading
@@ -32,9 +33,17 @@ class PaymentLedgerService
             ? $this->summarizePatientBalances(clone $query)
             : null;
 
+        $uzsBalance = $this->balanceExpression(Treatment::CURRENCY_UZS);
+        $usdBalance = $this->balanceExpression(Treatment::CURRENCY_USD);
+
         $query
-            ->orderByRaw('ABS(balance_uzs) DESC')
-            ->orderByRaw('ABS(balance_usd) DESC')
+            // PostgreSQL only permits a SELECT alias as a standalone ORDER BY
+            // item. Wrapping the alias in ABS() is treated as a column lookup
+            // and fails with "column balance_uzs does not exist". Reusing the
+            // aggregate expression keeps credit balances sorted by magnitude
+            // and remains portable across PostgreSQL and SQLite.
+            ->orderByRaw('ABS('.$uzsBalance['sql'].') DESC', $uzsBalance['bindings'])
+            ->orderByRaw('ABS('.$usdBalance['sql'].') DESC', $usdBalance['bindings'])
             ->orderByDesc('last_entry_date')
             ->orderBy('patients.full_name');
 
@@ -78,6 +87,8 @@ class PaymentLedgerService
     {
         $dentistId = $this->dentistId($request);
         $patientId = $this->patientIdFilter($request);
+        $uzsBalance = $this->balanceExpression(Treatment::CURRENCY_UZS);
+        $usdBalance = $this->balanceExpression(Treatment::CURRENCY_USD);
         $query = Patient::query()
             ->when(
                 $patientId !== null,
@@ -113,12 +124,7 @@ class PaymentLedgerService
                 Treatment::CURRENCY_UZS,
                 Treatment::CURRENCY_UZS,
             ])
-            ->selectRaw('(COALESCE(SUM(CASE WHEN COALESCE(treatments.currency, ?) = ? THEN treatments.debt_amount ELSE 0 END), 0) - COALESCE(SUM(CASE WHEN COALESCE(treatments.currency, ?) = ? THEN treatments.paid_amount ELSE 0 END), 0)) AS balance_uzs', [
-                Treatment::CURRENCY_UZS,
-                Treatment::CURRENCY_UZS,
-                Treatment::CURRENCY_UZS,
-                Treatment::CURRENCY_UZS,
-            ])
+            ->selectRaw($uzsBalance['sql'].' AS balance_uzs', $uzsBalance['bindings'])
             ->selectRaw('COALESCE(SUM(CASE WHEN COALESCE(treatments.currency, ?) = ? THEN treatments.debt_amount ELSE 0 END), 0) AS total_debt_usd', [
                 Treatment::CURRENCY_UZS,
                 Treatment::CURRENCY_USD,
@@ -127,12 +133,7 @@ class PaymentLedgerService
                 Treatment::CURRENCY_UZS,
                 Treatment::CURRENCY_USD,
             ])
-            ->selectRaw('(COALESCE(SUM(CASE WHEN COALESCE(treatments.currency, ?) = ? THEN treatments.debt_amount ELSE 0 END), 0) - COALESCE(SUM(CASE WHEN COALESCE(treatments.currency, ?) = ? THEN treatments.paid_amount ELSE 0 END), 0)) AS balance_usd', [
-                Treatment::CURRENCY_UZS,
-                Treatment::CURRENCY_USD,
-                Treatment::CURRENCY_UZS,
-                Treatment::CURRENCY_USD,
-            ])
+            ->selectRaw($usdBalance['sql'].' AS balance_usd', $usdBalance['bindings'])
             ->selectRaw('COUNT(treatments.id) AS entry_count')
             ->selectRaw('MAX(treatments.treatment_date) AS last_entry_date')
             ->groupBy([
@@ -168,6 +169,22 @@ class PaymentLedgerService
             );
         }
         return $query;
+    }
+
+    /**
+     * @return array{sql: string, bindings: array<int, string>}
+     */
+    private function balanceExpression(string $currency): array
+    {
+        return [
+            'sql' => self::BALANCE_EXPRESSION,
+            'bindings' => [
+                Treatment::CURRENCY_UZS,
+                $currency,
+                Treatment::CURRENCY_UZS,
+                $currency,
+            ],
+        ];
     }
 
     private function historyQuery(Request $request): Builder
