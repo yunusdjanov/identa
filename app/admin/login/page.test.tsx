@@ -42,6 +42,8 @@ describe('AdminLoginPage', () => {
         renderPage();
         // admin.login.signInTitle (EN) = "Admin Sign In"
         expect(await screen.findByText('Admin Sign In')).toBeInTheDocument();
+        expect(screen.getByRole('link', { name: 'Forgot password?' }))
+            .toHaveAttribute('href', '/forgot-password?from=admin');
     });
 
     it('redirects an already-authenticated admin to the console', async () => {

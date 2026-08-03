@@ -17,6 +17,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Password;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password as PasswordRule;
@@ -30,6 +31,8 @@ class AuthController extends Controller
     private const MAX_PASSWORD_LENGTH = 255;
 
     private const MAX_RESET_TOKEN_LENGTH = 255;
+
+    private const ADMIN_MIN_PASSWORD_LENGTH = 12;
 
     private const MOBILE_ACCESS_TTL_MINUTES = 15;
 
@@ -347,13 +350,19 @@ class AuthController extends Controller
             ],
         );
 
-        $status = Password::sendResetLink(
-            $request->only('email')
-        );
-
-        if ($status === Password::RESET_THROTTLED) {
-            throw ValidationException::withMessages([
-                'email' => [__($status)],
+        try {
+            // Always return the same public response for an unknown user,
+            // a broker-throttled user, and a successfully notified user.
+            // Surfacing RESET_THROTTLED would let repeated probes distinguish
+            // a real account from an address that is not registered.
+            Password::sendResetLink($request->only('email'));
+        } catch (\Throwable $exception) {
+            // Delivery failures are operationally visible without exposing
+            // whether the submitted address belongs to an account. Do not log
+            // the email or the transport message: both can contain PII.
+            Log::warning('Password reset notification failed', [
+                'user_id' => $targetUser?->id,
+                'exception_class' => $exception::class,
             ]);
         }
 
@@ -377,6 +386,22 @@ class AuthController extends Controller
         $status = Password::reset(
             $request->only('email', 'password', 'password_confirmation', 'token'),
             function (User $user, string $password) use (&$resetUserId, &$resetUser): void {
+                // Platform admins are provisioned with a stronger password
+                // policy than practice users. Validate only after Laravel has
+                // accepted the one-time token, so this distinction cannot be
+                // used to enumerate admin email addresses.
+                if ($user->isAdmin()) {
+                    Validator::make(
+                        ['password' => $password],
+                        ['password' => [
+                            PasswordRule::min(self::ADMIN_MIN_PASSWORD_LENGTH)
+                                ->mixedCase()
+                                ->numbers()
+                                ->symbols(),
+                        ]]
+                    )->validate();
+                }
+
                 $user->forceFill([
                     'password' => Hash::make($password),
                     'must_change_password' => false,

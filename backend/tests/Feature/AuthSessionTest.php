@@ -10,6 +10,7 @@ use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Password;
 use Tests\TestCase;
@@ -44,6 +45,59 @@ class AuthSessionTest extends TestCase
                     && $query['token'] !== '';
             }
         );
+    }
+
+    public function test_forgot_password_response_does_not_expose_broker_throttling_or_account_existence(): void
+    {
+        Notification::fake();
+
+        $user = User::factory()->create([
+            'email' => 'known-reset@example.com',
+        ]);
+
+        $knownFirst = $this->postJson('/api/v1/auth/forgot-password', [
+            'email' => $user->email,
+        ], $this->csrfHeaders())->assertOk();
+
+        $knownThrottled = $this->postJson('/api/v1/auth/forgot-password', [
+            'email' => $user->email,
+        ], $this->csrfHeaders())->assertOk();
+
+        $unknown = $this->postJson('/api/v1/auth/forgot-password', [
+            'email' => 'missing-reset@example.com',
+        ], $this->csrfHeaders())->assertOk();
+
+        $this->assertSame($knownFirst->json(), $knownThrottled->json());
+        $this->assertSame($knownFirst->json(), $unknown->json());
+        Notification::assertSentToTimes($user, ResetPassword::class, 1);
+    }
+
+    public function test_admin_password_reset_requires_the_platform_admin_password_policy(): void
+    {
+        $admin = User::factory()->create([
+            'email' => 'admin-policy@example.com',
+            'role' => User::ROLE_ADMIN,
+        ]);
+
+        $weakToken = Password::broker()->createToken($admin);
+        $this->postJson('/api/v1/auth/reset-password', [
+            'token' => $weakToken,
+            'email' => $admin->email,
+            'password' => 'lowercase123',
+            'password_confirmation' => 'lowercase123',
+        ], $this->csrfHeaders())
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('password');
+
+        $strongToken = Password::broker()->createToken($admin);
+        $this->postJson('/api/v1/auth/reset-password', [
+            'token' => $strongToken,
+            'email' => $admin->email,
+            'password' => 'StrongAdmin123!',
+            'password_confirmation' => 'StrongAdmin123!',
+        ], $this->csrfHeaders())->assertOk();
+
+        $this->assertTrue(Hash::check('StrongAdmin123!', $admin->fresh()->password));
     }
 
     public function test_public_auth_endpoints_reject_oversized_credentials(): void

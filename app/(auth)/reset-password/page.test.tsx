@@ -65,12 +65,28 @@ describe('ResetPasswordPage', () => {
         const user = userEvent.setup();
         renderPage();
 
-        await user.type(screen.getByLabelText(/^password \*/i), 'securepass123');
-        await user.type(screen.getByLabelText(/confirm password/i), 'securepass123');
+        await user.type(screen.getByLabelText(/^password \*/i), 'SecurePass123!');
+        await user.type(screen.getByLabelText(/confirm password/i), 'SecurePass123!');
         await user.click(screen.getByRole('button', { name: 'Save new password' }));
 
         await waitFor(() => {
             expect(navigationMocks.push).toHaveBeenCalledWith('/admin/login');
         });
+    });
+
+    it('requires the stronger password policy for an admin reset link', async () => {
+        navigationMocks.searchParams = new URLSearchParams(
+            'token=reset-token&email=admin@identa.test&from=admin'
+        );
+        const user = userEvent.setup();
+        renderPage();
+
+        await user.type(screen.getByLabelText(/^password \*/i), 'securepass123');
+        await user.type(screen.getByLabelText(/confirm password/i), 'securepass123');
+        await user.click(screen.getByRole('button', { name: 'Save new password' }));
+
+        expect(await screen.findByText(/admin password must include lowercase and uppercase/i))
+            .toBeInTheDocument();
+        expect(apiMocks.resetPasswordWithToken).not.toHaveBeenCalled();
     });
 });

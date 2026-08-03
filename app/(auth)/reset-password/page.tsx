@@ -27,7 +27,8 @@ export default function ResetPasswordPage() {
     const searchParams = useSearchParams();
     const token = searchParams.get('token') ?? '';
     const initialEmail = searchParams.get('email') ?? '';
-    const loginHref = searchParams.get('from') === 'admin' ? '/admin/login' : '/login';
+    const isAdminReset = searchParams.get('from') === 'admin';
+    const loginHref = isAdminReset ? '/admin/login' : '/login';
     const emailInputRef = useRef<HTMLInputElement | null>(null);
     const passwordInputRef = useRef<HTMLInputElement | null>(null);
     const confirmationInputRef = useRef<HTMLInputElement | null>(null);
@@ -38,7 +39,10 @@ export default function ResetPasswordPage() {
     const [isSubmitted, setIsSubmitted] = useState(false);
 
     const emailError = getEmailValidationMessage(email, { required: true });
-    const passwordError = getPasswordValidationMessage(password, { required: true });
+    const passwordError = getPasswordValidationMessage(password, {
+        required: true,
+        strength: isAdminReset ? 'admin' : 'standard',
+    });
     const passwordConfirmationError = useMemo(() => {
         if (!passwordConfirmation.trim()) {
             return t('resetPassword.passwordConfirmationRequired');

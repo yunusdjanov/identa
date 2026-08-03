@@ -47,6 +47,7 @@ const VALIDATION_MESSAGES: Record<AppLocale, Record<string, string>> = {
         'validation.password.maxLength': 'Пароль должен содержать не более {{max}} символов.',
         'validation.password.tooCommon': 'Пароль слишком простой. Выберите более надежный вариант.',
         'validation.password.letterNumber': 'Пароль должен содержать хотя бы одну букву и одну цифру.',
+        'validation.password.adminStrength': 'Пароль администратора должен содержать строчные и заглавные буквы, цифру и специальный символ.',
         'validation.text.required': 'Поле "{{label}}" обязательно.',
         'validation.text.minLength': 'Поле "{{label}}" должно содержать минимум {{min}} символа.',
         'validation.text.maxLength': 'Поле "{{label}}" должно содержать не более {{max}} символов.',
@@ -63,6 +64,7 @@ const VALIDATION_MESSAGES: Record<AppLocale, Record<string, string>> = {
         'validation.password.maxLength': 'Parol {{max}} ta belgidan oshmasligi kerak.',
         'validation.password.tooCommon': 'Parol juda sodda. Kuchliroq variant tanlang.',
         'validation.password.letterNumber': 'Parolda kamida bitta harf va bitta raqam bo‘lishi kerak.',
+        'validation.password.adminStrength': 'Admin parolida kichik va katta harf, raqam hamda maxsus belgi bo‘lishi kerak.',
         'validation.text.required': '"{{label}}" maydoni majburiy.',
         'validation.text.minLength': '"{{label}}" maydoni kamida {{min}} ta belgidan iborat bo‘lishi kerak.',
         'validation.text.maxLength': '"{{label}}" maydoni {{max}} ta belgidan oshmasligi kerak.',
@@ -79,6 +81,7 @@ const VALIDATION_MESSAGES: Record<AppLocale, Record<string, string>> = {
         'validation.password.maxLength': 'Password must be at most {{max}} characters.',
         'validation.password.tooCommon': 'This password is too easy to guess. Choose a stronger one.',
         'validation.password.letterNumber': 'Password must include at least one letter and one number.',
+        'validation.password.adminStrength': 'An admin password must include lowercase and uppercase letters, a number, and a symbol.',
         'validation.text.required': '{{label}} is required.',
         'validation.text.minLength': '{{label}} must be at least {{min}} characters.',
         'validation.text.maxLength': '{{label}} must be at most {{max}} characters.',
@@ -203,16 +206,21 @@ export function getEmailValidationMessage(value: string, options?: { required?: 
     return null;
 }
 
-export function getPasswordValidationMessage(value: string, options?: { required?: boolean }): string | null {
+export function getPasswordValidationMessage(
+    value: string,
+    options?: { required?: boolean; strength?: 'standard' | 'admin' }
+): string | null {
     const required = options?.required ?? false;
+    const strength = options?.strength ?? 'standard';
     const trimmed = value.trim();
 
     if (!trimmed) {
         return required ? vt('validation.password.required') : null;
     }
 
-    if (trimmed.length < 8) {
-        return vt('validation.password.minLength', { min: 8 });
+    const minimumLength = strength === 'admin' ? 12 : 8;
+    if (trimmed.length < minimumLength) {
+        return vt('validation.password.minLength', { min: minimumLength });
     }
 
     if (trimmed.length > INPUT_LIMITS.password) {
@@ -222,6 +230,13 @@ export function getPasswordValidationMessage(value: string, options?: { required
     const normalized = trimmed.toLowerCase();
     if (COMMON_PASSWORDS.has(normalized)) {
         return vt('validation.password.tooCommon');
+    }
+
+    if (
+        strength === 'admin'
+        && (!/[a-z]/.test(trimmed) || !/[A-Z]/.test(trimmed) || !/\d/.test(trimmed) || !/[^a-zA-Z0-9]/.test(trimmed))
+    ) {
+        return vt('validation.password.adminStrength');
     }
 
     if (!/[a-z]/i.test(trimmed) || !/\d/.test(trimmed)) {
