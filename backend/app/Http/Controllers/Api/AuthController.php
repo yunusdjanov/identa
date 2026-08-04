@@ -308,7 +308,7 @@ class AuthController extends Controller
         } catch (\Throwable $exception) {
             Log::warning('Failed to resend verification email', [
                 'user_id' => $user->id,
-                'error' => $exception->getMessage(),
+                'exception' => $exception::class,
             ]);
 
             throw ValidationException::withMessages([

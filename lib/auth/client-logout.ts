@@ -58,6 +58,32 @@ function getStorage(): Storage | null {
     }
 }
 
+/**
+ * Remove per-user tab state while preserving the short-lived marker that
+ * prevents `/login` from racing a still-valid server session during logout.
+ */
+export function clearIdentaSessionStorageForLogout(): void {
+    const storage = getStorage();
+    if (!storage) return;
+
+    try {
+        const keysToRemove: string[] = [];
+        for (let index = 0; index < storage.length; index += 1) {
+            const key = storage.key(index);
+            if (
+                key
+                && key !== CLIENT_LOGOUT_STORAGE_KEY
+                && (key.startsWith('identa.') || key.startsWith('identa:'))
+            ) {
+                keysToRemove.push(key);
+            }
+        }
+        keysToRemove.forEach((key) => storage.removeItem(key));
+    } catch {
+        // Strict private mode may reject storage enumeration/removal.
+    }
+}
+
 export function markClientLogoutInProgress(): void {
     const storage = getStorage();
     if (storage) {

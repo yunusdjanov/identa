@@ -342,8 +342,12 @@ function Hero({ t }: { t: T }) {
                     </div>
                 </div>
 
-                <div className="hero-preview reveal in">
-                    <div className="dash" role="img" aria-label={`${t.hero.dash.title} - Identa`}>
+                <div
+                    className="hero-preview reveal in"
+                    role="img"
+                    aria-label={`${t.hero.dash.title} - Identa`}
+                >
+                    <div className="dash" aria-hidden="true">
                         <div className="dash-bar">
                             <div className="dots"><span /><span /><span /></div>
                             <div className="url">app.identa.uz / dashboard</div>
@@ -376,11 +380,11 @@ function Hero({ t }: { t: T }) {
                             </div>
                         </div>
                     </div>
-                    <div className="dash-float float-1">
+                    <div className="dash-float float-1" aria-hidden="true">
                         <div className="av">A</div>
                         <div><strong>{d.float1.name}</strong><em>{d.float1.meta}</em></div>
                     </div>
-                    <div className="dash-float float-2">
+                    <div className="dash-float float-2" aria-hidden="true">
                         <div className="av" style={{ background: 'var(--navy-800)', color: 'var(--teal-400)' }} aria-hidden="true">
                             <svg width="13" height="13" viewBox="0 0 14 14"><path d="M2 7.5l3.2 3.5L12 4" stroke="currentColor" strokeWidth="1.8" fill="none" strokeLinecap="round" strokeLinejoin="round" /></svg>
                         </div>

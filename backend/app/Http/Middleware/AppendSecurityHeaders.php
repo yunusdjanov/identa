@@ -18,6 +18,13 @@ class AppendSecurityHeaders
         /** @var Response $response */
         $response = $next($request);
 
+        // Symfony responses and the PHP SAPI can each advertise their runtime.
+        // Remove both variants before the response is emitted.
+        $response->headers->remove('X-Powered-By');
+        if (function_exists('header_remove') && ! headers_sent()) {
+            header_remove('X-Powered-By');
+        }
+
         if (!config('security.headers.enabled', true)) {
             return $response;
         }

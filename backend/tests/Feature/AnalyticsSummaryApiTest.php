@@ -163,7 +163,7 @@ class AnalyticsSummaryApiTest extends TestCase
             ->assertJsonPath('data.top_debtors.0.debt', 60000);
     }
 
-    public function test_weekly_bucket_does_not_pull_previous_period_rows_across_range_boundary(): void
+    public function test_weekly_bucket_sums_each_day_without_pulling_previous_period_rows(): void
     {
         $dentist = User::factory()->create();
         $patient = Patient::factory()->create([
@@ -186,21 +186,33 @@ class AnalyticsSummaryApiTest extends TestCase
             'debt_amount' => '500.00',
             'paid_amount' => '200.00',
         ]);
+        $secondPatient = Patient::factory()->create([
+            'dentist_id' => $dentist->id,
+            'created_at' => '2026-06-11 09:00:00',
+            'updated_at' => '2026-06-11 09:00:00',
+        ]);
+        Treatment::factory()->create([
+            'dentist_id' => $dentist->id,
+            'patient_id' => $secondPatient->id,
+            'treatment_date' => '2026-06-11',
+            'debt_amount' => '250.00',
+            'paid_amount' => '100.00',
+        ]);
 
         $this->actingAs($dentist, 'web')
             ->getJson('/api/v1/analytics/summary?'.http_build_query([
                 'range' => '90d',
                 'current_from' => '2026-06-10',
-                'current_to' => '2026-06-10',
-                'previous_from' => '2026-06-09',
+                'current_to' => '2026-06-11',
+                'previous_from' => '2026-06-08',
                 'previous_to' => '2026-06-09',
             ]))
             ->assertOk()
-            ->assertJsonPath('data.kpis.revenue.current', 200)
+            ->assertJsonPath('data.kpis.revenue.current', 300)
             ->assertJsonPath('data.kpis.revenue.previous', 50)
-            ->assertJsonPath('data.buckets.0.revenue', 200)
-            ->assertJsonPath('data.buckets.0.debt', 300)
-            ->assertJsonPath('data.buckets.0.new_patients', 1);
+            ->assertJsonPath('data.buckets.0.revenue', 300)
+            ->assertJsonPath('data.buckets.0.debt', 450)
+            ->assertJsonPath('data.buckets.0.new_patients', 2);
     }
 
     public function test_dentist_summary_rejects_unsupported_currency(): void

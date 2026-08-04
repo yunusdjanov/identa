@@ -398,7 +398,7 @@
   min-height: 44px;
   padding: 6px 10px;
   border-radius: var(--radius-pill);
-  color: var(--ink-mute);
+  color: var(--ink-soft);
   font-weight: 500;
 }
 .identa-landing .lang-switch button.active {

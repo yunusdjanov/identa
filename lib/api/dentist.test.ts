@@ -151,6 +151,27 @@ describe('dentist api pagination aggregation', () => {
         await expect(resultPromise).resolves.toHaveLength(6);
     });
 
+    it('refuses pagination metadata that would create an unbounded browser fetch', async () => {
+        apiGetMock.mockResolvedValueOnce({
+            data: {
+                data: [],
+                meta: {
+                    pagination: {
+                        page: 1,
+                        per_page: 100,
+                        total: 10_100,
+                        total_pages: 101,
+                    },
+                },
+            },
+        });
+
+        await expect(listAllPatients()).rejects.toThrow(
+            'This result contains more than 100 pages. Narrow the selected filters before loading it.'
+        );
+        expect(apiGetMock).toHaveBeenCalledTimes(1);
+    });
+
     it('loads dentist analytics summary with explicit range bounds', async () => {
         apiGetMock.mockResolvedValueOnce({
             data: {

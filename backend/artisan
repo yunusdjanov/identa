@@ -7,7 +7,13 @@ use Symfony\Component\Console\Input\ArgvInput;
 define('LARAVEL_START', microtime(true));
 
 // Register the Composer autoloader...
-require __DIR__.'/vendor/autoload.php';
+$configuredVendorDir = getenv('COMPOSER_VENDOR_DIR');
+$vendorDir = is_string($configuredVendorDir) && trim($configuredVendorDir) !== ''
+    ? trim($configuredVendorDir)
+    : 'vendor';
+$isAbsoluteVendorDir = preg_match('/^(?:[A-Za-z]:[\\\\\/]|[\\\\\/])/', $vendorDir) === 1;
+$vendorPath = $isAbsoluteVendorDir ? $vendorDir : __DIR__.DIRECTORY_SEPARATOR.$vendorDir;
+require $vendorPath.'/autoload.php';
 
 // Bootstrap Laravel and handle the command...
 /** @var Application $app */

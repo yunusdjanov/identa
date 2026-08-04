@@ -82,4 +82,21 @@ class SentryEventSanitizerTest extends TestCase
         $this->assertSame('[Filtered]', $sanitized['meta']['client_secret']);
         $this->assertSame('value', $sanitized['meta']['safe']);
     }
+
+    public function test_sanitize_array_removes_query_data_and_resource_ids_from_urls(): void
+    {
+        $payload = [
+            'url' => 'https://api.identa.uz/api/v1/patients/550e8400-e29b-41d4-a716-446655440000?token=secret#photo',
+            'context' => [
+                'href' => '/payments/patients/12345?search=Ali',
+                'label' => 'safe',
+            ],
+        ];
+
+        $sanitized = SentryEventSanitizer::sanitizeArray($payload);
+
+        $this->assertSame('https://api.identa.uz/api/v1/patients/[id]', $sanitized['url']);
+        $this->assertSame('/payments/patients/[id]', $sanitized['context']['href']);
+        $this->assertSame('safe', $sanitized['context']['label']);
+    }
 }

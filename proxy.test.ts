@@ -228,4 +228,24 @@ describe('proxy auth redirects', () => {
         expect(response.headers.get('location')).toBeNull();
         expect(fetchMock).not.toHaveBeenCalled();
     });
+
+    it('uses a request nonce instead of unsafe-inline scripts on sensitive pages', async () => {
+        vi.stubEnv('NODE_ENV', 'production');
+
+        const response = await proxy(new NextRequest('https://identa.uz/login'));
+        const policy = response.headers.get('Content-Security-Policy');
+        const scriptPolicy = policy?.split('; ').find((directive) => directive.startsWith('script-src '));
+
+        expect(policy).toContain("'strict-dynamic'");
+        expect(scriptPolicy).toMatch(/'nonce-[^']+'/);
+        expect(scriptPolicy).not.toContain("'unsafe-inline'");
+    });
+
+    it('keeps the marketing landing response nonce-free for static caching', async () => {
+        vi.stubEnv('NODE_ENV', 'production');
+
+        const response = await proxy(new NextRequest('https://identa.uz/'));
+
+        expect(response.headers.get('Content-Security-Policy')).toBeNull();
+    });
 });

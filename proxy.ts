@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { isProtectedAppPath } from '@/lib/auth/post-login-destination';
 import { CLIENT_LOGOUT_COOKIE_NAME } from '@/lib/auth/client-logout';
+import { buildStrictContentSecurityPolicy } from '@/lib/security/content-security-policy';
 
 const CANONICAL_HOST = 'identa.uz';
 const WWW_HOST = 'www.identa.uz';
@@ -79,6 +80,41 @@ function normalizePathname(pathname: string): string {
     }
 
     return pathname;
+}
+
+function shouldApplyStrictContentSecurityPolicy(pathname: string): boolean {
+    const normalizedPath = normalizePathname(pathname);
+
+    return normalizedPath === '/login'
+        || normalizedPath === '/register'
+        || normalizedPath === '/forgot-password'
+        || normalizedPath === '/reset-password'
+        || normalizedPath === '/verify-email'
+        || normalizedPath === '/403'
+        || normalizedPath === '/access-denied'
+        || normalizedPath === '/admin'
+        || normalizedPath.startsWith('/admin/')
+        || isProtectedAppPath(normalizedPath);
+}
+
+function nextResponseWithStrictContentSecurityPolicy(request: NextRequest): NextResponse {
+    const nonce = Buffer.from(crypto.randomUUID()).toString('base64');
+    const contentSecurityPolicy = buildStrictContentSecurityPolicy({
+        isProduction: process.env.NODE_ENV === 'production',
+        nonce,
+    });
+    const requestHeaders = new Headers(request.headers);
+    requestHeaders.set('x-nonce', nonce);
+    requestHeaders.set('Content-Security-Policy', contentSecurityPolicy);
+
+    const response = NextResponse.next({
+        request: {
+            headers: requestHeaders,
+        },
+    });
+    response.headers.set('Content-Security-Policy', contentSecurityPolicy);
+
+    return response;
 }
 
 /**
@@ -244,7 +280,9 @@ export async function proxy(request: NextRequest) {
         }
     }
 
-    return NextResponse.next();
+    return shouldApplyStrictContentSecurityPolicy(pathname)
+        ? nextResponseWithStrictContentSecurityPolicy(request)
+        : NextResponse.next();
 }
 
 export const config = {

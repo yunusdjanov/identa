@@ -126,6 +126,8 @@ const noIndexHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  // Avoid advertising framework details in every public response.
+  poweredByHeader: false,
   // Keep deployment traces scoped to this application even when the checkout
   // lives inside a Git worktree whose parent repository has another lockfile.
   outputFileTracingRoot: process.cwd(),

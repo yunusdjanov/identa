@@ -88,10 +88,15 @@ export default function AdminLoginPage() {
     });
 
     useEffect(() => {
-        // Best-effort CSRF prefetch — swallow failures so a transient
-        // csrf-token endpoint error doesn't surface as an unhandled rejection.
+        if (!currentUserQuery.isFetched) {
+            return;
+        }
+
+        // The guest auth check and CSRF bootstrap both create a session for a
+        // fresh browser. Run them sequentially so their Set-Cookie responses
+        // cannot race and leave the form holding a token from another session.
         void ensureCsrfCookie().catch(() => undefined);
-    }, []);
+    }, [currentUserQuery.isFetched]);
 
     useEffect(() => {
         const updateLogoutRedirectState = () => {

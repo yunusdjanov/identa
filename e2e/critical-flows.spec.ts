@@ -119,7 +119,7 @@ test.describe('Critical Journeys', () => {
         await expect(dialog).toBeHidden({ timeout: 15_000 });
     });
 
-    test('payments + history lifecycle', async ({ page }) => {
+    test('payments patient ledger lifecycle', async ({ page }) => {
         await loginDentist(page);
         await page.goto('/payments');
 
@@ -127,15 +127,15 @@ test.describe('Critical Journeys', () => {
         await expect(patientsTab).toBeVisible({ timeout: 15_000 });
         await patientsTab.click();
 
-        const patientHistoryLink = page.locator('tbody tr a').filter({ hasText: /^History$/ }).first();
-        await expect(patientHistoryLink).toBeVisible({ timeout: 15_000 });
-        await patientHistoryLink.click();
+        const patientLedgerLink = page.locator('tbody a[href^="/payments/patients/"]').first();
+        await expect(patientLedgerLink).toBeVisible({ timeout: 15_000 });
+        await patientLedgerLink.click();
 
-        await expect(page).toHaveURL(/\/patients\/[^/]+\/history\?from=payments/, { timeout: 15_000 });
-        await expect(page.locator('main').getByText(/Work History|История|Yozuvlar tarixi/i)).toBeVisible({ timeout: 30_000 });
-        await expect(page.getByRole('button', { name: /Add Entry|Добавить запись|Yozuv qo'shish/i })).toBeVisible({
-            timeout: 30_000,
-        });
+        await expect(page).toHaveURL(/\/payments\/patients\/[^/]+$/, { timeout: 15_000 });
+        await expect(page.getByTestId('patient-detail-header-facts')).toBeVisible({ timeout: 30_000 });
+        await expect(page.getByTestId('payment-summary-grid')).toBeVisible({ timeout: 30_000 });
+        await expect(page.getByRole('columnheader', { name: /Work title|Название работы|Ish nomi/i })).toBeVisible();
+        await expect(page.getByRole('button', { name: /Add Entry|Добавить запись|Yozuv qo'shish/i })).toHaveCount(0);
     });
 
     test('admin management lifecycle', async ({ page }) => {
