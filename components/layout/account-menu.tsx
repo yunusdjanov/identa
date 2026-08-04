@@ -67,7 +67,7 @@ export function AccountMenu({
                     aria-label={t('menu.myAccount')}
                 >
                     <Avatar className="h-8 w-8">
-                        <AvatarFallback className="bg-teal-600 text-sm text-white shadow-sm shadow-teal-200">
+                        <AvatarFallback className="bg-teal-700 text-sm text-white shadow-sm shadow-teal-200">
                             {avatarLabel}
                         </AvatarFallback>
                     </Avatar>
