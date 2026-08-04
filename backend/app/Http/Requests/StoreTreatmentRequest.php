@@ -8,6 +8,9 @@ use Illuminate\Validation\Rule;
 
 class StoreTreatmentRequest extends FormRequest
 {
+    /** Maximum value representable by the treatment DECIMAL(12, 2) columns. */
+    private const MAX_FINANCIAL_AMOUNT = 9_999_999_999.99;
+
     public function authorize(): bool
     {
         return true;
@@ -26,9 +29,9 @@ class StoreTreatmentRequest extends FormRequest
             'description' => ['nullable', 'string', 'max:5000'],
             'comment' => ['nullable', 'string', 'max:5000'],
             'treatment_date' => ['required', 'date', 'before_or_equal:today'],
-            'cost' => ['nullable', 'numeric', 'min:0'],
-            'debt_amount' => ['nullable', 'numeric', 'min:0'],
-            'paid_amount' => ['nullable', 'numeric', 'min:0'],
+            'cost' => ['nullable', 'numeric', 'min:0', 'max:'.self::MAX_FINANCIAL_AMOUNT],
+            'debt_amount' => ['nullable', 'numeric', 'min:0', 'max:'.self::MAX_FINANCIAL_AMOUNT],
+            'paid_amount' => ['nullable', 'numeric', 'min:0', 'max:'.self::MAX_FINANCIAL_AMOUNT],
             'currency' => ['nullable', 'string', Rule::in(Treatment::SUPPORTED_CURRENCIES)],
             'notes' => ['nullable', 'string', 'max:5000'],
         ];

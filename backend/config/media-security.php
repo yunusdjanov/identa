@@ -2,7 +2,10 @@
 
 return [
     'antivirus' => [
-        'driver' => env('ANTIVIRUS_DRIVER', env('APP_ENV') === 'production' ? 'clamav' : 'null'),
+        // Production currently uses the authenticated, image-only validation
+        // pipeline without ClamAV. Keep the default aligned with that policy so
+        // a missing env value cannot make uploads call an absent localhost daemon.
+        'driver' => env('ANTIVIRUS_DRIVER', 'null'),
         'clamav' => [
             'host' => env('CLAMAV_HOST', '127.0.0.1'),
             'port' => (int) env('CLAMAV_PORT', 3310),

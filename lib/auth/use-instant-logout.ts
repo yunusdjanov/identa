@@ -3,7 +3,10 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { logoutSession } from '@/lib/api/dentist';
 import { useAuthStore } from '@/lib/store';
-import { markClientLogoutInProgress } from '@/lib/auth/client-logout';
+import {
+    clearIdentaSessionStorageForLogout,
+    markClientLogoutInProgress,
+} from '@/lib/auth/client-logout';
 import { postAuthBroadcast } from '@/lib/auth/auth-broadcast';
 
 /**
@@ -72,10 +75,10 @@ export function useInstantLogout(loginPath = '/login') {
         //     auth/me query.
         markClientLogoutInProgress();
 
-        // 3b. Drop identa-namespaced localStorage so per-user UI state
-        //     (last-opened tabs, panel toggles) doesn't leak to the next
-        //     user on a shared device. SessionStorage is intentionally
-        //     untouched — the `clientLogoutStartedAt` flag lives there.
+        // 3b. Drop identa-namespaced browser state so patient searches,
+        //     focused record ids, tabs, and panel toggles don't leak to the
+        //     next user on a shared device. The short-lived logout marker is
+        //     the only sessionStorage key deliberately preserved.
         try {
             const keysToRemove: string[] = [];
             for (let i = 0; i < window.localStorage.length; i += 1) {
@@ -88,6 +91,7 @@ export function useInstantLogout(loginPath = '/login') {
         } catch {
             // Private-mode quota errors — safe to ignore.
         }
+        clearIdentaSessionStorageForLogout();
 
         // 3c. Reset zustand auth state. After this, `isAuthenticated`
         //     is false; doubled with the sessionStorage flag, the login

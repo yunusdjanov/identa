@@ -103,6 +103,8 @@ export type AdminDentistSubscriptionAction =
 
 const MAX_API_PER_PAGE = 500;
 const MAX_COLLECT_ALL_PAGES_CONCURRENCY = 3;
+const MAX_COLLECT_ALL_PAGES = 100;
+const MAX_COLLECT_ALL_ITEMS = 10_000;
 const MAX_TREATMENT_IMAGE_UPLOAD_CONCURRENCY = 3;
 
 function buildQueryParams(options?: QueryOptions): Record<string, unknown> {
@@ -156,6 +158,22 @@ async function collectAllPages<T>(
     const totalPages = firstPageResponse.meta?.pagination?.total_pages ?? 1;
     const results: T[] = [...firstPageResponse.data];
 
+    if (!Number.isSafeInteger(totalPages) || totalPages < 1) {
+        throw new Error('API returned invalid pagination metadata.');
+    }
+
+    if (totalPages > MAX_COLLECT_ALL_PAGES) {
+        throw new Error(
+            `This result contains more than ${MAX_COLLECT_ALL_PAGES} pages. Narrow the selected filters before loading it.`
+        );
+    }
+
+    if (results.length > MAX_COLLECT_ALL_ITEMS) {
+        throw new Error(
+            `This result contains more than ${MAX_COLLECT_ALL_ITEMS} records. Narrow the selected filters before loading it.`
+        );
+    }
+
     if (totalPages <= 1) {
         return results;
     }
@@ -169,6 +187,12 @@ async function collectAllPages<T>(
         responses.forEach((response) => {
             results.push(...response.data);
         });
+
+        if (results.length > MAX_COLLECT_ALL_ITEMS) {
+            throw new Error(
+                `This result contains more than ${MAX_COLLECT_ALL_ITEMS} records. Narrow the selected filters before loading it.`
+            );
+        }
     }
 
     return results;

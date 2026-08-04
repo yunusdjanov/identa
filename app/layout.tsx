@@ -1,10 +1,7 @@
 import type { Metadata } from "next";
-import { cookies } from "next/headers";
 import "./globals.css";
-import { I18nProvider } from "@/components/providers/i18n-provider";
 import { ClientRuntime } from "@/components/providers/client-runtime";
-import { LOCALE_COOKIE_NAME, resolveLocale } from "@/lib/i18n/config";
-import { DICTIONARIES } from "@/lib/i18n/dictionaries";
+import { DEFAULT_LOCALE } from "@/lib/i18n/config";
 import {
   SOCIAL_IMAGE_ALT,
   SOCIAL_IMAGE_PATH,
@@ -84,25 +81,20 @@ export const metadata: Metadata = {
   category: "healthcare",
 };
 
-export default async function RootLayout({
+export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const cookieStore = await cookies();
-  const locale = resolveLocale(cookieStore.get(LOCALE_COOKIE_NAME)?.value);
-
   return (
-    <html lang={locale}>
+    <html lang={DEFAULT_LOCALE}>
       <head>
         <link rel="preconnect" href={apiOrigin} crossOrigin="anonymous" />
         <link rel="dns-prefetch" href={apiOrigin} />
       </head>
       <body>
-        <I18nProvider initialLocale={locale} initialDictionary={DICTIONARIES[locale]}>
-          {children}
-          <ClientRuntime />
-        </I18nProvider>
+        {children}
+        <ClientRuntime />
       </body>
     </html>
   );

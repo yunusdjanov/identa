@@ -54,6 +54,23 @@ class TreatmentApiTest extends TestCase
             ->assertJsonPath('data.0.treatment_type', 'Filling');
     }
 
+    public function test_treatment_financial_values_must_fit_database_decimal_columns(): void
+    {
+        $dentist = User::factory()->create();
+        $patient = Patient::factory()->create(['dentist_id' => $dentist->id]);
+
+        $this->actingAs($dentist, 'web')
+            ->postJson("/api/v1/patients/{$patient->id}/treatments", [
+                'treatment_type' => 'Overflow guard',
+                'treatment_date' => '2026-02-14',
+                'cost' => 10_000_000_000,
+                'debt_amount' => 10_000_000_000,
+                'paid_amount' => 10_000_000_000,
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['cost', 'debt_amount', 'paid_amount']);
+    }
+
     public function test_creating_treatment_moves_patient_to_top_of_patient_list(): void
     {
         $dentist = User::factory()->create();

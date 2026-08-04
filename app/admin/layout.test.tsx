@@ -1,6 +1,6 @@
 import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import AdminLayout from '@/app/admin/layout';
+import { AdminLayoutClient as AdminLayout } from '@/app/admin/_components/admin-layout-client';
 import { getCurrentUser } from '@/lib/api/dentist';
 import { useAuthStore } from '@/lib/store';
 

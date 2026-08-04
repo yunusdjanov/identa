@@ -265,7 +265,7 @@ export default function RegisterPage() {
                             </Button>
                         </form>
 
-                        <div className="flex items-center gap-3 text-xs uppercase tracking-[0.18em] text-slate-400">
+                        <div className="flex items-center gap-3 text-xs uppercase tracking-[0.18em] text-slate-600">
                             <span className="h-px flex-1 bg-slate-200/80" />
                             <span>{t('register.orEmail')}</span>
                             <span className="h-px flex-1 bg-slate-200/80" />

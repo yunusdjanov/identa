@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { QueryProvider } from '@/components/providers/query-provider';
+import { ServerI18nProvider } from '@/components/providers/server-i18n-provider';
 
 export const metadata: Metadata = {
     robots: {
@@ -10,5 +11,9 @@ export const metadata: Metadata = {
 };
 
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
-    return <QueryProvider>{children}</QueryProvider>;
+    return (
+        <ServerI18nProvider>
+            <QueryProvider>{children}</QueryProvider>
+        </ServerI18nProvider>
+    );
 }

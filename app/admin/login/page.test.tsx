@@ -6,7 +6,10 @@ import { getCurrentUser } from '@/lib/api/dentist';
 import { I18nProvider } from '@/components/providers/i18n-provider';
 import { DICTIONARIES } from '@/lib/i18n/dictionaries';
 
-const replaceMock = vi.fn();
+const { ensureCsrfCookieMock, replaceMock } = vi.hoisted(() => ({
+    ensureCsrfCookieMock: vi.fn(),
+    replaceMock: vi.fn(),
+}));
 vi.mock('next/navigation', () => ({
     useRouter: () => ({ push: vi.fn(), replace: replaceMock, refresh: vi.fn() }),
 }));
@@ -14,6 +17,10 @@ vi.mock('@/lib/api/dentist', () => ({
     getCurrentUser: vi.fn(),
     loginWithPassword: vi.fn(),
     logoutSession: vi.fn(),
+}));
+vi.mock('@/lib/api/client', () => ({
+    ensureCsrfCookie: ensureCsrfCookieMock,
+    getApiErrorMessage: (_error: unknown, fallback: string) => fallback,
 }));
 vi.mock('sonner', () => ({ toast: { error: vi.fn(), success: vi.fn() } }));
 
@@ -33,6 +40,8 @@ function renderPage() {
 describe('AdminLoginPage', () => {
     beforeEach(() => {
         replaceMock.mockClear();
+        ensureCsrfCookieMock.mockReset();
+        ensureCsrfCookieMock.mockResolvedValue(undefined);
         vi.mocked(getCurrentUser).mockReset();
     });
     afterEach(() => cleanup());
@@ -44,6 +53,21 @@ describe('AdminLoginPage', () => {
         expect(await screen.findByText('Admin Sign In')).toBeInTheDocument();
         expect(screen.getByRole('link', { name: 'Forgot password?' }))
             .toHaveAttribute('href', '/forgot-password?from=admin');
+        expect(ensureCsrfCookieMock).toHaveBeenCalledOnce();
+    });
+
+    it('waits for the guest auth check before bootstrapping CSRF', async () => {
+        let finishAuthCheck: (() => void) | undefined;
+        vi.mocked(getCurrentUser).mockImplementation(() => new Promise((_, reject) => {
+            finishAuthCheck = () => reject(new Error('Unauthenticated'));
+        }));
+
+        renderPage();
+        expect(ensureCsrfCookieMock).not.toHaveBeenCalled();
+
+        finishAuthCheck?.();
+        await screen.findByText('Admin Sign In');
+        await waitFor(() => expect(ensureCsrfCookieMock).toHaveBeenCalledOnce());
     });
 
     it('redirects an already-authenticated admin to the console', async () => {

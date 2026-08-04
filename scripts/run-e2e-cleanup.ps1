@@ -3,29 +3,28 @@ $ErrorActionPreference = "Stop"
 function Stop-ProcessOnPort {
     param([int]$TargetPort)
 
-    $connections = Get-NetTCPConnection -LocalPort $TargetPort -State Listen -ErrorAction SilentlyContinue
-    foreach ($connection in $connections) {
-        try {
-            Stop-Process -Id $connection.OwningProcess -Force -ErrorAction Stop
-        }
-        catch {
-            # Ignore cleanup failures and let subsequent startup fail with context.
-        }
+    $processIds = @(
+        Get-NetTCPConnection -LocalPort $TargetPort -State Listen -ErrorAction SilentlyContinue |
+            Select-Object -ExpandProperty OwningProcess
+    )
+
+    if ($processIds.Count -eq 0) {
+        $netstatPattern = "^\s*TCP\s+\S+:$TargetPort\s+\S+\s+LISTENING\s+(\d+)\s*$"
+        $processIds = @(
+            netstat -ano |
+                ForEach-Object {
+                    if ($_ -match $netstatPattern) {
+                        [int]$Matches[1]
+                    }
+                }
+        )
     }
-}
 
-function Stop-NextDevProcessesForProject {
-    param([string]$ProjectRoot)
-
-    $escapedProjectRoot = [Regex]::Escape($ProjectRoot)
-    $processes = Get-CimInstance Win32_Process -Filter "Name = 'node.exe'" |
-        Where-Object {
-            $_.CommandLine -match 'next\s+dev' -and $_.CommandLine -match $escapedProjectRoot
-        }
-
-    foreach ($process in $processes) {
+    foreach ($ownerProcessId in ($processIds | Sort-Object -Unique)) {
         try {
-            Stop-Process -Id $process.ProcessId -Force -ErrorAction Stop
+            if ($ownerProcessId -gt 0 -and $ownerProcessId -ne $PID) {
+                Stop-Process -Id $ownerProcessId -Force -ErrorAction Stop
+            }
         }
         catch {
             # Ignore cleanup failures and let subsequent startup fail with context.
@@ -39,8 +38,6 @@ Stop-ProcessOnPort -TargetPort 3000
 Stop-ProcessOnPort -TargetPort 3001
 
 $projectRoot = (Resolve-Path "$PSScriptRoot\..").Path
-Stop-NextDevProcessesForProject -ProjectRoot $projectRoot
-
 $lockFilePath = Join-Path $projectRoot ".next\dev\lock"
 if (Test-Path $lockFilePath) {
     try {

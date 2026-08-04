@@ -2,6 +2,9 @@
 
 namespace Tests\Feature;
 
+use App\Http\Middleware\AppendSecurityHeaders;
+use Illuminate\Http\Request;
+use Symfony\Component\HttpFoundation\Response;
 use Tests\TestCase;
 
 class SecurityHeadersMiddlewareTest extends TestCase
@@ -41,5 +44,20 @@ class SecurityHeadersMiddlewareTest extends TestCase
         ])->getJson('/api/v1/health')
             ->assertOk()
             ->assertHeaderMissing('Strict-Transport-Security');
+    }
+
+    public function test_runtime_fingerprint_header_is_removed(): void
+    {
+        $response = (new AppendSecurityHeaders)->handle(
+            Request::create('/api/v1/health'),
+            static function (): Response {
+                $response = new Response('{}');
+                $response->headers->set('X-Powered-By', 'PHP/8.4');
+
+                return $response;
+            },
+        );
+
+        $this->assertFalse($response->headers->has('X-Powered-By'));
     }
 }

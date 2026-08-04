@@ -55,7 +55,7 @@ class AuthService
         } catch (\Throwable $exception) {
             Log::warning('Failed to send verification email on registration', [
                 'user_id' => $user->id,
-                'error' => $exception->getMessage(),
+                'exception' => $exception::class,
             ]);
         }
 

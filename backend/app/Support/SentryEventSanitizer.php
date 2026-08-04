@@ -10,6 +10,8 @@ class SentryEventSanitizer
 {
     private const REDACTED_VALUE = '[Filtered]';
 
+    private const URL_VALUE_KEYS = ['url', 'href', 'from', 'to', 'referer', 'referrer', 'request_url'];
+
     private const SENSITIVE_KEYS = [
         // Credentials
         'password',
@@ -141,10 +143,75 @@ class SentryEventSanitizer
                 continue;
             }
 
+            if (
+                $normalizedKey !== null
+                && in_array($normalizedKey, self::URL_VALUE_KEYS, true)
+                && is_string($value)
+            ) {
+                $sanitized[$key] = self::sanitizeUrl($value);
+                continue;
+            }
+
             $sanitized[$key] = $value;
         }
 
         return $sanitized;
+    }
+
+    /**
+     * Keep static route names useful for grouping while dropping query data and
+     * resource identifiers that can identify a patient or clinical record.
+     */
+    public static function sanitizeUrl(string $value): string
+    {
+        if (! str_starts_with($value, '/') && preg_match('/^https?:\/\//i', $value) !== 1) {
+            return $value;
+        }
+
+        $isAbsolute = preg_match('/^https?:\/\//i', $value) === 1;
+        $parts = parse_url($value);
+        if ($parts === false) {
+            return $value;
+        }
+
+        $path = is_string($parts['path'] ?? null) ? $parts['path'] : '/';
+        $segments = explode('/', $path);
+        foreach ($segments as &$segment) {
+            if ($segment === '') {
+                continue;
+            }
+
+            $decoded = rawurldecode($segment);
+            if (self::isDynamicPathSegment($decoded)) {
+                $segment = '[id]';
+            }
+        }
+        unset($segment);
+
+        $sanitizedPath = implode('/', $segments);
+        if (! $isAbsolute) {
+            return $sanitizedPath;
+        }
+
+        $scheme = strtolower((string) ($parts['scheme'] ?? 'https'));
+        $host = (string) ($parts['host'] ?? '');
+        if ($host === '') {
+            return $sanitizedPath;
+        }
+
+        $port = isset($parts['port']) ? ':'.(int) $parts['port'] : '';
+
+        return "{$scheme}://{$host}{$port}{$sanitizedPath}";
+    }
+
+    private static function isDynamicPathSegment(string $segment): bool
+    {
+        return preg_match('/^\d+$/', $segment) === 1
+            || preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i', $segment) === 1
+            || preg_match('/^[0-9A-HJKMNP-TV-Z]{26}$/i', $segment) === 1
+            || preg_match('/^[0-9a-f]{16,}$/i', $segment) === 1
+            || preg_match('/^[a-z][a-z0-9]*-\d+$/i', $segment) === 1
+            || preg_match('/^[a-z]{2,}-(?=[a-z0-9]*\d)[a-z0-9]{4,}$/i', $segment) === 1;
     }
 
     private static function isSensitiveKey(string $key): bool

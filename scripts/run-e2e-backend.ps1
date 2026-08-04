@@ -22,6 +22,13 @@ function Stop-ProcessOnPort {
 Stop-ProcessOnPort -TargetPort $Port
 
 $env:FRONTEND_URL = $FrontendUrl
+$env:APP_ENV = "testing"
+$env:APP_DEBUG = "false"
+$env:APP_KEY = "base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+$env:APP_TIMEZONE = "Asia/Tashkent"
+$env:CACHE_STORE = "array"
+$env:QUEUE_CONNECTION = "sync"
+$env:MAIL_MAILER = "array"
 $frontendUri = [System.Uri]$FrontendUrl
 $frontendHostPort = "$($frontendUri.Host):$($frontendUri.Port)"
 $env:FRONTEND_URLS = "$FrontendUrl,http://localhost:$($frontendUri.Port),http://127.0.0.1:$($frontendUri.Port)"
@@ -43,8 +50,23 @@ New-Item -ItemType File -Path $e2eDatabasePath -Force | Out-Null
 $env:DB_CONNECTION = "sqlite"
 $env:DB_DATABASE = $e2eDatabasePath
 
-& $phpCommand artisan key:generate --force
 & $phpCommand artisan optimize:clear
 & $phpCommand artisan migrate:fresh --seed --force
+$vendorDirectory = if ([string]::IsNullOrWhiteSpace($env:COMPOSER_VENDOR_DIR)) {
+    "vendor"
+}
+else {
+    $env:COMPOSER_VENDOR_DIR
+}
+$vendorPath = if ([System.IO.Path]::IsPathRooted($vendorDirectory)) {
+    $vendorDirectory
+}
+else {
+    Join-Path (Get-Location) $vendorDirectory
+}
+$laravelServer = Join-Path $vendorPath "laravel\framework\src\Illuminate\Foundation\resources\server.php"
+if (-not (Test-Path -LiteralPath $laravelServer -PathType Leaf)) {
+    throw "Laravel development server entrypoint was not found at $laravelServer."
+}
 Set-Location ".\public"
-& $phpCommand -S "localhost:$Port" "..\vendor\laravel\framework\src\Illuminate\Foundation\resources\server.php"
+& $phpCommand -S "localhost:$Port" $laravelServer

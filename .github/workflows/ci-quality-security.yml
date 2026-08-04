@@ -1,5 +1,8 @@
 name: CI Quality and Security
 
+permissions:
+  contents: read
+
 on:
   push:
     branches:
@@ -18,10 +21,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
           cache: npm
@@ -32,6 +35,9 @@ jobs:
       - name: Run core guardrail drift check
         run: npm run check:core-guardrails
 
+      - name: Validate OpenAPI contract
+        run: npm run check:openapi
+
       - name: Run frontend quality gates
         run: npm run quality:frontend
 
@@ -41,22 +47,69 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: Setup PHP
-        uses: shivammathur/setup-php@v2
+        uses: shivammathur/setup-php@b604ade2a87db23f8871b7182e69ec5e75effb45 # v2
         with:
           php-version: '8.4'
-          extensions: mbstring, dom, fileinfo, sqlite3, pdo_sqlite
+          extensions: bcmath, gd, mbstring, dom, fileinfo, sqlite3, pdo_sqlite
           coverage: none
 
       - name: Install backend dependencies
         working-directory: backend
         run: composer install --no-interaction --no-progress --prefer-dist
 
+      - name: Validate migrations from an empty database
+        working-directory: backend
+        env:
+          APP_ENV: testing
+          APP_TIMEZONE: Asia/Tashkent
+          DB_CONNECTION: sqlite
+          DB_DATABASE: database/ci.sqlite
+        run: |
+          export APP_KEY="$(php -r 'echo "base64:".base64_encode(random_bytes(32));')"
+          php -r "touch('database/ci.sqlite');"
+          php artisan migrate:fresh --force --no-interaction
+          php artisan migrate:status --no-ansi
+
       - name: Run backend test suite
         working-directory: backend
         run: php artisan test
+
+  browser-quality:
+    name: Browser Journeys and Accessibility
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Setup Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@b604ade2a87db23f8871b7182e69ec5e75effb45 # v2
+        with:
+          php-version: '8.4'
+          extensions: bcmath, gd, mbstring, dom, fileinfo, sqlite3, pdo_sqlite
+          coverage: none
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: composer install --no-interaction --no-progress --prefer-dist
+
+      - name: Install Chromium
+        run: npx playwright install chromium
+
+      - name: Run browser and accessibility gates
+        run: npm run test:e2e
 
   security-audit:
     name: Dependency Security Audit
@@ -64,19 +117,19 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
           cache: npm
 
       - name: Setup PHP
-        uses: shivammathur/setup-php@v2
+        uses: shivammathur/setup-php@b604ade2a87db23f8871b7182e69ec5e75effb45 # v2
         with:
           php-version: '8.4'
-          extensions: mbstring, dom, fileinfo, sqlite3, pdo_sqlite
+          extensions: bcmath, gd, mbstring, dom, fileinfo, sqlite3, pdo_sqlite
           coverage: none
 
       - name: Install frontend dependencies
