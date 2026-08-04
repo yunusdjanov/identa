@@ -63,9 +63,12 @@ jobs:
       - name: Validate migrations from an empty database
         working-directory: backend
         env:
+          APP_ENV: testing
+          APP_TIMEZONE: Asia/Tashkent
           DB_CONNECTION: sqlite
           DB_DATABASE: database/ci.sqlite
         run: |
+          export APP_KEY="$(php -r 'echo "base64:".base64_encode(random_bytes(32));')"
           php -r "touch('database/ci.sqlite');"
           php artisan migrate:fresh --force --no-interaction
           php artisan migrate:status --no-ansi
