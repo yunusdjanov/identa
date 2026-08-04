@@ -733,7 +733,7 @@ export function AppointmentsWorkspace({ mode = 'appointments' }: AppointmentsWor
                     compact ? 'px-2.5 py-1.5 2xl:px-3 2xl:py-2' : 'px-3 py-2.5'
                 } ${
                     isTodayLane
-                        ? 'border-teal-500 bg-teal-600 text-white'
+                        ? 'border-teal-700 bg-teal-700 text-white'
                         : 'border-slate-100 bg-slate-50/80'
                 }`}>
                     <div className={compact ? 'relative flex min-h-[1.35rem] items-center justify-center' : 'flex items-start justify-between gap-3'}>

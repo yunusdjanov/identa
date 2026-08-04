@@ -320,7 +320,7 @@ function AppLayoutBody({ children }: { children: React.ReactNode }) {
                                                 className={cn(
                                                     'flex h-9 items-center rounded-xl border px-2.5 text-sm font-semibold transition-colors lg:px-3.5',
                                                     isActive
-                                                        ? 'border-teal-600 bg-teal-600 text-white shadow-sm shadow-teal-200/70'
+                                                        ? 'border-teal-700 bg-teal-700 text-white shadow-sm shadow-teal-200/70'
                                                         : isLocked
                                                             ? 'border-transparent text-slate-400 hover:bg-slate-50 hover:text-slate-500'
                                                             : 'border-transparent text-slate-600 hover:bg-teal-50/80 hover:text-teal-700'

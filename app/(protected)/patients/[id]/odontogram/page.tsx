@@ -184,7 +184,7 @@ export default function OdontogramPage({
                     {toothLabel}
                 </span>
                 {hasHistory ? (
-                    <span className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-teal-600 px-1 text-[11px] font-semibold text-white shadow-sm">
+                    <span className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-teal-700 px-1 text-[11px] font-semibold text-white shadow-sm">
                         {historyCount}
                     </span>
                 ) : null}

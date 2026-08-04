@@ -69,7 +69,7 @@ export function AdminHeader({ active, isLoggingOut = false, onLogout }: AdminHea
                                         className={cn(
                                             'flex h-9 shrink-0 items-center rounded-xl border px-3.5 text-sm font-semibold transition-colors',
                                             isActive
-                                                ? 'border-teal-600 bg-teal-600 text-white shadow-sm shadow-teal-200/70'
+                                                ? 'border-teal-700 bg-teal-700 text-white shadow-sm shadow-teal-200/70'
                                                 : 'border-transparent text-slate-600 hover:bg-teal-50/80 hover:text-teal-700'
                                         )}
                                     >
