@@ -75,10 +75,11 @@ class ImageCompressionService
         }
 
         $targetPath = $this->replaceExtension($path, $optimized['extension']);
-        if ($targetPath === $path) {
-            Storage::disk($disk)->put($path, $optimized['contents']);
-        } else {
-            Storage::disk($disk)->put($targetPath, $optimized['contents']);
+        if (! Storage::disk($disk)->put($targetPath, $optimized['contents'])) {
+            throw new RuntimeException('Unable to persist optimized image.');
+        }
+
+        if ($targetPath !== $path) {
             Storage::disk($disk)->delete($path);
         }
 

@@ -9,6 +9,7 @@ use App\Models\TreatmentImage;
 use App\Models\User;
 use App\Services\SubscriptionService;
 use App\Services\UnverifiedAccountCleanupService;
+use App\Services\Media\PendingMediaRecoveryService;
 use App\Support\ProductionRuntimePolicyValidator;
 use App\Support\ProductionSecretsValidator;
 use Illuminate\Foundation\Inspiring;
@@ -416,6 +417,47 @@ Artisan::command('subscriptions:process', function () {
 
 Schedule::command('subscriptions:process')->hourly();
 Schedule::command('accounts:expire-unverified')->dailyAt('03:20')->withoutOverlapping();
+
+Artisan::command('media:recover-pending {--age= : Minimum pending age in seconds} {--limit= : Maximum records per media model}', function () {
+    if (! (bool) config('media-security.recovery.enabled', true)) {
+        $this->info('Pending media recovery is disabled.');
+
+        return 0;
+    }
+
+    $age = $this->option('age') !== null
+        ? (int) $this->option('age')
+        : (int) config('media-security.recovery.min_age_seconds', 300);
+    $limit = $this->option('limit') !== null
+        ? (int) $this->option('limit')
+        : (int) config('media-security.recovery.batch_size_per_model', 100);
+
+    if ($age < 60) {
+        $this->error('Minimum pending age must be at least 60 seconds.');
+
+        return 1;
+    }
+    if ($limit < 1 || $limit > 1000) {
+        $this->error('Per-model limit must be between 1 and 1000.');
+
+        return 1;
+    }
+
+    $result = app(PendingMediaRecoveryService::class)->recover(
+        now()->subSeconds($age),
+        $limit,
+    );
+
+    $this->info(sprintf(
+        'Pending media recovery queued %d job(s); %d enqueue attempt(s) failed.',
+        $result['queued'],
+        $result['failed'],
+    ));
+
+    return $result['failed'] > 0 ? 1 : 0;
+})->purpose('Re-enqueue stored media left pending after a temporary queue outage');
+
+Schedule::command('media:recover-pending')->everyMinute()->withoutOverlapping();
 
 Artisan::command(
     'app:reset-test-data {--force : Required to confirm destructive cleanup} {--email=admin@identa.uz : Super admin email} {--password= : Super admin password (required, no insecure default)} {--name=Platform Super Admin : Super admin display name}',

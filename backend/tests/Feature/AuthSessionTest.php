@@ -8,6 +8,10 @@ use App\Models\User;
 use App\Services\GoogleIdentityService;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Session\ArraySessionHandler;
+use Illuminate\Session\Store;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -18,6 +22,32 @@ use Tests\TestCase;
 class AuthSessionTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_csrf_probe_returns_the_existing_session_token_without_rotation(): void
+    {
+        $existingToken = 'csrf-token-that-must-remain-valid';
+        $session = new Store('csrf-session', new ArraySessionHandler(120));
+        $session->start();
+
+        $request = Request::create('/api/v1/auth/csrf-token', 'GET');
+        $request->setLaravelSession($session);
+        $request->session()->put('_token', $existingToken);
+        $this->assertSame($existingToken, $request->session()->token());
+        $routes = collect(app('router')->getRoutes()->getRoutes())
+            ->filter(static fn ($candidate): bool => $candidate->uri() === 'api/v1/auth/csrf-token'
+                && in_array('GET', $candidate->methods(), true));
+
+        $this->assertCount(1, $routes);
+        $route = $routes->sole();
+        $action = $route->getAction('uses');
+        $this->assertIsCallable($action);
+
+        $response = $action($request);
+        $this->assertInstanceOf(JsonResponse::class, $response);
+
+        $this->assertSame($existingToken, $response->getData(true)['token']);
+        $this->assertSame($existingToken, $session->token());
+    }
 
     public function test_admin_password_reset_email_preserves_admin_login_context(): void
     {
@@ -179,11 +209,17 @@ class AuthSessionTest extends TestCase
             'email' => 'dentist@example.com',
             'password' => 'password123',
         ]);
+        $preLoginToken = 'csrf-token-before-login';
 
-        $this->postJson('/api/v1/auth/login', [
-            'email' => 'dentist@example.com',
-            'password' => 'password123',
-        ], $this->csrfHeaders())->assertOk();
+        $this->withSession(['_token' => $preLoginToken])
+            ->postJson('/api/v1/auth/login', [
+                'email' => 'dentist@example.com',
+                'password' => 'password123',
+            ], ['X-XSRF-TOKEN' => $preLoginToken])
+            ->assertOk();
+
+        $postLoginToken = (string) app('session')->token();
+        $this->assertNotSame($preLoginToken, $postLoginToken);
 
         $this->actingAs($user, 'web')
             ->getJson('/api/v1/auth/me')

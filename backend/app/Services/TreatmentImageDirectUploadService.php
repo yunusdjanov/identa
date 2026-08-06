@@ -3,10 +3,10 @@
 namespace App\Services;
 
 use App\Jobs\DeleteStoredMediaPaths;
-use App\Jobs\ProcessUploadedMedia;
 use App\Models\Treatment;
 use App\Models\TreatmentImage;
 use App\Models\User;
+use App\Services\Media\MediaQueueDispatcher;
 use App\Support\MediaPathCache;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -27,6 +27,7 @@ class TreatmentImageDirectUploadService
     public function __construct(
         private readonly ImageCompressionService $imageCompressionService,
         private readonly PlanLimitService $planLimitService,
+        private readonly MediaQueueDispatcher $mediaQueueDispatcher,
     ) {}
 
     /**
@@ -192,7 +193,7 @@ class TreatmentImageDirectUploadService
             throw $exception;
         }
 
-        ProcessUploadedMedia::dispatch(TreatmentImage::class, (string) $image->id, (int) $owner->id);
+        $this->mediaQueueDispatcher->dispatch(TreatmentImage::class, (string) $image->id, (int) $owner->id);
         $image->refresh();
         if ((string) $image->scan_status === 'rejected') {
             throw ValidationException::withMessages([
@@ -401,7 +402,7 @@ class TreatmentImageDirectUploadService
             }
 
             if ($wasCreated) {
-                ProcessUploadedMedia::dispatch(TreatmentImage::class, (string) $image->id, $owner->id);
+                $this->mediaQueueDispatcher->dispatch(TreatmentImage::class, (string) $image->id, (int) $owner->id);
             }
             $image->refresh();
             $scanStatus = (string) $image->scan_status;

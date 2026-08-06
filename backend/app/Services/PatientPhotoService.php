@@ -3,9 +3,9 @@
 namespace App\Services;
 
 use App\Jobs\DeleteStoredMediaPaths;
-use App\Jobs\ProcessUploadedMedia;
 use App\Models\Patient;
 use App\Models\User;
+use App\Services\Media\MediaQueueDispatcher;
 use App\Support\ImageVariantGenerator;
 use App\Support\MediaPathCache;
 use Illuminate\Http\Request;
@@ -45,6 +45,7 @@ class PatientPhotoService
 
     public function __construct(
         private readonly PlanLimitService $planLimitService,
+        private readonly MediaQueueDispatcher $mediaQueueDispatcher,
     ) {}
 
     public function uploadQueued(Patient $patient, UploadedFile $uploadedPhoto, User $owner): Patient
@@ -88,7 +89,7 @@ class PatientPhotoService
 
         $patient->forceFill($attributes)->save();
 
-        ProcessUploadedMedia::dispatch(Patient::class, (string) $patient->id, (int) $owner->id);
+        $this->mediaQueueDispatcher->dispatch(Patient::class, (string) $patient->id, (int) $owner->id);
         $patient->refresh();
 
         if ((string) $patient->scan_status === 'rejected') {
@@ -242,7 +243,7 @@ class PatientPhotoService
 
         $patient->forceFill($attributes)->save();
 
-        ProcessUploadedMedia::dispatch(Patient::class, (string) $patient->id, (int) $owner->id);
+        $this->mediaQueueDispatcher->dispatch(Patient::class, (string) $patient->id, (int) $owner->id);
         $patient->refresh();
 
         if ((string) $patient->scan_status === 'rejected') {
@@ -580,7 +581,9 @@ class PatientPhotoService
             }
 
             try {
-                Storage::disk($disk)->put($variantPath, $generatedVariant['contents']);
+                if (! Storage::disk($disk)->put($variantPath, $generatedVariant['contents'])) {
+                    throw new RuntimeException('Unable to persist patient photo variant.');
+                }
                 MediaPathCache::markPresent($disk, $variantPath);
             } catch (\Throwable $exception) {
                 Log::warning('Patient photo variant persistence failed.', [

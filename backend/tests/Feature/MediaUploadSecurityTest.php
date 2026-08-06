@@ -15,6 +15,7 @@ use App\Models\User;
 use App\Services\ImageCompressionService;
 use App\Services\Media\AntivirusScanner;
 use App\Services\Media\ScanResult;
+use Illuminate\Contracts\Bus\Dispatcher;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Cache;
@@ -88,6 +89,54 @@ class MediaUploadSecurityTest extends TestCase
         Storage::disk('local')->assertMissing($quarantinePath);
     }
 
+    public function test_process_uploaded_media_does_not_approve_when_storage_write_returns_false(): void
+    {
+        $dentist = User::factory()->create();
+        $patient = Patient::factory()->create(['dentist_id' => $dentist->id]);
+        $treatment = Treatment::factory()->create([
+            'dentist_id' => $dentist->id,
+            'patient_id' => $patient->id,
+        ]);
+        $record = TreatmentImage::query()->create([
+            'dentist_id' => $dentist->id,
+            'treatment_id' => $treatment->id,
+            'disk' => 'local',
+            'path' => 'quarantine/treatments/write-failure.jpg',
+            'mime_type' => 'image/jpeg',
+            'file_size' => 123,
+            'scan_status' => 'pending',
+            'quarantine_path' => 'quarantine/treatments/write-failure.jpg',
+        ]);
+
+        $disk = \Mockery::mock();
+        $disk->shouldReceive('exists')->once()->andReturnTrue();
+        $disk->shouldReceive('get')->once()->andReturn('sanitized input');
+        $disk->shouldReceive('put')->once()->andReturnFalse();
+        Storage::shouldReceive('disk')->with('local')->andReturn($disk);
+        $scanner = \Mockery::mock(AntivirusScanner::class);
+        $scanner->shouldReceive('scanString')->once()->andReturn(ScanResult::clean('test'));
+        $compression = \Mockery::mock(ImageCompressionService::class);
+        $compression->shouldReceive('optimizeContents')->once()->andReturn([
+            'contents' => 'approved bytes',
+            'mime_type' => 'image/webp',
+            'extension' => 'webp',
+            'file_size' => 14,
+        ]);
+
+        try {
+            (new ProcessUploadedMedia(TreatmentImage::class, (string) $record->id, (int) $dentist->id))
+                ->handle($scanner, $compression);
+            $this->fail('A failed approved-media write must throw for queue retry.');
+        } catch (RuntimeException $exception) {
+            $this->assertSame('Unable to persist approved media.', $exception->getMessage());
+        }
+
+        $record->refresh();
+        $this->assertSame('pending', $record->scan_status);
+        $this->assertSame('quarantine/treatments/write-failure.jpg', $record->quarantine_path);
+        $this->assertNull($record->approved_at);
+    }
+
     public function test_process_uploaded_media_approves_clean_patient_photo(): void
     {
         Storage::fake('local');
@@ -128,7 +177,7 @@ class MediaUploadSecurityTest extends TestCase
         Storage::disk('local')->assertExists((string) $patient->photo_path);
     }
 
-    public function test_process_uploaded_media_retries_operational_failures_before_rejecting(): void
+    public function test_process_uploaded_media_keeps_operational_failure_pending_for_recovery(): void
     {
         Storage::fake('local');
         $this->bindCleanScanner();
@@ -170,10 +219,11 @@ class MediaUploadSecurityTest extends TestCase
         $job->failed(new RuntimeException('Retries exhausted.'));
 
         $patient->refresh();
-        $this->assertSame('rejected', $patient->scan_status);
+        $this->assertSame('pending', $patient->scan_status);
         $this->assertSame('internal', $patient->scan_provider);
-        $this->assertNull($patient->quarantine_path);
-        Storage::disk('local')->assertMissing($quarantinePath);
+        $this->assertSame($quarantinePath, $patient->quarantine_path);
+        $this->assertNull($patient->rejected_at);
+        Storage::disk('local')->assertExists($quarantinePath);
     }
 
     public function test_process_uploaded_media_approves_clean_patient_oral_photo(): void
@@ -527,6 +577,36 @@ class MediaUploadSecurityTest extends TestCase
             ->assertJsonPath('data.images.0.url', null);
 
         Queue::assertPushed(ProcessUploadedMedia::class);
+    }
+
+    public function test_treatment_upload_remains_saved_when_queue_broker_is_temporarily_unavailable(): void
+    {
+        Storage::fake('local');
+        $bus = \Mockery::mock(Dispatcher::class);
+        $bus->shouldReceive('dispatch')
+            ->once()
+            ->andThrow(new RuntimeException('broker unavailable'));
+        $this->app->instance(Dispatcher::class, $bus);
+
+        $dentist = User::factory()->create();
+        $patient = Patient::factory()->create(['dentist_id' => $dentist->id]);
+        $treatment = Treatment::factory()->create([
+            'dentist_id' => $dentist->id,
+            'patient_id' => $patient->id,
+        ]);
+
+        $this->actingAs($dentist, 'web')
+            ->post("/api/v1/patients/{$patient->id}/treatments/{$treatment->id}/images", [
+                'image' => UploadedFile::fake()->image('queue-outage.jpg', 800, 600),
+            ], ['Accept' => 'application/json'])
+            ->assertCreated()
+            ->assertJsonPath('data.images.0.scan_status', 'pending')
+            ->assertJsonPath('data.images.0.url', null);
+
+        $record = TreatmentImage::query()->sole();
+        $this->assertSame('pending', $record->scan_status);
+        $this->assertNotNull($record->quarantine_path);
+        Storage::disk('local')->assertExists((string) $record->quarantine_path);
     }
 
     public function test_pending_treatment_media_response_has_scan_status_and_no_urls(): void

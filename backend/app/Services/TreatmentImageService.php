@@ -8,6 +8,7 @@ use App\Models\Patient;
 use App\Models\Treatment;
 use App\Models\TreatmentImage;
 use App\Models\User;
+use App\Services\Media\MediaQueueDispatcher;
 use App\Support\ImageVariantGenerator;
 use App\Support\MediaPathCache;
 use Illuminate\Database\Eloquent\Builder;
@@ -44,6 +45,7 @@ class TreatmentImageService
 
     public function __construct(
         private readonly PlanLimitService $planLimitService,
+        private readonly MediaQueueDispatcher $mediaQueueDispatcher,
     ) {}
 
     public function uploadQueued(
@@ -98,7 +100,7 @@ class TreatmentImageService
             throw $exception;
         }
 
-        ProcessUploadedMedia::dispatch(TreatmentImage::class, (string) $image->id, (int) $owner->id);
+        $this->mediaQueueDispatcher->dispatch(TreatmentImage::class, (string) $image->id, (int) $owner->id);
         $image->refresh();
         if ((string) $image->scan_status === 'rejected') {
             throw ValidationException::withMessages([
@@ -495,7 +497,9 @@ class TreatmentImageService
             }
 
             try {
-                Storage::disk($disk)->put($variantPath, $generatedVariant['contents']);
+                if (! Storage::disk($disk)->put($variantPath, $generatedVariant['contents'])) {
+                    throw new \RuntimeException('Unable to persist treatment image variant.');
+                }
             } catch (\Throwable $exception) {
                 Log::warning('Treatment image variant persistence failed.', [
                     'exception' => $exception::class,

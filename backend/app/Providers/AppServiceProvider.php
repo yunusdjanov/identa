@@ -19,11 +19,15 @@ use App\Policies\TenantOwnedPolicy;
 use App\Services\Media\AntivirusScanner;
 use App\Services\Media\ClamAvAntivirusScanner;
 use App\Services\Media\NullAntivirusScanner;
+use App\Services\Media\PendingMediaRecoveryService;
+use App\Support\AnalyticsCacheVersion;
 use App\Support\ProductionRuntimePolicyValidator;
 use App\Support\ProductionSecretsValidator;
-use App\Support\AnalyticsCacheVersion;
 use Illuminate\Auth\Notifications\ResetPassword;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -122,6 +126,48 @@ class AppServiceProvider extends ServiceProvider
             $modelClass::saved($invalidateAdminAnalytics);
             $modelClass::deleted($invalidateAdminAnalytics);
         }
+
+        $this->registerPendingMediaRecovery();
+    }
+
+    private function registerPendingMediaRecovery(): void
+    {
+        Queue::looping(function (): void {
+            static $lastAttemptAt = 0;
+
+            if (! (bool) config('media-security.recovery.enabled', true)) {
+                return;
+            }
+
+            $interval = max(15, (int) config('media-security.recovery.interval_seconds', 60));
+            $now = time();
+            if (($now - $lastAttemptAt) < $interval) {
+                return;
+            }
+            $lastAttemptAt = $now;
+
+            try {
+                Cache::lock('media:pending-recovery', max(10, $interval - 1))->get(function (): void {
+                    $minimumAge = max(60, (int) config('media-security.recovery.min_age_seconds', 300));
+                    $batchSize = max(1, min(1000, (int) config('media-security.recovery.batch_size_per_model', 100)));
+                    $result = app(PendingMediaRecoveryService::class)->recover(
+                        now()->subSeconds($minimumAge),
+                        $batchSize,
+                    );
+
+                    if ($result['queued'] > 0 || $result['failed'] > 0) {
+                        Log::info('Pending media recovery pass completed.', [
+                            'queued' => $result['queued'],
+                            'failed' => $result['failed'],
+                        ]);
+                    }
+                });
+            } catch (\Throwable $exception) {
+                Log::warning('Pending media recovery pass failed.', [
+                    'exception' => $exception::class,
+                ]);
+            }
+        });
     }
 
     private function shouldSkipProductionGuardsForConsoleCommand(): bool

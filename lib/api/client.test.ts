@@ -140,6 +140,24 @@ describe('getApiErrorMessage', () => {
         expect(getApiErrorMessage(error, 'Session expired fallback')).toBe('Your session expired. Please sign in again.');
     });
 
+    it('reports a CSRF expiry without treating the authenticated session as expired', () => {
+        const error = new AxiosError(
+            'Request failed',
+            '419',
+            undefined,
+            undefined,
+            {
+                data: { message: 'CSRF token mismatch.' },
+                status: 419,
+                statusText: 'Page Expired',
+                headers: {},
+                config: {} as never,
+            }
+        );
+
+        expect(getApiErrorMessage(error, 'Fallback')).toBe('The security token expired. Please try again.');
+    });
+
     it('maps rate limit responses to a clear retry message', () => {
         const error = new AxiosError(
             'Request failed',
@@ -287,6 +305,24 @@ describe('apiMutationRequest', () => {
         expect(consumeAuthRedirectReason()).toBe('session-expired');
     });
 
+    it('keeps the session active for 419 responses', async () => {
+        const dispatchSpy = vi.spyOn(window, 'dispatchEvent');
+        global.fetch = vi.fn().mockResolvedValue({
+            ok: false,
+            status: 419,
+            text: async () => JSON.stringify({ message: 'CSRF token mismatch.' }),
+        }) as typeof fetch;
+
+        await expect(
+            apiMutationRequest('/protected', {
+                method: 'POST',
+            })
+        ).rejects.toThrow('The security token expired. Please try again.');
+
+        expect(dispatchSpy).not.toHaveBeenCalledWith(expect.objectContaining({ type: AUTH_SESSION_EXPIRED_EVENT }));
+        expect(consumeAuthRedirectReason()).toBeNull();
+    });
+
     it('does not broadcast session expiry when checking the current auth session', async () => {
         const dispatchSpy = vi.spyOn(window, 'dispatchEvent');
 
@@ -379,7 +415,7 @@ describe('withCsrfRetry', () => {
         expect(consumeAuthRedirectReason()).toBeNull();
     });
 
-    it('broadcasts session expiry when the CSRF retry also fails', async () => {
+    it('does not log the user out when the CSRF retry also fails', async () => {
         const dispatchSpy = vi.spyOn(window, 'dispatchEvent');
         let attempts = 0;
 
@@ -405,7 +441,38 @@ describe('withCsrfRetry', () => {
         )).rejects.toThrow('Request failed with status code 419');
 
         expect(attempts).toBe(2);
+        expect(dispatchSpy).not.toHaveBeenCalledWith(expect.objectContaining({ type: AUTH_SESSION_EXPIRED_EVENT }));
+        expect(consumeAuthRedirectReason()).toBeNull();
+    });
+
+    it('does not retry an actual unauthenticated response and broadcasts session expiry', async () => {
+        const dispatchSpy = vi.spyOn(window, 'dispatchEvent');
+        let attempts = 0;
+
+        await expect(withCsrfRetry(() =>
+            apiClient.post('/protected', {}, {
+                adapter: async (config) => {
+                    attempts += 1;
+                    throw new AxiosError(
+                        'Request failed with status code 401',
+                        'ERR_BAD_REQUEST',
+                        config,
+                        undefined,
+                        {
+                            data: { message: 'Unauthenticated.' },
+                            status: 401,
+                            statusText: 'Unauthorized',
+                            headers: {},
+                            config,
+                        }
+                    );
+                },
+            })
+        )).rejects.toThrow('Request failed with status code 401');
+
+        expect(attempts).toBe(1);
         expect(dispatchSpy).toHaveBeenCalledWith(expect.objectContaining({ type: AUTH_SESSION_EXPIRED_EVENT }));
         expect(consumeAuthRedirectReason()).toBe('session-expired');
     });
+
 });

@@ -299,6 +299,7 @@ class AuthService
         }
 
         $request->session()->regenerate();
+        $request->session()->regenerateToken();
 
         /** @var User $user */
         $user = Auth::guard('web')->user();
@@ -432,6 +433,7 @@ class AuthService
     {
         Auth::guard('web')->login($user, $remember);
         $request->session()->regenerate();
+        $request->session()->regenerateToken();
         $user->update(['last_login_at' => now()]);
     }
 

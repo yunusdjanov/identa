@@ -4,6 +4,7 @@ namespace Tests\Unit;
 
 use App\Services\ImageCompressionService;
 use Illuminate\Support\Facades\Storage;
+use Mockery;
 use RuntimeException;
 use Tests\TestCase;
 
@@ -18,6 +19,26 @@ class ImageCompressionServiceTest extends TestCase
         $this->expectExceptionMessage('Unable to sanitize image.');
 
         app(ImageCompressionService::class)->optimizeStoredObject('local', 'quarantine/not-image.jpg', null);
+    }
+
+    public function test_stored_object_optimization_keeps_original_when_target_write_fails(): void
+    {
+        $image = imagecreatetruecolor(32, 24);
+        ob_start();
+        imagejpeg($image);
+        $jpeg = (string) ob_get_clean();
+        imagedestroy($image);
+
+        $disk = Mockery::mock();
+        $disk->shouldReceive('get')->once()->with('quarantine/source.jpg')->andReturn($jpeg);
+        $disk->shouldReceive('put')->once()->andReturnFalse();
+        $disk->shouldNotReceive('delete');
+        Storage::shouldReceive('disk')->with('local')->andReturn($disk);
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('Unable to persist optimized image.');
+
+        app(ImageCompressionService::class)->optimizeStoredObject('local', 'quarantine/source.jpg', null);
     }
 
     public function test_optimize_contents_rejects_decompression_bomb_dimensions(): void

@@ -11,6 +11,7 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use RuntimeException;
 
 class GenerateMediaVariantBatch implements ShouldQueue
 {
@@ -81,7 +82,9 @@ class GenerateMediaVariantBatch implements ShouldQueue
                     continue;
                 }
 
-                $storage->put($variantPath, $generatedVariant['contents']);
+                if (! $storage->put($variantPath, $generatedVariant['contents'])) {
+                    throw new RuntimeException('Unable to persist generated media variant.');
+                }
                 MediaPathCache::markPresent($disk, $variantPath);
             }
         } catch (\Throwable $exception) {

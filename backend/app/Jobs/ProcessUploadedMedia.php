@@ -14,6 +14,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
+use Illuminate\Queue\Middleware\WithoutOverlapping;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -88,7 +89,9 @@ class ProcessUploadedMedia implements ShouldQueue
             $approvedPath = $this->approvedPath($quarantinePath, $optimized['extension']);
             $previousDisk = $this->recordDisk($record);
             $previousPath = $this->currentMediaPath($record);
-            Storage::disk($disk)->put($approvedPath, $optimized['contents']);
+            if (! Storage::disk($disk)->put($approvedPath, $optimized['contents'])) {
+                throw new \RuntimeException('Unable to persist approved media.');
+            }
             MediaPathCache::markPresent($disk, $approvedPath);
 
             $record->forceFill($this->approvedAttributes(
@@ -109,6 +112,21 @@ class ProcessUploadedMedia implements ShouldQueue
         }
     }
 
+    /**
+     * Recovery may enqueue the same pending record more than once. Serialize
+     * those jobs so only one scanner can mutate a media row at a time.
+     *
+     * @return list<WithoutOverlapping>
+     */
+    public function middleware(): array
+    {
+        return [
+            (new WithoutOverlapping(hash('sha256', $this->modelClass.':'.$this->modelId)))
+                ->expireAfter($this->timeout + 60)
+                ->dontRelease(),
+        ];
+    }
+
     public function failed(\Throwable $exception): void
     {
         $record = $this->resolveRecord();
@@ -116,10 +134,20 @@ class ProcessUploadedMedia implements ShouldQueue
             return;
         }
 
-        $this->reject(
-            $record,
-            ScanResult::failed('internal', 'Media processing failed after retries.')
-        );
+        // Exhausted queue retries indicate an operational failure, not unsafe
+        // media. Preserve the quarantine object and pending state so the
+        // bounded recovery pass can retry after storage/encoder health returns.
+        $record->forceFill([
+            'scan_result' => 'Media processing delayed after queue retries.',
+            'scan_provider' => 'internal',
+            'scanned_at' => now(),
+        ])->save();
+
+        Log::warning('Uploaded media processing delayed after queue retries.', [
+            'exception' => $exception::class,
+            'model' => $record::class,
+            'record_ref' => $this->recordReference($record),
+        ]);
     }
 
     /**

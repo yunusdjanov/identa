@@ -6,6 +6,7 @@ import { notifySessionExpired } from '@/lib/auth/session-expiry';
 const CLIENT_ERROR_MESSAGES: Record<AppLocale, Record<string, string>> = {
     ru: {
         'errors.sessionExpired': 'Сессия истекла. Войдите снова.',
+        'errors.csrfExpired': 'Токен безопасности устарел. Повторите попытку.',
         'errors.forbidden': 'У вас нет доступа к этому действию.',
         'errors.accountInactive': 'Ваш аккаунт неактивен. Обратитесь к администратору.',
         'errors.unauthorized': 'Не удалось выполнить действие. Войдите снова.',
@@ -15,6 +16,7 @@ const CLIENT_ERROR_MESSAGES: Record<AppLocale, Record<string, string>> = {
     },
     uz: {
         'errors.sessionExpired': 'Sessiya tugadi. Qayta kiring.',
+        'errors.csrfExpired': 'Xavfsizlik tokeni eskirdi. Qayta urinib koʻring.',
         'errors.forbidden': 'Bu amalni bajarish uchun ruxsat yo‘q.',
         'errors.accountInactive': "Akkauntingiz faol emas. Administrator bilan bog'laning.",
         'errors.unauthorized': 'Amalni bajarib bo‘lmadi. Qayta kiring.',
@@ -24,6 +26,7 @@ const CLIENT_ERROR_MESSAGES: Record<AppLocale, Record<string, string>> = {
     },
     en: {
         'errors.sessionExpired': 'Your session expired. Please sign in again.',
+        'errors.csrfExpired': 'The security token expired. Please try again.',
         'errors.forbidden': 'You do not have permission to perform this action.',
         'errors.accountInactive': 'Your account is inactive. Please contact support.',
         'errors.unauthorized': 'Unable to complete this action. Please sign in again.',
@@ -89,7 +92,7 @@ export const apiClient = axios.create({
 });
 
 function isSessionExpiredStatus(status: number | undefined): boolean {
-    return status === 401 || status === 419;
+    return status === 401;
 }
 
 function shouldBroadcastSessionExpiry(path: string | undefined): boolean {
@@ -300,25 +303,9 @@ export function getDisplayableApiMessage(
     return trimmed;
 }
 
-const SKIP_AUTH_EXPIRY_BROADCAST_CONFIG_KEY = '__identaSkipAuthExpiryBroadcast';
-
-let suppressAuthExpiryBroadcastDepth = 0;
-
-function shouldSkipAuthExpiryBroadcast(config: unknown): boolean {
-    return Boolean(
-        config
-        && typeof config === 'object'
-        && (config as Record<string, unknown>)[SKIP_AUTH_EXPIRY_BROADCAST_CONFIG_KEY] === true
-    );
-}
-
 apiClient.interceptors.request.use((config) => {
     if (typeof window !== 'undefined') {
         config.baseURL = `${resolveApiRootUrl()}/v1`;
-    }
-
-    if (suppressAuthExpiryBroadcastDepth > 0) {
-        (config as unknown as Record<string, unknown>)[SKIP_AUTH_EXPIRY_BROADCAST_CONFIG_KEY] = true;
     }
 
     const locale = resolveApiLocale();
@@ -345,9 +332,7 @@ apiClient.interceptors.response.use(
     (response) => response,
     (error) => {
         if (axios.isAxiosError(error)) {
-            if (!shouldSkipAuthExpiryBroadcast(error.config)) {
-                handleAuthExpiry(error.response?.status, error.config?.url ?? error.response?.config?.url);
-            }
+            handleAuthExpiry(error.response?.status, error.config?.url ?? error.response?.config?.url);
 
             // When the backend returns 403 with code `subscription_read_only`
             // (admin revoked, refund cascade, sub expired mid-session), notify
@@ -457,36 +442,14 @@ export async function withCsrfRetry<T>(operation: () => Promise<T>): Promise<T> 
     await ensureCsrfCookie();
 
     try {
-        suppressAuthExpiryBroadcastDepth += 1;
-        try {
-            return await operation();
-        } finally {
-            suppressAuthExpiryBroadcastDepth = Math.max(0, suppressAuthExpiryBroadcastDepth - 1);
-        }
+        return await operation();
     }
     catch (error) {
-        if (axios.isAxiosError(error) && (error.response?.status === 401 || error.response?.status === 419)) {
+        if (axios.isAxiosError(error) && error.response?.status === 419) {
             invalidateCsrfCookie();
             await ensureCsrfCookie({ force: true });
-            try {
-                const result = await operation();
-                // The first attempt's 401/419 already triggered the
-                // response interceptor's `handleAuthExpiry` which set the
-                // session-expired notification flag. Now that the retry
-                // succeeded, the session is actually fine — reset the
-                // flag so the next route navigation doesn't redirect
-                // the user to /login (Phase 1 H4 fix).
-                const { resetSessionExpiredNotification } = await import('@/lib/auth/session-expiry');
-                resetSessionExpiredNotification();
-                return result;
-            }
-            catch (retryError) {
-                if (axios.isAxiosError(retryError)) {
-                    handleAuthExpiry(retryError.response?.status, retryError.config?.url);
-                }
 
-                throw retryError;
-            }
+            return await operation();
         }
 
         throw error;
@@ -505,8 +468,8 @@ export async function apiMutationRequest<TResponse>(
     // round-trip. Phase 1 M4: logout + long-idle sessions sometimes
     // hit this path with both the in-memory `csrfToken` cache cleared
     // AND the XSRF-TOKEN cookie expired — without the fetch the POST
-    // goes without `X-CSRF-TOKEN`, backend 419s, and the flow gets
-    // bumped to /login awkwardly. Swallow CSRF-cookie fetch failures
+    // goes without `X-CSRF-TOKEN` and the backend returns 419. Swallow
+    // CSRF-cookie fetch failures
     // (network errors during tests or offline) so the mutation can
     // still proceed and receive the real backend response.
     let token = csrfToken ?? getXsrfTokenFromCookie();
@@ -548,11 +511,12 @@ export async function apiMutationRequest<TResponse>(
 
     if (!response.ok) {
         handleAuthExpiry(response.status, path);
-        const message =
-            (parsedBody as { message?: string; error?: { message?: string } } | undefined)?.message
-            ?? (parsedBody as { error?: { message?: string } } | undefined)?.error?.message
-            ?? (responseText || undefined)
-            ?? `Request failed with status ${response.status}.`;
+        const message = response.status === 419
+            ? getLocalizedClientMessage('errors.csrfExpired', 'The security token expired. Please try again.')
+            : (parsedBody as { message?: string; error?: { message?: string } } | undefined)?.message
+                ?? (parsedBody as { error?: { message?: string } } | undefined)?.error?.message
+                ?? (responseText || undefined)
+                ?? `Request failed with status ${response.status}.`;
         throw new Error(message);
     }
 
@@ -574,6 +538,10 @@ export function getApiErrorMessage(error: unknown, fallback = 'Request failed.')
 
         if (isSessionExpiredStatus(status)) {
             return getLocalizedClientMessage('errors.sessionExpired', fallback);
+        }
+
+        if (status === 419) {
+            return getLocalizedClientMessage('errors.csrfExpired', fallback);
         }
 
         if (status === 429) {

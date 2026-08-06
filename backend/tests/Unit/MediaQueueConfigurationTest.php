@@ -7,6 +7,7 @@ use App\Jobs\GenerateMediaVariantBatch;
 use App\Jobs\GenerateMediaVariants;
 use App\Jobs\ProcessUploadedMedia;
 use App\Models\Patient;
+use Illuminate\Queue\Middleware\WithoutOverlapping;
 use Tests\TestCase;
 
 class MediaQueueConfigurationTest extends TestCase
@@ -43,5 +44,13 @@ class MediaQueueConfigurationTest extends TestCase
             $longestTimeout,
             (int) config('queue.connections.database.retry_after')
         );
+    }
+
+    public function test_media_processing_serializes_duplicate_recovery_jobs(): void
+    {
+        $middleware = (new ProcessUploadedMedia(Patient::class, 'patient-1', 1))->middleware();
+
+        $this->assertCount(1, $middleware);
+        $this->assertInstanceOf(WithoutOverlapping::class, $middleware[0]);
     }
 }
