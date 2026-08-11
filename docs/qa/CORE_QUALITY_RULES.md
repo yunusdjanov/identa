@@ -69,3 +69,16 @@ Page audits must use:
 
 A page is not release-ready while it has an open P0/P1 or a mandatory
 business/security check is blocked or not tested.
+
+## 7. Project-wide audits use the structural tracker
+
+Cross-cutting frontend, backend, database, worker/cron, security, performance,
+and infrastructure audits must use:
+
+- `docs/qa/STRUCTURAL_AUDIT_STANDARD.md` for the no-harm policy, mandatory
+  layers, evidence, Definition of Done, and reopen rules;
+- `docs/qa/STRUCTURAL_AUDIT_TRACKER.md` for current section ownership, order,
+  dependencies, and status.
+
+Historical reports are evidence for their recorded commit only. A stable
+section must be reopened when a listed dependency or contract changes.

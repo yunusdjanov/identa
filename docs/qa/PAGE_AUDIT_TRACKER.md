@@ -1,8 +1,9 @@
 # Identa Page Audit Tracker
 
-- Inventory date: 2026-07-25
+- Inventory last verified: 2026-08-11
 - Total routed pages: 29
 - Standard: `docs/qa/PAGE_AUDIT_STANDARD.md`
+- Structural program: `docs/qa/STRUCTURAL_AUDIT_TRACKER.md`
 - Cross-cutting text/layout/PDF audit:
   `docs/qa/TEXT_LAYOUT_PDF_AUDIT_2026-07-28.md`
 
@@ -14,6 +15,10 @@ Risk tiers:
 
 Recommended sequence follows shared dependencies and business risk. A page is
 not marked `READY` until its report satisfies the master standard.
+
+Recorded statuses below belong to the commit/environment named in each report.
+They are historical evidence when that commit predates the current structural
+baseline and must be revalidated before they establish current readiness.
 
 | Order | Route | Tier | Primary focus | Status | Report |
 | ---: | --- | :---: | --- | --- | --- |
