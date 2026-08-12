@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -14,6 +14,34 @@ const checks = [
             /List endpoints must be paginated/,
             /Upload finalize must verify real object size and type/,
             /Every release runs the short release checklist/,
+            /Project-wide audits use the structural tracker/,
+        ],
+    },
+    {
+        name: 'Route audit program is documented and tracked',
+        file: 'docs/qa/PAGE_AUDIT_STANDARD.md',
+        patterns: [/## 8\. Audit completion rule/, /PAGE_AUDIT_TRACKER\.md/],
+    },
+    {
+        name: 'Structural audit program is documented and tracked',
+        file: 'docs/qa/STRUCTURAL_AUDIT_STANDARD.md',
+        patterns: [
+            /Default no-harm operating policy/,
+            /Mandatory audit layers/,
+            /Definition of Done/,
+            /Reopen triggers/,
+            /STRUCTURAL_AUDIT_TRACKER\.md/,
+        ],
+    },
+    {
+        name: 'Structural audit tracker includes the full program boundary',
+        file: 'docs/qa/STRUCTURAL_AUDIT_TRACKER.md',
+        patterns: [
+            /S00.*Audit foundation/,
+            /S14.*API contracts/,
+            /S17.*Security, privacy/,
+            /S20.*CI\/CD/,
+            /Default production policy: read-only smoke/,
         ],
     },
     {
@@ -119,12 +147,66 @@ function assertPatterns(check) {
     }
 }
 
+/** Return every file below an absolute directory without extra dependencies. */
+function listFilesRecursively(directory) {
+    return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+        const absolutePath = resolve(directory, entry.name);
+
+        return entry.isDirectory() ? listFilesRecursively(absolutePath) : [absolutePath];
+    });
+}
+
+/** Keep the page tracker count synchronized with the real App Router inventory. */
+function assertPageInventory() {
+    const tracker = readRepoFile('docs/qa/PAGE_AUDIT_TRACKER.md');
+    const declaredMatch = tracker.match(/Total routed pages:\s*(\d+)/);
+    if (!declaredMatch) {
+        throw new Error('Page audit tracker does not declare Total routed pages.');
+    }
+
+    const routedPages = listFilesRecursively(resolve(REPO_ROOT, 'app'))
+        .filter((absolutePath) => absolutePath.endsWith('page.tsx'));
+    const declaredCount = Number(declaredMatch[1]);
+
+    if (declaredCount !== routedPages.length) {
+        throw new Error(
+            `Page audit inventory drifted: tracker declares ${declaredCount}, App Router contains ${routedPages.length}.`
+        );
+    }
+}
+
+/** Structural sections are intentionally contiguous so none silently disappear. */
+function assertStructuralInventory() {
+    const tracker = readRepoFile('docs/qa/STRUCTURAL_AUDIT_TRACKER.md');
+    const sectionIds = [...tracker.matchAll(/\|\s*\d+\s*\|\s*(S\d{2})\s*\|/g)]
+        .map((match) => match[1]);
+    const expectedIds = Array.from({ length: 21 }, (_, index) => `S${String(index).padStart(2, '0')}`);
+
+    if (sectionIds.length !== expectedIds.length || sectionIds.some((id, index) => id !== expectedIds[index])) {
+        throw new Error(
+            `Structural audit inventory drifted: expected ${expectedIds.join(', ')}, found ${sectionIds.join(', ')}.`
+        );
+    }
+}
+
 const failures = [];
 
 for (const check of checks) {
     try {
         assertPatterns(check);
         console.log(`ok - ${check.name}`);
+    } catch (error) {
+        failures.push(error instanceof Error ? error.message : String(error));
+    }
+}
+
+for (const [name, assertion] of [
+    ['Page audit route inventory matches App Router', assertPageInventory],
+    ['Structural audit section inventory is contiguous', assertStructuralInventory],
+]) {
+    try {
+        assertion();
+        console.log(`ok - ${name}`);
     } catch (error) {
         failures.push(error instanceof Error ? error.message : String(error));
     }

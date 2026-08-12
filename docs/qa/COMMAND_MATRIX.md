@@ -71,7 +71,9 @@ This command verifies the five release-blocking rules documented in
 `docs/qa/CORE_QUALITY_RULES.md`: high-risk test coverage exists, bug fixes
 stay tied to regression-test discipline, list endpoints keep the pagination
 contract, direct upload finalize keeps stored-size/type verification, and
-the release checklist still runs the guardrails.
+the release checklist still runs the guardrails. It also verifies that the
+route and structural audit standards/trackers remain wired into the quality
+rules so audit evidence cannot silently fall out of the release process.
 
 ## OpenAPI Contract Drift Check
 
