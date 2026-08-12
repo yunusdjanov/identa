@@ -53,6 +53,7 @@ required pull-request CI succeeds.
 | ID | Severity | Finding | Evidence | Fix/test | Status |
 | --- | --- | --- | --- | --- | --- |
 | S00-001 | P2 | The repository had a comprehensive route audit standard but no current structural tracker for backend, data, workers, and infrastructure. Historical page reports could be mistaken for current readiness. | Existing `PAGE_AUDIT_TRACKER.md` covers routes only; reports reference older commits. | Added structural standard/tracker, explicit historical-evidence rule, and automated route/section inventory checks. | FIXED LOCALLY; PR CI PENDING |
+| S00-002 | P1 | Live advisory data disclosed high-severity denial-of-service issues in transitive frontend and backend packages after the baseline CI run. | PR dependency CI reported vulnerable `js-yaml` 4.3.0, `nanoid` 3.3.16, and `league/commonmark` 2.8.2. The audit-framework diff did not introduce any of those packages. | Lockfile-only compatible updates to `js-yaml` 4.3.1, `nanoid` 3.3.18, and `league/commonmark` 2.9.2; npm and Composer audits now report zero advisories. | FIXED LOCALLY; PR CI PENDING |
 
 ## Commands and environments
 
@@ -64,6 +65,10 @@ rg --files app
 npm.cmd run check:core-guardrails
 npm.cmd run check:openapi
 npm.cmd exec eslint -- scripts/check-core-guardrails.mjs
+npm.cmd run quality:security
+npm.cmd run test:backend
+npm test
+npm.cmd run build
 git diff --check
 ```
 
@@ -74,7 +79,18 @@ Local results:
 - Core guardrails: passed.
 - OpenAPI contract: passed, 55 paths.
 - Focused ESLint: passed.
+- Frontend dependency audit: passed, no high or critical advisories.
+- Composer locked dependency audit: passed, no advisories.
+- Backend PHPUnit: passed, 291 tests and 1,755 assertions.
+- Frontend Vitest on the supported Node 22 runtime: passed, 80 files and
+  476 tests.
+- Production build: passed, including TypeScript and all 58 static pages.
 - Diff whitespace check: passed.
+
+The host's unsupported Node 24 runtime reproduced a timing-sensitive failure
+in one appointment-dialog test. The focused test and the complete suite pass
+on the repository's declared Node 22 runtime and the PR CI runtime; no product
+code was changed for an out-of-contract local runtime.
 
 ## Production smoke
 
