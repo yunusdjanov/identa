@@ -63,7 +63,7 @@ function ChartCard({
     return (
         <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm">
             <div className="border-b border-slate-100 px-5 py-3">
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-600">
                     {subtitle}
                 </p>
                 <h3 className="text-sm font-bold tracking-tight text-slate-900">{title}</h3>
@@ -82,7 +82,7 @@ function DonutCenterLabel({ total, caption }: { total: number; caption: string }
     return (
         <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
             <span className="text-2xl font-bold tabular-nums text-slate-900">{total}</span>
-            <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-600">
                 {caption}
             </span>
         </div>
@@ -133,6 +133,8 @@ export function SignupGrowthChart({ data }: { data: SignupGrowthPoint[] }) {
                                 border: '1px solid #e2e8f0',
                                 fontSize: 12,
                             }}
+                            itemStyle={{ color: '#334155' }}
+                            labelStyle={{ color: '#334155' }}
                         />
                         <Line
                             type="monotone"
@@ -229,6 +231,8 @@ export function SubscriptionHealthChart({ data }: { data: SubscriptionHealthPoin
                                         border: '1px solid #e2e8f0',
                                         fontSize: 12,
                                     }}
+                                    itemStyle={{ color: '#334155' }}
+                                    labelStyle={{ color: '#334155' }}
                                     formatter={(value, name) => [
                                         `${value}`,
                                         t(`admin.analytics.charts.subHealth.${String(name)}`),
@@ -246,23 +250,20 @@ export function SubscriptionHealthChart({ data }: { data: SubscriptionHealthPoin
                             const pct = total > 0 ? Math.round((entry.count / total) * 100) : 0;
                             const dim = entry.count === 0;
                             return (
-                                <div
-                                    key={entry.status}
-                                    className={`flex items-center gap-2.5 ${dim ? 'opacity-50' : ''}`}
-                                >
+                                <div key={entry.status} className="flex items-center gap-2.5">
                                     <span
-                                        className="h-2.5 w-2.5 shrink-0 rounded-full"
+                                        className={`h-2.5 w-2.5 shrink-0 rounded-full ${dim ? 'opacity-50' : ''}`}
                                         style={{
                                             background: SUB_STATUS_COLOR[entry.status] ?? '#cbd5e1',
                                         }}
                                     />
-                                    <span className="flex-1 truncate text-xs text-slate-700">
+                                    <span className={`flex-1 truncate text-xs ${dim ? 'text-slate-500' : 'text-slate-700'}`}>
                                         {t(`admin.analytics.charts.subHealth.${entry.status}`)}
                                     </span>
-                                    <span className="text-xs font-bold tabular-nums text-slate-900">
+                                    <span className={`text-xs font-bold tabular-nums ${dim ? 'text-slate-500' : 'text-slate-900'}`}>
                                         {entry.count}
                                     </span>
-                                    <span className="w-9 text-right text-[10px] tabular-nums text-slate-400">
+                                    <span className="w-9 text-right text-[10px] tabular-nums text-slate-600">
                                         {pct}%
                                     </span>
                                 </div>

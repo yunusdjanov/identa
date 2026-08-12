@@ -114,7 +114,7 @@ export function KpiCard({
                         {label}
                     </p>
                     {description ? (
-                        <p className="text-[11px] text-slate-400">{description}</p>
+                        <p className="text-[11px] text-slate-600">{description}</p>
                     ) : null}
                 </div>
                 {Icon ? (
@@ -151,13 +151,13 @@ export function KpiCard({
                             <span className="text-slate-500">{t('analytics.delta.vs')}</span>
                         </>
                     ) : (
-                        <span className="text-slate-400">{t('analytics.delta.noBaseline')}</span>
+                        <span className="text-slate-600">{t('analytics.delta.noBaseline')}</span>
                     )}
                 </div>
             ) : null}
 
             {footnote ? (
-                <p className="text-[10px] text-slate-400">{footnote}</p>
+                <p className="text-[10px] text-slate-600">{footnote}</p>
             ) : null}
         </div>
     );
