@@ -12,7 +12,7 @@ their audited commit or dependency contract has changed.
 
 | Order | ID | Structural section | Risk | Depends on | Status | Report | Last audited commit |
 | ---: | --- | --- | :---: | --- | --- | --- | --- |
-| 0 | S00 | Audit foundation, inventory, quality gates, and release policy | A | — | CONDITIONAL | `docs/qa/structural-audits/S00-foundation.md` | `0809290` + audit branch |
+| 0 | S00 | Audit foundation, inventory, quality gates, and release policy | A | — | STABLE | `docs/qa/structural-audits/S00-foundation.md` | `b1870c6` |
 | 1 | S01 | Shared frontend shell, navigation, providers, errors, skeletons, and i18n | A | S00 | NOT STARTED | | — |
 | 2 | S02 | Authentication, session, CSRF, logout, verification, and password recovery | A | S00, S01 | NOT STARTED | | — |
 | 3 | S03 | Patient core, identity, list/detail, recent views, and categories | A | S00-S02 | NOT STARTED | | — |

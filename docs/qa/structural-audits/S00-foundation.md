@@ -3,7 +3,7 @@
 - Date: 2026-08-11
 - Auditor: Codex
 - Base commit: `0809290`
-- Final commit: pending
+- Audited implementation commit: `b1870c6`
 - Environment: local source/quality gates + GitHub/Railway/Vercel read-only status
 - Risk tier: A
 - Dependencies: none
@@ -12,11 +12,10 @@
 
 ## Result
 
-Status: CONDITIONAL
+Status: STABLE
 
-The foundation inventory, documentation, and local guardrail verification are
-complete. The section remains conditional only until the audit branch's
-required pull-request CI succeeds.
+The foundation inventory, documentation, local guardrail verification, and
+required pull-request CI are complete.
 
 ## Inventory
 
@@ -52,8 +51,8 @@ required pull-request CI succeeds.
 
 | ID | Severity | Finding | Evidence | Fix/test | Status |
 | --- | --- | --- | --- | --- | --- |
-| S00-001 | P2 | The repository had a comprehensive route audit standard but no current structural tracker for backend, data, workers, and infrastructure. Historical page reports could be mistaken for current readiness. | Existing `PAGE_AUDIT_TRACKER.md` covers routes only; reports reference older commits. | Added structural standard/tracker, explicit historical-evidence rule, and automated route/section inventory checks. | FIXED LOCALLY; PR CI PENDING |
-| S00-002 | P1 | Live advisory data disclosed high-severity denial-of-service issues in transitive frontend and backend packages after the baseline CI run. | PR dependency CI reported vulnerable `js-yaml` 4.3.0, `nanoid` 3.3.16, and `league/commonmark` 2.8.2. The audit-framework diff did not introduce any of those packages. | Lockfile-only compatible updates to `js-yaml` 4.3.1, `nanoid` 3.3.18, and `league/commonmark` 2.9.2; npm and Composer audits now report zero advisories. | FIXED LOCALLY; PR CI PENDING |
+| S00-001 | P2 | The repository had a comprehensive route audit standard but no current structural tracker for backend, data, workers, and infrastructure. Historical page reports could be mistaken for current readiness. | Existing `PAGE_AUDIT_TRACKER.md` covers routes only; reports reference older commits. | Added structural standard/tracker, explicit historical-evidence rule, and automated route/section inventory checks. | FIXED |
+| S00-002 | P1 | Live advisory data disclosed high-severity denial-of-service issues in transitive frontend and backend packages after the baseline CI run. | PR dependency CI reported vulnerable `js-yaml` 4.3.0, `nanoid` 3.3.16, and `league/commonmark` 2.8.2. The audit-framework diff did not introduce any of those packages. | Lockfile-only compatible updates to `js-yaml` 4.3.1, `nanoid` 3.3.18, and `league/commonmark` 2.9.2; npm and Composer audits now report zero advisories. | FIXED |
 
 ## Commands and environments
 
@@ -106,7 +105,6 @@ Read-only baseline verification for `0809290`:
 
 ## Blocked, accepted, or not tested
 
-- Pull-request CI for this audit branch is pending.
 - GitHub branch-protection settings are not inferred from repository content.
 - Manual authenticated production mutation is intentionally not tested.
 
@@ -118,6 +116,6 @@ Read-only baseline verification for `0809290`:
 
 ## Final verification
 
-Local evidence is complete and S00-001 is fixed. Promote this section from
-`CONDITIONAL` to `STABLE` only after the focused branch is pushed, its pull
-request CI succeeds, and the report records the resulting commit.
+Local evidence is complete, both findings are fixed, and all required PR checks
+passed for implementation commit `b1870c6`: frontend quality, backend tests,
+dependency security, browser journeys/accessibility, and Vercel preview.
