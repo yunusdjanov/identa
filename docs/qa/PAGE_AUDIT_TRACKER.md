@@ -65,5 +65,5 @@ they affect.
 
 Current shared-shell report:
 `docs/qa/structural-audits/S01-shared-frontend-shell.md`
-(`STABLE`, pending merge/deploy smoke). The earlier
+(`STABLE` at `afd107f`). The earlier
 `docs/qa/page-audits/shared-shell.md` report is historical evidence only.

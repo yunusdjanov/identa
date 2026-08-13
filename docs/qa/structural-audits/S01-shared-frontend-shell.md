@@ -2,8 +2,8 @@
 
 - Date: 2026-08-13
 - Auditor: Codex
-- Base/final commit: `f2aa923` / pending merge commit
-- Environment: local source review, Vitest/JSDOM, local Chromium with the development-only Next mock API, production build, production read-only HTTP
+- Base/final commit: `f2aa923` / `afd107f`
+- Environment: local source review, Vitest/JSDOM, local Chromium with the development-only Next mock API, production build, GitHub Actions with Laravel-backed Chromium, production read-only HTTP
 - Risk tier: A
 - Dependencies: S00
 - Data classification: shared session state and patient/finance navigation; no patient or financial records were read or mutated during this audit
@@ -11,7 +11,7 @@
 
 ## Result
 
-Status: STABLE (pending required CI, merge, deploy, and post-deploy smoke)
+Status: STABLE
 
 ## Inventory
 
@@ -61,21 +61,23 @@ playwright accessibility.spec.ts + responsive.spec.ts (Chromium desktop, 390x844
 
 Focused unit/component evidence: 68 passing assertions across metadata, title, i18n, shell, admin gate, error/runtime, dictionary, and skeleton suites. The full Vitest gate passed 83/83 files and 495/495 tests; the shared-shell Chromium regression is 2/2 passing.
 
-The broader browser run passed all three WCAG groups plus public/admin responsive coverage on desktop/mobile/tablet. Its dentist analytics responsive step could not reach the radiogroup because the frontend-only mock API has no `/analytics/summary` fixture; the page rendered its intended error/retry state without horizontal overflow. The ordinary full E2E config could not start on this workstation because no local PHP binary is installed; CI remains the authoritative Laravel-backed browser gate.
+The broader browser run passed all three WCAG groups plus public/admin responsive coverage on desktop/mobile/tablet. Its dentist analytics responsive step could not reach the radiogroup because the frontend-only mock API has no `/analytics/summary` fixture; the page rendered its intended error/retry state without horizontal overflow. The ordinary full E2E config could not start on this workstation because no local PHP binary is installed. GitHub Actions supplied the authoritative Laravel-backed browser gate, which passed together with backend tests, frontend quality, and the dependency security audit for both PR #22 and merge commit `afd107f`.
 
 ## Production smoke
 
-Pre-change read-only baseline:
+Post-deploy read-only smoke for merge commit `afd107f`:
 
-- `https://identa.uz/` -> 200
-- `https://identa.uz/admin/analytics` -> authenticated redirect to `/admin/login`
+- `https://identa.uz/` -> 200, landing title present, CSP present
+- `https://identa.uz/login` -> 200, auth title present, CSP and `noindex, nofollow, noarchive` present
+- `https://identa.uz/dashboard` -> redirected to `/login?from=%2Fdashboard`, with noindex and no protected-shell disclosure
+- `https://identa.uz/admin` -> redirected to `/admin/login`, with admin title, CSP, and noindex present
 - `https://api.identa.uz/api/v1/health` -> 200
 
-Post-deploy smoke is pending merge/deployment and must repeat only read-only requests plus metadata/header inspection.
+Vercel and all four Railway statuses (API/app, secondary app service, subscription cron, and account-cleanup cron) reported success for the same merge commit.
 
 ## Blocked, accepted, or not tested
 
-- Safari/Firefox manual rendering and screen-reader speech output were not manually tested locally; CI's configured browser gate and WCAG automation remain required before merge.
+- Safari/Firefox manual rendering and screen-reader speech output were not manually tested; the configured Chromium browser gate and WCAG automation passed in CI.
 - No production authentication, patient data, finance data, mutation, upload, migration, queue, or cron action was performed.
 - The historical `docs/qa/page-audits/shared-shell.md` is superseded by this current structural report; its prior P2 findings are closed here.
 
@@ -87,4 +89,4 @@ Post-deploy smoke is pending merge/deployment and must repeat only read-only req
 
 ## Final verification
 
-The shared shell has one provider boundary per portal, centralized access gates, localized and privacy-safe route titles, keyboard bypass targets across normal/error/loading states, atomic locale switching, current error/recovery coverage, and a successful optimized production build. Mark STABLE only after required CI passes and the deployed merge commit completes read-only smoke.
+The shared shell has one provider boundary per portal, centralized access gates, localized and privacy-safe route titles, keyboard bypass targets across normal/error/loading states, atomic locale switching, current error/recovery coverage, and a successful optimized production build. Required CI, merge, deployment, and read-only production smoke all passed for merge commit `afd107f`; S01 is closed as STABLE.
