@@ -4,6 +4,7 @@ import { Brand } from '@/components/branding/brand';
 import { authCardClassName } from '@/components/auth/auth-form-styles';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { SkipToContentLink } from '@/components/layout/skip-to-content-link';
 
 function PageHeaderSkeleton({ actions = 1, eyebrow = false }: { actions?: number; eyebrow?: boolean }) {
     return (
@@ -188,8 +189,9 @@ function AdminShellSkeleton({
             data-testid="admin-shell-loading"
             className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(209,228,255,0.7),transparent_34rem),linear-gradient(180deg,#eaf1f8_0%,#e8edf5_45%,#e2e8f0_100%)]"
         >
+            <SkipToContentLink />
             <AdminHeaderSkeleton />
-            <main className={mainClassName}>
+            <main id="main-content" tabIndex={-1} className={mainClassName}>
                 <div className={`mx-auto ${maxWidth} space-y-5 lg:space-y-6`}>
                     {children}
                 </div>

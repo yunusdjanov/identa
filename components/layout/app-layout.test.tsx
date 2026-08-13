@@ -105,7 +105,7 @@ describe('AppLayout skeleton header', () => {
         cleanup();
     });
 
-    it('matches the current five-item app navigation while auth is loading', () => {
+    it('matches the current four-item app navigation while auth is loading', () => {
         render(
             <AppLayout>
                 <div>Protected content</div>
@@ -161,6 +161,36 @@ describe('AppLayout skeleton header', () => {
         expect(paymentLinks).toHaveLength(2);
         expect(paymentLinks.every((link) => link.getAttribute('aria-current') === 'page')).toBe(true);
         expect(screen.getAllByRole('link', { name: 'nav.dashboard' })).toHaveLength(2);
+    });
+
+    it('lets keyboard users bypass protected and admin navigation', () => {
+        queryState.current = {
+            data: {
+                id: 'dentist-1',
+                name: 'Demo Dentist',
+                email: 'dentist@identa.test',
+                role: 'dentist',
+                account_status: 'active',
+            },
+            isLoading: false,
+            isError: false,
+            error: null,
+        };
+
+        const { unmount } = render(
+            <AppLayout>
+                <div>Protected content</div>
+            </AppLayout>
+        );
+
+        expect(screen.getByRole('link', { name: 'common.skipToContent' }))
+            .toHaveAttribute('href', '#main-content');
+        expect(document.querySelector('main')).toHaveAttribute('id', 'main-content');
+        unmount();
+
+        render(<AdminHeader active="dashboard" onLogout={vi.fn()} />);
+        expect(screen.getByRole('link', { name: 'common.skipToContent' }))
+            .toHaveAttribute('href', '#main-content');
     });
 
     it('blocks practice content until the email is verified', () => {

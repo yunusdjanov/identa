@@ -10,6 +10,7 @@ import { cn } from '@/lib/utils';
 import { useI18n } from '@/components/providers/i18n-provider';
 import { getCurrentUser } from '@/lib/api/dentist';
 import { queryKeys } from '@/lib/query-keys';
+import { SkipToContentLink } from '@/components/layout/skip-to-content-link';
 
 type AdminHeaderSection = 'dashboard' | 'analytics' | 'plans' | 'payments' | 'settings';
 
@@ -46,6 +47,7 @@ export function AdminHeader({ active, isLoggingOut = false, onLogout }: AdminHea
 
     return (
         <>
+            <SkipToContentLink />
             <header className="fixed inset-x-0 top-0 z-50 border-b border-teal-100/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(248,251,255,0.94)_100%)] shadow-sm shadow-slate-200/40 backdrop-blur-xl">
                 <div className="mx-auto max-w-[1440px] px-3 sm:px-6 lg:px-8">
                     <div className="flex h-14 items-center justify-between gap-3 sm:h-16 sm:gap-4">
