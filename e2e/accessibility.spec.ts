@@ -45,7 +45,15 @@ test.describe('WCAG accessibility smoke coverage', () => {
     test.describe.configure({ timeout: 180_000 });
 
     test('public landing and authentication routes have no serious violations', async ({ page }) => {
-        for (const path of ['/', '/login', '/register', '/forgot-password', '/admin/login']) {
+        for (const path of [
+            '/',
+            '/login',
+            '/register',
+            '/forgot-password',
+            '/reset-password?token=invalid&email=test%40example.com',
+            '/verify-email?status=invalid',
+            '/admin/login',
+        ]) {
             await test.step(`scan ${path}`, async () => {
                 await page.goto(path);
                 await expectNoSeriousAccessibilityViolations(page);

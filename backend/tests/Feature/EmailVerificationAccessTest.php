@@ -5,8 +5,11 @@ namespace Tests\Feature;
 use App\Models\Patient;
 use App\Models\User;
 use App\Services\UnverifiedAccountCleanupService;
+use Illuminate\Auth\Events\Verified;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\URL;
 use Tests\TestCase;
 
 class EmailVerificationAccessTest extends TestCase
@@ -35,6 +38,37 @@ class EmailVerificationAccessTest extends TestCase
             ->getJson('/api/v1/billing/current-subscription')
             ->assertForbidden()
             ->assertJsonPath('error.code', 'email_verification_required');
+    }
+
+    public function test_signed_verification_link_verifies_once_and_redirects_to_public_status_page(): void
+    {
+        Event::fake([Verified::class]);
+        config()->set('app.frontend_url', ' https://identa.uz , https://preview.identa.uz ');
+        $user = User::factory()->unverified()->create();
+        $url = URL::temporarySignedRoute('verification.verify', now()->addHour(), [
+            'id' => $user->id,
+            'hash' => sha1($user->getEmailForVerification()),
+        ]);
+
+        $this->get($url)->assertRedirect('https://identa.uz/verify-email?status=success');
+        $this->assertNotNull($user->fresh()->email_verified_at);
+        Event::assertDispatched(Verified::class, 1);
+
+        $this->get($url)->assertRedirect('https://identa.uz/verify-email?status=already');
+        Event::assertDispatched(Verified::class, 1);
+    }
+
+    public function test_unsigned_verification_link_is_rejected_without_changing_user(): void
+    {
+        $user = User::factory()->unverified()->create();
+
+        $this->get(sprintf(
+            '/api/v1/auth/email/verify/%d/%s',
+            $user->id,
+            sha1($user->getEmailForVerification()),
+        ))->assertForbidden();
+
+        $this->assertNull($user->fresh()->email_verified_at);
     }
 
     public function test_cleanup_expires_only_abandoned_accounts_without_protected_data(): void

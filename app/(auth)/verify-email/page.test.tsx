@@ -32,5 +32,6 @@ describe('VerifyEmailPage', () => {
         renderPage();
         // verifyEmail.page.invalidTitle (EN) = "Link invalid"
         expect(await screen.findByText('Link invalid')).toBeInTheDocument();
+        expect(screen.getByRole('main')).toBeInTheDocument();
     });
 });

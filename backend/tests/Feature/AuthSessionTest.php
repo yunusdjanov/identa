@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Plan;
 use App\Models\Subscription;
 use App\Models\User;
+use App\Services\AuthService;
 use App\Services\GoogleIdentityService;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -52,6 +53,7 @@ class AuthSessionTest extends TestCase
     public function test_admin_password_reset_email_preserves_admin_login_context(): void
     {
         Notification::fake();
+        config()->set('app.frontend_url', ' https://auth.identa.test , https://preview.identa.test ');
 
         $admin = User::factory()->create([
             'email' => 'admin-reset@example.com',
@@ -69,7 +71,10 @@ class AuthSessionTest extends TestCase
                 $resetUrl = $notification->toMail($admin)->actionUrl;
                 parse_str((string) parse_url($resetUrl, PHP_URL_QUERY), $query);
 
-                return ($query['email'] ?? null) === $admin->email
+                return parse_url($resetUrl, PHP_URL_SCHEME) === 'https'
+                    && parse_url($resetUrl, PHP_URL_HOST) === 'auth.identa.test'
+                    && parse_url($resetUrl, PHP_URL_PATH) === '/reset-password'
+                    && ($query['email'] ?? null) === $admin->email
                     && ($query['from'] ?? null) === 'admin'
                     && is_string($query['token'] ?? null)
                     && $query['token'] !== '';
@@ -153,6 +158,36 @@ class AuthSessionTest extends TestCase
         ], $this->csrfHeaders())
             ->assertUnprocessable()
             ->assertJsonValidationErrors('token');
+
+        $this->postJson('/api/v1/auth/google', [
+            'id_token' => str_repeat('g', 8193),
+        ], $this->csrfHeaders())
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('id_token');
+
+        $this->postJson('/api/v1/auth/refresh', [
+            'refresh_token' => str_repeat('r', 256),
+        ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('refresh_token');
+    }
+
+    public function test_forgot_password_logs_known_active_account_without_querying_a_missing_soft_delete_column(): void
+    {
+        Notification::fake();
+        $user = User::factory()->create([
+            'email' => 'audited-reset@example.com',
+            'account_status' => User::ACCOUNT_STATUS_ACTIVE,
+        ]);
+
+        $this->postJson('/api/v1/auth/forgot-password', [
+            'email' => $user->email,
+        ], $this->csrfHeaders())->assertOk();
+
+        $this->assertDatabaseHas('audit_logs', [
+            'dentist_id' => $user->id,
+            'event_type' => 'auth.password_reset_requested',
+        ]);
     }
 
     public function test_public_registration_creates_dentist_with_trial_subscription(): void
@@ -709,6 +744,32 @@ class AuthSessionTest extends TestCase
             ->assertJsonPath('data.must_change_password', false);
     }
 
+    public function test_password_change_rotates_the_current_session_and_csrf_token(): void
+    {
+        $user = User::factory()->create([
+            'email' => 'rotate-password-session@example.com',
+            'password' => 'oldpassword123',
+        ]);
+        $originalSessionId = 'known-session-before-password-change';
+        $originalCsrfToken = 'known-csrf-before-password-change';
+
+        $session = new Store($originalSessionId, new ArraySessionHandler(120), $originalSessionId);
+        $session->start();
+        $session->put('_token', $originalCsrfToken);
+        $request = Request::create('/api/v1/auth/change-password', 'POST');
+        $request->setLaravelSession($session);
+        $request->setUserResolver(static fn () => $user);
+
+        app(AuthService::class)->changePassword($request, $user, [
+            'current_password' => 'oldpassword123',
+            'new_password' => 'newpassword123',
+            'new_password_confirmation' => 'newpassword123',
+        ], true);
+
+        $this->assertNotSame($originalSessionId, $session->getId());
+        $this->assertNotSame($originalCsrfToken, $session->token());
+    }
+
     public function test_public_password_reset_revokes_dentist_and_assistant_browser_sessions(): void
     {
         config()->set('session.driver', 'database');
@@ -739,6 +800,14 @@ class AuthSessionTest extends TestCase
         $this->assertDatabaseMissing('sessions', ['id' => 'assistant-session']);
         $this->assertDatabaseHas('sessions', ['id' => 'other-session']);
         $this->assertFalse((bool) $dentist->fresh()->must_change_password);
+        $resetAudit = \App\Models\AuditLog::query()
+            ->where('event_type', 'auth.password_reset_completed')
+            ->latest('created_at')
+            ->firstOrFail();
+        $this->assertSame($dentist->id, $resetAudit->dentist_id);
+        $this->assertNull($resetAudit->actor_id);
+        $this->assertNull($resetAudit->actor_role);
+        $this->assertNull($resetAudit->metadata);
     }
 
     public function test_login_rejects_invalid_credentials(): void

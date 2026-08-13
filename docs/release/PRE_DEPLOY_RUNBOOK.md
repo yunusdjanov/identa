@@ -65,7 +65,8 @@ one is present, non-empty, and not a placeholder (`change-me`,
 | `APP_DEBUG` | constant `false` | |
 | `APP_URL` | constant `https://api.identa.uz` | |
 | `APP_TIMEZONE` | constant `Asia/Tashkent` | enforced by `ProductionSecretsValidator` |
-| `FRONTEND_URL` | constant `https://identa.uz` | password reset link base |
+| `FRONTEND_URL` | constant `https://identa.uz` | first comma-separated origin is the canonical password-reset/email-verification destination; must use HTTPS |
+| `SECURITY_REQUIRE_HTTPS_FRONTEND_URL` | constant `true` | fails production boot/preflight when any frontend origin is not HTTPS or the frontend/CORS/Sanctum origin contract drifts |
 | `SANCTUM_STATEFUL_DOMAINS` | constant `identa.uz,www.identa.uz` | |
 | `SESSION_DOMAIN` | constant `.identa.uz` | leading dot required for cross-subdomain |
 | `SESSION_SECURE_COOKIE` | constant `true` | |

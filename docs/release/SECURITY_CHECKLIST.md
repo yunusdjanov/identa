@@ -12,10 +12,10 @@ Scope: Identa frontend + Laravel backend (Railway production baseline)
 | Role enforcement | Done | `EnsureRole` middleware (`admin`, `dentist`) |
 | Tenant isolation | Done | Resource queries are dentist-scoped and tested |
 | Password hashing and reset | Done | Laravel hashing + reset endpoints implemented |
-| Auth endpoint throttling | Done | Login/forgot/reset throttles configured; self-registration disabled |
+| Auth endpoint throttling | Done | Login/register/forgot/reset throttles configured; public registration creates an unverified dentist trial and gates practice data until verification |
 | Request correlation ID | Done | `X-Request-Id` middleware + response propagation |
 | Audit logging for critical actions | Done | Auth/admin/patient/payment events tracked |
-| HTTPS-only cookie policy | Done (implementation) | Runtime production policy check validates `APP_URL=https` + `SESSION_SECURE_COOKIE=true`; remaining work is production env rollout |
+| HTTPS-only cookie and recovery-link policy | Done (implementation) | Runtime production policy validates `APP_URL=https`, every `FRONTEND_URL` as an HTTPS origin aligned with CORS/Sanctum, and `SESSION_SECURE_COOKIE=true`; rollout is verified during release preflight |
 | Secrets and env management policy | Done (implementation) | Runtime production validator + preflight command added; managed secret-store rollout remains an environment task per release |
 | Dependency vulnerability scan in CI | Done (implementation) | Local gate is green via `npm run quality:security`; CI workflow `.github/workflows/ci-quality-security.yml` runs the same gate on push/PR |
 | Security headers baseline | Done (implementation) | App-level middleware + runtime policy check in place; remaining work is production edge/proxy env rollout (`TRUSTED_PROXIES`, HSTS enablement) |

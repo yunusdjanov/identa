@@ -14,7 +14,7 @@ their audited commit or dependency contract has changed.
 | ---: | --- | --- | :---: | --- | --- | --- | --- |
 | 0 | S00 | Audit foundation, inventory, quality gates, and release policy | A | — | STABLE | `docs/qa/structural-audits/S00-foundation.md` | `b1870c6` |
 | 1 | S01 | Shared frontend shell, navigation, providers, errors, skeletons, and i18n | A | S00 | STABLE | `docs/qa/structural-audits/S01-shared-frontend-shell.md` | `afd107f` |
-| 2 | S02 | Authentication, session, CSRF, logout, verification, and password recovery | A | S00, S01 | NOT STARTED | | — |
+| 2 | S02 | Authentication, session, CSRF, logout, verification, and password recovery | A | S00, S01 | IN PROGRESS | `docs/qa/structural-audits/S02-auth-session.md` | pending CI/merge |
 | 3 | S03 | Patient core, identity, list/detail, recent views, and categories | A | S00-S02 | NOT STARTED | | — |
 | 4 | S04 | Clinical history, treatment entries, odontogram, and attribution | A | S03 | NOT STARTED | | — |
 | 5 | S05 | Media upload, image editor, storage, sanitizer, variants, and recovery | A | S03, S04 | NOT STARTED | | — |

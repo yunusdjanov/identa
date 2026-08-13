@@ -27,7 +27,7 @@ function VerifyEmailContent() {
     const Icon = tone.icon;
 
     return (
-        <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-teal-50 via-white to-teal-50 p-4">
+        <main className="flex min-h-screen items-center justify-center bg-gradient-to-br from-teal-50 via-white to-teal-50 p-4">
             <div className="w-full max-w-md rounded-2xl border border-slate-200/80 bg-white p-8 text-center shadow-sm shadow-slate-200/60">
                 <span className={`mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br ring-1 ${tone.ring}`}>
                     <Icon className="h-8 w-8" strokeWidth={2} />
@@ -38,7 +38,7 @@ function VerifyEmailContent() {
                     <Link href="/dashboard">{t('verifyEmail.page.goToApp')}</Link>
                 </Button>
             </div>
-        </div>
+        </main>
     );
 }
 

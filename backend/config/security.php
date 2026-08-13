@@ -26,6 +26,7 @@ return [
 
         // Production policy checks.
         'require_https_app_url' => env('SECURITY_REQUIRE_HTTPS_APP_URL', true),
+        'require_https_frontend_url' => env('SECURITY_REQUIRE_HTTPS_FRONTEND_URL', true),
         'require_session_secure_cookie' => env('SECURITY_REQUIRE_SESSION_SECURE_COOKIE', true),
         'require_database_session_driver' => env('SECURITY_REQUIRE_DATABASE_SESSION_DRIVER', true),
         'require_hsts' => env('SECURITY_REQUIRE_HSTS', true),
