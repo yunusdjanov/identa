@@ -54,6 +54,7 @@ journeys, dependency audit, merge, deploy, and read-only production smoke pass.
 | S02-007 | P3 | Development mock logout left `mock_user_id`, so a subsequent local identity could inherit stale mock state. | Next mock logout route. | Expire all three mock identity cookies and cover their `Set-Cookie` headers. | FIXED |
 | S02-008 | P2 | OpenAPI omitted active auth routes and the release checklist contradicted the visible public-registration contract. | Contract validator and release documentation. | Document/require all current auth endpoints and schemas; align registration and origin policy documentation. | FIXED |
 | S02-009 | P2 | The mandatory browser suite did not prove a real Laravel logout revokes the protected session, nor scan reset/verification result pages for WCAG issues. | Existing critical/accessibility E2E inventory. | Add logout -> login -> protected-route rejection journey and include reset/verification pages in accessibility/responsive coverage. | FIXED, CI PENDING |
+| S02-010 | P2 | `/verify-email` exposed its heading and content without a semantic `main` landmark, found when the expanded browser matrix scanned the route. | First PR browser run: 15 journeys passed; all four failures identified the missing `main` on `/verify-email?status=invalid`. | Promote the page wrapper to `main` and assert the landmark in the component regression. | FIXED, CI PENDING |
 
 ## Commands and environments
 
