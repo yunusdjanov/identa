@@ -11,6 +11,7 @@ const ru: TranslationDictionary = {
     'common.clear': 'Очистить',
     'common.loadErrorTitle': 'Не удалось загрузить данные',
     'common.forbiddenTitle': 'Нет доступа',
+    'common.skipToContent': 'Перейти к основному содержимому',
 
     'language.russian': 'Русский',
     'language.uzbek': 'Oʻzbekcha',
@@ -356,6 +357,7 @@ const uz: TranslationDictionary = {
     'common.clear': 'Tozalash',
     'common.loadErrorTitle': "Maʼlumotlarni yuklab boʻlmadi",
     'common.forbiddenTitle': "Ruxsat yoʻq",
+    'common.skipToContent': 'Asosiy kontentga oʻtish',
 
     'language.russian': 'Русский',
     'language.uzbek': 'Oʻzbekcha',
@@ -700,6 +702,7 @@ const en: TranslationDictionary = {
     'common.clear': 'Clear',
     'common.loadErrorTitle': 'Could not load data',
     'common.forbiddenTitle': 'No access',
+    'common.skipToContent': 'Skip to main content',
 
     'language.russian': 'Russian',
     'language.uzbek': 'Uzbek',

@@ -3,6 +3,10 @@ import { QueryProvider } from '@/components/providers/query-provider';
 import { ServerI18nProvider } from '@/components/providers/server-i18n-provider';
 
 export const metadata: Metadata = {
+    description: null,
+    keywords: null,
+    openGraph: null,
+    twitter: null,
     robots: {
         index: false,
         follow: false,

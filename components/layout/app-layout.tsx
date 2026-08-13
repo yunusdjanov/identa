@@ -30,6 +30,8 @@ import { EmailVerificationBanner } from '@/components/layout/email-verification-
 import { LogoutLoadingScreen } from '@/components/layout/logout-loading-screen';
 import { Brand } from '@/components/branding/brand';
 import { AccountMenu } from '@/components/layout/account-menu';
+import { SkipToContentLink } from '@/components/layout/skip-to-content-link';
+import { RouteTitleSync } from '@/components/layout/route-title-sync';
 import { AccessDeniedState } from '@/components/error/access-denied-state';
 import { toast } from 'sonner';
 import { queryKeys } from '@/lib/query-keys';
@@ -266,6 +268,8 @@ function AppLayoutBody({ children }: { children: React.ReactNode }) {
 
     return (
         <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(209,228,255,0.7),transparent_34rem),linear-gradient(180deg,#eaf1f8_0%,#e8edf5_45%,#e2e8f0_100%)]">
+            <SkipToContentLink />
+            <RouteTitleSync scope="protected" />
             {/* Header */}
             <header
                 data-app-header
@@ -415,7 +419,7 @@ function AppLayoutBody({ children }: { children: React.ReactNode }) {
             />
 
             {/* Main Content */}
-            <main className="mx-auto max-w-[1440px] px-3 py-4 sm:px-6 sm:py-8 lg:px-8">
+            <main id="main-content" tabIndex={-1} className="mx-auto max-w-[1440px] px-3 py-4 sm:px-6 sm:py-8 lg:px-8">
                 {isForcedResetRedirectPending ? null : isEmailVerificationRequired ? (
                     <AccessDeniedState
                         eyebrow={t('verifyEmail.gate.eyebrow')}

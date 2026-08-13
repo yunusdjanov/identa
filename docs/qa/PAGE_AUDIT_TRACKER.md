@@ -63,6 +63,7 @@ baseline and must be revalidated before they establish current readiness.
 Shared shell findings must be recorded separately and linked from every page
 they affect.
 
-Current shared-shell report: `docs/qa/page-audits/shared-shell.md` (`BLOCKED`).
-Its P1 fix batch is complete locally; status remains blocked on mandatory
-interactive coverage and open P2 findings.
+Current shared-shell report:
+`docs/qa/structural-audits/S01-shared-frontend-shell.md`
+(`STABLE`, pending merge/deploy smoke). The earlier
+`docs/qa/page-audits/shared-shell.md` report is historical evidence only.

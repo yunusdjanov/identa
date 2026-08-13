@@ -214,6 +214,9 @@ describe('page loading skeletons', () => {
             expect(screen.getByTestId('admin-shell-loading')).toBeInTheDocument();
             expect(screen.getByTestId('admin-header-skeleton')).toHaveClass('fixed', 'z-50');
             expect(screen.getByTestId('admin-header-spacer-skeleton')).toHaveClass('h-[7.5rem]', 'md:h-16');
+            expect(screen.getByRole('link', { name: 'common.skipToContent' }))
+                .toHaveAttribute('href', '#main-content');
+            expect(document.querySelector('main')).toHaveAttribute('id', 'main-content');
             // 3 stat cards (Total dentists, Active, Blocked)
             expect(screen.getAllByTestId('metric-card-skeleton')).toHaveLength(3);
             // Column count for the table body is enforced statically in the

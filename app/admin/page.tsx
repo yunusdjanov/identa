@@ -643,7 +643,7 @@ export default function AdminDashboardPage() {
                     active="dashboard"
                     onLogout={handleLogout}
                 />
-                <main className="px-3 py-4 sm:px-6 sm:py-5 lg:px-8 lg:py-6">
+                <main id="main-content" tabIndex={-1} className="px-3 py-4 sm:px-6 sm:py-5 lg:px-8 lg:py-6">
                     <AppErrorState
                         title={t('common.loadErrorTitle')}
                         description={getApiErrorMessage(accountsQuery.error, t('admin.error.loadAccountsFailed'))}
@@ -663,7 +663,7 @@ export default function AdminDashboardPage() {
                 onLogout={handleLogout}
             />
 
-            <div className="px-3 py-3 sm:px-6 sm:py-5 lg:px-8 lg:py-6">
+            <main id="main-content" tabIndex={-1} className="px-3 py-3 sm:px-6 sm:py-5 lg:px-8 lg:py-6">
             <div className="mx-auto max-w-[1440px] space-y-5 lg:space-y-6">
                     <PageHeader title={t('admin.dashboardTitle')} description={t('admin.dashboardSubtitle')} />
 
@@ -1843,7 +1843,7 @@ export default function AdminDashboardPage() {
                         </form>
                     </DialogContent>
                 </Dialog>
-            </div>
+            </main>
         </div>
     );
 }

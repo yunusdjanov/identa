@@ -6,6 +6,7 @@ import {
     useContext,
     useEffect,
     useMemo,
+    useRef,
     useState,
 } from 'react';
 import {
@@ -84,6 +85,7 @@ export function I18nProvider({
 }) {
     const [locale, setLocaleState] = useState<AppLocale>(resolveLocale(initialLocale ?? DEFAULT_LOCALE));
     const [dictionary, setDictionary] = useState<TranslationDictionary>(initialDictionary);
+    const localeRequestIdRef = useRef(0);
 
     useEffect(() => {
         setValidationLocale(locale);
@@ -94,13 +96,20 @@ export function I18nProvider({
 
     const setLocale = useCallback((nextLocale: AppLocale) => {
         const resolvedLocale = resolveLocale(nextLocale);
-        document.cookie = `${LOCALE_COOKIE_NAME}=${resolvedLocale}; path=/; max-age=${LOCALE_COOKIE_MAX_AGE_SECONDS}; SameSite=Lax`;
-        setLocaleState(resolvedLocale);
+        const requestId = ++localeRequestIdRef.current;
 
         void loadDictionary(resolvedLocale).then((nextDictionary) => {
-            if (nextDictionary) {
-                setDictionary(nextDictionary);
+            if (!nextDictionary || requestId !== localeRequestIdRef.current) {
+                return;
             }
+
+            // Commit the dictionary and its locale together. Updating the
+            // locale first temporarily labels the old copy with the new
+            // document language and leaves that mismatch permanent when the
+            // dictionary request fails. The request id also prevents a slow
+            // earlier selection from overwriting a newer language choice.
+            setDictionary(nextDictionary);
+            setLocaleState(resolvedLocale);
         });
     }, []);
 

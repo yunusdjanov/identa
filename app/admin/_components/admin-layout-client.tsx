@@ -9,6 +9,7 @@ import { AdminDashboardLoadingState } from '@/components/layout/page-loading-ske
 import { getCurrentUser } from '@/lib/api/dentist';
 import { queryKeys } from '@/lib/query-keys';
 import { useAuthStore } from '@/lib/store';
+import { RouteTitleSync } from '@/components/layout/route-title-sync';
 
 function AdminAccessGate({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
@@ -67,6 +68,7 @@ function AdminLayoutShell({ children }: { children: React.ReactNode }) {
 export function AdminLayoutClient({ children }: { children: React.ReactNode }) {
     return (
         <QueryProvider>
+            <RouteTitleSync scope="admin" />
             <AdminLayoutShell>{children}</AdminLayoutShell>
         </QueryProvider>
     );
