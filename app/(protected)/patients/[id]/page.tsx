@@ -1,7 +1,7 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { use, useRef, useState } from 'react';
+import { use, useEffect, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSearchParams } from 'next/navigation';
 import { ConfirmActionDialog } from '@/components/ui/confirm-action-dialog';
@@ -12,6 +12,7 @@ import {
     getCurrentUser,
     getPatient,
     getPatientOverview,
+    rememberRecentPatient,
     replacePatientOralPhoto,
     uploadPatientOralPhoto,
 } from '@/lib/api/dentist';
@@ -229,10 +230,9 @@ export default function PatientDetailPage({
     } | null>(null);
     const [oralPhotoInputKey, setOralPhotoInputKey] = useState(0);
     const mediaPollingStartedAtRef = useRef<number | null>(null);
+    const recentRememberRequestStartedRef = useRef<string | null>(null);
     const todayDateKey = toLocalDateKey();
-    const patientDetailQueryKey = queryKeys.patients.detail(id, {
-        rememberRecent: shouldRememberRecent,
-    });
+    const patientDetailQueryKey = queryKeys.patients.detail(id);
     const currentUserQuery = useQuery({
         queryKey: queryKeys.auth.me(),
         queryFn: getCurrentUser,
@@ -245,7 +245,7 @@ export default function PatientDetailPage({
 
     const patientQuery = useQuery({
         queryKey: patientDetailQueryKey,
-        queryFn: () => getPatient(id, { rememberRecent: shouldRememberRecent }),
+        queryFn: () => getPatient(id),
         enabled: canViewPatients,
         retry: false,
         staleTime: 30_000,
@@ -262,6 +262,20 @@ export default function PatientDetailPage({
         },
         refetchIntervalInBackground: false,
     });
+
+    useEffect(() => {
+        if (!shouldRememberRecent || !canViewPatients || recentRememberRequestStartedRef.current === id) {
+            return;
+        }
+
+        recentRememberRequestStartedRef.current = id;
+        void rememberRecentPatient(id)
+            .then(() => queryClient.invalidateQueries({ queryKey: queryKeys.patients.recent() }))
+            .catch(() => {
+                // Recent shortcuts are non-critical navigation metadata. The
+                // patient detail remains usable if this best-effort write fails.
+            });
+    }, [canViewPatients, id, queryClient, shouldRememberRecent]);
 
     const overviewQuery = useQuery({
         queryKey: queryKeys.patients.overview(id, todayDateKey),

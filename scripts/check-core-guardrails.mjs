@@ -114,7 +114,8 @@ const checks = [
         file: 'backend/tests/Feature/PatientApiTest.php',
         patterns: [
             /test_dentist_can_list_only_owned_patients/,
-            /test_patient_detail_does_not_update_recent_patients_without_search_flag/,
+            /test_patient_detail_get_is_read_only_and_recent_write_is_explicit/,
+            /postJson\("\/api\/v1\/patients\/recent\/\{\$patient->id\}"\)/,
             /test_dentist_cannot_access_other_dentist_patient_records/,
         ],
     },

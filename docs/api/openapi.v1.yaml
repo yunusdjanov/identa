@@ -348,6 +348,98 @@ paths:
           $ref: "#/components/responses/UnauthorizedError"
         "403":
           $ref: "#/components/responses/ForbiddenError"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+  /api/v1/patient-categories:
+    get:
+      tags: [Patients]
+      summary: List dentist-owned patient categories
+      operationId: listPatientCategories
+      security:
+        - cookieAuth: []
+      responses:
+        "200":
+          description: Patient categories
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PatientCategoryCollectionResponse"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+    post:
+      tags: [Patients]
+      summary: Create a patient category
+      operationId: createPatientCategory
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PatientCategoryUpsertRequest"
+      responses:
+        "201":
+          description: Patient category created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PatientCategoryResponse"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+  /api/v1/patient-categories/{id}:
+    put:
+      tags: [Patients]
+      summary: Update a patient category
+      operationId: updatePatientCategory
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PatientCategoryUpsertRequest"
+      responses:
+        "200":
+          description: Patient category updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PatientCategoryResponse"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+    delete:
+      tags: [Patients]
+      summary: Delete a patient category and detach it from patients
+      operationId: deletePatientCategory
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+      responses:
+        "204":
+          description: Patient category deleted
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
   /api/v1/patients:
     get:
       tags: [Patients]
@@ -361,7 +453,10 @@ paths:
         - $ref: "#/components/parameters/Sort"
         - $ref: "#/components/parameters/SearchFilter"
         - $ref: "#/components/parameters/PatientCategoryFilter"
+        - $ref: "#/components/parameters/PatientCategoryIdsFilter"
         - $ref: "#/components/parameters/PatientInactiveBeforeFilter"
+        - $ref: "#/components/parameters/PatientArchivedOnlyFilter"
+        - $ref: "#/components/parameters/PatientIncludeArchivedFilter"
       responses:
         "200":
           description: Paginated patients
@@ -373,6 +468,8 @@ paths:
           $ref: "#/components/responses/UnauthorizedError"
         "403":
           $ref: "#/components/responses/ForbiddenError"
+        "422":
+          $ref: "#/components/responses/ValidationError"
     post:
       tags: [Patients]
       summary: Create patient
@@ -430,6 +527,23 @@ paths:
         "403":
           $ref: "#/components/responses/ForbiddenError"
   /api/v1/patients/recent/{id}:
+    post:
+      tags: [Patients]
+      summary: Remember one profile-scoped recent patient
+      operationId: rememberRecentPatient
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+      responses:
+        "204":
+          description: Recent patient remembered
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
     delete:
       tags: [Patients]
       summary: Remove one profile-scoped recent patient
@@ -513,6 +627,70 @@ paths:
           $ref: "#/components/responses/ForbiddenError"
         "404":
           $ref: "#/components/responses/NotFoundError"
+  /api/v1/patients/{id}/overview:
+    get:
+      tags: [Patients]
+      summary: Get permission-filtered patient summary metrics
+      operationId: getPatientOverview
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+      responses:
+        "200":
+          description: Patient overview
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PatientOverviewResponse"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+  /api/v1/patients/{id}/restore:
+    post:
+      tags: [Patients]
+      summary: Restore an archived patient
+      operationId: restorePatient
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+      responses:
+        "200":
+          description: Patient restored
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PatientResponse"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+  /api/v1/patients/{id}/force:
+    delete:
+      tags: [Patients]
+      summary: Permanently delete an archived patient and related records
+      operationId: permanentlyDeletePatient
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ResourceId"
+      responses:
+        "204":
+          description: Patient permanently deleted
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+        "422":
+          $ref: "#/components/responses/ValidationError"
   /api/v1/patients/{id}/photo:
     get:
       tags: [Patients]
@@ -2028,6 +2206,7 @@ components:
       in: query
       schema:
         type: string
+        maxLength: 160
     PaymentSearchFilter:
       name: filter[search]
       in: query
@@ -2055,12 +2234,34 @@ components:
       schema:
         type: string
         format: uuid
+    PatientCategoryIdsFilter:
+      name: filter[category_ids]
+      in: query
+      description: Comma-separated UUIDs or repeated query-array values; at most 50 categories
+      schema:
+        oneOf:
+          - type: string
+          - type: array
+            maxItems: 50
+            items:
+              type: string
+              format: uuid
     PatientInactiveBeforeFilter:
       name: filter[inactive_before]
       in: query
       schema:
         type: string
         format: date
+    PatientArchivedOnlyFilter:
+      name: filter[archived_only]
+      in: query
+      schema:
+        type: boolean
+    PatientIncludeArchivedFilter:
+      name: filter[include_archived]
+      in: query
+      schema:
+        type: boolean
     DateFromFilter:
       name: filter[date_from]
       in: query
@@ -2239,22 +2440,13 @@ components:
           nullable: true
     RecentPatient:
       type: object
+      required: [id, full_name]
       properties:
         id:
           type: string
           format: uuid
-        patient_id:
-          type: string
         full_name:
           type: string
-        phone:
-          type: string
-        photo_thumbnail_url:
-          type: string
-          nullable: true
-        remembered_at:
-          type: string
-          format: date-time
     MediaImage:
       type: object
       properties:
@@ -2472,6 +2664,7 @@ components:
           type: integer
     Patient:
       type: object
+      required: [id, patient_id, full_name, phone, is_archived, categories]
       properties:
         id:
           type: string
@@ -2484,6 +2677,9 @@ components:
           type: string
         phone:
           type: string
+        secondary_phone:
+          type: string
+          nullable: true
         address:
           type: string
           nullable: true
@@ -2514,6 +2710,19 @@ components:
           enum: [pending, approved, rejected]
           nullable: true
           description: Lifecycle status of the latest upload or replacement attempt
+        photo_url:
+          type: string
+          nullable: true
+        photo_thumbnail_url:
+          type: string
+          nullable: true
+        photo_preview_url:
+          type: string
+          nullable: true
+        photo_thumbnail_ready:
+          type: boolean
+        photo_preview_ready:
+          type: boolean
         created_at:
           type: string
           format: date-time
@@ -2522,6 +2731,135 @@ components:
           type: string
           format: date
           nullable: true
+        is_archived:
+          type: boolean
+        archived_at:
+          type: string
+          format: date-time
+          nullable: true
+        updated_at:
+          type: string
+          format: date-time
+          nullable: true
+        created_by:
+          $ref: "#/components/schemas/ActorSummary"
+        updated_by:
+          $ref: "#/components/schemas/ActorSummary"
+        categories:
+          type: array
+          items:
+            $ref: "#/components/schemas/PatientCategory"
+        oral_photo:
+          allOf:
+            - $ref: "#/components/schemas/PatientClinicalPhoto"
+          nullable: true
+        oral_photos:
+          $ref: "#/components/schemas/PatientClinicalPhotoSlots"
+        oral_photo_galleries:
+          $ref: "#/components/schemas/PatientClinicalPhotoGalleries"
+    PatientCategory:
+      type: object
+      required: [id, name, color, sort_order]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        color:
+          type: string
+        sort_order:
+          type: integer
+    PatientClinicalPhoto:
+      type: object
+      required: [id, view_type, is_primary, sort_order]
+      properties:
+        id:
+          type: string
+          format: uuid
+        view_type:
+          type: string
+          enum: [smile, top, bottom]
+        scan_status:
+          type: string
+          enum: [pending, approved, rejected]
+          nullable: true
+        url:
+          type: string
+          nullable: true
+        thumbnail_url:
+          type: string
+          nullable: true
+        preview_url:
+          type: string
+          nullable: true
+        thumbnail_ready:
+          type: boolean
+        preview_ready:
+          type: boolean
+        is_primary:
+          type: boolean
+        sort_order:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+          nullable: true
+        updated_at:
+          type: string
+          format: date-time
+          nullable: true
+    PatientClinicalPhotoSlots:
+      type: object
+      properties:
+        smile:
+          allOf:
+            - $ref: "#/components/schemas/PatientClinicalPhoto"
+          nullable: true
+        top:
+          allOf:
+            - $ref: "#/components/schemas/PatientClinicalPhoto"
+          nullable: true
+        bottom:
+          allOf:
+            - $ref: "#/components/schemas/PatientClinicalPhoto"
+          nullable: true
+    PatientClinicalPhotoGalleries:
+      type: object
+      properties:
+        smile:
+          type: array
+          items:
+            $ref: "#/components/schemas/PatientClinicalPhoto"
+        top:
+          type: array
+          items:
+            $ref: "#/components/schemas/PatientClinicalPhoto"
+        bottom:
+          type: array
+          items:
+            $ref: "#/components/schemas/PatientClinicalPhoto"
+    PatientOverview:
+      type: object
+      properties:
+        appointment_count:
+          type: integer
+        visit_count:
+          type: integer
+        upcoming_appointments:
+          type: array
+          items:
+            type: object
+        total_debt:
+          type: number
+        total_paid:
+          type: number
+        total_balance:
+          type: number
+        totals_by_currency:
+          type: object
+          additionalProperties:
+            type: object
     Treatment:
       type: object
       properties:
@@ -3086,22 +3424,61 @@ components:
       properties:
         full_name:
           type: string
+          minLength: 3
+          maxLength: 255
         phone:
           type: string
+          pattern: "^\\+[0-9]{9,15}$"
+          maxLength: 50
+        secondary_phone:
+          type: string
+          pattern: "^\\+[0-9]{9,15}$"
+          maxLength: 50
+          nullable: true
+        category_id:
+          type: string
+          format: uuid
+          nullable: true
         address:
           type: string
+          minLength: 3
+          maxLength: 255
+          nullable: true
         date_of_birth:
           type: string
           format: date
+          nullable: true
         gender:
           type: string
           enum: [male, female]
+          nullable: true
         medical_history:
           type: string
+          maxLength: 300
+          nullable: true
         allergies:
           type: string
+          maxLength: 40
+          nullable: true
         current_medications:
           type: string
+          maxLength: 120
+          nullable: true
+    PatientCategoryUpsertRequest:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          minLength: 3
+          maxLength: 100
+        color:
+          type: string
+          pattern: "^#[0-9A-Fa-f]{6}$"
+        sort_order:
+          type: integer
+          minimum: 0
+          maximum: 999
     TreatmentCreateRequest:
       type: object
       required: [treatment_type, treatment_date]
@@ -3319,6 +3696,26 @@ components:
       properties:
         data:
           $ref: "#/components/schemas/Patient"
+      required: [data]
+    PatientCategoryResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/PatientCategory"
+      required: [data]
+    PatientCategoryCollectionResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/PatientCategory"
+      required: [data]
+    PatientOverviewResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/PatientOverview"
       required: [data]
     PatientCollectionResponse:
       type: object

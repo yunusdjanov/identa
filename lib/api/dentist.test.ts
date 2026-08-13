@@ -56,7 +56,7 @@ describe('dentist api pagination aggregation', () => {
                     meta: {
                         pagination: {
                             page: 1,
-                            per_page: 500,
+                            per_page: 100,
                             total: 2,
                             total_pages: 2,
                         },
@@ -76,7 +76,7 @@ describe('dentist api pagination aggregation', () => {
                     meta: {
                         pagination: {
                             page: 2,
-                            per_page: 500,
+                            per_page: 100,
                             total: 2,
                             total_pages: 2,
                         },
@@ -89,10 +89,10 @@ describe('dentist api pagination aggregation', () => {
         expect(result).toHaveLength(2);
         expect(result.map((patient) => patient.full_name)).toEqual(['Alice', 'Bob']);
         expect(apiGetMock).toHaveBeenNthCalledWith(1, '/patients', {
-            params: { page: 1, per_page: 500, sort: 'full_name' },
+            params: { page: 1, per_page: 100, sort: 'full_name' },
         });
         expect(apiGetMock).toHaveBeenNthCalledWith(2, '/patients', {
-            params: { page: 2, per_page: 500, sort: 'full_name' },
+            params: { page: 2, per_page: 100, sort: 'full_name' },
         });
     });
 
@@ -111,7 +111,7 @@ describe('dentist api pagination aggregation', () => {
                 meta: {
                     pagination: {
                         page,
-                        per_page: 500,
+                        per_page: 100,
                         total: totalPages,
                         total_pages: totalPages,
                     },

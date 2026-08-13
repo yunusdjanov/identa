@@ -7,6 +7,14 @@ use Illuminate\Validation\Rule;
 
 class StorePatientRequest extends FormRequest
 {
+    private const NULLABLE_TEXT_FIELDS = [
+        'secondary_phone',
+        'address',
+        'medical_history',
+        'allergies',
+        'current_medications',
+    ];
+
     public function authorize(): bool
     {
         return true;
@@ -36,5 +44,26 @@ class StorePatientRequest extends FormRequest
             'allergies' => ['nullable', 'string', 'max:40'],
             'current_medications' => ['nullable', 'string', 'max:120'],
         ];
+    }
+
+    protected function prepareForValidation(): void
+    {
+        $normalized = [];
+
+        foreach (['full_name', 'phone', ...self::NULLABLE_TEXT_FIELDS] as $field) {
+            $value = $this->input($field);
+            if (! is_string($value)) {
+                continue;
+            }
+
+            $value = trim($value);
+            $normalized[$field] = in_array($field, self::NULLABLE_TEXT_FIELDS, true) && $value === ''
+                ? null
+                : $value;
+        }
+
+        if ($normalized !== []) {
+            $this->merge($normalized);
+        }
     }
 }

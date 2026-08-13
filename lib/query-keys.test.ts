@@ -20,13 +20,9 @@ describe('queryKeys', () => {
         ]);
     });
 
-    it('keeps parameterized patient reads under the patient detail prefix', () => {
+    it('keeps patient reads under the canonical patient detail prefix', () => {
         const detail = queryKeys.patients.detail('patient-1');
-        const rememberedDetail = queryKeys.patients.detail('patient-1', {
-            rememberRecent: true,
-        });
 
-        expect(rememberedDetail.slice(0, detail.length)).toEqual(detail);
         expect(queryKeys.patients.overview('patient-1', '2026-07-30').slice(0, detail.length))
             .toEqual(detail);
         expect(queryKeys.patients.treatment('patient-1', 'treatment-1').slice(0, detail.length))

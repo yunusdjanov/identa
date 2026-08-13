@@ -53,6 +53,19 @@ test.describe('Responsive smoke coverage', () => {
             await expectNoPageHorizontalOverflow(page);
         }
 
+        await page.goto('/patients');
+        await expect(page.getByTestId('patients-filter-toolbar')).toBeVisible();
+        await expectNoPageHorizontalOverflow(page);
+        const firstPatientRow = page.locator('tbody tr[id^="patient-row-"]').first();
+        await expect(firstPatientRow).toBeVisible();
+        const patientRowId = await firstPatientRow.getAttribute('id');
+        const patientId = patientRowId?.replace('patient-row-', '') ?? '';
+        expect(patientId).toBeTruthy();
+        await page.goto(`/patients/${patientId}`);
+        await expect(page.getByTestId('patient-detail-page-layout')).toBeVisible();
+        await expect(page.getByTestId('patient-detail-header-facts')).toBeVisible();
+        await expectNoPageHorizontalOverflow(page);
+
         await page.goto('/analytics');
         const rangeSelector = page.getByRole('radiogroup');
         await expect(rangeSelector).toBeVisible();
@@ -74,9 +87,9 @@ test.describe('Responsive smoke coverage', () => {
         await expect(page.getByTestId('payment-summary-grid')).toBeVisible();
         await expectNoPageHorizontalOverflow(page);
 
-        const patientId = patientHref!.split('/').filter(Boolean).at(-1);
-        expect(patientId).toBeTruthy();
-        await page.goto(`/patients/${patientId}/odontogram`);
+        const ledgerPatientId = patientHref!.split('/').filter(Boolean).at(-1);
+        expect(ledgerPatientId).toBeTruthy();
+        await page.goto(`/patients/${ledgerPatientId}/odontogram`);
         await expect(page.getByTestId('odontogram-upper-jaw-scroll')).toBeVisible();
         await expect(page.getByTestId('odontogram-lower-jaw-scroll')).toBeVisible();
         await expectInsideViewport(page, '[data-testid="odontogram-upper-jaw-scroll"]');

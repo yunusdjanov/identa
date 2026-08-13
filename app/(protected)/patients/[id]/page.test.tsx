@@ -1,10 +1,10 @@
 import { Suspense } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { act, cleanup, render, screen, within } from '@testing-library/react';
+import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import PatientDetailPage from '@/app/(protected)/patients/[id]/page';
-import { archivePatient, getCurrentUser, getPatient, getPatientOverview } from '@/lib/api/dentist';
+import { archivePatient, getCurrentUser, getPatient, getPatientOverview, rememberRecentPatient } from '@/lib/api/dentist';
 import { I18nProvider } from '@/components/providers/i18n-provider';
 import { DICTIONARIES } from '@/lib/i18n/dictionaries';
 
@@ -25,6 +25,7 @@ vi.mock('@/lib/api/dentist', () => ({
     getCurrentUser: vi.fn(),
     getPatient: vi.fn(),
     getPatientOverview: vi.fn(),
+    rememberRecentPatient: vi.fn(),
     uploadPatientOralPhoto: vi.fn(),
     deletePatientOralPhoto: vi.fn(),
     replacePatientOralPhoto: vi.fn(),
@@ -123,7 +124,9 @@ describe('PatientDetailPage', () => {
         vi.mocked(getCurrentUser).mockReset();
         vi.mocked(getPatient).mockReset();
         vi.mocked(getPatientOverview).mockReset();
+        vi.mocked(rememberRecentPatient).mockReset();
         vi.mocked(getPatientOverview).mockResolvedValue(overview as never);
+        vi.mocked(rememberRecentPatient).mockResolvedValue(undefined);
     });
 
     afterEach(() => {
@@ -225,7 +228,7 @@ describe('PatientDetailPage', () => {
         expect(screen.getByText('Appointment for p-1')).toBeInTheDocument();
     });
 
-    it('passes the recent-search flag to the patient detail request', async () => {
+    it('records an explicit recent shortcut without mutating the detail GET', async () => {
         searchString = 'remember_recent=1';
         vi.mocked(getCurrentUser).mockResolvedValue(dentist as never);
         vi.mocked(getPatient).mockResolvedValue(patient as never);
@@ -233,7 +236,8 @@ describe('PatientDetailPage', () => {
         await renderPage();
 
         expect(await screen.findByText('John Smith')).toBeInTheDocument();
-        expect(getPatient).toHaveBeenCalledWith('p-1', { rememberRecent: true });
+        expect(getPatient).toHaveBeenCalledWith('p-1');
+        await waitFor(() => expect(rememberRecentPatient).toHaveBeenCalledWith('p-1'));
     });
 
     it('opens a read-only preview from the patient header photo', async () => {

@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Appointment;
 use App\Models\Patient;
 use App\Models\User;
+use App\Support\AuditLogger;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -246,6 +247,41 @@ class AppointmentApiTest extends TestCase
             ->assertJsonValidationErrors(['appointment']);
 
         $this->assertSame($patientsBefore, Patient::query()->count());
+    }
+
+    public function test_guest_patient_card_creation_rolls_back_if_audit_log_cannot_be_persisted(): void
+    {
+        $dentist = User::factory()->create();
+        $appointment = Appointment::factory()->create([
+            'dentist_id' => $dentist->id,
+            'patient_id' => null,
+            'guest_name' => 'Guest Before Rollback',
+            'guest_phone' => '+998901112233',
+        ]);
+        $this->mock(AuditLogger::class)
+            ->shouldReceive('logFromRequest')
+            ->once()
+            ->andThrow(new \RuntimeException('Audit storage unavailable'));
+
+        $this->withoutExceptionHandling();
+        try {
+            $this->actingAs($dentist, 'web')
+                ->postJson("/api/v1/appointments/{$appointment->id}/patient-card", [
+                    'full_name' => 'Guest Rollback Patient',
+                    'phone' => '+998901112233',
+                ]);
+            $this->fail('Expected the injected audit failure.');
+        } catch (\RuntimeException $exception) {
+            $this->assertSame('Audit storage unavailable', $exception->getMessage());
+        }
+
+        $this->assertDatabaseMissing('patients', ['full_name' => 'Guest Rollback Patient']);
+        $this->assertDatabaseHas('appointments', [
+            'id' => $appointment->id,
+            'patient_id' => null,
+            'guest_name' => 'Guest Before Rollback',
+            'guest_phone' => '+998901112233',
+        ]);
     }
 
     public function test_guest_appointment_requires_name_and_phone_when_patient_is_missing(): void

@@ -42,6 +42,7 @@ class PatientService
     public function __construct(
         private readonly AuditLogger $auditLogger,
         private readonly PatientPhotoService $photos,
+        private readonly PatientIdentityService $identities,
         private readonly TreatmentImageDirectUploadService $treatmentImages,
     ) {}
 
@@ -163,38 +164,56 @@ class PatientService
     public function rememberRecent(Request $request, Patient $patient): void
     {
         if ($patient->trashed()) {
-            return;
+            abort(404);
         }
 
         $dentistId = $this->dentistId($request);
         $actorId = $this->actorId($request);
 
-        PatientRecentView::query()->updateOrCreate(
-            [
-                'user_id' => $actorId,
-                'patient_id' => (string) $patient->id,
-            ],
-            [
-                'dentist_id' => $dentistId,
-                'viewed_at' => now(),
-            ]
-        );
+        DB::transaction(function () use ($actorId, $dentistId, $patient): void {
+            // Serialize shortcut writes per profile so concurrent tabs cannot
+            // race the five-row retention cleanup and leave unbounded history.
+            User::query()->whereKey($actorId)->lockForUpdate()->firstOrFail(['id']);
 
-        $latestIds = PatientRecentView::query()
-            ->where('user_id', $actorId)
-            ->where('dentist_id', $dentistId)
-            ->orderByDesc('viewed_at')
-            ->orderByDesc('id')
-            ->limit(self::RECENT_PATIENT_LIMIT)
-            ->pluck('id');
+            $timestamp = now();
+            PatientRecentView::query()->upsert(
+                [[
+                    'user_id' => $actorId,
+                    'patient_id' => (string) $patient->id,
+                    'dentist_id' => $dentistId,
+                    'viewed_at' => $timestamp,
+                    'created_at' => $timestamp,
+                    'updated_at' => $timestamp,
+                ]],
+                ['user_id', 'patient_id'],
+                ['dentist_id', 'viewed_at', 'updated_at']
+            );
 
-        if ($latestIds->isNotEmpty()) {
+            $latestIds = PatientRecentView::query()
+                ->where('user_id', $actorId)
+                ->where('dentist_id', $dentistId)
+                ->orderByDesc('viewed_at')
+                ->orderByDesc('id')
+                ->limit(self::RECENT_PATIENT_LIMIT)
+                ->pluck('id');
+
             PatientRecentView::query()
                 ->where('user_id', $actorId)
                 ->where('dentist_id', $dentistId)
                 ->whereNotIn('id', $latestIds)
                 ->delete();
-        }
+        });
+    }
+
+    /**
+     * Resolve the minimum patient shape needed by the recent shortcut write.
+     */
+    public function ownedActivePatientForRecent(Request $request, string $id): Patient
+    {
+        return Patient::query()
+            ->where('id', $id)
+            ->where('dentist_id', $this->dentistId($request))
+            ->firstOrFail(['id', 'dentist_id']);
     }
 
     /**
@@ -229,35 +248,33 @@ class PatientService
             ->except(['category_id'])
             ->all();
 
-        $patient = DB::transaction(function () use ($dentistId, $actorId, $patientAttributes, $validated): Patient {
-            $patient = Patient::create([
+        return DB::transaction(function () use ($request, $dentistId, $actorId, $patientAttributes, $validated): Patient {
+            $patient = $this->identities->create($dentistId, [
                 ...$patientAttributes,
-                'dentist_id' => $dentistId,
                 'created_by_user_id' => $actorId,
                 'updated_by_user_id' => $actorId,
-                'patient_id' => $this->generatePatientId($dentistId),
             ]);
             $this->syncCategory($patient, $validated);
 
-            return $patient->fresh()->load([
+            $patient = $patient->fresh()->load([
                 'categories:id,name,color,sort_order',
                 'createdBy:id,name,role',
                 'updatedBy:id,name,role',
                 'oralPhotos',
             ]);
+
+            $this->auditLogger->logFromRequest(
+                request: $request,
+                eventType: 'patient.created',
+                entityType: 'patient',
+                entityId: (string) $patient->id,
+                metadata: [
+                    'patient_id' => $patient->patient_id,
+                ],
+            );
+
+            return $patient;
         });
-
-        $this->auditLogger->logFromRequest(
-            request: $request,
-            eventType: 'patient.created',
-            entityType: 'patient',
-            entityId: (string) $patient->id,
-            metadata: [
-                'patient_id' => $patient->patient_id,
-            ],
-        );
-
-        return $patient;
     }
 
     public function update(UpdatePatientRequest $request, string $id): Patient
@@ -270,7 +287,7 @@ class PatientService
         $actorId = $this->actorId($request);
         $archivedMessage = __('api.patients.archived_restore_before_edit');
 
-        $patient = DB::transaction(function () use ($id, $dentistId, $actorId, $patientAttributes, $validated, $archivedMessage): Patient {
+        return DB::transaction(function () use ($request, $id, $dentistId, $actorId, $patientAttributes, $validated, $archivedMessage): Patient {
             // Lock the patient row inside the transaction so two concurrent
             // two-tab edits (or admin + assistant) serialise on the row.
             // Without the lock, syncCategory() can interleave detach/attach
@@ -289,22 +306,22 @@ class PatientService
             ]);
             $this->syncCategory($patient, $validated);
 
-            return $patient->fresh()->load([
+            $patient = $patient->fresh()->load([
                 'categories:id,name,color,sort_order',
                 'createdBy:id,name,role',
                 'updatedBy:id,name,role',
                 'oralPhotos',
             ]);
+
+            $this->auditLogger->logFromRequest(
+                request: $request,
+                eventType: 'patient.updated',
+                entityType: 'patient',
+                entityId: (string) $patient->id,
+            );
+
+            return $patient;
         });
-
-        $this->auditLogger->logFromRequest(
-            request: $request,
-            eventType: 'patient.updated',
-            entityType: 'patient',
-            entityId: (string) $patient->id,
-        );
-
-        return $patient;
     }
 
     /**
@@ -473,25 +490,28 @@ class PatientService
 
     public function archive(Request $request, string $id): void
     {
-        $patient = $this->ownedPatient($request, $id);
-        $patientId = (string) $patient->id;
-        // Idempotency: already-archived patient should be a no-op — no
-        // duplicate audit entry. Without this guard, a double-click on
-        // the archive button writes two `patient.archived` events,
-        // which clutters the audit log and confuses downstream
-        // analytics. FA-X4 D1.b.
-        if ($patient->trashed()) {
-            return;
-        }
+        DB::transaction(function () use ($request, $id): void {
+            $patient = Patient::query()
+                ->withTrashed()
+                ->where('id', $id)
+                ->where('dentist_id', $this->dentistId($request))
+                ->lockForUpdate()
+                ->firstOrFail();
+            // Idempotency: already-archived patient should be a no-op — no
+            // duplicate audit entry. The row lock serializes double-clicks.
+            if ($patient->trashed()) {
+                return;
+            }
 
-        $patient->delete();
+            $patient->delete();
 
-        $this->auditLogger->logFromRequest(
-            request: $request,
-            eventType: 'patient.archived',
-            entityType: 'patient',
-            entityId: $patientId,
-        );
+            $this->auditLogger->logFromRequest(
+                request: $request,
+                eventType: 'patient.archived',
+                entityType: 'patient',
+                entityId: (string) $patient->id,
+            );
+        });
     }
 
     public function restore(Request $request, string $id): Patient
@@ -531,7 +551,13 @@ class PatientService
 
     public function forceDelete(Request $request, string $id): void
     {
-        $patient = $this->ownedPatient($request, $id);
+        $dentistId = $this->dentistId($request);
+        /** @var Patient $patient */
+        $patient = Patient::query()
+            ->withTrashed()
+            ->where('id', $id)
+            ->where('dentist_id', $dentistId)
+            ->firstOrFail();
         if (! $patient->trashed()) {
             throw ValidationException::withMessages([
                 'patient' => [__('api.patients.archive_before_permanent_delete')],
@@ -582,8 +608,30 @@ class PatientService
         // Remove the patient and all active plus retained legacy child rows
         // atomically. Legacy invoice/payment/odontogram rows are not active
         // product surfaces, but their records and media still need safe cleanup.
-        DB::transaction(static function () use ($patient): void {
-            $patient->forceDelete();
+        DB::transaction(function () use ($request, $dentistId, $id, $patientId, $counts): void {
+            /** @var Patient $lockedPatient */
+            $lockedPatient = Patient::query()
+                ->withTrashed()
+                ->where('id', $id)
+                ->where('dentist_id', $dentistId)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if (! $lockedPatient->trashed()) {
+                throw ValidationException::withMessages([
+                    'patient' => [__('api.patients.archive_before_permanent_delete')],
+                ]);
+            }
+
+            $lockedPatient->forceDelete();
+
+            $this->auditLogger->logFromRequest(
+                request: $request,
+                eventType: 'patient.permanently_deleted',
+                entityType: 'patient',
+                entityId: $patientId,
+                metadata: $counts,
+            );
         });
 
         // Only purge storage AFTER the DB delete has committed, so a failed
@@ -596,14 +644,6 @@ class PatientService
                 logContext: 'Patient permanent delete'
             )->afterResponse();
         }
-
-        $this->auditLogger->logFromRequest(
-            request: $request,
-            eventType: 'patient.permanently_deleted',
-            entityType: 'patient',
-            entityId: $patientId,
-            metadata: $counts,
-        );
     }
 
     public function ownedPatient(Request $request, string $id): Patient
@@ -778,19 +818,4 @@ class PatientService
         $patient->categories()->sync([$categoryId]);
     }
 
-    private function generatePatientId(int $dentistId): string
-    {
-        do {
-            $numericPart = str_pad((string) random_int(0, 9999), 4, '0', STR_PAD_LEFT);
-            $suffix = chr(random_int(65, 90)).chr(random_int(65, 90));
-            $candidate = "PT-{$numericPart}{$suffix}";
-        } while (
-            Patient::query()
-                ->where('dentist_id', $dentistId)
-                ->where('patient_id', $candidate)
-                ->exists()
-        );
-
-        return $candidate;
-    }
 }
