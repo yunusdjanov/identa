@@ -35,6 +35,7 @@ test.describe('Responsive smoke coverage', () => {
             '/register',
             '/forgot-password',
             '/reset-password?token=invalid&email=test%40example.com',
+            '/verify-email?status=invalid',
             '/admin/login',
         ]) {
             await page.goto(path);

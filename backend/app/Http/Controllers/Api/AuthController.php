@@ -14,6 +14,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Password;
@@ -31,6 +32,10 @@ class AuthController extends Controller
     private const MAX_PASSWORD_LENGTH = 255;
 
     private const MAX_RESET_TOKEN_LENGTH = 255;
+
+    private const MAX_REFRESH_TOKEN_LENGTH = 255;
+
+    private const MAX_GOOGLE_ID_TOKEN_LENGTH = 8192;
 
     private const ADMIN_MIN_PASSWORD_LENGTH = 12;
 
@@ -62,7 +67,7 @@ class AuthController extends Controller
     public function google(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'id_token' => ['required', 'string'],
+            'id_token' => ['required', 'string', 'max:'.self::MAX_GOOGLE_ID_TOKEN_LENGTH],
             'device_name' => ['nullable', 'string', 'max:120'],
         ]);
         $deviceName = trim((string) ($validated['device_name'] ?? ''));
@@ -81,7 +86,7 @@ class AuthController extends Controller
     public function linkGoogle(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'id_token' => ['required', 'string'],
+            'id_token' => ['required', 'string', 'max:'.self::MAX_GOOGLE_ID_TOKEN_LENGTH],
         ]);
         /** @var User $user */
         $user = $request->user();
@@ -129,30 +134,47 @@ class AuthController extends Controller
     public function refresh(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'refresh_token' => ['required_without:refreshToken', 'string'],
-            'refreshToken' => ['nullable', 'string'],
+            'refresh_token' => ['required_without:refreshToken', 'string', 'max:'.self::MAX_REFRESH_TOKEN_LENGTH],
+            'refreshToken' => ['nullable', 'string', 'max:'.self::MAX_REFRESH_TOKEN_LENGTH],
         ]);
         $plainRefreshToken = (string) ($validated['refresh_token'] ?? $validated['refreshToken'] ?? '');
-        $refreshToken = PersonalAccessToken::findToken($plainRefreshToken);
 
-        if (
-            $refreshToken === null
-            || ! $refreshToken->can(self::MOBILE_REFRESH_ABILITY)
-            || ($refreshToken->expires_at !== null && $refreshToken->expires_at->isPast())
-            || ! $refreshToken->tokenable instanceof User
-            || ! $refreshToken->tokenable->hasActiveAccessChain()
-        ) {
+        /**
+         * @var array{user: User, tokens: array{access_token: string, refresh_token: string, token_type: string, expires_in: int, refresh_expires_in: int}}|null $rotation
+         */
+        $rotation = DB::transaction(function () use ($plainRefreshToken): ?array {
+            $refreshToken = $this->findPersonalAccessTokenForUpdate($plainRefreshToken);
+
+            if (
+                $refreshToken === null
+                || ! $refreshToken->can(self::MOBILE_REFRESH_ABILITY)
+                || ($refreshToken->expires_at !== null && $refreshToken->expires_at->isPast())
+                || ! $refreshToken->tokenable instanceof User
+                || ! $refreshToken->tokenable->hasActiveAccessChain()
+            ) {
+                return null;
+            }
+
+            /** @var User $user */
+            $user = $refreshToken->tokenable;
+            $deviceName = trim((string) $refreshToken->name) ?: 'Identa Mobile';
+            $this->deleteMobileTokensForDevice($user, $deviceName);
+            return [
+                'user' => $user,
+                'tokens' => $this->issueMobileTokens($user, $deviceName, deleteExisting: false),
+            ];
+        });
+
+        if ($rotation === null) {
             return response()->json([
                 'message' => __('auth.failed'),
             ], 401);
         }
 
         /** @var User $user */
-        $user = $refreshToken->tokenable;
-        $deviceName = trim((string) $refreshToken->name) ?: 'Identa Mobile';
-        $this->deleteMobileTokensForDevice($user, $deviceName);
+        $user = $rotation['user'];
         $data = $this->transformUser($user);
-        $data['tokens'] = $this->issueMobileTokens($user, $deviceName, deleteExisting: false);
+        $data['tokens'] = $rotation['tokens'];
 
         return response()->json([
             'data' => $data,
@@ -278,7 +300,7 @@ class AuthController extends Controller
             }
         }
 
-        $frontend = rtrim(explode(',', (string) config('app.frontend_url'))[0], '/');
+        $frontend = rtrim(trim(explode(',', (string) config('app.frontend_url'))[0]), '/');
 
         return redirect()->away($frontend.'/verify-email?status='.$status);
     }
@@ -337,7 +359,7 @@ class AuthController extends Controller
         $email = $request->string('email')->toString();
         $targetUser = \App\Models\User::query()
             ->where('email', $email)
-            ->whereNull('deleted_at')
+            ->where('account_status', '!=', User::ACCOUNT_STATUS_DELETED)
             ->first();
         $tenantDentistId = $targetUser?->tenantDentistId();
 
@@ -440,25 +462,18 @@ class AuthController extends Controller
             ]);
         }
 
-        // Use `log()` (not `logFromRequest()`) so the audit row's
-        // `dentist_id` is populated from the resolved user's tenant. The
-        // public reset flow has no authenticated actor on the request, so
-        // `logFromRequest()` would leave dentist_id null and the event
-        // would be invisible to the dentist owner whose assistant just had
-        // their password reset (or to the dentist themselves on a
-        // self-initiated reset). Threading the resolved user as `actor`
-        // keeps the tenant audit log honest. IP / user-agent are still
-        // captured directly from the request to preserve forensics.
+        // This is an anonymous recovery request, so never attribute the
+        // action to the target account as an authenticated actor. Resolve
+        // the tenant separately so the event remains visible in the correct
+        // practice audit log without falsifying actor identity.
         $this->auditLogger->log(
-            actor: $resetUser,
+            actor: null,
             eventType: 'auth.password_reset_completed',
             entityType: $resetUserId !== null ? 'user' : null,
             entityId: $resetUserId,
-            metadata: [
-                'email' => $request->string('email')->toString(),
-            ],
             ipAddress: $request->ip(),
             userAgent: $request->userAgent(),
+            tenantDentistId: $resetUser?->tenantDentistId(),
         );
 
         return response()->json([
@@ -508,5 +523,36 @@ class AuthController extends Controller
         }
 
         $user->tokens()->where('name', $normalizedDeviceName)->delete();
+    }
+
+    /**
+     * Resolve and lock a Sanctum token before rotation.
+     *
+     * A plain `findToken()` followed by deletion lets two simultaneous refresh
+     * requests both validate the same token before either deletes it. Locking
+     * the persisted row makes refresh tokens genuinely single-use while still
+     * supporting Sanctum's legacy hash-only token representation.
+     */
+    private function findPersonalAccessTokenForUpdate(string $plainTextToken): ?PersonalAccessToken
+    {
+        if (! str_contains($plainTextToken, '|')) {
+            return PersonalAccessToken::query()
+                ->where('token', hash('sha256', $plainTextToken))
+                ->lockForUpdate()
+                ->first();
+        }
+
+        [$id, $secret] = explode('|', $plainTextToken, 2);
+        if (! ctype_digit($id) || $secret === '') {
+            return null;
+        }
+
+        /** @var PersonalAccessToken|null $token */
+        $token = PersonalAccessToken::query()->whereKey((int) $id)->lockForUpdate()->first();
+        if ($token === null || ! hash_equals((string) $token->token, hash('sha256', $secret))) {
+            return null;
+        }
+
+        return $token;
     }
 }

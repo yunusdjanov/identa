@@ -63,6 +63,58 @@ paths:
           $ref: "#/components/responses/UnauthorizedError"
         "422":
           $ref: "#/components/responses/ValidationError"
+  /api/v1/auth/csrf-token:
+    get:
+      tags: [Auth]
+      summary: Initialize or read the current browser CSRF token
+      operationId: getCsrfToken
+      responses:
+        "200":
+          description: Current session CSRF token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CsrfTokenResponse"
+  /api/v1/auth/register:
+    post:
+      tags: [Auth]
+      summary: Register an unverified dentist and start the trial
+      operationId: register
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterRequest"
+      responses:
+        "201":
+          description: Dentist registered and browser session created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LoginResponse"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+  /api/v1/auth/google:
+    post:
+      tags: [Auth]
+      summary: Sign in or register with a verified Google ID token
+      operationId: googleLogin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GoogleAuthRequest"
+      responses:
+        "200":
+          description: Google authentication completed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LoginResponse"
+        "422":
+          $ref: "#/components/responses/ValidationError"
   /api/v1/auth/logout:
     post:
       tags: [Auth]
@@ -155,6 +207,125 @@ paths:
                 $ref: "#/components/schemas/UserResponse"
         "401":
           $ref: "#/components/responses/UnauthorizedError"
+  /api/v1/auth/change-password:
+    post:
+      tags: [Auth]
+      summary: Change the current user's password and revoke other sessions
+      operationId: changePassword
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChangePasswordRequest"
+      responses:
+        "200":
+          description: Password changed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserResponse"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+  /api/v1/auth/email/verification-notification:
+    post:
+      tags: [Auth]
+      summary: Resend the verification email for the current user
+      operationId: resendEmailVerification
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Current verification state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmailVerificationNotificationResponse"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+  /api/v1/auth/email/verify/{id}/{hash}:
+    get:
+      tags: [Auth]
+      summary: Verify an email through a time-limited signed URL
+      operationId: verifyEmail
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+        - name: hash
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: expires
+          in: query
+          required: true
+          schema:
+            type: integer
+        - name: signature
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "302":
+          description: Redirects to the public verification result page
+        "403":
+          description: Invalid, expired, or unsigned verification URL
+  /api/v1/auth/google/link:
+    post:
+      tags: [Auth]
+      summary: Link a verified Google identity to the current account
+      operationId: linkGoogleAccount
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GoogleAuthRequest"
+      responses:
+        "200":
+          description: Google identity linked
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserResponse"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+    delete:
+      tags: [Auth]
+      summary: Unlink Google while retaining password sign-in
+      operationId: unlinkGoogleAccount
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Google identity unlinked
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserResponse"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "422":
+          $ref: "#/components/responses/ValidationError"
   /api/v1/lookups/patients:
     get:
       tags: [Lookups]
@@ -2798,8 +2969,10 @@ components:
         email:
           type: string
           format: email
+          maxLength: 255
         password:
           type: string
+          maxLength: 255
         remember:
           type: boolean
         portal:
@@ -2809,6 +2982,64 @@ components:
           type: string
           description: When provided, login also returns a Sanctum bearer token for native mobile clients.
           maxLength: 120
+    RegisterRequest:
+      type: object
+      required: [name, email, password, password_confirmation]
+      properties:
+        name:
+          type: string
+          maxLength: 255
+        email:
+          type: string
+          format: email
+          maxLength: 255
+        password:
+          type: string
+          minLength: 8
+          maxLength: 255
+        password_confirmation:
+          type: string
+          maxLength: 255
+    GoogleAuthRequest:
+      type: object
+      required: [id_token]
+      properties:
+        id_token:
+          type: string
+          maxLength: 8192
+        device_name:
+          type: string
+          maxLength: 120
+          description: When provided to the public Google endpoint, authentication also returns a native mobile token pair.
+    ChangePasswordRequest:
+      type: object
+      required: [new_password, new_password_confirmation]
+      properties:
+        current_password:
+          type: string
+          maxLength: 255
+          description: Required unless the account is completing a forced password rotation or has no password yet.
+        new_password:
+          type: string
+          minLength: 8
+          maxLength: 255
+        new_password_confirmation:
+          type: string
+          maxLength: 255
+    CsrfTokenResponse:
+      type: object
+      properties:
+        token:
+          type: string
+      required: [token]
+    EmailVerificationNotificationResponse:
+      type: object
+      properties:
+        message:
+          type: string
+        email_verified:
+          type: boolean
+      required: [message, email_verified]
     ForgotPasswordRequest:
       type: object
       required: [email]
@@ -2816,26 +3047,39 @@ components:
         email:
           type: string
           format: email
+          maxLength: 255
     RefreshTokenRequest:
       type: object
-      required: [refresh_token]
+      anyOf:
+        - required: [refresh_token]
+        - required: [refreshToken]
       properties:
         refresh_token:
           type: string
+          maxLength: 255
+        refreshToken:
+          type: string
+          maxLength: 255
+          deprecated: true
+          description: Legacy mobile-client alias for refresh_token.
     ResetPasswordRequest:
       type: object
       required: [token, email, password, password_confirmation]
       properties:
         token:
           type: string
+          maxLength: 255
         email:
           type: string
           format: email
+          maxLength: 255
         password:
           type: string
           minLength: 8
+          maxLength: 255
         password_confirmation:
           type: string
+          maxLength: 255
     PatientUpsertRequest:
       type: object
       required: [full_name, phone]

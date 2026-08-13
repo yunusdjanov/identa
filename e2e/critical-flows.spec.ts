@@ -60,6 +60,25 @@ async function waitForSuccessfulMutation(
 }
 
 test.describe('Critical Journeys', () => {
+    test('dentist logout revokes the browser session before returning to login', async ({ page }) => {
+        await loginDentist(page);
+
+        await page.getByRole('button', { name: 'My Account' }).click();
+        const logoutResponse = page.waitForResponse(
+            (response) => response.url().includes('/api/v1/auth/logout')
+                && response.request().method() === 'POST'
+        );
+        await page.getByRole('menuitem', { name: 'Logout' }).click();
+
+        await expect((await logoutResponse).status()).toBe(204);
+        await expect(page).toHaveURL(/\/login(?:\?.*)?$/, { timeout: 15_000 });
+        await expect(page.getByRole('heading', { name: 'Sign in to Identa' })).toBeVisible();
+
+        await page.goto('/dashboard');
+        await expect(page).toHaveURL(/\/login\?from=%2Fdashboard$/, { timeout: 15_000 });
+        await expect(page.getByRole('heading', { name: 'Sign in to Identa' })).toBeVisible();
+    });
+
     test('dentist auth + patient lifecycle', async ({ page }) => {
         const patientName = `E2E Patient ${Date.now()}`;
         const patientPhone = `+1555${Date.now().toString().slice(-7)}`;

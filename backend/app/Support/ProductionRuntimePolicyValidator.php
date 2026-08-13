@@ -28,6 +28,50 @@ class ProductionRuntimePolicyValidator
             }
         }
 
+        if ((bool) config('security.runtime.require_https_frontend_url', true)) {
+            $frontendUrls = array_values(array_filter(array_map(
+                static fn (string $url): string => trim($url),
+                explode(',', (string) config('app.frontend_url', '')),
+            )));
+            $normalizedFrontendOrigins = array_values(array_filter(array_map(
+                fn (string $url): ?string => $this->normalizeHttpsOrigin($url),
+                $frontendUrls,
+            )));
+            if ($frontendUrls === [] || count($normalizedFrontendOrigins) !== count($frontendUrls)) {
+                $issues[] = 'FRONTEND_URL must contain only valid https:// origins in production.';
+            }
+
+            /** @var list<string> $corsOrigins */
+            $corsOrigins = array_values(array_filter(array_map(
+                static fn (mixed $origin): string => is_string($origin) ? trim($origin) : '',
+                (array) config('cors.allowed_origins', []),
+            )));
+            $normalizedCorsOrigins = array_values(array_filter(array_map(
+                fn (string $origin): ?string => $this->normalizeHttpsOrigin($origin),
+                $corsOrigins,
+            )));
+
+            if ($corsOrigins === [] || count($normalizedCorsOrigins) !== count($corsOrigins)) {
+                $issues[] = 'CORS frontend origins must contain only valid https:// origins in production.';
+            }
+
+            if (array_diff($normalizedFrontendOrigins, $normalizedCorsOrigins) !== []) {
+                $issues[] = 'Every FRONTEND_URL origin must be present in the CORS allow-list.';
+            }
+
+            $frontendDomains = array_values(array_filter(array_map(
+                fn (string $origin): ?string => $this->domainWithOptionalPort($origin),
+                $normalizedFrontendOrigins,
+            )));
+            $statefulDomains = array_values(array_filter(array_map(
+                fn (mixed $domain): string => is_string($domain) ? $this->normalizeDomain($domain) : '',
+                (array) config('sanctum.stateful', []),
+            )));
+            if (array_diff($frontendDomains, $statefulDomains) !== []) {
+                $issues[] = 'SANCTUM_STATEFUL_DOMAINS must include every FRONTEND_URL host.';
+            }
+        }
+
         if ((bool) config('security.runtime.require_session_secure_cookie', true)) {
             if ((bool) config('session.secure') !== true) {
                 $issues[] = 'SESSION_SECURE_COOKIE must be true in production.';
@@ -90,14 +134,58 @@ class ProductionRuntimePolicyValidator
 
     private function isHttpsUrl(string $url): bool
     {
-        $trimmed = trim($url);
-        if ($trimmed === '') {
-            return false;
+        return $this->normalizeHttpsOrigin($url) !== null;
+    }
+
+    private function normalizeHttpsOrigin(string $url): ?string
+    {
+        $trimmed = rtrim(trim($url), '/');
+        if ($trimmed === '' || filter_var($trimmed, FILTER_VALIDATE_URL) === false) {
+            return null;
         }
 
         $scheme = parse_url($trimmed, PHP_URL_SCHEME);
+        $host = parse_url($trimmed, PHP_URL_HOST);
+        $path = parse_url($trimmed, PHP_URL_PATH);
+        if (
+            ! is_string($scheme)
+            || strtolower($scheme) !== 'https'
+            || ! is_string($host)
+            || $host === ''
+            || (is_string($path) && ! in_array($path, ['', '/'], true))
+            || parse_url($trimmed, PHP_URL_USER) !== null
+            || parse_url($trimmed, PHP_URL_PASS) !== null
+            || parse_url($trimmed, PHP_URL_QUERY) !== null
+            || parse_url($trimmed, PHP_URL_FRAGMENT) !== null
+        ) {
+            return null;
+        }
 
-        return is_string($scheme) && strtolower($scheme) === 'https';
+        $port = parse_url($trimmed, PHP_URL_PORT);
+
+        return 'https://'.strtolower($host).($port !== null ? ':'.$port : '');
+    }
+
+    private function domainWithOptionalPort(string $url): ?string
+    {
+        $host = parse_url($url, PHP_URL_HOST);
+        if (! is_string($host) || $host === '') {
+            return null;
+        }
+
+        $port = parse_url($url, PHP_URL_PORT);
+
+        return strtolower($host).($port !== null ? ':'.$port : '');
+    }
+
+    private function normalizeDomain(string $domain): string
+    {
+        $normalized = trim(strtolower($domain));
+        if (str_contains($normalized, '://')) {
+            return $this->domainWithOptionalPort($normalized) ?? $normalized;
+        }
+
+        return rtrim($normalized, '/');
     }
 
     private function isLocalDomain(string $domain): bool

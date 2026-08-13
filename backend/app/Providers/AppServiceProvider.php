@@ -72,7 +72,11 @@ class AppServiceProvider extends ServiceProvider
         }
 
         ResetPassword::createUrlUsing(function (User $user, string $token): string {
-            $frontendUrl = rtrim((string) env('FRONTEND_URL', 'http://localhost:3000'), '/');
+            // Read through config so this keeps working after `config:cache`.
+            // FRONTEND_URL may be a comma-separated allow-list for CORS; the
+            // first origin is the canonical browser destination, matching the
+            // email-verification redirect contract in AuthController.
+            $frontendUrl = rtrim(trim(explode(',', (string) config('app.frontend_url'))[0]), '/');
 
             $query = [
                 'token' => $token,

@@ -7,6 +7,19 @@ const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const CONTRACT_PATH = resolve(REPO_ROOT, 'docs/api/openapi.v1.yaml');
 
 const requiredPaths = [
+    '/api/v1/auth/csrf-token',
+    '/api/v1/auth/register',
+    '/api/v1/auth/google',
+    '/api/v1/auth/login',
+    '/api/v1/auth/logout',
+    '/api/v1/auth/refresh',
+    '/api/v1/auth/forgot-password',
+    '/api/v1/auth/reset-password',
+    '/api/v1/auth/me',
+    '/api/v1/auth/change-password',
+    '/api/v1/auth/email/verification-notification',
+    '/api/v1/auth/email/verify/{id}/{hash}',
+    '/api/v1/auth/google/link',
     '/api/v1/lookups/patients',
     '/api/v1/patients/recent',
     '/api/v1/patients/{id}/photo/direct-upload',

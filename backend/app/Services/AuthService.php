@@ -419,6 +419,14 @@ class AuthService
             : null;
         $this->sessionRevocation->revokeForUsers([$user], $currentSessionId);
 
+        if ($request->hasSession()) {
+            // The password changed the authentication assurance boundary.
+            // Keep this browser signed in, but rotate both identifiers so a
+            // pre-change session id or CSRF token cannot be replayed.
+            $request->session()->regenerate();
+            $request->session()->regenerateToken();
+        }
+
         $this->auditLogger->logFromRequest(
             request: $request,
             eventType: 'auth.password_changed',
