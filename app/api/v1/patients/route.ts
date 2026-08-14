@@ -33,13 +33,13 @@ export async function GET(request: Request) {
     const rawPage = params.get('page') ?? '1';
     const rawPerPage = params.get('per_page') ?? '15';
     const page = Number(rawPage);
-    const perPage = Number(rawPerPage);
+    const requestedPerPage = Number(rawPerPage);
     const queryErrors: Record<string, string[]> = {};
     if (!Number.isInteger(page) || page < 1 || page > 1_000_000) {
         queryErrors.page = ['Page must be an integer from 1 to 1000000.'];
     }
-    if (!Number.isInteger(perPage) || perPage < 1 || perPage > 100) {
-        queryErrors.per_page = ['Per page must be an integer from 1 to 100.'];
+    if (!Number.isInteger(requestedPerPage) || requestedPerPage < 1 || requestedPerPage > 500) {
+        queryErrors.per_page = ['Per page must be an integer from 1 to 500.'];
     }
     if (search.length > 160) {
         queryErrors['filter.search'] = ['Search may not exceed 160 characters.'];
@@ -50,6 +50,7 @@ export async function GET(request: Request) {
     if (Object.keys(queryErrors).length > 0) {
         return NextResponse.json({ message: 'Validation failed.', errors: queryErrors }, { status: 422 });
     }
+    const perPage = Math.min(requestedPerPage, 100);
 
     let filtered = PATIENTS.slice();
 

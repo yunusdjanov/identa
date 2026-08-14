@@ -476,7 +476,7 @@ class PatientApiTest extends TestCase
         $dentist = User::factory()->create();
 
         $this->actingAs($dentist, 'web')
-            ->getJson('/api/v1/patients?per_page=101')
+            ->getJson('/api/v1/patients?per_page=501')
             ->assertUnprocessable()
             ->assertJsonValidationErrors(['per_page']);
 

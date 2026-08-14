@@ -22,7 +22,9 @@ class ListPatientsRequest extends FormRequest
     {
         return [
             'page' => ['sometimes', 'integer', 'min:1', 'max:1000000'],
-            'per_page' => ['sometimes', 'integer', 'min:1', 'max:100'],
+            // Preserve the established API contract: values through 500 are
+            // accepted, while PatientService clamps the actual page to 100.
+            'per_page' => ['sometimes', 'integer', 'min:1', 'max:500'],
             'sort' => ['sometimes', 'string', 'max:160'],
             'filter' => ['sometimes', 'array'],
             'filter.search' => ['sometimes', 'nullable', 'string', 'max:160'],

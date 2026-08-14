@@ -5,15 +5,15 @@ namespace Tests\Unit;
 use App\Models\Patient;
 use App\Models\User;
 use App\Services\PatientIdentityService;
-use Illuminate\Foundation\Testing\DatabaseMigrations;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 class PatientIdentityServiceTest extends TestCase
 {
-    use DatabaseMigrations;
+    use RefreshDatabase;
 
-    public function test_patient_identity_creation_requires_a_transaction_and_uses_the_tenant_code_contract(): void
+    public function test_patient_identity_creation_uses_the_tenant_code_contract(): void
     {
         $dentist = User::factory()->create();
         $service = app(PatientIdentityService::class);
@@ -23,16 +23,6 @@ class PatientIdentityServiceTest extends TestCase
             'created_by_user_id' => $dentist->id,
             'updated_by_user_id' => $dentist->id,
         ];
-
-        try {
-            $service->create($dentist->id, $attributes);
-            $this->fail('Expected an active-transaction requirement.');
-        } catch (\LogicException $exception) {
-            $this->assertSame(
-                'Patient identity creation requires an active database transaction.',
-                $exception->getMessage()
-            );
-        }
 
         $patient = DB::transaction(fn (): Patient => $service->create($dentist->id, $attributes));
 

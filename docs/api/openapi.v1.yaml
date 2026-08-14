@@ -449,7 +449,7 @@ paths:
         - cookieAuth: []
       parameters:
         - $ref: "#/components/parameters/Page"
-        - $ref: "#/components/parameters/PerPage"
+        - $ref: "#/components/parameters/PatientPerPage"
         - $ref: "#/components/parameters/Sort"
         - $ref: "#/components/parameters/SearchFilter"
         - $ref: "#/components/parameters/PatientCategoryFilter"
@@ -2193,6 +2193,15 @@ components:
         type: integer
         minimum: 1
         maximum: 100
+        default: 15
+    PatientPerPage:
+      name: per_page
+      in: query
+      description: Values up to 500 are accepted for backward compatibility; the response page is capped at 100 rows.
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 500
         default: 15
     Sort:
       name: sort
