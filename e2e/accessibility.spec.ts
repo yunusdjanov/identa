@@ -70,6 +70,17 @@ test.describe('WCAG accessibility smoke coverage', () => {
                 await expectNoSeriousAccessibilityViolations(page);
             });
         }
+
+        await test.step('scan patient detail', async () => {
+            await page.goto('/patients');
+            const firstPatientRow = page.locator('tbody tr[id^="patient-row-"]').first();
+            await expect(firstPatientRow).toBeVisible();
+            const rowId = await firstPatientRow.getAttribute('id');
+            const patientId = rowId?.replace('patient-row-', '') ?? '';
+            expect(patientId).toBeTruthy();
+            await page.goto(`/patients/${patientId}`);
+            await expectNoSeriousAccessibilityViolations(page);
+        });
     });
 
     test('admin core routes have no serious violations', async ({ page }) => {

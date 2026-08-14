@@ -21,6 +21,7 @@ class AppointmentService
 {
     public function __construct(
         private readonly AuditLogger $auditLogger,
+        private readonly PatientIdentityService $patientIdentities,
     ) {}
 
     private const DEFAULT_PER_PAGE = 15;
@@ -247,7 +248,11 @@ class AppointmentService
             ->except(['category_id'])
             ->all();
 
-        $result = DB::transaction(function () use ($id, $dentistId, $actorId, $patientAttributes, $validated): array {
+        return DB::transaction(function () use ($request, $id, $dentistId, $actorId, $patientAttributes, $validated): array {
+            // Patient creation flows lock the tenant identity namespace first.
+            // Keep that lock order before the appointment row to avoid a
+            // user-row/appointment-row deadlock with concurrent workflows.
+            $this->patientIdentities->lockTenant($dentistId);
             $appointment = Appointment::query()
                 ->where('id', $id)
                 ->where('dentist_id', $dentistId)
@@ -260,12 +265,10 @@ class AppointmentService
                 ]);
             }
 
-            $patient = Patient::create([
+            $patient = $this->patientIdentities->create($dentistId, [
                 ...$patientAttributes,
-                'dentist_id' => $dentistId,
                 'created_by_user_id' => $actorId,
                 'updated_by_user_id' => $actorId,
-                'patient_id' => $this->generatePatientId($dentistId),
             ]);
             $this->syncPatientCategory($patient, $validated);
 
@@ -276,7 +279,7 @@ class AppointmentService
                 'updated_by_user_id' => $actorId,
             ]);
 
-            return [
+            $result = [
                 'appointment' => $appointment->fresh()->load([
                     'patient:id,full_name',
                     'createdBy:id,name,role',
@@ -289,37 +292,35 @@ class AppointmentService
                     'oralPhotos',
                 ]),
             ];
+            $patient = $result['patient'];
+            $appointment = $result['appointment'];
+            $this->auditLogger->logFromRequest(
+                request: $request,
+                eventType: 'patient.created',
+                entityType: 'patient',
+                entityId: (string) $patient->id,
+                metadata: [
+                    'patient_id' => $patient->patient_id,
+                    'source' => 'guest_appointment',
+                    'appointment_id' => (string) $appointment->id,
+                ],
+            );
+            $this->auditLogger->logFromRequest(
+                request: $request,
+                eventType: 'appointment.updated',
+                entityType: 'appointment',
+                entityId: (string) $appointment->id,
+                metadata: [
+                    'patient_id' => (string) $appointment->patient_id,
+                    'is_guest' => false,
+                    'appointment_date' => $appointment->appointment_date?->toDateString(),
+                    'status' => $appointment->status,
+                    'source' => 'guest_appointment_patient_card',
+                ],
+            );
+
+            return $result;
         });
-
-        $patient = $result['patient'];
-        $appointment = $result['appointment'];
-
-        $this->auditLogger->logFromRequest(
-            request: $request,
-            eventType: 'patient.created',
-            entityType: 'patient',
-            entityId: (string) $patient->id,
-            metadata: [
-                'patient_id' => $patient->patient_id,
-                'source' => 'guest_appointment',
-                'appointment_id' => (string) $appointment->id,
-            ],
-        );
-        $this->auditLogger->logFromRequest(
-            request: $request,
-            eventType: 'appointment.updated',
-            entityType: 'appointment',
-            entityId: (string) $appointment->id,
-            metadata: [
-                'patient_id' => (string) $appointment->patient_id,
-                'is_guest' => false,
-                'appointment_date' => $appointment->appointment_date?->toDateString(),
-                'status' => $appointment->status,
-                'source' => 'guest_appointment_patient_card',
-            ],
-        );
-
-        return $result;
     }
 
     public function delete(Request $request, string $id): void
@@ -458,22 +459,6 @@ class AppointmentService
 
         $categoryId = $validated['category_id'];
         $patient->categories()->sync(is_string($categoryId) && $categoryId !== '' ? [$categoryId] : []);
-    }
-
-    private function generatePatientId(int $dentistId): string
-    {
-        do {
-            $numericPart = str_pad((string) random_int(0, 9999), 4, '0', STR_PAD_LEFT);
-            $suffix = chr(random_int(65, 90)).chr(random_int(65, 90));
-            $candidate = "PT-{$numericPart}{$suffix}";
-        } while (
-            Patient::query()
-                ->where('dentist_id', $dentistId)
-                ->where('patient_id', $candidate)
-                ->exists()
-        );
-
-        return $candidate;
     }
 
     private function perPage(Request $request): int

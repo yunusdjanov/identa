@@ -9,6 +9,7 @@ use App\Models\PatientCategory;
 use App\Models\PatientClinicalPhoto;
 use App\Models\Treatment;
 use App\Models\User;
+use App\Support\AuditLogger;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Config;
@@ -161,7 +162,7 @@ class PatientApiTest extends TestCase
             ->assertJsonPath('data.0.full_name', 'Recently Updated Patient');
     }
 
-    public function test_patient_detail_updates_profile_based_recent_patients(): void
+    public function test_explicit_recent_endpoint_updates_profile_based_recent_patients(): void
     {
         $dentist = User::factory()->create();
         $assistant = User::factory()->assistant($dentist)->create([
@@ -182,21 +183,21 @@ class PatientApiTest extends TestCase
         ]);
 
         $this->actingAs($dentist, 'web')
-            ->getJson("/api/v1/patients/{$firstPatient->id}?remember_recent=1")
-            ->assertOk();
+            ->postJson("/api/v1/patients/recent/{$firstPatient->id}")
+            ->assertNoContent();
         $this->travel(1)->second();
         $this->actingAs($dentist, 'web')
-            ->getJson("/api/v1/patients/{$secondPatient->id}?remember_recent=1")
-            ->assertOk();
+            ->postJson("/api/v1/patients/recent/{$secondPatient->id}")
+            ->assertNoContent();
         $this->travel(1)->second();
         $this->actingAs($dentist, 'web')
-            ->getJson("/api/v1/patients/{$firstPatient->id}?remember_recent=1")
-            ->assertOk();
+            ->postJson("/api/v1/patients/recent/{$firstPatient->id}")
+            ->assertNoContent();
         $this->flushSession();
         $this->app['auth']->forgetGuards();
         $this->actingAs($assistant, 'web')
-            ->getJson("/api/v1/patients/{$assistantPatient->id}?remember_recent=1")
-            ->assertOk();
+            ->postJson("/api/v1/patients/recent/{$assistantPatient->id}")
+            ->assertNoContent();
 
         $this->flushSession();
         $this->app['auth']->forgetGuards();
@@ -208,6 +209,8 @@ class PatientApiTest extends TestCase
             ->assertJsonPath('data.0.full_name', 'First Recent Patient')
             ->assertJsonPath('data.1.id', (string) $secondPatient->id);
 
+        $this->assertDatabaseCount('patient_recent_views', 3);
+
         $this->flushSession();
         $this->app['auth']->forgetGuards();
         $this->actingAs($assistant, 'web')
@@ -217,7 +220,7 @@ class PatientApiTest extends TestCase
             ->assertJsonPath('data.0.id', (string) $assistantPatient->id);
     }
 
-    public function test_patient_detail_does_not_update_recent_patients_without_search_flag(): void
+    public function test_patient_detail_get_is_read_only_and_recent_write_is_explicit(): void
     {
         $dentist = User::factory()->create();
         $patient = Patient::factory()->create([
@@ -241,8 +244,38 @@ class PatientApiTest extends TestCase
         $this->actingAs($dentist, 'web')
             ->getJson('/api/v1/patients/recent')
             ->assertOk()
+            ->assertJsonCount(0, 'data');
+
+        $this->actingAs($dentist, 'web')
+            ->postJson("/api/v1/patients/recent/{$patient->id}")
+            ->assertNoContent();
+
+        $this->actingAs($dentist, 'web')
+            ->getJson('/api/v1/patients/recent')
+            ->assertOk()
             ->assertJsonCount(1, 'data')
             ->assertJsonPath('data.0.id', (string) $patient->id);
+    }
+
+    public function test_recent_patient_history_is_bounded_and_rejects_archived_patients(): void
+    {
+        $dentist = User::factory()->create();
+        $patients = Patient::factory()->count(6)->create(['dentist_id' => $dentist->id]);
+
+        foreach ($patients as $patient) {
+            $this->actingAs($dentist, 'web')
+                ->postJson("/api/v1/patients/recent/{$patient->id}")
+                ->assertNoContent();
+            $this->travel(1)->second();
+        }
+
+        $this->assertDatabaseCount('patient_recent_views', 5);
+
+        $archived = $patients->last();
+        $archived->delete();
+        $this->actingAs($dentist, 'web')
+            ->postJson("/api/v1/patients/recent/{$archived->id}")
+            ->assertNotFound();
     }
 
     public function test_dentist_can_remove_and_clear_recent_patients(): void
@@ -258,11 +291,11 @@ class PatientApiTest extends TestCase
         ]);
 
         $this->actingAs($dentist, 'web')
-            ->getJson("/api/v1/patients/{$firstPatient->id}?remember_recent=1")
-            ->assertOk();
+            ->postJson("/api/v1/patients/recent/{$firstPatient->id}")
+            ->assertNoContent();
         $this->actingAs($dentist, 'web')
-            ->getJson("/api/v1/patients/{$secondPatient->id}?remember_recent=1")
-            ->assertOk();
+            ->postJson("/api/v1/patients/recent/{$secondPatient->id}")
+            ->assertNoContent();
 
         $this->actingAs($dentist, 'web')
             ->deleteJson("/api/v1/patients/recent/{$firstPatient->id}")
@@ -412,6 +445,83 @@ class PatientApiTest extends TestCase
                 'allergies',
                 'current_medications',
             ]);
+    }
+
+    public function test_patient_identity_fields_are_normalized_before_validation_and_persistence(): void
+    {
+        $dentist = User::factory()->create();
+
+        $this->actingAs($dentist, 'web')
+            ->postJson('/api/v1/patients', [
+                'full_name' => '  Normalized Patient  ',
+                'phone' => '  +998901234567  ',
+                'secondary_phone' => '   ',
+                'address' => '  Tashkent  ',
+                'medical_history' => '',
+                'allergies' => '   ',
+                'current_medications' => '',
+            ])
+            ->assertCreated()
+            ->assertJsonPath('data.full_name', 'Normalized Patient')
+            ->assertJsonPath('data.phone', '+998901234567')
+            ->assertJsonPath('data.secondary_phone', null)
+            ->assertJsonPath('data.address', 'Tashkent')
+            ->assertJsonPath('data.medical_history', null)
+            ->assertJsonPath('data.allergies', null)
+            ->assertJsonPath('data.current_medications', null);
+    }
+
+    public function test_patient_list_rejects_unbounded_or_malformed_query_filters(): void
+    {
+        $dentist = User::factory()->create();
+
+        $this->actingAs($dentist, 'web')
+            ->getJson('/api/v1/patients?per_page=501')
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['per_page']);
+
+        $this->actingAs($dentist, 'web')
+            ->getJson('/api/v1/patients?filter[search]='.str_repeat('a', 161))
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['filter.search']);
+
+        $this->actingAs($dentist, 'web')
+            ->getJson('/api/v1/patients?filter[inactive_before]=not-a-date')
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['filter.inactive_before']);
+
+        $this->actingAs($dentist, 'web')
+            ->getJson('/api/v1/patients?filter[category_id]=not-a-uuid')
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['filter.category_id']);
+    }
+
+    public function test_patient_list_normalizes_search_whitespace_before_querying(): void
+    {
+        $dentist = User::factory()->create();
+        Patient::factory()->create([
+            'dentist_id' => $dentist->id,
+            'full_name' => 'Whitespace Search Patient',
+        ]);
+
+        $this->actingAs($dentist, 'web')
+            ->getJson('/api/v1/patients?filter[search]=%20%20Whitespace%20Search%20%20')
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.full_name', 'Whitespace Search Patient');
+    }
+
+    public function test_recent_endpoint_cannot_remember_another_tenants_patient(): void
+    {
+        $dentist = User::factory()->create();
+        $otherDentist = User::factory()->create();
+        $otherPatient = Patient::factory()->create(['dentist_id' => $otherDentist->id]);
+
+        $this->actingAs($dentist, 'web')
+            ->postJson("/api/v1/patients/recent/{$otherPatient->id}")
+            ->assertNotFound();
+
+        $this->assertDatabaseCount('patient_recent_views', 0);
     }
 
     public function test_dentist_can_show_update_and_delete_owned_patient(): void
@@ -826,6 +936,31 @@ class PatientApiTest extends TestCase
         ]);
     }
 
+    public function test_patient_create_rolls_back_if_audit_log_cannot_be_persisted(): void
+    {
+        $dentist = User::factory()->create();
+        $this->mock(AuditLogger::class)
+            ->shouldReceive('logFromRequest')
+            ->once()
+            ->andThrow(new \RuntimeException('Audit storage unavailable'));
+
+        $this->withoutExceptionHandling();
+        try {
+            $this->actingAs($dentist, 'web')
+                ->postJson('/api/v1/patients', [
+                    'full_name' => 'Rollback Patient',
+                    'phone' => '+998901234567',
+                ]);
+            $this->fail('Expected the injected audit failure.');
+        } catch (\RuntimeException $exception) {
+            $this->assertSame('Audit storage unavailable', $exception->getMessage());
+        }
+
+        $this->assertDatabaseMissing('patients', [
+            'full_name' => 'Rollback Patient',
+        ]);
+    }
+
     public function test_dentist_can_force_delete_archived_patient_without_related_records(): void
     {
         $dentist = User::factory()->create();
@@ -844,6 +979,29 @@ class PatientApiTest extends TestCase
         $this->assertDatabaseMissing('patients', [
             'id' => $patient->id,
         ]);
+    }
+
+    public function test_permanent_delete_rolls_back_if_audit_log_cannot_be_persisted(): void
+    {
+        $dentist = User::factory()->create();
+        $patient = Patient::factory()->create(['dentist_id' => $dentist->id]);
+        $patient->delete();
+
+        $this->mock(AuditLogger::class)
+            ->shouldReceive('logFromRequest')
+            ->once()
+            ->andThrow(new \RuntimeException('Audit storage unavailable'));
+
+        $this->withoutExceptionHandling();
+        try {
+            $this->actingAs($dentist, 'web')
+                ->deleteJson("/api/v1/patients/{$patient->id}/force");
+            $this->fail('Expected the injected audit failure.');
+        } catch (\RuntimeException $exception) {
+            $this->assertSame('Audit storage unavailable', $exception->getMessage());
+        }
+
+        $this->assertSoftDeleted('patients', ['id' => $patient->id]);
     }
 
     public function test_dentist_can_force_delete_patient_and_cascade_related_records(): void

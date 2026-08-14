@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\ListPatientsRequest;
 use App\Http\Requests\PreparePatientPhotoUploadRequest;
 use App\Http\Requests\StorePatientRequest;
 use App\Http\Requests\UpdatePatientRequest;
@@ -27,7 +28,7 @@ class PatientController extends Controller
         private readonly PatientClinicalPhotoService $clinicalPhotos,
     ) {}
 
-    public function index(Request $request): JsonResponse
+    public function index(ListPatientsRequest $request): JsonResponse
     {
         $patients = $this->patients->list($request);
 
@@ -48,7 +49,7 @@ class PatientController extends Controller
         ]);
     }
 
-    public function lookup(Request $request): JsonResponse
+    public function lookup(ListPatientsRequest $request): JsonResponse
     {
         $patients = $this->patients->lookup($request);
 
@@ -92,6 +93,17 @@ class PatientController extends Controller
     }
 
     /**
+     * Remember one patient as a profile-scoped recent shortcut.
+     */
+    public function rememberRecent(Request $request, string $id): JsonResponse
+    {
+        $patient = $this->patients->ownedActivePatientForRecent($request, $id);
+        $this->patients->rememberRecent($request, $patient);
+
+        return response()->json([], 204);
+    }
+
+    /**
      * Clear all recent patient shortcuts for the current user.
      */
     public function clearRecent(Request $request): JsonResponse
@@ -123,10 +135,6 @@ class PatientController extends Controller
     public function show(Request $request, string $id): JsonResponse
     {
         $patient = $this->patients->ownedPatient($request, $id);
-
-        if ($request->boolean('remember_recent')) {
-            $this->patients->rememberRecent($request, $patient);
-        }
 
         return response()->json([
             'data' => $this->transformPatient($patient, $request),

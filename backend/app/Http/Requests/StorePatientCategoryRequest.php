@@ -32,4 +32,11 @@ class StorePatientCategoryRequest extends FormRequest
             'sort_order' => ['nullable', 'integer', 'min:0', 'max:999'],
         ];
     }
+
+    protected function prepareForValidation(): void
+    {
+        if (is_string($this->input('name'))) {
+            $this->merge(['name' => trim((string) $this->input('name'))]);
+        }
+    }
 }

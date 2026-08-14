@@ -73,6 +73,7 @@ const PatientPhotoPreviewDialog = dynamic(
 
 const noopSubscribe = () => () => undefined;
 const PAGE_SIZE = 10;
+const PATIENT_SEARCH_MAX_LENGTH = 160;
 const PATIENT_TABLE_NAME_UI_LIMIT = 25;
 const PATIENT_CATEGORY_UI_LIMIT = 20;
 type PatientOpenSource = 'list' | 'recent' | 'search';
@@ -475,6 +476,7 @@ export default function PatientsPage() {
                         placeholder={t('patients.searchPlaceholder')}
                         aria-label={t('patients.searchAria')}
                         value={searchQuery}
+                        maxLength={PATIENT_SEARCH_MAX_LENGTH}
                         onFocus={() => {
                             if (searchQuery.trim() === '') {
                                 setIsRecentMenuOpen(true);

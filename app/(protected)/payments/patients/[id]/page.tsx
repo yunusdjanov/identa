@@ -273,7 +273,7 @@ export default function PaymentPatientPage({
     });
 
     const profilePatientQuery = useQuery({
-        queryKey: [...queryKeys.patients.detail(id), { rememberRecent: false }],
+        queryKey: queryKeys.patients.detail(id),
         enabled: canViewPayments && canViewPatients,
         retry: false,
         queryFn: () => getPatient(id),

@@ -9,6 +9,8 @@ use App\Models\User;
 use App\Support\AuditLogger;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class PatientCategoryService
 {
@@ -33,68 +35,86 @@ class PatientCategoryService
     {
         $validated = $request->validated();
 
-        $category = PatientCategory::create([
-            'dentist_id' => $this->dentistId($request),
-            'name' => trim((string) $validated['name']),
-            'color' => $validated['color'] ?? '#CBD5E1',
-            'sort_order' => $validated['sort_order'] ?? 0,
-        ]);
+        return DB::transaction(function () use ($request, $validated): PatientCategory {
+            $dentistId = $this->dentistId($request);
+            $this->lockTenant($dentistId);
+            $this->ensureNameAvailable($dentistId, (string) $validated['name']);
+            $category = PatientCategory::create([
+                'dentist_id' => $dentistId,
+                'name' => (string) $validated['name'],
+                'color' => $validated['color'] ?? '#CBD5E1',
+                'sort_order' => $validated['sort_order'] ?? 0,
+            ]);
 
-        $this->auditLogger->logFromRequest(
-            request: $request,
-            eventType: 'patient_category.created',
-            entityType: 'patient_category',
-            entityId: (string) $category->id,
-            metadata: ['name' => $category->name],
-        );
+            $this->auditLogger->logFromRequest(
+                request: $request,
+                eventType: 'patient_category.created',
+                entityType: 'patient_category',
+                entityId: (string) $category->id,
+                metadata: ['name' => $category->name],
+            );
 
-        return $category;
+            return $category;
+        });
     }
 
     public function update(UpdatePatientCategoryRequest $request, string $id): PatientCategory
     {
-        $category = $this->ownedCategory($request, $id);
         $validated = $request->validated();
 
-        $category->update([
-            'name' => trim((string) $validated['name']),
-            'color' => $validated['color'] ?? '#CBD5E1',
-            'sort_order' => $validated['sort_order'] ?? 0,
-        ]);
+        return DB::transaction(function () use ($request, $id, $validated): PatientCategory {
+            $dentistId = $this->dentistId($request);
+            $this->lockTenant($dentistId);
+            $category = $this->ownedCategory($request, $id, true);
+            $this->ensureNameAvailable($dentistId, (string) $validated['name'], $id);
+            $category->update([
+                'name' => (string) $validated['name'],
+                'color' => $validated['color'] ?? '#CBD5E1',
+                'sort_order' => $validated['sort_order'] ?? 0,
+            ]);
 
-        $this->auditLogger->logFromRequest(
-            request: $request,
-            eventType: 'patient_category.updated',
-            entityType: 'patient_category',
-            entityId: (string) $category->id,
-            metadata: ['name' => $category->name],
-        );
+            $this->auditLogger->logFromRequest(
+                request: $request,
+                eventType: 'patient_category.updated',
+                entityType: 'patient_category',
+                entityId: (string) $category->id,
+                metadata: ['name' => $category->name],
+            );
 
-        return $category->fresh();
+            return $category->fresh();
+        });
     }
 
     public function delete(Request $request, string $id): void
     {
-        $category = $this->ownedCategory($request, $id);
-        $metadata = ['name' => $category->name];
-        $category->patients()->detach();
-        $category->delete();
+        DB::transaction(function () use ($request, $id): void {
+            $this->lockTenant($this->dentistId($request));
+            $category = $this->ownedCategory($request, $id, true);
+            $metadata = ['name' => $category->name];
+            $category->patients()->detach();
+            $category->delete();
 
-        $this->auditLogger->logFromRequest(
-            request: $request,
-            eventType: 'patient_category.deleted',
-            entityType: 'patient_category',
-            entityId: $id,
-            metadata: $metadata,
-        );
+            $this->auditLogger->logFromRequest(
+                request: $request,
+                eventType: 'patient_category.deleted',
+                entityType: 'patient_category',
+                entityId: $id,
+                metadata: $metadata,
+            );
+        });
     }
 
-    private function ownedCategory(Request $request, string $id): PatientCategory
+    private function ownedCategory(Request $request, string $id, bool $lockForUpdate = false): PatientCategory
     {
-        return PatientCategory::query()
+        $query = PatientCategory::query()
             ->where('id', $id)
-            ->where('dentist_id', $this->dentistId($request))
-            ->firstOrFail();
+            ->where('dentist_id', $this->dentistId($request));
+
+        if ($lockForUpdate) {
+            $query->lockForUpdate();
+        }
+
+        return $query->firstOrFail();
     }
 
     private function dentistId(Request $request): int
@@ -105,5 +125,28 @@ class PatientCategoryService
         abort_if($dentistId === null, 403);
 
         return $dentistId;
+    }
+
+    private function lockTenant(int $dentistId): void
+    {
+        User::query()
+            ->whereKey($dentistId)
+            ->lockForUpdate()
+            ->firstOrFail(['id']);
+    }
+
+    private function ensureNameAvailable(int $dentistId, string $name, ?string $exceptId = null): void
+    {
+        $exists = PatientCategory::query()
+            ->where('dentist_id', $dentistId)
+            ->where('name', $name)
+            ->when($exceptId !== null, fn ($query) => $query->where('id', '!=', $exceptId))
+            ->exists();
+
+        if ($exists) {
+            throw ValidationException::withMessages([
+                'name' => [__('validation.unique', ['attribute' => 'name'])],
+            ]);
+        }
     }
 }

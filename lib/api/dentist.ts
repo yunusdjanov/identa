@@ -102,6 +102,7 @@ export type AdminDentistSubscriptionAction =
     | 'cancel_now';
 
 const MAX_API_PER_PAGE = 500;
+const MAX_PATIENT_API_PER_PAGE = 100;
 const MAX_COLLECT_ALL_PAGES_CONCURRENCY = 3;
 const MAX_COLLECT_ALL_PAGES = 100;
 const MAX_COLLECT_ALL_ITEMS = 10_000;
@@ -427,7 +428,7 @@ export async function listAllPatients(options?: Omit<QueryOptions, 'page' | 'per
         listPatients({
             ...options,
             page,
-            perPage: MAX_API_PER_PAGE,
+            perPage: MAX_PATIENT_API_PER_PAGE,
         })
     );
 }
@@ -440,15 +441,17 @@ export async function lookupPatients(options?: QueryOptions): Promise<ApiCollect
     return data;
 }
 
-export async function getPatient(
-    id: string,
-    options: { rememberRecent?: boolean } = {}
-): Promise<ApiPatient> {
-    const { data } = await apiClient.get<ApiEnvelope<ApiPatient>>(`/patients/${id}`, {
-        params: options.rememberRecent ? { remember_recent: 1 } : undefined,
-    });
+export async function getPatient(id: string): Promise<ApiPatient> {
+    const { data } = await apiClient.get<ApiEnvelope<ApiPatient>>(`/patients/${id}`);
 
     return data.data;
+}
+
+/**
+ * Stores an explicit profile-scoped recent shortcut without mutating a GET.
+ */
+export async function rememberRecentPatient(id: string): Promise<void> {
+    await withCsrfRetry(() => apiClient.post(`/patients/recent/${id}`));
 }
 
 /**

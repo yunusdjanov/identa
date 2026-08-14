@@ -99,6 +99,25 @@ class PatientCategoryApiTest extends TestCase
             ->assertJsonValidationErrors(['name']);
     }
 
+    public function test_patient_category_name_is_normalized_before_unique_validation(): void
+    {
+        $dentist = User::factory()->create();
+        PatientCategory::factory()->create([
+            'dentist_id' => $dentist->id,
+            'name' => 'VIP',
+        ]);
+
+        $this->actingAs($dentist, 'web')
+            ->postJson('/api/v1/patient-categories', [
+                'name' => '  VIP  ',
+                'color' => '#3B82F6',
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['name']);
+
+        $this->assertDatabaseCount('patient_categories', 1);
+    }
+
     public function test_deleting_category_detaches_it_from_patients(): void
     {
         $dentist = User::factory()->create();
