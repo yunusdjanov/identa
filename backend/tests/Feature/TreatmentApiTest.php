@@ -2,10 +2,12 @@
 
 namespace Tests\Feature;
 
+use App\Models\AuditLog;
 use App\Models\Patient;
 use App\Models\Treatment;
 use App\Models\TreatmentImage;
 use App\Models\User;
+use App\Support\AuditLogger;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -340,6 +342,19 @@ class TreatmentApiTest extends TestCase
 
         $this->assertDatabaseMissing('treatment_images', ['id' => $secondImageId]);
 
+        $rejectedPath = "quarantine/treatments/{$dentist->id}/{$patient->id}/{$treatment->id}/rejected.jpg";
+        Storage::disk('local')->put($rejectedPath, 'rejected image bytes');
+        TreatmentImage::query()->create([
+            'dentist_id' => $dentist->id,
+            'treatment_id' => $treatment->id,
+            'disk' => 'local',
+            'path' => $rejectedPath,
+            'quarantine_path' => $rejectedPath,
+            'mime_type' => 'image/jpeg',
+            'file_size' => 20,
+            'scan_status' => 'rejected',
+        ]);
+
         $this->actingAs($dentist, 'web')
             ->deleteJson("/api/v1/patients/{$patient->id}/treatments/{$treatment->id}")
             ->assertNoContent();
@@ -348,6 +363,7 @@ class TreatmentApiTest extends TestCase
         Storage::disk('local')->assertMissing($firstPath);
         Storage::disk('local')->assertMissing($firstThumbnailPath);
         Storage::disk('local')->assertMissing($firstPreviewPath);
+        Storage::disk('local')->assertMissing($rejectedPath);
     }
 
     public function test_treatment_images_are_limited_to_ten_files_per_entry(): void
@@ -500,5 +516,165 @@ class TreatmentApiTest extends TestCase
         $this->actingAs($admin, 'web')
             ->getJson("/api/v1/patients/{$patient->id}/treatments")
             ->assertForbidden();
+    }
+
+    public function test_treatment_list_rejects_invalid_controls(): void
+    {
+        $dentist = User::factory()->create();
+        $patient = Patient::factory()->create(['dentist_id' => $dentist->id]);
+
+        foreach ([
+            'page=0',
+            'per_page=501',
+            'include_images=maybe',
+            'include_summary=maybe',
+            'sort=-unknown',
+        ] as $query) {
+            $this->actingAs($dentist, 'web')
+                ->getJson("/api/v1/patients/{$patient->id}/treatments?{$query}")
+                ->assertUnprocessable();
+        }
+    }
+
+    public function test_treatment_create_normalizes_text_teeth_and_minimizes_audit_metadata(): void
+    {
+        $dentist = User::factory()->create();
+        $patient = Patient::factory()->create(['dentist_id' => $dentist->id]);
+
+        $response = $this->actingAs($dentist, 'web')
+            ->postJson("/api/v1/patients/{$patient->id}/treatments", [
+                'treatment_type' => '  Implant  ',
+                'treatment_date' => '2026-02-14',
+                'teeth' => [4],
+                'tooth_number' => 3,
+                'description' => '   ',
+                'comment' => '  Follow up  ',
+                'debt_amount' => 100,
+            ])
+            ->assertCreated()
+            ->assertJsonPath('data.treatment_type', 'Implant')
+            ->assertJsonPath('data.teeth.0', 3)
+            ->assertJsonPath('data.teeth.1', 4)
+            ->assertJsonPath('data.description', null)
+            ->assertJsonPath('data.comment', 'Follow up');
+
+        $audit = AuditLog::query()
+            ->where('event_type', 'patient.treatment.created')
+            ->where('entity_id', $response->json('data.id'))
+            ->firstOrFail();
+        $this->assertSame(['patient_id' => (string) $patient->id], $audit->metadata);
+    }
+
+    public function test_treatment_partial_update_preserves_omitted_clinical_fields_and_allows_explicit_clear(): void
+    {
+        $dentist = User::factory()->create();
+        $patient = Patient::factory()->create(['dentist_id' => $dentist->id]);
+        $treatment = Treatment::factory()->create([
+            'dentist_id' => $dentist->id,
+            'patient_id' => $patient->id,
+            'tooth_number' => 8,
+            'teeth' => [8, 9],
+            'treatment_type' => 'Initial work',
+            'treatment_date' => '2026-02-14',
+            'description' => 'Clinical description',
+            'comment' => 'Clinical comment',
+            'notes' => 'Clinical notes',
+        ]);
+
+        $this->actingAs($dentist, 'web')
+            ->putJson("/api/v1/patients/{$patient->id}/treatments/{$treatment->id}", [
+                'treatment_type' => 'Updated work',
+                'treatment_date' => '2026-02-15',
+            ])
+            ->assertOk();
+
+        $treatment->refresh();
+        $this->assertSame([8, 9], $treatment->teeth);
+        $this->assertSame(8, $treatment->tooth_number);
+        $this->assertSame('Clinical description', $treatment->description);
+        $this->assertSame('Clinical comment', $treatment->comment);
+        $this->assertSame('Clinical notes', $treatment->notes);
+
+        $this->actingAs($dentist, 'web')
+            ->putJson("/api/v1/patients/{$patient->id}/treatments/{$treatment->id}", [
+                'treatment_type' => 'Cleared work',
+                'treatment_date' => '2026-02-16',
+                'teeth' => null,
+                'description' => '   ',
+                'comment' => null,
+                'notes' => null,
+            ])
+            ->assertOk();
+
+        $treatment->refresh();
+        $this->assertNull($treatment->teeth);
+        $this->assertNull($treatment->tooth_number);
+        $this->assertNull($treatment->description);
+        $this->assertNull($treatment->comment);
+        $this->assertNull($treatment->notes);
+    }
+
+    public function test_treatment_create_rolls_back_when_audit_persistence_fails(): void
+    {
+        $dentist = User::factory()->create();
+        $patient = Patient::factory()->create(['dentist_id' => $dentist->id]);
+        $this->mock(AuditLogger::class)
+            ->shouldReceive('logFromRequest')
+            ->once()
+            ->andThrow(new \RuntimeException('Audit storage unavailable'));
+
+        $this->withoutExceptionHandling();
+        try {
+            $this->actingAs($dentist, 'web')
+                ->postJson("/api/v1/patients/{$patient->id}/treatments", [
+                    'treatment_type' => 'Rollback work',
+                    'treatment_date' => '2026-02-14',
+                ]);
+            $this->fail('Expected the injected audit failure.');
+        } catch (\RuntimeException $exception) {
+            $this->assertSame('Audit storage unavailable', $exception->getMessage());
+        }
+
+        $this->assertDatabaseMissing('treatments', ['treatment_type' => 'Rollback work']);
+    }
+
+    public function test_treatment_delete_rolls_back_before_media_cleanup_when_audit_persistence_fails(): void
+    {
+        Storage::fake('local');
+        $dentist = User::factory()->create();
+        $patient = Patient::factory()->create(['dentist_id' => $dentist->id]);
+        $treatment = Treatment::factory()->create([
+            'dentist_id' => $dentist->id,
+            'patient_id' => $patient->id,
+        ]);
+        $path = "quarantine/treatments/{$dentist->id}/{$patient->id}/{$treatment->id}/pending.jpg";
+        Storage::disk('local')->put($path, 'pending image bytes');
+        $image = TreatmentImage::query()->create([
+            'dentist_id' => $dentist->id,
+            'treatment_id' => $treatment->id,
+            'disk' => 'local',
+            'path' => $path,
+            'quarantine_path' => $path,
+            'mime_type' => 'image/jpeg',
+            'file_size' => 19,
+            'scan_status' => 'pending',
+        ]);
+        $this->mock(AuditLogger::class)
+            ->shouldReceive('logFromRequest')
+            ->once()
+            ->andThrow(new \RuntimeException('Audit storage unavailable'));
+
+        $this->withoutExceptionHandling();
+        try {
+            $this->actingAs($dentist, 'web')
+                ->deleteJson("/api/v1/patients/{$patient->id}/treatments/{$treatment->id}");
+            $this->fail('Expected the injected audit failure.');
+        } catch (\RuntimeException $exception) {
+            $this->assertSame('Audit storage unavailable', $exception->getMessage());
+        }
+
+        $this->assertDatabaseHas('treatments', ['id' => $treatment->id]);
+        $this->assertDatabaseHas('treatment_images', ['id' => $image->id]);
+        Storage::disk('local')->assertExists($path);
     }
 }

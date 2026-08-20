@@ -6,7 +6,6 @@ import { useI18n } from '@/components/providers/i18n-provider';
 
 function resolveProtectedTitleKey(pathname: string): string {
     if (pathname.startsWith('/payments/patients/')) return 'payments.patientLedger.exportTitle';
-    if (pathname.startsWith('/patients/') && pathname.endsWith('/odontogram')) return 'odontogram.title';
     if (pathname.startsWith('/patients/') && pathname.endsWith('/history')) return 'patientHistory.title';
     if (pathname.startsWith('/patients/')) return 'patients.title';
     if (pathname.startsWith('/patients')) return 'patients.title';

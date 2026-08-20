@@ -141,7 +141,7 @@ export const LANDING_CONTENT: Record<LandingLocale, LandingDictionary> = {
             cards: [
                 { n: '01', t: ['Расписание ', 'без перекрытий'], d: 'Приёмы создаются и обновляются в календаре, а система помогает избегать пересечений и путаницы со статусами. Сотрудник может только смотреть или управлять — в зависимости от выданных прав.', viz: 'schedule' },
                 { n: '02', t: ['Финансы ', 'и аналитика'], d: 'Стоимость работы, оплаченная сумма и остаток фиксируются прямо в записи лечения. Доступ к финансам можно настроить отдельно от пациентов и приёмов.', viz: 'chart' },
-                { n: '03', t: ['Карты пациентов ', 'в одном месте'], d: 'Профиль пациента, история лечения, заметки, зубная карта и снимки хранятся в кабинете и показываются только тем, у кого есть доступ.', viz: 'list' },
+                { n: '03', t: ['Карты пациентов ', 'в одном месте'], d: 'Профиль пациента, история лечения, заметки и снимки хранятся в кабинете и показываются только тем, у кого есть доступ.', viz: 'list' },
             ],
         },
         mobile: {
@@ -277,7 +277,7 @@ export const LANDING_CONTENT: Record<LandingLocale, LandingDictionary> = {
             cards: [
                 { n: '01', t: ['Qabullar ', 'nazoratda'], d: "Qabullar kalendarda yaratiladi va yangilanadi, tizim esa vaqt toʻqnashuvi va holatlar boʻyicha tartibni saqlashga yordam beradi. Xodim faqat berilgan koʻrish yoki boshqarish huquqi boʻyicha ishlaydi.", viz: 'schedule' },
                 { n: '02', t: ["Toʻlovlar ", 'nazoratda'], d: "Ish narxi, toʻlangan summa va qoldiq davolash yozuvining oʻzida saqlanadi. Moliya boʻlimi huquqlarini bemorlar va qabullardan alohida boshqarish mumkin.", viz: 'chart' },
-                { n: '03', t: ['Bemor profili ', 'bir joyda'], d: "Bemor profili, davolanish tarixi, izohlar, tish xaritasi va rasmlar kabinetda saqlanadi va faqat ruxsati bor foydalanuvchilarga koʻrinadi.", viz: 'list' },
+                { n: '03', t: ['Bemor profili ', 'bir joyda'], d: "Bemor profili, davolanish tarixi, izohlar va rasmlar kabinetda saqlanadi va faqat ruxsati bor foydalanuvchilarga koʻrinadi.", viz: 'list' },
             ],
         },
         mobile: {
@@ -413,7 +413,7 @@ export const LANDING_CONTENT: Record<LandingLocale, LandingDictionary> = {
             cards: [
                 { n: '01', t: ['Appointments ', 'under control'], d: 'Appointments are created and updated in the calendar, while the system helps prevent overlap and status confusion. Staff can view or manage only when permitted.', viz: 'schedule' },
                 { n: '02', t: ['Payments ', 'and balances'], d: 'Work cost, paid amount and remaining balance are stored directly in each treatment entry. Finance access can be managed separately from patient and appointment access.', viz: 'chart' },
-                { n: '03', t: ['Patient profiles ', 'in one place'], d: 'Patient profiles, treatment history, notes, odontogram and images stay in the clinic workspace and are visible only to users with access.', viz: 'list' },
+                { n: '03', t: ['Patient profiles ', 'in one place'], d: 'Patient profiles, treatment history, notes and images stay in the clinic workspace and are visible only to users with access.', viz: 'list' },
             ],
         },
         mobile: {

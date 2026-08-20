@@ -1053,6 +1053,7 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                 setEditingTreatment(treatment);
                 setIsDialogOpen(true);
                 mergeTreatmentIntoCaches(treatment);
+                invalidateHistory();
                 toast.error(t('patientHistory.toast.imagesSyncFailed'));
                 return;
             }
@@ -1117,18 +1118,17 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
         },
     });
 
-    const treatmentTypeError = submitAttempted && formState.treatmentType.trim().length < 2 ? t('patientHistory.validation.workDone') : '';
-    const dateError = submitAttempted && !formState.treatmentDate ? t('patientHistory.validation.date') : '';
-    const amountError =
-        submitAttempted && [formState.debtAmount, formState.paidAmount].some((value) => parseAmountInput(value, formState.currency) < 0)
-            ? t('patientHistory.validation.amount')
-            : '';
-    const imageValidationError =
-        submitAttempted
-            ? formState.imageFiles
-                .map((file) => validateHistoryImageFile(file, t, maxHistoryUploadBytes, maxHistoryUploadMb))
-                .find(Boolean) ?? ''
-            : '';
+    const isTreatmentTypeInvalid = formState.treatmentType.trim().length < 2;
+    const isDateInvalid = !formState.treatmentDate;
+    const isAmountInvalid = [formState.debtAmount, formState.paidAmount]
+        .some((value) => parseAmountInput(value, formState.currency) < 0);
+    const imageFileError = formState.imageFiles
+        .map((file) => validateHistoryImageFile(file, t, maxHistoryUploadBytes, maxHistoryUploadMb))
+        .find(Boolean) ?? '';
+    const treatmentTypeError = submitAttempted && isTreatmentTypeInvalid ? t('patientHistory.validation.workDone') : '';
+    const dateError = submitAttempted && isDateInvalid ? t('patientHistory.validation.date') : '';
+    const amountError = submitAttempted && isAmountInvalid ? t('patientHistory.validation.amount') : '';
+    const imageValidationError = submitAttempted ? imageFileError : '';
     const visibleExistingImagesCount = editingTreatment
         ? getVisibleTreatmentImages(editingTreatment, formState.removeImageIds).length
         : 0;
@@ -1137,8 +1137,9 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
         && detailLoadingTreatmentId === editingTreatment.id
         && !hasCompleteTreatmentImages(editingTreatment)
     );
+    const isMaxImagesInvalid = visibleExistingImagesCount + formState.imageFiles.length > maxHistoryImagesPerEntry;
     const maxImagesError =
-        submitAttempted && visibleExistingImagesCount + formState.imageFiles.length > maxHistoryImagesPerEntry
+        submitAttempted && isMaxImagesInvalid
             ? t('patientHistory.validation.maxImages', { max: maxHistoryImagesPerEntry })
             : '';
     const handleAmountInputFocus = (field: 'debtAmount' | 'paidAmount') => (event: FocusEvent<HTMLInputElement>) => {
@@ -1362,8 +1363,16 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
             return;
         }
 
-        if (isPreparingImages || treatmentTypeError || dateError || amountError || imageValidationError || maxImagesError) {
+        if (isPreparingImages || isTreatmentTypeInvalid || isDateInvalid || isAmountInvalid || imageFileError || isMaxImagesInvalid) {
             toast.error(t('patientHistory.validation.fixErrors'));
+            const firstInvalidFieldId = isDateInvalid
+                ? 'historyDate'
+                : isTreatmentTypeInvalid
+                    ? 'historyWorkDone'
+                    : isAmountInvalid
+                        ? 'historyDebt'
+                        : 'historyImages';
+            requestAnimationFrame(() => document.getElementById(firstInvalidFieldId)?.focus());
             return;
         }
 
@@ -1678,6 +1687,8 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                     id="historyDate"
                                     type="date"
                                     required
+                                    aria-invalid={Boolean(dateError)}
+                                    aria-describedby={dateError ? 'historyDateError' : undefined}
                                     max={toLocalDateKey(new Date())}
                                     value={formState.treatmentDate}
                                     onChange={(event) => setFormState((current) => ({ ...current, treatmentDate: event.target.value }))}
@@ -1697,13 +1708,16 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                             </Button>
                         </div>
                         <div className="space-y-2">
-                            {dateError ? <p className="text-xs text-red-600">{dateError}</p> : null}
+                            {dateError ? <p id="historyDateError" role="alert" className="text-xs text-red-600">{dateError}</p> : null}
                             <Label htmlFor="historyWorkDone" className="sr-only">
                                 {t('patientHistory.table.workDone')}
                             </Label>
                             <Input
                                 id="historyWorkDone"
                                 required
+                                maxLength={255}
+                                aria-invalid={Boolean(treatmentTypeError)}
+                                aria-describedby={treatmentTypeError ? 'historyWorkDoneError' : undefined}
                                 value={formState.treatmentType}
                                 onChange={(event) => setFormState((current) => ({ ...current, treatmentType: event.target.value }))}
                                 placeholder={t('patientHistory.workDonePlaceholder')}
@@ -1733,7 +1747,7 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                     );
                                 })}
                             </div>
-                            {treatmentTypeError ? <p className="text-xs text-red-600">{treatmentTypeError}</p> : null}
+                            {treatmentTypeError ? <p id="historyWorkDoneError" role="alert" className="text-xs text-red-600">{treatmentTypeError}</p> : null}
                         </div>
                     </div>
 
@@ -1748,6 +1762,8 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                             type="file"
                             multiple
                             accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
+                            aria-invalid={Boolean(imageValidationError || maxImagesError)}
+                            aria-describedby={imageValidationError || maxImagesError ? 'historyImagesError' : undefined}
                             onChange={handleImageFilesSelected}
                             disabled={!canManageHistory || isPreparingImages}
                             className="sr-only"
@@ -1876,8 +1892,8 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                             toast.error(manageDeniedMessage);
                                         }
                                     }}
-                                    aria-label={t('odontogram.image.upload')}
-                                    title={t('odontogram.image.upload')}
+                                    aria-label={t('patientHistory.image.upload')}
+                                    title={t('patientHistory.image.upload')}
                                 >
                                     {isPreparingImages ? (
                                         <Loader2 className="h-5 w-5 animate-spin" />
@@ -1897,8 +1913,11 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                 </span>
                             ) : null}
                         </div>
-                        {imageValidationError ? <p className="mt-2 text-xs text-red-600">{imageValidationError}</p> : null}
-                        {maxImagesError ? <p className="mt-2 text-xs text-red-600">{maxImagesError}</p> : null}
+                        {imageValidationError || maxImagesError ? (
+                            <p id="historyImagesError" role="alert" className="mt-2 text-xs text-red-600">
+                                {imageValidationError || maxImagesError}
+                            </p>
+                        ) : null}
                     </div>
 
                     <div className="mt-2">
@@ -1951,6 +1970,8 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                         id="historyDebt"
                                         type="text"
                                         inputMode={formState.currency === 'USD' ? 'decimal' : 'numeric'}
+                                        aria-invalid={Boolean(amountError)}
+                                        aria-describedby={amountError ? 'historyAmountError' : undefined}
                                         value={formState.debtAmount}
                                         onChange={(event) => setFormState((current) => ({ ...current, debtAmount: formatAmountInput(event.target.value, current.currency) }))}
                                         onFocus={handleAmountInputFocus('debtAmount')}
@@ -1966,6 +1987,8 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                         id="historyPaid"
                                         type="text"
                                         inputMode={formState.currency === 'USD' ? 'decimal' : 'numeric'}
+                                        aria-invalid={Boolean(amountError)}
+                                        aria-describedby={amountError ? 'historyAmountError' : undefined}
                                         value={formState.paidAmount}
                                         onChange={(event) => setFormState((current) => ({ ...current, paidAmount: formatAmountInput(event.target.value, current.currency) }))}
                                         onFocus={handleAmountInputFocus('paidAmount')}
@@ -1974,7 +1997,7 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                     />
                                 </div>
                             </div>
-                            {amountError ? <p className="mt-2 text-xs text-red-600">{amountError}</p> : null}
+                            {amountError ? <p id="historyAmountError" role="alert" className="mt-2 text-xs text-red-600">{amountError}</p> : null}
                         </>
                     ) : null}
 
@@ -2086,7 +2109,7 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                             locale,
                                             patientName,
                                             patientMeta: [
-                                                `${t('patientHistory.snapshot.entries')}: ${exportTreatments.length}`,
+                                                `${t('patientHistory.entries')}: ${exportTreatments.length}`,
                                                 t('export.generated', {
                                                     date: formatLocalizedDate(new Date(), locale, {
                                                         year: 'numeric',
@@ -2318,7 +2341,7 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                                     patientName={patientName}
                                                     imageLabel={t('patientHistory.image')}
                                                     emptyLabel={t('patientHistory.imagesEmpty')}
-                                                    addImageLabel={t('odontogram.image.upload')}
+                                                    addImageLabel={t('patientHistory.image.upload')}
                                                     uploadingLabel={t('patientHistory.imagesUploading')}
                                                     processingLabel={t('patientHistory.imagesProcessing')}
                                                     isDetailLoading={isDetailLoading}

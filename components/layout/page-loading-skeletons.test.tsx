@@ -11,7 +11,6 @@ import {
     AppointmentsLoadingState,
     AuthFormLoadingState,
     BillingLoadingState,
-    OdontogramLoadingState,
     PatientDetailLoadingState,
     PatientHistoryLoadingState,
     PatientsLoadingState,
@@ -109,7 +108,7 @@ describe('page loading skeletons', () => {
             expect(screen.getByTestId('analytics-range-skeleton')).toHaveClass('overflow-x-auto');
         });
 
-        it('matches settings, billing, staff, history, and odontogram responsive shells', () => {
+        it('matches settings, billing, staff, and history responsive shells', () => {
             const { unmount } = render(<SettingsLoadingState />);
             expect(screen.getByTestId('settings-tabs-skeleton').children).toHaveLength(5);
             unmount();
@@ -126,11 +125,6 @@ describe('page loading skeletons', () => {
 
             render(<PatientHistoryLoadingState />);
             expect(screen.getByTestId('patient-history-panel-skeleton')).toBeInTheDocument();
-            cleanup();
-
-            render(<OdontogramLoadingState />);
-            expect(screen.getByTestId('odontogram-upper-jaw-skeleton')).toHaveClass('overflow-x-auto');
-            expect(screen.getByTestId('odontogram-lower-jaw-skeleton')).toHaveClass('overflow-x-auto');
         });
 
         it('uses the real patient header and ledger shape for finance patient loading', () => {

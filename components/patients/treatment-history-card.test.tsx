@@ -829,7 +829,7 @@ describe('TreatmentHistoryCard image controls', () => {
         expect(authorBadge.compareDocumentPosition(paidLabel) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     });
 
-    it('keeps the odontogram snapshot and tooth selector hidden', async () => {
+    it('keeps deprecated tooth-chart controls out of treatment history', async () => {
         const user = userEvent.setup();
 
         renderCard();
@@ -869,6 +869,24 @@ describe('TreatmentHistoryCard image controls', () => {
         expect(uploadTile.compareDocumentPosition(commentInput) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
         expect(screen.queryByTitle('Tooth #18')).not.toBeInTheDocument();
         expect(screen.queryByTitle('Tooth #48')).not.toBeInTheDocument();
+    });
+
+    it('blocks the first invalid submit and focuses the first invalid field', async () => {
+        const user = userEvent.setup();
+        vi.mocked(listPatientTreatments).mockResolvedValue(treatmentsEnvelope([]));
+
+        renderCard();
+        await user.click(await screen.findByRole('button', { name: 'Add Entry' }));
+        const entryInput = screen.getByLabelText(/^Entry/i);
+        expect(entryInput).toHaveValue('');
+
+        await user.click(screen.getByRole('button', { name: 'Save Changes' }));
+
+        expect(createPatientTreatment).not.toHaveBeenCalled();
+        expect(await screen.findByRole('alert')).toHaveTextContent('Please enter entry title');
+        await waitFor(() => expect(entryInput).toHaveFocus());
+        expect(entryInput).toHaveAttribute('aria-invalid', 'true');
+        expect(entryInput).toHaveAttribute('maxlength', '255');
     });
 
     it('allows images selected on an unsaved entry to open the editor', async () => {

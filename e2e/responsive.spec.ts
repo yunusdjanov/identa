@@ -89,10 +89,8 @@ test.describe('Responsive smoke coverage', () => {
 
         const ledgerPatientId = patientHref!.split('/').filter(Boolean).at(-1);
         expect(ledgerPatientId).toBeTruthy();
-        await page.goto(`/patients/${ledgerPatientId}/odontogram`);
-        await expect(page.getByTestId('odontogram-upper-jaw-scroll')).toBeVisible();
-        await expect(page.getByTestId('odontogram-lower-jaw-scroll')).toBeVisible();
-        await expectInsideViewport(page, '[data-testid="odontogram-upper-jaw-scroll"]');
+        await page.goto(`/patients/${ledgerPatientId}/history`);
+        await expect(page.getByTestId('patient-history-header')).toBeVisible();
         await expectNoPageHorizontalOverflow(page);
     });
 

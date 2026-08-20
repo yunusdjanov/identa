@@ -1,57 +1,74 @@
 import { NextResponse } from 'next/server';
-import { canViewFinancials, hasMockPermission, requireAuth, ok } from '../../../../_auth';
-import { TREATMENTS } from '../../../../_mock-data';
+import { cookies } from 'next/headers';
+import { canViewFinancials, hasMockPermission, requirePracticePermission } from '../../../../_auth';
+import { PATIENTS } from '../../../../_mock-data';
+import { resolveMockUser } from '../../../../_mock-users';
+import { mockTreatmentStore, normalizeTreatmentPayload, scrubTreatmentFinancials } from '../_contract';
 
-// Scrub financial fields from the treatment record when the viewer lacks
-// payments.view. Mirrors the real TreatmentResource so dev-mode testing
-// reflects the production payload shape.
-function scrubFinancialFieldsIfNeeded<T extends Record<string, unknown>>(
-    treatment: T,
-    canSeeFinancials: boolean
-): T {
-    if (canSeeFinancials) return treatment;
-    return {
-        ...treatment,
-        cost: null,
-        debt_amount: null,
-        paid_amount: null,
-        balance: null,
-    };
+function validationResponse(errors: Record<string, string[]>) {
+    return NextResponse.json({ message: 'Validation failed.', errors }, { status: 422 });
 }
 
-export async function GET(_req: Request, { params }: { params: Promise<{ id: string; treatmentId: string }> }) {
-    const auth = await requireAuth();
-    if (auth) return auth;
+async function actorSummary() {
+    const cookieStore = await cookies();
+    const user = resolveMockUser(cookieStore.get('mock_role')?.value, cookieStore.get('mock_user_id')?.value);
+    return { id: user.id, name: user.name, role: user.role };
+}
+
+export async function GET(_request: Request, { params }: { params: Promise<{ id: string; treatmentId: string }> }) {
+    const denied = await requirePracticePermission('patients.view');
+    if (denied) return denied;
     const { id, treatmentId } = await params;
-    const canSeeFinancials = await canViewFinancials();
-    const treatment = TREATMENTS.find((t) => t.id === treatmentId && t.patient_id === id) ?? TREATMENTS[0];
-    return ok(scrubFinancialFieldsIfNeeded(treatment, canSeeFinancials));
+    const treatment = mockTreatmentStore.find((item) => item.id === treatmentId && item.patient_id === id);
+    if (!treatment) return NextResponse.json({ message: 'Not Found.' }, { status: 404 });
+    return NextResponse.json({ data: scrubTreatmentFinancials(treatment, await canViewFinancials()) });
 }
 
 export async function PUT(request: Request, { params }: { params: Promise<{ id: string; treatmentId: string }> }) {
-    const auth = await requireAuth();
-    if (auth) return auth;
+    const denied = await requirePracticePermission('patients.manage');
+    if (denied) return denied;
     const { id, treatmentId } = await params;
-    const body = await request.json();
-    const canSeeFinancials = await canViewFinancials();
+    const patient = PATIENTS.find((item) => item.id === id);
+    const index = mockTreatmentStore.findIndex((item) => item.id === treatmentId && item.patient_id === id);
+    if (!patient || index < 0) return NextResponse.json({ message: 'Not Found.' }, { status: 404 });
+    if (patient.is_archived) return validationResponse({ patient: ['Restore the archived patient before editing entries.'] });
+
+    const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
+    const { errors, payload } = normalizeTreatmentPayload(body);
+    if (Object.keys(errors).length > 0) return validationResponse(errors);
     const canSetFinancials = await hasMockPermission('payments.manage');
-    const existing = TREATMENTS.find((t) => t.id === treatmentId && t.patient_id === id) ?? TREATMENTS[0];
-    // Defense-in-depth: when caller lacks payments.manage, refuse to apply
-    // debt/paid keys from the request body. Mirrors TreatmentService::
-    // payload's permission gate — closes the silent data-loss bug where
-    // a clinical assistant editing a treatment without seeing the price
-    // would POST debt=0/paid=0 (from empty hidden form inputs) and wipe
-    // the dentist owner's real values.
-    const { debt_amount: _ignoreDebt, paid_amount: _ignorePaid, cost: _ignoreCost, balance: _ignoreBalance, ...safeBody } = body;
-    const merged: Record<string, unknown> = canSetFinancials
-        ? { ...existing, ...body }
-        : { ...existing, ...safeBody };
-    return ok(scrubFinancialFieldsIfNeeded(merged, canSeeFinancials));
+    const existing = mockTreatmentStore[index];
+    const safePayload = { ...payload };
+    if (!canSetFinancials) {
+        delete safePayload.cost;
+        delete safePayload.debt_amount;
+        delete safePayload.paid_amount;
+        delete safePayload.currency;
+    }
+    const debtAmount = Number(safePayload.debt_amount ?? safePayload.cost ?? existing.debt_amount ?? existing.cost ?? 0);
+    const paidAmount = Number(safePayload.paid_amount ?? existing.paid_amount ?? 0);
+    const updated = {
+        ...existing,
+        ...safePayload,
+        cost: debtAmount,
+        debt_amount: debtAmount,
+        paid_amount: paidAmount,
+        balance: debtAmount - paidAmount,
+        updated_at: new Date().toISOString(),
+        updated_by: await actorSummary(),
+    };
+    mockTreatmentStore[index] = updated;
+    return NextResponse.json({ data: scrubTreatmentFinancials(updated, await canViewFinancials()) });
 }
 
-export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string; treatmentId: string }> }) {
-    const auth = await requireAuth();
-    if (auth) return auth;
-    await params;
-    return NextResponse.json({ message: 'Deleted.' });
+export async function DELETE(_request: Request, { params }: { params: Promise<{ id: string; treatmentId: string }> }) {
+    const denied = await requirePracticePermission('patients.manage');
+    if (denied) return denied;
+    const { id, treatmentId } = await params;
+    const patient = PATIENTS.find((item) => item.id === id);
+    const index = mockTreatmentStore.findIndex((item) => item.id === treatmentId && item.patient_id === id);
+    if (!patient || index < 0) return NextResponse.json({ message: 'Not Found.' }, { status: 404 });
+    if (patient.is_archived) return validationResponse({ patient: ['Restore the archived patient before deleting entries.'] });
+    mockTreatmentStore.splice(index, 1);
+    return new NextResponse(null, { status: 204 });
 }
