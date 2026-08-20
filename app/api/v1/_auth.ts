@@ -130,6 +130,21 @@ export async function requirePermission(...permissions: string[]): Promise<NextR
 }
 
 /**
+ * Permission gate for the dentist workspace. Production application routes
+ * admit dentists and assistants only; admins use the isolated /admin API.
+ */
+export async function requirePracticePermission(...permissions: string[]): Promise<NextResponse | null> {
+    const denied = await requirePermission(...permissions);
+    if (denied) return denied;
+
+    const cookieStore = await cookies();
+    const role = cookieStore.get('mock_role')?.value;
+    return role === 'dentist' || role === 'assistant'
+        ? null
+        : envelope('forbidden', 'Forbidden.', 403);
+}
+
+/**
  * Resolve whether the current cookie-based mock session has a given
  * staff permission. Mirrors User::hasPermission on the backend:
  *  - dentist and admin always pass

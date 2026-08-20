@@ -24,7 +24,6 @@ describe('RouteTitleSync', () => {
         ['/patients', 'Patients'],
         ['/patients/42', 'Patients'],
         ['/patients/42/history', 'Work History'],
-        ['/patients/42/odontogram', 'Odontogram'],
         ['/payments/patients/42', 'Patient payments'],
     ])('uses a private, non-identifying protected title for %s', async (path, title) => {
         pathname = path;
@@ -32,7 +31,6 @@ describe('RouteTitleSync', () => {
             'dashboard.title': 'Dashboard',
             'patients.title': 'Patients',
             'patientHistory.title': 'Work History',
-            'odontogram.title': 'Odontogram',
             'payments.patientLedger.exportTitle': 'Patient payments',
         };
 

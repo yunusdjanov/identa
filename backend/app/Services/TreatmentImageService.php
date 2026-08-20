@@ -319,40 +319,66 @@ class TreatmentImageService
         }
     }
 
-    public function deleteAllForTreatment(Treatment $treatment): void
+    /**
+     * Capture every stored path before the treatment row is deleted. Query the
+     * table directly so rejected/quarantined images hidden by the display
+     * relation are not orphaned in storage.
+     *
+     * @return array<string, list<string>>
+     */
+    public function deletionPlanForTreatment(Treatment $treatment): array
     {
-        $images = $treatment->images()->get(['id', 'disk', 'path']);
+        $images = TreatmentImage::query()
+            ->where('treatment_id', (string) $treatment->id)
+            ->where('dentist_id', (int) $treatment->dentist_id)
+            ->get(['disk', 'path', 'quarantine_path']);
         if ($images->isEmpty()) {
-            return;
+            return [];
         }
 
         $pathsByDisk = [];
-        $imageIds = [];
 
         foreach ($images as $image) {
-            $imageIds[] = (string) $image->id;
             $disk = trim((string) $image->disk);
-            $path = trim((string) $image->path);
-
-            if ($disk === '' || $path === '') {
+            if ($disk === '') {
                 continue;
             }
 
             $pathsByDisk[$disk] ??= [];
-            array_push($pathsByDisk[$disk], ...$this->deletePaths($path));
+            foreach ([$image->path, $image->quarantine_path] as $storedPath) {
+                $path = trim((string) $storedPath);
+                if ($path !== '') {
+                    array_push($pathsByDisk[$disk], ...$this->deletePaths($path));
+                }
+            }
         }
 
         foreach ($pathsByDisk as $disk => $paths) {
+            $pathsByDisk[$disk] = array_values(array_unique($paths));
+        }
+
+        return $pathsByDisk;
+    }
+
+    /**
+     * Dispatch physical cleanup only after the database transaction that
+     * removed the treatment and wrote its audit record has committed.
+     *
+     * @param  array<string, list<string>>  $pathsByDisk
+     */
+    public function dispatchDeletionPlan(array $pathsByDisk): void
+    {
+        foreach ($pathsByDisk as $disk => $paths) {
+            if ($paths === []) {
+                continue;
+            }
+
             DeleteStoredMediaPaths::dispatch(
                 disk: $disk,
-                paths: array_values(array_unique($paths)),
+                paths: $paths,
                 logContext: 'Treatment image batch'
             )->afterResponse();
         }
-
-        TreatmentImage::query()
-            ->whereIn('id', $imageIds)
-            ->delete();
     }
 
     private function url(

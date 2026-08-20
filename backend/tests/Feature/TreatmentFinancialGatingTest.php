@@ -244,4 +244,55 @@ class TreatmentFinancialGatingTest extends TestCase
             ->assertOk()
             ->assertJsonPath('meta.summary', null);
     }
+
+    public function test_clinical_viewer_cannot_infer_financial_order_from_cost_sort(): void
+    {
+        $dentist = User::factory()->create();
+        $patient = Patient::factory()->create(['dentist_id' => $dentist->id]);
+        Treatment::factory()->count(2)->create([
+            'dentist_id' => $dentist->id,
+            'patient_id' => $patient->id,
+        ]);
+        $clinical = $this->makeAssistant($dentist, [User::PERMISSION_PATIENTS_VIEW]);
+
+        $this->actingAs($clinical, 'web')
+            ->getJson("/api/v1/patients/{$patient->id}/treatments?sort=-cost")
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['sort']);
+    }
+
+    public function test_treatment_attribution_preserves_creator_and_tracks_latest_editor(): void
+    {
+        $dentist = User::factory()->create();
+        $patient = Patient::factory()->create(['dentist_id' => $dentist->id]);
+        $assistant = $this->makeAssistant($dentist, [
+            User::PERMISSION_PATIENTS_VIEW,
+            User::PERMISSION_PATIENTS_MANAGE,
+        ]);
+
+        $created = $this->actingAs($assistant, 'web')
+            ->postJson("/api/v1/patients/{$patient->id}/treatments", [
+                'treatment_type' => 'Assistant entry',
+                'treatment_date' => '2026-03-05',
+            ])
+            ->assertCreated()
+            ->assertJsonPath('data.created_by.id', (string) $assistant->id)
+            ->assertJsonPath('data.updated_by.id', (string) $assistant->id);
+
+        // A real editor switch happens in a separate browser session/request
+        // lifecycle. Clear the cached Sanctum request guard before changing
+        // actors so this test exercises dentist attribution, not the previous
+        // assistant identity retained by Laravel's in-process test container.
+        $this->flushSession();
+        $this->app['auth']->forgetGuards();
+
+        $this->actingAs($dentist, 'web')
+            ->putJson("/api/v1/patients/{$patient->id}/treatments/{$created->json('data.id')}", [
+                'treatment_type' => 'Dentist-reviewed entry',
+                'treatment_date' => '2026-03-06',
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.created_by.id', (string) $assistant->id)
+            ->assertJsonPath('data.updated_by.id', (string) $dentist->id);
+    }
 }

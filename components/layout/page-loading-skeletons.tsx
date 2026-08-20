@@ -1097,62 +1097,6 @@ export function PatientHistoryLoadingState() {
     );
 }
 
-export function OdontogramLoadingState() {
-    const toothRow = (count: number) => (
-        <div className="flex gap-0.5 sm:gap-1">
-            {Array.from({ length: count }).map((_, i) => (
-                <Skeleton key={i} className="h-12 w-8 rounded-lg sm:h-14 sm:w-10 md:h-16 md:w-12" />
-            ))}
-        </div>
-    );
-
-    return (
-        <div className="space-y-5 lg:space-y-6">
-            <PageHeaderSkeleton actions={1} />
-            <Card className="rounded-2xl border-slate-200 bg-white">
-                <CardHeader>
-                    <Skeleton className="h-6 w-64 rounded-xl" />
-                </CardHeader>
-                <CardContent className="space-y-5">
-                    {/* Upper jaw */}
-                    <div className="space-y-2">
-                        <Skeleton className="mx-auto h-4 w-20 rounded-xl" />
-                        <div data-testid="odontogram-upper-jaw-skeleton" className="overflow-x-auto pb-2 no-scrollbar">
-                            <div className="flex w-max min-w-full justify-center gap-4 px-1 sm:gap-6 md:gap-8">
-                                <div className="space-y-1.5">
-                                    <Skeleton className="mx-auto h-3 w-20 rounded-xl" />
-                                    {toothRow(8)}
-                                </div>
-                                <div className="space-y-1.5">
-                                    <Skeleton className="mx-auto h-3 w-20 rounded-xl" />
-                                    {toothRow(8)}
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div className="border-t-2 border-slate-300" />
-                    {/* Lower jaw */}
-                    <div className="space-y-2">
-                        <Skeleton className="mx-auto h-4 w-20 rounded-xl" />
-                        <div data-testid="odontogram-lower-jaw-skeleton" className="overflow-x-auto pb-2 no-scrollbar">
-                            <div className="flex w-max min-w-full justify-center gap-4 px-1 sm:gap-6 md:gap-8">
-                                <div className="space-y-1.5">
-                                    <Skeleton className="mx-auto h-3 w-20 rounded-xl" />
-                                    {toothRow(8)}
-                                </div>
-                                <div className="space-y-1.5">
-                                    <Skeleton className="mx-auto h-3 w-20 rounded-xl" />
-                                    {toothRow(8)}
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </CardContent>
-            </Card>
-        </div>
-    );
-}
-
 export function AdminDashboardLoadingState() {
     // Mirrors the real /admin page (`app/admin/page.tsx`):
     // - Page header banner with no actions in the header itself

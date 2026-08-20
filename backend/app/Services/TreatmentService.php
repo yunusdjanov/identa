@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Http\Requests\ListTreatmentsRequest;
 use App\Http\Requests\StoreTreatmentRequest;
 use App\Http\Requests\UpdateTreatmentRequest;
 use App\Models\Patient;
@@ -19,16 +20,6 @@ class TreatmentService
     private const DEFAULT_PER_PAGE = 15;
 
     private const MAX_PER_PAGE = 500;
-
-    /**
-     * @var list<string>
-     */
-    private const ALLOWED_SORT_FIELDS = [
-        'treatment_date',
-        'created_at',
-        'cost',
-        'tooth_number',
-    ];
 
     public function __construct(
         private readonly AuditLogger $auditLogger,
@@ -106,28 +97,29 @@ class TreatmentService
         }
 
         $actorId = $this->actorId($request);
-        $treatment = Treatment::query()->create([
-            ...$this->payload($request->validated(), $request->user(), true),
-            'dentist_id' => $this->dentistId($request),
-            'created_by_user_id' => $actorId,
-            'updated_by_user_id' => $actorId,
-            'patient_id' => $patient->id,
-        ]);
-        $this->markPatientWorked($patient);
+        $dentistId = $this->dentistId($request);
+        $treatment = DB::transaction(function () use ($request, $patient, $actorId, $dentistId): Treatment {
+            $created = Treatment::query()->create([
+                ...$this->payload($request->validated(), $request->user(), true),
+                'dentist_id' => $dentistId,
+                'created_by_user_id' => $actorId,
+                'updated_by_user_id' => $actorId,
+                'patient_id' => $patient->id,
+            ]);
+            $this->markPatientWorked($patient);
 
-        $this->auditLogger->logFromRequest(
-            request: $request,
-            eventType: 'patient.treatment.created',
-            entityType: 'treatment',
-            entityId: (string) $treatment->id,
-            metadata: [
-                'patient_id' => (string) $patient->id,
-                'teeth' => $treatment->teeth,
-                'treatment_type' => $treatment->treatment_type,
-                'debt_amount' => $treatment->debt_amount !== null ? (float) $treatment->debt_amount : null,
-                'paid_amount' => $treatment->paid_amount !== null ? (float) $treatment->paid_amount : null,
-            ],
-        );
+            $this->auditLogger->logFromRequest(
+                request: $request,
+                eventType: 'patient.treatment.created',
+                entityType: 'treatment',
+                entityId: (string) $created->id,
+                // Do not duplicate clinical or financial content in audit
+                // metadata. The entity row remains the source of truth.
+                metadata: ['patient_id' => (string) $patient->id],
+            );
+
+            return $created;
+        });
 
         return $treatment->load([
             'createdBy:id,name,role',
@@ -154,7 +146,7 @@ class TreatmentService
         // serialise on the financial columns. Without the lock, last-write
         // wins on cost/debt/paid and the loser's calculation overwrites the
         // winner's commit.
-        $treatment = DB::transaction(function () use ($patientIdValue, $treatmentId, $dentistId, $actorId, $payload): Treatment {
+        $treatment = DB::transaction(function () use ($request, $patient, $patientIdValue, $treatmentId, $dentistId, $actorId, $payload): Treatment {
             $locked = Treatment::query()
                 ->where('id', $treatmentId)
                 ->where('patient_id', $patientIdValue)
@@ -164,25 +156,21 @@ class TreatmentService
             $locked->fill($payload);
             $locked->updated_by_user_id = $actorId;
             $locked->save();
+            $this->markPatientWorked($patient);
+
+            $this->auditLogger->logFromRequest(
+                request: $request,
+                eventType: 'patient.treatment.updated',
+                entityType: 'treatment',
+                entityId: (string) $locked->id,
+                metadata: ['patient_id' => (string) $patient->id],
+            );
 
             return $locked->fresh()->load([
                 'createdBy:id,name,role',
                 'updatedBy:id,name,role',
             ]);
         });
-        $this->markPatientWorked($patient);
-
-        $this->auditLogger->logFromRequest(
-            request: $request,
-            eventType: 'patient.treatment.updated',
-            entityType: 'treatment',
-            entityId: (string) $treatment->id,
-            metadata: [
-                'patient_id' => (string) $patient->id,
-                'teeth' => $treatment->teeth,
-                'treatment_type' => $treatment->treatment_type,
-            ],
-        );
 
         return $treatment;
     }
@@ -196,21 +184,37 @@ class TreatmentService
             ]);
         }
 
-        $treatment = $this->ownedTreatment($request, (string) $patient->id, $treatmentId);
+        $dentistId = $this->dentistId($request);
+        $patientIdValue = (string) $patient->id;
 
-        $this->images->deleteAllForTreatment($treatment);
-        $treatment->delete();
-        $this->markPatientWorked($patient);
+        /** @var array<string, list<string>> $deletionPlan */
+        $deletionPlan = DB::transaction(function () use ($request, $patient, $patientIdValue, $treatmentId, $dentistId): array {
+            $locked = Treatment::query()
+                ->where('id', $treatmentId)
+                ->where('patient_id', $patientIdValue)
+                ->where('dentist_id', $dentistId)
+                ->lockForUpdate()
+                ->firstOrFail();
+            $paths = $this->images->deletionPlanForTreatment($locked);
 
-        $this->auditLogger->logFromRequest(
-            request: $request,
-            eventType: 'patient.treatment.deleted',
-            entityType: 'treatment',
-            entityId: (string) $treatmentId,
-            metadata: [
-                'patient_id' => (string) $patient->id,
-            ],
-        );
+            // The FK cascade removes every treatment image row, including
+            // rejected/quarantined records hidden by the display relation.
+            $locked->delete();
+            $this->markPatientWorked($patient);
+            $this->auditLogger->logFromRequest(
+                request: $request,
+                eventType: 'patient.treatment.deleted',
+                entityType: 'treatment',
+                entityId: (string) $treatmentId,
+                metadata: ['patient_id' => (string) $patient->id],
+            );
+
+            return $paths;
+        });
+
+        // Physical media deletion cannot be rolled back. Schedule it only
+        // after the domain row and audit event have committed together.
+        $this->images->dispatchDeletionPlan($deletionPlan);
     }
 
     public function ownedPatient(Request $request, string $id): Patient
@@ -312,7 +316,7 @@ class TreatmentService
             $direction = str_starts_with($segment, '-') ? 'desc' : 'asc';
             $field = ltrim($segment, '-');
 
-            if (! in_array($field, self::ALLOWED_SORT_FIELDS, true)) {
+            if (! in_array($field, ListTreatmentsRequest::ALLOWED_SORT_FIELDS, true)) {
                 continue;
             }
 
@@ -416,20 +420,31 @@ class TreatmentService
      * @param  array<string, mixed>  $validated
      * @return array<string, mixed>
      */
-    private function payload(array $validated, ?User $actor = null, bool $defaultMissingFinancials = false): array
+    private function payload(array $validated, ?User $actor = null, bool $isCreate = false): array
     {
-        $teeth = $this->normalizeTeeth($validated['teeth'] ?? null, $validated['tooth_number'] ?? null);
-        $primaryTooth = $validated['tooth_number'] ?? ($teeth[0] ?? null);
-
         $payload = [
-            'tooth_number' => $primaryTooth !== null ? (int) $primaryTooth : null,
-            'teeth' => $teeth !== [] ? $teeth : null,
             'treatment_type' => $validated['treatment_type'],
-            'description' => $validated['description'] ?? null,
-            'comment' => $validated['comment'] ?? ($validated['notes'] ?? null),
             'treatment_date' => $validated['treatment_date'],
-            'notes' => $validated['notes'] ?? null,
         ];
+
+        $hasToothInput = array_key_exists('teeth', $validated)
+            || array_key_exists('tooth_number', $validated);
+        if ($isCreate || $hasToothInput) {
+            $teeth = $this->normalizeTeeth($validated['teeth'] ?? null, $validated['tooth_number'] ?? null);
+            $primaryTooth = $validated['tooth_number'] ?? ($teeth[0] ?? null);
+            $payload['tooth_number'] = $primaryTooth !== null ? (int) $primaryTooth : null;
+            $payload['teeth'] = $teeth !== [] ? $teeth : null;
+        }
+
+        if ($isCreate || array_key_exists('description', $validated)) {
+            $payload['description'] = $validated['description'] ?? null;
+        }
+        if ($isCreate || array_key_exists('comment', $validated) || array_key_exists('notes', $validated)) {
+            $payload['comment'] = $validated['comment'] ?? ($validated['notes'] ?? null);
+        }
+        if ($isCreate || array_key_exists('notes', $validated)) {
+            $payload['notes'] = $validated['notes'] ?? null;
+        }
 
         // Financial writes are gated on `payments.manage`. Without this gate,
         // an assistant with `patients.manage` but no `payments.manage` would:
@@ -450,7 +465,7 @@ class TreatmentService
         $canSetFinancials = $actor !== null
             && $actor->hasPermission(User::PERMISSION_PAYMENTS_MANAGE);
         if ($canSetFinancials) {
-            if ($defaultMissingFinancials || array_key_exists('debt_amount', $validated) || array_key_exists('cost', $validated)) {
+            if ($isCreate || array_key_exists('debt_amount', $validated) || array_key_exists('cost', $validated)) {
                 $debtAmount = array_key_exists('debt_amount', $validated)
                     ? (float) $validated['debt_amount']
                     : (array_key_exists('cost', $validated) ? (float) $validated['cost'] : 0.0);
@@ -459,7 +474,7 @@ class TreatmentService
                 $payload['debt_amount'] = number_format($debtAmount, 2, '.', '');
             }
 
-            if ($defaultMissingFinancials || array_key_exists('paid_amount', $validated)) {
+            if ($isCreate || array_key_exists('paid_amount', $validated)) {
                 $paidAmount = array_key_exists('paid_amount', $validated)
                     ? (float) $validated['paid_amount']
                     : 0.0;
@@ -492,7 +507,7 @@ class TreatmentService
             }
         }
 
-        if ($teeth === [] && $fallbackTooth !== null && $fallbackTooth !== '') {
+        if ($fallbackTooth !== null && $fallbackTooth !== '') {
             $teeth[] = (int) $fallbackTooth;
         }
 

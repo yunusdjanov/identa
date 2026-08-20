@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\FinalizeTreatmentImageBatchUploadRequest;
+use App\Http\Requests\ListTreatmentsRequest;
 use App\Http\Requests\PrepareTreatmentImageBatchUploadRequest;
 use App\Http\Requests\PrepareTreatmentImageUploadRequest;
 use App\Http\Requests\StoreTreatmentRequest;
@@ -32,7 +33,7 @@ class PatientTreatmentController extends Controller
         private readonly TreatmentImageService $treatmentImages,
     ) {}
 
-    public function index(Request $request, string $id): JsonResponse
+    public function index(ListTreatmentsRequest $request, string $id): JsonResponse
     {
         $result = $this->treatments->listForPatient($request, $id);
         $treatments = $result['treatments'];

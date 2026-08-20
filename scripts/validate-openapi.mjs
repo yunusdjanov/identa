@@ -30,6 +30,8 @@ const requiredPaths = [
     '/api/v1/patients/{id}/overview',
     '/api/v1/patients/{id}/restore',
     '/api/v1/patients/{id}/force',
+    '/api/v1/patients/{id}/treatments',
+    '/api/v1/patients/{id}/treatments/{treatmentId}',
     '/api/v1/patients/{id}/photo/direct-upload',
     '/api/v1/patients/{id}/oral-photos/{viewType}/direct-upload',
     '/api/v1/patients/{id}/treatments/{treatmentId}/images/direct-upload-batch',
