@@ -1,6 +1,6 @@
 # Identa Page Audit Tracker
 
-- Inventory last verified: 2026-08-11
+- Inventory last verified: 2026-08-20
 - Total routed pages: 29
 - Standard: `docs/qa/PAGE_AUDIT_STANDARD.md`
 - Structural program: `docs/qa/STRUCTURAL_AUDIT_TRACKER.md`
@@ -31,7 +31,7 @@ baseline and must be revalidated before they establish current readiness.
 | 7 | `/patients` | A | Tenant list, filters, pagination, create/export | NOT STARTED | |
 | 8 | `/patients/[id]` | A | Patient identity, media, clinical/payment summary | NOT STARTED | |
 | 9 | `/patients/[id]/history` | A | Clinical chronology, ownership, media/actions | NOT STARTED | |
-| 10 | `/patients/[id]/odontogram` | A | Clinical editor integrity, persistence, touch/zoom | NOT STARTED | |
+| 10 | `/patients/[id]/odontogram` | A | Legacy redirect to patient history; no active product surface | NOT STARTED | |
 | 11 | `/payments` | A | Ledger, expenses, UZS/USD totals, filters/export | NOT STARTED | |
 | 12 | `/payments/patients/[id]` | A | Patient finance identity, work/paid/debt reconciliation | NOT STARTED | |
 | 13 | `/billing` | A | Subscription state, checkout/change/cancel | NOT STARTED | |
