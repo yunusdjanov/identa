@@ -279,6 +279,13 @@ class TreatmentFinancialGatingTest extends TestCase
             ->assertJsonPath('data.created_by.id', (string) $assistant->id)
             ->assertJsonPath('data.updated_by.id', (string) $assistant->id);
 
+        // A real editor switch happens in a separate browser session/request
+        // lifecycle. Clear the cached Sanctum request guard before changing
+        // actors so this test exercises dentist attribution, not the previous
+        // assistant identity retained by Laravel's in-process test container.
+        $this->flushSession();
+        $this->app['auth']->forgetGuards();
+
         $this->actingAs($dentist, 'web')
             ->putJson("/api/v1/patients/{$patient->id}/treatments/{$created->json('data.id')}", [
                 'treatment_type' => 'Dentist-reviewed entry',
