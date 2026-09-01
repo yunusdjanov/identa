@@ -7,20 +7,26 @@ This checklist closes the medical upload hardening phase and should be run befor
 - Run database migrations before release:
   - `php artisan migrate --force`
 - Run a queue worker for media processing:
-  - `php artisan queue:work --queue=default --tries=3 --timeout=180`
+  - `php artisan queue:work redis --queue=media,cleanup,default --tries=3 --timeout=330 --memory=384`
 - Keep the media disk private. Do not expose bucket/object URLs publicly.
-- Use signed URLs through the Laravel API for patient photos and treatment-entry images.
+- Use protected API responses or short-lived signed URLs for approved media only.
+- Apply a 24-hour lifecycle deletion rule to the private `quarantine/` prefix.
 
 ## Environment
 
 Set these values in production:
 
 ```dotenv
-QUEUE_CONNECTION=database
+QUEUE_CONNECTION=redis
+QUEUE_NAMES=media,cleanup,default
 MEDIA_DISK=r2
 MEDIA_VERIFY_DIRECT_UPLOADS_ON_FINALIZE=true
 MEDIA_CHECK_REMOTE_VARIANT_EXISTS=false
 MEDIA_MAX_UPLOAD_MB=20
+MEDIA_PENDING_RECOVERY_ENABLED=true
+MEDIA_PENDING_RECOVERY_MIN_AGE_SECONDS=300
+MEDIA_PENDING_RECOVERY_INTERVAL_SECONDS=60
+MEDIA_PENDING_RECOVERY_BATCH_SIZE=100
 
 # Current production policy: defer ClamAV while uploads stay authenticated,
 # image-only, magic-byte checked, and tenant-isolated. Set ANTIVIRUS_DRIVER
@@ -56,7 +62,10 @@ For R2/S3, also set the existing storage keys used by `config/filesystems.php`.
 6. Try oversized uploads for the current plan.
    - Backend returns the plan limit error.
    - Also verify the absolute `MEDIA_MAX_UPLOAD_MB` ceiling on multipart and direct-upload finalize paths.
-7. Try upload/delete/write actions in read-only subscription mode.
+7. Direct-upload a non-image object while claiming `image/jpeg` in a safe test environment.
+   - Finalize rejects it before creating a pending media row.
+   - The unlinked quarantine object is deleted.
+8. Try upload/delete/write actions in read-only subscription mode.
    - Backend returns `subscription_read_only`.
 
 ## Notes
@@ -66,5 +75,7 @@ For R2/S3, also set the existing storage keys used by `config/filesystems.php`.
   matrix lives in `docs/release/PRE_DEPLOY_RUNBOOK.md`.
 - Existing media rows default to `approved` during migration so old patient data stays visible.
 - If the queue is down, new uploads remain hidden as `pending` rather than serving unscanned files.
+- `media:recover-pending` is scheduled every minute and re-enqueues old pending rows after temporary broker failures.
+- `media:queue-variants` only reads approved objects and covers profile, clinical-gallery, and treatment media.
 - Alert when pending media age grows unexpectedly. A useful first threshold is any `pending` row older than 10 minutes.
 - Reconcile approved database paths against private storage regularly and alert on missing approved objects or unreferenced approved objects before deleting anything.

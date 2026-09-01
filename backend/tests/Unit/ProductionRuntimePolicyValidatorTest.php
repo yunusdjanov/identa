@@ -48,6 +48,11 @@ class ProductionRuntimePolicyValidatorTest extends TestCase
         config()->set('security.runtime.require_hsts', true);
         config()->set('security.runtime.require_sanctum_stateful_domains', true);
         config()->set('security.runtime.require_trusted_proxies', true);
+        config()->set('security.runtime.require_private_media_disk', true);
+        config()->set('security.runtime.require_media_finalize_verification', true);
+        config()->set('filesystems.media_disk', 'r2');
+        config()->set('filesystems.disks.r2.driver', 's3');
+        config()->set('filesystems.verify_direct_uploads_on_finalize', true);
 
         putenv('TRUSTED_PROXIES=10.0.0.0/8');
         $_SERVER['TRUSTED_PROXIES'] = '10.0.0.0/8';
@@ -72,6 +77,11 @@ class ProductionRuntimePolicyValidatorTest extends TestCase
         config()->set('security.runtime.require_hsts', true);
         config()->set('security.runtime.require_sanctum_stateful_domains', true);
         config()->set('security.runtime.require_trusted_proxies', true);
+        config()->set('security.runtime.require_private_media_disk', true);
+        config()->set('security.runtime.require_media_finalize_verification', true);
+        config()->set('filesystems.media_disk', 'local');
+        config()->set('filesystems.disks.local.driver', 'local');
+        config()->set('filesystems.verify_direct_uploads_on_finalize', false);
 
         putenv('TRUSTED_PROXIES');
         unset($_SERVER['TRUSTED_PROXIES']);
@@ -87,6 +97,8 @@ class ProductionRuntimePolicyValidatorTest extends TestCase
         $this->assertTrue(collect($issues)->contains(fn (string $issue): bool => str_contains($issue, 'SECURITY_HSTS_ENABLED')));
         $this->assertTrue(collect($issues)->contains(fn (string $issue): bool => str_contains($issue, 'SANCTUM_STATEFUL_DOMAINS')));
         $this->assertTrue(collect($issues)->contains(fn (string $issue): bool => str_contains($issue, 'TRUSTED_PROXIES')));
+        $this->assertTrue(collect($issues)->contains(fn (string $issue): bool => str_contains($issue, 'MEDIA_DISK')));
+        $this->assertTrue(collect($issues)->contains(fn (string $issue): bool => str_contains($issue, 'MEDIA_VERIFY_DIRECT_UPLOADS_ON_FINALIZE')));
     }
 
     public function test_assert_production_policy_or_fail_throws_for_invalid_configuration(): void
@@ -128,11 +140,35 @@ class ProductionRuntimePolicyValidatorTest extends TestCase
         config()->set('security.runtime.require_hsts', false);
         config()->set('security.runtime.require_sanctum_stateful_domains', false);
         config()->set('security.runtime.require_trusted_proxies', false);
+        config()->set('security.runtime.require_private_media_disk', false);
+        config()->set('security.runtime.require_media_finalize_verification', false);
 
         $issues = app(ProductionRuntimePolicyValidator::class)->findProductionIssues();
 
         $this->assertTrue(collect($issues)->contains(fn (string $issue): bool => str_contains($issue, 'CORS frontend origins')));
         $this->assertTrue(collect($issues)->contains(fn (string $issue): bool => str_contains($issue, 'CORS allow-list')));
         $this->assertTrue(collect($issues)->contains(fn (string $issue): bool => str_contains($issue, 'every FRONTEND_URL host')));
+    }
+
+    public function test_find_production_issues_rejects_unsafe_media_runtime(): void
+    {
+        config()->set('security.runtime.require_https_app_url', false);
+        config()->set('security.runtime.require_https_frontend_url', false);
+        config()->set('security.runtime.require_session_secure_cookie', false);
+        config()->set('security.runtime.require_database_session_driver', false);
+        config()->set('security.runtime.require_hsts', false);
+        config()->set('security.runtime.require_sanctum_stateful_domains', false);
+        config()->set('security.runtime.require_trusted_proxies', false);
+        config()->set('security.runtime.require_private_media_disk', true);
+        config()->set('security.runtime.require_media_finalize_verification', true);
+        config()->set('filesystems.media_disk', 'local');
+        config()->set('filesystems.disks.local.driver', 'local');
+        config()->set('filesystems.verify_direct_uploads_on_finalize', false);
+
+        $issues = app(ProductionRuntimePolicyValidator::class)->findProductionIssues();
+
+        $this->assertCount(2, $issues);
+        $this->assertTrue(collect($issues)->contains(fn (string $issue): bool => str_contains($issue, 'MEDIA_DISK')));
+        $this->assertTrue(collect($issues)->contains(fn (string $issue): bool => str_contains($issue, 'MEDIA_VERIFY_DIRECT_UPLOADS_ON_FINALIZE')));
     }
 }

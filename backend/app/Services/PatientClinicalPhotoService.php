@@ -6,6 +6,7 @@ use App\Jobs\ProcessUploadedMedia;
 use App\Models\Patient;
 use App\Models\PatientClinicalPhoto;
 use App\Models\User;
+use App\Services\Media\DirectUploadObjectVerifier;
 use App\Support\MediaPathCache;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
@@ -26,6 +27,7 @@ class PatientClinicalPhotoService
     public function __construct(
         private readonly PlanLimitService $planLimitService,
         private readonly PatientClinicalPhotoMediaService $media,
+        private readonly DirectUploadObjectVerifier $directUploadObjectVerifier,
     ) {}
 
     /** Store a new photo in one of the patient's oral photo slots through the API upload path. */
@@ -221,19 +223,21 @@ class PatientClinicalPhotoService
             throw $exception;
         }
 
-        $storedSize = $this->resolveUploadedObjectSize($disk, $path, (int) ($ticket['file_size'] ?? 0));
-        if ($storedSize <= 0) {
+        $storedObject = $this->directUploadObjectVerifier->inspect($disk, $path);
+        if ($storedObject === null) {
             Storage::disk($disk)->delete($path);
             MediaPathCache::forgetPaths($disk, [$path]);
 
-            throw ValidationException::withMessages(['photo' => [$this->message('direct_upload_missing', 'The uploaded oral photo could not be found in storage. Please retry the upload.')]]);
+            throw ValidationException::withMessages(['photo' => [$this->message('direct_upload_rejected', 'The uploaded oral photo failed security checks.')]]);
         }
+
+        $storedSize = $storedObject['file_size'];
 
         try {
             $this->planLimitService->ensureUploadFileAllowed(
                 $owner,
                 $storedSize,
-                (string) ($ticket['mime_type'] ?? '')
+                $storedObject['mime_type']
             );
         } catch (\Throwable $exception) {
             Storage::disk($disk)->delete($path);
@@ -246,7 +250,7 @@ class PatientClinicalPhotoService
             viewType: $viewType,
             disk: $disk,
             path: $path,
-            mimeType: (string) ($ticket['mime_type'] ?? 'image/jpeg'),
+            mimeType: $storedObject['mime_type'],
             fileSize: $storedSize,
         ), $owner, $this->message('direct_upload_rejected', 'The uploaded oral photo failed security checks.'));
     }
@@ -515,19 +519,6 @@ class PatientClinicalPhotoService
     private function mediaDiskSupportsDirectUpload(string $disk): bool
     {
         return (string) config("filesystems.disks.{$disk}.driver") === 's3';
-    }
-
-    private function resolveUploadedObjectSize(string $disk, string $path, int $expectedSize): int
-    {
-        if (! (bool) config('filesystems.verify_direct_uploads_on_finalize', true)) {
-            return max($expectedSize, 0);
-        }
-
-        try {
-            return max((int) Storage::disk($disk)->size($path), 0);
-        } catch (\Throwable) {
-            return 0;
-        }
     }
 
     /**

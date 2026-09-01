@@ -4,12 +4,14 @@ use App\Jobs\GenerateMediaVariants;
 use App\Models\BillingPayment;
 use App\Models\Invoice;
 use App\Models\Patient;
+use App\Models\PatientClinicalPhoto;
 use App\Models\Subscription;
 use App\Models\TreatmentImage;
 use App\Models\User;
+use App\Services\Media\PendingMediaRecoveryService;
 use App\Services\SubscriptionService;
 use App\Services\UnverifiedAccountCleanupService;
-use App\Services\Media\PendingMediaRecoveryService;
+use App\Support\MediaVariantPaths;
 use App\Support\ProductionRuntimePolicyValidator;
 use App\Support\ProductionSecretsValidator;
 use Illuminate\Foundation\Inspiring;
@@ -566,23 +568,6 @@ Artisan::command(
 Artisan::command('media:queue-variants {--force : Queue regeneration even if variants already exist}', function () {
     $force = (bool) $this->option('force');
 
-    $buildVariantDefinitions = static function (string $path, array $maxEdges): array {
-        $directory = pathinfo($path, PATHINFO_DIRNAME);
-        $filename = pathinfo($path, PATHINFO_FILENAME);
-        $extension = pathinfo($path, PATHINFO_EXTENSION) ?: 'jpg';
-
-        $variants = [];
-
-        foreach ($maxEdges as $variant => $maxEdge) {
-            $variants[$variant] = [
-                'path' => sprintf('%s/variants/%s-%s.%s', $directory, $filename, $variant, $extension),
-                'max_edge' => $maxEdge,
-            ];
-        }
-
-        return $variants;
-    };
-
     $hasMissingVariants = static function (string $disk, array $variants) use ($force): bool {
         if ($force) {
             return true;
@@ -601,8 +586,9 @@ Artisan::command('media:queue-variants {--force : Queue regeneration even if var
     $queuedPatientPhotos = 0;
     Patient::query()
         ->whereNotNull('photo_path')
+        ->where('scan_status', 'approved')
         ->select(['id', 'photo_disk', 'photo_path'])
-        ->chunk(100, function ($patients) use (&$queuedPatientPhotos, $buildVariantDefinitions, $hasMissingVariants): void {
+        ->chunk(100, function ($patients) use (&$queuedPatientPhotos, $hasMissingVariants): void {
             foreach ($patients as $patient) {
                 $path = trim((string) $patient->photo_path);
                 $disk = is_string($patient->photo_disk) && trim($patient->photo_disk) !== ''
@@ -613,10 +599,7 @@ Artisan::command('media:queue-variants {--force : Queue regeneration even if var
                     continue;
                 }
 
-                $variants = $buildVariantDefinitions($path, [
-                    'thumbnail' => 160,
-                    'preview' => 960,
-                ]);
+                $variants = MediaVariantPaths::definitions($patient, $path);
 
                 if (! $hasMissingVariants($disk, $variants)) {
                     continue;
@@ -626,16 +609,45 @@ Artisan::command('media:queue-variants {--force : Queue regeneration even if var
                     disk: $disk,
                     sourcePath: $path,
                     variants: $variants,
-                    logContext: 'Patient photo',
+                    logContext: MediaVariantPaths::logContext($patient),
                 );
                 $queuedPatientPhotos++;
             }
         });
 
+    $queuedClinicalPhotos = 0;
+    PatientClinicalPhoto::query()
+        ->where('scan_status', 'approved')
+        ->select(['id', 'disk', 'path'])
+        ->chunk(200, function ($photos) use (&$queuedClinicalPhotos, $hasMissingVariants): void {
+            foreach ($photos as $photo) {
+                $path = trim((string) $photo->path);
+                $disk = trim((string) $photo->disk);
+
+                if ($path === '' || $disk === '' || ! Storage::disk($disk)->exists($path)) {
+                    continue;
+                }
+
+                $variants = MediaVariantPaths::definitions($photo, $path);
+                if (! $hasMissingVariants($disk, $variants)) {
+                    continue;
+                }
+
+                GenerateMediaVariants::dispatch(
+                    disk: $disk,
+                    sourcePath: $path,
+                    variants: $variants,
+                    logContext: MediaVariantPaths::logContext($photo),
+                );
+                $queuedClinicalPhotos++;
+            }
+        });
+
     $queuedTreatmentImages = 0;
     TreatmentImage::query()
+        ->where('scan_status', 'approved')
         ->select(['id', 'disk', 'path'])
-        ->chunk(200, function ($images) use (&$queuedTreatmentImages, $buildVariantDefinitions, $hasMissingVariants): void {
+        ->chunk(200, function ($images) use (&$queuedTreatmentImages, $hasMissingVariants): void {
             foreach ($images as $image) {
                 $path = trim((string) $image->path);
                 $disk = trim((string) $image->disk);
@@ -644,10 +656,7 @@ Artisan::command('media:queue-variants {--force : Queue regeneration even if var
                     continue;
                 }
 
-                $variants = $buildVariantDefinitions($path, [
-                    'thumbnail' => 200,
-                    'preview' => 1280,
-                ]);
+                $variants = MediaVariantPaths::definitions($image, $path);
 
                 if (! $hasMissingVariants($disk, $variants)) {
                     continue;
@@ -657,17 +666,18 @@ Artisan::command('media:queue-variants {--force : Queue regeneration even if var
                     disk: $disk,
                     sourcePath: $path,
                     variants: $variants,
-                    logContext: 'Treatment image',
+                    logContext: MediaVariantPaths::logContext($image),
                 );
                 $queuedTreatmentImages++;
             }
         });
 
     $this->info(sprintf(
-        'Queued %d patient photo job(s) and %d treatment image job(s).',
+        'Queued %d patient photo job(s), %d clinical photo job(s), and %d treatment image job(s).',
         $queuedPatientPhotos,
+        $queuedClinicalPhotos,
         $queuedTreatmentImages
     ));
 
     return 0;
-})->purpose('Queue missing patient photo and treatment image variants for background generation');
+})->purpose('Queue missing approved patient, clinical, and treatment image variants for background generation');

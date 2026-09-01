@@ -72,7 +72,9 @@ one is present, non-empty, and not a placeholder (`change-me`,
 | `SESSION_SECURE_COOKIE` | constant `true` | |
 | `DB_*` | managed Postgres credentials | |
 | `CACHE_STORE` / `SESSION_DRIVER` / `QUEUE_CONNECTION` | per `.env.example` | |
-| `AWS_*` (S3) | object-store creds | bucket must exist + be private |
+| `MEDIA_DISK` | constant `r2` | production boot fails if media resolves to a non-S3-compatible disk |
+| `R2_*` | Cloudflare R2 object-store creds | bucket must exist, stay private, and apply the 24-hour `quarantine/` lifecycle rule |
+| `MEDIA_VERIFY_DIRECT_UPLOADS_ON_FINALIZE` | constant `true` | production boot fails closed if real stored-object verification is disabled |
 | `ANTIVIRUS_DRIVER` | `clamav` (recommended) **OR** intentionally null | see ClamAV decision matrix below |
 | `CLAMAV_HOST` / `CLAMAV_PORT` | clamd address | only when `ANTIVIRUS_DRIVER=clamav` |
 | `MAIL_*` | SMTP creds | password reset depends on this |

@@ -55,6 +55,7 @@ import { AccessDeniedState } from '@/components/error/access-denied-state';
 import { canManage, canView } from '@/lib/auth/permissions';
 import { resolveMediaProcessingPoll } from '@/lib/patients/media-polling';
 import { queryKeys } from '@/lib/query-keys';
+import { isSupportedImageUpload } from '@/lib/media-upload';
 
 const PatientPhotoPreviewDialog = dynamic(
     () => import('@/components/patients/patient-photo-preview-dialog').then((module) => module.PatientPhotoPreviewDialog),
@@ -496,7 +497,7 @@ export default function PatientDetailPage({
             return;
         }
 
-        if (!selectedPhoto.type.startsWith('image/')) {
+        if (!isSupportedImageUpload(selectedPhoto)) {
             toast.error(t('patients.toast.photoInvalidType'));
             setOralPhotoInputKey((value) => value + 1);
             return;

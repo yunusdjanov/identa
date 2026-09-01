@@ -262,6 +262,105 @@ class MediaUploadSecurityTest extends TestCase
         Storage::disk('local')->assertExists($this->variantPath((string) $photo->path, 'preview'));
     }
 
+    public function test_stale_media_approval_cannot_overwrite_a_newer_patient_photo_upload(): void
+    {
+        Storage::fake('local');
+        $dentist = User::factory()->create();
+        $oldPath = 'quarantine/patients/stale-old.jpg';
+        $newPath = 'quarantine/patients/current-new.jpg';
+        $this->putValidJpeg($oldPath, 1_000);
+        $this->putValidJpeg($newPath, 1_000);
+        $patient = Patient::factory()->create([
+            'dentist_id' => $dentist->id,
+            'photo_disk' => 'local',
+            'scan_status' => 'pending',
+            'quarantine_path' => $oldPath,
+        ]);
+
+        $this->app->bind(AntivirusScanner::class, fn () => new class((string) $patient->id, $newPath) implements AntivirusScanner {
+            public function __construct(
+                private readonly string $patientId,
+                private readonly string $newPath,
+            ) {}
+
+            public function scanString(string $contents): ScanResult
+            {
+                Patient::query()->whereKey($this->patientId)->update([
+                    'scan_status' => 'pending',
+                    'quarantine_path' => $this->newPath,
+                    'scan_result' => null,
+                    'scan_provider' => null,
+                ]);
+
+                return ScanResult::clean('test', 'stream: OK');
+            }
+
+            public function scanPath(string $path): ScanResult
+            {
+                return ScanResult::clean('test', 'stream: OK');
+            }
+        });
+
+        ProcessUploadedMedia::dispatchSync(Patient::class, (string) $patient->id, $dentist->id);
+
+        $patient->refresh();
+        $this->assertSame('pending', $patient->scan_status);
+        $this->assertSame($newPath, $patient->quarantine_path);
+        $this->assertNull($patient->photo_path);
+        Storage::disk('local')->assertExists($newPath);
+        Storage::disk('local')->assertMissing($oldPath);
+        Storage::disk('local')->assertMissing('approved/patients/stale-old.jpg');
+    }
+
+    public function test_stale_media_rejection_cannot_reject_a_newer_patient_photo_upload(): void
+    {
+        Storage::fake('local');
+        $dentist = User::factory()->create();
+        $oldPath = 'quarantine/patients/stale-infected.jpg';
+        $newPath = 'quarantine/patients/current-clean.jpg';
+        $this->putValidJpeg($oldPath, 1_000);
+        $this->putValidJpeg($newPath, 1_000);
+        $patient = Patient::factory()->create([
+            'dentist_id' => $dentist->id,
+            'photo_disk' => 'local',
+            'scan_status' => 'pending',
+            'quarantine_path' => $oldPath,
+        ]);
+
+        $this->app->bind(AntivirusScanner::class, fn () => new class((string) $patient->id, $newPath) implements AntivirusScanner {
+            public function __construct(
+                private readonly string $patientId,
+                private readonly string $newPath,
+            ) {}
+
+            public function scanString(string $contents): ScanResult
+            {
+                Patient::query()->whereKey($this->patientId)->update([
+                    'scan_status' => 'pending',
+                    'quarantine_path' => $this->newPath,
+                    'scan_result' => null,
+                    'scan_provider' => null,
+                ]);
+
+                return ScanResult::infected('test', 'Eicar-Test-Signature FOUND');
+            }
+
+            public function scanPath(string $path): ScanResult
+            {
+                return ScanResult::infected('test', 'Eicar-Test-Signature FOUND');
+            }
+        });
+
+        ProcessUploadedMedia::dispatchSync(Patient::class, (string) $patient->id, $dentist->id);
+
+        $patient->refresh();
+        $this->assertSame('pending', $patient->scan_status);
+        $this->assertSame($newPath, $patient->quarantine_path);
+        $this->assertNull($patient->rejected_at);
+        Storage::disk('local')->assertExists($newPath);
+        Storage::disk('local')->assertMissing($oldPath);
+    }
+
     public function test_rejected_patient_photo_replacement_retains_previous_photo(): void
     {
         Storage::fake('local');
@@ -902,6 +1001,124 @@ class MediaUploadSecurityTest extends TestCase
         ]);
     }
 
+    public function test_patient_photo_direct_upload_rejects_non_image_stored_bytes(): void
+    {
+        Storage::fake('local');
+        $dentist = User::factory()->create();
+        $patient = Patient::factory()->create(['dentist_id' => $dentist->id]);
+        $uploadId = 'patient-photo-invalid-stored-type';
+        $path = 'quarantine/patients/not-an-image.jpg';
+        Storage::disk('local')->put($path, 'plain text is not an image');
+        Cache::put("patient-photo-upload:{$uploadId}", [
+            'dentist_id' => $dentist->id,
+            'patient_id' => (string) $patient->id,
+            'disk' => 'local',
+            'path' => $path,
+            'mime_type' => 'image/jpeg',
+            'file_size' => 26,
+        ]);
+
+        $this->actingAs($dentist, 'web')
+            ->postJson("/api/v1/patients/{$patient->id}/photo/direct-upload/{$uploadId}/complete")
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['photo']);
+
+        Storage::disk('local')->assertMissing($path);
+        $this->assertNull($patient->fresh()?->photo_path);
+    }
+
+    public function test_patient_oral_photo_direct_upload_rejects_non_image_stored_bytes(): void
+    {
+        Storage::fake('local');
+        $dentist = User::factory()->create();
+        $patient = Patient::factory()->create(['dentist_id' => $dentist->id]);
+        $uploadId = 'patient-oral-invalid-stored-type';
+        $path = 'quarantine/patients/not-an-oral-image.jpg';
+        Storage::disk('local')->put($path, 'plain text is not an image');
+        Cache::put("patient-oral-photo-upload:{$uploadId}", [
+            'dentist_id' => $dentist->id,
+            'patient_id' => (string) $patient->id,
+            'view_type' => PatientClinicalPhoto::VIEW_TYPE_SMILE,
+            'disk' => 'local',
+            'path' => $path,
+            'mime_type' => 'image/jpeg',
+            'file_size' => 26,
+        ]);
+
+        $this->actingAs($dentist, 'web')
+            ->postJson("/api/v1/patients/{$patient->id}/oral-photos/smile/direct-upload/{$uploadId}/complete")
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['photo']);
+
+        Storage::disk('local')->assertMissing($path);
+        $this->assertDatabaseCount('patient_clinical_photos', 0);
+    }
+
+    public function test_treatment_direct_upload_rejects_non_image_stored_bytes(): void
+    {
+        Storage::fake('local');
+        $dentist = User::factory()->create();
+        $patient = Patient::factory()->create(['dentist_id' => $dentist->id]);
+        $treatment = Treatment::factory()->create([
+            'dentist_id' => $dentist->id,
+            'patient_id' => $patient->id,
+        ]);
+        $uploadId = 'treatment-invalid-stored-type';
+        $path = 'quarantine/treatments/not-an-image.jpg';
+        Storage::disk('local')->put($path, 'plain text is not an image');
+        Cache::put("treatment-image-upload:{$uploadId}", [
+            'dentist_id' => $dentist->id,
+            'patient_id' => (string) $patient->id,
+            'treatment_id' => (string) $treatment->id,
+            'disk' => 'local',
+            'path' => $path,
+            'mime_type' => 'image/jpeg',
+            'file_size' => 26,
+        ]);
+
+        $this->actingAs($dentist, 'web')
+            ->postJson("/api/v1/patients/{$patient->id}/treatments/{$treatment->id}/images/direct-upload/{$uploadId}/complete")
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['image']);
+
+        Storage::disk('local')->assertMissing($path);
+        $this->assertDatabaseCount('treatment_images', 0);
+    }
+
+    public function test_treatment_batch_direct_upload_reports_non_image_stored_bytes_as_security_failure(): void
+    {
+        Storage::fake('local');
+        $dentist = User::factory()->create();
+        $patient = Patient::factory()->create(['dentist_id' => $dentist->id]);
+        $treatment = Treatment::factory()->create([
+            'dentist_id' => $dentist->id,
+            'patient_id' => $patient->id,
+        ]);
+        $uploadId = '44444444-4444-4444-8444-444444444444';
+        $path = 'quarantine/treatments/batch-not-an-image.jpg';
+        Storage::disk('local')->put($path, 'plain text is not an image');
+        Cache::put("treatment-image-upload:{$uploadId}", [
+            'dentist_id' => $dentist->id,
+            'patient_id' => (string) $patient->id,
+            'treatment_id' => (string) $treatment->id,
+            'disk' => 'local',
+            'path' => $path,
+            'mime_type' => 'image/jpeg',
+            'file_size' => 26,
+        ]);
+
+        $this->actingAs($dentist, 'web')
+            ->postJson("/api/v1/patients/{$patient->id}/treatments/{$treatment->id}/images/direct-upload-batch/complete", [
+                'upload_ids' => [$uploadId],
+            ])
+            ->assertStatus(207)
+            ->assertJsonPath('data.completed_count', 0)
+            ->assertJsonPath('data.failed.0.reason', 'security');
+
+        Storage::disk('local')->assertMissing($path);
+        $this->assertDatabaseCount('treatment_images', 0);
+    }
+
     public function test_patient_photo_direct_upload_enforces_actual_stored_size(): void
     {
         Storage::fake('local');
@@ -910,7 +1127,7 @@ class MediaUploadSecurityTest extends TestCase
         $patient = Patient::factory()->create(['dentist_id' => $dentist->id]);
         $uploadId = 'patient-photo-underreported-size';
         $path = 'quarantine/patients/underreported-profile.jpg';
-        Storage::disk('local')->put($path, str_repeat('x', 20_000));
+        $this->putValidJpeg($path, 20_000);
         Cache::put("patient-photo-upload:{$uploadId}", [
             'dentist_id' => $dentist->id,
             'patient_id' => (string) $patient->id,
@@ -938,7 +1155,7 @@ class MediaUploadSecurityTest extends TestCase
         $patient = Patient::factory()->create(['dentist_id' => $dentist->id]);
         $uploadId = 'patient-oral-photo-underreported-size';
         $path = 'quarantine/patients/underreported-oral.jpg';
-        Storage::disk('local')->put($path, str_repeat('x', 20_000));
+        $this->putValidJpeg($path, 20_000);
         Cache::put("patient-oral-photo-upload:{$uploadId}", [
             'dentist_id' => $dentist->id,
             'patient_id' => (string) $patient->id,
@@ -982,7 +1199,7 @@ class MediaUploadSecurityTest extends TestCase
 
         $uploadId = 'patient-oral-photo-limit-late';
         $path = 'quarantine/patients/oral-limit-late.jpg';
-        Storage::disk('local')->put($path, str_repeat('x', 1_000));
+        $this->putValidJpeg($path, 1_000);
         Cache::put("patient-oral-photo-upload:{$uploadId}", [
             'dentist_id' => $dentist->id,
             'patient_id' => (string) $patient->id,
@@ -1054,7 +1271,7 @@ class MediaUploadSecurityTest extends TestCase
         ]);
         $uploadId = 'treatment-underreported-size';
         $path = 'quarantine/treatments/underreported.jpg';
-        Storage::disk('local')->put($path, str_repeat('x', 20_000));
+        $this->putValidJpeg($path, 20_000);
         Cache::put("treatment-image-upload:{$uploadId}", [
             'dentist_id' => $dentist->id,
             'patient_id' => (string) $patient->id,
@@ -1096,7 +1313,7 @@ class MediaUploadSecurityTest extends TestCase
 
         $uploadId = 'treatment-limit-late';
         $path = 'quarantine/treatments/limit-late.jpg';
-        Storage::disk('local')->put($path, str_repeat('x', 1_000));
+        $this->putValidJpeg($path, 1_000);
         Cache::put("treatment-image-upload:{$uploadId}", [
             'dentist_id' => $dentist->id,
             'patient_id' => (string) $patient->id,
@@ -1169,7 +1386,7 @@ class MediaUploadSecurityTest extends TestCase
         ]);
         $uploadId = '22222222-2222-4222-8222-222222222222';
         $path = 'quarantine/treatments/batch-underreported.jpg';
-        Storage::disk('local')->put($path, str_repeat('x', 20_000));
+        $this->putValidJpeg($path, 20_000);
         Cache::put("treatment-image-upload:{$uploadId}", [
             'dentist_id' => $dentist->id,
             'patient_id' => (string) $patient->id,
@@ -1198,6 +1415,18 @@ class MediaUploadSecurityTest extends TestCase
         $extension = pathinfo($path, PATHINFO_EXTENSION) ?: 'jpg';
 
         return sprintf('%s/variants/%s-%s.%s', $directory, $filename, $variant, $extension);
+    }
+
+    private function putValidJpeg(string $path, int $minimumBytes): void
+    {
+        $image = UploadedFile::fake()->image('stored.jpg', 800, 600);
+        $contents = file_get_contents((string) $image->getRealPath());
+        $this->assertIsString($contents);
+
+        Storage::disk('local')->put(
+            $path,
+            $contents.str_repeat('x', max(0, $minimumBytes - strlen($contents)))
+        );
     }
 
     private function createDentistWithTinyUploadLimit(): User
