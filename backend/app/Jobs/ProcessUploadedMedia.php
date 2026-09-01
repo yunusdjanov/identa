@@ -2,8 +2,10 @@
 
 namespace App\Jobs;
 
+use App\Models\OdontogramEntryImage;
 use App\Models\Patient;
-use App\Models\User;
+use App\Models\PatientClinicalPhoto;
+use App\Models\TreatmentImage;
 use App\Services\ImageCompressionService;
 use App\Services\Media\AntivirusScanner;
 use App\Services\Media\ScanResult;
@@ -16,6 +18,7 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\Middleware\WithoutOverlapping;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -27,6 +30,16 @@ class ProcessUploadedMedia implements ShouldQueue
     private const JPEG_VARIANT_QUALITY = 82;
 
     private const WEBP_VARIANT_QUALITY = 80;
+
+    /**
+     * @var list<class-string<Model>>
+     */
+    private const MEDIA_MODELS = [
+        Patient::class,
+        PatientClinicalPhoto::class,
+        TreatmentImage::class,
+        OdontogramEntryImage::class,
+    ];
 
     public int $tries = 3;
 
@@ -56,7 +69,7 @@ class ProcessUploadedMedia implements ShouldQueue
         $disk = $this->recordDisk($record);
         $quarantinePath = (string) $record->getAttribute('quarantine_path');
         if ($disk === '' || $quarantinePath === '' || ! Storage::disk($disk)->exists($quarantinePath)) {
-            $this->reject($record, ScanResult::failed('internal', 'Quarantine object missing.'));
+            $this->reject($record, $quarantinePath, ScanResult::failed('internal', 'Quarantine object missing.'));
 
             return;
         }
@@ -64,7 +77,7 @@ class ProcessUploadedMedia implements ShouldQueue
         $contents = Storage::disk($disk)->get($quarantinePath);
         $scanResult = $scanner->scanString($contents);
         if (! $scanResult->isClean()) {
-            $this->reject($record, $scanResult);
+            $this->reject($record, $quarantinePath, $scanResult);
 
             return;
         }
@@ -81,30 +94,41 @@ class ProcessUploadedMedia implements ShouldQueue
             );
 
             if ($optimized === null) {
-                $this->reject($record, ScanResult::failed('sanitizer', 'Unable to sanitize image.'));
+                $this->reject($record, $quarantinePath, ScanResult::failed('sanitizer', 'Unable to sanitize image.'));
 
                 return;
             }
 
             $approvedPath = $this->approvedPath($quarantinePath, $optimized['extension']);
-            $previousDisk = $this->recordDisk($record);
-            $previousPath = $this->currentMediaPath($record);
             if (! Storage::disk($disk)->put($approvedPath, $optimized['contents'])) {
                 throw new \RuntimeException('Unable to persist approved media.');
             }
             MediaPathCache::markPresent($disk, $approvedPath);
 
-            $record->forceFill($this->approvedAttributes(
-                $record,
-                $disk,
-                $approvedPath,
-                $optimized['mime_type'],
-                $optimized['file_size'],
-                $scanResult,
-            ))->save();
+            $transition = $this->transitionToApproved(
+                expectedQuarantinePath: $quarantinePath,
+                disk: $disk,
+                approvedPath: $approvedPath,
+                mimeType: $optimized['mime_type'],
+                fileSize: $optimized['file_size'],
+                scanResult: $scanResult,
+            );
+            if ($transition === null) {
+                $this->deleteStaleUploadPaths($disk, [$quarantinePath, $approvedPath]);
+
+                return;
+            }
+
+            $record = $transition['record'];
             $this->queueQuarantineDeletion($record, $disk, $quarantinePath);
             $this->queueApprovedMediaVariants($record, $disk, $approvedPath);
-            $this->queuePreviousMediaDeletion($record, $previousDisk, $previousPath, $quarantinePath, $approvedPath);
+            $this->queuePreviousMediaDeletion(
+                $record,
+                $transition['previous_disk'],
+                $transition['previous_path'],
+                $quarantinePath,
+                $approvedPath
+            );
         } catch (\Throwable $exception) {
             // Operational failures are not proof that the image is unsafe.
             // Keep the row pending so the queue can retry it.
@@ -162,13 +186,13 @@ class ProcessUploadedMedia implements ShouldQueue
         ScanResult $scanResult
     ): array {
         $attributes = [
-                'scan_status' => 'approved',
-                'scan_result' => $scanResult->message,
-                'scan_provider' => $scanResult->provider,
-                'approved_at' => now(),
-                'scanned_at' => now(),
-                'rejected_at' => null,
-                'quarantine_path' => null,
+            'scan_status' => 'approved',
+            'scan_result' => $scanResult->message,
+            'scan_provider' => $scanResult->provider,
+            'approved_at' => now(),
+            'scanned_at' => now(),
+            'rejected_at' => null,
+            'quarantine_path' => null,
         ];
 
         if ($record instanceof Patient) {
@@ -187,7 +211,7 @@ class ProcessUploadedMedia implements ShouldQueue
 
     private function resolveRecord(): ?Model
     {
-        if (! is_subclass_of($this->modelClass, Model::class)) {
+        if (! in_array($this->modelClass, self::MEDIA_MODELS, true)) {
             return null;
         }
 
@@ -206,27 +230,43 @@ class ProcessUploadedMedia implements ShouldQueue
         return (string) ($record->getAttribute('disk') ?: config('filesystems.media_disk', 'local'));
     }
 
-    private function reject(Model $record, ScanResult $scanResult): void
+    private function reject(Model $record, string $expectedQuarantinePath, ScanResult $scanResult): void
     {
         $disk = $this->recordDisk($record);
-        $quarantinePath = (string) $record->getAttribute('quarantine_path');
-        if ($disk !== '' && $quarantinePath !== '') {
-            Storage::disk($disk)->delete($quarantinePath);
-            MediaPathCache::forgetPaths($disk, [$quarantinePath]);
-        }
+        $transition = DB::transaction(function () use ($expectedQuarantinePath, $scanResult): ?array {
+            $lockedRecord = $this->resolveRecordForUpdate();
+            if (
+                $lockedRecord === null
+                || (string) $lockedRecord->getAttribute('scan_status') !== 'pending'
+                || (string) $lockedRecord->getAttribute('quarantine_path') !== $expectedQuarantinePath
+            ) {
+                return null;
+            }
 
-        if ($this->hasRetainedApprovedMedia($record, $quarantinePath)) {
-            $record->forceFill([
-                'scan_status' => 'approved',
+            $retained = $this->hasRetainedApprovedMedia($lockedRecord, $expectedQuarantinePath);
+            $lockedRecord->forceFill([
+                'scan_status' => $retained ? 'approved' : 'rejected',
                 'scan_result' => $scanResult->message,
                 'scan_provider' => $scanResult->provider,
                 'scanned_at' => now(),
-                // Keep the approved media displayable while recording that the
-                // attempted replacement itself failed security validation.
                 'rejected_at' => now(),
                 'quarantine_path' => null,
             ])->save();
 
+            return [
+                'record' => $lockedRecord,
+                'retained' => $retained,
+            ];
+        });
+
+        $this->deleteStaleUploadPaths($disk, [$expectedQuarantinePath]);
+        if ($transition === null) {
+            return;
+        }
+
+        /** @var Model $record */
+        $record = $transition['record'];
+        if ($transition['retained']) {
             Log::warning('Uploaded media replacement rejected; previous media retained.', [
                 'model' => $record::class,
                 'record_ref' => $this->recordReference($record),
@@ -237,21 +277,94 @@ class ProcessUploadedMedia implements ShouldQueue
             return;
         }
 
-        $record->forceFill([
-            'scan_status' => 'rejected',
-            'scan_result' => $scanResult->message,
-            'scan_provider' => $scanResult->provider,
-            'scanned_at' => now(),
-            'rejected_at' => now(),
-            'quarantine_path' => null,
-        ])->save();
-
         Log::warning('Uploaded media rejected.', [
             'model' => $record::class,
             'record_ref' => $this->recordReference($record),
             'provider' => $scanResult->provider,
             'status' => $scanResult->status,
         ]);
+    }
+
+    /**
+     * Persist approval only if the row still references the object that was
+     * scanned. A newer upload or deletion must win over this stale job.
+     *
+     * @return array{record: Model, previous_disk: string, previous_path: string}|null
+     */
+    private function transitionToApproved(
+        string $expectedQuarantinePath,
+        string $disk,
+        string $approvedPath,
+        string $mimeType,
+        int $fileSize,
+        ScanResult $scanResult
+    ): ?array {
+        return DB::transaction(function () use (
+            $expectedQuarantinePath,
+            $disk,
+            $approvedPath,
+            $mimeType,
+            $fileSize,
+            $scanResult
+        ): ?array {
+            $lockedRecord = $this->resolveRecordForUpdate();
+            if (
+                $lockedRecord === null
+                || (string) $lockedRecord->getAttribute('scan_status') !== 'pending'
+                || (string) $lockedRecord->getAttribute('quarantine_path') !== $expectedQuarantinePath
+            ) {
+                return null;
+            }
+
+            $previousDisk = $this->recordDisk($lockedRecord);
+            $previousPath = $this->currentMediaPath($lockedRecord);
+            $lockedRecord->forceFill($this->approvedAttributes(
+                $lockedRecord,
+                $disk,
+                $approvedPath,
+                $mimeType,
+                $fileSize,
+                $scanResult,
+            ))->save();
+
+            return [
+                'record' => $lockedRecord,
+                'previous_disk' => $previousDisk,
+                'previous_path' => $previousPath,
+            ];
+        });
+    }
+
+    private function resolveRecordForUpdate(): ?Model
+    {
+        if (! in_array($this->modelClass, self::MEDIA_MODELS, true)) {
+            return null;
+        }
+
+        /** @var Model|null $record */
+        $record = $this->modelClass::query()
+            ->whereKey($this->modelId)
+            ->lockForUpdate()
+            ->first();
+
+        return $record;
+    }
+
+    /**
+     * Remove an object that no current media row can reference. This happens
+     * when a newer upload or deletion wins while the older object is scanning.
+     *
+     * @param list<string> $paths
+     */
+    private function deleteStaleUploadPaths(string $disk, array $paths): void
+    {
+        $paths = array_values(array_unique(array_filter(array_map('trim', $paths))));
+        if ($disk === '' || $paths === []) {
+            return;
+        }
+
+        Storage::disk($disk)->delete($paths);
+        MediaPathCache::forgetPaths($disk, $paths);
     }
 
     private function approvedPath(string $quarantinePath, string $extension): string

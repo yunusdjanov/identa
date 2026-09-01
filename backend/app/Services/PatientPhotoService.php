@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Jobs\DeleteStoredMediaPaths;
 use App\Models\Patient;
 use App\Models\User;
+use App\Services\Media\DirectUploadObjectVerifier;
 use App\Services\Media\MediaQueueDispatcher;
 use App\Support\ImageVariantGenerator;
 use App\Support\MediaPathCache;
@@ -46,6 +47,7 @@ class PatientPhotoService
     public function __construct(
         private readonly PlanLimitService $planLimitService,
         private readonly MediaQueueDispatcher $mediaQueueDispatcher,
+        private readonly DirectUploadObjectVerifier $directUploadObjectVerifier,
     ) {}
 
     public function uploadQueued(Patient $patient, UploadedFile $uploadedPhoto, User $owner): Patient
@@ -200,24 +202,26 @@ class PatientPhotoService
             ]);
         }
 
-        $storedSize = $this->resolveUploadedObjectSize($disk, $path, (int) ($ticket['file_size'] ?? 0));
-        if ($storedSize <= 0) {
+        $storedObject = $this->directUploadObjectVerifier->inspect($disk, $path);
+        if ($storedObject === null) {
             Storage::disk($disk)->delete($path);
             MediaPathCache::forgetPaths($disk, [$path]);
 
             throw ValidationException::withMessages([
                 'photo' => [$this->message(
-                    'direct_upload_missing',
-                    'The uploaded patient photo could not be found in storage. Please retry the upload.'
+                    'direct_upload_rejected',
+                    'The uploaded patient photo failed security checks.'
                 )],
             ]);
         }
+
+        $storedSize = $storedObject['file_size'];
 
         try {
             $this->planLimitService->ensureUploadFileAllowed(
                 $owner,
                 $storedSize,
-                (string) ($ticket['mime_type'] ?? '')
+                $storedObject['mime_type']
             );
         } catch (\Throwable $exception) {
             Storage::disk($disk)->delete($path);
@@ -405,19 +409,6 @@ class PatientPhotoService
         $quarantinePath = trim((string) $patient->quarantine_path);
 
         return $quarantinePath !== '' && $photoPath !== $quarantinePath;
-    }
-
-    private function resolveUploadedObjectSize(string $disk, string $path, int $expectedSize): int
-    {
-        if (! (bool) config('filesystems.verify_direct_uploads_on_finalize', true)) {
-            return max($expectedSize, 0);
-        }
-
-        try {
-            return max((int) Storage::disk($disk)->size($path), 0);
-        } catch (\Throwable) {
-            return 0;
-        }
     }
 
     private function directUploadCacheKey(string $uploadId): string

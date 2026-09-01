@@ -6,6 +6,7 @@ use App\Jobs\DeleteStoredMediaPaths;
 use App\Models\Treatment;
 use App\Models\TreatmentImage;
 use App\Models\User;
+use App\Services\Media\DirectUploadObjectVerifier;
 use App\Services\Media\MediaQueueDispatcher;
 use App\Support\MediaPathCache;
 use Illuminate\Support\Facades\Cache;
@@ -25,7 +26,7 @@ class TreatmentImageDirectUploadService
     private const IMAGE_VARIANT_PREVIEW = 'preview';
 
     public function __construct(
-        private readonly ImageCompressionService $imageCompressionService,
+        private readonly DirectUploadObjectVerifier $directUploadObjectVerifier,
         private readonly PlanLimitService $planLimitService,
         private readonly MediaQueueDispatcher $mediaQueueDispatcher,
     ) {}
@@ -147,23 +148,25 @@ class TreatmentImageDirectUploadService
             ]);
         }
 
-        $storedSize = $this->resolveUploadedObjectSize($disk, $path, (int) ($ticket['file_size'] ?? 0));
-        if ($storedSize <= 0) {
+        $storedObject = $this->directUploadObjectVerifier->inspect($disk, $path);
+        if ($storedObject === null) {
             $this->deleteDirectUploadObject($disk, $path);
 
             throw ValidationException::withMessages([
                 'image' => [$this->treatmentMessage(
-                    'direct_upload_missing',
-                    'The uploaded image could not be found in storage. Please retry the upload.'
+                    'direct_upload_rejected',
+                    'The uploaded image failed security checks.'
                 )],
             ]);
         }
+
+        $storedSize = $storedObject['file_size'];
 
         try {
             $this->planLimitService->ensureUploadFileAllowed(
                 $owner,
                 $storedSize,
-                (string) ($ticket['mime_type'] ?? '')
+                $storedObject['mime_type']
             );
         } catch (\Throwable $exception) {
             $this->deleteDirectUploadObject($disk, $path);
@@ -178,7 +181,7 @@ class TreatmentImageDirectUploadService
                 dentistId: $dentistId,
                 disk: $disk,
                 path: $path,
-                mimeType: (string) ($ticket['mime_type'] ?? 'image/jpeg'),
+                mimeType: $storedObject['mime_type'],
                 fileSize: $storedSize,
                 uploadId: $uploadId,
             );
@@ -350,19 +353,21 @@ class TreatmentImageDirectUploadService
                 continue;
             }
 
-            $storedSize = $this->resolveUploadedObjectSize($disk, $path, (int) ($ticket['file_size'] ?? 0));
-            if ($storedSize <= 0) {
+            $storedObject = $this->directUploadObjectVerifier->inspect($disk, $path);
+            if ($storedObject === null) {
                 $this->deleteDirectUploadObject($disk, $path);
-                $failed[] = ['upload_id' => $uploadId, 'reason' => 'missing'];
+                $failed[] = ['upload_id' => $uploadId, 'reason' => 'security'];
 
                 continue;
             }
+
+            $storedSize = $storedObject['file_size'];
 
             try {
                 $this->planLimitService->ensureUploadFileAllowed(
                     $owner,
                     $storedSize,
-                    (string) ($ticket['mime_type'] ?? '')
+                    $storedObject['mime_type']
                 );
             } catch (\Throwable $exception) {
                 $this->deleteDirectUploadObject($disk, $path);
@@ -378,7 +383,7 @@ class TreatmentImageDirectUploadService
                     dentistId: $dentistId,
                     disk: $disk,
                     path: $path,
-                    mimeType: (string) ($ticket['mime_type'] ?? 'image/jpeg'),
+                    mimeType: $storedObject['mime_type'],
                     fileSize: $storedSize,
                     returnNullWhenFull: true,
                     uploadId: $uploadId,
@@ -602,19 +607,6 @@ class TreatmentImageDirectUploadService
         }
 
         return $normalized;
-    }
-
-    private function resolveUploadedObjectSize(string $disk, string $path, int $expectedSize): int
-    {
-        if (! (bool) config('filesystems.verify_direct_uploads_on_finalize', true)) {
-            return max($expectedSize, 0);
-        }
-
-        try {
-            return (int) Storage::disk($disk)->size($path);
-        } catch (\Throwable) {
-            return 0;
-        }
     }
 
     private function deleteDirectUploadObject(string $disk, string $path): void

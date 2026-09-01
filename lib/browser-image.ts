@@ -1,3 +1,5 @@
+import { isSupportedImageUpload } from '@/lib/media-upload';
+
 const DEFAULT_MAX_EDGE = 1600;
 const DEFAULT_QUALITY = 0.82;
 const SKIP_REENCODE_BELOW_BYTES = 1024 * 1024;
@@ -82,7 +84,7 @@ export async function optimizeImageFileForUpload(
         return file;
     }
 
-    if (!file.type.startsWith('image/')) {
+    if (!isSupportedImageUpload(file)) {
         return file;
     }
 

@@ -116,6 +116,23 @@ class ProductionRuntimePolicyValidator
             }
         }
 
+        if ((bool) config('security.runtime.require_private_media_disk', true)) {
+            $mediaDisk = trim((string) config('filesystems.media_disk', ''));
+            $mediaDriver = $mediaDisk !== ''
+                ? trim((string) config("filesystems.disks.{$mediaDisk}.driver", ''))
+                : '';
+            if ($mediaDisk === '' || $mediaDriver !== 's3') {
+                $issues[] = 'MEDIA_DISK must reference a private S3-compatible disk in production.';
+            }
+        }
+
+        if (
+            (bool) config('security.runtime.require_media_finalize_verification', true)
+            && (bool) config('filesystems.verify_direct_uploads_on_finalize', true) !== true
+        ) {
+            $issues[] = 'MEDIA_VERIFY_DIRECT_UPLOADS_ON_FINALIZE must be true in production.';
+        }
+
         return $issues;
     }
 

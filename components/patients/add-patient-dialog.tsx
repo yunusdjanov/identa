@@ -42,6 +42,7 @@ import {
 import { PatientPhotoField } from '@/components/patients/patient-photo-field';
 import { toLocalDateKey } from '@/lib/utils';
 import { queryKeys } from '@/lib/query-keys';
+import { isSupportedImageUpload } from '@/lib/media-upload';
 
 interface AddPatientDialogProps {
     open: boolean;
@@ -200,7 +201,7 @@ export function AddPatientDialog({
             return;
         }
 
-        if (!selectedPhoto.type.startsWith('image/')) {
+        if (!isSupportedImageUpload(selectedPhoto)) {
             toast.error(t('patients.toast.photoInvalidType'));
             setPhotoFile(null);
             setPhotoInputKey((value) => value + 1);

@@ -39,6 +39,7 @@ import { canManage, canView, getManageDeniedMessage, isSubscriptionReadOnly } fr
 import { RecordAuthorBadge } from '@/components/ui/record-author-badge';
 import { rememberPatientListFocus } from '@/lib/patients/patient-list-state';
 import { queryKeys } from '@/lib/query-keys';
+import { isSupportedImageUpload } from '@/lib/media-upload';
 
 interface TreatmentHistoryCardProps {
     patientId: string;
@@ -59,12 +60,6 @@ interface TreatmentFormState {
 
 const MAX_HISTORY_IMAGES_PER_ENTRY = 10;
 const DEFAULT_HISTORY_UPLOAD_MAX_MB = 1;
-const ALLOWED_HISTORY_IMAGE_TYPES = new Set([
-    'image/jpeg',
-    'image/jpg',
-    'image/png',
-    'image/webp',
-]);
 const HISTORY_IMAGE_UPLOAD_CONCURRENCY = 10;
 const MEDIA_READINESS_POLL_INTERVAL_MS = 1200;
 const MEDIA_READINESS_TIMEOUT_MS = 8000;
@@ -169,11 +164,7 @@ function validateHistoryImageFile(
         return '';
     }
 
-    const normalizedName = file.name.toLowerCase();
-    const hasAllowedExtension = ['.jpg', '.jpeg', '.png', '.webp'].some((extension) => normalizedName.endsWith(extension));
-    const hasAllowedType = ALLOWED_HISTORY_IMAGE_TYPES.has(file.type);
-
-    if (!hasAllowedType && !hasAllowedExtension) {
+    if (!isSupportedImageUpload(file)) {
         return t('patientHistory.validation.imageType');
     }
 

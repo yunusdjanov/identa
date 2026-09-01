@@ -72,7 +72,12 @@ const checks = [
     {
         name: 'Production env example keeps upload verification on',
         file: 'backend/.env.example',
-        patterns: [/MEDIA_VERIFY_DIRECT_UPLOADS_ON_FINALIZE=true/],
+        patterns: [/MEDIA_DISK=r2/, /MEDIA_VERIFY_DIRECT_UPLOADS_ON_FINALIZE=true/, /QUEUE_NAMES=media,cleanup,default/],
+    },
+    {
+        name: 'Production runtime fails closed for unsafe media configuration',
+        file: 'backend/app/Support/ProductionRuntimePolicyValidator.php',
+        patterns: [/MEDIA_DISK must reference a private S3-compatible disk/, /MEDIA_VERIFY_DIRECT_UPLOADS_ON_FINALIZE must be true/],
     },
     {
         name: 'Upload routes have a dedicated throttle',
@@ -80,19 +85,34 @@ const checks = [
         patterns: [/defined\('MEDIA_UPLOAD_THROTTLE'\)/, /MEDIA_UPLOAD_THROTTLE/],
     },
     {
-        name: 'Patient photo finalize checks stored size',
+        name: 'Direct upload verifier reads stored size and type',
+        file: 'backend/app/Services/Media/DirectUploadObjectVerifier.php',
+        patterns: [/->size\(/, /->readStream\(/, /image\/jpeg/, /image\/png/, /image\/webp/],
+    },
+    {
+        name: 'Patient photo finalize checks stored size and type',
         file: 'backend/app/Services/PatientPhotoService.php',
-        patterns: [/resolveUploadedObjectSize/, /\$storedSize/, /ensureUploadFileAllowed/],
+        patterns: [/directUploadObjectVerifier->inspect/, /\$storedObject\['file_size'\]/, /\$storedObject\['mime_type'\]/],
     },
     {
-        name: 'Oral photo finalize checks stored size',
+        name: 'Oral photo finalize checks stored size and type',
         file: 'backend/app/Services/PatientClinicalPhotoService.php',
-        patterns: [/resolveUploadedObjectSize/, /\$storedSize/, /ensureUploadFileAllowed/],
+        patterns: [/directUploadObjectVerifier->inspect/, /\$storedObject\['file_size'\]/, /\$storedObject\['mime_type'\]/],
     },
     {
-        name: 'Treatment image finalize checks stored size',
+        name: 'Treatment image finalize checks stored size and type',
         file: 'backend/app/Services/TreatmentImageDirectUploadService.php',
-        patterns: [/resolveUploadedObjectSize/, /\$storedSize/, /ensureUploadFileAllowed/],
+        patterns: [/directUploadObjectVerifier->inspect/, /\$storedObject\['file_size'\]/, /\$storedObject\['mime_type'\]/],
+    },
+    {
+        name: 'Frontend image upload contract matches backend formats',
+        file: 'lib/media-upload.ts',
+        patterns: [/image\/jpeg/, /image\/png/, /image\/webp/, /mimeType !== ''/],
+    },
+    {
+        name: 'Frontend image upload contract has bypass regression tests',
+        file: 'lib/media-upload.test.ts',
+        patterns: [/image\/svg\+xml/, /image\/gif/, /application\/octet-stream/, /type: ''/],
     },
     {
         name: 'Upload size bypass regression tests exist',
@@ -102,6 +122,12 @@ const checks = [
             /test_patient_oral_photo_direct_upload_enforces_actual_stored_size/,
             /test_treatment_direct_upload_enforces_actual_stored_size/,
             /test_treatment_batch_direct_upload_enforces_actual_stored_size/,
+            /test_patient_photo_direct_upload_rejects_non_image_stored_bytes/,
+            /test_patient_oral_photo_direct_upload_rejects_non_image_stored_bytes/,
+            /test_treatment_direct_upload_rejects_non_image_stored_bytes/,
+            /test_treatment_batch_direct_upload_reports_non_image_stored_bytes_as_security_failure/,
+            /test_stale_media_approval_cannot_overwrite_a_newer_patient_photo_upload/,
+            /test_stale_media_rejection_cannot_reject_a_newer_patient_photo_upload/,
         ],
     },
     {

@@ -32,5 +32,7 @@ return [
         'require_hsts' => env('SECURITY_REQUIRE_HSTS', true),
         'require_sanctum_stateful_domains' => env('SECURITY_REQUIRE_SANCTUM_STATEFUL_DOMAINS', true),
         'require_trusted_proxies' => env('SECURITY_REQUIRE_TRUSTED_PROXIES', true),
+        'require_private_media_disk' => env('SECURITY_REQUIRE_PRIVATE_MEDIA_DISK', true),
+        'require_media_finalize_verification' => env('SECURITY_REQUIRE_MEDIA_FINALIZE_VERIFICATION', true),
     ],
 ];
