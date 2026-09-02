@@ -1,7 +1,7 @@
 # Identa Layered Structural Audit Tracker
 
 - Program start: 2026-08-11
-- Current baseline commit: `844c8a6`
+- Current baseline commit: `3cf5aec`
 - Standard: `docs/qa/STRUCTURAL_AUDIT_STANDARD.md`
 - Route inventory: 29 pages in `docs/qa/PAGE_AUDIT_TRACKER.md`
 - Default production policy: read-only smoke
@@ -17,7 +17,7 @@ their audited commit or dependency contract has changed.
 | 2 | S02 | Authentication, session, CSRF, logout, verification, and password recovery | A | S00, S01 | STABLE | `docs/qa/structural-audits/S02-auth-session.md` | `fb098a0` |
 | 3 | S03 | Patient core, identity, list/detail, recent views, and categories | A | S00-S02 | STABLE | `docs/qa/structural-audits/S03-patient-core.md` | `d5dd4af` |
 | 4 | S04 | Clinical history, treatment entries, and attribution | A | S03 | STABLE | `docs/qa/structural-audits/S04-clinical-history.md` | `844c8a6` |
-| 5 | S05 | Media upload, image editor, storage, sanitizer, variants, and recovery | A | S03, S04 | NOT STARTED | | — |
+| 5 | S05 | Media upload, image editor, storage, sanitizer, variants, and recovery | A | S03, S04 | STABLE | `docs/qa/structural-audits/S05-media-lifecycle.md` | `3cf5aec` |
 | 6 | S06 | Patient finance, ledger, expenses, UZS/USD, export, and PDF | A | S03, S04 | NOT STARTED | | — |
 | 7 | S07 | Settings, profile, connected accounts, and account security | A | S02 | NOT STARTED | | — |
 | 8 | S08 | Staff, team, permissions, limits, blocking, and access revocation | A | S02, S07 | NOT STARTED | | — |
