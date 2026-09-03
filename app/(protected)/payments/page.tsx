@@ -969,7 +969,7 @@ export default function PaymentsPage() {
                     filter: {
                         patient_id: patientFilterId || undefined,
                         outstanding: showOutstandingOnly ? OUTSTANDING_FILTER_VALUE : undefined,
-                        search: patientSearch.trim() || undefined,
+                        search: effectivePatientSearch || undefined,
                     },
                 });
                 if (page === 1) {
@@ -1052,7 +1052,7 @@ export default function PaymentsPage() {
 
         setIsExporting(true);
         try {
-            const rows = await fetchExpenseExportRows(expenseSearch.trim());
+            const rows = await fetchExpenseExportRows(effectiveExpenseSearch);
 
             if (rows.length === 0) {
                 toast.error(t('export.empty'));

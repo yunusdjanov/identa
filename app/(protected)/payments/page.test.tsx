@@ -489,6 +489,52 @@ describe('PaymentsPage', () => {
         }));
     });
 
+    it('keeps one-character searches consistent between the visible table and PDF export', async () => {
+        renderPage();
+
+        await waitFor(() => {
+            expect(screen.getByText('Jane Doe')).toBeInTheDocument();
+            expect(screen.getByText('John Smith')).toBeInTheDocument();
+        });
+
+        fireEvent.change(screen.getByPlaceholderText('Search patients by name, phone, or patient ID...'), {
+            target: { value: 'J' },
+        });
+        fireEvent.click(screen.getByRole('button', { name: 'Download PDF' }));
+
+        await waitFor(() => {
+            expect(exportRowsToPdf).toHaveBeenCalledTimes(1);
+        });
+        expect(listPaymentLedgerPatients).toHaveBeenCalledWith(expect.objectContaining({
+            page: 1,
+            perPage: 100,
+            filter: expect.objectContaining({ search: undefined }),
+        }));
+        expect(vi.mocked(exportRowsToPdf).mock.calls[0]?.[0].rows).toHaveLength(2);
+
+        vi.mocked(exportRowsToPdf).mockClear();
+        fireEvent.click(screen.getByRole('button', { name: 'Expenses' }));
+        await waitFor(() => {
+            expect(screen.getByText('Materials')).toBeInTheDocument();
+            expect(screen.getByText('Rent')).toBeInTheDocument();
+        });
+
+        fireEvent.change(screen.getByPlaceholderText('Search expenses by title...'), {
+            target: { value: 'M' },
+        });
+        fireEvent.click(screen.getByRole('button', { name: 'Download PDF' }));
+
+        await waitFor(() => {
+            expect(exportRowsToPdf).toHaveBeenCalledTimes(1);
+        });
+        expect(listPaymentExpenses).toHaveBeenCalledWith(expect.objectContaining({
+            page: 1,
+            perPage: 100,
+            filter: { search: undefined },
+        }));
+        expect(vi.mocked(exportRowsToPdf).mock.calls[0]?.[0].rows).toHaveLength(2);
+    });
+
     it('labels a negative remaining summary as advance without a minus sign', async () => {
         patientLedgerRows = [
             {

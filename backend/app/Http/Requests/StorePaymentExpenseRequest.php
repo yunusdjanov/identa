@@ -26,4 +26,21 @@ class StorePaymentExpenseRequest extends FormRequest
             'expense_date' => ['required', 'date'],
         ];
     }
+
+    protected function prepareForValidation(): void
+    {
+        $normalized = [];
+
+        if ($this->has('title') && is_string($this->input('title'))) {
+            $normalized['title'] = trim((string) $this->input('title'));
+        }
+
+        if ($this->has('currency') && is_string($this->input('currency'))) {
+            $normalized['currency'] = strtoupper(trim((string) $this->input('currency')));
+        }
+
+        if ($normalized !== []) {
+            $this->merge($normalized);
+        }
+    }
 }

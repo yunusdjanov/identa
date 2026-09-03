@@ -1559,7 +1559,7 @@ paths:
         - cookieAuth: []
       parameters:
         - $ref: "#/components/parameters/Page"
-        - $ref: "#/components/parameters/PerPage"
+        - $ref: "#/components/parameters/PaymentPerPage"
         - $ref: "#/components/parameters/PaymentSearchFilter"
         - $ref: "#/components/parameters/PatientIdFilter"
         - $ref: "#/components/parameters/OutstandingFilter"
@@ -1585,7 +1585,7 @@ paths:
         - cookieAuth: []
       parameters:
         - $ref: "#/components/parameters/Page"
-        - $ref: "#/components/parameters/PerPage"
+        - $ref: "#/components/parameters/PaymentPerPage"
         - $ref: "#/components/parameters/PaymentSearchFilter"
         - $ref: "#/components/parameters/PatientIdFilter"
         - $ref: "#/components/parameters/OutstandingFilter"
@@ -1610,7 +1610,7 @@ paths:
         - cookieAuth: []
       parameters:
         - $ref: "#/components/parameters/Page"
-        - $ref: "#/components/parameters/PerPage"
+        - $ref: "#/components/parameters/PaymentPerPage"
         - $ref: "#/components/parameters/PaymentSearchFilter"
         - $ref: "#/components/parameters/DateFromFilter"
         - $ref: "#/components/parameters/DateToFilter"
@@ -2271,6 +2271,15 @@ components:
         minimum: 1
         maximum: 100
         default: 15
+    PaymentPerPage:
+      name: per_page
+      in: query
+      description: Finance ledger and expense page size.
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 10
     PatientPerPage:
       name: per_page
       in: query
@@ -3212,6 +3221,33 @@ components:
         patient_secondary_phone:
           type: string
           nullable: true
+        patient_address:
+          type: string
+          nullable: true
+          description: Included when filter[patient_id] requests one patient profile.
+        patient_date_of_birth:
+          type: string
+          format: date
+          nullable: true
+          description: Included when filter[patient_id] requests one patient profile.
+        patient_photo_scan_status:
+          type: string
+          enum: [pending, approved, rejected]
+          nullable: true
+          description: Included when patient profile or photo data is requested.
+        patient_photo_url:
+          type: string
+          nullable: true
+        patient_photo_thumbnail_url:
+          type: string
+          nullable: true
+        patient_photo_preview_url:
+          type: string
+          nullable: true
+        patient_photo_thumbnail_ready:
+          type: boolean
+        patient_photo_preview_ready:
+          type: boolean
         total_debt:
           type: number
         total_paid:

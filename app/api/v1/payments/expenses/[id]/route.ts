@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { forbidden, hasMockPermission, requireAuth } from '../../../_auth';
 import { PAYMENT_EXPENSES } from '../../../_mock-data';
+import { parseExpensePayload } from '../_contract';
 
 interface ExpenseParams {
     params: Promise<{ id: string }>;
@@ -10,6 +11,13 @@ function expenseNotFound() {
     return NextResponse.json(
         { error: { code: 'not_found', message: 'Expense not found.' } },
         { status: 404 }
+    );
+}
+
+function validationFailure(errors: Record<string, string[]>) {
+    return NextResponse.json(
+        { message: 'Validation failed.', errors },
+        { status: 422 }
     );
 }
 
@@ -26,15 +34,15 @@ export async function PUT(request: Request, { params }: ExpenseParams) {
         return expenseNotFound();
     }
 
-    const body = await request.json();
+    const result = parseExpensePayload(await request.json());
+    if (result.errors) {
+        return validationFailure(result.errors);
+    }
+
     const current = PAYMENT_EXPENSES[index];
     const updated = {
         ...current,
-        title: body.title,
-        amount: Number(body.amount ?? 0),
-        quantity: Number(body.quantity ?? 1),
-        currency: body.currency === 'USD' ? 'USD' : 'UZS',
-        expense_date: body.expense_date,
+        ...result.data,
         updated_at: new Date().toISOString(),
     };
 

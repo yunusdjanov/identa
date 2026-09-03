@@ -68,8 +68,9 @@ describe('page loading skeletons', () => {
             expect(screen.getAllByTestId('metric-card-skeleton')).toHaveLength(4);
             expect(screen.getByTestId('ledger-table-skeleton')).toBeInTheDocument();
             expect(screen.getByTestId('payments-outstanding-filter-skeleton')).toBeInTheDocument();
-            expect(screen.getByTestId('payments-ledger-header-skeleton').children).toHaveLength(8);
-            expect(screen.getAllByTestId('payments-ledger-row-skeleton')[0].children).toHaveLength(8);
+            expect(screen.getByTestId('payments-ledger-header-skeleton').children).toHaveLength(9);
+            expect(screen.getAllByTestId('payments-ledger-row-skeleton')[0].children).toHaveLength(9);
+            expect(screen.getByTestId('payments-ledger-scroll-skeleton').parentElement?.children).toHaveLength(2);
         });
 
         it('renders expenses loading with the expense form and compact table', () => {
@@ -85,6 +86,7 @@ describe('page loading skeletons', () => {
             expect(screen.queryByTestId('payments-outstanding-filter-skeleton')).not.toBeInTheDocument();
             expect(screen.getByTestId('payments-ledger-header-skeleton').children).toHaveLength(5);
             expect(screen.getAllByTestId('payments-ledger-row-skeleton')[0].children).toHaveLength(5);
+            expect(screen.getByTestId('payments-ledger-scroll-skeleton').parentElement?.children).toHaveLength(3);
         });
 
         it('renders permission-shaped analytics loading state', () => {
