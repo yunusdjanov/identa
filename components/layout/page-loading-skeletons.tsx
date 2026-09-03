@@ -404,7 +404,7 @@ export function PatientsLoadingState() {
 
 export function PaymentsLoadingState({ tab = 'patients' }: { tab?: 'patients' | 'expenses' } = {}) {
     const isExpensesTab = tab === 'expenses';
-    const ledgerColumnCount = isExpensesTab ? 5 : 8;
+    const ledgerColumnCount = isExpensesTab ? 5 : 9;
 
     // The real page (`app/payments/page.tsx`) keeps the toolbar (tab group +
     // search) AND the ledger table inside ONE `overflow-hidden rounded-2xl`
@@ -446,13 +446,6 @@ export function PaymentsLoadingState({ tab = 'patients' }: { tab?: 'patients' | 
                             <Skeleton className="h-10 rounded-xl" />
                         </div>
                     ) : null}
-                    <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-slate-50/70 p-4">
-                        <div className="space-y-2">
-                            <Skeleton className={`h-5 rounded-xl ${isExpensesTab ? 'w-32' : 'w-36'}`} />
-                            <Skeleton className={`h-4 max-w-full rounded-xl ${isExpensesTab ? 'w-44' : 'w-56'}`} />
-                        </div>
-                        <Skeleton className="h-8 w-28 rounded-full" />
-                    </div>
                     {/* Ledger rows */}
                     <div
                         data-testid="payments-ledger-scroll-skeleton"

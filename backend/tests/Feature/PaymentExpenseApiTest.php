@@ -194,6 +194,33 @@ class PaymentExpenseApiTest extends TestCase
             ->assertJsonValidationErrors(['title', 'amount', 'quantity', 'currency', 'expense_date']);
     }
 
+    public function test_expense_input_is_normalized_before_validation_and_persistence(): void
+    {
+        $dentist = User::factory()->create();
+
+        $this->actingAs($dentist, 'web')
+            ->postJson('/api/v1/payments/expenses', [
+                'title' => '   ',
+                'amount' => 100,
+                'expense_date' => '2026-06-27',
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['title']);
+
+        $this->actingAs($dentist, 'web')
+            ->postJson('/api/v1/payments/expenses', [
+                'title' => '  Implant supplies  ',
+                'amount' => 100,
+                'quantity' => null,
+                'currency' => ' usd ',
+                'expense_date' => '2026-06-27',
+            ])
+            ->assertCreated()
+            ->assertJsonPath('data.title', 'Implant supplies')
+            ->assertJsonPath('data.quantity', 1)
+            ->assertJsonPath('data.currency', PaymentExpense::CURRENCY_USD);
+    }
+
     public function test_expense_list_rejects_invalid_or_unbounded_filters(): void
     {
         $dentist = User::factory()->create();

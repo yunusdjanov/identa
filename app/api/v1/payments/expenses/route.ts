@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { forbidden, hasMockPermission, requireAuth } from '../../_auth';
 import { PAYMENT_EXPENSES } from '../../_mock-data';
+import { isDateKey, parseExpensePayload } from './_contract';
 
 const IDEMPOTENT_EXPENSES = new Map<
     string,
@@ -65,7 +66,12 @@ export async function GET(request: Request) {
     const dateFrom = searchParams.get('filter[date_from]');
     const dateTo = searchParams.get('filter[date_to]');
     const page = Number(searchParams.get('page') ?? 1);
-    const perPage = Number(searchParams.get('per_page') ?? 50);
+    const perPage = Number(searchParams.get('per_page') ?? 10);
+    const includeSummaryValue = searchParams.get('include_summary');
+    const normalizedIncludeSummary = includeSummaryValue?.toLowerCase();
+    const includeSummary = includeSummaryValue === null
+        || normalizedIncludeSummary === '1'
+        || normalizedIncludeSummary === 'true';
     const errors: Record<string, string[]> = {};
     if (!Number.isInteger(page) || page < 1) errors.page = ['Invalid page.'];
     if (!Number.isInteger(perPage) || perPage < 1 || perPage > 100) {
@@ -80,6 +86,12 @@ export async function GET(request: Request) {
     }
     if (dateFrom && dateTo && dateTo < dateFrom) {
         errors['filter.date_to'] = ['End date must not precede start date.'];
+    }
+    if (
+        includeSummaryValue !== null
+        && !['0', '1', 'false', 'true'].includes(normalizedIncludeSummary ?? '')
+    ) {
+        errors.include_summary = ['Invalid include summary flag.'];
     }
     if (Object.keys(errors).length > 0) return validationFailure(errors);
 
@@ -101,7 +113,7 @@ export async function GET(request: Request) {
                 total: filtered.length,
                 total_pages: Math.max(1, Math.ceil(filtered.length / perPage)),
             },
-            summary: expenseSummary(filtered),
+            ...(includeSummary ? { summary: expenseSummary(filtered) } : {}),
         },
     });
 }
@@ -113,33 +125,8 @@ export async function POST(request: Request) {
         return forbidden();
     }
 
-    const body = await request.json();
-    const title = typeof body.title === 'string' ? body.title.trim() : '';
-    const amount = Number(body.amount);
-    const quantity = body.quantity === undefined ? 1 : Number(body.quantity);
-    const currency = body.currency === undefined ? 'UZS' : body.currency;
-    const expenseDate =
-        typeof body.expense_date === 'string' ? body.expense_date : '';
-    const errors: Record<string, string[]> = {};
-    if (title.length < 2 || title.length > 160) {
-        errors.title = ['Title must contain 2 to 160 characters.'];
-    }
-    if (!Number.isFinite(amount) || amount < 0.01 || amount > 99_999_999.99) {
-        errors.amount = ['Invalid amount.'];
-    }
-    if (
-        !Number.isFinite(quantity)
-        || quantity < 0.01
-        || quantity > 999_999.99
-    ) {
-        errors.quantity = ['Invalid quantity.'];
-    }
-    if (currency !== 'UZS' && currency !== 'USD') {
-        errors.currency = ['Unsupported currency.'];
-    }
-    if (!isDateKey(expenseDate)) {
-        errors.expense_date = ['Invalid expense date.'];
-    }
+    const result = parseExpensePayload(await request.json());
+    const errors = result.errors ?? {};
 
     const idempotencyKey = request.headers.get('Idempotency-Key')?.trim() ?? '';
     if (
@@ -150,6 +137,13 @@ export async function POST(request: Request) {
         errors.idempotency_key = ['Invalid idempotency key.'];
     }
     if (Object.keys(errors).length > 0) return validationFailure(errors);
+    const {
+        title,
+        amount,
+        quantity,
+        currency,
+        expense_date: expenseDate,
+    } = result.data!;
 
     const canonicalPayload = JSON.stringify({
         title,
@@ -188,7 +182,7 @@ export async function POST(request: Request) {
         title,
         amount,
         quantity,
-        currency: currency === 'USD' ? 'USD' : 'UZS',
+        currency,
         expense_date: expenseDate,
         created_at: now,
         updated_at: now,
@@ -203,11 +197,4 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.json({ data: expense }, { status: 201 });
-}
-
-function isDateKey(value: string): boolean {
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
-    const parsed = new Date(`${value}T12:00:00Z`);
-    return !Number.isNaN(parsed.getTime())
-        && parsed.toISOString().slice(0, 10) === value;
 }
