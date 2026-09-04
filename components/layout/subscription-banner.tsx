@@ -123,7 +123,7 @@ export function SubscriptionBanner({ locale, subscription, t }: SubscriptionBann
                 banner.tone === 'info' && 'border-teal-200 bg-teal-50'
             )}
         >
-            <div className="mx-auto max-w-[1440px] px-4 py-3 sm:px-6 lg:px-8">
+            <div className="mx-auto max-w-[1600px] px-4 py-3 sm:px-6 lg:px-8">
                 <div className="flex items-start gap-3">
                     <Icon
                         className={cn(

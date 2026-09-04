@@ -127,6 +127,8 @@ describe('AppLayout skeleton header', () => {
 
         expect(container.querySelector('header')).toHaveClass('fixed', 'z-50');
         expect(container.querySelector('header')).toHaveAttribute('data-app-header');
+        expect(container.querySelector('[data-app-header] > div')).toHaveClass('max-w-[1600px]');
+        expect(container.querySelector('main')).toHaveClass('max-w-[1600px]');
         expect(container.querySelector('[data-app-header-spacer]')).toHaveClass('h-[7.5rem]', 'md:h-16');
     });
 
@@ -134,6 +136,7 @@ describe('AppLayout skeleton header', () => {
         const { container } = render(<AdminHeader active="dashboard" onLogout={vi.fn()} />);
 
         expect(container.querySelector('header')).toHaveClass('fixed', 'z-50');
+        expect(container.querySelector('header > div')).toHaveClass('max-w-[1600px]');
         expect(container.querySelector('[data-admin-header-spacer]')).toHaveClass('h-[7.5rem]', 'md:h-16');
     });
 
