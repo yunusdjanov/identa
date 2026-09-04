@@ -107,7 +107,7 @@ export function EmailVerificationBanner() {
 
     return (
         <div className="border-b border-amber-200/80 bg-amber-50">
-            <div className="mx-auto flex max-w-[1440px] flex-col gap-2 px-4 py-2.5 sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-8">
+            <div className="mx-auto flex max-w-[1600px] flex-col gap-2 px-4 py-2.5 sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-8">
                 <div className="flex min-w-0 items-center gap-2.5">
                     <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-700">
                         <MailWarning className="h-3.5 w-3.5" />

@@ -148,7 +148,7 @@ function AdminHeaderSkeleton() {
                 data-testid="admin-header-skeleton"
                 className="fixed inset-x-0 top-0 z-50 border-b border-teal-100/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(248,251,255,0.94)_100%)] shadow-sm shadow-slate-200/40 backdrop-blur-xl"
             >
-                <div className="mx-auto max-w-[1440px] px-3 sm:px-6 lg:px-8">
+                <div className="mx-auto max-w-[1600px] px-3 sm:px-6 lg:px-8">
                     <div className="flex h-14 items-center justify-between gap-3 sm:h-16 sm:gap-4">
                         <Skeleton className="h-8 w-28 rounded-md sm:w-36" />
                         <div className="hidden items-center gap-1 rounded-2xl border border-slate-200/75 bg-white/75 p-1 md:flex">
@@ -177,7 +177,7 @@ function AdminHeaderSkeleton() {
 
 function AdminShellSkeleton({
     children,
-    maxWidth = 'max-w-[1440px]',
+    maxWidth = 'max-w-[1600px]',
     mainClassName = 'px-3 py-3 sm:px-6 sm:py-5 lg:px-8 lg:py-6',
 }: {
     children: ReactNode;
@@ -1199,7 +1199,7 @@ export function AdminPlansPanelSkeleton() {
 
 export function AdminDentistBillingLoadingState() {
     // Mirrors the real page (`app/admin/dentists/[id]/billing/page.tsx`):
-    // - Default max-w-[1440px] container — kept in sync with the dentist-side
+    // - Default max-w-[1600px] container — kept in sync with the dentist-side
     //   and every other admin page so there's no horizontal jump on load.
     // - Back link, dentist identity header with 3 inline metric columns,
     //   plan picker grid, state-management card, danger zone, and an

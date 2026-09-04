@@ -133,7 +133,7 @@ export default function AdminSettingsPage() {
             />
 
         <main id="main-content" tabIndex={-1} className="px-3 py-4 sm:px-6 sm:py-5 lg:px-8 lg:py-6">
-            <div className="mx-auto max-w-[1440px] space-y-5 lg:space-y-6">
+            <div className="mx-auto max-w-[1600px] space-y-5 lg:space-y-6">
                     <PageHeader title={t('admin.settings.title')} description={t('admin.settings.subtitle')} />
 
                     {forceReset ? (

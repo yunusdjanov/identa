@@ -664,7 +664,7 @@ export default function AdminDashboardPage() {
             />
 
             <main id="main-content" tabIndex={-1} className="px-3 py-3 sm:px-6 sm:py-5 lg:px-8 lg:py-6">
-            <div className="mx-auto max-w-[1440px] space-y-5 lg:space-y-6">
+            <div className="mx-auto max-w-[1600px] space-y-5 lg:space-y-6">
                     <PageHeader title={t('admin.dashboardTitle')} description={t('admin.dashboardSubtitle')} />
 
                     <div className="grid grid-cols-1 gap-4 md:grid-cols-3 lg:gap-6">
