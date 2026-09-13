@@ -144,6 +144,15 @@ class AuthSessionTest extends TestCase
             ->assertUnprocessable()
             ->assertJsonValidationErrors('password');
 
+        $this->postJson('/api/v1/auth/login', [
+            'email' => 'dentist@example.com',
+            'password' => 'password123',
+            'device_name' => 'Identa Mobile',
+            'device_id' => str_repeat('d', 129),
+        ], $this->csrfHeaders())
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('device_id');
+
         $this->postJson('/api/v1/auth/forgot-password', [
             'email' => str_repeat('a', 245).'@example.com',
         ], $this->csrfHeaders())
@@ -292,6 +301,124 @@ class AuthSessionTest extends TestCase
             ->getJson('/api/v1/auth/me')
             ->assertOk()
             ->assertJsonPath('data.email', 'mobile-dentist@example.com');
+    }
+
+    public function test_mobile_logins_with_the_same_device_name_remain_independent(): void
+    {
+        User::factory()->create([
+            'email' => 'mobile-multi-device@example.com',
+            'password' => 'password123',
+        ]);
+
+        $firstLogin = $this->postJson('/api/v1/auth/login', [
+            'email' => 'mobile-multi-device@example.com',
+            'password' => 'password123',
+            'device_name' => 'Identa Android',
+        ], $this->csrfHeaders())->assertOk();
+
+        $firstAccessToken = $firstLogin->json('data.tokens.access_token');
+        $firstRefreshToken = $firstLogin->json('data.tokens.refresh_token');
+
+        $secondLogin = $this->postJson('/api/v1/auth/login', [
+            'email' => 'mobile-multi-device@example.com',
+            'password' => 'password123',
+            'device_name' => 'Identa Android',
+        ], $this->csrfHeaders())->assertOk();
+
+        $secondAccessToken = $secondLogin->json('data.tokens.access_token');
+        $secondRefreshToken = $secondLogin->json('data.tokens.refresh_token');
+
+        $this->assertIsString($firstAccessToken);
+        $this->assertIsString($firstRefreshToken);
+        $this->assertIsString($secondAccessToken);
+        $this->assertIsString($secondRefreshToken);
+        $this->assertDatabaseCount('personal_access_tokens', 4);
+
+        Auth::guard('web')->logout();
+        $this->flushSession();
+
+        $this->withHeader('Authorization', "Bearer {$firstAccessToken}")
+            ->getJson('/api/v1/auth/me')
+            ->assertOk();
+
+        $this->withHeader('Authorization', "Bearer {$secondAccessToken}")
+            ->getJson('/api/v1/auth/me')
+            ->assertOk();
+
+        $this->withHeader('Authorization', "Bearer {$firstAccessToken}")
+            ->postJson('/api/v1/auth/logout')
+            ->assertNoContent();
+
+        $this->postJson('/api/v1/auth/refresh', [
+            'refresh_token' => $firstRefreshToken,
+        ])->assertUnauthorized();
+
+        $this->withHeader('Authorization', "Bearer {$secondAccessToken}")
+            ->getJson('/api/v1/auth/me')
+            ->assertOk();
+
+        $this->postJson('/api/v1/auth/refresh', [
+            'refresh_token' => $secondRefreshToken,
+        ])->assertOk();
+    }
+
+    public function test_mobile_relogin_with_a_stable_device_id_replaces_only_that_installation(): void
+    {
+        User::factory()->create([
+            'email' => 'mobile-stable-device@example.com',
+            'password' => 'password123',
+        ]);
+
+        $firstLogin = $this->postJson('/api/v1/auth/login', [
+            'email' => 'mobile-stable-device@example.com',
+            'password' => 'password123',
+            'device_name' => 'Identa iPhone',
+            'device_id' => 'installation-a',
+        ], $this->csrfHeaders())->assertOk();
+
+        $otherDeviceLogin = $this->postJson('/api/v1/auth/login', [
+            'email' => 'mobile-stable-device@example.com',
+            'password' => 'password123',
+            'device_name' => 'Identa iPhone',
+            'device_id' => 'installation-b',
+        ], $this->csrfHeaders())->assertOk();
+
+        $replacementLogin = $this->postJson('/api/v1/auth/login', [
+            'email' => 'mobile-stable-device@example.com',
+            'password' => 'password123',
+            'device_name' => 'Identa iPhone',
+            'device_id' => 'installation-a',
+        ], $this->csrfHeaders())->assertOk();
+
+        $firstAccessToken = $firstLogin->json('data.tokens.access_token');
+        $firstRefreshToken = $firstLogin->json('data.tokens.refresh_token');
+        $otherDeviceAccessToken = $otherDeviceLogin->json('data.tokens.access_token');
+        $replacementAccessToken = $replacementLogin->json('data.tokens.access_token');
+
+        $this->assertIsString($firstAccessToken);
+        $this->assertIsString($firstRefreshToken);
+        $this->assertIsString($otherDeviceAccessToken);
+        $this->assertIsString($replacementAccessToken);
+        $this->assertDatabaseCount('personal_access_tokens', 4);
+
+        Auth::guard('web')->logout();
+        $this->flushSession();
+
+        $this->withHeader('Authorization', "Bearer {$firstAccessToken}")
+            ->getJson('/api/v1/auth/me')
+            ->assertUnauthorized();
+
+        $this->postJson('/api/v1/auth/refresh', [
+            'refresh_token' => $firstRefreshToken,
+        ])->assertUnauthorized();
+
+        $this->withHeader('Authorization', "Bearer {$otherDeviceAccessToken}")
+            ->getJson('/api/v1/auth/me')
+            ->assertOk();
+
+        $this->withHeader('Authorization', "Bearer {$replacementAccessToken}")
+            ->getJson('/api/v1/auth/me')
+            ->assertOk();
     }
 
     public function test_mobile_google_login_can_request_bearer_token(): void
@@ -651,6 +778,35 @@ class AuthSessionTest extends TestCase
             ->getJson('/api/v1/auth/me')
             ->assertOk()
             ->assertJsonPath('data.email', 'mobile-refresh@example.com');
+    }
+
+    public function test_legacy_same_name_mobile_refresh_tokens_migrate_independently(): void
+    {
+        $user = User::factory()->create([
+            'email' => 'legacy-mobile-refresh@example.com',
+            'password' => 'password123',
+        ]);
+
+        $firstRefreshToken = $user->createToken(
+            'Identa Android',
+            ['mobile:refresh'],
+            now()->addDays(30),
+        )->plainTextToken;
+        $secondRefreshToken = $user->createToken(
+            'Identa Android',
+            ['mobile:refresh'],
+            now()->addDays(30),
+        )->plainTextToken;
+
+        $this->postJson('/api/v1/auth/refresh', [
+            'refresh_token' => $firstRefreshToken,
+        ])->assertOk();
+
+        // Rotating one pre-fix token must not invalidate another physical
+        // device that happened to use the same human-readable device name.
+        $this->postJson('/api/v1/auth/refresh', [
+            'refresh_token' => $secondRefreshToken,
+        ])->assertOk();
     }
 
     public function test_mobile_refresh_token_cannot_access_authenticated_api_routes(): void
