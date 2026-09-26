@@ -37,6 +37,8 @@ class AuthController extends Controller
 
     private const MAX_GOOGLE_ID_TOKEN_LENGTH = 8192;
 
+    private const MAX_MOBILE_DEVICE_ID_LENGTH = 128;
+
     private const ADMIN_MIN_PASSWORD_LENGTH = 12;
 
     private const MOBILE_ACCESS_TTL_MINUTES = 15;
@@ -44,6 +46,8 @@ class AuthController extends Controller
     private const MOBILE_REFRESH_TTL_DAYS = 30;
 
     private const MOBILE_REFRESH_ABILITY = 'mobile:refresh';
+
+    private const MOBILE_TOKEN_FAMILY_PREFIX = 'identa-mobile:';
 
     public function __construct(
         private readonly AuditLogger $auditLogger,
@@ -69,13 +73,15 @@ class AuthController extends Controller
         $validated = $request->validate([
             'id_token' => ['required', 'string', 'max:'.self::MAX_GOOGLE_ID_TOKEN_LENGTH],
             'device_name' => ['nullable', 'string', 'max:120'],
+            'device_id' => ['nullable', 'string', 'max:'.self::MAX_MOBILE_DEVICE_ID_LENGTH],
         ]);
         $deviceName = trim((string) ($validated['device_name'] ?? ''));
+        $deviceId = trim((string) ($validated['device_id'] ?? ''));
         $user = $this->auth->google($request, (string) $validated['id_token']);
         $data = $this->transformUser($user);
 
         if ($deviceName !== '') {
-            $data['tokens'] = $this->issueMobileTokens($user, $deviceName);
+            $data['tokens'] = $this->issueMobileTokens($user, $deviceName, $deviceId);
         }
 
         return response()->json([
@@ -116,14 +122,16 @@ class AuthController extends Controller
             'remember' => ['nullable', 'boolean'],
             'portal' => ['nullable', 'string', Rule::in(['app', 'admin'])],
             'device_name' => ['nullable', 'string', 'max:120'],
+            'device_id' => ['nullable', 'string', 'max:'.self::MAX_MOBILE_DEVICE_ID_LENGTH],
         ]);
         $deviceName = trim((string) ($credentials['device_name'] ?? ''));
-        unset($credentials['device_name']);
+        $deviceId = trim((string) ($credentials['device_id'] ?? ''));
+        unset($credentials['device_name'], $credentials['device_id']);
         $user = $this->auth->login($request, $credentials);
         $data = $this->transformUser($user);
 
         if ($deviceName !== '') {
-            $data['tokens'] = $this->issueMobileTokens($user, $deviceName);
+            $data['tokens'] = $this->issueMobileTokens($user, $deviceName, $deviceId);
         }
 
         return response()->json([
@@ -157,11 +165,26 @@ class AuthController extends Controller
 
             /** @var User $user */
             $user = $refreshToken->tokenable;
-            $deviceName = trim((string) $refreshToken->name) ?: 'Identa Mobile';
-            $this->deleteMobileTokensForDevice($user, $deviceName);
+            $currentTokenName = trim((string) $refreshToken->name) ?: 'Identa Mobile';
+            $isTokenFamily = $this->isMobileTokenFamilyName($currentTokenName);
+
+            if ($isTokenFamily) {
+                $this->deleteMobileTokenFamily($user, $currentTokenName);
+            } else {
+                // Legacy tokens used the human-readable device name as their
+                // shared key. Delete only the refresh token being rotated so
+                // another physical device with the same name stays signed in.
+                $refreshToken->delete();
+            }
+
             return [
                 'user' => $user,
-                'tokens' => $this->issueMobileTokens($user, $deviceName, deleteExisting: false),
+                'tokens' => $this->issueMobileTokens(
+                    $user,
+                    $isTokenFamily ? 'Identa Mobile' : $currentTokenName,
+                    tokenFamilyName: $isTokenFamily ? $currentTokenName : null,
+                    deleteExisting: false,
+                ),
             ];
         });
 
@@ -195,7 +218,7 @@ class AuthController extends Controller
 
             $currentToken = $user->currentAccessToken();
             if ($currentToken instanceof PersonalAccessToken) {
-                $this->deleteMobileTokensForDevice($user, (string) $currentToken->name);
+                $this->deleteMobileTokenFamily($user, (string) $currentToken->name);
             } else {
                 // A browser-authenticated request gets Sanctum's transient
                 // token. If it also supplies one of this user's bearer
@@ -209,7 +232,7 @@ class AuthController extends Controller
                     && $token->tokenable instanceof User
                     && $token->tokenable->is($user)
                 ) {
-                    $this->deleteMobileTokensForDevice($token->tokenable, (string) $token->name);
+                    $this->deleteMobileTokenFamily($token->tokenable, (string) $token->name);
                 }
             }
         }
@@ -492,20 +515,33 @@ class AuthController extends Controller
     /**
      * @return array{access_token: string, refresh_token: string, token_type: string, expires_in: int, refresh_expires_in: int}
      */
-    private function issueMobileTokens(User $user, string $deviceName, bool $deleteExisting = true): array
+    private function issueMobileTokens(
+        User $user,
+        string $deviceName,
+        string $deviceId = '',
+        ?string $tokenFamilyName = null,
+        bool $deleteExisting = true,
+    ): array
     {
         $normalizedDeviceName = trim($deviceName) ?: 'Identa Mobile';
+        $normalizedDeviceId = trim($deviceId);
+        $tokenName = $tokenFamilyName
+            ?? $this->mobileTokenFamilyName($normalizedDeviceName, $normalizedDeviceId);
+
         if ($deleteExisting) {
-            $this->deleteMobileTokensForDevice($user, $normalizedDeviceName);
+            // A stable installation id replaces only that installation's old
+            // token pair. Older clients omit it and receive a unique family,
+            // which prevents identical device labels from colliding.
+            $this->deleteMobileTokenFamily($user, $tokenName);
         }
 
         $accessExpiresAt = now()->addMinutes(self::MOBILE_ACCESS_TTL_MINUTES);
         $refreshExpiresAt = now()->addDays(self::MOBILE_REFRESH_TTL_DAYS);
 
         return [
-            'access_token' => $user->createToken($normalizedDeviceName, ['*'], $accessExpiresAt)->plainTextToken,
+            'access_token' => $user->createToken($tokenName, ['*'], $accessExpiresAt)->plainTextToken,
             'refresh_token' => $user->createToken(
-                $normalizedDeviceName,
+                $tokenName,
                 [self::MOBILE_REFRESH_ABILITY],
                 $refreshExpiresAt
             )->plainTextToken,
@@ -515,14 +551,29 @@ class AuthController extends Controller
         ];
     }
 
-    private function deleteMobileTokensForDevice(User $user, string $deviceName): void
+    private function mobileTokenFamilyName(string $deviceName, string $deviceId): string
     {
-        $normalizedDeviceName = trim($deviceName);
-        if ($normalizedDeviceName === '') {
+        $familySource = $deviceId !== '' ? $deviceId : (string) Str::uuid();
+
+        return self::MOBILE_TOKEN_FAMILY_PREFIX
+            .hash('sha256', $familySource)
+            .':'
+            .$deviceName;
+    }
+
+    private function isMobileTokenFamilyName(string $tokenName): bool
+    {
+        return preg_match('/^'.preg_quote(self::MOBILE_TOKEN_FAMILY_PREFIX, '/').'[a-f0-9]{64}:/D', $tokenName) === 1;
+    }
+
+    private function deleteMobileTokenFamily(User $user, string $tokenName): void
+    {
+        $normalizedTokenName = trim($tokenName);
+        if ($normalizedTokenName === '') {
             return;
         }
 
-        $user->tokens()->where('name', $normalizedDeviceName)->delete();
+        $user->tokens()->where('name', $normalizedTokenName)->delete();
     }
 
     /**

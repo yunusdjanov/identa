@@ -3515,6 +3515,10 @@ components:
           type: string
           description: When provided, login also returns a Sanctum bearer token for native mobile clients.
           maxLength: 120
+        device_id:
+          type: string
+          description: Optional stable app-installation identifier. When provided, signing in again replaces only that installation's token pair; other devices remain signed in.
+          maxLength: 128
     RegisterRequest:
       type: object
       required: [name, email, password, password_confirmation]
@@ -3544,6 +3548,10 @@ components:
           type: string
           maxLength: 120
           description: When provided to the public Google endpoint, authentication also returns a native mobile token pair.
+        device_id:
+          type: string
+          maxLength: 128
+          description: Optional stable app-installation identifier used to isolate token rotation to one device.
     ChangePasswordRequest:
       type: object
       required: [new_password, new_password_confirmation]
