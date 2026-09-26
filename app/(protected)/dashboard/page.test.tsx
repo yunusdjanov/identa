@@ -245,6 +245,15 @@ describe('DashboardPage', () => {
         expect(window.location.pathname).toBe('/dashboard');
     });
 
+    it('keeps the planner controls and week grids inside the dashboard density cap', async () => {
+        renderPage();
+
+        expect(await screen.findByTestId('dashboard-workspace')).toBeInTheDocument();
+        expect(screen.getByTestId('appointments-view-toolbar')).toHaveClass('max-w-[1400px]', 'mx-auto');
+        expect(screen.getByTestId('appointments-week-grid-desktop').parentElement?.parentElement).toHaveClass('max-w-[1400px]', 'mx-auto');
+        expect(screen.getByTestId('appointments-week-grid-stacked')).toHaveClass('xl:hidden');
+    });
+
     it('opens quick action dialogs from the dashboard header', async () => {
         renderPage();
 

@@ -63,22 +63,22 @@ export function AccountMenu({
             <DropdownMenuTrigger asChild>
                 <Button
                     variant="ghost"
-                    className="flex h-11 items-center rounded-full border border-transparent bg-transparent px-0 shadow-none ring-0 transition-all hover:bg-transparent lg:space-x-3 lg:rounded-2xl lg:border-slate-200 lg:bg-white lg:px-3.5 lg:shadow-sm lg:shadow-slate-200/80 lg:ring-1 lg:ring-slate-100 lg:hover:border-teal-200 lg:hover:bg-teal-50/70 lg:hover:shadow-md lg:hover:shadow-teal-100/50 focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 lg:focus-visible:border-teal-300 lg:focus-visible:bg-teal-50/70 lg:data-[state=open]:border-teal-300 lg:data-[state=open]:bg-teal-50/80 lg:data-[state=open]:shadow-md"
+                    className="flex h-11 items-center rounded-full border border-transparent bg-transparent px-0 shadow-none ring-0 transition-all hover:bg-transparent lg:max-w-[13rem] lg:space-x-3 lg:rounded-2xl lg:border-slate-200 lg:bg-white lg:px-3.5 lg:shadow-sm lg:shadow-slate-200/80 lg:ring-1 lg:ring-slate-100 lg:hover:border-teal-200 lg:hover:bg-teal-50/70 lg:hover:shadow-md lg:hover:shadow-teal-100/50 focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 lg:focus-visible:border-teal-300 lg:focus-visible:bg-teal-50/70 lg:data-[state=open]:border-teal-300 lg:data-[state=open]:bg-teal-50/80 lg:data-[state=open]:shadow-md xl:max-w-[18rem] 2xl:max-w-[22rem]"
                     aria-label={t('menu.myAccount')}
                 >
-                    <Avatar className="h-8 w-8">
+                    <Avatar className="h-8 w-8 shrink-0">
                         <AvatarFallback className="bg-teal-700 text-sm text-white shadow-sm shadow-teal-200">
                             {avatarLabel}
                         </AvatarFallback>
                     </Avatar>
-                    <div className="hidden text-left lg:block">
-                        <p className="text-sm font-medium text-slate-900">
+                    <div className="hidden min-w-0 text-left lg:block">
+                        <p className="truncate text-sm font-medium text-slate-900" title={`${showDoctorPrefix ? `${t('common.doctorPrefix')} ` : ''}${displayName}`}>
                             {showDoctorPrefix ? `${t('common.doctorPrefix')} ` : ''}
                             {displayName}
                         </p>
-                        {roleLabel ? <p className="text-xs text-slate-500">{roleLabel}</p> : null}
+                        {roleLabel ? <p className="truncate text-xs text-slate-500">{roleLabel}</p> : null}
                     </div>
-                    <ChevronDown className="hidden h-4 w-4 text-slate-500 lg:block" />
+                    <ChevronDown className="hidden h-4 w-4 shrink-0 text-slate-500 lg:block" />
                 </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">

@@ -94,6 +94,66 @@ test.describe('Responsive smoke coverage', () => {
         await expectNoPageHorizontalOverflow(page);
     });
 
+    test('dashboard planner stays balanced at common laptop viewports', async ({ page }, testInfo) => {
+        test.skip(testInfo.project.name !== 'chromium', 'Laptop viewport matrix runs once in desktop Chromium.');
+
+        await loginDentist(page);
+
+        for (const viewport of [
+            { width: 1366, height: 768 },
+            { width: 1440, height: 900 },
+            { width: 1536, height: 864 },
+        ]) {
+            await test.step(`${viewport.width}x${viewport.height}`, async () => {
+                await page.setViewportSize(viewport);
+                await page.goto('/dashboard?view=week');
+
+                await expect(page.getByTestId('dashboard-workspace')).toBeVisible();
+                const toolbar = page.getByTestId('appointments-view-toolbar');
+                const desktopGrid = page.getByTestId('appointments-week-grid-desktop');
+
+                await expect(toolbar).toBeVisible();
+                await expect(desktopGrid).toBeVisible();
+                await expect(page.getByTestId('appointments-week-grid-stacked')).toBeHidden();
+                await expect(desktopGrid.locator(':scope > div')).toHaveCount(7);
+                await expectNoPageHorizontalOverflow(page);
+
+                const measurements = await page.evaluate(() => {
+                    const contentElement = document.querySelector<HTMLElement>('[data-testid="appointments-planner-content"]');
+                    const toolbarElement = document.querySelector<HTMLElement>('[data-testid="appointments-view-toolbar"]');
+                    const gridElement = document.querySelector<HTMLElement>('[data-testid="appointments-week-grid-desktop"]');
+
+                    if (!contentElement || !toolbarElement || !gridElement) {
+                        throw new Error('Dashboard planner elements were not rendered.');
+                    }
+
+                    const contentRect = contentElement.getBoundingClientRect();
+                    const toolbarRect = toolbarElement.getBoundingClientRect();
+                    const gridRect = gridElement.getBoundingClientRect();
+                    const columnWidths = Array.from(gridElement.children).map((column) =>
+                        column.getBoundingClientRect().width
+                    );
+
+                    return {
+                        toolbarWidth: toolbarRect.width,
+                        gridWidth: gridRect.width,
+                        horizontalGutterDifference: Math.abs(
+                            (gridRect.left - contentRect.left) - (contentRect.right - gridRect.right)
+                        ),
+                        minColumnWidth: Math.min(...columnWidths),
+                        maxColumnWidth: Math.max(...columnWidths),
+                    };
+                });
+
+                expect(measurements.gridWidth).toBeLessThanOrEqual(1401);
+                expect(Math.abs(measurements.toolbarWidth - measurements.gridWidth)).toBeLessThanOrEqual(1);
+                expect(measurements.horizontalGutterDifference).toBeLessThanOrEqual(1);
+                expect(measurements.minColumnWidth).toBeGreaterThanOrEqual(160);
+                expect(measurements.maxColumnWidth - measurements.minColumnWidth).toBeLessThanOrEqual(1);
+            });
+        }
+    });
+
     test('admin dashboards stay within the viewport', async ({ page }) => {
         await loginAdmin(page);
 
