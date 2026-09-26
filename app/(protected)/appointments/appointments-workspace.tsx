@@ -1248,7 +1248,7 @@ export function AppointmentsWorkspace({ mode = 'appointments' }: AppointmentsWor
             ) : null}
 
             <Card className="overflow-hidden rounded-2xl border-teal-100/80 bg-white shadow-sm shadow-teal-100/50 sm:rounded-2xl">
-                <CardContent className="p-3 sm:p-5 xl:pb-2.5">
+                <CardContent data-testid="appointments-planner-content" className="p-3 sm:p-5 xl:pb-2.5">
                     <div className="space-y-4">
                         <div
                             data-testid="appointments-view-toolbar"

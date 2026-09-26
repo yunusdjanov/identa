@@ -119,24 +119,27 @@ test.describe('Responsive smoke coverage', () => {
                 await expectNoPageHorizontalOverflow(page);
 
                 const measurements = await page.evaluate(() => {
+                    const contentElement = document.querySelector<HTMLElement>('[data-testid="appointments-planner-content"]');
                     const toolbarElement = document.querySelector<HTMLElement>('[data-testid="appointments-view-toolbar"]');
                     const gridElement = document.querySelector<HTMLElement>('[data-testid="appointments-week-grid-desktop"]');
 
-                    if (!toolbarElement || !gridElement) {
+                    if (!contentElement || !toolbarElement || !gridElement) {
                         throw new Error('Dashboard planner elements were not rendered.');
                     }
 
+                    const contentRect = contentElement.getBoundingClientRect();
                     const toolbarRect = toolbarElement.getBoundingClientRect();
                     const gridRect = gridElement.getBoundingClientRect();
                     const columnWidths = Array.from(gridElement.children).map((column) =>
                         column.getBoundingClientRect().width
                     );
-                    const viewportWidth = document.documentElement.clientWidth;
 
                     return {
                         toolbarWidth: toolbarRect.width,
                         gridWidth: gridRect.width,
-                        centerOffset: Math.abs((gridRect.left + gridRect.right) / 2 - viewportWidth / 2),
+                        horizontalGutterDifference: Math.abs(
+                            (gridRect.left - contentRect.left) - (contentRect.right - gridRect.right)
+                        ),
                         minColumnWidth: Math.min(...columnWidths),
                         maxColumnWidth: Math.max(...columnWidths),
                     };
@@ -144,7 +147,7 @@ test.describe('Responsive smoke coverage', () => {
 
                 expect(measurements.gridWidth).toBeLessThanOrEqual(1401);
                 expect(Math.abs(measurements.toolbarWidth - measurements.gridWidth)).toBeLessThanOrEqual(1);
-                expect(measurements.centerOffset).toBeLessThanOrEqual(2);
+                expect(measurements.horizontalGutterDifference).toBeLessThanOrEqual(1);
                 expect(measurements.minColumnWidth).toBeGreaterThanOrEqual(160);
                 expect(measurements.maxColumnWidth - measurements.minColumnWidth).toBeLessThanOrEqual(1);
             });
