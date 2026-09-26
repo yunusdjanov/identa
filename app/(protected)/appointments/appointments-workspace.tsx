@@ -1107,7 +1107,10 @@ export function AppointmentsWorkspace({ mode = 'appointments' }: AppointmentsWor
     }
 
     return (
-        <div className="space-y-5 lg:space-y-6">
+        <div
+            data-testid={isDashboardMode ? 'dashboard-workspace' : 'appointments-workspace'}
+            className="space-y-5 lg:space-y-6"
+        >
             {!isDashboardMode ? (
                 <PageHeader
                     title={t('appointments.title')}
@@ -1247,8 +1250,11 @@ export function AppointmentsWorkspace({ mode = 'appointments' }: AppointmentsWor
             <Card className="overflow-hidden rounded-2xl border-teal-100/80 bg-white shadow-sm shadow-teal-100/50 sm:rounded-2xl">
                 <CardContent className="p-3 sm:p-5 xl:pb-2.5">
                     <div className="space-y-4">
-                        <div className="flex flex-col gap-3 rounded-2xl border border-teal-100/80 bg-white p-3 shadow-xs md:flex-row md:items-center md:justify-between">
-                            <div className="inline-flex w-full items-center gap-1 rounded-xl border border-slate-200/80 bg-slate-100/70 p-1 shadow-xs sm:w-auto">
+                        <div
+                            data-testid="appointments-view-toolbar"
+                            className="mx-auto grid w-full max-w-[1400px] grid-cols-1 gap-3 rounded-2xl border border-teal-100/80 bg-white p-3 shadow-xs md:grid-cols-[auto_minmax(0,1fr)_auto] md:items-center"
+                        >
+                            <div className="inline-flex w-full items-center gap-1 rounded-xl border border-slate-200/80 bg-slate-100/70 p-1 shadow-xs sm:w-auto md:justify-self-start">
                                 <Button
                                     variant="ghost"
                                     className={`flex-1 rounded-lg sm:flex-none ${
@@ -1287,7 +1293,7 @@ export function AppointmentsWorkspace({ mode = 'appointments' }: AppointmentsWor
                                 </Button>
                             </div>
 
-                            <div className="flex w-full min-w-0 items-center justify-center gap-2 md:w-auto">
+                            <div className="flex w-full min-w-0 items-center justify-center gap-2 md:w-auto md:justify-self-center">
                                 <Button
                                     variant="outline"
                                     size="icon"
@@ -1325,7 +1331,7 @@ export function AppointmentsWorkspace({ mode = 'appointments' }: AppointmentsWor
 
                             <Button
                                 variant="outline"
-                                className="w-full rounded-xl bg-white shadow-xs md:w-auto"
+                                className="w-full rounded-xl bg-white shadow-xs md:w-auto md:justify-self-end"
                                 onClick={() => {
                                     const today = new Date();
                                     setCurrentDateOverride(today);
@@ -1351,7 +1357,7 @@ export function AppointmentsWorkspace({ mode = 'appointments' }: AppointmentsWor
                             </div>
                         ) : null}
 
-                        <div className="border-t border-slate-100 pt-4">
+                        <div className="mx-auto w-full max-w-[1400px] border-t border-slate-100 pt-4">
             {view === 'day' ? (
                             <div className="space-y-4">
                                 <p className="text-lg font-semibold text-slate-900">
@@ -1595,7 +1601,7 @@ export function AppointmentsWorkspace({ mode = 'appointments' }: AppointmentsWor
                             </div>
             ) : (
                             <div className="space-y-3">
-                        <div className="hidden xl:grid xl:grid-cols-7 xl:gap-2.5">
+                        <div data-testid="appointments-week-grid-desktop" className="hidden xl:grid xl:grid-cols-7 xl:gap-2.5">
                             {weekDateDescriptors.map((descriptor) => renderWeekDayCard(descriptor, { compact: true }))}
                         </div>
                         <div className="hidden xl:flex xl:items-center xl:justify-center xl:gap-6 xl:pt-5">
@@ -1616,7 +1622,7 @@ export function AppointmentsWorkspace({ mode = 'appointments' }: AppointmentsWor
                                 <span>{t('status.no_show')}</span>
                             </div>
                         </div>
-                        <div className="space-y-3 xl:hidden">
+                        <div data-testid="appointments-week-grid-stacked" className="space-y-3 xl:hidden">
                             <div className="grid grid-cols-1 items-stretch gap-3 md:grid-cols-2 lg:grid-cols-4">
                                 {weekDateDescriptors.slice(0, 4).map((descriptor) => renderWeekDayCard(descriptor, { includeTestIds: true }))}
                             </div>

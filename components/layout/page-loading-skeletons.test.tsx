@@ -36,16 +36,17 @@ describe('page loading skeletons', () => {
 
             expect(screen.getByTestId('dashboard-loading')).toBeInTheDocument();
             expect(screen.getByTestId('dashboard-planner-skeleton')).toBeInTheDocument();
-            expect(screen.getAllByTestId('dashboard-week-day-skeleton')).toHaveLength(11);
+            expect(screen.getAllByTestId('dashboard-week-day-skeleton')).toHaveLength(14);
         });
 
         it('keeps appointment columns aligned with the xl desktop breakpoint', () => {
             render(<AppointmentsLoadingState />);
 
             const days = screen.getAllByTestId('appointments-week-day-skeleton');
-            expect(days).toHaveLength(11);
+            expect(days).toHaveLength(14);
             expect(days[0].parentElement).toHaveClass('hidden', 'xl:grid', 'xl:grid-cols-7');
-            expect(days[7].parentElement).toHaveClass('md:grid-cols-2', 'lg:grid-cols-4', 'xl:hidden');
+            expect(days[7].parentElement).toHaveClass('md:grid-cols-2', 'lg:grid-cols-4');
+            expect(days[11].parentElement).toHaveClass('md:grid-cols-2', 'lg:grid-cols-3');
         });
 
         it('renders patients loading with filters inside the list card', () => {

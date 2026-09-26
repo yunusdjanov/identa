@@ -200,70 +200,65 @@ function AdminShellSkeleton({
     );
 }
 
-export function RouteDashboardLoadingState() {
+function WeekDayPlannerSkeleton({ testId, compact }: { testId: string; compact: boolean }) {
     return (
-        <div data-testid="dashboard-loading" className="space-y-5 lg:space-y-6">
-            <PageHeaderSkeleton actions={2} />
-            <Card data-testid="dashboard-planner-skeleton" className="overflow-hidden rounded-2xl border-teal-100/80 bg-white shadow-sm shadow-teal-100/50">
-                <CardContent className="space-y-4 p-3 sm:p-5 xl:pb-2.5">
-                    <div className="flex flex-col gap-3 rounded-2xl border border-teal-100/80 bg-white p-3 shadow-xs md:flex-row md:items-center md:justify-between">
-                        <div className="inline-flex w-full items-center gap-1 rounded-xl border border-slate-200/80 bg-slate-100/70 p-1 shadow-xs sm:w-auto">
-                            <Skeleton className="h-9 flex-1 rounded-lg sm:w-24 sm:flex-none" />
-                            <Skeleton className="h-9 flex-1 rounded-lg sm:w-24 sm:flex-none" />
-                        </div>
-                        <div className="flex w-full min-w-0 items-center justify-center gap-2 md:w-auto">
-                            <Skeleton className="h-9 w-9 rounded-xl" />
-                            <Skeleton className="h-9 w-full rounded-xl md:w-64" />
-                            <Skeleton className="h-9 w-9 rounded-xl" />
-                        </div>
-                        <Skeleton className="h-9 w-full rounded-xl md:w-24" />
+        <div
+            data-testid={testId}
+            className={`${compact ? 'h-[20rem]' : 'h-[23.5rem]'} flex flex-col overflow-hidden rounded-lg border border-slate-200/80 bg-white shadow-sm shadow-slate-200/50`}
+        >
+            <div className={`${compact ? 'px-2.5 py-1.5' : 'px-3 py-2.5'} flex items-center justify-between gap-2 border-b border-slate-100 bg-slate-50/80`}>
+                <Skeleton className={compact ? 'h-4 w-16 rounded-xl' : 'h-5 w-24 rounded-xl'} />
+                <Skeleton className="h-5 w-7 rounded-full" />
+            </div>
+            <div className={`${compact ? 'p-1' : 'gap-2 p-2'} flex min-h-0 flex-1 flex-col`}>
+                <div className={`${compact ? 'h-[15rem]' : 'h-[16.5rem]'} rounded-md border border-dashed border-teal-100/70 bg-slate-50/60 p-2`}>
+                    <div className="space-y-1.5">
+                        <Skeleton className={compact ? 'h-6 w-full rounded-md' : 'h-8 w-full rounded-md'} />
+                        <Skeleton className={compact ? 'h-6 w-11/12 rounded-md' : 'h-8 w-11/12 rounded-md'} />
+                        <Skeleton className={compact ? 'h-6 w-4/5 rounded-md' : 'h-8 w-4/5 rounded-md'} />
                     </div>
-                    <div className="border-t border-slate-100 pt-4">
-                        <div className="hidden xl:grid xl:grid-cols-7 xl:gap-2.5">
-                            {Array.from({ length: 7 }).map((_, index) => (
-                                <div
-                                    key={index}
-                                    data-testid="dashboard-week-day-skeleton"
-                                    className="min-h-[18rem] rounded-2xl border border-slate-200/80 bg-white p-2 shadow-sm shadow-slate-200/50"
-                                >
-                                    <div className="mb-2 flex items-center justify-between gap-2">
-                                        <div className="flex items-center gap-2">
-                                            <Skeleton className="h-4 w-8 rounded-xl" />
-                                            <Skeleton className="h-5 w-12 rounded-xl" />
-                                        </div>
-                                        <Skeleton className="h-6 w-7 rounded-full" />
-                                    </div>
-                                    <div className="min-h-[13rem] rounded-2xl border border-dashed border-teal-100/70 bg-slate-50/60 p-2">
-                                        <div className="space-y-1.5">
-                                            <Skeleton className="h-8 w-full rounded-xl" />
-                                            <Skeleton className="h-8 w-11/12 rounded-xl" />
-                                            <Skeleton className="h-8 w-4/5 rounded-xl" />
-                                        </div>
-                                    </div>
-                                    <Skeleton className="mt-2 h-8 w-full rounded-xl" />
-                                </div>
-                            ))}
-                        </div>
-                        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:hidden">
+                </div>
+                <Skeleton className={`${compact ? 'mt-auto h-6' : 'mt-auto h-8'} w-full rounded-md`} />
+            </div>
+        </div>
+    );
+}
+
+function AppointmentsPlannerSkeleton({ dayTestId }: { dayTestId: string }) {
+    return (
+        <>
+            <div className="mx-auto grid w-full max-w-[1400px] grid-cols-1 gap-3 rounded-2xl border border-teal-100/80 bg-white p-3 shadow-xs md:grid-cols-[auto_minmax(0,1fr)_auto] md:items-center">
+                <div className="inline-flex w-full items-center gap-1 rounded-xl border border-slate-200/80 bg-slate-100/70 p-1 shadow-xs sm:w-auto md:justify-self-start">
+                    <Skeleton className="h-9 flex-1 rounded-lg sm:w-24 sm:flex-none" />
+                    <Skeleton className="h-9 flex-1 rounded-lg sm:w-24 sm:flex-none" />
+                </div>
+                <div className="flex w-full min-w-0 items-center justify-center gap-2 md:w-auto md:justify-self-center">
+                    <Skeleton className="h-9 w-9 shrink-0 rounded-xl" />
+                    <Skeleton className="h-9 w-full rounded-xl md:w-64" />
+                    <Skeleton className="h-9 w-9 shrink-0 rounded-xl" />
+                </div>
+                <Skeleton className="h-9 w-full rounded-xl md:w-24 md:justify-self-end" />
+            </div>
+            <div className="mx-auto w-full max-w-[1400px] border-t border-slate-100 pt-4">
+                <div className="space-y-3">
+                    <div className="hidden xl:grid xl:grid-cols-7 xl:gap-2.5">
+                        {Array.from({ length: 7 }).map((_, index) => (
+                            <WeekDayPlannerSkeleton key={`desktop-${index}`} testId={dayTestId} compact />
+                        ))}
+                    </div>
+                    <div className="space-y-3 xl:hidden">
+                        <div className="grid grid-cols-1 items-stretch gap-3 md:grid-cols-2 lg:grid-cols-4">
                             {Array.from({ length: 4 }).map((_, index) => (
-                                <div
-                                    key={index}
-                                    data-testid="dashboard-week-day-skeleton"
-                                    className="min-h-[14rem] rounded-2xl border border-slate-200/80 bg-white p-3 shadow-sm shadow-slate-200/50"
-                                >
-                                    <div className="mb-3 flex items-center justify-between">
-                                        <Skeleton className="h-5 w-20 rounded-xl" />
-                                        <Skeleton className="h-6 w-7 rounded-full" />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Skeleton className="h-9 w-full rounded-xl" />
-                                        <Skeleton className="h-9 w-10/12 rounded-xl" />
-                                    </div>
-                                </div>
+                                <WeekDayPlannerSkeleton key={`stacked-primary-${index}`} testId={dayTestId} compact={false} />
+                            ))}
+                        </div>
+                        <div className="grid grid-cols-1 items-stretch gap-3 md:grid-cols-2 lg:mx-auto lg:max-w-[calc(((100%-0.75rem*3)/4)*3+0.75rem*2)] lg:grid-cols-3">
+                            {Array.from({ length: 3 }).map((_, index) => (
+                                <WeekDayPlannerSkeleton key={`stacked-secondary-${index}`} testId={dayTestId} compact={false} />
                             ))}
                         </div>
                     </div>
-                    <div className="hidden items-center justify-center gap-6 pt-1 xl:flex">
+                    <div className="hidden items-center justify-center gap-6 pt-5 xl:flex">
                         {Array.from({ length: 4 }).map((_, index) => (
                             <div key={index} className="flex items-center gap-2">
                                 <Skeleton className="h-2.5 w-2.5 rounded-full" />
@@ -271,6 +266,19 @@ export function RouteDashboardLoadingState() {
                             </div>
                         ))}
                     </div>
+                </div>
+            </div>
+        </>
+    );
+}
+
+export function RouteDashboardLoadingState() {
+    return (
+        <div data-testid="dashboard-loading" className="space-y-5 lg:space-y-6">
+            <PageHeaderSkeleton actions={2} />
+            <Card data-testid="dashboard-planner-skeleton" className="overflow-hidden rounded-2xl border-teal-100/80 bg-white shadow-sm shadow-teal-100/50">
+                <CardContent className="space-y-4 p-3 sm:p-5 xl:pb-2.5">
+                    <AppointmentsPlannerSkeleton dayTestId="dashboard-week-day-skeleton" />
                 </CardContent>
             </Card>
         </div>
@@ -280,46 +288,10 @@ export function RouteDashboardLoadingState() {
 export function AppointmentsLoadingState() {
     return (
         <div className="space-y-5 lg:space-y-6">
-            <PageHeaderSkeleton actions={1} />
-            <Card className="rounded-2xl border-teal-100/80 bg-white shadow-sm">
-                <CardContent className="space-y-4 p-3 sm:p-5">
-                    <div className="flex flex-col gap-3 rounded-2xl border border-teal-100/80 bg-teal-50/30 p-3 md:flex-row md:items-center md:justify-between">
-                        <div className="flex gap-2">
-                            <Skeleton className="h-10 w-24 rounded-lg" />
-                            <Skeleton className="h-10 w-24 rounded-lg" />
-                        </div>
-                        <Skeleton className="h-10 w-full rounded-xl md:w-64" />
-                        <Skeleton className="h-10 w-full rounded-xl md:w-24" />
-                    </div>
-                    <div className="hidden xl:grid xl:grid-cols-7 xl:gap-2.5">
-                        {Array.from({ length: 7 }).map((_, index) => (
-                            <div key={index} data-testid="appointments-week-day-skeleton" className="min-h-[15rem] rounded-2xl border border-slate-100 bg-slate-50/70 p-2">
-                                <div className="mb-2 flex items-center justify-between">
-                                    <Skeleton className="h-5 w-16 rounded-xl" />
-                                    <Skeleton className="h-5 w-7 rounded-full" />
-                                </div>
-                                <div className="space-y-1.5">
-                                    <Skeleton className="h-8 w-full rounded-lg" />
-                                    <Skeleton className="h-8 w-full rounded-lg" />
-                                    <Skeleton className="h-8 w-4/5 rounded-lg" />
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                    <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-4 xl:hidden">
-                        {Array.from({ length: 4 }).map((_, index) => (
-                            <div key={index} data-testid="appointments-week-day-skeleton" className="min-h-[14rem] rounded-2xl border border-slate-100 bg-slate-50/70 p-3">
-                                <div className="mb-3 flex items-center justify-between">
-                                    <Skeleton className="h-5 w-20 rounded-xl" />
-                                    <Skeleton className="h-6 w-7 rounded-full" />
-                                </div>
-                                <div className="space-y-2">
-                                    <Skeleton className="h-9 w-full rounded-xl" />
-                                    <Skeleton className="h-9 w-10/12 rounded-xl" />
-                                </div>
-                            </div>
-                        ))}
-                    </div>
+            <PageHeaderSkeleton actions={2} />
+            <Card className="overflow-hidden rounded-2xl border-teal-100/80 bg-white shadow-sm shadow-teal-100/50">
+                <CardContent className="space-y-4 p-3 sm:p-5 xl:pb-2.5">
+                    <AppointmentsPlannerSkeleton dayTestId="appointments-week-day-skeleton" />
                 </CardContent>
             </Card>
         </div>
