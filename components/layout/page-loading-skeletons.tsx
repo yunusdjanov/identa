@@ -16,9 +16,14 @@ function PageHeaderSkeleton({ actions = 1, eyebrow = false }: { actions?: number
                     <Skeleton className="h-3.5 w-52 max-w-full rounded-xl sm:w-72" />
                 </div>
                 {actions > 0 ? (
-                    <div className="flex w-full min-w-0 flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:justify-end">
+                    <div className={actions === 3
+                        ? 'grid w-full min-w-0 grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-wrap sm:justify-end'
+                        : 'flex w-full min-w-0 flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:justify-end'}>
                         {Array.from({ length: actions }).map((_, index) => (
-                            <Skeleton key={index} className="h-9 w-full rounded-xl sm:w-28" />
+                            <Skeleton
+                                key={index}
+                                className={`${actions === 3 && index === actions - 1 ? 'col-span-2' : ''} h-10 w-full rounded-xl sm:h-9 sm:w-28`}
+                            />
                         ))}
                     </div>
                 ) : null}
@@ -84,7 +89,7 @@ function DataTableSkeleton({
             </CardHeader>
             <CardContent className="px-4 pb-5 sm:px-5">
                 {mobileCards ? (
-                    <div data-testid="data-table-mobile-cards-skeleton" className="grid gap-3 md:hidden">
+                    <div data-testid="data-table-mobile-cards-skeleton" className="grid gap-3 lg:hidden">
                         {Array.from({ length: Math.min(rows, 4) }).map((_, rowIndex) => (
                             <div key={rowIndex} className="space-y-3 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm">
                                 <div className="flex items-start justify-between gap-3">
@@ -104,7 +109,7 @@ function DataTableSkeleton({
                 ) : null}
                 <div
                     data-testid="data-table-scroll-skeleton"
-                    className={mobileCards ? 'hidden min-w-0 max-w-full overflow-x-auto rounded-2xl border border-slate-200/80 md:block' : 'min-w-0 max-w-full overflow-x-auto rounded-2xl border border-slate-200/80'}
+                    className={mobileCards ? 'hidden min-w-0 max-w-full overflow-x-auto rounded-2xl border border-slate-200/80 lg:block' : 'min-w-0 max-w-full overflow-x-auto rounded-2xl border border-slate-200/80'}
                 >
                     <div
                         className="grid min-w-[680px] gap-3 bg-slate-50/80 px-4 py-3"
@@ -149,7 +154,7 @@ function AdminHeaderSkeleton() {
                 className="fixed inset-x-0 top-0 z-50 border-b border-teal-100/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(248,251,255,0.94)_100%)] shadow-sm shadow-slate-200/40 backdrop-blur-xl"
             >
                 <div className="mx-auto max-w-[1600px] px-3 sm:px-6 lg:px-8">
-                    <div className="flex h-14 items-center justify-between gap-3 sm:h-16 sm:gap-4">
+                    <div className="flex h-12 items-center justify-between gap-3 sm:h-16 sm:gap-4">
                         <Skeleton className="h-8 w-28 rounded-md sm:w-36" />
                         <div className="hidden items-center gap-1 rounded-2xl border border-slate-200/75 bg-white/75 p-1 md:flex">
                             {Array.from({ length: 4 }).map((_, index) => (
@@ -163,14 +168,14 @@ function AdminHeaderSkeleton() {
                     </div>
                 </div>
                 <div className="border-t border-slate-200/70 bg-white md:hidden">
-                    <div className="flex gap-1 overflow-x-auto overflow-y-hidden px-2 py-2 no-scrollbar">
+                    <div className="flex gap-1 overflow-x-auto overflow-y-hidden px-2 py-1 no-scrollbar">
                         {Array.from({ length: 4 }).map((_, index) => (
                             <Skeleton key={index} className="h-10 w-28 shrink-0 rounded-xl" />
                         ))}
                     </div>
                 </div>
             </header>
-            <div data-testid="admin-header-spacer-skeleton" aria-hidden="true" className="h-[7.5rem] md:h-16" />
+            <div data-testid="admin-header-spacer-skeleton" aria-hidden="true" className="h-24 md:h-16" />
         </>
     );
 }
@@ -218,7 +223,7 @@ function WeekDayPlannerSkeleton({ testId, compact }: { testId: string; compact: 
                         <Skeleton className={compact ? 'h-6 w-4/5 rounded-md' : 'h-8 w-4/5 rounded-md'} />
                     </div>
                 </div>
-                <Skeleton className={`${compact ? 'mt-auto h-6' : 'mt-auto h-8'} w-full rounded-md`} />
+                <Skeleton className={`${compact ? 'mt-auto h-6' : 'mt-auto h-10 lg:h-8'} w-full rounded-md`} />
             </div>
         </div>
     );
@@ -246,7 +251,15 @@ function AppointmentsPlannerSkeleton({ dayTestId }: { dayTestId: string }) {
                             <WeekDayPlannerSkeleton key={`desktop-${index}`} testId={dayTestId} compact />
                         ))}
                     </div>
-                    <div className="space-y-3 xl:hidden">
+                    <div className="space-y-3 lg:hidden">
+                        <div className="grid grid-cols-7 gap-1 rounded-xl border border-slate-200/80 bg-slate-50/80 p-1">
+                            {Array.from({ length: 7 }).map((_, index) => (
+                                <Skeleton key={`mobile-selector-${index}`} className="h-14 rounded-lg" />
+                            ))}
+                        </div>
+                        <WeekDayPlannerSkeleton testId={dayTestId} compact={false} />
+                    </div>
+                    <div className="hidden space-y-3 lg:block xl:hidden">
                         <div className="grid grid-cols-1 items-stretch gap-3 md:grid-cols-2 lg:grid-cols-4">
                             {Array.from({ length: 4 }).map((_, index) => (
                                 <WeekDayPlannerSkeleton key={`stacked-primary-${index}`} testId={dayTestId} compact={false} />
@@ -320,9 +333,28 @@ export function PatientsLoadingState() {
                     </div>
                 </CardHeader>
                 <CardContent className="space-y-4 px-4 pb-5 sm:px-5">
+                    <div data-testid="patients-mobile-list-skeleton" className="grid gap-3 lg:hidden">
+                        {Array.from({ length: 4 }).map((_, index) => (
+                            <div key={index} className="rounded-2xl border border-slate-200/80 bg-white p-3 shadow-sm">
+                                <div className="flex gap-3">
+                                    <Skeleton className="h-16 w-16 shrink-0 rounded-xl" />
+                                    <div className="min-w-0 flex-1 space-y-2">
+                                        <Skeleton className="h-5 w-3/4 rounded-xl" />
+                                        <Skeleton className="h-4 w-2/3 rounded-xl" />
+                                        <Skeleton className="h-5 w-24 rounded-full" />
+                                    </div>
+                                </div>
+                                <div className="mt-3 grid grid-cols-2 gap-2 border-t border-slate-100 pt-3">
+                                    <Skeleton className="h-14 rounded-xl" />
+                                    <Skeleton className="h-14 rounded-xl" />
+                                </div>
+                                <Skeleton className="mt-3 h-11 w-full rounded-xl" />
+                            </div>
+                        ))}
+                    </div>
                     <div
                         data-testid="patients-table-shell-skeleton"
-                        className="min-w-0 max-w-full overflow-x-auto rounded-2xl border border-slate-200/80 bg-white shadow-sm shadow-slate-200/50"
+                        className="hidden min-w-0 max-w-full overflow-x-auto rounded-2xl border border-slate-200/80 bg-white shadow-sm shadow-slate-200/50 lg:block"
                     >
                         <div
                             data-testid="patients-table-header-skeleton"
@@ -419,9 +451,29 @@ export function PaymentsLoadingState({ tab = 'patients' }: { tab?: 'patients' | 
                         </div>
                     ) : null}
                     {/* Ledger rows */}
+                    <div data-testid="payments-mobile-list-skeleton" className="grid gap-3 lg:hidden">
+                        {Array.from({ length: 4 }).map((_, rowIndex) => (
+                            <div key={rowIndex} className="rounded-2xl border border-slate-200/80 bg-white p-3 shadow-sm">
+                                <div className="flex items-start gap-3">
+                                    {isExpensesTab ? null : <Skeleton className="h-16 w-16 shrink-0 rounded-xl" />}
+                                    <div className="min-w-0 flex-1 space-y-2">
+                                        <Skeleton className="h-5 w-3/4 rounded-xl" />
+                                        <Skeleton className="h-4 w-1/2 rounded-xl" />
+                                    </div>
+                                    <Skeleton className="h-5 w-20 shrink-0 rounded-xl" />
+                                </div>
+                                <div className="mt-3 grid grid-cols-3 gap-2 border-t border-slate-100 pt-3">
+                                    <Skeleton className="h-14 rounded-xl" />
+                                    <Skeleton className="h-14 rounded-xl" />
+                                    <Skeleton className="h-14 rounded-xl" />
+                                </div>
+                                <Skeleton className="mt-3 h-11 w-full rounded-xl" />
+                            </div>
+                        ))}
+                    </div>
                     <div
                         data-testid="payments-ledger-scroll-skeleton"
-                        className="min-w-0 max-w-full overflow-x-auto rounded-2xl border border-slate-200/80 bg-white"
+                        className="hidden min-w-0 max-w-full overflow-x-auto rounded-2xl border border-slate-200/80 bg-white lg:block"
                     >
                         <div
                             className="grid min-w-[760px] gap-3 bg-slate-50/80 px-4 py-3"
@@ -545,7 +597,25 @@ export function BillingLoadingState() {
                     </div>
                 </CardHeader>
                 <CardContent className="p-0">
-                    <div className="overflow-x-auto">
+                    <div data-testid="billing-payments-mobile-list-skeleton" className="grid gap-3 p-3 lg:hidden">
+                        {Array.from({ length: 4 }).map((_, index) => (
+                            <div key={index} className="rounded-2xl border border-slate-200/80 bg-white p-3 shadow-sm">
+                                <div className="flex items-start gap-3">
+                                    <Skeleton className="h-10 w-10 shrink-0 rounded-xl" />
+                                    <div className="min-w-0 flex-1 space-y-2">
+                                        <Skeleton className="h-4 w-28 rounded-xl" />
+                                        <Skeleton className="h-3 w-20 rounded-xl" />
+                                    </div>
+                                    <Skeleton className="h-5 w-24 shrink-0 rounded-xl" />
+                                </div>
+                                <div className="mt-3 flex justify-between border-t border-slate-100 pt-3">
+                                    <Skeleton className="h-6 w-20 rounded-full" />
+                                    <Skeleton className="h-4 w-28 rounded-xl" />
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                    <div className="hidden overflow-x-auto lg:block">
                         <div className="grid min-w-[640px] grid-cols-5 gap-3 bg-slate-50/50 px-5 py-3">
                             {Array.from({ length: 5 }).map((_, index) => (
                                 <Skeleton key={index} className="h-3 w-full rounded-xl" />
@@ -643,10 +713,10 @@ function PatientDetailHeaderSkeleton() {
                         <Skeleton className="h-5 w-16 rounded-full" />
                     </div>
                 </div>
-                <div className="grid h-auto min-w-0 grid-rows-[auto_auto_auto] gap-1.5 overflow-visible rounded-2xl border border-slate-100 bg-slate-50/60 px-2.5 py-2 shadow-sm shadow-slate-200/40 md:h-[8rem] md:grid-rows-[1fr_auto_1fr] md:overflow-hidden lg:col-span-2 lg:row-start-2 xl:col-span-1 xl:col-start-2 xl:row-start-1">
-                    <div className="grid min-h-0 min-w-0 items-center gap-1.5 md:grid-cols-3">
+                <div className="order-3 grid h-auto min-w-0 grid-rows-[auto_auto_auto] gap-1.5 overflow-visible rounded-2xl border border-slate-100 bg-slate-50/60 px-2.5 py-2 shadow-sm shadow-slate-200/40 md:h-[8rem] md:grid-rows-[1fr_auto_1fr] md:overflow-hidden lg:order-none lg:col-span-2 lg:row-start-2 xl:col-span-1 xl:col-start-2 xl:row-start-1">
+                    <div className="grid min-h-0 min-w-0 grid-cols-2 items-center gap-1.5 md:grid-cols-3">
                         {Array.from({ length: 3 }).map((_, index) => (
-                            <div key={index} className="flex h-11 min-w-0 items-center gap-2 overflow-hidden rounded-xl border border-white/80 bg-white/75 px-2.5 py-1.5">
+                            <div key={index} className={`${index === 0 ? 'col-span-2 md:col-span-1' : ''} flex h-11 min-w-0 items-center gap-2 overflow-hidden rounded-xl border border-white/80 bg-white/75 px-2.5 py-1.5`}>
                                 <Skeleton className="h-7 w-7 shrink-0 rounded-lg" />
                                 <Skeleton className={index === 2 ? 'h-4 w-32 max-w-full rounded-xl' : 'h-4 w-24 max-w-full rounded-xl'} />
                             </div>
@@ -662,7 +732,7 @@ function PatientDetailHeaderSkeleton() {
                         ))}
                     </div>
                 </div>
-                <div className="flex flex-col items-end gap-2 lg:col-start-2 lg:row-start-1 lg:justify-end xl:col-start-3">
+                <div className="order-2 flex flex-row flex-wrap items-center justify-end gap-2 border-t border-slate-100 pt-2 lg:order-none lg:col-start-2 lg:row-start-1 lg:border-0 lg:pt-0 xl:col-start-3">
                     {Array.from({ length: 3 }).map((_, index) => (
                         <Skeleton key={index} className="h-10 w-10 rounded-full" />
                     ))}
@@ -712,9 +782,9 @@ function TreatmentHistoryPanelSkeleton({ testId }: { testId?: string } = {}) {
                                     </div>
                                     <Skeleton className="h-8 w-16 rounded-lg" />
                                 </div>
-                                <div className="mb-3 flex gap-2 overflow-hidden">
-                                    {Array.from({ length: 3 }).map((__, imageIndex) => (
-                                        <Skeleton key={imageIndex} className="h-24 w-40 shrink-0 rounded-xl lg:h-28 lg:w-48" />
+                                <div className="mb-3 grid grid-cols-2 gap-2 md:grid-cols-3">
+                                    {Array.from({ length: 4 }).map((__, imageIndex) => (
+                                        <Skeleton key={imageIndex} className="h-28 min-w-0 rounded-xl sm:h-36 lg:h-40" />
                                     ))}
                                 </div>
                                 <Skeleton className="mb-3 h-4 w-full max-w-lg rounded-xl" />
@@ -756,13 +826,13 @@ export function PatientDetailLoadingState() {
                     </div>
                     <div
                         data-testid="patient-detail-header-facts-skeleton"
-                        className="grid h-auto min-w-0 grid-rows-[auto_auto_auto] gap-1.5 overflow-visible rounded-2xl border border-slate-100 bg-slate-50/60 px-2.5 py-2 shadow-sm shadow-slate-200/40 md:h-[8rem] md:grid-rows-[1fr_auto_1fr] md:overflow-hidden lg:col-span-2 lg:row-start-2 xl:col-span-1 xl:col-start-2 xl:row-start-1"
+                        className="order-3 grid h-auto min-w-0 grid-rows-[auto_auto_auto] gap-1.5 overflow-visible rounded-2xl border border-slate-100 bg-slate-50/60 px-2.5 py-2 shadow-sm shadow-slate-200/40 md:h-[8rem] md:grid-rows-[1fr_auto_1fr] md:overflow-hidden lg:order-none lg:col-span-2 lg:row-start-2 xl:col-span-1 xl:col-start-2 xl:row-start-1"
                     >
-                        <div className="grid min-h-0 min-w-0 items-center gap-1.5 md:grid-cols-3">
+                        <div className="grid min-h-0 min-w-0 grid-cols-2 items-center gap-1.5 md:grid-cols-3">
                             {Array.from({ length: 3 }).map((_, index) => (
                                 <div
                                     key={index}
-                                    className="flex h-11 min-w-0 items-center gap-2 overflow-hidden rounded-xl border border-white/80 bg-white/75 px-2.5 py-1.5"
+                                    className={`${index === 0 ? 'col-span-2 md:col-span-1' : ''} flex h-11 min-w-0 items-center gap-2 overflow-hidden rounded-xl border border-white/80 bg-white/75 px-2.5 py-1.5`}
                                 >
                                     <Skeleton className="h-7 w-7 shrink-0 rounded-lg" />
                                     <Skeleton
@@ -790,7 +860,7 @@ export function PatientDetailLoadingState() {
                     </div>
                     <div
                         data-testid="patient-detail-header-actions-skeleton"
-                        className="flex flex-col items-end gap-2 lg:col-start-2 lg:row-start-1 lg:justify-end xl:col-start-3"
+                        className="order-2 flex flex-row flex-wrap items-center justify-end gap-2 border-t border-slate-100 pt-2 lg:order-none lg:col-start-2 lg:row-start-1 lg:border-0 lg:pt-0 xl:col-start-3"
                     >
                         <Skeleton className="h-10 w-10 rounded-full" />
                         <Skeleton className="h-10 w-10 rounded-full" />
@@ -806,7 +876,7 @@ export function PatientDetailLoadingState() {
             >
                 <div
                     data-testid="patient-detail-oral-photo-skeleton"
-                    className="flex h-[20.75rem] min-w-0 flex-col overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm shadow-slate-100/80"
+                    className="flex min-h-0 min-w-0 flex-col overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm shadow-slate-100/80 lg:h-[20.75rem]"
                 >
                     <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-4 py-1.5">
                         <div className="flex min-w-0 items-center gap-2.5">
@@ -815,8 +885,8 @@ export function PatientDetailLoadingState() {
                         </div>
                         <Skeleton className="h-5 w-12 shrink-0 rounded-full" />
                     </div>
-                    <div className="grid flex-1 grid-cols-2 grid-rows-5 gap-2.5 px-4 py-3 sm:grid-cols-5 sm:grid-rows-2">
-                        {Array.from({ length: 10 }).map((_, index) => (
+                    <div className="grid flex-1 auto-rows-[5.5rem] grid-cols-2 gap-2.5 px-4 py-3 sm:grid-cols-3 md:grid-cols-4 lg:auto-rows-auto lg:grid-cols-5 lg:grid-rows-2">
+                        {Array.from({ length: 5 }).map((_, index) => (
                             <Skeleton
                                 key={index}
                                 data-testid="patient-detail-oral-photo-slot-skeleton"
@@ -825,7 +895,7 @@ export function PatientDetailLoadingState() {
                         ))}
                     </div>
                 </div>
-                <div className="flex h-[20.75rem] flex-col overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm shadow-slate-100/80">
+                <div className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm shadow-slate-100/80 lg:h-[20.75rem]">
                     <div className="flex items-center gap-2.5 border-b border-slate-100 px-4 py-1.5">
                         <Skeleton className="h-7 w-7 shrink-0 rounded-lg" />
                         <Skeleton className="h-[14px] w-32 rounded-xl" />
@@ -879,7 +949,22 @@ export function PaymentPatientLoadingState() {
                     </div>
                     <Skeleton className="h-10 w-10 shrink-0 self-end rounded-full xl:col-start-3 xl:justify-self-end xl:self-auto" />
                 </div>
-                <div data-testid="payment-patient-table-skeleton" className="min-w-0 max-w-full overflow-x-auto rounded-2xl border border-slate-200/80 bg-white">
+                <div data-testid="payment-patient-mobile-list-skeleton" className="grid gap-3 lg:hidden">
+                    {Array.from({ length: 4 }).map((_, rowIndex) => (
+                        <div key={rowIndex} className="rounded-2xl border border-slate-200/80 bg-white p-3 shadow-sm">
+                            <div className="flex items-start justify-between gap-3">
+                                <Skeleton className="h-5 w-2/3 rounded-xl" />
+                                <Skeleton className="h-7 w-20 shrink-0 rounded-lg" />
+                            </div>
+                            <div className="mt-3 grid grid-cols-3 gap-2 border-t border-slate-100 pt-3">
+                                <Skeleton className="h-14 rounded-xl" />
+                                <Skeleton className="h-14 rounded-xl" />
+                                <Skeleton className="h-14 rounded-xl" />
+                            </div>
+                        </div>
+                    ))}
+                </div>
+                <div data-testid="payment-patient-table-skeleton" className="hidden min-w-0 max-w-full overflow-x-auto rounded-2xl border border-slate-200/80 bg-white lg:block">
                     <div className="grid min-w-[680px] grid-cols-5 gap-3 bg-slate-50/80 px-4 py-3">
                         {Array.from({ length: 5 }).map((_, index) => (
                             <Skeleton key={index} className="h-4 w-full rounded-xl" />
@@ -1091,7 +1176,27 @@ export function AdminDashboardLoadingState() {
                     </div>
                 </CardHeader>
                 <CardContent className="px-4 pb-5 sm:px-5">
-                    <div className="min-w-0 max-w-full overflow-x-auto rounded-2xl border border-slate-200/80">
+                    <div data-testid="admin-dentists-mobile-list-skeleton" className="grid gap-3 lg:hidden">
+                        {Array.from({ length: 4 }).map((_, index) => (
+                            <div key={index} className="rounded-2xl border border-slate-200/80 bg-white p-3 shadow-sm">
+                                <div className="flex gap-3">
+                                    <Skeleton className="h-12 w-12 shrink-0 rounded-full" />
+                                    <div className="min-w-0 flex-1 space-y-2">
+                                        <Skeleton className="h-5 w-3/4 rounded-xl" />
+                                        <Skeleton className="h-4 w-2/3 rounded-xl" />
+                                        <Skeleton className="h-5 w-24 rounded-full" />
+                                    </div>
+                                </div>
+                                <Skeleton className="mt-3 h-20 w-full rounded-xl" />
+                                <div className="mt-3 grid grid-cols-2 gap-2">
+                                    <Skeleton className="h-14 rounded-xl" />
+                                    <Skeleton className="h-14 rounded-xl" />
+                                </div>
+                                <Skeleton className="mt-3 h-11 w-full rounded-xl" />
+                            </div>
+                        ))}
+                    </div>
+                    <div className="hidden min-w-0 max-w-full overflow-x-auto rounded-2xl border border-slate-200/80 lg:block">
                         <div
                             className="grid min-w-[760px] gap-3 bg-slate-50/80 px-4 py-3"
                             style={{ gridTemplateColumns: 'repeat(7, minmax(0, 1fr))' }}

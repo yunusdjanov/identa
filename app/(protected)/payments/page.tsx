@@ -333,12 +333,12 @@ function renderBalanceBreakdownWithStatusBadges(
     );
 }
 
-function BalanceAmount({ balances }: { balances: PatientBalanceRow['balancesByCurrency'] }) {
+function BalanceAmount({ balances, compact = false }: { balances: PatientBalanceRow['balancesByCurrency']; compact?: boolean }) {
     const { t } = useI18n();
     const lines = getVisibleBalanceLines(balances, 'balance');
 
     return (
-        <div className="flex min-w-[128px] flex-col gap-1">
+        <div className={`flex flex-col gap-1 ${compact ? 'min-w-0' : 'min-w-[128px]'}`}>
             {lines.map(({ currency, amount, rawAmount }) => {
                 const summary = getNetBalanceSummary(rawAmount);
                 const showStatus = shouldShowBalanceStatus(
@@ -412,6 +412,56 @@ function toPatientBalanceRow(row: ApiPaymentPatientLedgerRow): PatientBalanceRow
     };
 }
 
+function PatientPhotoThumbnail({
+    row,
+    photoLabel,
+    onPreview,
+    className,
+}: {
+    row: PatientBalanceRow;
+    photoLabel: string;
+    onPreview: (row: PatientBalanceRow) => void;
+    className: string;
+}) {
+    const [failedUrl, setFailedUrl] = useState<string | null>(null);
+    const thumbnailUrl = failedUrl === row.patientPhotoThumbnailUrl
+        ? undefined
+        : row.patientPhotoThumbnailUrl;
+
+    if (!thumbnailUrl) {
+        return (
+            <Avatar className={`${className} rounded-xl border border-dashed border-slate-200 bg-slate-50`}>
+                <AvatarFallback className="rounded-xl bg-slate-50 text-sm font-semibold text-slate-500">
+                    {getPatientInitials(row.patientName)}
+                </AvatarFallback>
+            </Avatar>
+        );
+    }
+
+    return (
+        <button
+            type="button"
+            className={`group relative inline-flex ${className} items-center justify-center overflow-hidden rounded-xl border border-slate-200 bg-white p-0 shadow-xs transition hover:border-teal-200 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-300`}
+            aria-label={`${photoLabel}: ${row.patientName}`}
+            onClick={() => onPreview(row)}
+        >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+                src={thumbnailUrl}
+                alt={row.patientName}
+                crossOrigin={getProtectedMediaCrossOrigin(thumbnailUrl)}
+                className="block h-full w-full rounded-xl object-cover object-center"
+                decoding="async"
+                loading="lazy"
+                onError={() => setFailedUrl(thumbnailUrl)}
+            />
+            <span className="pointer-events-none absolute inset-0 flex items-center justify-center bg-slate-950/0 text-white opacity-0 transition group-hover:bg-slate-950/35 group-hover:opacity-100 group-focus-visible:bg-slate-950/35 group-focus-visible:opacity-100">
+                <Maximize2 className="h-4 w-4" />
+            </span>
+        </button>
+    );
+}
+
 function PatientPhotoCell({
     row,
     photoLabel,
@@ -421,45 +471,16 @@ function PatientPhotoCell({
     photoLabel: string;
     onPreview: (row: PatientBalanceRow) => void;
 }) {
-    const [failedUrl, setFailedUrl] = useState<string | null>(null);
-    const thumbnailUrl = failedUrl === row.patientPhotoThumbnailUrl
-        ? undefined
-        : row.patientPhotoThumbnailUrl;
-
     return (
         <TableCell className="w-24 overflow-visible">
-            {thumbnailUrl ? (
-                <div className="relative h-16 w-20 overflow-visible">
-                    <button
-                        type="button"
-                        className="group absolute left-0 top-1/2 inline-flex h-20 w-20 -translate-y-1/2 items-center justify-center overflow-hidden rounded-xl border border-slate-200 bg-white p-0 shadow-xs transition hover:border-teal-200 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-300"
-                        aria-label={`${photoLabel}: ${row.patientName}`}
-                        onClick={() => onPreview(row)}
-                    >
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                            src={thumbnailUrl}
-                            alt={row.patientName}
-                            crossOrigin={getProtectedMediaCrossOrigin(thumbnailUrl)}
-                            className="block h-full w-full rounded-xl object-cover object-center"
-                            decoding="async"
-                            loading="lazy"
-                            onError={() => setFailedUrl(thumbnailUrl)}
-                        />
-                        <span className="pointer-events-none absolute inset-0 flex items-center justify-center bg-slate-950/0 text-white opacity-0 transition group-hover:bg-slate-950/35 group-hover:opacity-100 group-focus-visible:bg-slate-950/35 group-focus-visible:opacity-100">
-                            <Maximize2 className="h-4 w-4" />
-                        </span>
-                    </button>
-                </div>
-            ) : (
-                <div className="relative h-16 w-20 overflow-visible">
-                    <Avatar className="absolute left-0 top-1/2 h-20 w-20 -translate-y-1/2 rounded-xl border border-dashed border-slate-200 bg-slate-50">
-                        <AvatarFallback className="rounded-xl bg-slate-50 text-sm font-semibold text-slate-500">
-                            {getPatientInitials(row.patientName)}
-                        </AvatarFallback>
-                    </Avatar>
-                </div>
-            )}
+            <div className="relative h-16 w-20 overflow-visible">
+                <PatientPhotoThumbnail
+                    row={row}
+                    photoLabel={photoLabel}
+                    onPreview={onPreview}
+                    className="absolute left-0 top-1/2 h-20 w-20 -translate-y-1/2"
+                />
+            </div>
         </TableCell>
     );
 }
@@ -1379,7 +1400,64 @@ export default function PaymentsPage() {
                                 </div>
                             ) : (
                                 <>
-                                    <DataTableShell>
+                                    <div data-testid="payments-patient-mobile-list" className="grid gap-3 lg:hidden">
+                                        {paginatedPatientRows.map((row) => (
+                                            <article
+                                                key={row.patientId}
+                                                data-testid={`payments-patient-mobile-card-${row.patientId}`}
+                                                className="rounded-2xl border border-slate-200/80 bg-white p-3 shadow-sm shadow-slate-200/50"
+                                            >
+                                                <div className="flex min-w-0 items-start gap-3">
+                                                    <PatientPhotoThumbnail
+                                                        row={row}
+                                                        photoLabel={t('patients.form.photo')}
+                                                        className="h-16 w-16 shrink-0"
+                                                        onPreview={(patientRow) => setPatientPhotoPreview({
+                                                            src: patientRow.patientPhotoPreviewUrl ?? patientRow.patientPhotoThumbnailUrl ?? '',
+                                                            thumbnailSrc: patientRow.patientPhotoThumbnailUrl,
+                                                            alt: patientRow.patientName,
+                                                            title: patientRow.patientName,
+                                                        })}
+                                                    />
+                                                    <div className="min-w-0 flex-1">
+                                                        <p className="truncate text-base font-semibold text-slate-950" title={row.patientName}>
+                                                            {truncateForUi(row.patientName, PATIENT_TABLE_NAME_UI_LIMIT)}
+                                                        </p>
+                                                        <p className="mt-1 truncate text-sm text-slate-500" title={row.patientPhone}>
+                                                            <Phone aria-hidden="true" className="mr-1 inline-block h-3.5 w-3.5 text-slate-400" />
+                                                            {row.patientPhone}
+                                                        </p>
+                                                        <div className="mt-2 flex flex-wrap gap-2 text-xs text-slate-500">
+                                                            <span>{t('payments.table.lastEntry')}: <strong className="font-semibold text-slate-700">{formatDate(row.lastEntryDate)}</strong></span>
+                                                            <span>{t('payments.table.entries')}: <strong className="font-semibold text-slate-700">{row.entryCount}</strong></span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div className="mt-3 grid grid-cols-3 gap-2 border-t border-slate-100 pt-3">
+                                                    <div className="min-w-0 rounded-xl bg-red-50/70 px-2 py-2">
+                                                        <p className="text-[10px] font-semibold uppercase tracking-wide text-red-500">{t('payments.table.debt')}</p>
+                                                        <p className="mt-1 whitespace-pre-line break-words text-xs font-semibold leading-4 text-red-700">{formatBalanceBreakdown(row.balancesByCurrency, 'totalDebt')}</p>
+                                                    </div>
+                                                    <div className="min-w-0 rounded-xl bg-emerald-50/70 px-2 py-2">
+                                                        <p className="text-[10px] font-semibold uppercase tracking-wide text-emerald-500">{t('payments.table.paid')}</p>
+                                                        <p className="mt-1 whitespace-pre-line break-words text-xs font-semibold leading-4 text-emerald-700">{formatBalanceBreakdown(row.balancesByCurrency, 'totalPaid')}</p>
+                                                    </div>
+                                                    <div className="min-w-0 rounded-xl bg-slate-50 px-2 py-2">
+                                                        <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">{t('payments.table.balance')}</p>
+                                                        <div className="mt-1 break-words text-xs font-semibold leading-4">
+                                                            <BalanceAmount balances={row.balancesByCurrency} compact />
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <Button asChild variant="outline" className="mt-3 h-11 w-full">
+                                                    <Link href={`/payments/patients/${row.patientId}`}>
+                                                        {t('payments.openPatient')}
+                                                    </Link>
+                                                </Button>
+                                            </article>
+                                        ))}
+                                    </div>
+                                    <DataTableShell data-testid="payments-patient-desktop-table" className="hidden lg:block">
                                         <Table className={`${getDataTableClassName('standard')} table-fixed`}>
                                             <TableHeader>
                                                 <TableRow>
@@ -1615,7 +1693,54 @@ export default function PaymentsPage() {
                                 </div>
                             ) : (
                                 <>
-                                    <DataTableShell>
+                                    <div data-testid="payments-expense-mobile-list" className="grid gap-3 lg:hidden">
+                                        {paginatedExpenseRows.map((row) => (
+                                            <article
+                                                key={row.id}
+                                                data-testid={`payments-expense-mobile-card-${row.id}`}
+                                                className="rounded-2xl border border-slate-200/80 bg-white p-3 shadow-sm shadow-slate-200/50"
+                                            >
+                                                <div className="flex min-w-0 items-start justify-between gap-3">
+                                                    <div className="min-w-0 flex-1">
+                                                        <p className="break-words text-sm font-semibold text-slate-950">{row.title}</p>
+                                                        <p className="mt-1 text-xs text-slate-500">{formatDate(row.date)}</p>
+                                                    </div>
+                                                    <p className="shrink-0 text-sm font-bold tabular-nums text-red-700">
+                                                        {formatExpenseAmount(row.amount, row.currency, locale)}
+                                                    </p>
+                                                </div>
+                                                <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-3">
+                                                    <span className="text-xs text-slate-500">
+                                                        {t('payments.expenses.quantity')}: <strong className="font-semibold text-slate-700">{row.quantity}</strong>
+                                                    </span>
+                                                    <div className="flex gap-2">
+                                                        <Button
+                                                            type="button"
+                                                            variant="outline"
+                                                            size="icon-lg"
+                                                            disabled={!canManagePayments || isExpenseFormPending || deleteExpenseMutation.isPending}
+                                                            aria-label={t('payments.expenses.editAria', { title: row.title })}
+                                                            onClick={() => handleEditExpense(row)}
+                                                        >
+                                                            <Pencil className="h-4 w-4" />
+                                                        </Button>
+                                                        <Button
+                                                            type="button"
+                                                            variant="outline"
+                                                            size="icon-lg"
+                                                            className="border-red-100 text-red-600 hover:bg-red-50 hover:text-red-700"
+                                                            disabled={!canManagePayments || deleteExpenseMutation.isPending}
+                                                            aria-label={t('payments.expenses.deleteAria', { title: row.title })}
+                                                            onClick={() => setExpensePendingDelete(row)}
+                                                        >
+                                                            <Trash2 className="h-4 w-4" />
+                                                        </Button>
+                                                    </div>
+                                                </div>
+                                            </article>
+                                        ))}
+                                    </div>
+                                    <DataTableShell data-testid="payments-expense-desktop-table" className="hidden lg:block">
                                         <Table className={getDataTableClassName('standard')}>
                                             <TableHeader>
                                                 <TableRow>

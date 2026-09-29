@@ -185,7 +185,7 @@ describe('DashboardPage', () => {
         expect(screen.queryByRole('button', { name: /Month/i })).not.toBeInTheDocument();
         expect(screen.queryByText('Collected This Month')).not.toBeInTheDocument();
         expect(screen.queryByText('Outstanding Debts')).not.toBeInTheDocument();
-        expect(screen.getByText('Alisher Karimov')).toBeInTheDocument();
+        expect(screen.getAllByText('Alisher Karimov').length).toBeGreaterThan(0);
 
         await waitFor(() => {
             expect(listAllAppointments).toHaveBeenCalledWith(expect.objectContaining({

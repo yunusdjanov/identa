@@ -622,7 +622,53 @@ export default function BillingPage() {
                             <p className="text-sm font-medium text-slate-600">{t('billing.noPayments')}</p>
                         </div>
                     ) : (
-                        <div className="overflow-x-auto">
+                        <>
+                        <div data-testid="billing-payments-mobile-list" className="grid gap-3 p-3 lg:hidden">
+                            {(paymentsQuery.data ?? []).map((payment) => {
+                                const paymentStatusStyle = getPaymentStatusStyle(payment.status);
+
+                                return (
+                                    <article
+                                        key={payment.id}
+                                        data-testid={`billing-payment-mobile-card-${payment.id}`}
+                                        className="rounded-2xl border border-slate-200/80 bg-white p-3 shadow-sm shadow-slate-200/50"
+                                    >
+                                        <div className="flex min-w-0 items-start justify-between gap-3">
+                                            <div className="flex min-w-0 items-center gap-2">
+                                                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-teal-50 text-teal-700 ring-1 ring-teal-100">
+                                                    <Crown className="h-4 w-4" />
+                                                </span>
+                                                <div className="min-w-0">
+                                                    <p className="truncate text-sm font-semibold text-slate-950">{payment.plan_name}</p>
+                                                    <p className="mt-1 text-xs tabular-nums text-slate-500">
+                                                        {payment.created_at
+                                                            ? formatLocalizedDate(payment.created_at, locale, {
+                                                                year: 'numeric',
+                                                                month: 'short',
+                                                                day: 'numeric',
+                                                            })
+                                                            : '-'}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <p className="shrink-0 text-sm font-bold tabular-nums text-slate-950">
+                                                {formatMoney(payment.amount, payment.currency, locale)}
+                                            </p>
+                                        </div>
+                                        <div className="mt-3 flex min-w-0 items-center justify-between gap-3 border-t border-slate-100 pt-3">
+                                            <span className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-2 py-1 text-xs font-semibold ring-1 ${paymentStatusStyle.badge}`}>
+                                                <span className={`h-1.5 w-1.5 rounded-full ${paymentStatusStyle.dot}`} />
+                                                {t(`admin.billing.payment.status.${payment.status}`)}
+                                            </span>
+                                            <span className="min-w-0 truncate font-mono text-xs text-slate-500" title={payment.provider_order_id}>
+                                                {payment.provider_order_id}
+                                            </span>
+                                        </div>
+                                    </article>
+                                );
+                            })}
+                        </div>
+                        <div data-testid="billing-payments-desktop-table" className="hidden overflow-x-auto lg:block">
                             <table className="w-full min-w-[640px] border-collapse text-sm">
                                 <thead>
                                     <tr className="border-b border-slate-100 bg-slate-50/50">
@@ -673,6 +719,7 @@ export default function BillingPage() {
                                 </tbody>
                             </table>
                         </div>
+                        </>
                     )}
                 </CardContent>
             </Card>

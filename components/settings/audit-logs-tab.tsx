@@ -253,7 +253,7 @@ export function AuditLogsTab({ canViewAuditLogs, t }: AuditLogsTabProps) {
                             setPage(1);
                         }}
                         placeholder={t('settings.logs.searchPlaceholder')}
-                        className="h-9 rounded-xl border-slate-200 bg-white shadow-xs"
+                        className="h-11 rounded-xl border-slate-200 bg-white shadow-xs sm:h-9"
                     />
                     <Select
                         value={eventType}
@@ -264,7 +264,7 @@ export function AuditLogsTab({ canViewAuditLogs, t }: AuditLogsTabProps) {
                     >
                         <SelectTrigger
                             aria-label={t('settings.logs.eventTypeAll')}
-                            className="h-9 rounded-xl border-slate-200 bg-white shadow-xs"
+                            className="h-11 rounded-xl border-slate-200 bg-white shadow-xs sm:h-9"
                         >
                             <SelectValue />
                         </SelectTrigger>
@@ -286,7 +286,7 @@ export function AuditLogsTab({ canViewAuditLogs, t }: AuditLogsTabProps) {
                             setDateFrom(event.target.value);
                             setPage(1);
                         }}
-                        className="h-9 rounded-xl border-slate-200 bg-white shadow-xs"
+                        className="h-11 rounded-xl border-slate-200 bg-white shadow-xs sm:h-9"
                     />
                     <Input
                         aria-label={t('settings.logs.dateTo')}
@@ -296,7 +296,7 @@ export function AuditLogsTab({ canViewAuditLogs, t }: AuditLogsTabProps) {
                             setDateTo(event.target.value);
                             setPage(1);
                         }}
-                        className="h-9 rounded-xl border-slate-200 bg-white shadow-xs"
+                        className="h-11 rounded-xl border-slate-200 bg-white shadow-xs sm:h-9"
                     />
                 </div>
             </CardHeader>

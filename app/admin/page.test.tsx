@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import AdminDashboardPage from '@/app/admin/page';
@@ -121,7 +121,8 @@ describe('AdminDashboardPage', () => {
 
         // Email renders as its own text node (the name is split across the
         // "Dr." prefix + truncated name), so assert on the email.
-        expect(await screen.findByText('demo@clinic.test')).toBeInTheDocument();
+        const desktopTable = await screen.findByTestId('admin-dentists-desktop-table');
+        expect(within(desktopTable).getByText('demo@clinic.test')).toBeInTheDocument();
         // admin.stats.totalDentists (EN) = "Total Dentists"
         expect(screen.getByText('Total Dentists')).toBeInTheDocument();
         expect(pushMock).not.toHaveBeenCalled();
@@ -133,10 +134,11 @@ describe('AdminDashboardPage', () => {
         renderPage();
         const user = userEvent.setup();
 
-        expect(await screen.findByText('demo@clinic.test')).toBeInTheDocument();
+        const desktopTable = await screen.findByTestId('admin-dentists-desktop-table');
+        expect(within(desktopTable).getByText('demo@clinic.test')).toBeInTheDocument();
 
         // admin.rowActions (EN) = "Actions for {{name}}"
-        await user.click(screen.getByRole('button', { name: 'Actions for Dr Demo' }));
+        await user.click(within(desktopTable).getByRole('button', { name: 'Actions for Dr Demo' }));
         await user.click(await screen.findByRole('menuitem', { name: /Block Account/ }));
 
         expect(updateAdminDentistStatus).toHaveBeenCalledWith('d-1', 'blocked');

@@ -276,7 +276,7 @@ function AppLayoutBody({ children }: { children: React.ReactNode }) {
                 className="fixed inset-x-0 top-0 z-50 border-b border-teal-100/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(248,251,255,0.94)_100%)] shadow-sm shadow-slate-200/40 backdrop-blur-xl"
             >
                 <div className="mx-auto max-w-[1600px] px-3 sm:px-6 lg:px-8">
-                    <div className="flex h-14 items-center justify-between gap-3 sm:h-16 sm:gap-4">
+                    <div className="flex h-12 items-center justify-between gap-3 sm:h-16 sm:gap-4">
                         {showHeaderSkeleton ? (
                             <>
                                 <Skeleton className="h-9 w-32 rounded-md" />
@@ -358,19 +358,19 @@ function AppLayoutBody({ children }: { children: React.ReactNode }) {
                 {/* Mobile Navigation */}
                 {showHeaderSkeleton ? (
                     <div className="md:hidden border-t border-slate-200/70 bg-white">
-                        <div className="flex justify-start gap-1 overflow-x-auto overflow-y-hidden px-2 py-2 no-scrollbar">
+                        <div className="flex justify-start gap-1 overflow-x-auto overflow-y-hidden px-2 py-1 no-scrollbar">
                             {navigation.map((item) => (
                                 <Skeleton
                                     key={item.href}
                                     data-testid="app-header-mobile-nav-skeleton-item"
-                                    className="h-12 w-[72px] shrink-0 rounded-xl"
+                                    className="h-10 w-[72px] shrink-0 rounded-xl"
                                 />
                             ))}
                         </div>
                     </div>
                 ) : (
                     <div className="md:hidden border-t border-slate-200/70 bg-white">
-                        <nav className="flex justify-start gap-1 overflow-x-auto overflow-y-hidden px-2 py-2 no-scrollbar">
+                        <nav className="flex justify-start gap-1 overflow-x-auto overflow-y-hidden px-2 py-1 no-scrollbar">
                             {navigation.map((item) => {
                                 const isActive = isActiveRoute(item.href);
                                 const Icon = item.icon;
@@ -384,7 +384,7 @@ function AppLayoutBody({ children }: { children: React.ReactNode }) {
                                         aria-current={isActive ? 'page' : undefined}
                                         aria-disabled={isLocked}
                                         className={cn(
-                                            'flex min-w-[72px] shrink-0 flex-col items-center rounded-xl px-2 py-2 text-[11px] font-semibold transition-colors',
+                                            'flex min-h-10 min-w-[72px] shrink-0 flex-col items-center justify-center rounded-xl px-2 py-1.5 text-[11px] font-semibold transition-colors',
                                             isActive
                                                 ? 'bg-teal-50/85 text-teal-700'
                                                 : isLocked
@@ -394,7 +394,7 @@ function AppLayoutBody({ children }: { children: React.ReactNode }) {
                                     >
                                         <span
                                             className={cn(
-                                                'mb-1 rounded-xl p-1.5',
+                                                'mb-0.5 rounded-lg p-1',
                                                 isActive ? 'bg-teal-50 text-teal-700' : 'text-slate-500'
                                             )}
                                         >
@@ -408,7 +408,7 @@ function AppLayoutBody({ children }: { children: React.ReactNode }) {
                     </div>
                 )}
             </header>
-            <div data-app-header-spacer aria-hidden="true" className="h-[7.5rem] md:h-16" />
+            <div data-app-header-spacer aria-hidden="true" className="h-24 md:h-16" />
 
             <EmailVerificationBanner />
 

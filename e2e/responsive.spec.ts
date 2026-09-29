@@ -27,6 +27,31 @@ async function expectInsideViewport(page: Page, selector: string): Promise<void>
     expect(bounds.right).toBeLessThanOrEqual(bounds.viewportWidth + 1);
 }
 
+function usesCompactDataLayout(page: Page): boolean {
+    return (page.viewportSize()?.width ?? 1280) < 1024;
+}
+
+async function getFirstPatientId(page: Page): Promise<string> {
+    if (usesCompactDataLayout(page)) {
+        const card = page.locator('[data-testid^="patient-mobile-card-"]').first();
+        await expect(card).toBeVisible();
+        return (await card.getAttribute('data-testid'))?.replace('patient-mobile-card-', '') ?? '';
+    }
+
+    const row = page.locator('tbody tr[id^="patient-row-"]').first();
+    await expect(row).toBeVisible();
+    return (await row.getAttribute('id'))?.replace('patient-row-', '') ?? '';
+}
+
+async function getFirstFinancePatientHref(page: Page): Promise<string> {
+    const container = usesCompactDataLayout(page)
+        ? page.getByTestId('payments-patient-mobile-list')
+        : page.getByTestId('payments-patient-desktop-table');
+    const link = container.locator('a[href^="/payments/patients/"]').first();
+    await expect(link).toBeVisible();
+    return await link.getAttribute('href') ?? '';
+}
+
 test.describe('Responsive smoke coverage', () => {
     test('public landing and auth shells stay within the viewport', async ({ page }) => {
         for (const path of [
@@ -47,23 +72,33 @@ test.describe('Responsive smoke coverage', () => {
     test('dentist core routes and finance controls stay contained', async ({ page }) => {
         await loginDentist(page);
 
-        for (const path of ['/dashboard', '/appointments', '/payments', '/settings']) {
+        for (const path of ['/dashboard', '/appointments', '/payments', '/billing', '/settings']) {
             await page.goto(path);
             await expect(page.locator('main').first()).toBeVisible();
             await expectNoPageHorizontalOverflow(page);
         }
 
+        if (usesCompactDataLayout(page)) {
+            await page.goto('/dashboard?view=week');
+            await expect(page.getByTestId('appointments-week-grid-mobile')).toBeVisible();
+            await expect(page.getByTestId('appointments-week-grid-stacked')).toBeHidden();
+            await expect(page.getByTestId('appointments-week-grid-desktop')).toBeHidden();
+            await expect(page.getByTestId('appointments-week-grid-mobile').locator('[aria-pressed]')).toHaveCount(7);
+        }
+
         await page.goto('/patients');
         await expect(page.getByTestId('patients-filter-toolbar')).toBeVisible();
         await expectNoPageHorizontalOverflow(page);
-        const firstPatientRow = page.locator('tbody tr[id^="patient-row-"]').first();
-        await expect(firstPatientRow).toBeVisible();
-        const patientRowId = await firstPatientRow.getAttribute('id');
-        const patientId = patientRowId?.replace('patient-row-', '') ?? '';
+        if (usesCompactDataLayout(page)) {
+            await expect(page.getByTestId('patients-mobile-list')).toBeVisible();
+            await expect(page.getByTestId('patients-desktop-table')).toBeHidden();
+        }
+        const patientId = await getFirstPatientId(page);
         expect(patientId).toBeTruthy();
         await page.goto(`/patients/${patientId}`);
         await expect(page.getByTestId('patient-detail-page-layout')).toBeVisible();
         await expect(page.getByTestId('patient-detail-header-facts')).toBeVisible();
+        await expectInsideViewport(page, '[data-testid="patient-detail-header-facts"]');
         await expectNoPageHorizontalOverflow(page);
 
         await page.goto('/analytics');
@@ -77,17 +112,23 @@ test.describe('Responsive smoke coverage', () => {
         await expect(patientsTab).toBeVisible();
         await patientsTab.click();
 
-        const patientLink = page.locator('tbody a[href^="/payments/patients/"]').first();
-        await expect(patientLink).toBeVisible();
-        const patientHref = await patientLink.getAttribute('href');
+        if (usesCompactDataLayout(page)) {
+            await expect(page.getByTestId('payments-patient-mobile-list')).toBeVisible();
+            await expect(page.getByTestId('payments-patient-desktop-table')).toBeHidden();
+        }
+        const patientHref = await getFirstFinancePatientHref(page);
         expect(patientHref).toBeTruthy();
 
-        await page.goto(patientHref!);
+        await page.goto(patientHref);
         await expect(page.getByTestId('patient-detail-header-facts')).toBeVisible();
         await expect(page.getByTestId('payment-summary-grid')).toBeVisible();
+        if (usesCompactDataLayout(page) && await page.getByTestId('payment-ledger-mobile-list').count()) {
+            await expect(page.getByTestId('payment-ledger-mobile-list')).toBeVisible();
+            await expect(page.getByTestId('payment-ledger-desktop-table')).toBeHidden();
+        }
         await expectNoPageHorizontalOverflow(page);
 
-        const ledgerPatientId = patientHref!.split('/').filter(Boolean).at(-1);
+        const ledgerPatientId = patientHref.split('/').filter(Boolean).at(-1);
         expect(ledgerPatientId).toBeTruthy();
         await page.goto(`/patients/${ledgerPatientId}/history`);
         await expect(page.getByTestId('patient-history-header')).toBeVisible();
@@ -169,6 +210,12 @@ test.describe('Responsive smoke coverage', () => {
             await page.goto(path);
             await expect(page.locator('main').first()).toBeVisible();
             await expectNoPageHorizontalOverflow(page);
+        }
+
+        if (usesCompactDataLayout(page)) {
+            await page.goto('/admin');
+            await expect(page.getByTestId('admin-dentists-mobile-list')).toBeVisible();
+            await expect(page.getByTestId('admin-dentists-desktop-table')).toBeHidden();
         }
     });
 });

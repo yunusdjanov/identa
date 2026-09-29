@@ -170,7 +170,7 @@ describe('PatientsPage', () => {
 
         renderPage();
 
-        expect(await screen.findByText('Restored Patient')).toBeInTheDocument();
+        expect((await screen.findAllByText('Restored Patient'))[0]).toBeInTheDocument();
         await waitFor(() => {
             expect(listPatients).toHaveBeenCalledWith(expect.objectContaining({
                 page: 2,
@@ -229,7 +229,7 @@ describe('PatientsPage', () => {
 
         const { rerenderPage } = renderPage();
 
-        expect(await screen.findByText('Default Patient')).toBeInTheDocument();
+        expect((await screen.findAllByText('Default Patient'))[0]).toBeInTheDocument();
 
         markPatientListStateForBackNavigation({
             searchQuery: '',
@@ -242,7 +242,7 @@ describe('PatientsPage', () => {
         window.history.replaceState({}, '', '/patients?restore=1');
         rerenderPage();
 
-        expect(await screen.findByText('Restored Patient')).toBeInTheDocument();
+        expect((await screen.findAllByText('Restored Patient'))[0]).toBeInTheDocument();
         await waitFor(() => {
             expect(listPatients).toHaveBeenCalledWith(expect.objectContaining({
                 page: 2,
@@ -282,7 +282,7 @@ describe('PatientsPage', () => {
 
         renderPage();
 
-        expect(await screen.findByText('Default Patient')).toBeInTheDocument();
+        expect((await screen.findAllByText('Default Patient'))[0]).toBeInTheDocument();
         await waitFor(() => {
             expect(listPatients).toHaveBeenCalledWith(expect.objectContaining({
                 page: 1,
@@ -325,7 +325,7 @@ describe('PatientsPage', () => {
 
         renderPage();
 
-        expect(await screen.findByText('Default Patient')).toBeInTheDocument();
+        expect((await screen.findAllByText('Default Patient'))[0]).toBeInTheDocument();
         await waitFor(() => {
             expect(listPatients).toHaveBeenCalledWith(expect.objectContaining({
                 page: 1,
@@ -466,14 +466,14 @@ describe('PatientsPage', () => {
         const user = userEvent.setup();
 
         const searchInput = await screen.findByLabelText('Search patients by name, phone, or patient ID');
-        await screen.findByText('Search Result Patient');
+        await screen.findAllByText('Search Result Patient');
 
-        await user.click(screen.getByText('Search Result Patient'));
+        await user.click(within(screen.getByTestId('patient-mobile-card-search-patient')).getByText('Search Result Patient'));
         expect(pushMock).toHaveBeenLastCalledWith('/patients/search-patient');
 
         await user.click(searchInput);
         await user.type(searchInput, 'Search');
-        await user.click(screen.getByText('Search Result Patient'));
+        await user.click(within(screen.getByTestId('patient-mobile-card-search-patient')).getByText('Search Result Patient'));
         expect(pushMock).toHaveBeenLastCalledWith('/patients/search-patient?remember_recent=1');
 
         await user.clear(searchInput);
@@ -546,10 +546,11 @@ describe('PatientsPage', () => {
         renderPage();
         const user = userEvent.setup();
 
+        const desktopTable = await screen.findByTestId('patients-desktop-table');
         await waitFor(() => {
-            expect(screen.getByText('No Visit Patient')).toBeInTheDocument();
-            expect(screen.getByText('Recent Visit Patient')).toBeInTheDocument();
-            expect(screen.getByText('Old Visit Patient')).toBeInTheDocument();
+            expect(within(desktopTable).getByText('No Visit Patient')).toBeInTheDocument();
+            expect(within(desktopTable).getByText('Recent Visit Patient')).toBeInTheDocument();
+            expect(within(desktopTable).getByText('Old Visit Patient')).toBeInTheDocument();
         });
 
         await user.click(screen.getByRole('combobox', { name: /(Filter patients by visit gap|Фильтр пациентов по периоду без визита)/i }));
@@ -558,12 +559,12 @@ describe('PatientsPage', () => {
         await user.click(screen.getByRole('option', { name: /(No Visit 1Y|Без визита 1Г)/i }));
 
         await waitFor(() => {
-            expect(screen.getByText('No Visit Patient')).toBeInTheDocument();
-            expect(screen.getByText('Old Visit Patient')).toBeInTheDocument();
-            expect(screen.queryByText('Recent Visit Patient')).not.toBeInTheDocument();
+            expect(within(desktopTable).getByText('No Visit Patient')).toBeInTheDocument();
+            expect(within(desktopTable).getByText('Old Visit Patient')).toBeInTheDocument();
+            expect(within(desktopTable).queryByText('Recent Visit Patient')).not.toBeInTheDocument();
         });
 
-        const scheduleButtons = screen.getAllByRole('button', { name: /(Schedule|Запланировать)/i });
+        const scheduleButtons = within(desktopTable).getAllByRole('button', { name: /(Schedule|Запланировать)/i });
         expect(scheduleButtons).toHaveLength(2);
 
         await user.click(scheduleButtons[0]);
@@ -610,14 +611,15 @@ describe('PatientsPage', () => {
         renderPage();
         const user = userEvent.setup();
 
+        const desktopTable = await screen.findByTestId('patients-desktop-table');
         await waitFor(() => {
-            expect(screen.getByText('Followup Needed')).toBeInTheDocument();
-            expect(screen.getByText('Healthy Active')).toBeInTheDocument();
+            expect(within(desktopTable).getByText('Followup Needed')).toBeInTheDocument();
+            expect(within(desktopTable).getByText('Healthy Active')).toBeInTheDocument();
         });
 
         expect(screen.queryByRole('button', { name: /^History$/i })).not.toBeInTheDocument();
 
-        const viewDetailsButtons = screen.getAllByRole('button', { name: /(Open|Открыть|Ko‘rish|Ko'rish)/i });
+        const viewDetailsButtons = within(desktopTable).getAllByRole('button', { name: /(Open|Открыть|Ko‘rish|Ko'rish)/i });
         await user.click(viewDetailsButtons[0]);
 
         expect(pushMock).toHaveBeenCalledWith('/patients/patient-followup');
@@ -668,10 +670,11 @@ describe('PatientsPage', () => {
         renderPage();
         const user = userEvent.setup();
 
-        const photoTrigger = await screen.findByRole('button', {
+        const desktopTable = await screen.findByTestId('patients-desktop-table');
+        const photoTrigger = within(desktopTable).getByRole('button', {
             name: 'Patient Photo: Photo Preview Patient',
         });
-        expect(screen.queryByRole('button', { name: 'Patient Photo: No Photo Patient' })).not.toBeInTheDocument();
+        expect(within(desktopTable).queryByRole('button', { name: 'Patient Photo: No Photo Patient' })).not.toBeInTheDocument();
         expect(photoTrigger).toBeEnabled();
         expect(within(photoTrigger).getByRole('img', { name: 'Photo Preview Patient' }))
             .toHaveClass('h-full', 'w-full', 'object-cover');
@@ -716,6 +719,7 @@ describe('PatientsPage', () => {
 
         renderPage();
 
-        expect(await screen.findByText('by Front Desk')).toBeInTheDocument();
+        const desktopRow = await screen.findByTestId('patient-row-patient-authored');
+        expect(within(desktopRow).getByText('by Front Desk')).toBeInTheDocument();
     });
 });

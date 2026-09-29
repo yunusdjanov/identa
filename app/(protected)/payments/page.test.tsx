@@ -103,6 +103,14 @@ function normalizeText(value: string | null | undefined) {
     return (value ?? '').replace(/\u00A0/g, ' ').replace(/\s+/g, ' ').trim();
 }
 
+function getPatientDesktopTable() {
+    return within(screen.getByTestId('payments-patient-desktop-table'));
+}
+
+function getExpenseDesktopTable() {
+    return within(screen.getByTestId('payments-expense-desktop-table'));
+}
+
 function paginateRows<T>(rows: T[], options?: MockLedgerOptions) {
     const perPage = options?.perPage ?? 10;
     const page = options?.page ?? 1;
@@ -351,8 +359,8 @@ describe('PaymentsPage', () => {
         renderPage();
 
         await waitFor(() => {
-            expect(screen.getByText('Jane Doe')).toBeInTheDocument();
-            expect(screen.getByText('John Smith')).toBeInTheDocument();
+            expect(getPatientDesktopTable().getByText('Jane Doe')).toBeInTheDocument();
+            expect(getPatientDesktopTable().getByText('John Smith')).toBeInTheDocument();
         });
 
         expect(screen.queryByRole('button', { name: 'History' })).not.toBeInTheDocument();
@@ -371,9 +379,9 @@ describe('PaymentsPage', () => {
         expect(
             screen.getByText((_, element) => normalizeText(element?.textContent) === '170 000 UZS')
         ).toBeInTheDocument();
-        expect(screen.getByRole('columnheader', { name: 'Photo' })).toBeInTheDocument();
+        expect(getPatientDesktopTable().getByRole('columnheader', { name: 'Photo' })).toBeInTheDocument();
 
-        const janeRow = screen.getByText('Jane Doe').closest('tr');
+        const janeRow = getPatientDesktopTable().getByText('Jane Doe').closest('tr');
         expect(janeRow).not.toBeNull();
         const janePhoto = within(janeRow as HTMLElement).getByRole('img', { name: 'Jane Doe' });
         expect(janePhoto).toHaveAttribute(
@@ -387,7 +395,7 @@ describe('PaymentsPage', () => {
         const patientLink = within(janeRow as HTMLElement).getByRole('link', { name: 'Patient' });
         expect(patientLink).toHaveAttribute('href', '/payments/patients/patient-1');
 
-        const johnRow = screen.getByText('John Smith').closest('tr');
+        const johnRow = getPatientDesktopTable().getByText('John Smith').closest('tr');
         expect(johnRow).not.toBeNull();
         expect(within(johnRow as HTMLElement).getByText('JS')).toBeInTheDocument();
     });
@@ -411,7 +419,8 @@ describe('PaymentsPage', () => {
         renderPage();
 
         const truncatedName = `${longPatientName.slice(0, 24)}…`;
-        const nameElement = await screen.findByText(truncatedName);
+        await screen.findByTestId('payments-patient-desktop-table');
+        const nameElement = getPatientDesktopTable().getByText(truncatedName);
         expect(nameElement).toHaveAttribute('title', longPatientName);
         expect(nameElement).toHaveClass('truncate');
 
@@ -438,8 +447,8 @@ describe('PaymentsPage', () => {
         renderPage();
 
         await waitFor(() => {
-            expect(screen.getByText('Jane Doe')).toBeInTheDocument();
-            expect(screen.getByText('John Smith')).toBeInTheDocument();
+            expect(getPatientDesktopTable().getByText('Jane Doe')).toBeInTheDocument();
+            expect(getPatientDesktopTable().getByText('John Smith')).toBeInTheDocument();
         });
 
         const workTotalLabel = screen
@@ -458,8 +467,8 @@ describe('PaymentsPage', () => {
         });
 
         await waitFor(() => {
-            expect(screen.getByText('John Smith')).toBeInTheDocument();
-            expect(screen.queryByText('Jane Doe')).not.toBeInTheDocument();
+            expect(getPatientDesktopTable().getByText('John Smith')).toBeInTheDocument();
+            expect(getPatientDesktopTable().queryByText('Jane Doe')).not.toBeInTheDocument();
         });
 
         expect(normalizeText(workTotalCard.textContent)).toContain('170 000 UZS');
@@ -469,7 +478,7 @@ describe('PaymentsPage', () => {
         fireEvent.click(screen.getByRole('button', { name: 'With debt' }));
 
         await waitFor(() => {
-            expect(screen.queryByText('John Smith')).not.toBeInTheDocument();
+            expect(screen.queryByTestId('payments-patient-desktop-table')).not.toBeInTheDocument();
         });
 
         expect(normalizeText(workTotalCard.textContent)).toContain('170 000 UZS');
@@ -493,8 +502,8 @@ describe('PaymentsPage', () => {
         renderPage();
 
         await waitFor(() => {
-            expect(screen.getByText('Jane Doe')).toBeInTheDocument();
-            expect(screen.getByText('John Smith')).toBeInTheDocument();
+            expect(getPatientDesktopTable().getByText('Jane Doe')).toBeInTheDocument();
+            expect(getPatientDesktopTable().getByText('John Smith')).toBeInTheDocument();
         });
 
         fireEvent.change(screen.getByPlaceholderText('Search patients by name, phone, or patient ID...'), {
@@ -515,8 +524,8 @@ describe('PaymentsPage', () => {
         vi.mocked(exportRowsToPdf).mockClear();
         fireEvent.click(screen.getByRole('button', { name: 'Expenses' }));
         await waitFor(() => {
-            expect(screen.getByText('Materials')).toBeInTheDocument();
-            expect(screen.getByText('Rent')).toBeInTheDocument();
+            expect(getExpenseDesktopTable().getByText('Materials')).toBeInTheDocument();
+            expect(getExpenseDesktopTable().getByText('Rent')).toBeInTheDocument();
         });
 
         fireEvent.change(screen.getByPlaceholderText('Search expenses by title...'), {
@@ -553,7 +562,7 @@ describe('PaymentsPage', () => {
         renderPage();
 
         await waitFor(() => {
-            expect(screen.getByText('Advance Patient')).toBeInTheDocument();
+            expect(getPatientDesktopTable().getByText('Advance Patient')).toBeInTheDocument();
         });
 
         expect(screen.getAllByText('Advance').length).toBeGreaterThanOrEqual(2);
@@ -583,7 +592,7 @@ describe('PaymentsPage', () => {
         renderPage();
 
         await waitFor(() => {
-            expect(screen.getByText('Mixed Currency Patient')).toBeInTheDocument();
+            expect(getPatientDesktopTable().getByText('Mixed Currency Patient')).toBeInTheDocument();
         });
 
         const netBalanceCard = screen.getByText('Debt and advance exist in different currencies.').closest('.interactive-card') as HTMLElement;
@@ -612,10 +621,10 @@ describe('PaymentsPage', () => {
         renderPage();
 
         await waitFor(() => {
-            expect(screen.getByText('Zero Patient')).toBeInTheDocument();
+            expect(getPatientDesktopTable().getByText('Zero Patient')).toBeInTheDocument();
         });
 
-        const zeroPatientRow = screen.getByText('Zero Patient').closest('tr') as HTMLElement;
+        const zeroPatientRow = getPatientDesktopTable().getByText('Zero Patient').closest('tr') as HTMLElement;
         const zeroPatientBalanceCell = within(zeroPatientRow).getAllByRole('cell')[7];
         expect(normalizeText(zeroPatientBalanceCell.textContent)).toContain('0 UZS');
         expect(within(zeroPatientBalanceCell).queryByText('Paid')).not.toBeInTheDocument();
@@ -627,8 +636,8 @@ describe('PaymentsPage', () => {
         fireEvent.click(await screen.findByRole('button', { name: 'Expenses' }));
 
         await waitFor(() => {
-            expect(screen.getByText('Materials')).toBeInTheDocument();
-            expect(screen.getByText('Rent')).toBeInTheDocument();
+            expect(getExpenseDesktopTable().getByText('Materials')).toBeInTheDocument();
+            expect(getExpenseDesktopTable().getByText('Rent')).toBeInTheDocument();
         });
 
         expect(screen.getByText('Total Expenses')).toBeInTheDocument();
@@ -646,8 +655,8 @@ describe('PaymentsPage', () => {
 
         fireEvent.click(await screen.findByRole('button', { name: 'Expenses' }));
         await waitFor(() => {
-            expect(screen.getByText('Materials')).toBeInTheDocument();
-            expect(screen.getByText('Rent')).toBeInTheDocument();
+            expect(getExpenseDesktopTable().getByText('Materials')).toBeInTheDocument();
+            expect(getExpenseDesktopTable().getByText('Rent')).toBeInTheDocument();
         });
 
         const totalExpensesCard = screen.getByText('Total Expenses').closest('.interactive-card') as HTMLElement;
@@ -661,8 +670,8 @@ describe('PaymentsPage', () => {
         });
 
         await waitFor(() => {
-            expect(screen.getByText('Materials')).toBeInTheDocument();
-            expect(screen.queryByText('Rent')).not.toBeInTheDocument();
+            expect(getExpenseDesktopTable().getByText('Materials')).toBeInTheDocument();
+            expect(getExpenseDesktopTable().queryByText('Rent')).not.toBeInTheDocument();
         });
 
         expect(normalizeText(totalExpensesCard.textContent)).toContain('450 000 UZS / 1,200 USD');
@@ -683,15 +692,15 @@ describe('PaymentsPage', () => {
 
         fireEvent.click(await screen.findByRole('button', { name: 'Expenses' }));
         await waitFor(() => {
-            expect(screen.getByText('Materials')).toBeInTheDocument();
+            expect(getExpenseDesktopTable().getByText('Materials')).toBeInTheDocument();
         });
 
         fireEvent.change(screen.getByPlaceholderText('Search expenses by title...'), {
             target: { value: 'Materials' },
         });
         await waitFor(() => {
-            expect(screen.getByText('Materials')).toBeInTheDocument();
-            expect(screen.queryByText('Rent')).not.toBeInTheDocument();
+            expect(getExpenseDesktopTable().getByText('Materials')).toBeInTheDocument();
+            expect(getExpenseDesktopTable().queryByText('Rent')).not.toBeInTheDocument();
         });
 
         fireEvent.click(screen.getByRole('button', { name: 'Download PDF' }));
@@ -748,10 +757,10 @@ describe('PaymentsPage', () => {
         fireEvent.click(await screen.findByRole('button', { name: 'Expenses' }));
 
         await waitFor(() => {
-            expect(screen.getByText('Materials')).toBeInTheDocument();
+            expect(getExpenseDesktopTable().getByText('Materials')).toBeInTheDocument();
         });
 
-        fireEvent.click(screen.getByRole('button', { name: 'Edit expense Materials' }));
+        fireEvent.click(getExpenseDesktopTable().getByRole('button', { name: 'Edit expense Materials' }));
         expect(screen.getByLabelText('Title')).toHaveValue('Materials');
         expect(screen.getByLabelText('Quantity')).toHaveValue('2');
 
@@ -774,7 +783,7 @@ describe('PaymentsPage', () => {
             expense_date: '2026-06-27',
         });
 
-        fireEvent.click(screen.getByRole('button', { name: 'Delete expense Materials' }));
+        fireEvent.click(getExpenseDesktopTable().getByRole('button', { name: 'Delete expense Materials' }));
         fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
 
         await waitFor(() => {
@@ -787,15 +796,15 @@ describe('PaymentsPage', () => {
         renderPage();
 
         await waitFor(() => {
-            expect(screen.getByText('Jane Doe')).toBeInTheDocument();
-            expect(screen.getByText('John Smith')).toBeInTheDocument();
+            expect(getPatientDesktopTable().getByText('Jane Doe')).toBeInTheDocument();
+            expect(getPatientDesktopTable().getByText('John Smith')).toBeInTheDocument();
         });
 
         fireEvent.click(screen.getByRole('button', { name: 'With debt' }));
 
         await waitFor(() => {
-            expect(screen.getByText('Jane Doe')).toBeInTheDocument();
-            expect(screen.queryByText('John Smith')).not.toBeInTheDocument();
+            expect(getPatientDesktopTable().getByText('Jane Doe')).toBeInTheDocument();
+            expect(getPatientDesktopTable().queryByText('John Smith')).not.toBeInTheDocument();
         });
 
         expect(screen.getByRole('button', { name: 'With debt' })).toHaveAttribute('aria-pressed', 'true');

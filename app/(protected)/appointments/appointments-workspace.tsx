@@ -691,6 +691,10 @@ export function AppointmentsWorkspace({ mode = 'appointments' }: AppointmentsWor
         () => weekDateDescriptors.find((descriptor) => descriptor.dateKey === expandedWeekDateKey) ?? null,
         [expandedWeekDateKey, weekDateDescriptors]
     );
+    const selectedWeekDescriptor = useMemo(
+        () => weekDateDescriptors.find((descriptor) => descriptor.dateKey === currentDateKey) ?? weekDateDescriptors[0],
+        [currentDateKey, weekDateDescriptors]
+    );
     const expandedWeekAppointments = expandedWeekDescriptor
         ? appointmentsByDate.get(expandedWeekDescriptor.dateKey) ?? []
         : [];
@@ -845,7 +849,7 @@ export function AppointmentsWorkspace({ mode = 'appointments' }: AppointmentsWor
                                 <button
                                     type="button"
                                     className={`inline-flex flex-1 items-center justify-center rounded-md border border-teal-200 bg-teal-50 font-medium text-teal-700 transition-colors hover:bg-teal-100 ${
-                                        compact ? 'h-6 px-1.5 text-[10px]' : 'h-8 px-3 text-xs'
+                                        compact ? 'h-6 px-1.5 text-[10px]' : 'h-10 px-3 text-xs lg:h-8'
                                     }`}
                                     aria-label={hiddenAppointmentsCount > 0
                                         ? t('appointments.showMoreAria', { count: hiddenAppointmentsCount })
@@ -866,7 +870,7 @@ export function AppointmentsWorkspace({ mode = 'appointments' }: AppointmentsWor
                                     <button
                                         type="button"
                                         className={`inline-flex flex-1 items-center justify-center rounded-md border border-slate-200 bg-white font-medium text-slate-700 transition-colors hover:bg-slate-50 ${
-                                            compact ? 'h-6 px-1.5 text-[10px]' : 'h-8 px-3 text-xs'
+                                            compact ? 'h-6 px-1.5 text-[10px]' : 'h-10 px-3 text-xs lg:h-8'
                                         }`}
                                         data-testid={includeTestIds ? `week-day-add-${descriptor.dateKey}` : undefined}
                                         onClick={() => openAddDialog({ date: descriptor.date })}
@@ -877,7 +881,7 @@ export function AppointmentsWorkspace({ mode = 'appointments' }: AppointmentsWor
                                     <button
                                         type="button"
                                         className={`inline-flex flex-1 items-center justify-center rounded-md border border-slate-200 bg-white font-medium text-slate-400 ${
-                                            compact ? 'h-6 px-1.5 text-[10px]' : 'h-8 px-3 text-xs'
+                                            compact ? 'h-6 px-1.5 text-[10px]' : 'h-10 px-3 text-xs lg:h-8'
                                         } disabled:cursor-not-allowed`}
                                         disabled
                                         onClick={denyPermission}
@@ -894,7 +898,7 @@ export function AppointmentsWorkspace({ mode = 'appointments' }: AppointmentsWor
                                 <button
                                     type="button"
                                     className={`inline-flex w-full items-center justify-center rounded-md border border-teal-200 bg-teal-50 font-medium text-teal-700 transition-colors hover:bg-teal-100 ${
-                                        compact ? 'h-6 px-1.5 text-[10px]' : 'h-8 px-3 text-xs'
+                                        compact ? 'h-6 px-1.5 text-[10px]' : 'h-10 px-3 text-xs lg:h-8'
                                     }`}
                                     aria-label={t('appointments.addForDay')}
                                     data-testid={includeTestIds ? `week-day-more-${descriptor.dateKey}` : undefined}
@@ -906,7 +910,7 @@ export function AppointmentsWorkspace({ mode = 'appointments' }: AppointmentsWor
                                 <button
                                     type="button"
                                     className={`inline-flex w-full items-center justify-center rounded-md border border-teal-100 bg-teal-50/60 font-medium text-teal-400 ${
-                                        compact ? 'h-6 px-1.5 text-[10px]' : 'h-8 px-3 text-xs'
+                                        compact ? 'h-6 px-1.5 text-[10px]' : 'h-10 px-3 text-xs lg:h-8'
                                     } disabled:cursor-not-allowed`}
                                     aria-label={t('appointments.addForDay')}
                                     disabled
@@ -1622,7 +1626,50 @@ export function AppointmentsWorkspace({ mode = 'appointments' }: AppointmentsWor
                                 <span>{t('status.no_show')}</span>
                             </div>
                         </div>
-                        <div data-testid="appointments-week-grid-stacked" className="space-y-3 xl:hidden">
+                        <div data-testid="appointments-week-grid-mobile" className="space-y-3 lg:hidden">
+                            <div
+                                className="grid grid-cols-7 gap-1 rounded-xl border border-slate-200/80 bg-slate-50/80 p-1"
+                                aria-label={weekRangeLabel}
+                            >
+                                {weekDateDescriptors.map((descriptor) => {
+                                    const isSelected = descriptor.dateKey === selectedWeekDescriptor?.dateKey;
+                                    const appointmentCount = appointmentsByDate.get(descriptor.dateKey)?.length ?? 0;
+
+                                    return (
+                                        <button
+                                            key={descriptor.dateKey}
+                                            type="button"
+                                            data-testid={`week-day-selector-${descriptor.dateKey}`}
+                                            aria-pressed={isSelected}
+                                            aria-label={`${descriptor.fullDateLabel}: ${t('appointments.count', { count: appointmentCount })}`}
+                                            className={`flex min-h-14 min-w-0 flex-col items-center justify-center rounded-lg px-0.5 text-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-400 focus-visible:ring-offset-1 ${
+                                                isSelected
+                                                    ? 'bg-teal-700 text-white shadow-sm'
+                                                    : 'bg-white text-slate-600 hover:bg-teal-50 hover:text-teal-700'
+                                            }`}
+                                            onClick={() => {
+                                                setCurrentDateOverride(descriptor.date);
+                                                setExpandedWeekDateKey(null);
+                                                replaceAppointmentsUrl({
+                                                    view: 'week',
+                                                    date: descriptor.dateKey,
+                                                });
+                                            }}
+                                        >
+                                            <span className="text-[10px] font-semibold uppercase leading-none">
+                                                {descriptor.weekdayLabel}
+                                            </span>
+                                            <span className="mt-1 text-sm font-bold leading-none tabular-nums">
+                                                {descriptor.dayNumber}
+                                            </span>
+                                            <span className={`mt-1 h-1.5 w-1.5 rounded-full ${appointmentCount > 0 ? (isSelected ? 'bg-white' : 'bg-teal-500') : 'bg-transparent'}`} />
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                            {selectedWeekDescriptor ? renderWeekDayCard(selectedWeekDescriptor) : null}
+                        </div>
+                        <div data-testid="appointments-week-grid-stacked" className="hidden space-y-3 lg:block xl:hidden">
                             <div className="grid grid-cols-1 items-stretch gap-3 md:grid-cols-2 lg:grid-cols-4">
                                 {weekDateDescriptors.slice(0, 4).map((descriptor) => renderWeekDayCard(descriptor, { includeTestIds: true }))}
                             </div>

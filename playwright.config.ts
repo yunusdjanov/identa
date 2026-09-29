@@ -50,6 +50,17 @@ export default defineConfig({
             },
         },
         {
+            name: 'mobile-small-chromium',
+            testMatch: /responsive\.spec\.ts/,
+            use: {
+                browserName: 'chromium',
+                viewport: { width: 360, height: 800 },
+                deviceScaleFactor: 1,
+                hasTouch: true,
+                isMobile: true,
+            },
+        },
+        {
             name: 'tablet-chromium',
             testMatch: /responsive\.spec\.ts/,
             use: {

@@ -342,7 +342,7 @@ export default function AnalyticsPage() {
                                 aria-pressed={currency === option}
                                 onClick={() => setCurrency(option)}
                                 className={cn(
-                                    'inline-flex h-8 min-w-14 items-center justify-center rounded-full border px-3 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-1',
+                                    'inline-flex h-10 min-w-14 items-center justify-center rounded-full border px-3 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-1 sm:h-8',
                                     currency === option
                                         ? 'border-teal-300 bg-teal-50 text-teal-700 shadow-sm shadow-teal-100/60'
                                         : 'border-transparent bg-transparent text-slate-600 hover:bg-slate-50 hover:text-slate-900'

@@ -449,10 +449,6 @@ export default function PatientDetailPage({
     const smileOralPhotoSlot = oralPhotoSlots.find((slot) => slot.viewType === 'smile') ?? null;
     const smileOralPhotoPhotos = smileOralPhotoSlot?.photos ?? [];
     const smileOralPhotoReadyCount = smileOralPhotoPhotos.filter((photo) => photo.hasPhoto).length;
-    const smileOralPhotoPlaceholders = Array.from(
-        { length: ORAL_PHOTO_MAX_PER_SLOT },
-        (_, index) => smileOralPhotoPhotos[index] ?? null
-    );
     const oralPhotoPreviewSlot = oralPhotoSlots.find((slot) => slot.viewType === oralPhotoPreviewTarget?.viewType) ?? null;
     const oralPhotoPreviewLabel = oralPhotoPreviewSlot
         ? t(oralPhotoPreviewSlot.labelKey)
@@ -476,6 +472,19 @@ export default function PatientDetailPage({
     const oralPhotoUploadMaxMb = currentUser?.subscription?.upload_max_mb ?? DEFAULT_ORAL_PHOTO_UPLOAD_MAX_MB;
     const oralPhotoUploadMaxBytes = oralPhotoUploadMaxMb * 1024 * 1024;
     const isOralPhotoMutationPending = uploadOralPhotoMutation.isPending || deleteOralPhotoMutation.isPending;
+    const canAddSmileOralPhoto = canManagePatients
+        && !isPatientArchived
+        && !isOralPhotoMutationPending
+        && smileOralPhotoPhotos.length < ORAL_PHOTO_MAX_PER_SLOT;
+    const isSmileOralPhotoUploading = uploadOralPhotoMutation.isPending
+        && uploadOralPhotoMutation.variables?.viewType === 'smile';
+    // On small screens, ten permanent placeholders create a long wall of
+    // empty tiles. Keep every real/processing item visible and expose one
+    // explicit upload tile; the counter still communicates the plan limit.
+    const smileOralPhotoDisplaySlots = [
+        ...smileOralPhotoPhotos,
+        ...(canAddSmileOralPhoto || isSmileOralPhotoUploading ? [null] : []),
+    ];
     const pickOralPhoto = (viewType: ApiPatientClinicalPhotoViewType) => {
         const slot = oralPhotoSlots.find((candidate) => candidate.viewType === viewType);
         if ((slot?.photos.length ?? 0) >= ORAL_PHOTO_MAX_PER_SLOT) {
@@ -595,7 +604,7 @@ export default function PatientDetailPage({
                 className="grid grid-cols-1 gap-2.5 lg:grid-cols-[minmax(0,1fr)_15rem] xl:grid-cols-[minmax(0,1fr)_16rem]"
             >
                 {/* Oral photo: compact clinical photo shortcuts */}
-                <article className="group/card relative flex h-[20.75rem] min-w-0 flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm shadow-slate-200/40 transition-all hover:-translate-y-0.5 hover:shadow-md hover:shadow-slate-200/70">
+                <article className="group/card relative flex min-h-0 min-w-0 flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm shadow-slate-200/40 transition-all hover:-translate-y-0.5 hover:shadow-md hover:shadow-slate-200/70 lg:h-[20.75rem]">
                     <div className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-slate-200 via-slate-300 to-slate-400" />
                     <header className="flex items-center justify-between gap-3 px-4 pt-4 pb-2">
                         <div className="flex min-w-0 items-center gap-2.5">
@@ -612,22 +621,18 @@ export default function PatientDetailPage({
                         </span>
                     </header>
                     <div className="flex min-h-0 flex-1 px-4 py-3">
-                        <div
-                            data-testid="patient-detail-oral-photo-grid"
-                            className="grid h-full min-h-0 flex-1 grid-cols-2 grid-rows-[repeat(5,minmax(0,1fr))] gap-2.5 sm:grid-cols-5 sm:grid-rows-[repeat(2,minmax(0,1fr))]"
-                        >
-                            {smileOralPhotoPlaceholders.map((photoSlot, index) => {
-                                const isUploadingSlot = uploadOralPhotoMutation.isPending
-                                    && uploadOralPhotoMutation.variables?.viewType === 'smile';
-                                const canUploadOralPhoto = canManagePatients
-                                    && !isPatientArchived
-                                    && !isOralPhotoMutationPending
-                                    && smileOralPhotoPhotos.length < ORAL_PHOTO_MAX_PER_SLOT;
-                                const slotLabel = `${t('patientDetail.oralPhoto.title')} ${index + 1}`;
-                                const hasRenderablePhoto = Boolean(photoSlot?.thumbnailUrl);
-                                const previewPhoto = photoSlot?.previewUrl ? photoSlot : null;
+                        {smileOralPhotoDisplaySlots.length > 0 ? (
+                            <div
+                                data-testid="patient-detail-oral-photo-grid"
+                                className="grid min-h-0 flex-1 auto-rows-[5.5rem] grid-cols-2 gap-2.5 sm:grid-cols-3 md:grid-cols-4 lg:h-full lg:auto-rows-auto lg:grid-cols-5 lg:grid-rows-2"
+                            >
+                                {smileOralPhotoDisplaySlots.map((photoSlot, index) => {
+                                    const canUploadOralPhoto = canAddSmileOralPhoto;
+                                    const slotLabel = `${t('patientDetail.oralPhoto.title')} ${index + 1}`;
+                                    const hasRenderablePhoto = Boolean(photoSlot?.thumbnailUrl);
+                                    const previewPhoto = photoSlot?.previewUrl ? photoSlot : null;
 
-                                return (
+                                    return (
                                     <button
                                         key={photoSlot?.photo.id ?? `empty-smile-${index}`}
                                         type="button"
@@ -663,7 +668,7 @@ export default function PatientDetailPage({
                                                     <Maximize2 className="h-4 w-4" />
                                                 </span>
                                             </>
-                                        ) : photoSlot?.isProcessing || isUploadingSlot ? (
+                                        ) : photoSlot?.isProcessing || isSmileOralPhotoUploading ? (
                                             <Loader2 className="h-4 w-4 animate-spin text-sky-500" />
                                         ) : photoSlot?.isRejected ? (
                                             <AlertCircle className="h-4 w-4 text-rose-500" />
@@ -671,14 +676,19 @@ export default function PatientDetailPage({
                                             <Plus className="h-5 w-5 text-teal-700" />
                                         )}
                                     </button>
-                                );
-                            })}
-                        </div>
+                                    );
+                                })}
+                            </div>
+                        ) : (
+                            <p className="flex min-h-24 flex-1 items-center justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 text-center text-sm text-slate-500">
+                                {t('patientDetail.oralPhoto.empty')}
+                            </p>
+                        )}
                     </div>
                 </article>
 
                 {/* Detail: activity and balance snapshot */}
-                <article className="group/card relative flex h-[20.75rem] flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm shadow-slate-200/40 transition-all hover:-translate-y-0.5 hover:shadow-md hover:shadow-slate-200/70">
+                <article className="group/card relative flex min-h-0 flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm shadow-slate-200/40 transition-all hover:-translate-y-0.5 hover:shadow-md hover:shadow-slate-200/70 lg:h-[20.75rem]">
                     <div className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-teal-400 via-sky-400 to-indigo-400" />
                     <header className="flex items-center justify-between gap-3 px-4 pt-4 pb-3">
                         <div className="flex items-center gap-2.5">

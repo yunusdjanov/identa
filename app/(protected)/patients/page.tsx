@@ -673,11 +673,11 @@ export default function PatientsPage() {
                 title={t('patients.title')}
                 description={t('patients.subtitle')}
                 actions={(
-                    <>
+                    <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-wrap">
                         {currentUser?.subscription?.can_export ? (
                             <Button
                                 variant="outline"
-                                className="w-full sm:w-auto"
+                                className="h-10 w-full sm:h-9 sm:w-auto"
                                 disabled={patientRows.length === 0}
                                 onClick={() => {
                                     if (patientRows.length === 0) {
@@ -732,7 +732,7 @@ export default function PatientsPage() {
                         {canManagePatients ? (
                             <Button
                                 variant="outline"
-                                className="w-full sm:w-auto"
+                                className="h-10 w-full sm:h-9 sm:w-auto"
                                 onClick={() => setIsManageCategoriesOpen(true)}
                             >
                                 <Tags className="w-4 h-4 mr-2" />
@@ -741,7 +741,7 @@ export default function PatientsPage() {
                         ) : isSubscriptionReadOnly(currentUser) ? (
                             <Button
                                 variant="outline"
-                                className="w-full sm:w-auto"
+                                className="h-10 w-full sm:h-9 sm:w-auto"
                                 disabled
                                 onClick={denyManageAction}
                             >
@@ -751,7 +751,7 @@ export default function PatientsPage() {
                         ) : null}
                         {canManagePatients ? (
                             <Button
-                                className="w-full sm:w-auto"
+                                className="col-span-2 h-10 w-full sm:h-9 sm:w-auto"
                                 onClick={() => setIsAddDialogOpen(true)}
                             >
                                 <Plus className="w-4 h-4 mr-2" />
@@ -759,7 +759,7 @@ export default function PatientsPage() {
                             </Button>
                         ) : isSubscriptionReadOnly(currentUser) ? (
                             <Button
-                                className="w-full sm:w-auto"
+                                className="col-span-2 h-10 w-full sm:h-9 sm:w-auto"
                                 disabled
                                 onClick={denyManageAction}
                             >
@@ -767,7 +767,7 @@ export default function PatientsPage() {
                                 {t('patients.addPatient')}
                             </Button>
                         ) : null}
-                    </>
+                    </div>
                 )}
             />
 
@@ -806,7 +806,153 @@ export default function PatientsPage() {
                         />
                     ) : (
                         <>
-                        <DataTableShell>
+                        <div data-testid="patients-mobile-list" className="grid gap-3 lg:hidden">
+                            {patientRows.map((patient) => {
+                                const filteredCategory = selectedCategoryId !== 'all'
+                                    ? patient.categories.find((category) => category.id === selectedCategoryId)
+                                    : undefined;
+                                const categoryToDisplay = filteredCategory ?? patient.categories[0];
+                                const patientPhotoThumbnailUrl = patient.photoThumbnailUrl ?? '';
+                                const patientPhotoPreviewUrl = patient.photoPreviewUrl ?? patientPhotoThumbnailUrl;
+
+                                return (
+                                    <article
+                                        key={patient.id}
+                                        id={`patient-mobile-card-${patient.id}`}
+                                        data-testid={`patient-mobile-card-${patient.id}`}
+                                        className={cn(
+                                            'rounded-2xl border border-slate-200/80 bg-white p-3 shadow-sm shadow-slate-200/50',
+                                            focusedPatientId === patient.id && 'border-teal-200 bg-teal-50/30 ring-1 ring-teal-100'
+                                        )}
+                                    >
+                                        <div className="flex min-w-0 items-start gap-3">
+                                            {patientPhotoThumbnailUrl ? (
+                                                <button
+                                                    type="button"
+                                                    className="group relative h-16 w-16 shrink-0 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-300"
+                                                    aria-label={`${t('patients.form.photo')}: ${patient.fullName}`}
+                                                    onClick={() => setPhotoPreview({
+                                                        src: patientPhotoPreviewUrl,
+                                                        thumbnailSrc: patientPhotoThumbnailUrl,
+                                                        alt: patient.fullName,
+                                                        title: patient.fullName,
+                                                    })}
+                                                >
+                                                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                    <img
+                                                        src={patientPhotoThumbnailUrl}
+                                                        alt={patient.fullName}
+                                                        crossOrigin={getProtectedMediaCrossOrigin(patientPhotoThumbnailUrl)}
+                                                        className="h-full w-full object-cover object-center"
+                                                        decoding="async"
+                                                        loading="lazy"
+                                                    />
+                                                    <span className="pointer-events-none absolute inset-0 flex items-center justify-center bg-slate-950/0 text-white opacity-0 transition group-focus-visible:bg-slate-950/35 group-focus-visible:opacity-100">
+                                                        <Maximize2 className="h-4 w-4" />
+                                                    </span>
+                                                </button>
+                                            ) : (
+                                                <Avatar className="h-16 w-16 shrink-0 rounded-xl border border-dashed border-slate-200 bg-slate-50">
+                                                    <AvatarFallback className="rounded-xl bg-slate-50 text-sm font-semibold text-slate-500">
+                                                        {getPatientInitials(patient.fullName)}
+                                                    </AvatarFallback>
+                                                </Avatar>
+                                            )}
+                                            <button
+                                                type="button"
+                                                className="min-h-16 min-w-0 flex-1 rounded-xl text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-300"
+                                                aria-label={t('patients.aria.openDetailsFor', { patientName: patient.fullName })}
+                                                onClick={() => openPatientDetails(patient.id, patient.fullName, getPatientOpenSource())}
+                                            >
+                                                <span className="block truncate text-base font-semibold text-slate-950" title={patient.fullName}>
+                                                    {truncateForUi(patient.fullName, PATIENT_TABLE_NAME_UI_LIMIT)}
+                                                </span>
+                                                <span className="mt-1 block truncate text-sm text-slate-600">
+                                                    <Phone aria-hidden="true" className="mr-1 inline-block h-3.5 w-3.5 text-slate-400" />
+                                                    {patient.phone || '-'}
+                                                </span>
+                                                {categoryToDisplay ? (
+                                                    <Badge
+                                                        variant="secondary"
+                                                        className="mt-1.5 max-w-full truncate"
+                                                        style={{ backgroundColor: `${categoryToDisplay.color}22`, color: categoryToDisplay.color }}
+                                                        title={categoryToDisplay.name}
+                                                    >
+                                                        {truncateForUi(categoryToDisplay.name, PATIENT_CATEGORY_UI_LIMIT)}
+                                                    </Badge>
+                                                ) : (
+                                                    <span className="mt-1.5 block text-xs text-slate-400">{t('patients.uncategorized')}</span>
+                                                )}
+                                            </button>
+                                        </div>
+                                        <div className="mt-3 grid grid-cols-2 gap-2 border-t border-slate-100 pt-3 text-xs">
+                                            <div className="min-w-0 rounded-xl bg-slate-50 px-3 py-2">
+                                                <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">{t('patients.table.registered')}</p>
+                                                <p className="mt-1 truncate font-medium text-slate-700">
+                                                    {patient.createdAt ? formatDate(patient.createdAt) : '-'}
+                                                </p>
+                                            </div>
+                                            <div className="min-w-0 rounded-xl bg-slate-50 px-3 py-2">
+                                                <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">{t('patients.table.lastVisit')}</p>
+                                                <p className="mt-1 truncate font-medium text-slate-700">
+                                                    {patient.lastVisitDate ? formatDate(patient.lastVisitDate) : t('patients.never')}
+                                                </p>
+                                            </div>
+                                        </div>
+                                        {showRecordAuthors ? (
+                                            <RecordAuthorBadge
+                                                className="mt-2"
+                                                createdBy={patient.createdBy}
+                                                updatedBy={patient.updatedBy}
+                                            />
+                                        ) : null}
+                                        <div className="mt-3 flex gap-2">
+                                            {showArchivedOnly ? (
+                                                canManagePatients ? (
+                                                    <Button
+                                                        variant="outline"
+                                                        className="h-11 flex-1"
+                                                        onClick={() => restoreMutation.mutate(patient.id)}
+                                                        disabled={restoreMutation.isPending}
+                                                    >
+                                                        {t('patients.restore')}
+                                                    </Button>
+                                                ) : isSubscriptionReadOnly(currentUser) ? (
+                                                    <Button variant="outline" className="h-11 flex-1" disabled onClick={denyManageAction}>
+                                                        {t('patients.restore')}
+                                                    </Button>
+                                                ) : null
+                                            ) : inactiveFilter !== 'none' ? (
+                                                canManageAppointments ? (
+                                                    <Button
+                                                        variant="outline"
+                                                        className="h-11 flex-1"
+                                                        onClick={() => router.push(`/appointments?action=new&patientId=${encodeURIComponent(patient.id)}`)}
+                                                    >
+                                                        <CalendarPlus className="h-4 w-4" />
+                                                        {t('patients.schedule')}
+                                                    </Button>
+                                                ) : isSubscriptionReadOnly(currentUser) && canViewAppointments ? (
+                                                    <Button variant="outline" className="h-11 flex-1" disabled>
+                                                        <CalendarPlus className="h-4 w-4" />
+                                                        {t('patients.schedule')}
+                                                    </Button>
+                                                ) : null
+                                            ) : null}
+                                            <Button
+                                                variant="outline"
+                                                className="h-11 flex-1 border-slate-200 text-slate-700"
+                                                onClick={() => openPatientDetails(patient.id, patient.fullName, getPatientOpenSource())}
+                                            >
+                                                {t('patients.viewDetails')}
+                                                <ArrowRight className="h-4 w-4" />
+                                            </Button>
+                                        </div>
+                                    </article>
+                                );
+                            })}
+                        </div>
+                        <DataTableShell data-testid="patients-desktop-table" className="hidden lg:block">
                             <Table className={getDataTableClassName('standard')}>
                                 <TableHeader>
                                     <TableRow>

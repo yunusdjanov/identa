@@ -1,7 +1,7 @@
 ﻿'use client';
 
 import dynamic from 'next/dynamic';
-import { type ChangeEvent, type FocusEvent, type ReactNode, useEffect, useMemo, useState } from 'react';
+import { type ChangeEvent, type CSSProperties, type FocusEvent, type ReactNode, useEffect, useMemo, useState } from 'react';
 import { type InfiniteData, useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
     createPatientTreatment,
@@ -66,8 +66,8 @@ const MEDIA_READINESS_TIMEOUT_MS = 8000;
 const HISTORY_TIMELINE_IMAGE_LIMIT = 4;
 const HISTORY_PAGE_SIZE = 10;
 const HISTORY_SORT = '-treatment_date,-created_at';
-const HISTORY_TIMELINE_IMAGE_TILE_CLASS = 'h-36 w-full min-w-0 lg:h-40';
-const HISTORY_TIMELINE_ADD_TILE_CLASS = 'h-36 w-full min-w-0 lg:h-40';
+const HISTORY_TIMELINE_IMAGE_TILE_CLASS = 'h-28 w-full min-w-0 sm:h-36 lg:h-40';
+const HISTORY_TIMELINE_ADD_TILE_CLASS = 'h-28 w-full min-w-0 sm:h-36 lg:h-40';
 const HISTORY_TIMELINE_EMPTY_ADD_TILE_CLASS = 'h-20 w-full min-w-0';
 const HISTORY_TIMELINE_IMAGE_COLUMN_WIDTH = '18.75rem';
 const HISTORY_TIMELINE_IMAGE_COLUMN_MIN_WIDTH = '10rem';
@@ -418,7 +418,7 @@ function HistoryFinancialPill({
             data-testid="history-financial-summary-pill"
             className={`flex min-h-10 min-w-0 flex-col justify-center rounded-xl border px-3 py-1.5 shadow-sm shadow-slate-100/50 ${getHistoryFinancialPillToneClasses(tone)}`}
         >
-            <div className="truncate text-[9px] font-bold uppercase leading-[0.7rem] tracking-[0.1em] text-slate-400">
+            <div className="truncate text-[10px] font-bold uppercase leading-3 tracking-[0.08em] text-slate-400">
                 {label}
             </div>
             <div className="flex min-w-0 items-center gap-1.5">
@@ -426,7 +426,7 @@ function HistoryFinancialPill({
                     {locked ? <span className="inline-flex items-center gap-1"><Lock className="h-3 w-3" />***</span> : value}
                 </div>
                 {badge ? (
-                    <span className="shrink-0 rounded-full border border-current/20 bg-white/55 px-1.5 py-0.5 text-[9px] font-bold leading-none">
+                    <span className="shrink-0 rounded-full border border-current/20 bg-white/55 px-1.5 py-0.5 text-[10px] font-bold leading-none">
                         {badge}
                     </span>
                 ) : null}
@@ -511,6 +511,12 @@ function getHistoryImageGridTemplateColumns(visibleImageCount: number, canAddIma
     }
 
     return [imageColumns, HISTORY_TIMELINE_ADD_COLUMN_WIDTH].filter(Boolean).join(' ');
+}
+
+function getHistoryImageGridStyle(gridTemplateColumns: string): CSSProperties {
+    return {
+        '--history-image-columns': gridTemplateColumns,
+    } as CSSProperties;
 }
 
 function buildPreviewGalleryImages(
@@ -617,7 +623,7 @@ function HistoryFinanceChip({
 
     return (
         <div className="min-w-0 rounded-lg border border-slate-200 bg-slate-50/80 px-2.5 py-1.5">
-            <p className="truncate text-[9px] font-semibold uppercase tracking-wider text-slate-400">{label}</p>
+            <p className="truncate text-[10px] font-semibold uppercase tracking-wider text-slate-400">{label}</p>
             {locked ? (
                 <span className="mt-0.5 inline-flex max-w-full items-center gap-1 text-xs font-semibold text-slate-300">
                     <Lock className="h-3 w-3 shrink-0" aria-hidden="true" />
@@ -668,7 +674,10 @@ function HistoryImageStrip({
 
     if (imageCount === 0) {
         return canAddImages ? (
-            <div className="grid min-w-0 justify-start gap-2 pb-1" style={{ gridTemplateColumns: getHistoryImageGridTemplateColumns(0, true) }}>
+            <div
+                className="grid min-w-0 grid-cols-1 gap-2 pb-1 lg:[grid-template-columns:var(--history-image-columns)]"
+                style={getHistoryImageGridStyle(getHistoryImageGridTemplateColumns(0, true))}
+            >
                 <HistoryAddImageButton label={addImageLabel} onClick={onAddImage} compact />
             </div>
         ) : (
@@ -678,7 +687,10 @@ function HistoryImageStrip({
 
     if (visibleImages.length === 0) {
         return canAddImages ? (
-            <div className="grid min-w-0 justify-start gap-2 pb-1" style={{ gridTemplateColumns: getHistoryImageGridTemplateColumns(1, true) }}>
+            <div
+                className="grid min-w-0 grid-cols-2 gap-2 pb-1 md:grid-cols-3 lg:[grid-template-columns:var(--history-image-columns)]"
+                style={getHistoryImageGridStyle(getHistoryImageGridTemplateColumns(1, true))}
+            >
                 <HistoryImageStatus label={processingLabel} />
                 <HistoryAddImageButton label={addImageLabel} onClick={onAddImage} />
             </div>
@@ -689,7 +701,10 @@ function HistoryImageStrip({
 
     return (
         <div className="relative min-w-0">
-            <div className="grid min-w-0 justify-start gap-2 pb-1" style={{ gridTemplateColumns }}>
+            <div
+                className="grid min-w-0 grid-cols-2 gap-2 pb-1 md:grid-cols-3 lg:[grid-template-columns:var(--history-image-columns)]"
+                style={getHistoryImageGridStyle(gridTemplateColumns)}
+            >
                 {visibleImages.map((image, index) => (
                     <HistoryTimelineImageButton
                         key={image.id}
@@ -2292,7 +2307,7 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                                             type="button"
                                                             variant="outline"
                                                             size="icon-sm"
-                                                            className="h-8 w-8 border-slate-200 bg-white text-slate-700 shadow-sm hover:bg-slate-100"
+                                                            className="h-10 w-10 border-slate-200 bg-white text-slate-700 shadow-sm hover:bg-slate-100 md:h-8 md:w-8"
                                                             aria-label={t('patientHistory.editEntry')}
                                                             disabled={isEditDisabled}
                                                             onClick={() => {
@@ -2309,7 +2324,7 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                                             type="button"
                                                             variant="outline"
                                                             size="icon-sm"
-                                                            className="h-8 w-8 border-red-200 bg-red-50 text-red-600 shadow-sm hover:bg-red-100 hover:text-red-700"
+                                                            className="h-10 w-10 border-red-200 bg-red-50 text-red-600 shadow-sm hover:bg-red-100 hover:text-red-700 md:h-8 md:w-8"
                                                             aria-label={t('patientHistory.deleteEntry')}
                                                             disabled={isManageReadonly}
                                                             onClick={() => {

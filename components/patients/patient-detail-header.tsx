@@ -333,7 +333,7 @@ export function PatientDetailHeader({
                     <Button
                         variant="ghost"
                         size="icon"
-                        className="h-8 w-8 shrink-0"
+                        className="h-10 w-10 shrink-0 sm:h-8 sm:w-8"
                         aria-label={t('patientDetail.backToPatients')}
                         onClick={() => router.push(PATIENTS_LIST_RESTORE_HREF)}
                     >
@@ -432,11 +432,11 @@ export function PatientDetailHeader({
                 </div>
                 <div
                     data-testid="patient-detail-header-facts"
-                    className="grid h-auto min-w-0 grid-rows-[auto_auto_auto] gap-1.5 overflow-visible rounded-2xl border border-slate-100 bg-slate-50/60 px-2.5 py-2 shadow-sm shadow-slate-200/40 md:h-[8rem] md:grid-rows-[1fr_auto_1fr] md:overflow-hidden lg:col-span-2 lg:row-start-2 xl:col-span-1 xl:col-start-2 xl:row-start-1"
+                    className="order-3 grid h-auto min-w-0 grid-rows-[auto_auto_auto] gap-1.5 overflow-visible rounded-2xl border border-slate-100 bg-slate-50/60 px-2.5 py-2 shadow-sm shadow-slate-200/40 md:h-[8rem] md:grid-rows-[1fr_auto_1fr] md:overflow-hidden lg:order-none lg:col-span-2 lg:row-start-2 xl:col-span-1 xl:col-start-2 xl:row-start-1"
                 >
                     <div
                         data-testid="patient-detail-header-contact-facts"
-                        className="grid min-h-0 min-w-0 items-center gap-1.5 md:grid-cols-3"
+                        className="grid min-h-0 min-w-0 grid-cols-2 items-center gap-1.5 md:grid-cols-3"
                     >
                         <PatientHeaderFact
                             icon={Phone}
@@ -456,7 +456,7 @@ export function PatientDetailHeader({
                             }
                             title={headerPhoneTitle}
                             tone="teal"
-                            className="h-11"
+                            className="col-span-2 h-11 md:col-span-1"
                             valueClassName={headerPhones.length > 0 ? '' : 'text-slate-400'}
                         />
                         <PatientHeaderFact
@@ -517,7 +517,7 @@ export function PatientDetailHeader({
                 </div>
                 <div
                     data-testid="patient-detail-header-actions"
-                    className="flex flex-col items-end gap-2 lg:col-start-2 lg:row-start-1 lg:justify-end xl:col-start-3"
+                    className="order-2 flex min-w-0 flex-row flex-wrap items-center justify-end gap-2 border-t border-slate-100 pt-2 lg:order-none lg:col-start-2 lg:row-start-1 lg:border-0 lg:pt-0 xl:col-start-3"
                 >
                     {isPatientArchived ? (
                         <Badge variant="secondary" className="bg-slate-200 text-slate-800">
@@ -584,7 +584,7 @@ export function PatientDetailHeader({
                                 <Button
                                     variant="outline"
                                     size="sm"
-                                    className="h-7 rounded-full px-3 text-xs"
+                                    className="h-10 rounded-full px-3 text-xs lg:h-7"
                                     onClick={() => setIsRestorePatientDialogOpen(true)}
                                     disabled={
                                         restorePatientMutation.isPending
@@ -597,7 +597,7 @@ export function PatientDetailHeader({
                                 <Button
                                     variant="outline"
                                     size="sm"
-                                    className="h-7 rounded-full px-3 text-xs"
+                                    className="h-10 rounded-full px-3 text-xs lg:h-7"
                                     disabled
                                     onClick={denyManageAction}
                                 >
@@ -608,7 +608,7 @@ export function PatientDetailHeader({
                                 <Button
                                     variant="outline"
                                     size="sm"
-                                    className="h-7 rounded-full px-3 text-xs text-red-600 hover:text-red-700"
+                                    className="h-10 rounded-full px-3 text-xs text-red-600 hover:text-red-700 lg:h-7"
                                     onClick={() => setIsPermanentDeletePatientDialogOpen(true)}
                                     disabled={
                                         restorePatientMutation.isPending
@@ -622,7 +622,7 @@ export function PatientDetailHeader({
                                 <Button
                                     variant="outline"
                                     size="sm"
-                                    className="h-7 rounded-full px-3 text-xs text-red-600 hover:text-red-700"
+                                    className="h-10 rounded-full px-3 text-xs text-red-600 hover:text-red-700 lg:h-7"
                                     disabled
                                     onClick={denyManageAction}
                                 >

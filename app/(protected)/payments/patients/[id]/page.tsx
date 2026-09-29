@@ -595,7 +595,52 @@ export default function PaymentPatientPage({
                     </div>
                 ) : (
                     <>
-                        <DataTableShell>
+                        <div data-testid="payment-ledger-mobile-list" className="grid gap-3 lg:hidden">
+                            {entries.map((entry: ApiPaymentHistoryLedgerRow) => {
+                                const currency: ApiMoneyCurrency = entry.currency === 'USD' ? 'USD' : 'UZS';
+                                const remainingDebt = Math.max(0, Number(entry.balance_delta ?? 0));
+                                const advance = Math.max(0, -Number(entry.balance_delta ?? 0));
+
+                                return (
+                                    <article
+                                        key={entry.id}
+                                        data-testid={`payment-ledger-mobile-card-${entry.id}`}
+                                        className="rounded-2xl border border-slate-200/80 bg-white p-3 shadow-sm shadow-slate-200/50"
+                                    >
+                                        <div className="flex items-start justify-between gap-3">
+                                            <p className="min-w-0 break-words text-sm font-semibold leading-5 text-slate-950">
+                                                {entry.work_done || '-'}
+                                            </p>
+                                            <span className="shrink-0 rounded-lg bg-slate-50 px-2 py-1 text-xs font-medium tabular-nums text-slate-600">
+                                                {formatLedgerDate(entry.date, locale)}
+                                            </span>
+                                        </div>
+                                        <dl className="mt-3 grid grid-cols-3 gap-2 border-t border-slate-100 pt-3">
+                                            <div className="min-w-0 rounded-xl bg-slate-50 px-2 py-2">
+                                                <dt className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">{t('payments.patientLedger.table.price')}</dt>
+                                                <dd className="mt-1 break-words text-xs font-semibold tabular-nums text-slate-700">{formatCurrency(Number(entry.debt ?? 0), currency)}</dd>
+                                            </div>
+                                            <div className="min-w-0 rounded-xl bg-emerald-50/70 px-2 py-2">
+                                                <dt className="text-[10px] font-semibold uppercase tracking-wide text-emerald-500">{t('payments.patientLedger.table.paid')}</dt>
+                                                <dd className="mt-1 break-words text-xs font-semibold tabular-nums text-emerald-700">{formatCurrency(Number(entry.paid ?? 0), currency)}</dd>
+                                            </div>
+                                            <div className="min-w-0 rounded-xl bg-rose-50/70 px-2 py-2">
+                                                <dt className="text-[10px] font-semibold uppercase tracking-wide text-rose-500">{t('payments.patientLedger.table.debt')}</dt>
+                                                <dd className={`mt-1 break-words text-xs font-semibold tabular-nums ${remainingDebt > 0 ? 'text-rose-700' : 'text-slate-600'}`}>
+                                                    {formatCurrency(remainingDebt, currency)}
+                                                </dd>
+                                            </div>
+                                        </dl>
+                                        {advance > 0 ? (
+                                            <p className="mt-2 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-700">
+                                                {t('patientHistory.balanceStatus.advance')}: {formatCurrency(advance, currency)}
+                                            </p>
+                                        ) : null}
+                                    </article>
+                                );
+                            })}
+                        </div>
+                        <DataTableShell data-testid="payment-ledger-desktop-table" className="hidden lg:block">
                             <Table
                                 aria-busy={ledgerQuery.isFetching}
                                 className={cn(

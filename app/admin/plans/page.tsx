@@ -351,7 +351,7 @@ export default function AdminPlansPage() {
                             <CardContent className="px-4 pb-5 sm:px-5">
                                 <DataTableShell
                                     aria-label={t('admin.plans.tableTitle')}
-                                    className="hidden md:block"
+                                    className="hidden lg:block"
                                 >
                                     <Table className={getDataTableClassName('standard')}>
                                     <TableHeader>
@@ -431,7 +431,7 @@ export default function AdminPlansPage() {
                                     </TableBody>
                                     </Table>
                                 </DataTableShell>
-                                <div className="grid gap-3 md:hidden">
+                                <div className="grid gap-3 lg:hidden">
                                     {(plansQuery.data ?? []).map((plan) => {
                                         const updatedDate = formatUpdatedAt(plan.updated_at);
                                         return (

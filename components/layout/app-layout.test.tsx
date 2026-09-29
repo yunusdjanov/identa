@@ -129,7 +129,7 @@ describe('AppLayout skeleton header', () => {
         expect(container.querySelector('header')).toHaveAttribute('data-app-header');
         expect(container.querySelector('[data-app-header] > div')).toHaveClass('max-w-[1600px]');
         expect(container.querySelector('main')).toHaveClass('max-w-[1600px]');
-        expect(container.querySelector('[data-app-header-spacer]')).toHaveClass('h-[7.5rem]', 'md:h-16');
+        expect(container.querySelector('[data-app-header-spacer]')).toHaveClass('h-24', 'md:h-16');
     });
 
     it('keeps the admin header fixed above page-level select popovers', () => {
@@ -137,7 +137,7 @@ describe('AppLayout skeleton header', () => {
 
         expect(container.querySelector('header')).toHaveClass('fixed', 'z-50');
         expect(container.querySelector('header > div')).toHaveClass('max-w-[1600px]');
-        expect(container.querySelector('[data-admin-header-spacer]')).toHaveClass('h-[7.5rem]', 'md:h-16');
+        expect(container.querySelector('[data-admin-header-spacer]')).toHaveClass('h-24', 'md:h-16');
     });
 
     it('gives icon-only tablet navigation an accessible name and current-page state', () => {

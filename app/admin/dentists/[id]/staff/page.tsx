@@ -304,7 +304,7 @@ export default function AdminDentistStaffPage() {
                             <>
                                 <DataTableShell
                                     aria-label={t('admin.staffPage.title')}
-                                    className="hidden md:block"
+                                    className="hidden lg:block"
                                 >
                                     <Table className={getDataTableClassName('standard')}>
                                         <TableHeader>
@@ -405,7 +405,7 @@ export default function AdminDentistStaffPage() {
                                     </Table>
                                 </DataTableShell>
 
-                                <div className="grid gap-3 md:hidden">
+                                <div className="grid gap-3 lg:hidden">
                                     {staffMembers.map((staff) => (
                                         <article
                                             key={staff.id}

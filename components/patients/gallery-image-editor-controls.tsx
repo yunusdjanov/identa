@@ -244,7 +244,7 @@ export function GalleryImageEditorControls({
                                                 type="button"
                                                 onClick={() => onDrawColorChange(color)}
                                                 disabled={isEditingDisabled}
-                                                className={`h-7 w-7 rounded-full border shadow-sm transition disabled:cursor-not-allowed disabled:opacity-50 ${
+                                                className={`h-9 w-9 rounded-full border shadow-sm transition disabled:cursor-not-allowed disabled:opacity-50 sm:h-7 sm:w-7 ${
                                                     drawColor === color ? 'border-teal-300 ring-2 ring-teal-300' : 'border-white/30'
                                                 }`}
                                                 style={{ backgroundColor: color }}
