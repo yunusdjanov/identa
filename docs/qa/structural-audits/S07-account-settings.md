@@ -2,9 +2,10 @@
 
 - Date: 2026-09-29
 - Auditor: Codex
-- Base/final commit: `a662e51` / audit branch pending CI and deployment
+- Base/final commit: `a662e51` / `4321b18`
 - Branch: `audit/s07-settings-security`
-- Environment: local source review, Vitest/JSDOM, optimized Next build, npm 10 clean install and dependency audit; GitHub Actions, Vercel, Railway, and production smoke pending
+- Runtime PR: [#39](https://github.com/yunusdjanov/identa/pull/39)
+- Environment: local source review, Vitest/JSDOM, optimized Next build, npm 10 clean install and dependency audit; GitHub Actions, Vercel, Railway, and read-only production smoke
 - Risk tier: A
 - Dependencies: S02
 - Roles and tenants: dentist owner, assistant, platform admin; account settings are self-scoped and practice fields remain dentist-only
@@ -13,12 +14,12 @@
 
 ## Result
 
-Status: IN PROGRESS
+Status: STABLE
 
-All reproduced local S07 defects are fixed and local mandatory gates pass. The
-section remains in progress until required GitHub CI succeeds, the protected PR
-is merged, both runtimes deploy the audited commit, and read-only production
-smoke confirms the deployed account-recovery boundaries.
+All reproduced S07 defects are fixed. Protected PR #39 was squash-merged as
+`4321b18`; required pull-request and post-merge GitHub CI passed, every Vercel
+and Railway deployment status for that commit succeeded, and read-only
+production smoke confirmed the public and authentication boundaries.
 
 ## Inventory
 
@@ -45,9 +46,9 @@ smoke confirms the deployed account-recovery boundaries.
 | Authorization and privacy | PASS | Settings remain self-scoped. Unverified admins may reach account recovery but cannot call privileged admin APIs. Audit metadata records role and changed field names without old/new PII. |
 | Data integrity | PASS | Profile write and audit append are atomic under a locked user row. Partial hours compare against persisted counterparts. Email identity cleanup and other-session revocation are in the same service workflow. No migration is required. |
 | Performance | PASS | Profile endpoints remain single-row operations; no growing list or N+1 path was introduced. Google SDK loading is lazy, bounded, and shared. |
-| Operations | N/A | S07 adds no queue, cron, storage, or schema dependency. CI/deployment/production verification is pending before closure. |
+| Operations | PASS | S07 adds no queue, cron, storage, or schema dependency. Vercel, the Railway API, and both Railway cron services reported successful deployment for `4321b18`. |
 | Accessibility/responsive/i18n | PASS | Icon-only mobile tabs have accessible names, mobile actions fill available width, new security/range/confirmation copy exists in ru/uz/en, and existing responsive card patterns are retained. |
-| Verification | IN PROGRESS | Focused regressions, 531-test frontend suite, lint, typecheck, OpenAPI, guardrails, production build, clean npm 10 install, and dependency audit pass. Backend CI and post-deploy production smoke remain. |
+| Verification | PASS | Focused regressions, 531-test frontend suite, lint, typecheck, OpenAPI, guardrails, production build, clean npm 10 install, dependency audit, complete backend CI, browser/accessibility CI, deployment checks, and production smoke pass. |
 
 ## Findings
 
@@ -76,26 +77,37 @@ npm run check:core-guardrails                # pass
 npm run check:openapi                        # 68 paths
 npm run build                                # optimized build, 58 static pages generated
 git diff --check                             # pass
+GitHub Actions PR run 36569822312            # 4/4 required jobs passed
+GitHub Actions main run 36570558820          # 4/4 required jobs passed
 ```
 
 No supported local PHP 8.4 runtime is installed. The complete Laravel suite,
 fresh-database migrations, and backend syntax/static checks are therefore
-mandatory GitHub Actions evidence before merge.
+verified by the authoritative GitHub Actions PHP 8.4 runtime.
 
 ## Production smoke
 
-Pending protected-PR merge and deployment. Only guest-safe/read-only checks
-will be used: deployment commit/status, public shell, unauthenticated API
-boundaries, API health, and verification-recovery routing. No real account
-setting will be changed.
+Read-only checks against deployed commit `4321b18` passed on 2026-09-29:
+
+- `https://identa.uz/` returned `200`; CSP, HSTS, frame, content-type,
+  referrer, and permissions-policy headers were present.
+- `https://api.identa.uz/api/v1/health` returned `200` with service status
+  `ok`.
+- Guest `/settings` redirected to `/login?from=%2Fsettings`; guest `/admin`
+  redirected to `/admin/login`.
+- Unauthenticated profile-settings and admin-dentists API requests both
+  returned `401`.
+- Vercel and all four applicable Railway status contexts reported success for
+  the merge commit.
+
+No real account setting, credential, session, or tenant data was changed.
 
 ## Blocked, accepted, or not tested
 
-- Required backend CI, Vercel/Railway deployment status, and read-only
-  production smoke are pending; this is why the section is not yet `STABLE`.
 - Correct-password, wrong-password, token/session revocation, audit privacy,
-  and transaction behavior are covered in Laravel feature tests but await the
-  authoritative PHP 8.4 CI runtime.
+  and transaction behavior are covered by passing Laravel feature tests in the
+  authoritative PHP 8.4 CI runtime; they were intentionally not replayed with
+  real production credentials.
 - A real Google account was not linked/unlinked and a real verification email
   was not sent. Those are intentionally excluded from production audit writes.
 - Manual Firefox/WebKit, zoom, screen-reader speech, and exhaustive viewport
@@ -115,6 +127,7 @@ setting will be changed.
 
 ## Final verification
 
-Local remediation is complete and all local mandatory gates pass. S07 will be
-closed only after required CI and both production runtimes confirm the exact
-deployed commit with read-only smoke.
+S07 is closed as `STABLE` at runtime commit `4321b18`. Local gates, protected
+pull-request checks, post-merge main CI, deployment statuses, and read-only
+production smoke all pass. Remaining manual cross-browser breadth belongs to
+S19 and does not block this section.
