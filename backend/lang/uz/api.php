@@ -54,6 +54,8 @@ return [
     ],
     'settings' => [
         'working_hours_end_after_start' => 'Ish tugash vaqti ish boshlash vaqtidan keyin bo‘lishi kerak.',
+        'working_hours_pair_required' => 'Ish boshlanishi va tugash vaqtini birga kiriting yoki ikkalasini ham bo‘sh qoldiring.',
+        'email_change_requires_password' => 'Emailni o‘zgartirishdan oldin akkaunt uchun parol o‘rnating.',
     ],
     'subscription' => [
         'read_only' => 'Tarif yangilanmaguncha klinika faqat ko‘rish rejimida ishlaydi.',

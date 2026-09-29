@@ -1,8 +1,9 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import AdminSettingsPage from '@/app/admin/settings/page';
-import { getCurrentUser } from '@/lib/api/dentist';
+import { getCurrentUser, updateProfile } from '@/lib/api/dentist';
 import { I18nProvider } from '@/components/providers/i18n-provider';
 import { DICTIONARIES } from '@/lib/i18n/dictionaries';
 
@@ -14,6 +15,7 @@ vi.mock('next/navigation', () => ({
 vi.mock('@/lib/api/dentist', () => ({
     getCurrentUser: vi.fn(),
     updateProfile: vi.fn(),
+    resendEmailVerification: vi.fn(),
 }));
 vi.mock('sonner', () => ({ toast: { error: vi.fn(), success: vi.fn() } }));
 
@@ -23,7 +25,15 @@ vi.mock('@/components/settings/password-security-card', () => ({
     PasswordSecurityCard: () => <div>password-security-card</div>,
 }));
 
-const admin = { id: 'a1', name: 'Super Admin', email: 'admin@identa.test', role: 'admin' as const, account_status: 'active' as const };
+const admin = {
+    id: 'a1',
+    name: 'Super Admin',
+    email: 'admin@identa.test',
+    role: 'admin' as const,
+    account_status: 'active' as const,
+    email_verified: true,
+    has_password: true,
+};
 
 function renderPage() {
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
@@ -40,6 +50,8 @@ describe('AdminSettingsPage', () => {
     beforeEach(() => {
         pushMock.mockClear();
         vi.mocked(getCurrentUser).mockReset();
+        vi.mocked(updateProfile).mockReset();
+        vi.mocked(updateProfile).mockResolvedValue({} as never);
     });
     afterEach(() => cleanup());
 
@@ -72,5 +84,23 @@ describe('AdminSettingsPage', () => {
         expect(await screen.findByText('Password change required')).toBeInTheDocument();
         expect(screen.queryByText('Account')).not.toBeInTheDocument();
         expect(screen.getByText('password-security-card')).toBeInTheDocument();
+    });
+
+    it('requires the current password for an admin login-email change', async () => {
+        vi.mocked(getCurrentUser).mockResolvedValue(admin as never);
+        renderPage();
+
+        const user = userEvent.setup();
+        const email = await screen.findByLabelText(/e-?mail/i);
+        await user.clear(email);
+        await user.type(email, 'new-admin@identa.test');
+        await user.type(screen.getByLabelText(/current password/i), 'CurrentPass123');
+        await user.click(screen.getByRole('button', { name: 'Save Changes' }));
+
+        await waitFor(() => expect(vi.mocked(updateProfile).mock.calls[0]?.[0]).toEqual({
+            name: 'Super Admin',
+            email: 'new-admin@identa.test',
+            current_password: 'CurrentPass123',
+        }));
     });
 });

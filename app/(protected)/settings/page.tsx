@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { PasswordInput } from '@/components/ui/password-input';
 import { Textarea } from '@/components/ui/textarea';
 import { Skeleton } from '@/components/ui/skeleton';
 import { SettingsLoadingState } from '@/components/layout/page-loading-skeletons';
@@ -27,6 +28,7 @@ import { toast } from 'sonner';
 import { queryKeys } from '@/lib/query-keys';
 import { User, Building2, Clock, Eye, Lock } from 'lucide-react';
 import type { DentistProfile } from '@/lib/types';
+import { useDirtyFormWarning } from '@/lib/hooks/use-dirty-form-warning';
 import { useI18n } from '@/components/providers/i18n-provider';
 import {
     INPUT_LIMITS,
@@ -37,7 +39,10 @@ import {
     normalizePhoneForApi,
 } from '@/lib/input-validation';
 import { isValidTimeInput, sanitizeTimeInput } from '@/lib/utils';
-import { DEFAULT_APPOINTMENT_WORKING_HOURS } from '@/lib/appointments/time-slots';
+import {
+    DEFAULT_APPOINTMENT_WORKING_HOURS,
+    toMinutesFromTime,
+} from '@/lib/appointments/time-slots';
 import { AppErrorState } from '@/components/error/app-error-state';
 import { AccessDeniedState } from '@/components/error/access-denied-state';
 
@@ -124,12 +129,17 @@ export default function SettingsPage() {
     const [profileDraft, setProfileDraft] = useState<DentistProfile | null>(null);
     const [profileSubmitAttempted, setProfileSubmitAttempted] = useState(false);
     const [practiceSubmitAttempted, setPracticeSubmitAttempted] = useState(false);
+    const [emailCurrentPassword, setEmailCurrentPassword] = useState('');
 
     const profileMutation = useMutation({
         mutationFn: updateProfile,
-        onSuccess: () => {
+        onSuccess: (updatedProfile) => {
+            queryClient.setQueryData(queryKeys.settings.profile(), updatedProfile);
             toast.success(t('settings.profileUpdated'));
             setProfileDraft(null);
+            setEmailCurrentPassword('');
+            setProfileSubmitAttempted(false);
+            setPracticeSubmitAttempted(false);
             void currentUserQuery.refetch();
             void profileQuery.refetch();
             void queryClient.invalidateQueries({ queryKey: queryKeys.auth.me() });
@@ -139,7 +149,17 @@ export default function SettingsPage() {
         },
     });
 
-    const profile = profileDraft ?? (profileQuery.data ? mapProfileToForm(profileQuery.data) : defaultProfile);
+    const persistedProfile = profileQuery.data ? mapProfileToForm(profileQuery.data) : defaultProfile;
+    const profile = profileDraft ?? persistedProfile;
+    const hasUnsavedProfileChanges = profileDraft !== null
+        && JSON.stringify(profileDraft) !== JSON.stringify(persistedProfile);
+    useDirtyFormWarning(hasUnsavedProfileChanges);
+
+    const emailChanged = Boolean(
+        currentUser
+        && profile.email.trim() !== currentUser.email.trim()
+    );
+    const canChangeEmail = currentUser?.has_password !== false;
     const profileNameError = getTextValidationMessage(profile.name, {
         label: t('settings.fullName'),
         required: true,
@@ -148,7 +168,15 @@ export default function SettingsPage() {
     });
     const profileEmailError = getEmailValidationMessage(profile.email, { required: true });
     const profilePhoneError = getPhoneValidationMessage(profile.phone, { required: false });
-    const profileHasErrors = Boolean(profileNameError || profileEmailError || profilePhoneError);
+    const emailCurrentPasswordError = emailChanged && canChangeEmail && !emailCurrentPassword
+        ? t('settings.currentPasswordRequired')
+        : null;
+    const profileHasErrors = Boolean(
+        profileNameError
+        || profileEmailError
+        || profilePhoneError
+        || emailCurrentPasswordError
+    );
     const practiceNameError = getTextValidationMessage(profile.practiceName ?? '', {
         label: t('settings.practiceName'),
         min: 3,
@@ -163,9 +191,15 @@ export default function SettingsPage() {
     const workingHoursStartError = !isValidTimeInput(profile.workingHours.start)
         ? t('settings.timeInvalid')
         : null;
-    const workingHoursEndError = !isValidTimeInput(profile.workingHours.end)
+    const workingHoursEndFormatError = !isValidTimeInput(profile.workingHours.end)
         ? t('settings.timeInvalid')
         : null;
+    const workingHoursRangeError = !workingHoursStartError
+        && !workingHoursEndFormatError
+        && toMinutesFromTime(profile.workingHours.end) <= toMinutesFromTime(profile.workingHours.start)
+        ? t('settings.workingHoursEndAfterStart')
+        : null;
+    const workingHoursEndError = workingHoursEndFormatError ?? workingHoursRangeError;
     const workingHoursHasErrors = Boolean(workingHoursStartError || workingHoursEndError);
 
     const updatePartialProfile = (payload: Parameters<typeof updateProfile>[0]) => {
@@ -187,8 +221,9 @@ export default function SettingsPage() {
         updatePartialProfile({
             name: profile.name.trim(),
             email: profile.email.trim(),
-            phone: profile.phone ? normalizePhoneForApi(profile.phone) : undefined,
+            phone: profile.phone ? normalizePhoneForApi(profile.phone) : null,
             ...(isDentist ? { license_number: profile.licenseNumber } : {}),
+            ...(emailChanged ? { current_password: emailCurrentPassword } : {}),
         });
     };
 
@@ -233,8 +268,12 @@ export default function SettingsPage() {
             return;
         }
 
+        const previousDraft = profileDraft;
         setProfileDraft({ ...profile, showRecordAuthors: enabled });
-        updatePartialProfile({ show_record_authors: enabled });
+        profileMutation.mutate(
+            { show_record_authors: enabled },
+            { onError: () => setProfileDraft(previousDraft) }
+        );
     };
 
     if (
@@ -312,6 +351,7 @@ export default function SettingsPage() {
                             value="profile"
                             className="flex-shrink-0"
                             disabled={forceReset}
+                            aria-label={t('settings.tab.profile')}
                         >
                             <User className="w-4 h-4 sm:mr-2" />
                             <span className="hidden sm:inline">{t('settings.tab.profile')}</span>
@@ -322,6 +362,7 @@ export default function SettingsPage() {
                                     value="practice"
                                     className="flex-shrink-0"
                                     disabled={forceReset}
+                                    aria-label={t('settings.tab.practice')}
                                 >
                                     <Building2 className="w-4 h-4 sm:mr-2" />
                                     <span className="hidden sm:inline">{t('settings.tab.practice')}</span>
@@ -330,6 +371,7 @@ export default function SettingsPage() {
                                     value="hours"
                                     className="flex-shrink-0"
                                     disabled={forceReset}
+                                    aria-label={t('settings.tab.hours')}
                                 >
                                     <Clock className="w-4 h-4 sm:mr-2" />
                                     <span className="hidden sm:inline">{t('settings.tab.hours')}</span>
@@ -340,11 +382,16 @@ export default function SettingsPage() {
                             value="display"
                             className="flex-shrink-0"
                             disabled={forceReset}
+                            aria-label={t('settings.tab.display')}
                         >
                             <Eye className="w-4 h-4 sm:mr-2" />
                             <span className="hidden sm:inline">{t('settings.tab.display')}</span>
                         </TabsTrigger>
-                        <TabsTrigger value="security" className="flex-shrink-0">
+                        <TabsTrigger
+                            value="security"
+                            className="flex-shrink-0"
+                            aria-label={t('settings.tab.security')}
+                        >
                             <Lock className="w-4 h-4 sm:mr-2" />
                             <span className="hidden sm:inline">{t('settings.tab.security')}</span>
                         </TabsTrigger>
@@ -402,9 +449,15 @@ export default function SettingsPage() {
                                             autoComplete="email"
                                             inputMode="email"
                                             aria-invalid={Boolean(profileSubmitAttempted && profileEmailError)}
+                                            disabled={!canChangeEmail}
                                         />
                                         {profileSubmitAttempted && profileEmailError ? (
                                             <p className="text-xs text-red-600">{profileEmailError}</p>
+                                        ) : null}
+                                        {!canChangeEmail ? (
+                                            <p className="text-xs text-amber-700">
+                                                {t('settings.emailChangeRequiresPassword')}
+                                            </p>
                                         ) : null}
                                     </div>
 
@@ -444,10 +497,39 @@ export default function SettingsPage() {
                                             />
                                         </div>
                                     ) : null}
+
+                                    {emailChanged && canChangeEmail ? (
+                                        <div className="space-y-2 md:col-span-2">
+                                            <Label htmlFor="profile-current-password">
+                                                {t('settings.currentPassword')} <span className="text-red-500">*</span>
+                                            </Label>
+                                            <PasswordInput
+                                                id="profile-current-password"
+                                                value={emailCurrentPassword}
+                                                onChange={(event) => setEmailCurrentPassword(event.target.value)}
+                                                required
+                                                maxLength={INPUT_LIMITS.password}
+                                                autoComplete="current-password"
+                                                aria-invalid={Boolean(profileSubmitAttempted && emailCurrentPasswordError)}
+                                                showLabel={t('login.showPassword')}
+                                                hideLabel={t('login.hidePassword')}
+                                            />
+                                            <p className="text-xs text-slate-500">
+                                                {t('settings.emailChangeSecurityNotice')}
+                                            </p>
+                                            {profileSubmitAttempted && emailCurrentPasswordError ? (
+                                                <p className="text-xs text-red-600">{emailCurrentPasswordError}</p>
+                                            ) : null}
+                                        </div>
+                                    ) : null}
                                 </div>
 
                                 <div className="flex justify-end">
-                                    <Button type="submit" disabled={profileMutation.isPending || !canManagePersonalProfile}>
+                                    <Button
+                                        type="submit"
+                                        className="w-full sm:w-auto"
+                                        disabled={profileMutation.isPending || !canManagePersonalProfile}
+                                    >
                                         {profileMutation.isPending ? t('common.saving') : t('common.saveChanges')}
                                     </Button>
                                 </div>
@@ -498,7 +580,11 @@ export default function SettingsPage() {
                                 </div>
 
                                 <div className="flex justify-end">
-                                    <Button type="submit" disabled={profileMutation.isPending || !canManagePracticeSettings}>
+                                    <Button
+                                        type="submit"
+                                        className="w-full sm:w-auto"
+                                        disabled={profileMutation.isPending || !canManagePracticeSettings}
+                                    >
                                         {profileMutation.isPending ? t('common.saving') : t('common.saveChanges')}
                                     </Button>
                                 </div>
@@ -609,7 +695,11 @@ export default function SettingsPage() {
                                 </div>
 
                                 <div className="flex justify-end">
-                                    <Button type="submit" disabled={profileMutation.isPending || !canManagePracticeSettings || workingHoursHasErrors}>
+                                    <Button
+                                        type="submit"
+                                        className="w-full sm:w-auto"
+                                        disabled={profileMutation.isPending || !canManagePracticeSettings || workingHoursHasErrors}
+                                    >
                                         {profileMutation.isPending ? t('common.saving') : t('common.saveChanges')}
                                     </Button>
                                 </div>

@@ -37,6 +37,10 @@ function AdminAccessGate({ children }: { children: React.ReactNode }) {
         }
         if (authQuery.data.must_change_password && pathname !== '/admin/settings') {
             router.replace('/admin/settings?forceReset=1');
+            return;
+        }
+        if (authQuery.data.email_verified === false && pathname !== '/admin/settings') {
+            router.replace('/admin/settings?verifyEmail=1');
         }
     }, [
         authQuery.data,
@@ -52,7 +56,8 @@ function AdminAccessGate({ children }: { children: React.ReactNode }) {
     }
 
     const canRender = authQuery.data?.role === 'admin'
-        && (!authQuery.data.must_change_password || pathname === '/admin/settings');
+        && (!authQuery.data.must_change_password || pathname === '/admin/settings')
+        && (authQuery.data.email_verified !== false || pathname === '/admin/settings');
 
     return canRender ? <>{children}</> : <AdminDashboardLoadingState />;
 }

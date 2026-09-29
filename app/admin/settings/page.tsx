@@ -10,7 +10,9 @@ import { PasswordSecurityCard } from '@/components/settings/password-security-ca
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { PasswordInput } from '@/components/ui/password-input';
 import { Label } from '@/components/ui/label';
+import { EmailVerificationBanner } from '@/components/layout/email-verification-banner';
 import { AdminSettingsLoadingState } from '@/components/layout/page-loading-skeletons';
 import { PageHeader } from '@/components/ui/page-shell';
 import { AppErrorState } from '@/components/error/app-error-state';
@@ -45,6 +47,7 @@ export default function AdminSettingsPage() {
     const handleLogout = useInstantLogout('/admin/login');
     const [accountDraft, setAccountDraft] = useState<AdminAccountDraft | null>(null);
     const [accountSubmitAttempted, setAccountSubmitAttempted] = useState(false);
+    const [emailCurrentPassword, setEmailCurrentPassword] = useState('');
 
     const authQuery = useQuery({
         queryKey: queryKeys.auth.me(),
@@ -65,7 +68,14 @@ export default function AdminSettingsPage() {
         max: INPUT_LIMITS.personName,
     });
     const accountEmailError = getEmailValidationMessage(account.email, { required: true });
-    const accountHasErrors = Boolean(accountNameError || accountEmailError);
+    const emailChanged = Boolean(
+        authQuery.data && account.email.trim() !== authQuery.data.email.trim()
+    );
+    const canChangeEmail = authQuery.data?.has_password !== false;
+    const emailCurrentPasswordError = emailChanged && canChangeEmail && !emailCurrentPassword
+        ? t('settings.currentPasswordRequired')
+        : null;
+    const accountHasErrors = Boolean(accountNameError || accountEmailError || emailCurrentPasswordError);
     const forceReset = Boolean(authQuery.data?.must_change_password)
         || searchParams.get('forceReset') === '1';
 
@@ -75,6 +85,7 @@ export default function AdminSettingsPage() {
             toast.success(t('settings.profileUpdated'));
             setAccountDraft(null);
             setAccountSubmitAttempted(false);
+            setEmailCurrentPassword('');
             void authQuery.refetch();
             void queryClient.invalidateQueries({ queryKey: queryKeys.auth.me() });
         },
@@ -95,6 +106,7 @@ export default function AdminSettingsPage() {
         accountMutation.mutate({
             name: account.name.trim(),
             email: account.email.trim(),
+            ...(emailChanged ? { current_password: emailCurrentPassword } : {}),
         });
     };
 
@@ -131,6 +143,7 @@ export default function AdminSettingsPage() {
                 active="settings"
                 onLogout={handleLogout}
             />
+            <EmailVerificationBanner />
 
         <main id="main-content" tabIndex={-1} className="px-3 py-4 sm:px-6 sm:py-5 lg:px-8 lg:py-6">
             <div className="mx-auto max-w-[1600px] space-y-5 lg:space-y-6">
@@ -209,11 +222,42 @@ export default function AdminSettingsPage() {
                                                     autoComplete="email"
                                                     inputMode="email"
                                                     aria-invalid={Boolean(accountSubmitAttempted && accountEmailError)}
+                                                    disabled={!canChangeEmail}
                                                 />
                                                 {accountSubmitAttempted && accountEmailError ? (
                                                     <p className="text-xs text-red-600">{accountEmailError}</p>
                                                 ) : null}
+                                                {!canChangeEmail ? (
+                                                    <p className="text-xs text-amber-700">
+                                                        {t('settings.emailChangeRequiresPassword')}
+                                                    </p>
+                                                ) : null}
                                             </div>
+
+                                            {emailChanged && canChangeEmail ? (
+                                                <div className="space-y-2 md:col-span-2">
+                                                    <Label htmlFor="admin-current-password">
+                                                        {t('settings.currentPassword')} <span className="text-red-500">*</span>
+                                                    </Label>
+                                                    <PasswordInput
+                                                        id="admin-current-password"
+                                                        value={emailCurrentPassword}
+                                                        onChange={(event) => setEmailCurrentPassword(event.target.value)}
+                                                        required
+                                                        maxLength={INPUT_LIMITS.password}
+                                                        autoComplete="current-password"
+                                                        aria-invalid={Boolean(accountSubmitAttempted && emailCurrentPasswordError)}
+                                                        showLabel={t('login.showPassword')}
+                                                        hideLabel={t('login.hidePassword')}
+                                                    />
+                                                    <p className="text-xs text-slate-500">
+                                                        {t('settings.emailChangeSecurityNotice')}
+                                                    </p>
+                                                    {accountSubmitAttempted && emailCurrentPasswordError ? (
+                                                        <p className="text-xs text-red-600">{emailCurrentPasswordError}</p>
+                                                    ) : null}
+                                                </div>
+                                            ) : null}
                                         </div>
 
                                         <div className="flex justify-end">

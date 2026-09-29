@@ -68,6 +68,9 @@ export async function requireAdmin(): Promise<NextResponse | null> {
     if (!hasMockActiveAccessChain(role, userId)) {
         return envelope('account_inactive', 'Account is inactive.', 403);
     }
+    if (resolveMockUser(role, userId).email_verified === false) {
+        return envelope('email_verification_required', 'Email verification is required.', 403);
+    }
     return null;
 }
 
@@ -90,6 +93,9 @@ export async function requireDentist(): Promise<NextResponse | null> {
     }
     if (!hasMockActiveAccessChain(role, userId)) {
         return envelope('account_inactive', 'Account is inactive.', 403);
+    }
+    if (resolveMockUser(role, userId).email_verified === false) {
+        return envelope('email_verification_required', 'Email verification is required.', 403);
     }
     return null;
 }
@@ -115,6 +121,9 @@ export async function requirePermission(...permissions: string[]): Promise<NextR
     const userId = cookieStore.get('mock_user_id')?.value;
     if (!hasMockActiveAccessChain(role, userId)) {
         return envelope('account_inactive', 'Account is inactive.', 403);
+    }
+    if (resolveMockUser(role, userId).email_verified === false) {
+        return envelope('email_verification_required', 'Email verification is required.', 403);
     }
     if (role === 'dentist' || role === 'admin') {
         return null;

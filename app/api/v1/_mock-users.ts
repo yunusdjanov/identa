@@ -67,6 +67,7 @@ export interface MockUser {
     must_change_password?: boolean;
     has_password?: boolean;
     provider?: 'password' | 'google' | null;
+    google_linked?: boolean;
     avatar_url?: string | null;
     phone?: string | null;
     show_record_authors?: boolean;
@@ -259,6 +260,19 @@ export function updateMockUserProfile(
         Object.entries(attributes).filter(([, value]) => value !== undefined)
     ) as typeof attributes;
 
+    if (userId === ADMIN_USER.id) {
+        const emailChanged = typeof definedAttributes.email === 'string'
+            && definedAttributes.email !== ADMIN_USER.email;
+        Object.assign(ADMIN_USER, definedAttributes);
+        if (emailChanged) {
+            ADMIN_USER.email_verified = false;
+            ADMIN_USER.email_verified_at = null;
+            ADMIN_USER.google_linked = false;
+            ADMIN_USER.provider = 'password';
+        }
+        return;
+    }
+
     if (userId === DENTIST_USER.id || userId === '1') {
         const emailChanged = typeof definedAttributes.email === 'string'
             && definedAttributes.email !== DENTIST_USER.email;
@@ -266,6 +280,8 @@ export function updateMockUserProfile(
         if (emailChanged) {
             DENTIST_USER.email_verified = false;
             DENTIST_USER.email_verified_at = null;
+            DENTIST_USER.google_linked = false;
+            DENTIST_USER.provider = 'password';
         }
         return;
     }
@@ -282,11 +298,28 @@ export function updateMockUserProfile(
     if (emailChanged) {
         assistant.email_verified = false;
         assistant.email_verified_at = null;
+        assistant.google_linked = false;
+        assistant.provider = 'password';
     }
     if (definedAttributes.email && definedAttributes.email.toLowerCase() !== oldEmail) {
         delete ASSISTANT_USERS[oldEmail];
         ASSISTANT_USERS[definedAttributes.email.toLowerCase()] = assistant;
     }
+}
+
+export function updateMockUserSecurity(
+    userId: string,
+    attributes: Partial<Pick<MockUser, 'has_password' | 'must_change_password'>>
+): MockUser | null {
+    const user = userId === ADMIN_USER.id
+        ? ADMIN_USER
+        : userId === DENTIST_USER.id || userId === '1'
+            ? DENTIST_USER
+            : Object.values(ASSISTANT_USERS).find((candidate) => candidate.id === userId) ?? null;
+
+    if (!user) return null;
+    Object.assign(user, attributes);
+    return user;
 }
 
 /**

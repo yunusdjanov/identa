@@ -108,7 +108,7 @@ Route::prefix('v1')->group(function (): void {
         // `password.fresh` mirrors the dentist/assistant groups below — an
         // admin whose own password was force-reset must rotate it before
         // any admin data can be read or changed.
-        ->middleware(['auth:sanctum', 'abilities:*', 'role:admin', 'password.fresh', 'throttle:120,1'])
+        ->middleware(['auth:sanctum', 'abilities:*', 'role:admin', 'password.fresh', 'email.verified', 'throttle:120,1'])
         ->group(function (): void {
             Route::get('/analytics/summary', [AdminAnalyticsController::class, 'summary']);
             Route::get('/dentists', [DentistAccountController::class, 'index']);

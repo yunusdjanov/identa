@@ -34,6 +34,10 @@ class UpdateProfileRequest extends FormRequest
             'working_hours_end' => ['nullable', 'date_format:H:i'],
             'default_appointment_duration' => ['nullable', 'integer', Rule::in([15, 30, 45, 60])],
             'show_record_authors' => ['sometimes', 'boolean'],
+            // ProfileSettingsService requires this only when the login email
+            // actually changes. It remains optional for ordinary partial
+            // updates and older mobile clients that resend an unchanged email.
+            'current_password' => ['sometimes', 'string', 'max:255'],
         ];
     }
 }
