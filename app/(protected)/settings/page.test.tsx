@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import SettingsPage from '@/app/(protected)/settings/page';
@@ -26,6 +26,7 @@ const dentist = {
     email: 'dentist@identa.test',
     role: 'dentist' as const,
     account_status: 'active' as const,
+    has_password: true,
 };
 
 const profile = {
@@ -97,5 +98,67 @@ describe('SettingsPage', () => {
         await user.click(screen.getByRole('switch', { name: 'Show record authors' }));
 
         expect(vi.mocked(updateProfile).mock.calls[0]?.[0]).toEqual({ show_record_authors: true });
+    });
+
+    it('sends null when the optional phone number is cleared', async () => {
+        vi.mocked(getCurrentUser).mockResolvedValue(dentist as never);
+        renderPage();
+
+        const user = userEvent.setup();
+        const phone = await screen.findByLabelText('Phone');
+        await user.clear(phone);
+        await user.click(screen.getByRole('button', { name: 'Save Changes' }));
+
+        await waitFor(() => expect(vi.mocked(updateProfile).mock.calls[0]?.[0]).toEqual(
+            expect.objectContaining({ phone: null })
+        ));
+    });
+
+    it('requires and submits the current password when the login email changes', async () => {
+        vi.mocked(getCurrentUser).mockResolvedValue(dentist as never);
+        renderPage();
+
+        const user = userEvent.setup();
+        const email = await screen.findByLabelText(/e-?mail/i);
+        await user.clear(email);
+        await user.type(email, 'new@identa.test');
+        const currentPassword = screen.getByLabelText(/current password/i);
+        await user.type(currentPassword, 'CurrentPass123');
+        await user.click(screen.getByRole('button', { name: 'Save Changes' }));
+
+        await waitFor(() => expect(vi.mocked(updateProfile).mock.calls[0]?.[0]).toEqual(
+            expect.objectContaining({
+                email: 'new@identa.test',
+                current_password: 'CurrentPass123',
+            })
+        ));
+    });
+
+    it('blocks a working-hours range whose end is not later than its start', async () => {
+        vi.mocked(getCurrentUser).mockResolvedValue(dentist as never);
+        renderPage();
+
+        const user = userEvent.setup();
+        await user.click(await screen.findByRole('tab', { name: 'Working Hours' }));
+        const start = screen.getByLabelText(/Start Time/i);
+        await user.clear(start);
+        await user.type(start, '19:00');
+
+        expect(screen.getByText('End time must be later than start time.')).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Save Changes' })).toBeDisabled();
+        expect(updateProfile).not.toHaveBeenCalled();
+    });
+
+    it('rolls the display switch back when persistence fails', async () => {
+        vi.mocked(getCurrentUser).mockResolvedValue(dentist as never);
+        vi.mocked(updateProfile).mockRejectedValueOnce(new Error('offline'));
+        renderPage();
+
+        const user = userEvent.setup();
+        await user.click(await screen.findByRole('tab', { name: 'Display' }));
+        const toggle = screen.getByRole('switch', { name: 'Show record authors' });
+        await user.click(toggle);
+
+        await waitFor(() => expect(toggle).toHaveAttribute('aria-checked', 'false'));
     });
 });

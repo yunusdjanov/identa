@@ -1823,10 +1823,11 @@ paths:
   /api/v1/settings/profile:
     get:
       tags: [Settings]
-      summary: Get dentist profile
+      summary: Get the authenticated account profile
       operationId: getProfile
       security:
         - cookieAuth: []
+        - bearerAuth: []
       responses:
         "200":
           description: Profile detail
@@ -1840,10 +1841,12 @@ paths:
           $ref: "#/components/responses/ForbiddenError"
     put:
       tags: [Settings]
-      summary: Update dentist profile
+      summary: Update the authenticated account profile
+      description: Dentist, assistant, and admin accounts may update fields allowed for their role. Changing the login email requires the current password, unlinks the old Google identity, revokes other sessions, and requires the new address to be verified.
       operationId: updateProfile
       security:
         - cookieAuth: []
+        - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -3495,6 +3498,11 @@ components:
               example: "18:00"
         default_appointment_duration:
           type: integer
+          nullable: true
+          enum: [15, 30, 45, 60]
+        show_record_authors:
+          type: boolean
+      required: [id, name, email, phone, practice_name, license_number, address, working_hours, default_appointment_duration, show_record_authors]
     LoginRequest:
       type: object
       required: [email, password]
@@ -3762,26 +3770,51 @@ components:
       properties:
         name:
           type: string
+          minLength: 3
+          maxLength: 255
         email:
           type: string
           format: email
+          maxLength: 255
         phone:
           type: string
+          nullable: true
+          maxLength: 50
+          pattern: '^\+\d{9,15}$'
         practice_name:
           type: string
+          nullable: true
+          minLength: 3
+          maxLength: 255
         license_number:
           type: string
+          nullable: true
+          maxLength: 50
         address:
           type: string
+          nullable: true
+          minLength: 3
+          maxLength: 255
         working_hours_start:
           type: string
+          nullable: true
+          pattern: '^([01]\d|2[0-3]):[0-5]\d$'
           example: "09:00"
         working_hours_end:
           type: string
+          nullable: true
+          pattern: '^([01]\d|2[0-3]):[0-5]\d$'
           example: "18:00"
         default_appointment_duration:
           type: integer
+          nullable: true
           enum: [15, 30, 45, 60]
+        show_record_authors:
+          type: boolean
+        current_password:
+          type: string
+          maxLength: 255
+          description: Required only when email changes and the account has a password.
     AdminDentistCreateRequest:
       type: object
       required: [name, email, password, password_confirmation]

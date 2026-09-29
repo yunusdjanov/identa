@@ -54,6 +54,8 @@ return [
     ],
     'settings' => [
         'working_hours_end_after_start' => 'Working hours end must be after working hours start.',
+        'working_hours_pair_required' => 'Working hours start and end must both be set or both be empty.',
+        'email_change_requires_password' => 'Set a password before changing the account email.',
     ],
     'subscription' => [
         'read_only' => 'Your workspace is in read-only mode until the subscription is renewed.',

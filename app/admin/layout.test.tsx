@@ -21,6 +21,7 @@ const admin = {
     email: 'admin@identa.test',
     role: 'admin' as const,
     account_status: 'active' as const,
+    email_verified: true,
 };
 
 describe('AdminLayout', () => {
@@ -59,5 +60,28 @@ describe('AdminLayout', () => {
         render(<AdminLayout><div>private admin content</div></AdminLayout>);
 
         expect(await screen.findByText('private admin content')).toBeInTheDocument();
+    });
+
+    it('redirects an unverified admin to settings without mounting privileged content', async () => {
+        vi.mocked(getCurrentUser).mockResolvedValue({
+            ...admin,
+            email_verified: false,
+        } as never);
+        render(<AdminLayout><div>private admin content</div></AdminLayout>);
+
+        expect(screen.queryByText('private admin content')).not.toBeInTheDocument();
+        await waitFor(() => expect(replaceMock).toHaveBeenCalledWith('/admin/settings?verifyEmail=1'));
+    });
+
+    it('lets an unverified admin reach the account-recovery settings page', async () => {
+        pathname = '/admin/settings';
+        vi.mocked(getCurrentUser).mockResolvedValue({
+            ...admin,
+            email_verified: false,
+        } as never);
+        render(<AdminLayout><div>settings recovery content</div></AdminLayout>);
+
+        expect(await screen.findByText('settings recovery content')).toBeInTheDocument();
+        expect(replaceMock).not.toHaveBeenCalled();
     });
 });

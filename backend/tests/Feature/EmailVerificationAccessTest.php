@@ -40,6 +40,25 @@ class EmailVerificationAccessTest extends TestCase
             ->assertJsonPath('error.code', 'email_verification_required');
     }
 
+    public function test_unverified_admin_can_recover_account_but_not_use_admin_api(): void
+    {
+        $admin = User::factory()->admin()->unverified()->create();
+
+        $this->actingAs($admin, 'web')
+            ->getJson('/api/v1/auth/me')
+            ->assertOk()
+            ->assertJsonPath('data.email_verified', false);
+
+        $this->actingAs($admin, 'web')
+            ->getJson('/api/v1/settings/profile')
+            ->assertOk();
+
+        $this->actingAs($admin, 'web')
+            ->getJson('/api/v1/admin/dentists')
+            ->assertForbidden()
+            ->assertJsonPath('error.code', 'email_verification_required');
+    }
+
     public function test_signed_verification_link_verifies_once_and_redirects_to_public_status_page(): void
     {
         Event::fake([Verified::class]);
