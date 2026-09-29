@@ -182,7 +182,7 @@ describe('PatientDetailPage', () => {
         expect(editButton).toHaveClass('size-10');
         expect(archiveButton).toHaveClass('size-10');
         expect(archiveButton.querySelector('svg')).toHaveClass('lucide-archive');
-        expect(actionGroup).toHaveClass('flex-col', 'items-end');
+        expect(actionGroup).toHaveClass('flex-row', 'items-center', 'lg:order-none');
         expect(screen.queryByText('Schedule Appointment')).not.toBeInTheDocument();
         expect(screen.queryByText('Edit Patient')).not.toBeInTheDocument();
         expect(screen.queryByText('Archive')).not.toBeInTheDocument();
@@ -373,15 +373,15 @@ describe('PatientDetailPage', () => {
         expect(await screen.findByTestId('patient-detail-work-history')).toHaveAttribute('data-patient-id', 'p-1');
         expect(screen.getByTestId('patient-detail-work-history')).toHaveTextContent('Work History for John Smith');
         expect(screen.getByText('0/10')).toBeInTheDocument();
-        expect(screen.getAllByTitle('Upload')).toHaveLength(10);
+        expect(screen.getAllByTitle('Upload')).toHaveLength(1);
         expect(screen.getByTestId('patient-detail-page-layout')).toHaveClass('space-y-2.5');
         expect(screen.getByTestId('patient-detail-summary-grid')).toHaveClass(
             'gap-2.5',
             'lg:grid-cols-[minmax(0,1fr)_15rem]',
             'xl:grid-cols-[minmax(0,1fr)_16rem]',
         );
-        expect(screen.getByTestId('patient-detail-oral-photo-grid')).toHaveClass('h-full', 'min-h-0');
-        expect(screen.getAllByTestId('patient-detail-oral-photo-slot')).toHaveLength(10);
+        expect(screen.getByTestId('patient-detail-oral-photo-grid')).toHaveClass('min-h-0', 'flex-1', 'lg:h-full');
+        expect(screen.getAllByTestId('patient-detail-oral-photo-slot')).toHaveLength(1);
         expect(screen.getAllByTestId('patient-detail-oral-photo-slot')[0]).toHaveClass('h-full', 'min-h-0', 'w-full');
         expect(oralPhotoTitle.compareDocumentPosition(detailCard) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     });
@@ -430,7 +430,7 @@ describe('PatientDetailPage', () => {
         expect(screen.queryByText('Top')).not.toBeInTheDocument();
         expect(screen.queryByText('Bottom')).not.toBeInTheDocument();
         expect(screen.getByText('1/10')).toBeInTheDocument();
-        expect(screen.getAllByTitle('Upload')).toHaveLength(9);
+        expect(screen.getAllByTitle('Upload')).toHaveLength(1);
         expect(screen.getAllByTitle('View')).toHaveLength(1);
         expect(screen.getAllByTitle('View')[0]).toHaveClass('h-full', 'min-h-0', 'w-full');
         expect(within(screen.getAllByTitle('View')[0]).queryByText('1')).not.toBeInTheDocument();

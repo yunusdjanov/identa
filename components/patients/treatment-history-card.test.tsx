@@ -251,9 +251,10 @@ describe('TreatmentHistoryCard image controls', () => {
         expect(screen.getByRole('button', { name: 'Image 1' })).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Image 2' })).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Upload' })).toBeInTheDocument();
-        expect(screen.getByRole('button', { name: 'Image 1' })).toHaveClass('h-36', 'w-full', 'min-w-0', 'lg:h-40');
-        expect(screen.getByRole('button', { name: 'Image 1' }).parentElement).toHaveStyle({ gridTemplateColumns: 'repeat(2, minmax(10rem, 18.75rem)) 3.25rem' });
-        expect(screen.getByRole('button', { name: 'Upload' })).toHaveClass('h-36', 'w-full', 'min-w-0', 'lg:h-40');
+        expect(screen.getByRole('button', { name: 'Image 1' })).toHaveClass('h-28', 'w-full', 'min-w-0', 'sm:h-36', 'lg:h-40');
+        expect(screen.getByRole('button', { name: 'Image 1' }).parentElement?.style.getPropertyValue('--history-image-columns'))
+            .toBe('repeat(2, minmax(10rem, 18.75rem)) 3.25rem');
+        expect(screen.getByRole('button', { name: 'Upload' })).toHaveClass('h-28', 'w-full', 'min-w-0', 'sm:h-36', 'lg:h-40');
         expect(screen.queryByText(/^Teeth:/i)).not.toBeInTheDocument();
         expect(screen.getAllByText('Remaining')).toHaveLength(1);
     });
@@ -292,7 +293,7 @@ describe('TreatmentHistoryCard image controls', () => {
         const uploadButton = screen.getByRole('button', { name: 'Upload' });
         expect(uploadButton).toHaveClass('h-20', 'w-full', 'min-w-0');
         expect(uploadButton).not.toHaveClass('h-36', 'lg:h-40');
-        expect(uploadButton.parentElement).toHaveStyle({ gridTemplateColumns: '3.25rem' });
+        expect(uploadButton.parentElement?.style.getPropertyValue('--history-image-columns')).toBe('3.25rem');
     });
 
     it('renders the financial summary as a balanced header strip', async () => {
@@ -489,7 +490,8 @@ describe('TreatmentHistoryCard image controls', () => {
         expect(screen.getByRole('button', { name: 'Image 1' })).not.toHaveTextContent('1');
         expect(screen.getByRole('button', { name: 'Image 2' })).not.toHaveTextContent('2');
         expect(screen.getByRole('button', { name: 'Image 3' })).not.toHaveTextContent('3');
-        expect(screen.getByRole('button', { name: 'Image 1' }).parentElement).toHaveStyle({ gridTemplateColumns: 'repeat(3, minmax(10rem, 18.75rem)) 3.25rem' });
+        expect(screen.getByRole('button', { name: 'Image 1' }).parentElement?.style.getPropertyValue('--history-image-columns'))
+            .toBe('repeat(3, minmax(10rem, 18.75rem)) 3.25rem');
         expect(screen.getByRole('button', { name: 'Upload' })).toBeInTheDocument();
         expect(screen.queryByText('+1')).not.toBeInTheDocument();
         expect(screen.queryByText('+2')).not.toBeInTheDocument();
@@ -539,7 +541,8 @@ describe('TreatmentHistoryCard image controls', () => {
         expect(await screen.findByRole('heading', { name: 'Four images' })).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Image 4' })).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Upload' })).toBeInTheDocument();
-        expect(screen.getByRole('button', { name: 'Image 1' }).parentElement).toHaveStyle({ gridTemplateColumns: 'repeat(4, minmax(10rem, 18.75rem)) 3.25rem' });
+        expect(screen.getByRole('button', { name: 'Image 1' }).parentElement?.style.getPropertyValue('--history-image-columns'))
+            .toBe('repeat(4, minmax(10rem, 18.75rem)) 3.25rem');
     });
 
     it('limits timeline thumbnails and shows hidden image count with upload affordance', async () => {
@@ -590,8 +593,9 @@ describe('TreatmentHistoryCard image controls', () => {
         expect(screen.queryByRole('button', { name: 'Image 5' })).not.toBeInTheDocument();
         expect(screen.getByText('+4')).toBeInTheDocument();
         expect(screen.getByTestId('history-image-hidden-count')).toHaveTextContent('+4');
-        expect(screen.getByRole('button', { name: 'Upload' })).toHaveClass('h-36', 'w-full', 'min-w-0', 'lg:h-40');
-        expect(screen.getByRole('button', { name: 'Image 1' }).parentElement).toHaveStyle({ gridTemplateColumns: 'repeat(4, minmax(10rem, 18.75rem)) 3.25rem' });
+        expect(screen.getByRole('button', { name: 'Upload' })).toHaveClass('h-28', 'w-full', 'min-w-0', 'sm:h-36', 'lg:h-40');
+        expect(screen.getByRole('button', { name: 'Image 1' }).parentElement?.style.getPropertyValue('--history-image-columns'))
+            .toBe('repeat(4, minmax(10rem, 18.75rem)) 3.25rem');
     });
 
     it('uses compact thumbnails with icon remove and restore controls in edit mode', async () => {

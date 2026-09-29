@@ -698,7 +698,7 @@ export function TeamAccessTab({ canManageTeam, subscription, t }: TeamAccessTabP
                                 setPage(1);
                             }}
                             placeholder={t('settings.team.searchPlaceholder')}
-                            className="h-9 rounded-xl border-slate-200 bg-white shadow-xs lg:max-w-md"
+                            className="h-11 rounded-xl border-slate-200 bg-white shadow-xs sm:h-9 lg:max-w-md"
                         />
                         <Tabs
                             value={status}
@@ -787,52 +787,56 @@ export function TeamAccessTab({ canManageTeam, subscription, t }: TeamAccessTabP
                                                     count: assistant.assistant_permissions.length,
                                                 })}
                                             </p>
-                                            <div className="flex flex-wrap gap-2">
-                                            <Button
-                                                type="button"
-                                                variant="outline"
-                                                size="sm"
-                                                onClick={() => openEditDialog(assistant)}
-                                                disabled={isReadOnly}
-                                            >
-                                                {t('common.edit')}
-                                            </Button>
-                                            {assistant.account_status !== 'deleted' ? (
+                                            <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-wrap">
                                                 <Button
                                                     type="button"
                                                     variant="outline"
                                                     size="sm"
-                                                    onClick={() =>
-                                                        statusMutation.mutate({
-                                                            id: assistant.id,
-                                                            nextStatus,
-                                                        })
-                                                    }
-                                                    disabled={statusMutation.isPending || isReadOnly}
+                                                    className="h-11 sm:h-8"
+                                                    onClick={() => openEditDialog(assistant)}
+                                                    disabled={isReadOnly}
                                                 >
-                                                    {nextStatus === 'blocked'
-                                                        ? t('settings.team.block')
-                                                        : t('settings.team.activate')}
+                                                    {t('common.edit')}
                                                 </Button>
-                                            ) : null}
-                                            <Button
-                                                type="button"
-                                                variant="outline"
-                                                size="sm"
-                                                onClick={() => setResetTarget(assistant)}
-                                                disabled={assistant.account_status === 'deleted' || isReadOnly}
-                                            >
-                                                {t('settings.team.resetPassword')}
-                                            </Button>
-                                            <Button
-                                                type="button"
-                                                variant="destructive"
-                                                size="sm"
-                                                onClick={() => setDeleteTarget(assistant)}
-                                                disabled={assistant.account_status === 'deleted' || isReadOnly}
-                                            >
-                                                {t('common.delete')}
-                                            </Button>
+                                                {assistant.account_status !== 'deleted' ? (
+                                                    <Button
+                                                        type="button"
+                                                        variant="outline"
+                                                        size="sm"
+                                                        className="h-11 sm:h-8"
+                                                        onClick={() =>
+                                                            statusMutation.mutate({
+                                                                id: assistant.id,
+                                                                nextStatus,
+                                                            })
+                                                        }
+                                                        disabled={statusMutation.isPending || isReadOnly}
+                                                    >
+                                                        {nextStatus === 'blocked'
+                                                            ? t('settings.team.block')
+                                                            : t('settings.team.activate')}
+                                                    </Button>
+                                                ) : null}
+                                                <Button
+                                                    type="button"
+                                                    variant="outline"
+                                                    size="sm"
+                                                    className="h-11 sm:h-8"
+                                                    onClick={() => setResetTarget(assistant)}
+                                                    disabled={assistant.account_status === 'deleted' || isReadOnly}
+                                                >
+                                                    {t('settings.team.resetPassword')}
+                                                </Button>
+                                                <Button
+                                                    type="button"
+                                                    variant="destructive"
+                                                    size="sm"
+                                                    className="h-11 sm:h-8"
+                                                    onClick={() => setDeleteTarget(assistant)}
+                                                    disabled={assistant.account_status === 'deleted' || isReadOnly}
+                                                >
+                                                    {t('common.delete')}
+                                                </Button>
                                             </div>
                                         </div>
                                     </div>

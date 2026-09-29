@@ -487,7 +487,7 @@ export default function AdminPaymentsPage() {
                             <>
                             <DataTableShell
                                 aria-label={t('admin.payments.tableTitle')}
-                                className="hidden md:block"
+                                className="hidden lg:block"
                             >
                                 <Table className={getDataTableClassName('standard')}>
                                     <TableHeader>
@@ -608,7 +608,7 @@ export default function AdminPaymentsPage() {
                                     </TableBody>
                                 </Table>
                             </DataTableShell>
-                            <div className="grid gap-3 md:hidden">
+                            <div className="grid gap-3 lg:hidden">
                                 {payments.map((payment) => {
                                     const { Icon: StatusIcon, className: statusIconClass } =
                                         getStatusIcon(payment.status);

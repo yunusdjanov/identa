@@ -50,7 +50,7 @@ export function AdminHeader({ active, isLoggingOut = false, onLogout }: AdminHea
             <SkipToContentLink />
             <header className="fixed inset-x-0 top-0 z-50 border-b border-teal-100/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.98)_0%,rgba(248,251,255,0.94)_100%)] shadow-sm shadow-slate-200/40 backdrop-blur-xl">
                 <div className="mx-auto max-w-[1600px] px-3 sm:px-6 lg:px-8">
-                    <div className="flex h-14 items-center justify-between gap-3 sm:h-16 sm:gap-4">
+                    <div className="flex h-12 items-center justify-between gap-3 sm:h-16 sm:gap-4">
                         <div className="flex min-w-0 items-center">
                             <Brand href="/admin" variant="text" priority textClassName="w-28 sm:w-36" />
                         </div>
@@ -98,7 +98,7 @@ export function AdminHeader({ active, isLoggingOut = false, onLogout }: AdminHea
                 <div className="border-t border-slate-200/70 bg-white md:hidden">
                     <nav
                         aria-label={t('admin.nav.primary')}
-                        className="flex gap-1 overflow-x-auto overflow-y-hidden px-2 py-2 no-scrollbar"
+                        className="flex gap-1 overflow-x-auto overflow-y-hidden px-2 py-1 no-scrollbar"
                     >
                         {adminNavigation.map((item) => {
                             const Icon = item.icon;
@@ -124,7 +124,7 @@ export function AdminHeader({ active, isLoggingOut = false, onLogout }: AdminHea
                     </nav>
                 </div>
             </header>
-            <div data-admin-header-spacer aria-hidden="true" className="h-[7.5rem] md:h-16" />
+            <div data-admin-header-spacer aria-hidden="true" className="h-24 md:h-16" />
         </>
     );
 }

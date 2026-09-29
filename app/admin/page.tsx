@@ -753,7 +753,182 @@ export default function AdminDashboardPage() {
                             </div>
                         </CardHeader>
                         <CardContent className="px-4 pb-5 sm:px-5">
-                            <DataTableShell aria-label={t('admin.dashboardTitle')}>
+                            <div data-testid="admin-dentists-mobile-list" className="grid gap-3 lg:hidden">
+                                {accounts.length === 0 ? (
+                                    <div className="rounded-2xl border border-dashed border-slate-200 px-4 py-8 text-center text-sm text-slate-500">
+                                        {effectiveSearch
+                                            ? t('admin.empty.search', { query: effectiveSearch })
+                                            : viewMode === 'archive'
+                                                ? t('admin.empty.archive')
+                                                : t('admin.empty')}
+                                    </div>
+                                ) : accounts.map((account) => (
+                                    <article
+                                        key={account.id}
+                                        data-testid={`admin-dentist-mobile-card-${account.id}`}
+                                        className="rounded-2xl border border-slate-200/80 bg-white p-3 shadow-sm shadow-slate-200/50"
+                                    >
+                                        <div className="flex min-w-0 items-start gap-3">
+                                            <Avatar className="h-12 w-12 shrink-0">
+                                                {account.avatar_url ? (
+                                                    <AvatarImage
+                                                        src={account.avatar_url}
+                                                        alt={account.name}
+                                                        referrerPolicy="no-referrer"
+                                                    />
+                                                ) : null}
+                                                <AvatarFallback className="bg-teal-50 font-semibold text-teal-700">
+                                                    {getInitials(account.name)}
+                                                </AvatarFallback>
+                                            </Avatar>
+                                            <div className="min-w-0 flex-1">
+                                                <p className="truncate text-sm font-semibold text-slate-950" title={`${t('common.doctorPrefix')} ${account.name}`}>
+                                                    {t('common.doctorPrefix')} {truncateForUi(account.name, ADMIN_NAME_UI_LIMIT)}
+                                                </p>
+                                                <p className="mt-1 truncate text-xs text-slate-500" title={account.email}>
+                                                    {truncateForUi(account.email, ADMIN_EMAIL_UI_LIMIT)}
+                                                </p>
+                                                <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                                                    {account.status === 'active' ? (
+                                                        <Badge variant="outline" className="border-emerald-100 bg-emerald-50 text-emerald-700">{t('admin.status.active')}</Badge>
+                                                    ) : account.status === 'blocked' ? (
+                                                        <Badge variant="outline" className="border-amber-100 bg-amber-50 text-amber-700">{t('admin.status.blocked')}</Badge>
+                                                    ) : (
+                                                        <Badge variant="outline" className="border-slate-200 bg-slate-100 text-slate-600">{t('admin.status.deleted')}</Badge>
+                                                    )}
+                                                    {account.email_verified ? (
+                                                        <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-600">
+                                                            <BadgeCheck className="h-3.5 w-3.5" />
+                                                            {t('admin.emailVerified')}
+                                                        </span>
+                                                    ) : (
+                                                        <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-600">
+                                                            <ShieldAlert className="h-3.5 w-3.5" />
+                                                            {t('admin.emailUnverified')}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div className="mt-3 rounded-xl bg-slate-50 px-3 py-2.5">
+                                            <p className="text-sm font-medium text-slate-900">
+                                                {t('admin.subscription.planSummary', {
+                                                    plan: getSubscriptionPlanLabel(account.subscription, t),
+                                                    status: getSubscriptionStatusLabel(account.subscription, t),
+                                                })}
+                                            </p>
+                                            <p className="mt-1 text-xs text-slate-600">
+                                                {account.subscription?.ends_at
+                                                    ? t('admin.subscription.paidUntil', {
+                                                        date: formatLocalizedDate(account.subscription.ends_at, locale, {
+                                                            year: 'numeric',
+                                                            month: 'short',
+                                                            day: 'numeric',
+                                                        }),
+                                                    })
+                                                    : t('admin.subscription.notConfigured')}
+                                            </p>
+                                            <p className="mt-1 text-xs text-slate-500">
+                                                {account.subscription?.staff_limit === null
+                                                    ? t('admin.subscription.staffUnlimited', { count: account.subscription?.active_staff_count ?? 0 })
+                                                    : t('admin.subscription.staffUsage', {
+                                                        count: account.subscription?.active_staff_count ?? 0,
+                                                        limit: account.subscription?.staff_limit ?? 0,
+                                                    })}
+                                            </p>
+                                        </div>
+                                        <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+                                            <div className="rounded-xl border border-slate-100 px-3 py-2">
+                                                <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">{t('admin.table.registrationDate')}</p>
+                                                <p className="mt-1 font-medium text-slate-700">{formatLocalizedDate(account.registration_date, locale, { year: 'numeric', month: 'short', day: 'numeric' })}</p>
+                                            </div>
+                                            <div className="rounded-xl border border-slate-100 px-3 py-2">
+                                                <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">{t('admin.table.lastLogin')}</p>
+                                                <p className="mt-1 font-medium text-slate-700">
+                                                    {account.last_login
+                                                        ? formatLocalizedDate(account.last_login, locale, { year: 'numeric', month: 'short', day: 'numeric' })
+                                                        : t('patients.never')}
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <div className="mt-3 grid grid-cols-[minmax(0,1fr)_auto] gap-2">
+                                            <Button
+                                                variant="outline"
+                                                className="h-11 min-w-0"
+                                                onClick={() => router.push(`/admin/dentists/${account.id}/staff`)}
+                                            >
+                                                <Users className="h-4 w-4" />
+                                                {t('admin.viewStaff')}
+                                            </Button>
+                                            <Button
+                                                variant="outline"
+                                                className="col-span-2 row-start-2 h-11 min-w-0"
+                                                onClick={() => router.push(`/admin/dentists/${account.id}/billing`)}
+                                            >
+                                                <CreditCard className="h-4 w-4" />
+                                                {t('admin.billing.viewDetails')}
+                                            </Button>
+                                            <DropdownMenu modal={false}>
+                                                <DropdownMenuTrigger asChild>
+                                                    <Button className="col-start-2 row-start-1" variant="outline" size="icon-lg" aria-label={t('admin.rowActions', { name: account.name })}>
+                                                        <MoreVertical className="h-4 w-4" />
+                                                    </Button>
+                                                </DropdownMenuTrigger>
+                                                <DropdownMenuContent align="end">
+                                                    {account.status !== 'deleted' ? (
+                                                        <>
+                                                            <DropdownMenuItem
+                                                                onClick={() => statusMutation.mutate({
+                                                                    id: account.id,
+                                                                    status: account.status === 'blocked' ? 'active' : 'blocked',
+                                                                })}
+                                                                disabled={activeMutationRowId === account.id}
+                                                            >
+                                                                {account.status === 'blocked' ? <CheckCircle className="mr-2 h-4 w-4" /> : <Ban className="mr-2 h-4 w-4" />}
+                                                                {account.status === 'blocked' ? t('admin.activateAccount') : t('admin.blockAccount')}
+                                                            </DropdownMenuItem>
+                                                            {!account.email_verified ? (
+                                                                <DropdownMenuItem onClick={() => verifyMutation.mutate(account.id)} disabled={activeMutationRowId === account.id}>
+                                                                    <MailCheck className="mr-2 h-4 w-4" />
+                                                                    {t('admin.verifyEmail')}
+                                                                </DropdownMenuItem>
+                                                            ) : null}
+                                                            <DropdownMenuItem
+                                                                onClick={() => {
+                                                                    setResetPasswordTarget({ id: account.id, name: account.name });
+                                                                    setResetPasswordForm({ newPassword: '', confirmPassword: '' });
+                                                                }}
+                                                                disabled={resetMutation.isPending && resetPasswordTarget?.id === account.id}
+                                                            >
+                                                                <Key className="mr-2 h-4 w-4" />
+                                                                {t('admin.resetPassword')}
+                                                            </DropdownMenuItem>
+                                                            <DropdownMenuItem
+                                                                onClick={() => setDeleteTarget(account)}
+                                                                disabled={deleteMutation.isPending && (deleteMutation.variables === account.id || deleteTarget?.id === account.id)}
+                                                                className="text-red-600"
+                                                            >
+                                                                <Trash2 className="mr-2 h-4 w-4" />
+                                                                {t('admin.deleteAccount')}
+                                                            </DropdownMenuItem>
+                                                        </>
+                                                    ) : (
+                                                        <DropdownMenuItem
+                                                            onClick={() => restoreMutation.mutate(account.id)}
+                                                            disabled={activeMutationRowId === account.id}
+                                                            className="text-emerald-600 focus:text-emerald-700"
+                                                        >
+                                                            <RotateCcw className="mr-2 h-4 w-4" />
+                                                            {t('admin.restoreAccount')}
+                                                        </DropdownMenuItem>
+                                                    )}
+                                                </DropdownMenuContent>
+                                            </DropdownMenu>
+                                        </div>
+                                    </article>
+                                ))}
+                            </div>
+                            <DataTableShell data-testid="admin-dentists-desktop-table" className="hidden lg:block" aria-label={t('admin.dashboardTitle')}>
                                 <Table className={getDataTableClassName('standard')}>
                                     <TableHeader>
                                         <TableRow>

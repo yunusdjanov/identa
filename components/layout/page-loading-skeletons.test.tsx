@@ -36,17 +36,18 @@ describe('page loading skeletons', () => {
 
             expect(screen.getByTestId('dashboard-loading')).toBeInTheDocument();
             expect(screen.getByTestId('dashboard-planner-skeleton')).toBeInTheDocument();
-            expect(screen.getAllByTestId('dashboard-week-day-skeleton')).toHaveLength(14);
+            expect(screen.getAllByTestId('dashboard-week-day-skeleton')).toHaveLength(15);
         });
 
         it('keeps appointment columns aligned with the xl desktop breakpoint', () => {
             render(<AppointmentsLoadingState />);
 
             const days = screen.getAllByTestId('appointments-week-day-skeleton');
-            expect(days).toHaveLength(14);
+            expect(days).toHaveLength(15);
             expect(days[0].parentElement).toHaveClass('hidden', 'xl:grid', 'xl:grid-cols-7');
-            expect(days[7].parentElement).toHaveClass('md:grid-cols-2', 'lg:grid-cols-4');
-            expect(days[11].parentElement).toHaveClass('md:grid-cols-2', 'lg:grid-cols-3');
+            expect(days[7].parentElement).toHaveClass('space-y-3', 'lg:hidden');
+            expect(days[8].parentElement).toHaveClass('md:grid-cols-2', 'lg:grid-cols-4');
+            expect(days[12].parentElement).toHaveClass('md:grid-cols-2', 'lg:grid-cols-3');
         });
 
         it('renders patients loading with filters inside the list card', () => {
@@ -71,7 +72,7 @@ describe('page loading skeletons', () => {
             expect(screen.getByTestId('payments-outstanding-filter-skeleton')).toBeInTheDocument();
             expect(screen.getByTestId('payments-ledger-header-skeleton').children).toHaveLength(9);
             expect(screen.getAllByTestId('payments-ledger-row-skeleton')[0].children).toHaveLength(9);
-            expect(screen.getByTestId('payments-ledger-scroll-skeleton').parentElement?.children).toHaveLength(2);
+            expect(screen.getByTestId('payments-ledger-scroll-skeleton').parentElement?.children).toHaveLength(3);
         });
 
         it('renders expenses loading with the expense form and compact table', () => {
@@ -87,7 +88,7 @@ describe('page loading skeletons', () => {
             expect(screen.queryByTestId('payments-outstanding-filter-skeleton')).not.toBeInTheDocument();
             expect(screen.getByTestId('payments-ledger-header-skeleton').children).toHaveLength(5);
             expect(screen.getAllByTestId('payments-ledger-row-skeleton')[0].children).toHaveLength(5);
-            expect(screen.getByTestId('payments-ledger-scroll-skeleton').parentElement?.children).toHaveLength(3);
+            expect(screen.getByTestId('payments-ledger-scroll-skeleton').parentElement?.children).toHaveLength(4);
         });
 
         it('renders permission-shaped analytics loading state', () => {
@@ -163,14 +164,14 @@ describe('page loading skeletons', () => {
                 'md:h-[8rem]',
                 'md:overflow-hidden'
             );
-            expect(screen.getByTestId('patient-detail-header-actions-skeleton')).toHaveClass('flex-col');
+            expect(screen.getByTestId('patient-detail-header-actions-skeleton')).toHaveClass('flex-row', 'lg:order-none');
             expect(screen.getByTestId('patient-detail-summary-grid-skeleton')).toHaveClass(
                 'lg:grid-cols-[minmax(0,1fr)_15rem]',
                 'xl:grid-cols-[minmax(0,1fr)_16rem]',
             );
-            expect(screen.getByTestId('patient-detail-oral-photo-skeleton')).toHaveClass('h-[20.75rem]');
+            expect(screen.getByTestId('patient-detail-oral-photo-skeleton')).toHaveClass('lg:h-[20.75rem]');
             expect(screen.queryByTestId('patient-detail-clinical-strip-skeleton')).not.toBeInTheDocument();
-            expect(screen.getAllByTestId('patient-detail-oral-photo-slot-skeleton')).toHaveLength(10);
+            expect(screen.getAllByTestId('patient-detail-oral-photo-slot-skeleton')).toHaveLength(5);
             expect(screen.getByTestId('patient-detail-work-history-skeleton')).toBeInTheDocument();
         });
     });
@@ -211,7 +212,7 @@ describe('page loading skeletons', () => {
             expect(screen.getByTestId('admin-shell-loading')).toBeInTheDocument();
             expect(screen.getByTestId('admin-header-skeleton')).toHaveClass('fixed', 'z-50');
             expect(screen.getByTestId('admin-header-skeleton').firstElementChild).toHaveClass('max-w-[1600px]');
-            expect(screen.getByTestId('admin-header-spacer-skeleton')).toHaveClass('h-[7.5rem]', 'md:h-16');
+            expect(screen.getByTestId('admin-header-spacer-skeleton')).toHaveClass('h-24', 'md:h-16');
             expect(screen.getByRole('link', { name: 'common.skipToContent' }))
                 .toHaveAttribute('href', '#main-content');
             expect(document.querySelector('main')).toHaveAttribute('id', 'main-content');
