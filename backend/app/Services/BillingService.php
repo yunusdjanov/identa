@@ -636,6 +636,7 @@ class BillingService
                 paymentAmount: (float) $payment->amount,
                 note: 'PayX payment success',
                 paidAt: $payment->paid_at,
+                preferredActiveStaffIds: $this->selectedActiveStaffIdsFromPayment($payment),
             );
 
             $payment->forceFill(['subscription_id' => $subscription->id])->save();
@@ -669,6 +670,22 @@ class BillingService
 
             return $payment->refresh();
         });
+    }
+
+    /**
+     * Read the checkout-time staff selection from our own persisted payment
+     * metadata. The webhook body is provider-controlled and must not be able
+     * to choose which tenant accounts remain active after a plan change.
+     *
+     * @return list<int>
+     */
+    private function selectedActiveStaffIdsFromPayment(BillingPayment $payment): array
+    {
+        $payload = $payment->provider_payload;
+        $metadata = is_array($payload) ? ($payload['metadata'] ?? null) : null;
+        $ids = is_array($metadata) ? ($metadata['selected_active_staff_ids'] ?? []) : [];
+
+        return is_array($ids) ? $this->normalizeStaffIds($ids) : [];
     }
 
     /**

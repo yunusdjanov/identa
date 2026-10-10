@@ -1,40 +1,34 @@
 import { NextResponse } from 'next/server';
-import { requireDentist } from '../../../../_auth';
-import { getAdminStore, pushAuditEntry, recomputeStaffCounts } from '@/lib/mock/admin-store';
+import { pushAuditEntry, recomputeStaffCounts } from '@/lib/mock/admin-store';
 import { setMockUserAccountStatus } from '../../../../_mock-users';
-
-const MOCK_DENTIST_ID = '1';
+import {
+    findMockAssistant,
+    MOCK_DENTIST_ID,
+    notFound,
+    requireTeamMutationAccess,
+    staffLimitErrorWhenFull,
+    validationFailure,
+} from '../../../_shared';
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
-    const auth = await requireDentist();
+    const auth = await requireTeamMutationAccess();
     if (auth) return auth;
 
     const { id } = await params;
-    const store = getAdminStore();
-    const staff = store.staffByDentist[MOCK_DENTIST_ID] ?? [];
-    const assistant = staff.find((a) => a.id === id);
-    if (!assistant) {
-        return NextResponse.json({ message: 'Not found.' }, { status: 404 });
-    }
+    const found = findMockAssistant(id);
+    if (!found) return notFound();
+    const assistant = found.assistant;
 
     const body = await request.json().catch(() => ({}));
     if (body?.status !== 'active' && body?.status !== 'blocked') {
-        return NextResponse.json(
-            {
-                message: 'Validation failed.',
-                errors: { status: ['Status must be either active or blocked.'] },
-            },
-            { status: 422 }
-        );
+        return validationFailure({ status: ['Status must be either active or blocked.'] });
     }
     if (assistant.account_status === 'deleted') {
-        return NextResponse.json(
-            {
-                message: 'Validation failed.',
-                errors: { status: ['Cannot update deleted account status.'] },
-            },
-            { status: 422 }
-        );
+        return notFound();
+    }
+    if (body.status === 'active' && assistant.account_status !== 'active') {
+        const limitError = staffLimitErrorWhenFull(assistant.id);
+        if (limitError) return limitError;
     }
 
     const oldStatus = assistant.account_status;

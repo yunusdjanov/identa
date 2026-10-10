@@ -155,6 +155,8 @@ class SubscriptionService
      * Matches Stripe-style billing: a renewal of the same plan adds time on
      * top of the current ends_at; a plan change activates a new subscription
      * from now.
+     *
+     * @param  list<int|string>  $preferredActiveStaffIds
      */
     public function renewOrActivate(
         User $owner,
@@ -164,6 +166,7 @@ class SubscriptionService
         ?float $paymentAmount = null,
         ?string $note = null,
         ?CarbonInterface $paidAt = null,
+        array $preferredActiveStaffIds = [],
     ): Subscription {
         return DB::transaction(function () use (
             $owner,
@@ -173,6 +176,7 @@ class SubscriptionService
             $paymentAmount,
             $note,
             $paidAt,
+            $preferredActiveStaffIds,
         ): Subscription {
             $current = $this->currentForOwner($owner, forUpdate: true);
             // Note: the DB-level status during the grace window is still ACTIVE
@@ -194,6 +198,7 @@ class SubscriptionService
                     paymentAmount: $paymentAmount,
                     note: $note,
                     paidAt: $paidAt,
+                    preferredActiveStaffIds: $preferredActiveStaffIds,
                 );
             }
 
@@ -230,7 +235,7 @@ class SubscriptionService
                 paymentAmount: $paymentAmount,
                 note: $note,
             );
-            $this->applyStaffLimit($owner, $plan);
+            $this->applyStaffLimit($owner, $plan, $preferredActiveStaffIds);
             $this->recordManualAdminReceipt($owner, $current, $plan, $billingPeriod, $paymentMethod, $paymentAmount, $paidAt);
 
             return $current->refresh()->load('plan');
@@ -401,6 +406,9 @@ class SubscriptionService
         });
     }
 
+    /**
+     * @param  list<int|string>  $preferredActiveStaffIds
+     */
     public function activatePaid(
         User $owner,
         Plan $plan,
@@ -409,6 +417,7 @@ class SubscriptionService
         ?float $paymentAmount = null,
         ?string $note = null,
         ?CarbonInterface $paidAt = null,
+        array $preferredActiveStaffIds = [],
     ): Subscription {
         return DB::transaction(function () use (
             $owner,
@@ -418,6 +427,7 @@ class SubscriptionService
             $paymentAmount,
             $note,
             $paidAt,
+            $preferredActiveStaffIds,
         ): Subscription {
             // Lock the owner User row so two concurrent admin "Activate
             // monthly" clicks cannot both pass through with currentForOwner()
@@ -458,7 +468,7 @@ class SubscriptionService
                 paymentAmount: $paymentAmount,
                 note: $note,
             );
-            $this->applyStaffLimit($owner, $plan);
+            $this->applyStaffLimit($owner, $plan, $preferredActiveStaffIds);
             $this->recordManualAdminReceipt($owner, $subscription, $plan, $billingPeriod, $paymentMethod, $paymentAmount, $paidAt);
 
             return $subscription->load('plan');
@@ -832,17 +842,11 @@ class SubscriptionService
         }
 
         $limit = (int) $plan->staff_limit;
-        if ($preferredActiveStaffIds !== []) {
-            $preferredIds = $this->normalizeStaffIds($preferredActiveStaffIds);
-            $owner->assistants()
-                ->whereIn('id', $preferredIds)
-                ->update(['account_status' => User::ACCOUNT_STATUS_ACTIVE]);
-        }
+        $preferredIds = $this->normalizeStaffIds($preferredActiveStaffIds);
 
         $activeAssistantIds = $owner->assistants()
             ->where('account_status', User::ACCOUNT_STATUS_ACTIVE)
-            ->when($preferredActiveStaffIds !== [], function ($query) use ($preferredActiveStaffIds) {
-                $preferredIds = $this->normalizeStaffIds($preferredActiveStaffIds);
+            ->when($preferredIds !== [], function ($query) use ($preferredIds) {
                 $query->orderByRaw('CASE WHEN id IN ('.implode(',', array_fill(0, count($preferredIds), '?')).') THEN 0 ELSE 1 END', $preferredIds);
             })
             ->orderByDesc('last_login_at')

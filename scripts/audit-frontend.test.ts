@@ -9,6 +9,12 @@ const knownAdvisory = {
     severity: 'high',
 };
 
+const knownBracesAdvisory = {
+    source: 1240992,
+    url: 'https://github.com/advisories/GHSA-vfj7-8cjw-p6xm',
+    severity: 'high',
+};
+
 describe('frontend audit gate', () => {
     it('passes a clean audit report', () => {
         expect(evaluateAuditReport({ vulnerabilities: {} }, { packages: {} })).toEqual({
@@ -67,6 +73,64 @@ describe('frontend audit gate', () => {
             ok: false,
             accepted: [],
             violations: ['brace-expansion (high)'],
+        });
+    });
+
+    it('accepts the reviewed braces advisory only through its development-only lint chain', () => {
+        const report = {
+            vulnerabilities: {
+                braces: {
+                    severity: 'high',
+                    via: [knownBracesAdvisory],
+                    nodes: ['node_modules/braces'],
+                },
+                micromatch: {
+                    severity: 'high',
+                    via: ['braces'],
+                    nodes: ['node_modules/micromatch'],
+                },
+                'fast-glob': {
+                    severity: 'high',
+                    via: ['micromatch'],
+                    nodes: ['node_modules/fast-glob'],
+                },
+            },
+        };
+        const lockfile = {
+            packages: {
+                'node_modules/braces': { dev: true },
+                'node_modules/micromatch': { dev: true },
+                'node_modules/fast-glob': { dev: true },
+            },
+        };
+
+        expect(evaluateAuditReport(report, lockfile)).toEqual({
+            ok: true,
+            accepted: ['braces', 'micromatch', 'fast-glob'],
+            violations: [],
+        });
+    });
+
+    it('blocks the reviewed braces advisory if braces is a production dependency', () => {
+        const report = {
+            vulnerabilities: {
+                braces: {
+                    severity: 'high',
+                    via: [knownBracesAdvisory],
+                    nodes: ['node_modules/braces'],
+                },
+            },
+        };
+        const lockfile = {
+            packages: {
+                'node_modules/braces': {},
+            },
+        };
+
+        expect(evaluateAuditReport(report, lockfile)).toEqual({
+            ok: false,
+            accepted: [],
+            violations: ['braces (high)'],
         });
     });
 

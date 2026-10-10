@@ -6,10 +6,15 @@ use App\Models\BillingPayment;
 use App\Models\Plan;
 use App\Models\Subscription;
 use App\Models\User;
+use App\Services\BillingService;
+use App\Services\SubscriptionService;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Testing\TestResponse;
+use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
 
 class BillingLifecycleTest extends TestCase
@@ -183,8 +188,8 @@ class BillingLifecycleTest extends TestCase
             'ends_at' => $endsAt,
         ]);
 
-        /** @var \App\Services\BillingService $billing */
-        $billing = app(\App\Services\BillingService::class);
+        /** @var BillingService $billing */
+        $billing = app(BillingService::class);
         $summary = $billing->scheduleDowngrade($dentist, Plan::CODE_BASIC, Subscription::PERIOD_MONTHLY);
 
         // No payment row was created — a downgrade is free.
@@ -212,12 +217,12 @@ class BillingLifecycleTest extends TestCase
             'ends_at' => now()->addDays(15),
         ]);
 
-        /** @var \App\Services\BillingService $billing */
-        $billing = app(\App\Services\BillingService::class);
+        /** @var BillingService $billing */
+        $billing = app(BillingService::class);
 
         // A paid checkout must refuse a downgrade — it can only be scheduled
         // (free) via scheduleDowngrade().
-        $this->expectException(\Illuminate\Validation\ValidationException::class);
+        $this->expectException(ValidationException::class);
         $billing->createCheckout($dentist, Plan::CODE_BASIC, Subscription::PERIOD_MONTHLY);
     }
 
@@ -259,8 +264,8 @@ class BillingLifecycleTest extends TestCase
             'cancel_at_period_end' => true,
         ]);
 
-        /** @var \App\Services\SubscriptionService $service */
-        $service = app(\App\Services\SubscriptionService::class);
+        /** @var SubscriptionService $service */
+        $service = app(SubscriptionService::class);
         $result = $service->renewOrActivate(
             owner: $dentist,
             plan: $plan,
@@ -289,8 +294,8 @@ class BillingLifecycleTest extends TestCase
             'ends_at' => now()->addDays(20),
         ]);
 
-        /** @var \App\Services\SubscriptionService $service */
-        $service = app(\App\Services\SubscriptionService::class);
+        /** @var SubscriptionService $service */
+        $service = app(SubscriptionService::class);
         $result = $service->renewOrActivate(
             owner: $dentist,
             plan: $pro,
@@ -321,8 +326,8 @@ class BillingLifecycleTest extends TestCase
             'status' => Subscription::STATUS_READ_ONLY,
         ]);
 
-        /** @var \App\Services\SubscriptionService $service */
-        $service = app(\App\Services\SubscriptionService::class);
+        /** @var SubscriptionService $service */
+        $service = app(SubscriptionService::class);
         $result = $service->renewOrActivate(
             owner: $dentist,
             plan: $plan,
@@ -345,8 +350,8 @@ class BillingLifecycleTest extends TestCase
             'cancel_at_period_end' => false,
         ]);
 
-        /** @var \App\Services\SubscriptionService $service */
-        $service = app(\App\Services\SubscriptionService::class);
+        /** @var SubscriptionService $service */
+        $service = app(SubscriptionService::class);
         $service->cancelAtPeriodEnd($dentist, 'admin scheduled');
 
         $subscription->refresh();
@@ -369,8 +374,8 @@ class BillingLifecycleTest extends TestCase
             'ends_at' => $futureEndsAt,
         ]);
 
-        /** @var \App\Services\SubscriptionService $service */
-        $service = app(\App\Services\SubscriptionService::class);
+        /** @var SubscriptionService $service */
+        $service = app(SubscriptionService::class);
         $service->cancelImmediately($dentist, 'admin cancel_now');
 
         $subscription->refresh();
@@ -396,10 +401,10 @@ class BillingLifecycleTest extends TestCase
             'pending_change_effective_at' => now()->addDays(30),
         ]);
 
-        /** @var \App\Services\SubscriptionService $service */
-        $service = app(\App\Services\SubscriptionService::class);
+        /** @var SubscriptionService $service */
+        $service = app(SubscriptionService::class);
 
-        $this->expectException(\Illuminate\Validation\ValidationException::class);
+        $this->expectException(ValidationException::class);
         // Try to schedule a DIFFERENT pending change (Basic YEARLY this time).
         $service->schedulePlanChange(
             owner: $dentist,
@@ -414,8 +419,8 @@ class BillingLifecycleTest extends TestCase
         config()->set('services.payx.api_token', 'test-api-token');
         config()->set('services.payx.base_url', 'https://test.payx.uz');
 
-        \Illuminate\Support\Facades\Http::fake([
-            'test.payx.uz/api/v1/invoice' => \Illuminate\Support\Facades\Http::response([
+        Http::fake([
+            'test.payx.uz/api/v1/invoice' => Http::response([
                 'uuid' => 'payx-uuid-new',
                 'pay_url' => 'https://test.payx.uz/pay/new',
                 'status' => 'pending',
@@ -460,8 +465,8 @@ class BillingLifecycleTest extends TestCase
         ]);
         $stale2->save();
 
-        /** @var \App\Services\BillingService $billing */
-        $billing = app(\App\Services\BillingService::class);
+        /** @var BillingService $billing */
+        $billing = app(BillingService::class);
         $billing->createCheckout($dentist, Plan::CODE_BASIC, Subscription::PERIOD_MONTHLY);
 
         $staleCount = BillingPayment::query()
@@ -485,10 +490,10 @@ class BillingLifecycleTest extends TestCase
         ]);
         $this->createPlan(Plan::CODE_BASIC, ['monthly_price' => 120000]);
 
-        /** @var \App\Services\BillingService $billing */
-        $billing = app(\App\Services\BillingService::class);
+        /** @var BillingService $billing */
+        $billing = app(BillingService::class);
 
-        $this->expectException(\Illuminate\Validation\ValidationException::class);
+        $this->expectException(ValidationException::class);
         $billing->createCheckout($deletedDentist, Plan::CODE_BASIC, Subscription::PERIOD_MONTHLY);
     }
 
@@ -507,8 +512,8 @@ class BillingLifecycleTest extends TestCase
             'ends_at' => now()->subDays(User::SUBSCRIPTION_GRACE_DAYS + 5),
         ]);
 
-        /** @var \App\Services\SubscriptionService $service */
-        $service = app(\App\Services\SubscriptionService::class);
+        /** @var SubscriptionService $service */
+        $service = app(SubscriptionService::class);
         $summary = $service->summary($dentist);
 
         $this->assertSame('read_only', $summary['status']);
@@ -528,8 +533,8 @@ class BillingLifecycleTest extends TestCase
             'ends_at' => now()->addDays(15),
         ]);
 
-        /** @var \App\Services\SubscriptionService $service */
-        $service = app(\App\Services\SubscriptionService::class);
+        /** @var SubscriptionService $service */
+        $service = app(SubscriptionService::class);
         $service->markReadOnly($dentist, 'refund cascade');
 
         $dentist->refresh();
@@ -562,8 +567,8 @@ class BillingLifecycleTest extends TestCase
             'account_status' => User::ACCOUNT_STATUS_ACTIVE,
         ]);
 
-        /** @var \App\Services\SubscriptionService $service */
-        $service = app(\App\Services\SubscriptionService::class);
+        /** @var SubscriptionService $service */
+        $service = app(SubscriptionService::class);
         $service->renewOrActivate(
             owner: $dentist,
             plan: $basic,
@@ -590,6 +595,85 @@ class BillingLifecycleTest extends TestCase
         );
     }
 
+    public function test_payx_plan_change_keeps_checkout_selected_active_staff(): void
+    {
+        config()->set('services.payx.project_token', 'test-project-token');
+
+        $dentist = User::factory()->create();
+        $pro = $this->createPlan(Plan::CODE_PRO, [
+            'monthly_price' => 300000,
+            'staff_limit' => 5,
+        ]);
+        $basic = $this->createPlan(Plan::CODE_BASIC, [
+            'monthly_price' => 120000,
+            'staff_limit' => 3,
+        ]);
+        $this->createSubscription($dentist, $pro, [
+            'billing_period' => Subscription::PERIOD_MONTHLY,
+            'ends_at' => now()->addDays(20),
+        ]);
+
+        $assistants = User::factory()->count(5)->assistant($dentist)->create([
+            'account_status' => User::ACCOUNT_STATUS_ACTIVE,
+        ]);
+        $selectedIds = $assistants->take(3)->pluck('id')->all();
+        $payment = $this->createPendingPayment(
+            $dentist,
+            $basic,
+            'payx-uuid-selected-staff',
+            120000,
+            $selectedIds,
+        );
+
+        $this->postPayxWebhook($this->payxPayload($payment))->assertOk();
+
+        $this->assertEqualsCanonicalizing(
+            $selectedIds,
+            $dentist->assistants()
+                ->where('account_status', User::ACCOUNT_STATUS_ACTIVE)
+                ->pluck('id')
+                ->all(),
+        );
+    }
+
+    public function test_staff_limit_selection_never_reactivates_a_blocked_account(): void
+    {
+        $dentist = User::factory()->create();
+        $pro = $this->createPlan(Plan::CODE_PRO, ['staff_limit' => 5]);
+        $basic = $this->createPlan(Plan::CODE_BASIC, ['staff_limit' => 3]);
+        $this->createSubscription($dentist, $pro, [
+            'billing_period' => Subscription::PERIOD_MONTHLY,
+            'ends_at' => now()->addDays(20),
+        ]);
+
+        $active = User::factory()->count(3)->assistant($dentist)->create([
+            'account_status' => User::ACCOUNT_STATUS_ACTIVE,
+        ]);
+        $blocked = User::factory()->assistant($dentist)->create([
+            'account_status' => User::ACCOUNT_STATUS_BLOCKED,
+        ]);
+
+        /** @var SubscriptionService $service */
+        $service = app(SubscriptionService::class);
+        $service->renewOrActivate(
+            owner: $dentist,
+            plan: $basic,
+            billingPeriod: Subscription::PERIOD_MONTHLY,
+            preferredActiveStaffIds: [$blocked->id, $active[0]->id, $active[1]->id],
+        );
+
+        $this->assertSame(
+            User::ACCOUNT_STATUS_BLOCKED,
+            $blocked->refresh()->account_status,
+        );
+        $this->assertSame(
+            3,
+            $dentist->assistants()
+                ->where('account_status', User::ACCOUNT_STATUS_ACTIVE)
+                ->count(),
+        );
+    }
+
     public function test_analytics_subscription_snapshot_preserves_grace_status_without_extra_queries(): void
     {
         $dentist = User::factory()->create();
@@ -602,7 +686,7 @@ class BillingLifecycleTest extends TestCase
             ->select(['id', 'role', 'created_at', 'account_status'])
             ->with('latestSubscription')
             ->findOrFail($dentist->id);
-        $service = app(\App\Services\SubscriptionService::class);
+        $service = app(SubscriptionService::class);
 
         DB::flushQueryLog();
         DB::enableQueryLog();
@@ -688,6 +772,7 @@ class BillingLifecycleTest extends TestCase
         Plan $plan,
         string $payxUuid,
         float $amount,
+        array $selectedActiveStaffIds = [],
     ): BillingPayment {
         // BillingPayment `$fillable` was tightened (B-C2) to only allow user_id,
         // plan_id, plan_code, plan_name, billing_period, amount, currency,
@@ -710,7 +795,10 @@ class BillingLifecycleTest extends TestCase
             'status' => BillingPayment::STATUS_PENDING,
             'provider_order_id' => 'ord-'.$payxUuid,
             'provider_payment_id' => $payxUuid,
-            'provider_payload' => ['metadata' => ['change_type' => 'immediate']],
+            'provider_payload' => ['metadata' => [
+                'change_type' => 'immediate',
+                'selected_active_staff_ids' => $selectedActiveStaffIds,
+            ]],
         ]);
         $payment->save();
 
@@ -741,7 +829,7 @@ class BillingLifecycleTest extends TestCase
      *
      * @param  array<string, mixed>  $payload
      */
-    private function postPayxWebhook(array $payload): \Illuminate\Testing\TestResponse
+    private function postPayxWebhook(array $payload): TestResponse
     {
         $content = json_encode($payload, JSON_THROW_ON_ERROR);
         $token = (string) config('services.payx.project_token');

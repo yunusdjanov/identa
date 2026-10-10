@@ -48,6 +48,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useI18n } from '@/components/providers/i18n-provider';
 import { formatLocalizedDate, formatLocalizedDateTime } from '@/lib/i18n/date';
 import type { AppLocale } from '@/lib/i18n/config';
+import { useDebouncedValue } from '@/lib/hooks/use-debounced-value';
 
 const PERMISSION_OPTIONS = [
     { code: 'patients.view', labelKey: 'settings.team.permissionPatientsView' },
@@ -246,6 +247,7 @@ export function TeamAccessTab({ canManageTeam, subscription, t }: TeamAccessTabP
     const requestedStatus = searchParams.get('staffStatus');
     const resolvedStatus: StaffStatusFilter = isStaffStatusFilter(requestedStatus) ? requestedStatus : 'active';
     const [search, setSearch] = useState('');
+    const debouncedSearch = useDebouncedValue(search.trim(), 300);
     const status = resolvedStatus;
     const [page, setPage] = useState(1);
     const [dialogOpen, setDialogOpen] = useState(false);
@@ -258,16 +260,17 @@ export function TeamAccessTab({ canManageTeam, subscription, t }: TeamAccessTabP
     const [resetPasswordValue, setResetPasswordValue] = useState('');
     const [resetPasswordConfirmation, setResetPasswordConfirmation] = useState('');
     const [deleteTarget, setDeleteTarget] = useState<ApiAssistantAccount | null>(null);
+    const [blockTarget, setBlockTarget] = useState<ApiAssistantAccount | null>(null);
 
     const assistantsQuery = useQuery({
-        queryKey: queryKeys.settings.teamAssistants(search, status, page),
+        queryKey: queryKeys.settings.teamAssistants(debouncedSearch, status, page),
         queryFn: () =>
             listAssistants({
                 page,
                 perPage: 10,
                 sort: '-created_at',
                 filter: {
-                    search: search || undefined,
+                    search: debouncedSearch || undefined,
                     status,
                 },
             }),
@@ -306,6 +309,12 @@ export function TeamAccessTab({ canManageTeam, subscription, t }: TeamAccessTabP
     const refreshTeamAccessData = () => {
         queryClient.invalidateQueries({ queryKey: queryKeys.settings.teamAssistants() });
         queryClient.invalidateQueries({ queryKey: queryKeys.auth.me() });
+    };
+
+    const moveBackIfCurrentPageWillBeEmpty = () => {
+        if (page > 1 && (assistantsQuery.data?.data.length ?? 0) <= 1) {
+            setPage((currentPage) => Math.max(1, currentPage - 1));
+        }
     };
 
     const setMutationErrors = (error: unknown, fallbackMessage: string) => {
@@ -424,6 +433,8 @@ export function TeamAccessTab({ canManageTeam, subscription, t }: TeamAccessTabP
         mutationFn: ({ id, nextStatus }: { id: string; nextStatus: 'active' | 'blocked' }) =>
             updateAssistantStatus(id, nextStatus),
         onSuccess: () => {
+            setBlockTarget(null);
+            moveBackIfCurrentPageWillBeEmpty();
             refreshTeamAccessData();
         },
         onError: (error) => {
@@ -454,6 +465,7 @@ export function TeamAccessTab({ canManageTeam, subscription, t }: TeamAccessTabP
         onSuccess: () => {
             toast.success(t('settings.team.deleted'));
             setDeleteTarget(null);
+            moveBackIfCurrentPageWillBeEmpty();
             refreshTeamAccessData();
         },
         onError: (error) => {
@@ -462,6 +474,8 @@ export function TeamAccessTab({ canManageTeam, subscription, t }: TeamAccessTabP
     });
 
     const isCreateMode = editingAssistant === null;
+    const loginEmailWillChange = editingAssistant !== null
+        && formState.email.trim().toLocaleLowerCase() !== editingAssistant.email.toLocaleLowerCase();
     const isDialogSubmitting = createMutation.isPending || updateMutation.isPending;
     const nameError = getTextValidationMessage(formState.name, {
         label: t('settings.team.name'),
@@ -723,9 +737,20 @@ export function TeamAccessTab({ canManageTeam, subscription, t }: TeamAccessTabP
                     {assistantsQuery.isLoading ? (
                         <TeamAccessLoadingSkeleton />
                     ) : assistantsQuery.isError ? (
-                        <p className="text-sm text-red-600">
-                            {getApiErrorMessage(assistantsQuery.error, t('settings.team.loadFailed'))}
-                        </p>
+                        <div role="alert" className="rounded-2xl border border-red-100 bg-red-50/60 p-4">
+                            <p className="text-sm text-red-700">
+                                {getApiErrorMessage(assistantsQuery.error, t('settings.team.loadFailed'))}
+                            </p>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                className="mt-3 bg-white"
+                                onClick={() => void assistantsQuery.refetch()}
+                            >
+                                {t('common.retry')}
+                            </Button>
+                        </div>
                     ) : (
                         <div className="space-y-3">
                             {(assistantsQuery.data?.data ?? []).map((assistant) => {
@@ -794,7 +819,7 @@ export function TeamAccessTab({ canManageTeam, subscription, t }: TeamAccessTabP
                                                     size="sm"
                                                     className="h-11 sm:h-8"
                                                     onClick={() => openEditDialog(assistant)}
-                                                    disabled={isReadOnly}
+                                                    disabled={assistant.account_status === 'deleted' || isReadOnly}
                                                 >
                                                     {t('common.edit')}
                                                 </Button>
@@ -804,12 +829,17 @@ export function TeamAccessTab({ canManageTeam, subscription, t }: TeamAccessTabP
                                                         variant="outline"
                                                         size="sm"
                                                         className="h-11 sm:h-8"
-                                                        onClick={() =>
+                                                        onClick={() => {
+                                                            if (nextStatus === 'blocked') {
+                                                                setBlockTarget(assistant);
+                                                                return;
+                                                            }
+
                                                             statusMutation.mutate({
                                                                 id: assistant.id,
                                                                 nextStatus,
-                                                            })
-                                                        }
+                                                            });
+                                                        }}
                                                         disabled={statusMutation.isPending || isReadOnly}
                                                     >
                                                         {nextStatus === 'blocked'
@@ -950,6 +980,11 @@ export function TeamAccessTab({ canManageTeam, subscription, t }: TeamAccessTabP
                                 />
                                 {resolvedEmailError ? (
                                     <p className="text-xs text-red-600">{resolvedEmailError}</p>
+                                ) : null}
+                                {loginEmailWillChange ? (
+                                    <p className="text-xs leading-5 text-amber-700">
+                                        {t('settings.team.emailChangeWarning')}
+                                    </p>
                                 ) : null}
                             </div>
                             <div className="space-y-2">
@@ -1189,6 +1224,26 @@ export function TeamAccessTab({ canManageTeam, subscription, t }: TeamAccessTabP
                     </div>
                 </DialogContent>
             </Dialog>
+
+            <ConfirmActionDialog
+                open={blockTarget !== null}
+                onOpenChange={(open) => !open && setBlockTarget(null)}
+                title={t('settings.team.blockTitle')}
+                description={t('settings.team.blockDescription')}
+                onConfirm={() => {
+                    if (!blockTarget) {
+                        return;
+                    }
+                    statusMutation.mutate({
+                        id: blockTarget.id,
+                        nextStatus: 'blocked',
+                    });
+                }}
+                confirmLabel={t('settings.team.block')}
+                pendingLabel={t('common.saving')}
+                cancelLabel={t('common.cancel')}
+                isPending={statusMutation.isPending}
+            />
 
             <ConfirmActionDialog
                 open={deleteTarget !== null}

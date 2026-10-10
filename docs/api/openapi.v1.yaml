@@ -17,6 +17,7 @@ tags:
   - name: Analytics
   - name: Lookups
   - name: Settings
+  - name: Team
   - name: Admin
 paths:
   /api/v1/health:
@@ -1866,6 +1867,170 @@ paths:
           $ref: "#/components/responses/ForbiddenError"
         "422":
           $ref: "#/components/responses/ValidationError"
+  /api/v1/team/assistants:
+    get:
+      tags: [Team]
+      summary: List staff accounts owned by the authenticated dentist
+      operationId: listTeamAssistants
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PerPage"
+        - $ref: "#/components/parameters/SearchFilter"
+        - $ref: "#/components/parameters/AccountStatusFilter"
+      responses:
+        "200":
+          description: Paginated staff roster with tenant-wide status counts
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TeamAssistantCollectionResponse"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+    post:
+      tags: [Team]
+      summary: Create a staff account
+      description: Dentist-owner only. The account starts active, email-verified, and must change its temporary password at first login. Fails when the subscription is read-only or the active-staff limit is full.
+      operationId: createTeamAssistant
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TeamAssistantCreateRequest"
+      responses:
+        "201":
+          description: Staff account created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TeamAssistantResponse"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+  /api/v1/team/assistants/{id}:
+    put:
+      tags: [Team]
+      summary: Update a staff account
+      description: Changing the login email clears verification, unlinks the previous Google identity, and revokes the staff member's existing credentials.
+      operationId: updateTeamAssistant
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/AssistantId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TeamAssistantUpdateRequest"
+      responses:
+        "200":
+          description: Staff account updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TeamAssistantResponse"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+    delete:
+      tags: [Team]
+      summary: Soft-delete a staff account and revoke access
+      operationId: deleteTeamAssistant
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/AssistantId"
+      responses:
+        "204":
+          description: Staff account deleted and all sessions revoked
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+  /api/v1/team/assistants/{id}/status:
+    patch:
+      tags: [Team]
+      summary: Activate or block a staff account
+      description: Blocking immediately revokes browser sessions and bearer tokens. Activation is rejected when the plan's active-staff limit is full.
+      operationId: updateTeamAssistantStatus
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/AssistantId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TeamAssistantStatusRequest"
+      responses:
+        "200":
+          description: Staff account status updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TeamAssistantResponse"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+  /api/v1/team/assistants/{id}/reset-password:
+    post:
+      tags: [Team]
+      summary: Set a temporary staff password and revoke existing access
+      operationId: resetTeamAssistantPassword
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/AssistantId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TeamAssistantPasswordResetRequest"
+      responses:
+        "200":
+          description: Temporary password set; the staff member must rotate it at next login
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TeamAssistantPasswordResetResponse"
+        "401":
+          $ref: "#/components/responses/UnauthorizedError"
+        "403":
+          $ref: "#/components/responses/ForbiddenError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+        "422":
+          $ref: "#/components/responses/ValidationError"
   /api/v1/admin/dentists:
     get:
       tags: [Admin]
@@ -2364,6 +2529,13 @@ components:
       schema:
         type: string
         format: uuid
+    AssistantId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+      example: "42"
     PatientCategoryIdsFilter:
       name: filter[category_ids]
       in: query
@@ -3503,6 +3675,122 @@ components:
         show_record_authors:
           type: boolean
       required: [id, name, email, phone, practice_name, license_number, address, working_hours, default_appointment_duration, show_record_authors]
+    TeamAssistantPermission:
+      type: string
+      enum:
+        - patients.view
+        - patients.manage
+        - appointments.view
+        - appointments.manage
+        - payments.view
+        - payments.manage
+    TeamAssistantAccount:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        phone:
+          type: string
+          nullable: true
+        avatar_url:
+          type: string
+          format: uri
+          nullable: true
+        account_status:
+          type: string
+          enum: [active, blocked, deleted]
+        assistant_permissions:
+          type: array
+          uniqueItems: true
+          items:
+            $ref: "#/components/schemas/TeamAssistantPermission"
+        must_change_password:
+          type: boolean
+        last_login_at:
+          type: string
+          format: date-time
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          nullable: true
+      required: [id, name, email, phone, avatar_url, account_status, assistant_permissions, must_change_password, last_login_at, created_at]
+    TeamAssistantCreateRequest:
+      type: object
+      required: [name, email, password, password_confirmation, permissions]
+      properties:
+        name:
+          type: string
+          minLength: 3
+          maxLength: 255
+        email:
+          type: string
+          format: email
+          maxLength: 255
+        phone:
+          type: string
+          nullable: true
+          maxLength: 50
+          pattern: '^\+\d{9,15}$'
+        password:
+          type: string
+          minLength: 8
+          description: Must contain at least one letter and one number.
+        password_confirmation:
+          type: string
+          minLength: 8
+        permissions:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items:
+            $ref: "#/components/schemas/TeamAssistantPermission"
+    TeamAssistantUpdateRequest:
+      type: object
+      required: [name, email]
+      properties:
+        name:
+          type: string
+          minLength: 3
+          maxLength: 255
+        email:
+          type: string
+          format: email
+          maxLength: 255
+        phone:
+          type: string
+          nullable: true
+          maxLength: 50
+          pattern: '^\+\d{9,15}$'
+        permissions:
+          type: array
+          nullable: true
+          uniqueItems: true
+          items:
+            $ref: "#/components/schemas/TeamAssistantPermission"
+    TeamAssistantStatusRequest:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [active, blocked]
+    TeamAssistantPasswordResetRequest:
+      type: object
+      required: [new_password, new_password_confirmation]
+      properties:
+        new_password:
+          type: string
+          minLength: 8
+          description: Must contain at least one letter and one number.
+        new_password_confirmation:
+          type: string
+          minLength: 8
     LoginRequest:
       type: object
       required: [email, password]
@@ -3908,6 +4196,49 @@ components:
               properties:
                 pagination:
                   $ref: "#/components/schemas/PaginationMeta"
+      required: [data]
+    TeamAssistantResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/TeamAssistantAccount"
+      required: [data]
+    TeamAssistantCollectionResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/TeamAssistantAccount"
+        meta:
+          type: object
+          properties:
+            pagination:
+              $ref: "#/components/schemas/PaginationMeta"
+            summary:
+              type: object
+              properties:
+                total_count:
+                  type: integer
+                active_count:
+                  type: integer
+                blocked_count:
+                  type: integer
+              required: [total_count, active_count, blocked_count]
+          required: [pagination, summary]
+      required: [data, meta]
+    TeamAssistantPasswordResetResponse:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            assistant_id:
+              type: string
+            password_reset:
+              type: boolean
+              const: true
+          required: [assistant_id, password_reset]
       required: [data]
     AdminDentistResponse:
       type: object

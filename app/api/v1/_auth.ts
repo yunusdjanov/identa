@@ -68,7 +68,11 @@ export async function requireAdmin(): Promise<NextResponse | null> {
     if (!hasMockActiveAccessChain(role, userId)) {
         return envelope('account_inactive', 'Account is inactive.', 403);
     }
-    if (resolveMockUser(role, userId).email_verified === false) {
+    const user = resolveMockUser(role, userId);
+    if (user.must_change_password === true) {
+        return envelope('password_change_required', 'Password change is required.', 403);
+    }
+    if (user.email_verified === false) {
         return envelope('email_verification_required', 'Email verification is required.', 403);
     }
     return null;
@@ -94,7 +98,11 @@ export async function requireDentist(): Promise<NextResponse | null> {
     if (!hasMockActiveAccessChain(role, userId)) {
         return envelope('account_inactive', 'Account is inactive.', 403);
     }
-    if (resolveMockUser(role, userId).email_verified === false) {
+    const user = resolveMockUser(role, userId);
+    if (user.must_change_password === true) {
+        return envelope('password_change_required', 'Password change is required.', 403);
+    }
+    if (user.email_verified === false) {
         return envelope('email_verification_required', 'Email verification is required.', 403);
     }
     return null;
@@ -122,14 +130,17 @@ export async function requirePermission(...permissions: string[]): Promise<NextR
     if (!hasMockActiveAccessChain(role, userId)) {
         return envelope('account_inactive', 'Account is inactive.', 403);
     }
-    if (resolveMockUser(role, userId).email_verified === false) {
+    const user = resolveMockUser(role, userId);
+    if (user.must_change_password === true) {
+        return envelope('password_change_required', 'Password change is required.', 403);
+    }
+    if (user.email_verified === false) {
         return envelope('email_verification_required', 'Email verification is required.', 403);
     }
     if (role === 'dentist' || role === 'admin') {
         return null;
     }
     if (role === 'assistant') {
-        const user = resolveMockUser(role, userId);
         const granted = new Set(user.assistant_permissions ?? []);
         if (permissions.some((permission) => granted.has(permission))) {
             return null;

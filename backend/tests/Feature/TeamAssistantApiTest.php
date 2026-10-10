@@ -2,7 +2,9 @@
 
 namespace Tests\Feature;
 
+use App\Models\AuditLog;
 use App\Models\User;
+use App\Support\AuditLogger;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
@@ -322,5 +324,115 @@ class TeamAssistantApiTest extends TestCase
             ])
             ->assertUnprocessable()
             ->assertJsonValidationErrors(['password', 'permissions']);
+    }
+
+    public function test_filtered_team_list_keeps_tenant_wide_summary_counts(): void
+    {
+        $dentist = User::factory()->create();
+        User::factory()->assistant($dentist)->create([
+            'account_status' => User::ACCOUNT_STATUS_ACTIVE,
+        ]);
+        User::factory()->assistant($dentist)->create([
+            'account_status' => User::ACCOUNT_STATUS_BLOCKED,
+        ]);
+        User::factory()->assistant($dentist)->create([
+            'account_status' => User::ACCOUNT_STATUS_DELETED,
+        ]);
+
+        $this->actingAs($dentist, 'web')
+            ->getJson('/api/v1/team/assistants?filter[status]=active')
+            ->assertOk()
+            ->assertJsonPath('meta.pagination.total', 1)
+            ->assertJsonPath('meta.summary.total_count', 3)
+            ->assertJsonPath('meta.summary.active_count', 1)
+            ->assertJsonPath('meta.summary.blocked_count', 1);
+    }
+
+    public function test_team_audit_metadata_does_not_retain_assistant_contact_details(): void
+    {
+        $dentist = User::factory()->create();
+        $email = 'private.assistant@example.com';
+        $phone = '+998901234567';
+
+        $response = $this->actingAs($dentist, 'web')
+            ->postJson('/api/v1/team/assistants', [
+                'name' => 'Private Assistant',
+                'email' => $email,
+                'password' => 'StrongPassword123!',
+                'password_confirmation' => 'StrongPassword123!',
+                'phone' => $phone,
+                'permissions' => [User::PERMISSION_PATIENTS_VIEW],
+            ])
+            ->assertCreated();
+
+        $assistantId = (string) $response->json('data.id');
+        $this->actingAs($dentist, 'web')
+            ->deleteJson("/api/v1/team/assistants/{$assistantId}")
+            ->assertNoContent();
+
+        $metadata = AuditLog::query()
+            ->whereIn('event_type', ['team.assistant.created', 'team.assistant.deleted'])
+            ->pluck('metadata')
+            ->all();
+        $encodedMetadata = json_encode($metadata, JSON_THROW_ON_ERROR);
+
+        $this->assertStringNotContainsString($email, $encodedMetadata);
+        $this->assertStringNotContainsString($phone, $encodedMetadata);
+    }
+
+    public function test_assistant_create_rolls_back_when_audit_persistence_fails(): void
+    {
+        $dentist = User::factory()->create();
+        $this->mock(AuditLogger::class)
+            ->shouldReceive('logFromRequest')
+            ->once()
+            ->andThrow(new \RuntimeException('Audit storage unavailable'));
+
+        $this->withoutExceptionHandling();
+        try {
+            $this->actingAs($dentist, 'web')
+                ->postJson('/api/v1/team/assistants', [
+                    'name' => 'Rollback Assistant',
+                    'email' => 'rollback.assistant@example.com',
+                    'password' => 'StrongPassword123!',
+                    'password_confirmation' => 'StrongPassword123!',
+                    'permissions' => [User::PERMISSION_PATIENTS_VIEW],
+                ]);
+            $this->fail('Expected the injected audit failure.');
+        } catch (\RuntimeException $exception) {
+            $this->assertSame('Audit storage unavailable', $exception->getMessage());
+        }
+
+        $this->assertDatabaseMissing('users', [
+            'email' => 'rollback.assistant@example.com',
+        ]);
+    }
+
+    public function test_assistant_delete_rolls_back_when_audit_persistence_fails(): void
+    {
+        $dentist = User::factory()->create();
+        $assistant = User::factory()->assistant($dentist)->create([
+            'email' => 'delete.rollback@example.com',
+            'phone' => '+998901112244',
+            'account_status' => User::ACCOUNT_STATUS_ACTIVE,
+        ]);
+        $this->mock(AuditLogger::class)
+            ->shouldReceive('logFromRequest')
+            ->once()
+            ->andThrow(new \RuntimeException('Audit storage unavailable'));
+
+        $this->withoutExceptionHandling();
+        try {
+            $this->actingAs($dentist, 'web')
+                ->deleteJson("/api/v1/team/assistants/{$assistant->id}");
+            $this->fail('Expected the injected audit failure.');
+        } catch (\RuntimeException $exception) {
+            $this->assertSame('Audit storage unavailable', $exception->getMessage());
+        }
+
+        $assistant->refresh();
+        $this->assertSame(User::ACCOUNT_STATUS_ACTIVE, $assistant->account_status);
+        $this->assertSame('delete.rollback@example.com', $assistant->email);
+        $this->assertSame('+998901112244', $assistant->phone);
     }
 }
