@@ -12,6 +12,14 @@ const ALLOWED_DEV_ADVISORIES = new Map([
         'Upstream ESLint plugins still require an incompatible minimatch major; the affected tree is development-only.',
     },
   ],
+  [
+    1240992,
+    {
+      url: 'https://github.com/advisories/GHSA-vfj7-8cjw-p6xm',
+      reason:
+        'No patched braces release exists; the affected glob chain is development-only and receives repository-controlled patterns.',
+    },
+  ],
 ]);
 
 const severityRank = {
@@ -146,9 +154,8 @@ function runAudit() {
   }
 
   if (evaluation.accepted.length > 0) {
-    const advisory = ALLOWED_DEV_ADVISORIES.get(1124334);
     console.warn(
-      `Accepted dev-only ${advisory.url} through: ${evaluation.accepted.join(', ')}. ${advisory.reason}`,
+      `Accepted explicitly reviewed dev-only advisory paths through: ${evaluation.accepted.join(', ')}. See ALLOWED_DEV_ADVISORIES for rationale.`,
     );
   } else {
     console.log('Frontend dependency audit passed with no high or critical advisories.');

@@ -76,7 +76,8 @@ npm.cmd run check:openapi                                                       
 npm.cmd run check:core-guardrails                                                       # pass
 npm.cmd run build                                                                       # pass, 58 static pages
 git diff --check                                                                        # pass
-npx npm@10.9.3 audit --audit-level=moderate                                            # 0 vulnerabilities
+npx npm@10.9.3 audit --audit-level=high --omit=dev                                     # 0 production vulnerabilities
+npm run quality:security                                                                # pass; one reviewed dev-only advisory path
 php composer.phar audit --locked                                                        # 0 backend advisories
 ```
 
@@ -95,10 +96,14 @@ credential will be changed.
 
 ## Blocked, accepted, or not tested
 
-- Frontend npm and backend Composer audits currently report no known
-  vulnerabilities. `eslint-config-next` and its React Hooks plugin remain
-  pinned to the last verified compatible versions so the security refresh does
-  not silently introduce unrelated lint semantics.
+- Production npm and backend Composer audits report no known vulnerabilities.
+  The full npm advisory feed reports `GHSA-vfj7-8cjw-p6xm` through the
+  development-only lint glob chain. No patched `braces` release exists; the
+  suggested forced downgrade would replace the Next 16 lint stack with Next
+  14. The repository security gate therefore allows only this exact advisory
+  source/URL when every affected lockfile node is marked development-only;
+  production exposure or any other high advisory still fails. S17 must recheck
+  the vendor release and remove the allowance when a compatible patch exists.
 - No real production staff/plan/payment/session mutation or webhook replay was
   performed. These behavior paths are covered locally and must remain
   synthetic outside production.
