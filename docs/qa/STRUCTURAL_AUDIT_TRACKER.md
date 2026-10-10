@@ -1,7 +1,7 @@
 # Identa Layered Structural Audit Tracker
 
 - Program start: 2026-08-11
-- Current baseline commit: `4321b18`
+- Current baseline commit: `52ad517`
 - Standard: `docs/qa/STRUCTURAL_AUDIT_STANDARD.md`
 - Route inventory: 29 pages in `docs/qa/PAGE_AUDIT_TRACKER.md`
 - Default production policy: read-only smoke
@@ -20,7 +20,7 @@ their audited commit or dependency contract has changed.
 | 5 | S05 | Media upload, image editor, storage, sanitizer, variants, and recovery | A | S03, S04 | STABLE | `docs/qa/structural-audits/S05-media-lifecycle.md` | `3cf5aec` |
 | 6 | S06 | Patient finance, ledger, expenses, UZS/USD, export, and PDF | A | S03, S04 | STABLE | `docs/qa/structural-audits/S06-patient-finance.md` | `d94fdba` |
 | 7 | S07 | Settings, profile, connected accounts, and account security | A | S02 | STABLE | `docs/qa/structural-audits/S07-account-settings.md` | `4321b18` |
-| 8 | S08 | Staff, team, permissions, limits, blocking, and access revocation | A | S02, S07 | IN PROGRESS | `docs/qa/structural-audits/S08-staff-access.md` | `0586e25` (base) |
+| 8 | S08 | Staff, team, permissions, limits, blocking, and access revocation | A | S02, S07 | STABLE | `docs/qa/structural-audits/S08-staff-access.md` | `52ad517` |
 | 9 | S09 | Admin authentication, console, dentists, staff, plans, and privileged actions | A | S02, S08 | NOT STARTED | | — |
 | 10 | S10 | Subscription billing, PayX webhook, plan transitions, and refunds | A | S02, S09 | NOT STARTED | | — |
 | 11 | S11 | Appointments, guest/patient card flow, timezone, and overlap rules | B | S03, S08 | NOT STARTED | | — |

@@ -2,9 +2,11 @@
 
 - Date: 2026-10-10
 - Auditor: Codex
-- Base/final commit: `0586e25` / pending
+- Base/final commit: `0586e25` / `52ad517`
 - Branch: `audit/s08-staff-access`
-- Environment: local source review, Vitest/JSDOM, Laravel PHP 8.4 feature suite, optimized Next build, npm 10 lockfile/audit, and Composer 2.10 audit
+- Runtime PR: [#41](https://github.com/yunusdjanov/identa/pull/41)
+- Closure branch: `audit/s08-closure`
+- Environment: local source review, Vitest/JSDOM, Laravel PHP 8.4 feature suite, optimized Next build, npm 10 lockfile/audit, Composer 2.10 audit, GitHub Actions, Vercel, Railway, and read-only production smoke
 - Risk tier: A
 - Dependencies: S02 authentication/session and S07 account-security contracts
 - Roles and tenants: dentist owner, assistant, and platform admin; the owner manages only assistants whose `dentist_id` is the owner practice
@@ -13,11 +15,12 @@
 
 ## Result
 
-Status: IN PROGRESS
+Status: STABLE
 
-The local implementation and broad regression gates are complete. The section
-remains in progress until the focused PR is reviewed, required CI is green, the
-merged commit is deployed, and a read-only production smoke is recorded.
+All reproduced S08 defects are fixed. Protected PR #41 was squash-merged as
+`52ad517`; required pull-request and post-merge GitHub CI passed, Vercel and
+all applicable Railway deployment contexts succeeded, and read-only production
+smoke confirmed the staff-route and API authorization boundaries.
 
 ## Inventory
 
@@ -47,7 +50,7 @@ merged commit is deployed, and a read-only production smoke is recorded.
 | Performance | PASS | Team lists use bounded pagination and a small tenant-scoped summary query; search is debounced; plan reconciliation scopes active assistants and does not introduce an N+1 path. |
 | Operations | PASS | No queue, cron, or schema contract was added. Payment-seat selection stays inside the existing idempotent billing/webhook lifecycle. Rollback is a normal application/lockfile rollback; no production data migration is involved. |
 | Accessibility/responsive/i18n | PASS | The destructive action uses the existing accessible dialog primitive, retry/action controls retain labels, deleted actions expose disabled state, and new copy exists in ru/uz/en. Broader route-wide responsive closure remains S19 scope. |
-| Verification | IN PROGRESS | Focused frontend/backend regressions, full local suites, lint, typecheck, build, guardrails, OpenAPI, dependency audits, PR CI, deployment, and read-only production smoke are being recorded before closure. |
+| Verification | PASS | Focused and full local suites, lint, typecheck, build, guardrails, OpenAPI, dependency audits, protected PR CI, post-merge main CI, Vercel/Railway statuses, browser/accessibility gates, and read-only production smoke pass. |
 
 ## Findings
 
@@ -79,6 +82,8 @@ git diff --check                                                                
 npx npm@10.9.3 audit --audit-level=high --omit=dev                                     # 0 production vulnerabilities
 npm run quality:security                                                                # pass; one reviewed dev-only advisory path
 php composer.phar audit --locked                                                        # 0 backend advisories
+GitHub Actions PR run 38063424095                                                       # 4/4 required jobs passed
+GitHub Actions main run 38063793915                                                     # 4/4 required jobs passed
 ```
 
 The local shell uses Node 24 while the repository requires Node 22 and npm 10.
@@ -89,10 +94,21 @@ but the full fresh-database Laravel suite passed with that runtime.
 
 ## Production smoke
 
-Pending after the protected PR is merged and deployment statuses identify the
-new commit. Smoke will be read-only: public/health headers, guest team-route
-authorization, and deployment status only. No real staff, plan, payment, or
-credential will be changed.
+Read-only checks against deployed commit `52ad517` passed on 2026-10-10:
+
+- The combined commit status was `success`: Vercel, Railway API, subscription
+  cron, account-cleanup cron, and the second Railway service all reported
+  successful deployment for the merge commit.
+- `https://identa.uz/` returned `200`; CSP, HSTS, frame, content-type,
+  referrer, and permissions-policy headers were present.
+- Guest `https://identa.uz/staff` returned `307` to
+  `/login?from=%2Fstaff`.
+- `https://api.identa.uz/api/v1/health` returned `200` with service status
+  `ok`.
+- Unauthenticated `GET /api/v1/team/assistants` returned `401`.
+
+No real staff, plan, payment, credential, session, tenant, or patient data was
+changed.
 
 ## Blocked, accepted, or not tested
 
@@ -107,9 +123,9 @@ credential will be changed.
 - No real production staff/plan/payment/session mutation or webhook replay was
   performed. These behavior paths are covered locally and must remain
   synthetic outside production.
-- Playwright E2E and manual screen-reader/Firefox/WebKit breadth are completed
-  by CI/S19; the local E2E launcher cannot discover the explicit temporary PHP
-  8.4 runtime.
+- Browser journeys and accessibility passed in authoritative CI. Manual
+  screen-reader speech and exhaustive Firefox/WebKit/zoom breadth remain owned
+  by S19 and do not block the S08 staff-access contract.
 
 ## Reopen triggers
 
@@ -124,6 +140,8 @@ credential will be changed.
 
 ## Final verification
 
-Pending protected-PR CI, merged deployment statuses, and read-only production
-smoke. Until those are recorded, this report remains `IN PROGRESS` and does
-not certify S08 as stable.
+S08 is closed as `STABLE` at runtime commit `52ad517`. Local gates, protected
+pull-request checks, post-merge main CI, deployment statuses, and read-only
+production smoke all pass. The reviewed development-only vendor advisory is
+explicitly bounded by the dependency gate and remains a removal trigger for
+S17 when an upstream patch is released.
