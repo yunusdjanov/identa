@@ -1,20 +1,19 @@
 import { NextResponse } from 'next/server';
-import { requireDentist } from '../../../../_auth';
-import { getAdminStore, pushAuditEntry } from '@/lib/mock/admin-store';
-
-const MOCK_DENTIST_ID = '1';
+import { pushAuditEntry } from '@/lib/mock/admin-store';
+import {
+    findMockAssistant,
+    notFound,
+    requireTeamMutationAccess,
+} from '../../../_shared';
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
-    const auth = await requireDentist();
+    const auth = await requireTeamMutationAccess();
     if (auth) return auth;
 
     const { id } = await params;
-    const store = getAdminStore();
-    const staff = store.staffByDentist[MOCK_DENTIST_ID] ?? [];
-    const assistant = staff.find((a) => a.id === id);
-    if (!assistant) {
-        return NextResponse.json({ message: 'Not found.' }, { status: 404 });
-    }
+    const found = findMockAssistant(id);
+    if (!found || found.assistant.account_status === 'deleted') return notFound();
+    const assistant = found.assistant;
 
     const body = await request.json().catch(() => ({}));
     const newPassword = typeof body?.new_password === 'string' ? body.new_password : '';
@@ -56,7 +55,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         eventType: 'team.assistant.password_reset',
         entityType: 'user',
         entityId: id,
-        metadata: { email: assistant.email },
     });
 
     return NextResponse.json({ data: { assistant_id: id, password_reset: true } });

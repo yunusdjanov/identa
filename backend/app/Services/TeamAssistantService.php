@@ -7,9 +7,9 @@ use App\Http\Requests\Team\StoreAssistantRequest;
 use App\Http\Requests\Team\UpdateAssistantRequest;
 use App\Http\Requests\Team\UpdateAssistantStatusRequest;
 use App\Models\User;
+use App\Support\AuditLogger;
 use App\Support\Search;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -23,6 +23,7 @@ class TeamAssistantService
     public function __construct(
         private readonly PlanLimitService $planLimitService,
         private readonly AccountAccessRevocationService $accessRevocation,
+        private readonly AuditLogger $auditLogger,
     ) {}
 
     /**
@@ -31,9 +32,13 @@ class TeamAssistantService
     public function list(Request $request): array
     {
         $dentistId = $this->dentistId($request);
-        $summaryQuery = User::query()
+        $summary = User::query()
             ->where('role', User::ROLE_ASSISTANT)
-            ->where('dentist_owner_id', $dentistId);
+            ->where('dentist_owner_id', $dentistId)
+            ->selectRaw('COUNT(*) as total_count')
+            ->selectRaw('SUM(CASE WHEN account_status = ? THEN 1 ELSE 0 END) as active_count', [User::ACCOUNT_STATUS_ACTIVE])
+            ->selectRaw('SUM(CASE WHEN account_status = ? THEN 1 ELSE 0 END) as blocked_count', [User::ACCOUNT_STATUS_BLOCKED])
+            ->first();
 
         $query = User::query()
             ->where('role', User::ROLE_ASSISTANT)
@@ -49,19 +54,14 @@ class TeamAssistantService
         $status = $request->input('filter.status');
         if (is_string($status) && $status !== '') {
             $query->where('account_status', $status);
-            $summaryQuery->where('account_status', $status);
         }
 
         return [
             'assistants' => $query->paginate($this->perPage($request)),
             'summary' => [
-                'total_count' => (clone $summaryQuery)->count(),
-                'active_count' => (clone $summaryQuery)
-                    ->where('account_status', User::ACCOUNT_STATUS_ACTIVE)
-                    ->count(),
-                'blocked_count' => (clone $summaryQuery)
-                    ->where('account_status', User::ACCOUNT_STATUS_BLOCKED)
-                    ->count(),
+                'total_count' => (int) ($summary?->total_count ?? 0),
+                'active_count' => (int) ($summary?->active_count ?? 0),
+                'blocked_count' => (int) ($summary?->blocked_count ?? 0),
             ],
         ];
     }
@@ -74,11 +74,11 @@ class TeamAssistantService
             $validated['permissions'] ?? User::defaultAssistantPermissions()
         );
 
-        return DB::transaction(function () use ($dentistId, $validated, $permissions): User {
+        return DB::transaction(function () use ($request, $dentistId, $validated, $permissions): User {
             $dentist = $this->lockDentistForAssistantLimit($dentistId);
             $this->ensureAssistantSlotAvailable($dentist);
 
-            return User::query()->create([
+            $assistant = User::query()->create([
                 'name' => trim((string) $validated['name']),
                 'email' => trim((string) $validated['email']),
                 'password' => Hash::make((string) $validated['password']),
@@ -95,6 +95,16 @@ class TeamAssistantService
                 'license_number' => null,
                 'address' => null,
             ]);
+
+            $this->auditLogger->logFromRequest(
+                request: $request,
+                eventType: 'team.assistant.created',
+                entityType: 'user',
+                entityId: (string) $assistant->id,
+                metadata: ['permission_count' => count($permissions)],
+            );
+
+            return $assistant;
         });
     }
 
@@ -106,7 +116,7 @@ class TeamAssistantService
         // Lock the assistant row so two concurrent admin edits (or admin
         // rename + assistant self-edit when those paths share a model)
         // serialise. Otherwise the permissions snapshot can stale.
-        $result = DB::transaction(function () use ($id, $dentistId, $validated): array {
+        $result = DB::transaction(function () use ($request, $id, $dentistId, $validated): array {
             $assistant = $this->ownedAssistant($id, $dentistId, false, true);
             $nextEmail = trim((string) $validated['email']);
             $emailChanged = $assistant->email !== $nextEmail;
@@ -137,6 +147,17 @@ class TeamAssistantService
 
             $assistant->forceFill($attributes)->save();
 
+            $this->auditLogger->logFromRequest(
+                request: $request,
+                eventType: 'team.assistant.updated',
+                entityType: 'user',
+                entityId: (string) $assistant->id,
+                metadata: [
+                    'email_changed' => $emailChanged,
+                    'permission_count' => count($permissions),
+                ],
+            );
+
             return [
                 'assistant' => $assistant->fresh(),
                 'email_changed' => $emailChanged,
@@ -160,7 +181,7 @@ class TeamAssistantService
         $dentistId = $this->dentistId($request);
         $status = (string) $request->validated('status');
 
-        return DB::transaction(function () use ($dentistId, $id, $status): User {
+        return DB::transaction(function () use ($request, $dentistId, $id, $status): User {
             $dentist = $this->lockDentistForAssistantLimit($dentistId);
             $assistant = $this->ownedAssistant($id, $dentistId, false, true);
 
@@ -179,6 +200,14 @@ class TeamAssistantService
                 $this->accessRevocation->revokeForUsers([$assistant]);
             }
 
+            $this->auditLogger->logFromRequest(
+                request: $request,
+                eventType: 'team.assistant.status_updated',
+                entityType: 'user',
+                entityId: (string) $assistant->id,
+                metadata: ['status' => $status],
+            );
+
             return $assistant->refresh();
         });
     }
@@ -188,7 +217,7 @@ class TeamAssistantService
         $dentistId = $this->dentistId($request);
         $newPassword = (string) $request->validated('new_password');
 
-        return DB::transaction(function () use ($id, $dentistId, $newPassword): User {
+        return DB::transaction(function () use ($request, $id, $dentistId, $newPassword): User {
             $assistant = $this->ownedAssistant($id, $dentistId, false, true);
 
             $assistant->update([
@@ -201,6 +230,13 @@ class TeamAssistantService
             // sessions are forced to re-authenticate with the new password.
             // Without this, a stolen/active token outlives the reset.
             $this->accessRevocation->revokeForUsers([$assistant]);
+
+            $this->auditLogger->logFromRequest(
+                request: $request,
+                eventType: 'team.assistant.password_reset',
+                entityType: 'user',
+                entityId: (string) $assistant->id,
+            );
 
             return $assistant;
         });
@@ -218,7 +254,16 @@ class TeamAssistantService
         return DB::transaction(function () use ($id, $dentistId, $request): User {
             $assistant = $this->ownedAssistant($id, $dentistId, true, true);
 
-            return $this->performDelete($assistant);
+            $assistant = $this->performDelete($assistant);
+
+            $this->auditLogger->logFromRequest(
+                request: $request,
+                eventType: 'team.assistant.deleted',
+                entityType: 'user',
+                entityId: (string) $assistant->id,
+            );
+
+            return $assistant;
         });
     }
 
@@ -228,10 +273,10 @@ class TeamAssistantService
             // Null out the email + phone on delete so the dentist can
             // re-invite the same person (or a different person at the
             // same address) without hitting the hard UNIQUE constraint
-            // on users.email. The original values are preserved via the
-            // controller-level audit log (which reads them BEFORE
-            // calling this service) and the `deleted-{id}@deleted.invalid`
-            // suffix remains scannable for support / forensic recovery.
+            // on users.email. Audit metadata intentionally stores only the
+            // assistant ID; raw email/phone values do not belong in the
+            // long-lived audit timeline. The synthetic suffix remains
+            // scannable for support / forensic recovery.
             // FA-X2: previously a soft-deleted assistant blocked re-
             // invite forever because StoreAssistantRequest's
             // Rule::unique('users','email') checks every row.
