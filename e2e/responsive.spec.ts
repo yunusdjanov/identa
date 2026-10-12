@@ -80,10 +80,10 @@ test.describe('Responsive smoke coverage', () => {
 
         if (usesCompactDataLayout(page)) {
             await page.goto('/dashboard?view=week');
-            await expect(page.getByTestId('appointments-week-grid-mobile')).toBeVisible();
-            await expect(page.getByTestId('appointments-week-grid-stacked')).toBeHidden();
+            const responsiveGrid = page.getByTestId('dashboard-week-grid-responsive');
+            await expect(responsiveGrid).toBeVisible();
             await expect(page.getByTestId('appointments-week-grid-desktop')).toBeHidden();
-            await expect(page.getByTestId('appointments-week-grid-mobile').locator('[aria-pressed]')).toHaveCount(7);
+            await expect(responsiveGrid.locator(':scope > button')).toHaveCount(7);
         }
 
         await page.goto('/patients');
@@ -155,7 +155,7 @@ test.describe('Responsive smoke coverage', () => {
 
                 await expect(toolbar).toBeVisible();
                 await expect(desktopGrid).toBeVisible();
-                await expect(page.getByTestId('appointments-week-grid-stacked')).toBeHidden();
+                await expect(page.getByTestId('dashboard-week-grid-responsive')).toBeHidden();
                 await expect(desktopGrid.locator(':scope > div')).toHaveCount(7);
                 await expectNoPageHorizontalOverflow(page);
 
