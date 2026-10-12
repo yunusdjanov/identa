@@ -238,7 +238,7 @@ describe('DashboardPage', () => {
         expect(await screen.findByRole('button', { name: 'Week View' })).toBeInTheDocument();
         const firstDayColumn = screen.getAllByTestId(/^week-day-card-/)[0];
 
-        fireEvent.click(within(firstDayColumn).getByRole('button', { name: 'Add' }));
+        fireEvent.click(firstDayColumn);
 
         expect(await screen.findByRole('dialog')).toBeInTheDocument();
         expect(screen.getByRole('heading', { name: /Schedule Appointment/i })).toBeInTheDocument();
@@ -251,7 +251,37 @@ describe('DashboardPage', () => {
         expect(await screen.findByTestId('dashboard-workspace')).toBeInTheDocument();
         expect(screen.getByTestId('appointments-view-toolbar')).toHaveClass('max-w-[1400px]', 'mx-auto');
         expect(screen.getByTestId('appointments-week-grid-desktop').parentElement?.parentElement).toHaveClass('max-w-[1400px]', 'mx-auto');
-        expect(screen.getByTestId('appointments-week-grid-stacked')).toHaveClass('xl:hidden');
+        expect(screen.getByTestId('dashboard-week-grid-responsive')).toHaveClass(
+            'grid-cols-2',
+            'md:grid-cols-3',
+            'lg:grid-cols-4',
+            'xl:hidden'
+        );
+    });
+
+    it('matches the mobile app day-card structure below the desktop breakpoint', async () => {
+        const todayKey = toLocalDateKey(new Date());
+        vi.mocked(listAllAppointments).mockResolvedValue([
+            {
+                id: 'mobile-card-appointment',
+                patient_id: 'patient-1',
+                patient_name: 'Alisher Karimov',
+                appointment_date: todayKey,
+                start_time: '10:00',
+                end_time: '10:30',
+                status: 'scheduled',
+                notes: 'Cleaning',
+            },
+        ]);
+
+        renderPage();
+
+        const responsiveGrid = await screen.findByTestId('dashboard-week-grid-responsive');
+        const todayCard = within(responsiveGrid).getByTestId(`week-day-card-${todayKey}`);
+
+        expect(todayCard).toHaveClass('min-h-[16.25rem]', 'rounded-2xl');
+        expect(within(todayCard).getByText('10:00')).toBeInTheDocument();
+        expect(within(todayCard).getByText('Alisher Karimov')).toHaveClass('truncate');
     });
 
     it('opens quick action dialogs from the dashboard header', async () => {
