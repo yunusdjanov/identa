@@ -39,10 +39,17 @@ describe('page loading skeletons', () => {
             const days = screen.getAllByTestId('dashboard-week-day-skeleton');
             expect(days).toHaveLength(14);
             expect(days[7].parentElement).toHaveClass(
+                '-mx-2',
                 'grid-cols-2',
+                'md:mx-0',
                 'md:grid-cols-3',
                 'lg:grid-cols-4',
                 'xl:hidden'
+            );
+            expect(days[7]).toHaveClass(
+                'min-h-[16.25rem]',
+                'rounded-[14px]',
+                'bg-[#F2F2F7]'
             );
         });
 

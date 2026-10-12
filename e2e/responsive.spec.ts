@@ -257,6 +257,59 @@ test.describe('Responsive smoke coverage', () => {
         }
     });
 
+    test('dashboard day cards keep mobile-app geometry with web interactions', async ({ page }, testInfo) => {
+        test.skip(testInfo.project.name !== 'chromium', 'Mobile day-card matrix runs once in Chromium.');
+
+        await loginDentist(page);
+
+        for (const viewport of [
+            { width: 320, height: 720 },
+            { width: 375, height: 812 },
+            { width: 440, height: 956 },
+        ]) {
+            await test.step(`${viewport.width}x${viewport.height}`, async () => {
+                await page.setViewportSize(viewport);
+                await page.goto('/dashboard?view=week');
+
+                const grid = page.getByTestId('dashboard-week-grid-responsive');
+                const cards = grid.locator(':scope > button');
+                await expect(grid).toBeVisible();
+                await expect(cards).toHaveCount(7);
+                await expectNoPageHorizontalOverflow(page);
+
+                const measurements = await grid.evaluate((element) => {
+                    const gridRect = element.getBoundingClientRect();
+                    const layoutRect = document.body.getBoundingClientRect();
+                    const styles = window.getComputedStyle(element);
+                    const cardRects = Array.from(element.children).map((card) => card.getBoundingClientRect());
+                    const firstCardStyles = window.getComputedStyle(element.children[0]);
+
+                    return {
+                        gridLeftInset: gridRect.left - layoutRect.left,
+                        gridRightInset: layoutRect.right - gridRect.right,
+                        columnGap: Number.parseFloat(styles.columnGap),
+                        minCardWidth: Math.min(...cardRects.map((rect) => rect.width)),
+                        maxCardWidth: Math.max(...cardRects.map((rect) => rect.width)),
+                        minCardHeight: firstCardStyles.minHeight,
+                        cardRadius: firstCardStyles.borderRadius,
+                        cardBackground: firstCardStyles.backgroundColor,
+                    };
+                });
+
+                expect(measurements.gridLeftInset).toBeGreaterThanOrEqual(15);
+                expect(measurements.gridLeftInset).toBeLessThanOrEqual(19);
+                expect(measurements.gridRightInset).toBeGreaterThanOrEqual(15);
+                expect(measurements.gridRightInset).toBeLessThanOrEqual(19);
+                expect(Math.abs(measurements.gridLeftInset - measurements.gridRightInset)).toBeLessThanOrEqual(1);
+                expect(measurements.columnGap).toBe(12);
+                expect(measurements.maxCardWidth - measurements.minCardWidth).toBeLessThanOrEqual(1);
+                expect(measurements.minCardHeight).toBe('260px');
+                expect(measurements.cardRadius).toBe('14px');
+                expect(measurements.cardBackground).toBe('rgb(242, 242, 247)');
+            });
+        }
+    });
+
     test('admin dashboards stay within the viewport', async ({ page }) => {
         await loginAdmin(page);
 

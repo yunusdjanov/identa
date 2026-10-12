@@ -102,6 +102,12 @@ import {
 } from './appointments-workspace.helpers';
 
 const MOBILE_APP_WEEK_VISIBLE_APPOINTMENTS = 8;
+const MOBILE_APP_STATUS_DOT_CLASSES: Record<AppointmentStatus, string> = {
+    scheduled: 'bg-[#007AFF]',
+    completed: 'bg-[#34C759]',
+    cancelled: 'bg-[#8E8E93] opacity-50',
+    no_show: 'bg-[#FF3B30]',
+};
 
 const AddAppointmentDialog = dynamic(
     () => import('@/components/appointments/add-appointment-dialog').then((module) => module.AddAppointmentDialog),
@@ -728,24 +734,27 @@ export function AppointmentsWorkspace({ mode = 'appointments' }: AppointmentsWor
                 data-testid={`week-day-card-${descriptor.dateKey}`}
                 disabled={!canOpenCard}
                 aria-label={`${descriptor.fullDateLabel}: ${t('appointments.count', { count: dayAppointments.length })}`}
+                aria-haspopup="dialog"
+                aria-expanded={!isEmpty ? expandedWeekDateKey === descriptor.dateKey : undefined}
                 onClick={handleCardClick}
-                className={`interactive-card group flex min-h-[16.25rem] min-w-0 flex-col overflow-hidden rounded-2xl border text-left shadow-sm transition-[transform,box-shadow] ${
-                    isTodayLane
-                        ? 'border-teal-200 bg-teal-50/20 shadow-teal-100/70'
-                        : 'border-slate-200/80 bg-slate-50/70 shadow-slate-200/50'
-                } ${canOpenCard ? 'cursor-pointer hover:-translate-y-0.5 hover:shadow-md' : 'cursor-default'}`}
+                className={`group flex min-h-[16.25rem] min-w-0 touch-manipulation select-none flex-col overflow-hidden rounded-[14px] border border-[rgba(60,60,67,0.18)] bg-[#F2F2F7] text-left shadow-[0_2px_6px_rgba(0,0,0,0.05)] transition-[transform,box-shadow] duration-150 [-webkit-tap-highlight-color:transparent] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#14B8A6] focus-visible:ring-offset-2 motion-reduce:transition-none ${
+                    canOpenCard
+                        ? 'cursor-pointer motion-safe:enabled:hover:-translate-y-px enabled:hover:shadow-[0_6px_18px_rgba(0,0,0,0.10)] motion-safe:enabled:active:scale-[0.97]'
+                        : 'cursor-default'
+                }`}
             >
                 <span
-                    className={`flex w-full items-center justify-between gap-2 border-b px-3 py-2.5 ${
+                    data-testid="week-day-card-header"
+                    className={`flex w-full items-center justify-between gap-2 border-b px-3 py-[9px] ${
                         isTodayLane
-                            ? 'border-teal-700 bg-teal-700 text-white'
-                            : 'border-slate-200/80 text-slate-900'
+                            ? 'border-[#14B8A6] bg-[#14B8A6] text-white'
+                            : 'border-[rgba(60,60,67,0.18)] text-black'
                     }`}
                 >
                     <span className="flex min-w-0 items-baseline gap-1.5">
                         <span
                             className={`text-[11px] font-bold uppercase tracking-[0.08em] ${
-                                isTodayLane ? 'text-teal-50' : 'text-slate-500'
+                                isTodayLane ? 'text-white/90' : 'text-[rgba(60,60,67,0.60)]'
                             }`}
                         >
                             {descriptor.weekdayLabel}
@@ -760,16 +769,19 @@ export function AppointmentsWorkspace({ mode = 'appointments' }: AppointmentsWor
                         ) : null}
                     </span>
                     <Maximize2
-                        className={`h-3.5 w-3.5 shrink-0 ${isTodayLane ? 'text-teal-50' : 'text-slate-400'}`}
+                        className={`h-[13px] w-[13px] shrink-0 ${isTodayLane ? 'text-white/85' : 'text-[rgba(60,60,67,0.30)]'}`}
                         aria-hidden="true"
                     />
                 </span>
 
-                <span className="flex min-h-0 w-full flex-1 flex-col px-2.5 py-2.5">
+                <span data-testid="week-day-card-body" className="flex min-h-0 w-full flex-1 flex-col px-2.5 py-2.5">
                     {isEmpty ? (
                         <span className="flex flex-1 items-center justify-center">
                             {canManageAppointments ? (
-                                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-teal-700 shadow-xs ring-1 ring-slate-200/80 transition-colors group-hover:bg-teal-50">
+                                <span
+                                    data-testid="week-day-card-empty-action"
+                                    className="flex h-9 w-9 items-center justify-center rounded-full bg-[rgba(116,116,128,0.08)] text-[rgba(60,60,67,0.45)] transition-colors group-hover:text-[#14B8A6] group-focus-visible:text-[#14B8A6]"
+                                >
                                     <Plus className="h-5 w-5" aria-hidden="true" />
                                 </span>
                             ) : (
@@ -779,32 +791,26 @@ export function AppointmentsWorkspace({ mode = 'appointments' }: AppointmentsWor
                             )}
                         </span>
                     ) : (
-                        <span className="space-y-1.5">
+                        <span className="space-y-[5px]">
                             {visibleAppointments.map((appointment) => (
                                 <span
                                     key={appointment.id}
-                                    className="flex min-w-0 items-center gap-1.5"
+                                    data-testid={`week-day-card-appointment-${appointment.id}`}
+                                    className="flex min-w-0 items-center gap-[7px]"
                                 >
                                     <span
-                                        className={`h-1.5 w-1.5 shrink-0 rounded-full ${
-                                            appointment.status === 'scheduled'
-                                                ? 'bg-blue-500'
-                                                : appointment.status === 'completed'
-                                                    ? 'bg-teal-500'
-                                                    : appointment.status === 'cancelled'
-                                                        ? 'bg-slate-500 opacity-60'
-                                                        : 'bg-rose-500'
-                                        }`}
+                                        data-appointment-status={appointment.status}
+                                        className={`h-[7px] w-[7px] shrink-0 rounded-full ${MOBILE_APP_STATUS_DOT_CLASSES[appointment.status]}`}
                                         aria-hidden="true"
                                     />
-                                    <span className="w-9 shrink-0 text-[11px] font-bold tabular-nums text-slate-800">
+                                    <span className="w-9 shrink-0 text-[11.5px] font-bold leading-4 tabular-nums text-black">
                                         {appointment.startTime}
                                     </span>
                                     <span
-                                        className={`min-w-0 flex-1 truncate text-[11px] font-medium ${
+                                        className={`min-w-0 flex-1 truncate text-[11.5px] font-medium leading-4 ${
                                             appointment.status === 'cancelled'
-                                                ? 'text-slate-400 line-through'
-                                                : 'text-slate-600'
+                                                ? 'text-[rgba(60,60,67,0.30)] line-through'
+                                                : 'text-[rgba(60,60,67,0.60)]'
                                         }`}
                                         title={appointment.patientName}
                                     >
@@ -817,7 +823,10 @@ export function AppointmentsWorkspace({ mode = 'appointments' }: AppointmentsWor
                 </span>
 
                 {hiddenAppointmentsCount > 0 ? (
-                    <span className="flex w-full items-center justify-center gap-1 border-t border-slate-200/80 px-2 py-2 text-[11px] font-bold text-teal-700">
+                    <span
+                        data-testid="week-day-card-overflow"
+                        className="flex w-full items-center justify-center gap-1 border-t border-[rgba(60,60,67,0.18)] px-2 py-2 text-[11px] font-bold tracking-[0.01em] text-[#14B8A6]"
+                    >
                         {t('appointments.moreCount', { count: hiddenAppointmentsCount })}
                         <ChevronRight className="h-3 w-3" aria-hidden="true" />
                     </span>
@@ -1756,7 +1765,7 @@ export function AppointmentsWorkspace({ mode = 'appointments' }: AppointmentsWor
                         {isDashboardMode ? (
                             <div
                                 data-testid="dashboard-week-grid-responsive"
-                                className="grid grid-cols-2 items-stretch gap-3 md:grid-cols-3 lg:grid-cols-4 xl:hidden"
+                                className="-mx-2 grid grid-cols-2 items-stretch gap-3 md:mx-0 md:grid-cols-3 lg:grid-cols-4 xl:hidden"
                             >
                                 {weekDateDescriptors.map((descriptor) => renderMobileAppWeekDayCard(descriptor))}
                             </div>

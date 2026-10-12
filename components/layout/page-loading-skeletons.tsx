@@ -233,16 +233,16 @@ function MobileAppWeekDayPlannerSkeleton({ testId }: { testId: string }) {
     return (
         <div
             data-testid={testId}
-            className="flex min-h-[16.25rem] flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-slate-50/70 shadow-sm shadow-slate-200/50"
+            className="flex min-h-[16.25rem] flex-col overflow-hidden rounded-[14px] border border-[rgba(60,60,67,0.18)] bg-[#F2F2F7] shadow-[0_2px_6px_rgba(0,0,0,0.05)]"
         >
-            <div className="flex items-center justify-between gap-2 border-b border-slate-200/80 px-3 py-2.5">
+            <div className="flex items-center justify-between gap-2 border-b border-[rgba(60,60,67,0.18)] px-3 py-[9px]">
                 <Skeleton className="h-5 w-20 rounded-lg" />
-                <Skeleton className="h-3.5 w-3.5 rounded" />
+                <Skeleton className="h-[13px] w-[13px] rounded" />
             </div>
-            <div className="flex flex-1 flex-col gap-2 px-2.5 py-2.5">
+            <div className="flex flex-1 flex-col gap-[5px] px-2.5 py-2.5">
                 {Array.from({ length: 5 }).map((_, index) => (
-                    <div key={index} className="flex items-center gap-1.5">
-                        <Skeleton className="h-1.5 w-1.5 shrink-0 rounded-full" />
+                    <div key={index} className="flex items-center gap-[7px]">
+                        <Skeleton className="h-[7px] w-[7px] shrink-0 rounded-full" />
                         <Skeleton className="h-3 w-9 shrink-0 rounded" />
                         <Skeleton className={`h-3 rounded ${index % 2 === 0 ? 'w-20' : 'w-16'}`} />
                     </div>
@@ -281,7 +281,7 @@ function AppointmentsPlannerSkeleton({
                         ))}
                     </div>
                     {mobileAppCards ? (
-                        <div className="grid grid-cols-2 items-stretch gap-3 md:grid-cols-3 lg:grid-cols-4 xl:hidden">
+                        <div className="-mx-2 grid grid-cols-2 items-stretch gap-3 md:mx-0 md:grid-cols-3 lg:grid-cols-4 xl:hidden">
                             {Array.from({ length: 7 }).map((_, index) => (
                                 <MobileAppWeekDayPlannerSkeleton key={`mobile-app-${index}`} testId={dayTestId} />
                             ))}
