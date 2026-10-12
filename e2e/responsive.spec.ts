@@ -279,14 +279,14 @@ test.describe('Responsive smoke coverage', () => {
 
                 const measurements = await grid.evaluate((element) => {
                     const gridRect = element.getBoundingClientRect();
+                    const layoutRect = document.body.getBoundingClientRect();
                     const styles = window.getComputedStyle(element);
                     const cardRects = Array.from(element.children).map((card) => card.getBoundingClientRect());
                     const firstCardStyles = window.getComputedStyle(element.children[0]);
 
                     return {
-                        gridLeft: gridRect.left,
-                        gridRight: gridRect.right,
-                        viewportWidth: document.documentElement.clientWidth,
+                        gridLeftInset: gridRect.left - layoutRect.left,
+                        gridRightInset: layoutRect.right - gridRect.right,
                         columnGap: Number.parseFloat(styles.columnGap),
                         minCardWidth: Math.min(...cardRects.map((rect) => rect.width)),
                         maxCardWidth: Math.max(...cardRects.map((rect) => rect.width)),
@@ -296,10 +296,11 @@ test.describe('Responsive smoke coverage', () => {
                     };
                 });
 
-                expect(measurements.gridLeft).toBeGreaterThanOrEqual(15);
-                expect(measurements.gridLeft).toBeLessThanOrEqual(19);
-                expect(measurements.viewportWidth - measurements.gridRight).toBeGreaterThanOrEqual(15);
-                expect(measurements.viewportWidth - measurements.gridRight).toBeLessThanOrEqual(19);
+                expect(measurements.gridLeftInset).toBeGreaterThanOrEqual(15);
+                expect(measurements.gridLeftInset).toBeLessThanOrEqual(19);
+                expect(measurements.gridRightInset).toBeGreaterThanOrEqual(15);
+                expect(measurements.gridRightInset).toBeLessThanOrEqual(19);
+                expect(Math.abs(measurements.gridLeftInset - measurements.gridRightInset)).toBeLessThanOrEqual(1);
                 expect(measurements.columnGap).toBe(12);
                 expect(measurements.maxCardWidth - measurements.minCardWidth).toBeLessThanOrEqual(1);
                 expect(measurements.minCardHeight).toBe('260px');
