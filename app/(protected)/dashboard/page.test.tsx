@@ -261,27 +261,49 @@ describe('DashboardPage', () => {
 
     it('matches the mobile app day-card structure below the desktop breakpoint', async () => {
         const todayKey = toLocalDateKey(new Date());
-        vi.mocked(listAllAppointments).mockResolvedValue([
-            {
-                id: 'mobile-card-appointment',
+        const statuses = ['scheduled', 'completed', 'cancelled', 'no_show'] as const;
+        vi.mocked(listAllAppointments).mockResolvedValue(
+            Array.from({ length: 9 }, (_, index) => ({
+                id: `mobile-card-appointment-${index}`,
                 patient_id: 'patient-1',
-                patient_name: 'Alisher Karimov',
+                patient_name: index === 0 ? 'Alisher Karimov' : `Patient ${index + 1}`,
                 appointment_date: todayKey,
-                start_time: '10:00',
-                end_time: '10:30',
-                status: 'scheduled',
+                start_time: `${String(9 + index).padStart(2, '0')}:00`,
+                end_time: `${String(9 + index).padStart(2, '0')}:30`,
+                status: statuses[index % statuses.length],
                 notes: 'Cleaning',
-            },
-        ]);
+            }))
+        );
 
         renderPage();
 
         const responsiveGrid = await screen.findByTestId('dashboard-week-grid-responsive');
         const todayCard = within(responsiveGrid).getByTestId(`week-day-card-${todayKey}`);
 
-        expect(todayCard).toHaveClass('min-h-[16.25rem]', 'rounded-2xl');
-        expect(within(todayCard).getByText('10:00')).toBeInTheDocument();
+        expect(responsiveGrid).toHaveClass('-mx-2', 'md:mx-0');
+        expect(todayCard).toHaveClass(
+            'min-h-[16.25rem]',
+            'rounded-[14px]',
+            'bg-[#F2F2F7]',
+            'touch-manipulation'
+        );
+        expect(todayCard).toHaveAttribute('aria-haspopup', 'dialog');
+        expect(todayCard).toHaveAttribute('aria-expanded', 'false');
+        expect(within(todayCard).getByTestId('week-day-card-header'))
+            .toHaveClass('bg-[#14B8A6]', 'py-[9px]');
+        expect(within(todayCard).getAllByTestId(/^week-day-card-appointment-/)).toHaveLength(8);
+        expect(within(todayCard).getByText('09:00')).toBeInTheDocument();
         expect(within(todayCard).getByText('Alisher Karimov')).toHaveClass('truncate');
+        expect(within(todayCard).getByTestId('week-day-card-overflow')).toHaveTextContent('+1 more');
+        expect(todayCard.querySelector('[data-appointment-status="scheduled"]')).toHaveClass('bg-[#007AFF]');
+        expect(todayCard.querySelector('[data-appointment-status="completed"]')).toHaveClass('bg-[#34C759]');
+        expect(todayCard.querySelector('[data-appointment-status="cancelled"]')).toHaveClass('bg-[#8E8E93]', 'opacity-50');
+        expect(todayCard.querySelector('[data-appointment-status="no_show"]')).toHaveClass('bg-[#FF3B30]');
+
+        fireEvent.click(todayCard);
+
+        expect(await screen.findByTestId('week-day-queue-modal')).toBeInTheDocument();
+        expect(todayCard).toHaveAttribute('aria-expanded', 'true');
     });
 
     it('opens quick action dialogs from the dashboard header', async () => {
