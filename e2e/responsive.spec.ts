@@ -195,6 +195,68 @@ test.describe('Responsive smoke coverage', () => {
         }
     });
 
+    test('mobile app navigation is evenly distributed and clears page content', async ({ page }, testInfo) => {
+        test.skip(testInfo.project.name !== 'chromium', 'Mobile header matrix runs once in Chromium.');
+
+        await loginDentist(page);
+
+        for (const viewport of [
+            { width: 320, height: 720 },
+            { width: 375, height: 812 },
+            { width: 440, height: 956 },
+        ]) {
+            await test.step(`${viewport.width}x${viewport.height}`, async () => {
+                await page.setViewportSize(viewport);
+                await page.goto('/dashboard?view=week');
+
+                const mobileNavigation = page.getByTestId('app-header-mobile-nav');
+                const mobileItems = page.getByTestId('app-header-mobile-nav-item');
+                await expect(mobileNavigation).toBeVisible();
+                await expect(mobileItems).toHaveCount(4);
+                await expect(page.getByTestId('dashboard-workspace')).toBeVisible();
+                await expectNoPageHorizontalOverflow(page);
+
+                const measurements = await page.evaluate(() => {
+                    const header = document.querySelector<HTMLElement>('[data-app-header]');
+                    const navigation = document.querySelector<HTMLElement>('[data-testid="app-header-mobile-nav"]');
+                    const main = document.querySelector<HTMLElement>('#main-content');
+                    const firstPageElement = main?.firstElementChild;
+                    const items = Array.from(
+                        document.querySelectorAll<HTMLElement>('[data-testid="app-header-mobile-nav-item"]')
+                    );
+
+                    if (!header || !navigation || !main || !firstPageElement || items.length !== 4) {
+                        throw new Error('Mobile application shell was not rendered.');
+                    }
+
+                    const headerRect = header.getBoundingClientRect();
+                    const navigationRect = navigation.getBoundingClientRect();
+                    const contentRect = firstPageElement.getBoundingClientRect();
+                    const itemRects = items.map((item) => item.getBoundingClientRect());
+
+                    return {
+                        navigationLeft: navigationRect.left,
+                        navigationRight: navigationRect.right,
+                        viewportWidth: document.documentElement.clientWidth,
+                        contentGap: contentRect.top - headerRect.bottom,
+                        minItemWidth: Math.min(...itemRects.map((rect) => rect.width)),
+                        maxItemWidth: Math.max(...itemRects.map((rect) => rect.width)),
+                        minItemHeight: Math.min(...itemRects.map((rect) => rect.height)),
+                        maxItemHeight: Math.max(...itemRects.map((rect) => rect.height)),
+                    };
+                });
+
+                expect(measurements.navigationLeft).toBeGreaterThanOrEqual(-1);
+                expect(measurements.navigationRight).toBeLessThanOrEqual(measurements.viewportWidth + 1);
+                expect(measurements.maxItemWidth - measurements.minItemWidth).toBeLessThanOrEqual(1);
+                expect(measurements.minItemHeight).toBeGreaterThanOrEqual(47);
+                expect(measurements.maxItemHeight).toBeLessThanOrEqual(49);
+                expect(measurements.contentGap).toBeGreaterThanOrEqual(12);
+                expect(measurements.contentGap).toBeLessThanOrEqual(24);
+            });
+        }
+    });
+
     test('admin dashboards stay within the viewport', async ({ page }) => {
         await loginAdmin(page);
 

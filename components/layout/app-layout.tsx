@@ -358,19 +358,19 @@ function AppLayoutBody({ children }: { children: React.ReactNode }) {
                 {/* Mobile Navigation */}
                 {showHeaderSkeleton ? (
                     <div className="md:hidden border-t border-slate-200/70 bg-white">
-                        <div className="flex justify-start gap-1 overflow-x-auto overflow-y-hidden px-2 py-1 no-scrollbar">
+                        <div className="grid grid-cols-4 gap-1 px-2 py-1">
                             {navigation.map((item) => (
                                 <Skeleton
                                     key={item.href}
                                     data-testid="app-header-mobile-nav-skeleton-item"
-                                    className="h-10 w-[72px] shrink-0 rounded-xl"
+                                    className="h-12 min-w-0 rounded-xl"
                                 />
                             ))}
                         </div>
                     </div>
                 ) : (
                     <div className="md:hidden border-t border-slate-200/70 bg-white">
-                        <nav className="flex justify-start gap-1 overflow-x-auto overflow-y-hidden px-2 py-1 no-scrollbar">
+                        <nav data-testid="app-header-mobile-nav" className="grid grid-cols-4 gap-1 px-2 py-1">
                             {navigation.map((item) => {
                                 const isActive = isActiveRoute(item.href);
                                 const Icon = item.icon;
@@ -378,13 +378,14 @@ function AppLayoutBody({ children }: { children: React.ReactNode }) {
                                 return (
                                     <Link
                                         key={item.key}
+                                        data-testid="app-header-mobile-nav-item"
                                         href={item.href}
                                         onClick={(event) => handleNavigationClick(event, item.href)}
                                         aria-label={t(item.key)}
                                         aria-current={isActive ? 'page' : undefined}
                                         aria-disabled={isLocked}
                                         className={cn(
-                                            'flex min-h-10 min-w-[72px] shrink-0 flex-col items-center justify-center rounded-xl px-2 py-1.5 text-[11px] font-semibold transition-colors',
+                                            'flex h-12 min-w-0 flex-col items-center justify-center rounded-xl px-1 py-1 text-[11px] font-semibold leading-none transition-colors',
                                             isActive
                                                 ? 'bg-teal-50/85 text-teal-700'
                                                 : isLocked
@@ -394,13 +395,13 @@ function AppLayoutBody({ children }: { children: React.ReactNode }) {
                                     >
                                         <span
                                             className={cn(
-                                                'mb-0.5 rounded-lg p-1',
+                                                'mb-0.5 flex h-5 w-5 items-center justify-center rounded-md',
                                                 isActive ? 'bg-teal-50 text-teal-700' : 'text-slate-500'
                                             )}
                                         >
-                                            <Icon className="h-4 w-4" aria-hidden="true" />
+                                            <Icon className="h-[18px] w-[18px]" aria-hidden="true" />
                                         </span>
-                                        <span className="max-w-[4.4rem] truncate">{t(item.key)}</span>
+                                        <span className="w-full truncate text-center leading-4">{t(item.key)}</span>
                                     </Link>
                                 );
                             })}
@@ -408,7 +409,7 @@ function AppLayoutBody({ children }: { children: React.ReactNode }) {
                     </div>
                 )}
             </header>
-            <div data-app-header-spacer aria-hidden="true" className="h-24 md:h-16" />
+            <div data-app-header-spacer aria-hidden="true" className="h-[6.5rem] md:h-16" />
 
             <EmailVerificationBanner />
 

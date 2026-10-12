@@ -115,7 +115,9 @@ describe('AppLayout skeleton header', () => {
         expect(screen.getAllByTestId('app-header-desktop-nav-skeleton-item')).toHaveLength(4);
         expect(screen.getAllByTestId('app-header-mobile-nav-skeleton-item')).toHaveLength(4);
         expect(screen.getAllByTestId('app-header-mobile-nav-skeleton-item')[0].parentElement)
-            .toHaveClass('justify-start', 'overflow-x-auto');
+            .toHaveClass('grid', 'grid-cols-4', 'gap-1', 'px-2');
+        expect(screen.getAllByTestId('app-header-mobile-nav-skeleton-item')[0])
+            .toHaveClass('h-12', 'min-w-0');
     });
 
     it('keeps the app header above page-level select popovers', () => {
@@ -129,7 +131,7 @@ describe('AppLayout skeleton header', () => {
         expect(container.querySelector('header')).toHaveAttribute('data-app-header');
         expect(container.querySelector('[data-app-header] > div')).toHaveClass('max-w-[1600px]');
         expect(container.querySelector('main')).toHaveClass('max-w-[1600px]');
-        expect(container.querySelector('[data-app-header-spacer]')).toHaveClass('h-24', 'md:h-16');
+        expect(container.querySelector('[data-app-header-spacer]')).toHaveClass('h-[6.5rem]', 'md:h-16');
     });
 
     it('keeps the admin header fixed above page-level select popovers', () => {
@@ -164,6 +166,10 @@ describe('AppLayout skeleton header', () => {
         expect(paymentLinks).toHaveLength(2);
         expect(paymentLinks.every((link) => link.getAttribute('aria-current') === 'page')).toBe(true);
         expect(screen.getAllByRole('link', { name: 'nav.dashboard' })).toHaveLength(2);
+
+        const mobilePaymentLink = paymentLinks.find((link) => link.classList.contains('flex-col'));
+        expect(mobilePaymentLink).toHaveClass('h-12', 'min-w-0', 'px-1', 'py-1');
+        expect(mobilePaymentLink?.parentElement).toHaveClass('grid', 'grid-cols-4', 'gap-1', 'px-2');
     });
 
     it('lets keyboard users bypass protected and admin navigation', () => {
