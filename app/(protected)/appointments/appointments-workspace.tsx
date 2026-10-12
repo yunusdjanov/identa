@@ -45,6 +45,7 @@ import {
     ChevronLeft,
     ChevronRight,
     Download,
+    Maximize2,
     Pencil,
     Plus,
     Trash2,
@@ -99,6 +100,8 @@ import {
     type WeekInlineEditFormData,
     extractReason,
 } from './appointments-workspace.helpers';
+
+const MOBILE_APP_WEEK_VISIBLE_APPOINTMENTS = 8;
 
 const AddAppointmentDialog = dynamic(
     () => import('@/components/appointments/add-appointment-dialog').then((module) => module.AddAppointmentDialog),
@@ -698,6 +701,130 @@ export function AppointmentsWorkspace({ mode = 'appointments' }: AppointmentsWor
     const expandedWeekAppointments = expandedWeekDescriptor
         ? appointmentsByDate.get(expandedWeekDescriptor.dateKey) ?? []
         : [];
+
+    const renderMobileAppWeekDayCard = (
+        descriptor: (typeof weekDateDescriptors)[number]
+    ) => {
+        const dayAppointments = appointmentsByDate.get(descriptor.dateKey) ?? [];
+        const visibleAppointments = dayAppointments.slice(0, MOBILE_APP_WEEK_VISIBLE_APPOINTMENTS);
+        const hiddenAppointmentsCount = Math.max(0, dayAppointments.length - visibleAppointments.length);
+        const isTodayLane = descriptor.dateKey === todayDateKey;
+        const isEmpty = dayAppointments.length === 0;
+        const canOpenCard = !isEmpty || canManageAppointments;
+
+        const handleCardClick = () => {
+            if (isEmpty) {
+                openAddDialog({ date: descriptor.date });
+                return;
+            }
+
+            setExpandedWeekDateKey(descriptor.dateKey);
+        };
+
+        return (
+            <button
+                key={descriptor.dayIndex}
+                type="button"
+                data-testid={`week-day-card-${descriptor.dateKey}`}
+                disabled={!canOpenCard}
+                aria-label={`${descriptor.fullDateLabel}: ${t('appointments.count', { count: dayAppointments.length })}`}
+                onClick={handleCardClick}
+                className={`interactive-card group flex min-h-[16.25rem] min-w-0 flex-col overflow-hidden rounded-2xl border text-left shadow-sm transition-[transform,box-shadow] ${
+                    isTodayLane
+                        ? 'border-teal-200 bg-teal-50/20 shadow-teal-100/70'
+                        : 'border-slate-200/80 bg-slate-50/70 shadow-slate-200/50'
+                } ${canOpenCard ? 'cursor-pointer hover:-translate-y-0.5 hover:shadow-md' : 'cursor-default'}`}
+            >
+                <span
+                    className={`flex w-full items-center justify-between gap-2 border-b px-3 py-2.5 ${
+                        isTodayLane
+                            ? 'border-teal-700 bg-teal-700 text-white'
+                            : 'border-slate-200/80 text-slate-900'
+                    }`}
+                >
+                    <span className="flex min-w-0 items-baseline gap-1.5">
+                        <span
+                            className={`text-[11px] font-bold uppercase tracking-[0.08em] ${
+                                isTodayLane ? 'text-teal-50' : 'text-slate-500'
+                            }`}
+                        >
+                            {descriptor.weekdayLabel}
+                        </span>
+                        <span className="text-lg font-bold leading-none tabular-nums">
+                            {descriptor.dayNumber}
+                        </span>
+                        {isTodayLane ? (
+                            <span className="truncate rounded bg-white/20 px-1.5 py-0.5 text-[9px] font-extrabold uppercase tracking-[0.08em] text-white">
+                                {t('appointments.today')}
+                            </span>
+                        ) : null}
+                    </span>
+                    <Maximize2
+                        className={`h-3.5 w-3.5 shrink-0 ${isTodayLane ? 'text-teal-50' : 'text-slate-400'}`}
+                        aria-hidden="true"
+                    />
+                </span>
+
+                <span className="flex min-h-0 w-full flex-1 flex-col px-2.5 py-2.5">
+                    {isEmpty ? (
+                        <span className="flex flex-1 items-center justify-center">
+                            {canManageAppointments ? (
+                                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-teal-700 shadow-xs ring-1 ring-slate-200/80 transition-colors group-hover:bg-teal-50">
+                                    <Plus className="h-5 w-5" aria-hidden="true" />
+                                </span>
+                            ) : (
+                                <span className="text-center text-xs text-slate-400">
+                                    {t('appointments.noAppointments')}
+                                </span>
+                            )}
+                        </span>
+                    ) : (
+                        <span className="space-y-1.5">
+                            {visibleAppointments.map((appointment) => (
+                                <span
+                                    key={appointment.id}
+                                    className="flex min-w-0 items-center gap-1.5"
+                                >
+                                    <span
+                                        className={`h-1.5 w-1.5 shrink-0 rounded-full ${
+                                            appointment.status === 'scheduled'
+                                                ? 'bg-blue-500'
+                                                : appointment.status === 'completed'
+                                                    ? 'bg-teal-500'
+                                                    : appointment.status === 'cancelled'
+                                                        ? 'bg-slate-500 opacity-60'
+                                                        : 'bg-rose-500'
+                                        }`}
+                                        aria-hidden="true"
+                                    />
+                                    <span className="w-9 shrink-0 text-[11px] font-bold tabular-nums text-slate-800">
+                                        {appointment.startTime}
+                                    </span>
+                                    <span
+                                        className={`min-w-0 flex-1 truncate text-[11px] font-medium ${
+                                            appointment.status === 'cancelled'
+                                                ? 'text-slate-400 line-through'
+                                                : 'text-slate-600'
+                                        }`}
+                                        title={appointment.patientName}
+                                    >
+                                        {appointment.patientName}
+                                    </span>
+                                </span>
+                            ))}
+                        </span>
+                    )}
+                </span>
+
+                {hiddenAppointmentsCount > 0 ? (
+                    <span className="flex w-full items-center justify-center gap-1 border-t border-slate-200/80 px-2 py-2 text-[11px] font-bold text-teal-700">
+                        {t('appointments.moreCount', { count: hiddenAppointmentsCount })}
+                        <ChevronRight className="h-3 w-3" aria-hidden="true" />
+                    </span>
+                ) : null}
+            </button>
+        );
+    };
 
     const renderWeekDayCard = (
         descriptor: (typeof weekDateDescriptors)[number],
@@ -1626,6 +1753,15 @@ export function AppointmentsWorkspace({ mode = 'appointments' }: AppointmentsWor
                                 <span>{t('status.no_show')}</span>
                             </div>
                         </div>
+                        {isDashboardMode ? (
+                            <div
+                                data-testid="dashboard-week-grid-responsive"
+                                className="grid grid-cols-2 items-stretch gap-3 md:grid-cols-3 lg:grid-cols-4 xl:hidden"
+                            >
+                                {weekDateDescriptors.map((descriptor) => renderMobileAppWeekDayCard(descriptor))}
+                            </div>
+                        ) : (
+                            <>
                         <div data-testid="appointments-week-grid-mobile" className="space-y-3 lg:hidden">
                             <div
                                 className="grid grid-cols-7 gap-1 rounded-xl border border-slate-200/80 bg-slate-50/80 p-1"
@@ -1677,6 +1813,8 @@ export function AppointmentsWorkspace({ mode = 'appointments' }: AppointmentsWor
                                 {weekDateDescriptors.slice(4).map((descriptor) => renderWeekDayCard(descriptor, { includeTestIds: true }))}
                             </div>
                         </div>
+                            </>
+                        )}
                             </div>
             )}
                         </div>

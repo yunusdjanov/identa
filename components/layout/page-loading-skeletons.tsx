@@ -229,7 +229,36 @@ function WeekDayPlannerSkeleton({ testId, compact }: { testId: string; compact: 
     );
 }
 
-function AppointmentsPlannerSkeleton({ dayTestId }: { dayTestId: string }) {
+function MobileAppWeekDayPlannerSkeleton({ testId }: { testId: string }) {
+    return (
+        <div
+            data-testid={testId}
+            className="flex min-h-[16.25rem] flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-slate-50/70 shadow-sm shadow-slate-200/50"
+        >
+            <div className="flex items-center justify-between gap-2 border-b border-slate-200/80 px-3 py-2.5">
+                <Skeleton className="h-5 w-20 rounded-lg" />
+                <Skeleton className="h-3.5 w-3.5 rounded" />
+            </div>
+            <div className="flex flex-1 flex-col gap-2 px-2.5 py-2.5">
+                {Array.from({ length: 5 }).map((_, index) => (
+                    <div key={index} className="flex items-center gap-1.5">
+                        <Skeleton className="h-1.5 w-1.5 shrink-0 rounded-full" />
+                        <Skeleton className="h-3 w-9 shrink-0 rounded" />
+                        <Skeleton className={`h-3 rounded ${index % 2 === 0 ? 'w-20' : 'w-16'}`} />
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+}
+
+function AppointmentsPlannerSkeleton({
+    dayTestId,
+    mobileAppCards = false,
+}: {
+    dayTestId: string;
+    mobileAppCards?: boolean;
+}) {
     return (
         <>
             <div className="mx-auto grid w-full max-w-[1400px] grid-cols-1 gap-3 rounded-2xl border border-teal-100/80 bg-white p-3 shadow-xs md:grid-cols-[auto_minmax(0,1fr)_auto] md:items-center">
@@ -251,26 +280,36 @@ function AppointmentsPlannerSkeleton({ dayTestId }: { dayTestId: string }) {
                             <WeekDayPlannerSkeleton key={`desktop-${index}`} testId={dayTestId} compact />
                         ))}
                     </div>
-                    <div className="space-y-3 lg:hidden">
-                        <div className="grid grid-cols-7 gap-1 rounded-xl border border-slate-200/80 bg-slate-50/80 p-1">
+                    {mobileAppCards ? (
+                        <div className="grid grid-cols-2 items-stretch gap-3 md:grid-cols-3 lg:grid-cols-4 xl:hidden">
                             {Array.from({ length: 7 }).map((_, index) => (
-                                <Skeleton key={`mobile-selector-${index}`} className="h-14 rounded-lg" />
+                                <MobileAppWeekDayPlannerSkeleton key={`mobile-app-${index}`} testId={dayTestId} />
                             ))}
                         </div>
-                        <WeekDayPlannerSkeleton testId={dayTestId} compact={false} />
-                    </div>
-                    <div className="hidden space-y-3 lg:block xl:hidden">
-                        <div className="grid grid-cols-1 items-stretch gap-3 md:grid-cols-2 lg:grid-cols-4">
-                            {Array.from({ length: 4 }).map((_, index) => (
-                                <WeekDayPlannerSkeleton key={`stacked-primary-${index}`} testId={dayTestId} compact={false} />
-                            ))}
+                    ) : (
+                        <>
+                        <div className="space-y-3 lg:hidden">
+                            <div className="grid grid-cols-7 gap-1 rounded-xl border border-slate-200/80 bg-slate-50/80 p-1">
+                                {Array.from({ length: 7 }).map((_, index) => (
+                                    <Skeleton key={`mobile-selector-${index}`} className="h-14 rounded-lg" />
+                                ))}
+                            </div>
+                            <WeekDayPlannerSkeleton testId={dayTestId} compact={false} />
                         </div>
-                        <div className="grid grid-cols-1 items-stretch gap-3 md:grid-cols-2 lg:mx-auto lg:max-w-[calc(((100%-0.75rem*3)/4)*3+0.75rem*2)] lg:grid-cols-3">
-                            {Array.from({ length: 3 }).map((_, index) => (
-                                <WeekDayPlannerSkeleton key={`stacked-secondary-${index}`} testId={dayTestId} compact={false} />
-                            ))}
+                        <div className="hidden space-y-3 lg:block xl:hidden">
+                            <div className="grid grid-cols-1 items-stretch gap-3 md:grid-cols-2 lg:grid-cols-4">
+                                {Array.from({ length: 4 }).map((_, index) => (
+                                    <WeekDayPlannerSkeleton key={`stacked-primary-${index}`} testId={dayTestId} compact={false} />
+                                ))}
+                            </div>
+                            <div className="grid grid-cols-1 items-stretch gap-3 md:grid-cols-2 lg:mx-auto lg:max-w-[calc(((100%-0.75rem*3)/4)*3+0.75rem*2)] lg:grid-cols-3">
+                                {Array.from({ length: 3 }).map((_, index) => (
+                                    <WeekDayPlannerSkeleton key={`stacked-secondary-${index}`} testId={dayTestId} compact={false} />
+                                ))}
+                            </div>
                         </div>
-                    </div>
+                        </>
+                    )}
                     <div className="hidden items-center justify-center gap-6 pt-5 xl:flex">
                         {Array.from({ length: 4 }).map((_, index) => (
                             <div key={index} className="flex items-center gap-2">
@@ -291,7 +330,7 @@ export function RouteDashboardLoadingState() {
             <PageHeaderSkeleton actions={2} />
             <Card data-testid="dashboard-planner-skeleton" className="overflow-hidden rounded-2xl border-teal-100/80 bg-white shadow-sm shadow-teal-100/50">
                 <CardContent className="space-y-4 p-3 sm:p-5 xl:pb-2.5">
-                    <AppointmentsPlannerSkeleton dayTestId="dashboard-week-day-skeleton" />
+                    <AppointmentsPlannerSkeleton dayTestId="dashboard-week-day-skeleton" mobileAppCards />
                 </CardContent>
             </Card>
         </div>

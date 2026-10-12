@@ -122,6 +122,19 @@ test.describe('Critical Journeys', () => {
         await page.getByRole('option').first().click();
         await expect(dialog.getByText(/^Selected:/)).toBeVisible({ timeout: 30_000 });
 
+        // Keep the journey stable when the CI runner is still on the previous
+        // UTC date while the API already considers it the next day in
+        // Asia/Tashkent. A future date exercises the same create flow without
+        // depending on the runner's local timezone around midnight.
+        const appointmentDate = new Date();
+        appointmentDate.setDate(appointmentDate.getDate() + 2);
+        const appointmentDateValue = [
+            appointmentDate.getFullYear(),
+            String(appointmentDate.getMonth() + 1).padStart(2, '0'),
+            String(appointmentDate.getDate()).padStart(2, '0'),
+        ].join('-');
+        await dialog.locator('input[type="date"]').fill(appointmentDateValue);
+
         const timeButton = dialog.getByLabel('Time');
         await expect(timeButton).toBeEnabled({ timeout: 30_000 });
         await timeButton.click();

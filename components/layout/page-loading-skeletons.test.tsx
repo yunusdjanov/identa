@@ -36,7 +36,14 @@ describe('page loading skeletons', () => {
 
             expect(screen.getByTestId('dashboard-loading')).toBeInTheDocument();
             expect(screen.getByTestId('dashboard-planner-skeleton')).toBeInTheDocument();
-            expect(screen.getAllByTestId('dashboard-week-day-skeleton')).toHaveLength(15);
+            const days = screen.getAllByTestId('dashboard-week-day-skeleton');
+            expect(days).toHaveLength(14);
+            expect(days[7].parentElement).toHaveClass(
+                'grid-cols-2',
+                'md:grid-cols-3',
+                'lg:grid-cols-4',
+                'xl:hidden'
+            );
         });
 
         it('keeps appointment columns aligned with the xl desktop breakpoint', () => {
