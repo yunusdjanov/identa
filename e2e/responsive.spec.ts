@@ -346,13 +346,18 @@ test.describe('Responsive smoke coverage', () => {
         }
     });
 
-    test('dashboard and patients use compact actions-only mobile headers', async ({ page }, testInfo) => {
+    test('core mobile pages use compact headers', async ({ page }, testInfo) => {
         test.skip(testInfo.project.name !== 'chromium', 'Mobile action-header coverage runs once in Chromium.');
 
         await loginDentist(page);
         await page.setViewportSize({ width: 320, height: 720 });
 
-        for (const route of ['/dashboard?view=week', '/patients']) {
+        for (const { route, expectsMobileActions } of [
+            { route: '/dashboard?view=week', expectsMobileActions: true },
+            { route: '/patients', expectsMobileActions: true },
+            { route: '/payments', expectsMobileActions: false },
+            { route: '/analytics', expectsMobileActions: false },
+        ]) {
             await test.step(route, async () => {
                 await page.goto(route);
                 await expect(page.locator('#main-content h1').first()).toHaveCount(1);
@@ -363,20 +368,29 @@ test.describe('Responsive smoke coverage', () => {
                     const header = heading.closest<HTMLElement>('section');
                     const buttons = Array.from(header?.querySelectorAll<HTMLElement>('[data-slot="button"]') ?? []);
 
-                    if (!titleBlock || !header || buttons.length === 0) {
-                        throw new Error('Compact mobile action header was not rendered.');
+                    if (!titleBlock || !header) {
+                        throw new Error('Compact mobile header was not rendered.');
                     }
 
                     return {
                         titlePosition: window.getComputedStyle(titleBlock).position,
                         headerHeight: header.getBoundingClientRect().height,
-                        minButtonHeight: Math.min(...buttons.map((button) => button.getBoundingClientRect().height)),
+                        buttonCount: buttons.length,
+                        minButtonHeight: buttons.length > 0
+                            ? Math.min(...buttons.map((button) => button.getBoundingClientRect().height))
+                            : null,
                     };
                 });
 
-                expect(measurements.titlePosition).toBe('absolute');
                 expect(measurements.headerHeight).toBeLessThanOrEqual(96);
-                expect(measurements.minButtonHeight).toBeGreaterThanOrEqual(36);
+                if (expectsMobileActions) {
+                    expect(measurements.titlePosition).toBe('absolute');
+                    expect(measurements.buttonCount).toBeGreaterThan(0);
+                    expect(measurements.minButtonHeight).toBeGreaterThanOrEqual(36);
+                } else {
+                    expect(measurements.titlePosition).toBe('static');
+                    expect(measurements.buttonCount).toBe(0);
+                }
             });
         }
     });

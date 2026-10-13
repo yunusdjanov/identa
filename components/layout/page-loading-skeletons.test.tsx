@@ -92,9 +92,18 @@ describe('page loading skeletons', () => {
             render(<PaymentsLoadingState />);
 
             expect(screen.getByTestId('payments-loading')).toBeInTheDocument();
+            expect(screen.getByTestId('payments-loading').firstElementChild?.firstElementChild?.firstElementChild)
+                .toHaveClass('sr-only', 'sm:not-sr-only');
             expect(screen.getAllByTestId('metric-card-skeleton')).toHaveLength(4);
+            expect(screen.getAllByTestId('metric-card-skeleton')[0].parentElement)
+                .toHaveClass('grid-cols-2', 'gap-2');
             expect(screen.getByTestId('ledger-table-skeleton')).toBeInTheDocument();
             expect(screen.getByTestId('payments-outstanding-filter-skeleton')).toBeInTheDocument();
+            expect(screen.getByTestId('payments-mobile-list-skeleton'))
+                .toHaveClass('overflow-hidden', 'rounded-xl');
+            expect(screen.getByTestId('payments-mobile-list-skeleton').children).toHaveLength(6);
+            expect(screen.getByTestId('payments-mobile-list-skeleton').firstElementChild)
+                .toHaveClass('border-b', 'px-1', 'py-3');
             expect(screen.getByTestId('payments-ledger-header-skeleton').children).toHaveLength(9);
             expect(screen.getAllByTestId('payments-ledger-row-skeleton')[0].children).toHaveLength(9);
             expect(screen.getByTestId('payments-ledger-scroll-skeleton').parentElement?.children).toHaveLength(3);
@@ -129,6 +138,8 @@ describe('page loading skeletons', () => {
             );
 
             expect(screen.getAllByTestId('analytics-kpi-skeleton')).toHaveLength(2);
+            expect(screen.getByTestId('analytics-loading').firstElementChild?.firstElementChild?.firstElementChild)
+                .toHaveClass('sr-only', 'sm:not-sr-only');
             expect(screen.queryByTestId('analytics-revenue-chart-skeleton')).not.toBeInTheDocument();
             expect(screen.getByTestId('analytics-status-chart-skeleton')).toBeInTheDocument();
             expect(screen.getByTestId('analytics-growth-chart-skeleton')).toBeInTheDocument();

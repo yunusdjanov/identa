@@ -409,8 +409,10 @@ describe('PatientsPage', () => {
         const mobileCard = within(mobileList).getByTestId('patient-mobile-card-patient-list-card');
 
         expect(within(listCard).getByText('Patients: 1')).toBeInTheDocument();
-        expect(mobileList).toHaveClass('min-w-0', 'max-w-full');
-        expect(mobileCard).toHaveClass('min-w-0', 'max-w-full');
+        expect(mobileList).toHaveClass('min-w-0', 'max-w-full', 'overflow-hidden', 'rounded-xl');
+        expect(mobileCard).toHaveClass('min-w-0', 'max-w-full', 'border-b', 'px-1');
+        expect(within(mobileCard).getByRole('button', { name: 'Open details for List Card Patient' }))
+            .toHaveClass('min-h-10');
         expect(within(toolbar).getByLabelText('Search patients by name, phone, or patient ID')).toBeInTheDocument();
         expect(within(toolbar).getByRole('combobox', { name: 'Filter patients by category' })).toBeInTheDocument();
         expect(within(toolbar).getByRole('combobox', { name: 'Filter patients by visit gap' })).toBeInTheDocument();

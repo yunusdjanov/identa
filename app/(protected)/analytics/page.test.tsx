@@ -198,8 +198,10 @@ describe('AnalyticsPage', () => {
             subscription: { can_export: false },
         } as never);
         const rendered = renderPage();
-        await screen.findByText('Analytics');
+        const compactHeading = await screen.findByRole('heading', { name: 'Analytics' });
         expect(screen.queryByRole('button', { name: 'Export PDF' })).not.toBeInTheDocument();
+        expect(compactHeading.closest('section')).toHaveClass('px-3', 'py-2', 'sm:px-5', 'sm:py-4');
+        expect(compactHeading.closest('.min-w-0')).not.toHaveClass('sr-only');
 
         rendered.unmount();
         vi.mocked(getCurrentUser).mockResolvedValue({
@@ -207,7 +209,13 @@ describe('AnalyticsPage', () => {
             subscription: { can_export: true },
         } as never);
         renderPage();
-        expect(await screen.findByRole('button', { name: 'Export PDF' })).toBeInTheDocument();
+        expect(await screen.findByRole('button', { name: 'Export PDF' })).toHaveClass(
+            'h-9',
+            'w-full',
+            'text-xs'
+        );
+        expect(screen.getByRole('heading', { name: 'Analytics' }).closest('.min-w-0'))
+            .toHaveClass('sr-only', 'sm:not-sr-only');
     });
 
     it('shows only the top four debtors with a link to all outstanding payments', async () => {
