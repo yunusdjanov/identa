@@ -6,19 +6,27 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { SkipToContentLink } from '@/components/layout/skip-to-content-link';
 
-function PageHeaderSkeleton({ actions = 1, eyebrow = false }: { actions?: number; eyebrow?: boolean }) {
+function PageHeaderSkeleton({
+    actions = 1,
+    eyebrow = false,
+    compactOnMobile = false,
+}: {
+    actions?: number;
+    eyebrow?: boolean;
+    compactOnMobile?: boolean;
+}) {
     return (
-        <section className="overflow-hidden rounded-2xl border border-white/80 bg-white px-4 py-3 shadow-sm shadow-slate-200/70 sm:rounded-2xl sm:px-5 sm:py-4">
-            <div className="flex min-w-0 flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <section className={`overflow-hidden rounded-2xl border border-white/80 bg-white shadow-sm shadow-slate-200/70 sm:rounded-2xl sm:px-5 sm:py-4 ${compactOnMobile ? 'px-3 py-2' : 'px-4 py-3'}`}>
+            <div className={`flex min-w-0 flex-col lg:flex-row lg:items-center lg:justify-between ${compactOnMobile ? 'gap-2 sm:gap-3' : 'gap-3'}`}>
                 <div className="min-w-0 space-y-1">
                     {eyebrow ? <Skeleton className="h-3 w-16 rounded-xl" /> : null}
-                    <Skeleton className="h-7 w-40 rounded-xl sm:h-8 sm:w-56" />
-                    <Skeleton className="h-3.5 w-52 max-w-full rounded-xl sm:w-72" />
+                    <Skeleton className={compactOnMobile ? 'h-5 w-28 rounded-xl sm:h-8 sm:w-56' : 'h-7 w-40 rounded-xl sm:h-8 sm:w-56'} />
+                    <Skeleton className={`h-3.5 w-52 max-w-full rounded-xl sm:w-72 ${compactOnMobile ? 'hidden sm:block' : ''}`} />
                 </div>
                 {actions > 0 ? (
                     <div className={actions === 3
                         ? 'grid w-full min-w-0 grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-wrap sm:justify-end'
-                        : 'flex w-full min-w-0 flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:justify-end'}>
+                        : `flex w-full min-w-0 flex-col sm:w-auto sm:flex-row sm:flex-wrap sm:justify-end ${compactOnMobile ? 'gap-1 sm:gap-2' : 'gap-2'}`}>
                         {Array.from({ length: actions }).map((_, index) => (
                             <Skeleton
                                 key={index}
@@ -326,9 +334,9 @@ function AppointmentsPlannerSkeleton({
 
 export function RouteDashboardLoadingState() {
     return (
-        <div data-testid="dashboard-loading" className="space-y-5 lg:space-y-6">
-            <PageHeaderSkeleton actions={2} />
-            <Card data-testid="dashboard-planner-skeleton" className="overflow-hidden rounded-2xl border-teal-100/80 bg-white shadow-sm shadow-teal-100/50">
+        <div data-testid="dashboard-loading" className="space-y-3 sm:space-y-5 lg:space-y-6">
+            <PageHeaderSkeleton actions={2} compactOnMobile />
+            <Card data-testid="dashboard-planner-skeleton" className="overflow-hidden rounded-2xl border-teal-100/80 bg-white py-0 shadow-sm shadow-teal-100/50 lg:py-6">
                 <CardContent
                     data-testid="dashboard-planner-skeleton-content"
                     className="space-y-4 px-3 pb-2 pt-1.5 sm:p-3 lg:p-5 xl:pb-2.5"

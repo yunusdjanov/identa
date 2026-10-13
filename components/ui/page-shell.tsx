@@ -8,17 +8,31 @@ interface PageHeaderProps {
     eyebrow?: ReactNode;
     actions?: ReactNode;
     className?: string;
+    mobileDensity?: 'default' | 'compact';
 }
 
-export function PageHeader({ title, description, eyebrow, actions, className }: PageHeaderProps) {
+export function PageHeader({
+    title,
+    description,
+    eyebrow,
+    actions,
+    className,
+    mobileDensity = 'default',
+}: PageHeaderProps) {
+    const isCompactOnMobile = mobileDensity === 'compact';
+
     return (
         <section
             className={cn(
-                'overflow-hidden rounded-2xl border border-white/80 bg-white px-4 py-3 shadow-sm shadow-slate-200/70 sm:rounded-2xl sm:px-5 sm:py-4',
+                'overflow-hidden rounded-2xl border border-white/80 bg-white shadow-sm shadow-slate-200/70 sm:rounded-2xl sm:px-5 sm:py-4',
+                isCompactOnMobile ? 'px-3 py-2' : 'px-4 py-3',
                 className
             )}
         >
-            <div className="flex min-w-0 flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div className={cn(
+                'flex min-w-0 flex-col lg:flex-row lg:items-center lg:justify-between',
+                isCompactOnMobile ? 'gap-2 sm:gap-3' : 'gap-3'
+            )}>
                 <div className="min-w-0 space-y-1">
                     {eyebrow ? (
                         <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-teal-600 sm:text-[11px] sm:tracking-[0.28em]">
@@ -26,18 +40,27 @@ export function PageHeader({ title, description, eyebrow, actions, className }: 
                         </p>
                     ) : null}
                     <div className="space-y-0.5">
-                        <h1 className="break-words text-xl font-bold leading-tight tracking-[-0.03em] text-slate-950 sm:text-2xl">
+                        <h1 className={cn(
+                            'break-words font-bold leading-tight tracking-[-0.03em] text-slate-950 sm:text-2xl',
+                            isCompactOnMobile ? 'text-lg' : 'text-xl'
+                        )}>
                             {title}
                         </h1>
                         {description ? (
-                            <p className="max-w-2xl text-xs leading-5 text-slate-600 sm:text-sm">
+                            <p className={cn(
+                                'max-w-2xl text-xs leading-5 text-slate-600 sm:text-sm',
+                                isCompactOnMobile && 'hidden sm:block'
+                            )}>
                                 {description}
                             </p>
                         ) : null}
                     </div>
                 </div>
                 {actions ? (
-                    <div className="flex w-full min-w-0 flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
+                    <div className={cn(
+                        'flex w-full min-w-0 flex-col sm:w-auto sm:flex-row sm:flex-wrap sm:items-center sm:justify-end',
+                        isCompactOnMobile ? 'gap-1 sm:gap-2' : 'gap-2'
+                    )}>
                         {actions}
                     </div>
                 ) : null}

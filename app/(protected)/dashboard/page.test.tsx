@@ -175,6 +175,10 @@ describe('DashboardPage', () => {
         renderPage();
 
         expect(await screen.findByRole('heading', { name: 'Dashboard' })).toBeInTheDocument();
+        const dashboardHeader = screen.getByRole('heading', { name: 'Dashboard' }).closest('section');
+        expect(dashboardHeader).toHaveClass('px-3', 'py-2', 'sm:px-5', 'sm:py-4');
+        expect(screen.getByText('Day, week, and month schedule without distracting financial data.').closest('p'))
+            .toHaveClass('hidden', 'sm:block');
         expect(screen.getByRole('button', { name: 'Schedule Appointment' })).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Add Patient' })).toBeInTheDocument();
         expect(screen.queryByText('Total appointments')).not.toBeInTheDocument();
@@ -249,9 +253,11 @@ describe('DashboardPage', () => {
         renderPage();
 
         expect(await screen.findByTestId('dashboard-workspace')).toBeInTheDocument();
+        expect(screen.getByTestId('dashboard-workspace')).toHaveClass('space-y-3', 'sm:space-y-5');
         expect(screen.getByTestId('appointments-view-toolbar')).toHaveClass('max-w-[1400px]', 'mx-auto');
         expect(screen.getByTestId('appointments-view-toolbar')).toHaveClass('p-1', 'gap-1', 'md:p-3');
         expect(screen.getByTestId('appointments-planner-content')).toHaveClass('pt-1.5', 'px-3', 'sm:p-3');
+        expect(screen.getByTestId('appointments-planner-content').parentElement).toHaveClass('py-0', 'lg:py-6');
         expect(screen.getByTestId('appointments-week-grid-desktop').parentElement?.parentElement).toHaveClass('max-w-[1400px]', 'mx-auto');
         expect(screen.getByTestId('dashboard-week-grid-responsive')).toHaveClass(
             'grid-cols-2',

@@ -295,6 +295,13 @@ test.describe('Responsive smoke coverage', () => {
                         cardBackground: firstCardStyles.backgroundColor,
                         toolbarHeight: document.querySelector<HTMLElement>('[data-testid="appointments-view-toolbar"]')
                             ?.getBoundingClientRect().height ?? 0,
+                        toolbarTopInset: (() => {
+                            const toolbar = document.querySelector<HTMLElement>('[data-testid="appointments-view-toolbar"]');
+                            const plannerCard = toolbar?.closest<HTMLElement>('[data-slot="card"]');
+                            return toolbar && plannerCard
+                                ? toolbar.getBoundingClientRect().top - plannerCard.getBoundingClientRect().top
+                                : Number.POSITIVE_INFINITY;
+                        })(),
                     };
                 });
 
@@ -309,6 +316,8 @@ test.describe('Responsive smoke coverage', () => {
                 expect(measurements.cardRadius).toBe('14px');
                 expect(measurements.cardBackground).toBe('rgb(255, 255, 255)');
                 expect(measurements.toolbarHeight).toBeLessThanOrEqual(82);
+                expect(measurements.toolbarTopInset).toBeGreaterThanOrEqual(6);
+                expect(measurements.toolbarTopInset).toBeLessThanOrEqual(8);
             });
         }
     });
