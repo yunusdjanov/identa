@@ -119,7 +119,11 @@ test.describe('Responsive smoke coverage', () => {
             await expect(page.getByTestId('patients-mobile-list')).toBeVisible();
             await expect(page.getByTestId('patients-desktop-table')).toBeHidden();
             await expect(page.locator('[data-testid^="patient-mobile-card-"]').first()).toBeVisible();
-            await expect(page.locator('[data-testid^="patient-mobile-card-"]').first().locator('button').first()).toHaveClass(/min-h-\[82px\]/);
+            await expect(page.locator('[data-testid^="patient-mobile-card-"]').first().locator('button').first()).toHaveClass(/min-h-\[74px\]/);
+            await page.getByTestId('patients-mobile-filter-toggle').click();
+            await expect(page.getByTestId('patients-mobile-filter-panel')).toBeVisible();
+            await expectNoPageHorizontalOverflow(page);
+            await page.getByTestId('patients-mobile-filter-toggle').click();
         }
         const patientId = await getFirstPatientId(page);
         expect(patientId).toBeTruthy();

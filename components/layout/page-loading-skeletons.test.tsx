@@ -81,6 +81,8 @@ describe('page loading skeletons', () => {
             expect(screen.getByTestId('patients-mobile-actions-skeleton')).toHaveClass('flex', 'lg:hidden');
             expect(screen.getByTestId('patients-mobile-list-skeleton')).toHaveClass('grid-cols-1', 'sm:grid-cols-2', 'lg:hidden');
             expect(screen.getByTestId('patients-mobile-list-skeleton').children).toHaveLength(6);
+            expect(screen.getByTestId('patients-mobile-list-skeleton').firstElementChild)
+                .toHaveClass('min-h-[82px]', 'gap-2.5', 'p-2.5');
             expect(screen.getByTestId('patients-table-shell-skeleton')).toHaveClass('overflow-x-auto', 'rounded-2xl');
             expect(screen.getByTestId('patients-table-header-skeleton').children).toHaveLength(7);
             expect(screen.getAllByTestId('patients-table-row-skeleton')).toHaveLength(6);
