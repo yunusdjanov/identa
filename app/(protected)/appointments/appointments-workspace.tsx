@@ -45,7 +45,6 @@ import {
     ChevronLeft,
     ChevronRight,
     Download,
-    Maximize2,
     Pencil,
     Plus,
     Trash2,
@@ -670,6 +669,8 @@ export function AppointmentsWorkspace({ mode = 'appointments' }: AppointmentsWor
                     date,
                     dateKey,
                     weekdayLabel: formatLocalizedDate(date, locale, { weekday: 'short' }),
+                    weekdayLongLabel: formatLocalizedDate(date, locale, { weekday: 'long' }),
+                    mobileDateLabel: formatLocalizedDate(date, locale, { day: 'numeric', month: 'short' }),
                     compactDateLabel: `${String(date.getDate()).padStart(2, '0')}.${String(date.getMonth() + 1).padStart(2, '0')}`,
                     dayNumber: date.getDate(),
                     fullDateLabel: formatLocalizedDate(date, locale, {
@@ -737,7 +738,11 @@ export function AppointmentsWorkspace({ mode = 'appointments' }: AppointmentsWor
                 aria-haspopup="dialog"
                 aria-expanded={!isEmpty ? expandedWeekDateKey === descriptor.dateKey : undefined}
                 onClick={handleCardClick}
-                className={`group flex min-h-[16.25rem] min-w-0 touch-manipulation select-none flex-col overflow-hidden rounded-[14px] border border-[rgba(60,60,67,0.18)] bg-[#F2F2F7] text-left shadow-[0_2px_6px_rgba(0,0,0,0.05)] transition-[transform,box-shadow] duration-150 [-webkit-tap-highlight-color:transparent] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#14B8A6] focus-visible:ring-offset-2 motion-reduce:transition-none ${
+                className={`group flex min-h-[16.25rem] min-w-0 touch-manipulation select-none flex-col overflow-hidden rounded-[14px] border bg-white text-left transition-[transform,box-shadow] duration-150 [-webkit-tap-highlight-color:transparent] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#14B8A6] focus-visible:ring-offset-2 motion-reduce:transition-none ${
+                    isTodayLane
+                        ? 'border-[#14B8A6] shadow-[0_2px_8px_rgba(20,184,166,0.12)]'
+                        : 'border-[rgba(60,60,67,0.20)] shadow-[0_2px_6px_rgba(0,0,0,0.05)]'
+                } ${
                     canOpenCard
                         ? 'cursor-pointer motion-safe:enabled:hover:-translate-y-px enabled:hover:shadow-[0_6px_18px_rgba(0,0,0,0.10)] motion-safe:enabled:active:scale-[0.97]'
                         : 'cursor-default'
@@ -745,58 +750,41 @@ export function AppointmentsWorkspace({ mode = 'appointments' }: AppointmentsWor
             >
                 <span
                     data-testid="week-day-card-header"
-                    className={`flex w-full items-center justify-between gap-2 border-b px-3 py-[9px] ${
+                    className={`flex min-h-9 w-full items-center justify-between gap-2 border-b px-2.5 py-2 ${
                         isTodayLane
-                            ? 'border-[#14B8A6] bg-[#14B8A6] text-white'
-                            : 'border-[rgba(60,60,67,0.18)] text-black'
+                            ? 'border-[#14B8A6] bg-[#C9F1ED] text-slate-950'
+                            : 'border-[rgba(60,60,67,0.14)] bg-white text-slate-950'
                     }`}
                 >
-                    <span className="flex min-w-0 items-baseline gap-1.5">
-                        <span
-                            className={`text-[11px] font-bold uppercase tracking-[0.08em] ${
-                                isTodayLane ? 'text-white/90' : 'text-[rgba(60,60,67,0.60)]'
-                            }`}
-                        >
-                            {descriptor.weekdayLabel}
-                        </span>
-                        <span className="text-lg font-bold leading-none tabular-nums">
-                            {descriptor.dayNumber}
-                        </span>
-                        {isTodayLane ? (
-                            <span className="truncate rounded bg-white/20 px-1.5 py-0.5 text-[9px] font-extrabold uppercase tracking-[0.08em] text-white">
-                                {t('appointments.today')}
-                            </span>
-                        ) : null}
+                    <span className="min-w-0 truncate text-[11px] font-bold leading-4 first-letter:uppercase sm:text-xs">
+                        {descriptor.weekdayLongLabel}
                     </span>
-                    <Maximize2
-                        className={`h-[13px] w-[13px] shrink-0 ${isTodayLane ? 'text-white/85' : 'text-[rgba(60,60,67,0.30)]'}`}
-                        aria-hidden="true"
-                    />
+                    <span className={`shrink-0 text-[10px] font-semibold leading-4 tabular-nums sm:text-[11px] ${isTodayLane ? 'text-teal-900' : 'text-slate-500'}`}>
+                        {descriptor.mobileDateLabel}
+                    </span>
                 </span>
 
-                <span data-testid="week-day-card-body" className="flex min-h-0 w-full flex-1 flex-col px-2.5 py-2.5">
+                <span data-testid="week-day-card-body" className="relative flex min-h-0 w-full flex-1 flex-col overflow-hidden px-2 py-1.5">
+                    <span
+                        aria-hidden="true"
+                        data-testid="week-day-card-lines"
+                        className="pointer-events-none absolute inset-x-2 inset-y-0 bg-[repeating-linear-gradient(to_bottom,transparent_0,transparent_20px,rgba(60,60,67,0.08)_20px,rgba(60,60,67,0.08)_21px)]"
+                    />
                     {isEmpty ? (
-                        <span className="flex flex-1 items-center justify-center">
-                            {canManageAppointments ? (
-                                <span
-                                    data-testid="week-day-card-empty-action"
-                                    className="flex h-9 w-9 items-center justify-center rounded-full bg-[rgba(116,116,128,0.08)] text-[rgba(60,60,67,0.45)] transition-colors group-hover:text-[#14B8A6] group-focus-visible:text-[#14B8A6]"
-                                >
-                                    <Plus className="h-5 w-5" aria-hidden="true" />
-                                </span>
-                            ) : (
-                                <span className="text-center text-xs text-slate-400">
+                        <span className="relative z-[1] flex flex-1 items-center justify-center">
+                            {!canManageAppointments ? (
+                                <span className="bg-white/90 px-1.5 text-center text-xs text-slate-400">
                                     {t('appointments.noAppointments')}
                                 </span>
-                            )}
+                            ) : null}
                         </span>
                     ) : (
-                        <span className="space-y-[5px]">
+                        <span className="relative z-[1] space-y-px">
                             {visibleAppointments.map((appointment) => (
                                 <span
                                     key={appointment.id}
                                     data-testid={`week-day-card-appointment-${appointment.id}`}
-                                    className="flex min-w-0 items-center gap-[7px]"
+                                    className="flex min-h-5 min-w-0 items-center gap-[7px] bg-white/90 px-0.5"
                                 >
                                     <span
                                         data-appointment-status={appointment.status}
@@ -1392,12 +1380,12 @@ export function AppointmentsWorkspace({ mode = 'appointments' }: AppointmentsWor
                     <div className="space-y-4">
                         <div
                             data-testid="appointments-view-toolbar"
-                            className="mx-auto grid w-full max-w-[1400px] grid-cols-1 gap-3 rounded-2xl border border-teal-100/80 bg-white p-3 shadow-xs md:grid-cols-[auto_minmax(0,1fr)_auto] md:items-center"
+                            className="mx-auto grid w-full max-w-[1400px] grid-cols-[minmax(0,1fr)_auto] gap-1.5 rounded-xl border border-teal-100/80 bg-white p-1.5 shadow-xs md:grid-cols-[auto_minmax(0,1fr)_auto] md:items-center md:gap-3 md:rounded-2xl md:p-3"
                         >
-                            <div className="inline-flex w-full items-center gap-1 rounded-xl border border-slate-200/80 bg-slate-100/70 p-1 shadow-xs sm:w-auto md:justify-self-start">
+                            <div className="col-start-1 row-start-1 inline-flex w-full items-center gap-1 rounded-lg border border-slate-200/80 bg-slate-100/70 p-0.5 shadow-xs sm:w-auto md:justify-self-start md:rounded-xl md:p-1">
                                 <Button
                                     variant="ghost"
-                                    className={`flex-1 rounded-lg sm:flex-none ${
+                                    className={`h-9 flex-1 rounded-md px-2 text-xs sm:flex-none md:rounded-lg md:px-4 md:text-sm ${
                                         view === 'week'
                                             ? 'bg-teal-50 text-teal-700 shadow-sm ring-1! ring-teal-300! focus-visible:border-transparent! hover:bg-teal-50 hover:text-teal-700'
                                             : 'text-slate-600 hover:bg-white hover:text-slate-900'
@@ -1415,7 +1403,7 @@ export function AppointmentsWorkspace({ mode = 'appointments' }: AppointmentsWor
                                 </Button>
                                 <Button
                                     variant="ghost"
-                                    className={`flex-1 rounded-lg sm:flex-none ${
+                                    className={`h-9 flex-1 rounded-md px-2 text-xs sm:flex-none md:rounded-lg md:px-4 md:text-sm ${
                                         view === 'day'
                                             ? 'bg-teal-50 text-teal-700 shadow-sm ring-1! ring-teal-300! focus-visible:border-transparent! hover:bg-teal-50 hover:text-teal-700'
                                             : 'text-slate-600 hover:bg-white hover:text-slate-900'
@@ -1433,20 +1421,20 @@ export function AppointmentsWorkspace({ mode = 'appointments' }: AppointmentsWor
                                 </Button>
                             </div>
 
-                            <div className="flex w-full min-w-0 items-center justify-center gap-2 md:w-auto md:justify-self-center">
+                            <div className="col-span-2 row-start-2 flex w-full min-w-0 items-center justify-center gap-1 md:col-span-1 md:col-start-2 md:row-start-1 md:w-auto md:justify-self-center md:gap-2">
                                 <Button
                                     variant="outline"
                                     size="icon"
-                                    className="rounded-xl bg-white shadow-xs"
+                                    className="h-9 w-9 shrink-0 rounded-lg bg-white shadow-xs md:rounded-xl"
                                     onClick={() => navigateDate('prev')}
                                     aria-label={view === 'day' ? t('appointments.aria.previousDay') : t('appointments.aria.previousWeek')}
                                 >
                                     <ChevronLeft aria-hidden="true" className="w-4 h-4" />
                                 </Button>
 
-                                <div className="flex min-h-9 min-w-0 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 shadow-xs">
-                                    <CalendarIcon aria-hidden="true" className="w-4 h-4 text-slate-500" />
-                                    <span className="truncate text-sm font-semibold text-slate-800">
+                                <div className="flex h-9 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2 shadow-xs md:flex-initial md:rounded-xl md:px-3">
+                                    <CalendarIcon aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-slate-500 md:h-4 md:w-4" />
+                                    <span className="truncate text-xs font-semibold text-slate-800 md:text-sm">
                                         {view === 'day'
                                             ? formatLocalizedDate(currentDate, locale, {
                                                 weekday: 'long',
@@ -1461,7 +1449,7 @@ export function AppointmentsWorkspace({ mode = 'appointments' }: AppointmentsWor
                                 <Button
                                     variant="outline"
                                     size="icon"
-                                    className="rounded-xl bg-white shadow-xs"
+                                    className="h-9 w-9 shrink-0 rounded-lg bg-white shadow-xs md:rounded-xl"
                                     onClick={() => navigateDate('next')}
                                     aria-label={view === 'day' ? t('appointments.aria.nextDay') : t('appointments.aria.nextWeek')}
                                 >
@@ -1471,7 +1459,7 @@ export function AppointmentsWorkspace({ mode = 'appointments' }: AppointmentsWor
 
                             <Button
                                 variant="outline"
-                                className="w-full rounded-xl bg-white shadow-xs md:w-auto md:justify-self-end"
+                                className="col-start-2 row-start-1 h-10 w-auto rounded-lg bg-white px-3 text-xs shadow-xs md:col-start-3 md:h-9 md:rounded-xl md:px-4 md:text-sm md:justify-self-end"
                                 onClick={() => {
                                     const today = new Date();
                                     setCurrentDateOverride(today);

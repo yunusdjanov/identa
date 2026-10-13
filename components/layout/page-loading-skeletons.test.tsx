@@ -49,7 +49,7 @@ describe('page loading skeletons', () => {
             expect(days[7]).toHaveClass(
                 'min-h-[16.25rem]',
                 'rounded-[14px]',
-                'bg-[#F2F2F7]'
+                'bg-white'
             );
         });
 
