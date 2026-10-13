@@ -2,15 +2,39 @@ import { expect, test, type Page } from '@playwright/test';
 import { loginAdmin, loginDentist } from './helpers/auth';
 
 async function expectNoPageHorizontalOverflow(page: Page): Promise<void> {
-    const dimensions = await page.evaluate(() => ({
-        viewportWidth: document.documentElement.clientWidth,
-        pageWidth: Math.max(
-            document.documentElement.scrollWidth,
-            document.body?.scrollWidth ?? 0
-        ),
-    }));
+    const dimensions = await page.evaluate(() => {
+        const viewportWidth = document.documentElement.clientWidth;
+        const overflowingElements = Array.from(document.querySelectorAll<HTMLElement>('body *'))
+            .map((element) => {
+                const bounds = element.getBoundingClientRect();
 
-    expect(dimensions.pageWidth).toBeLessThanOrEqual(dimensions.viewportWidth + 1);
+                return {
+                    tag: element.tagName.toLowerCase(),
+                    testId: element.dataset.testid ?? null,
+                    className: typeof element.className === 'string' ? element.className : null,
+                    left: Math.round(bounds.left),
+                    right: Math.round(bounds.right),
+                    scrollWidth: element.scrollWidth,
+                    clientWidth: element.clientWidth,
+                };
+            })
+            .filter(({ left, right }) => left < -1 || right > viewportWidth + 1)
+            .slice(0, 12);
+
+        return {
+            viewportWidth,
+            pageWidth: Math.max(
+                document.documentElement.scrollWidth,
+                document.body?.scrollWidth ?? 0
+            ),
+            overflowingElements,
+        };
+    });
+
+    expect(
+        dimensions.pageWidth,
+        `Horizontal overflow elements: ${JSON.stringify(dimensions.overflowingElements)}`
+    ).toBeLessThanOrEqual(dimensions.viewportWidth + 1);
 }
 
 async function expectInsideViewport(page: Page, selector: string): Promise<void> {
