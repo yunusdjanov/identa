@@ -38,7 +38,7 @@ import {
 import { getApiErrorMessage } from '@/lib/api/client';
 import type { ApiPatient, ApiRecentPatient, ApiRecordActor } from '@/lib/api/types';
 import { cn, extractPrimaryPhone, formatDate, toLocalDateKey, truncateForUi } from '@/lib/utils';
-import { Plus, Search, Phone, Users, CalendarPlus, ArrowRight, Tags, FilterX, Download, Maximize2, X, ChevronRight } from 'lucide-react';
+import { Plus, Search, Phone, Users, CalendarPlus, ArrowRight, Tags, FilterX, Download, Maximize2, X, ChevronRight, SlidersHorizontal } from 'lucide-react';
 import { buildPdfFilename, exportRowsToPdf } from '@/lib/export/pdf';
 import { EmptyState } from '@/components/ui/empty-state';
 import { useI18n } from '@/components/providers/i18n-provider';
@@ -163,39 +163,6 @@ function getMobileAvatarColor(patientId: string): string {
     return MOBILE_AVATAR_COLORS[hash % MOBILE_AVATAR_COLORS.length];
 }
 
-const CYRILLIC_INITIALS: Record<string, string> = {
-    А: 'A', Б: 'B', В: 'V', Г: 'G', Д: 'D', Е: 'E', Ё: 'Y', Ж: 'J', З: 'Z', И: 'I', Й: 'Y',
-    К: 'K', Л: 'L', М: 'M', Н: 'N', О: 'O', П: 'P', Р: 'R', С: 'S', Т: 'T', У: 'U', Ф: 'F',
-    Х: 'X', Ц: 'C', Ч: 'C', Ш: 'S', Щ: 'S', Ъ: '#', Ы: 'I', Ь: '#', Э: 'E', Ю: 'Y', Я: 'Y',
-    Ў: 'O', Қ: 'Q', Ғ: 'G', Ҳ: 'H',
-};
-
-function getPatientSectionInitial(fullName: string): string {
-    const firstCharacter = fullName.trim().charAt(0).toUpperCase();
-    if (!firstCharacter) return '#';
-
-    const latinCharacter = CYRILLIC_INITIALS[firstCharacter]
-        ?? firstCharacter.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-
-    return /^[A-Z]$/.test(latinCharacter) ? latinCharacter : '#';
-}
-
-function groupPatientsByInitial(patients: PatientRow[]): Array<[string, PatientRow[]]> {
-    const groups = new Map<string, PatientRow[]>();
-
-    patients.forEach((patient) => {
-        const initial = getPatientSectionInitial(patient.fullName);
-        groups.set(initial, [...(groups.get(initial) ?? []), patient]);
-    });
-
-    return Array.from(groups.entries())
-        .sort(([first], [second]) => first.localeCompare(second, 'en'))
-        .map(([initial, rows]) => [
-            initial,
-            rows.sort((first, second) => first.fullName.localeCompare(second.fullName, 'en')),
-        ]);
-}
-
 function getPatientAge(dateOfBirth?: string): number | null {
     if (!dateOfBirth) return null;
     const birthDate = new Date(`${dateOfBirth.slice(0, 10)}T00:00:00`);
@@ -262,6 +229,7 @@ export default function PatientsPage() {
     const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
     const [isManageCategoriesOpen, setIsManageCategoriesOpen] = useState(false);
     const [isRecentMenuOpen, setIsRecentMenuOpen] = useState(false);
+    const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
     const [optimisticRecentPatients, setOptimisticRecentPatients] = useState<ApiRecentPatient[] | null>(null);
     const [photoPreview, setPhotoPreview] = useState<{
         src: string;
@@ -357,7 +325,6 @@ export default function PatientsPage() {
         () => (patientsQuery.data?.data ?? []).map((patient) => mapPatientRow(patient)),
         [patientsQuery.data]
     );
-    const mobilePatientGroups = useMemo(() => groupPatientsByInitial(patientRows), [patientRows]);
     const pagination = patientsQuery.data?.meta?.pagination;
     const totalPatients = pagination?.total ?? patientRows.length;
     const totalPages = pagination?.total_pages ?? 1;
@@ -369,6 +336,9 @@ export default function PatientsPage() {
         || inactiveFilter !== 'none'
         || selectedCategoryId !== 'all'
         || showArchivedOnly;
+    const activeMobileFilterCount = Number(inactiveFilter !== 'none')
+        + Number(selectedCategoryId !== 'all')
+        + Number(showArchivedOnly);
     const restoreMutation = useMutation({
         mutationFn: (patientId: string) => restorePatient(patientId),
         onSuccess: () => {
@@ -550,7 +520,7 @@ export default function PatientsPage() {
         >
             <div className="flex min-w-0 max-w-full flex-col gap-2 lg:flex-row lg:items-center lg:gap-3">
                 <div
-                    className="relative mx-5 min-w-0 flex-1 lg:mx-0"
+                    className="relative min-w-0 flex-1"
                     onBlur={(event) => {
                         const nextFocus = event.relatedTarget;
                         if (!(nextFocus instanceof Node) || !event.currentTarget.contains(nextFocus)) {
@@ -587,7 +557,7 @@ export default function PatientsPage() {
                         }}
                         aria-controls={shouldShowRecentMenu ? recentMenuId : undefined}
                         aria-expanded={shouldShowRecentMenu}
-                        className="h-11 rounded-xl border-0 bg-slate-100/90 pl-10 pr-10 shadow-none ring-1 ring-inset ring-slate-200/40 lg:h-9 lg:border lg:border-slate-200 lg:bg-white lg:pr-3 lg:shadow-xs lg:ring-0"
+                        className="h-11 rounded-xl border-slate-200 bg-white pl-10 pr-12 text-sm shadow-xs lg:h-9 lg:pr-3"
                     />
                     {shouldShowRecentMenu ? (
                         <div
@@ -640,93 +610,96 @@ export default function PatientsPage() {
                             </ul>
                         </div>
                     ) : null}
+                    <button
+                        type="button"
+                        data-testid="patients-mobile-filter-toggle"
+                        className={cn(
+                            'absolute right-1.5 top-1/2 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-lg transition-colors lg:hidden',
+                            isMobileFiltersOpen || activeMobileFilterCount > 0
+                                ? 'bg-teal-50 text-teal-700'
+                                : 'text-slate-500 hover:bg-slate-100'
+                        )}
+                        aria-label={t('patients.visitFilterLabel')}
+                        aria-expanded={isMobileFiltersOpen}
+                        onClick={() => setIsMobileFiltersOpen((open) => !open)}
+                    >
+                        <SlidersHorizontal className="h-4 w-4" />
+                        {activeMobileFilterCount > 0 ? (
+                            <span className="absolute -right-0.5 -top-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-teal-600 px-1 text-[9px] font-bold leading-none text-white">
+                                {activeMobileFilterCount}
+                            </span>
+                        ) : null}
+                    </button>
                 </div>
-                <div
-                    data-testid="patients-mobile-category-chips"
-                    className="flex w-full min-w-0 max-w-full gap-2 overflow-x-auto px-5 py-1 no-scrollbar lg:hidden"
-                >
-                    <button
-                        type="button"
-                        aria-pressed={selectedCategoryId === 'all' && inactiveFilter === 'none' && !showArchivedOnly}
-                        className={cn(
-                            'h-8 shrink-0 rounded-full px-3.5 text-[13px] font-semibold transition-colors',
-                            selectedCategoryId === 'all' && inactiveFilter === 'none' && !showArchivedOnly
-                                ? 'bg-teal-600 text-white shadow-sm'
-                                : 'bg-slate-100 text-slate-600'
-                        )}
-                        onClick={() => {
-                            setSelectedCategoryId('all');
-                            setInactiveFilter('none');
-                            setShowArchivedOnly(false);
-                            setCurrentPage(1);
-                        }}
+                {isMobileFiltersOpen ? (
+                    <div
+                        data-testid="patients-mobile-filter-panel"
+                        className="grid grid-cols-2 gap-2 rounded-xl border border-slate-200 bg-slate-50/80 p-2 lg:hidden"
                     >
-                        {t('patients.all')}
-                    </button>
-                    <button
-                        type="button"
-                        aria-pressed={showArchivedOnly}
-                        className={cn(
-                            'h-8 shrink-0 rounded-full px-3.5 text-[13px] font-semibold transition-colors',
-                            showArchivedOnly ? 'bg-teal-600 text-white shadow-sm' : 'bg-slate-100 text-slate-600'
-                        )}
-                        onClick={() => {
-                            setShowArchivedOnly(true);
-                            setInactiveFilter('none');
-                            setSelectedCategoryId('all');
-                            setCurrentPage(1);
-                        }}
-                    >
-                        {t('patients.archived')}
-                    </button>
-                    {(['6m', '1y'] as const).map((filter) => (
-                        <button
-                            key={filter}
-                            type="button"
-                            aria-pressed={inactiveFilter === filter && !showArchivedOnly}
-                            className={cn(
-                                'h-8 shrink-0 rounded-full px-3.5 text-[13px] font-semibold transition-colors',
-                                inactiveFilter === filter && !showArchivedOnly
-                                    ? 'bg-teal-600 text-white shadow-sm'
-                                    : 'bg-slate-100 text-slate-600'
-                            )}
-                            onClick={() => {
-                                setInactiveFilter(filter);
+                        <Select
+                            value={selectedCategoryId}
+                            onValueChange={(value) => {
+                                setSelectedCategoryId(value);
                                 setShowArchivedOnly(false);
-                                setSelectedCategoryId('all');
                                 setCurrentPage(1);
                             }}
                         >
-                            {t(filter === '6m' ? 'patients.noVisit6m' : 'patients.noVisit1y')}
-                        </button>
-                    ))}
-                    {(categoriesQuery.data ?? []).map((category) => (
-                        <button
-                            key={category.id}
+                            <SelectTrigger className="h-9 min-w-0 rounded-lg bg-white text-xs" aria-label={t('patients.filterByCategoryAria')}>
+                                <SelectValue placeholder={t('patients.allCategories')} />
+                            </SelectTrigger>
+                            <SelectContent position="popper" align="start" className="w-[var(--radix-select-trigger-width)]">
+                                <SelectItem value="all">{t('patients.allCategories')}</SelectItem>
+                                {(categoriesQuery.data ?? []).map((category) => (
+                                    <SelectItem key={category.id} value={category.id}>{category.name}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                        <Select
+                            value={inactiveFilter}
+                            disabled={showArchivedOnly}
+                            onValueChange={(value: 'none' | '6m' | '1y') => {
+                                setInactiveFilter(value);
+                                setShowArchivedOnly(false);
+                                setCurrentPage(1);
+                            }}
+                        >
+                            <SelectTrigger className="h-9 min-w-0 rounded-lg bg-white text-xs" aria-label={t('patients.filterByVisitActivityAria')}>
+                                <SelectValue placeholder={t('patients.visitFilterLabel')} />
+                            </SelectTrigger>
+                            <SelectContent position="popper" align="start" className="w-[var(--radix-select-trigger-width)]">
+                                <SelectItem value="none">{t('patients.visitFilterAll')}</SelectItem>
+                                <SelectItem value="6m">{t('patients.noVisit6m')}</SelectItem>
+                                <SelectItem value="1y">{t('patients.noVisit1y')}</SelectItem>
+                            </SelectContent>
+                        </Select>
+                        <Button
                             type="button"
-                            aria-pressed={selectedCategoryId === category.id && !showArchivedOnly}
+                            variant="outline"
                             className={cn(
-                                'inline-flex h-8 max-w-44 shrink-0 items-center gap-1.5 rounded-full px-3.5 text-[13px] font-semibold transition-colors',
-                                selectedCategoryId === category.id && !showArchivedOnly
-                                    ? 'bg-teal-600 text-white shadow-sm'
-                                    : 'bg-slate-100 text-slate-600'
+                                'h-9 rounded-lg text-xs',
+                                showArchivedOnly && 'border-teal-200 bg-teal-50 text-teal-700'
                             )}
+                            aria-pressed={showArchivedOnly}
                             onClick={() => {
-                                setSelectedCategoryId(category.id);
+                                setShowArchivedOnly((value) => !value);
                                 setInactiveFilter('none');
-                                setShowArchivedOnly(false);
                                 setCurrentPage(1);
                             }}
                         >
-                            <span
-                                aria-hidden="true"
-                                className="h-2 w-2 shrink-0 rounded-full"
-                                style={{ backgroundColor: category.color }}
-                            />
-                            <span className="truncate">{category.name}</span>
-                        </button>
-                    ))}
-                </div>
+                            {t('patients.archived')}
+                        </Button>
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            className="h-9 rounded-lg text-xs text-slate-500"
+                            disabled={!hasActiveFilters}
+                            onClick={resetFilters}
+                        >
+                            <FilterX className="h-3.5 w-3.5" />
+                            {t('common.clear')}
+                        </Button>
+                    </div>
+                ) : null}
                 <div className="hidden min-w-0 grid-cols-2 items-center gap-2 lg:flex lg:flex-wrap lg:justify-end lg:gap-2.5">
                     <Select
                         value={selectedCategoryId}
@@ -877,47 +850,6 @@ export default function PatientsPage() {
 
     return (
         <div className="space-y-3 sm:space-y-5 lg:space-y-6">
-            <div
-                data-testid="patients-mobile-app-header"
-                className="-mx-3 flex items-center justify-between gap-3 bg-white px-5 pb-2 pt-1 sm:-mx-6 lg:hidden"
-            >
-                <div className="min-w-0">
-                    <h1 className="text-[28px] font-bold leading-[34px] tracking-tight text-slate-950">
-                        {t('patients.title')}
-                    </h1>
-                    <p className="text-[13px] leading-[18px] text-slate-500">
-                        {t('patients.totalCount', { count: totalPatients })}
-                    </p>
-                </div>
-                <div className="flex shrink-0 items-center gap-2">
-                    {currentUser?.subscription?.can_export ? (
-                        <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            className="h-9 w-9 rounded-full bg-slate-100 text-slate-600"
-                            aria-label={t('common.export')}
-                            disabled={patientRows.length === 0}
-                            onClick={handleExportPatients}
-                        >
-                            <Download className="h-[18px] w-[18px]" />
-                        </Button>
-                    ) : null}
-                    {canManagePatients ? (
-                        <Button
-                            type="button"
-                            variant="ghost"
-                            className="h-9 w-9 gap-1.5 rounded-full bg-teal-50 px-0 text-xs font-bold text-teal-700 hover:bg-teal-100 hover:text-teal-800 min-[380px]:w-auto min-[380px]:px-3"
-                            aria-label={t('patients.categories')}
-                            onClick={() => setIsManageCategoriesOpen(true)}
-                        >
-                            <Tags className="h-[18px] w-[18px]" />
-                            <span className="hidden min-[380px]:inline">{t('patients.categories')}</span>
-                        </Button>
-                    ) : null}
-                </div>
-            </div>
-
             <div className="hidden lg:block">
                 <PageHeader
                     title={t('patients.title')}
@@ -988,8 +920,11 @@ export default function PatientsPage() {
                 />
             </div>
 
-            <Card data-testid="patients-list-card" className="-mx-3 min-w-0 max-w-full overflow-hidden rounded-none border-0 bg-white shadow-none sm:-mx-6 lg:mx-0 lg:max-w-none lg:overflow-visible lg:rounded-2xl lg:border lg:shadow-sm">
-                <CardHeader className="min-w-0 max-w-full gap-2 px-0 pb-1 pt-0 lg:gap-4 lg:px-6 lg:pb-4 lg:pt-6">
+            <Card
+                data-testid="patients-list-card"
+                className="min-w-0 max-w-full gap-0 overflow-visible rounded-2xl border border-white/80 bg-white py-0 shadow-sm shadow-slate-200/60 lg:max-w-none lg:gap-6 lg:border-slate-200 lg:py-6 lg:shadow-sm"
+            >
+                <CardHeader className="min-w-0 max-w-full gap-2 p-2.5 sm:p-3 lg:gap-4 lg:px-6 lg:pb-4 lg:pt-6">
                     <CardTitle className="hidden text-sm lg:block lg:text-base">
                         {t('patients.totalCount', { count: totalPatients })}
                         {inactiveFilter === '6m' && ` (${t('patients.noVisit6m')})`}
@@ -997,8 +932,70 @@ export default function PatientsPage() {
                         {showArchivedOnly && ` (${t('patients.archived')})`}
                     </CardTitle>
                     {patientsFilterToolbar}
+                    <div data-testid="patients-mobile-actions" className="flex min-w-0 gap-2 lg:hidden">
+                        {canManagePatients ? (
+                            <Button
+                                type="button"
+                                className="h-10 min-w-0 flex-1 gap-1.5 rounded-xl px-3 text-sm font-semibold"
+                                onClick={() => setIsAddDialogOpen(true)}
+                            >
+                                <Plus className="h-4 w-4" />
+                                <span className="truncate">{t('patients.addPatient')}</span>
+                            </Button>
+                        ) : isSubscriptionReadOnly(currentUser) ? (
+                            <Button
+                                type="button"
+                                className="h-10 min-w-0 flex-1 gap-1.5 rounded-xl px-3 text-sm font-semibold"
+                                disabled
+                                onClick={denyManageAction}
+                            >
+                                <Plus className="h-4 w-4" />
+                                <span className="truncate">{t('patients.addPatient')}</span>
+                            </Button>
+                        ) : null}
+                        {canManagePatients ? (
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="icon"
+                                className="h-10 w-10 shrink-0 rounded-xl border-slate-200 text-slate-600 min-[430px]:w-auto min-[430px]:gap-1.5 min-[430px]:px-3"
+                                aria-label={t('patients.categories')}
+                                onClick={() => setIsManageCategoriesOpen(true)}
+                            >
+                                <Tags className="h-4 w-4" />
+                                <span className="hidden text-xs min-[430px]:inline">{t('patients.categories')}</span>
+                            </Button>
+                        ) : isSubscriptionReadOnly(currentUser) ? (
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="icon"
+                                className="h-10 w-10 shrink-0 rounded-xl border-slate-200 text-slate-600 min-[430px]:w-auto min-[430px]:gap-1.5 min-[430px]:px-3"
+                                aria-label={t('patients.categories')}
+                                disabled
+                                onClick={denyManageAction}
+                            >
+                                <Tags className="h-4 w-4" />
+                                <span className="hidden text-xs min-[430px]:inline">{t('patients.categories')}</span>
+                            </Button>
+                        ) : null}
+                        {currentUser?.subscription?.can_export ? (
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="icon"
+                                className="h-10 w-10 shrink-0 rounded-xl border-slate-200 text-slate-600 min-[430px]:w-auto min-[430px]:gap-1.5 min-[430px]:px-3"
+                                aria-label={t('common.export')}
+                                disabled={patientRows.length === 0}
+                                onClick={handleExportPatients}
+                            >
+                                <Download className="h-4 w-4" />
+                                <span className="hidden text-xs min-[430px]:inline">{t('common.export')}</span>
+                            </Button>
+                        ) : null}
+                    </div>
                 </CardHeader>
-                <CardContent className="min-w-0 max-w-full px-3 pb-24 sm:px-5 lg:pb-5">
+                <CardContent className="min-w-0 max-w-full rounded-b-2xl border-t border-slate-100 bg-slate-50/70 p-2.5 sm:p-3 lg:rounded-none lg:border-t-0 lg:bg-white lg:px-5 lg:pb-5 lg:pt-0">
                     {patientRows.length === 0 ? (
                         <EmptyState
                             icon={hasActiveFilters ? FilterX : Users}
@@ -1023,123 +1020,110 @@ export default function PatientsPage() {
                         />
                     ) : (
                         <>
-                        <div data-testid="patients-mobile-list" className="-mx-3 min-w-0 max-w-full bg-white sm:-mx-5 lg:hidden">
-                            {mobilePatientGroups.map(([initial, patients]) => (
-                                <section key={initial} data-testid={`patients-mobile-section-${initial}`}>
-                                    <h2 className="border-b border-slate-200/70 bg-[#F2F2F7] px-5 py-[5px] text-[13px] font-bold leading-[18px] text-slate-500">
-                                        {initial}
-                                    </h2>
-                                    <div>
-                                        {patients.map((patient) => {
-                                            const filteredCategory = selectedCategoryId !== 'all'
-                                                ? patient.categories.find((category) => category.id === selectedCategoryId)
-                                                : undefined;
-                                            const categoryToDisplay = filteredCategory ?? patient.categories[0];
-                                            const patientPhotoThumbnailUrl = patient.photoThumbnailUrl ?? '';
-                                            const patientAge = getPatientAge(patient.dateOfBirth);
-                                            const relativeVisit = formatRelativeVisit(patient.lastVisitDate, locale);
+                        <div data-testid="patients-mobile-list" className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2 lg:hidden">
+                            {patientRows.map((patient) => {
+                                const filteredCategory = selectedCategoryId !== 'all'
+                                    ? patient.categories.find((category) => category.id === selectedCategoryId)
+                                    : undefined;
+                                const categoryToDisplay = filteredCategory ?? patient.categories[0];
+                                const patientPhotoThumbnailUrl = patient.photoThumbnailUrl ?? '';
+                                const patientAge = getPatientAge(patient.dateOfBirth);
+                                const relativeVisit = formatRelativeVisit(patient.lastVisitDate, locale);
 
-                                            return (
-                                                <article
-                                                    key={patient.id}
-                                                    id={`patient-mobile-card-${patient.id}`}
-                                                    data-testid={`patient-mobile-card-${patient.id}`}
-                                                    className={cn(
-                                                        'relative min-w-0 max-w-full bg-white after:absolute after:bottom-0 after:left-[4.5rem] after:right-0 after:h-px after:bg-slate-100 last:after:hidden',
-                                                        focusedPatientId === patient.id && 'bg-teal-50/50'
-                                                    )}
-                                                >
-                                                    <button
-                                                        type="button"
-                                                        className="flex w-full min-w-0 items-center gap-3 px-5 py-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-teal-300"
-                                                        aria-label={t('patients.aria.openDetailsFor', { patientName: patient.fullName })}
-                                                        onClick={() => openPatientDetails(patient.id, patient.fullName, getPatientOpenSource())}
-                                                    >
-                                                        {patientPhotoThumbnailUrl ? (
-                                                            <span className="relative h-10 w-10 shrink-0 overflow-hidden rounded-full bg-slate-100">
-                                                                {/* eslint-disable-next-line @next/next/no-img-element */}
-                                                                <img
-                                                                    src={patientPhotoThumbnailUrl}
-                                                                    alt=""
-                                                                    crossOrigin={getProtectedMediaCrossOrigin(patientPhotoThumbnailUrl)}
-                                                                    className="h-full w-full object-cover object-center"
-                                                                    decoding="async"
-                                                                    loading="lazy"
-                                                                />
-                                                            </span>
-                                                        ) : (
-                                                            <Avatar className={cn('h-10 w-10 shrink-0 rounded-full border-0', getMobileAvatarColor(patient.id))}>
-                                                                <AvatarFallback className="rounded-full bg-transparent text-xs font-bold text-current">
-                                                                    {getMobilePatientInitials(patient.fullName)}
-                                                                </AvatarFallback>
-                                                            </Avatar>
-                                                        )}
-                                                        <span className="min-w-0 flex-1">
-                                                            <span className="flex min-w-0 items-center gap-2">
-                                                                <span className="min-w-0 flex-1 truncate text-[17px] font-semibold leading-[22px] text-slate-950" title={patient.fullName}>
-                                                                    {patient.fullName}
-                                                                </span>
-                                                                {relativeVisit ? (
-                                                                    <span className="shrink-0 text-xs leading-4 text-slate-400">
-                                                                        {relativeVisit}
-                                                                    </span>
-                                                                ) : null}
-                                                            </span>
-                                                            <span className="mt-0.5 flex min-w-0 items-center gap-2">
-                                                                <span className="min-w-0 flex-1 truncate text-[13px] leading-[18px] text-slate-500">
-                                                                    {patient.phone || '-'}
-                                                                    {patientAge !== null ? ` · ${t('patients.age', { count: patientAge })}` : ''}
-                                                                </span>
-                                                                {categoryToDisplay ? (
-                                                                    <span
-                                                                        className="inline-flex h-5 max-w-[7.5rem] shrink-0 items-center gap-1 rounded-full px-2 text-[11px] font-medium"
-                                                                        style={{ backgroundColor: `${categoryToDisplay.color}1A`, color: categoryToDisplay.color }}
-                                                                        title={categoryToDisplay.name}
-                                                                    >
-                                                                        <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: categoryToDisplay.color }} />
-                                                                        <span className="truncate">{categoryToDisplay.name}</span>
-                                                                    </span>
-                                                                ) : null}
-                                                            </span>
+                                return (
+                                    <article
+                                        key={patient.id}
+                                        id={`patient-mobile-card-${patient.id}`}
+                                        data-testid={`patient-mobile-card-${patient.id}`}
+                                        className={cn(
+                                            'min-w-0 overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-1 shadow-[0_2px_10px_rgba(15,23,42,0.045)] transition-colors',
+                                            focusedPatientId === patient.id && 'border-teal-200 bg-teal-50/50 ring-1 ring-teal-100'
+                                        )}
+                                    >
+                                        <button
+                                            type="button"
+                                            className="flex min-h-[82px] w-full min-w-0 items-center gap-3 rounded-xl p-2 text-left transition hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-300"
+                                            aria-label={t('patients.aria.openDetailsFor', { patientName: patient.fullName })}
+                                            onClick={() => openPatientDetails(patient.id, patient.fullName, getPatientOpenSource())}
+                                        >
+                                            {patientPhotoThumbnailUrl ? (
+                                                <span className="relative h-12 w-12 shrink-0 overflow-hidden rounded-xl bg-slate-100 ring-1 ring-slate-200/70">
+                                                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                    <img
+                                                        src={patientPhotoThumbnailUrl}
+                                                        alt=""
+                                                        crossOrigin={getProtectedMediaCrossOrigin(patientPhotoThumbnailUrl)}
+                                                        className="h-full w-full object-cover object-center"
+                                                        decoding="async"
+                                                        loading="lazy"
+                                                    />
+                                                </span>
+                                            ) : (
+                                                <Avatar className={cn('h-12 w-12 shrink-0 rounded-xl border-0', getMobileAvatarColor(patient.id))}>
+                                                    <AvatarFallback className="rounded-xl bg-transparent text-xs font-bold text-current">
+                                                        {getMobilePatientInitials(patient.fullName)}
+                                                    </AvatarFallback>
+                                                </Avatar>
+                                            )}
+                                            <span className="min-w-0 flex-1">
+                                                <span className="block truncate text-[15px] font-semibold leading-5 text-slate-950" title={patient.fullName}>
+                                                    {patient.fullName}
+                                                </span>
+                                                <span className="mt-0.5 block truncate text-xs leading-4 text-slate-500">
+                                                    {patient.phone || '-'}
+                                                    {patientAge !== null ? ` · ${t('patients.age', { count: patientAge })}` : ''}
+                                                </span>
+                                                <span className="mt-1 flex min-w-0 items-center gap-1.5">
+                                                    <span className="shrink-0 text-[11px] leading-4 text-slate-400">
+                                                        {relativeVisit || t('patients.never')}
+                                                    </span>
+                                                    {categoryToDisplay ? (
+                                                        <span
+                                                            className="inline-flex h-5 min-w-0 max-w-[8.5rem] items-center gap-1 rounded-full px-2 text-[10px] font-medium"
+                                                            style={{ backgroundColor: `${categoryToDisplay.color}1A`, color: categoryToDisplay.color }}
+                                                            title={categoryToDisplay.name}
+                                                        >
+                                                            <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: categoryToDisplay.color }} />
+                                                            <span className="truncate">{categoryToDisplay.name}</span>
                                                         </span>
-                                                        <ChevronRight aria-hidden="true" className="h-4 w-4 shrink-0 text-slate-300" />
-                                                    </button>
-                                                    {showRecordAuthors ? (
-                                                        <RecordAuthorBadge className="mb-2 ml-[4.5rem]" createdBy={patient.createdBy} updatedBy={patient.updatedBy} />
                                                     ) : null}
-                                                    {showArchivedOnly ? (
-                                                        <div className="pb-3 pl-[4.5rem] pr-5">
-                                                            {canManagePatients ? (
-                                                                <Button variant="outline" className="h-9 w-full text-xs" onClick={() => restoreMutation.mutate(patient.id)} disabled={restoreMutation.isPending}>
-                                                                    {t('patients.restore')}
-                                                                </Button>
-                                                            ) : isSubscriptionReadOnly(currentUser) ? (
-                                                                <Button variant="outline" className="h-9 w-full text-xs" disabled onClick={denyManageAction}>
-                                                                    {t('patients.restore')}
-                                                                </Button>
-                                                            ) : null}
-                                                        </div>
-                                                    ) : inactiveFilter !== 'none' ? (
-                                                        <div className="pb-3 pl-[4.5rem] pr-5">
-                                                            {canManageAppointments ? (
-                                                                <Button variant="outline" className="h-9 w-full text-xs" onClick={() => router.push(`/appointments?action=new&patientId=${encodeURIComponent(patient.id)}`)}>
-                                                                    <CalendarPlus className="h-3.5 w-3.5" />
-                                                                    {t('patients.schedule')}
-                                                                </Button>
-                                                            ) : isSubscriptionReadOnly(currentUser) && canViewAppointments ? (
-                                                                <Button variant="outline" className="h-9 w-full text-xs" disabled>
-                                                                    <CalendarPlus className="h-3.5 w-3.5" />
-                                                                    {t('patients.schedule')}
-                                                                </Button>
-                                                            ) : null}
-                                                        </div>
-                                                    ) : null}
-                                                </article>
-                                            );
-                                        })}
-                                    </div>
-                                </section>
-                            ))}
+                                                </span>
+                                            </span>
+                                            <ChevronRight aria-hidden="true" className="h-4 w-4 shrink-0 text-slate-300" />
+                                        </button>
+                                        {showRecordAuthors ? (
+                                            <RecordAuthorBadge className="mx-2 mb-2 ml-[4.25rem]" createdBy={patient.createdBy} updatedBy={patient.updatedBy} />
+                                        ) : null}
+                                        {showArchivedOnly ? (
+                                            <div className="px-2 pb-2 pl-[4.25rem]">
+                                                {canManagePatients ? (
+                                                    <Button variant="outline" className="h-9 w-full rounded-xl text-xs" onClick={() => restoreMutation.mutate(patient.id)} disabled={restoreMutation.isPending}>
+                                                        {t('patients.restore')}
+                                                    </Button>
+                                                ) : isSubscriptionReadOnly(currentUser) ? (
+                                                    <Button variant="outline" className="h-9 w-full rounded-xl text-xs" disabled onClick={denyManageAction}>
+                                                        {t('patients.restore')}
+                                                    </Button>
+                                                ) : null}
+                                            </div>
+                                        ) : inactiveFilter !== 'none' ? (
+                                            <div className="px-2 pb-2 pl-[4.25rem]">
+                                                {canManageAppointments ? (
+                                                    <Button variant="outline" className="h-9 w-full rounded-xl text-xs" onClick={() => router.push(`/appointments?action=new&patientId=${encodeURIComponent(patient.id)}`)}>
+                                                        <CalendarPlus className="h-3.5 w-3.5" />
+                                                        {t('patients.schedule')}
+                                                    </Button>
+                                                ) : isSubscriptionReadOnly(currentUser) && canViewAppointments ? (
+                                                    <Button variant="outline" className="h-9 w-full rounded-xl text-xs" disabled>
+                                                        <CalendarPlus className="h-3.5 w-3.5" />
+                                                        {t('patients.schedule')}
+                                                    </Button>
+                                                ) : null}
+                                            </div>
+                                        ) : null}
+                                    </article>
+                                );
+                            })}
                         </div>
                         <DataTableShell data-testid="patients-desktop-table" className="hidden lg:block">
                             <Table className={getDataTableClassName('standard')}>
@@ -1372,23 +1356,23 @@ export default function PatientsPage() {
                                 <p className="text-sm text-slate-500">
                                     {t('patients.showing', { shown: patientRows.length, total: totalPatients })}
                                 </p>
-                                <div className="flex flex-wrap items-center gap-2 md:justify-end">
+                                <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-1.5 md:flex md:flex-wrap md:gap-2 md:justify-end">
                                     <Button
                                         variant="outline"
                                         size="sm"
-                                        className="min-w-[96px]"
+                                        className="min-w-0 px-2 text-xs md:min-w-[96px] md:text-sm"
                                         onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
                                         disabled={!hasPreviousPage || patientsQuery.isFetching}
                                     >
                                         {t('patients.previous')}
                                     </Button>
-                                    <span className="inline-flex min-w-[132px] justify-center rounded-xl border border-slate-200 bg-white px-3 py-1 text-sm text-slate-600 shadow-xs">
+                                    <span className="inline-flex min-w-[104px] justify-center rounded-xl border border-slate-200 bg-white px-2 py-1 text-xs text-slate-600 shadow-xs md:min-w-[132px] md:px-3 md:text-sm">
                                         {t('patients.pageOf', { page: pageNumber, total: totalPages })}
                                     </span>
                                     <Button
                                         variant="outline"
                                         size="sm"
-                                        className="min-w-[80px]"
+                                        className="min-w-0 px-2 text-xs md:min-w-[80px] md:text-sm"
                                         onClick={() => setCurrentPage((page) => page + 1)}
                                         disabled={!hasNextPage || patientsQuery.isFetching}
                                     >
@@ -1400,18 +1384,6 @@ export default function PatientsPage() {
                     )}
                 </CardContent>
             </Card>
-
-            {canManagePatients ? (
-                <Button
-                    type="button"
-                    size="icon"
-                    className="fixed bottom-5 right-5 z-30 h-14 w-14 rounded-full bg-gradient-to-br from-teal-500 to-teal-700 text-white shadow-[0_10px_28px_rgba(13,148,136,0.38)] hover:from-teal-600 hover:to-teal-800 lg:hidden"
-                    aria-label={t('patients.addPatient')}
-                    onClick={() => setIsAddDialogOpen(true)}
-                >
-                    <Plus className="h-6 w-6" />
-                </Button>
-            ) : null}
 
             {isDialogOpen ? (
                 <AddPatientDialog

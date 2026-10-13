@@ -367,36 +367,18 @@ export function AppointmentsLoadingState() {
 export function PatientsLoadingState() {
     return (
         <div className="space-y-3 sm:space-y-5 lg:space-y-6">
-            <div data-testid="patients-mobile-app-header-skeleton" className="-mx-3 bg-white pb-2 pt-1 sm:-mx-6 lg:hidden">
-                <div className="flex items-center justify-between gap-3 px-5">
-                    <div className="space-y-1.5">
-                        <Skeleton className="h-[34px] w-40 rounded-lg" />
-                        <Skeleton className="h-[18px] w-24 rounded-md" />
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <Skeleton className="h-9 w-9 rounded-full" />
-                        <Skeleton className="h-9 w-28 rounded-full" />
-                    </div>
-                </div>
-            </div>
             <div className="hidden lg:block">
                 <PageHeaderSkeleton actions={3} />
             </div>
-            <Card data-testid="patients-list-skeleton" className="-mx-3 min-w-0 max-w-full overflow-hidden rounded-none border-0 bg-white shadow-none sm:-mx-6 lg:mx-0 lg:max-w-none lg:overflow-visible lg:rounded-2xl lg:border lg:shadow-sm">
-                <CardHeader className="min-w-0 max-w-full gap-2 px-0 pb-1 pt-0 lg:gap-4 lg:px-6 lg:pb-4 lg:pt-6">
+            <Card data-testid="patients-list-skeleton" className="min-w-0 max-w-full gap-0 overflow-hidden rounded-2xl border border-white/80 bg-white py-0 shadow-sm shadow-slate-200/60 lg:max-w-none lg:gap-6 lg:overflow-visible lg:border-slate-200 lg:py-6">
+                <CardHeader className="min-w-0 max-w-full gap-2 p-2.5 sm:p-3 lg:gap-4 lg:px-6 lg:pb-4 lg:pt-6">
                     <Skeleton className="hidden h-5 w-32 rounded-xl lg:block lg:h-6" />
                     <div
                         data-testid="patients-filter-toolbar-skeleton"
                         className="min-w-0 max-w-full overflow-hidden bg-white lg:overflow-visible lg:rounded-2xl lg:border lg:border-teal-100/80 lg:p-4 lg:shadow-sm lg:shadow-teal-100/40"
                     >
                         <div className="flex min-w-0 max-w-full flex-col gap-2 lg:flex-row lg:items-center lg:gap-3">
-                            <Skeleton className="mx-5 h-11 flex-1 rounded-xl lg:mx-0 lg:h-9" data-testid="patients-search-skeleton" />
-                            <div className="flex w-full min-w-0 max-w-full gap-2 overflow-hidden px-5 py-1 lg:hidden">
-                                <Skeleton className="h-8 w-20 shrink-0 rounded-full" />
-                                <Skeleton className="h-8 w-24 shrink-0 rounded-full" />
-                                <Skeleton className="h-8 w-28 shrink-0 rounded-full" />
-                                <Skeleton className="h-8 w-24 shrink-0 rounded-full" />
-                            </div>
+                            <Skeleton className="h-11 flex-1 rounded-xl lg:h-9" data-testid="patients-search-skeleton" />
                             <div className="hidden min-w-0 items-center gap-2 lg:flex lg:flex-wrap lg:justify-end lg:gap-2.5">
                                 <Skeleton className="h-9 w-full min-w-0 rounded-xl sm:min-w-[168px] md:w-[168px]" />
                                 <Skeleton className="h-9 w-full min-w-0 rounded-xl sm:min-w-[168px] md:w-[168px]" />
@@ -404,27 +386,26 @@ export function PatientsLoadingState() {
                             </div>
                         </div>
                     </div>
+                    <div data-testid="patients-mobile-actions-skeleton" className="flex gap-2 lg:hidden">
+                        <Skeleton className="h-10 min-w-0 flex-1 rounded-xl" />
+                        <Skeleton className="h-10 w-10 shrink-0 rounded-xl min-[430px]:w-28" />
+                        <Skeleton className="h-10 w-10 shrink-0 rounded-xl min-[430px]:w-24" />
+                    </div>
                 </CardHeader>
-                <CardContent className="min-w-0 max-w-full space-y-4 px-3 pb-24 sm:px-5 lg:pb-5">
-                    <div data-testid="patients-mobile-list-skeleton" className="-mx-3 bg-white sm:-mx-5 lg:hidden">
-                        {Array.from({ length: 2 }).map((_, sectionIndex) => (
-                            <div key={sectionIndex}>
-                                <div className="border-b border-slate-200/70 bg-[#F2F2F7] px-5 py-[5px]">
-                                    <Skeleton className="h-[18px] w-4 rounded" />
-                                </div>
-                                {Array.from({ length: 3 }).map((__, rowIndex) => (
-                                    <div key={rowIndex} className="relative flex items-center gap-3 px-5 py-3 after:absolute after:bottom-0 after:left-[4.5rem] after:right-0 after:h-px after:bg-slate-100">
-                                        <Skeleton className="h-10 w-10 shrink-0 rounded-full" />
-                                        <div className="min-w-0 flex-1 space-y-1.5">
-                                            <div className="flex items-center justify-between gap-3">
-                                                <Skeleton className="h-[22px] w-2/3 rounded-md" />
-                                                <Skeleton className="h-4 w-14 rounded" />
-                                            </div>
-                                            <Skeleton className="h-[18px] w-3/5 rounded" />
-                                        </div>
-                                        <Skeleton className="h-4 w-4 shrink-0 rounded" />
+                <CardContent className="min-w-0 max-w-full space-y-4 border-t border-slate-100 bg-slate-50/70 p-2.5 sm:p-3 lg:border-t-0 lg:bg-white lg:px-5 lg:pb-5 lg:pt-0">
+                    <div data-testid="patients-mobile-list-skeleton" className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:hidden">
+                        {Array.from({ length: 6 }).map((_, rowIndex) => (
+                            <div key={rowIndex} className="flex min-h-[90px] items-center gap-3 rounded-2xl border border-slate-200/80 bg-white p-3 shadow-[0_2px_10px_rgba(15,23,42,0.045)]">
+                                <Skeleton className="h-12 w-12 shrink-0 rounded-xl" />
+                                <div className="min-w-0 flex-1 space-y-1.5">
+                                    <Skeleton className="h-5 w-3/4 rounded-md" />
+                                    <Skeleton className="h-4 w-2/3 rounded-md" />
+                                    <div className="flex gap-2">
+                                        <Skeleton className="h-4 w-14 rounded-md" />
+                                        <Skeleton className="h-5 w-16 rounded-full" />
                                     </div>
-                                ))}
+                                </div>
+                                <Skeleton className="h-4 w-4 shrink-0 rounded" />
                             </div>
                         ))}
                     </div>
