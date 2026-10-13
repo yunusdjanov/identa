@@ -140,26 +140,21 @@ describe('PatientsPage', () => {
             .not.toBeInTheDocument();
     });
 
-    it('renders a compact actions-only header on mobile breakpoints', async () => {
+    it('renders the app-style patient header on mobile breakpoints', async () => {
         vi.mocked(listPatients).mockResolvedValue(buildPatientsResponse([]));
 
         renderPage();
 
-        const heading = await screen.findByRole('heading', { name: 'Patients' });
-        expect(heading.closest('section')).toHaveClass('px-3', 'py-2', 'sm:px-5', 'sm:py-4');
-        expect(heading.closest('.min-w-0')).toHaveClass('sr-only', 'sm:not-sr-only');
-        expect(screen.getByText('Manage your patient records and information').closest('p'))
-            .toHaveClass('hidden', 'sm:block');
-
-        const categoriesButton = screen.getByRole('button', { name: 'Categories' });
-        const addPatientButton = screen.getByRole('button', { name: 'Add Patient' });
-        expect(categoriesButton.parentElement).toHaveClass(
-            'grid-cols-[minmax(0,1fr)_minmax(0,1fr)]',
-            'gap-1.5',
-            'sm:gap-2'
-        );
-        expect(categoriesButton).toHaveClass('h-9', 'min-w-0', 'text-xs', 'sm:text-sm');
-        expect(addPatientButton).toHaveClass('col-span-2', 'h-9', 'min-w-0', 'text-xs', 'sm:text-sm');
+        const mobileHeader = await screen.findByTestId('patients-mobile-app-header');
+        expect(mobileHeader).toHaveClass('-mx-3', 'px-5', 'lg:hidden');
+        expect(within(mobileHeader).getByRole('heading', { name: 'Patients' }))
+            .toHaveClass('text-[28px]', 'leading-[34px]');
+        expect(within(mobileHeader).getByText('Patients: 0')).toBeInTheDocument();
+        expect(within(mobileHeader).getByRole('button', { name: 'Categories' }))
+            .toHaveClass('h-9', 'rounded-full', 'text-xs');
+        const mobileAddButton = screen.getAllByRole('button', { name: 'Add Patient' })
+            .find((button) => button.classList.contains('fixed'));
+        expect(mobileAddButton).toHaveClass('fixed', 'h-14', 'w-14', 'rounded-full', 'lg:hidden');
     });
 
     it('restores the previous page and focused patient after returning from details', async () => {
@@ -409,13 +404,74 @@ describe('PatientsPage', () => {
         const mobileCard = within(mobileList).getByTestId('patient-mobile-card-patient-list-card');
 
         expect(within(listCard).getByText('Patients: 1')).toBeInTheDocument();
-        expect(mobileList).toHaveClass('min-w-0', 'max-w-full', 'overflow-hidden', 'rounded-xl');
-        expect(mobileCard).toHaveClass('min-w-0', 'max-w-full', 'border-b', 'px-1');
+        expect(mobileList).toHaveClass('-mx-3', 'min-w-0', 'max-w-full', 'bg-white', 'lg:hidden');
+        expect(within(mobileList).getByTestId('patients-mobile-section-L')).toBeInTheDocument();
+        expect(mobileCard).toHaveClass('min-w-0', 'max-w-full', 'after:left-[4.5rem]');
         expect(within(mobileCard).getByRole('button', { name: 'Open details for List Card Patient' }))
-            .toHaveClass('min-h-10');
+            .toHaveClass('w-full', 'gap-3', 'px-5', 'py-3');
         expect(within(toolbar).getByLabelText('Search patients by name, phone, or patient ID')).toBeInTheDocument();
         expect(within(toolbar).getByRole('combobox', { name: 'Filter patients by category' })).toBeInTheDocument();
         expect(within(toolbar).getByRole('combobox', { name: 'Filter patients by visit gap' })).toBeInTheDocument();
+    });
+
+    it('matches the app patient list hierarchy, metadata, and category chips', async () => {
+        const yesterday = new Date();
+        yesterday.setDate(yesterday.getDate() - 1);
+        vi.mocked(listPatientCategories).mockResolvedValue([
+            { id: 'category-vip', name: 'VIP', color: '#0D9488', sort_order: 1 },
+        ]);
+        vi.mocked(listPatients).mockResolvedValue(buildPatientsResponse([
+            {
+                id: 'patient-zara',
+                patient_id: 'PT-ZARA',
+                full_name: 'Zara Patient',
+                phone: '+10000000020',
+                created_at: '2026-01-01T10:00:00Z',
+                last_visit_at: null,
+                address: null,
+                date_of_birth: null,
+                gender: null,
+                medical_history: null,
+                allergies: null,
+                current_medications: null,
+            },
+            {
+                id: 'patient-alisa',
+                patient_id: 'PT-ALISA',
+                full_name: 'Алиса Patient',
+                phone: '+10000000021',
+                created_at: '2026-01-01T10:00:00Z',
+                last_visit_at: yesterday.toISOString(),
+                address: null,
+                date_of_birth: '2000-01-01',
+                gender: null,
+                medical_history: null,
+                allergies: null,
+                current_medications: null,
+                categories: [{ id: 'category-vip', name: 'VIP', color: '#0D9488', sort_order: 1 }],
+            },
+        ]));
+
+        renderPage();
+        const user = userEvent.setup();
+        const mobileList = await screen.findByTestId('patients-mobile-list');
+        const sectionA = within(mobileList).getByTestId('patients-mobile-section-A');
+        const sectionZ = within(mobileList).getByTestId('patients-mobile-section-Z');
+
+        expect(sectionA.compareDocumentPosition(sectionZ) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+        const alisaRow = within(sectionA).getByTestId('patient-mobile-card-patient-alisa');
+        expect(within(alisaRow).getByText('+10000000021 · 26 years')).toBeInTheDocument();
+        expect(within(alisaRow).getByText('yesterday')).toBeInTheDocument();
+        expect(within(alisaRow).getByText('VIP').parentElement).toHaveClass('rounded-full');
+
+        const chips = screen.getByTestId('patients-mobile-category-chips');
+        await user.click(within(chips).getByRole('button', { name: 'VIP' }));
+        await waitFor(() => {
+            expect(listPatients).toHaveBeenLastCalledWith(expect.objectContaining({
+                sort: '-updated_at',
+                filter: expect.objectContaining({ category_id: 'category-vip' }),
+            }));
+        });
     });
 
     it('hides recent patients while searching and can remove recent shortcuts', async () => {

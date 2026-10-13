@@ -2051,8 +2051,8 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
 
     return (
         <>
-            <Card className="interactive-card rounded-2xl border-slate-200 shadow-sm">
-                <CardHeader className="flex w-full flex-col items-stretch gap-3">
+            <Card className="interactive-card min-w-0 max-w-full overflow-hidden rounded-2xl border-slate-200 shadow-sm lg:max-w-none lg:overflow-visible">
+                <CardHeader className="flex min-w-0 max-w-full flex-col items-stretch gap-3">
                     <div
                         data-testid="patient-history-header"
                         className="grid w-full grid-cols-1 gap-3 xl:grid-cols-[minmax(10rem,12rem)_minmax(34rem,1fr)_max-content] xl:items-center xl:gap-4"
@@ -2194,17 +2194,17 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                         </div>
                     </div>
                 </CardHeader>
-                <CardContent className="space-y-6">
+                <CardContent className="min-w-0 max-w-full space-y-6">
                     {isLoading ? (
                         <div className="relative space-y-3">
                             <div className="absolute bottom-3 left-[84px] top-3 hidden w-px bg-slate-200 md:block" aria-hidden="true" />
                             {Array.from({ length: 3 }).map((_, index) => (
-                                <div key={index} className="relative grid gap-2 md:grid-cols-[96px_minmax(0,1fr)]">
+                                <div key={index} className="relative grid min-w-0 max-w-full gap-2 md:grid-cols-[96px_minmax(0,1fr)]">
                                     <div className="hidden grid-cols-[1fr_24px] items-start gap-2 pt-5 md:grid">
                                         <Skeleton className="mt-0.5 h-8 w-14 justify-self-end" />
                                         <span className="relative z-10 h-3.5 w-3.5 justify-self-center rounded-full border-2 border-white bg-slate-200 shadow-sm" />
                                     </div>
-                                    <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
+                                    <div className="min-w-0 max-w-full overflow-hidden rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
                                         <div className="mb-3 flex items-start justify-between gap-3">
                                             <div className="min-w-0 flex-1 space-y-2">
                                                 <div className="flex flex-wrap items-center gap-2">

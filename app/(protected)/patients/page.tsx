@@ -38,7 +38,7 @@ import {
 import { getApiErrorMessage } from '@/lib/api/client';
 import type { ApiPatient, ApiRecentPatient, ApiRecordActor } from '@/lib/api/types';
 import { cn, extractPrimaryPhone, formatDate, toLocalDateKey, truncateForUi } from '@/lib/utils';
-import { Plus, Search, Phone, Users, CalendarPlus, ArrowRight, Tags, FilterX, Download, Maximize2, X } from 'lucide-react';
+import { Plus, Search, Phone, Users, CalendarPlus, ArrowRight, Tags, FilterX, Download, Maximize2, X, ChevronRight } from 'lucide-react';
 import { buildPdfFilename, exportRowsToPdf } from '@/lib/export/pdf';
 import { EmptyState } from '@/components/ui/empty-state';
 import { useI18n } from '@/components/providers/i18n-provider';
@@ -140,6 +140,91 @@ function getPatientInitials(fullName: string): string {
     }
 
     return `${parts[0][0] ?? ''}${parts[1][0] ?? ''}`.toUpperCase();
+}
+
+const MOBILE_AVATAR_COLORS = [
+    'bg-teal-100 text-teal-800',
+    'bg-sky-100 text-sky-800',
+    'bg-violet-100 text-violet-800',
+    'bg-amber-100 text-amber-800',
+    'bg-rose-100 text-rose-800',
+] as const;
+
+function getMobilePatientInitials(fullName: string): string {
+    const parts = fullName.trim().split(/\s+/).filter(Boolean);
+    if (parts.length === 0) return '?';
+    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+
+    return `${parts[0][0] ?? ''}${parts.at(-1)?.[0] ?? ''}`.toUpperCase();
+}
+
+function getMobileAvatarColor(patientId: string): string {
+    const hash = Array.from(patientId).reduce((total, character) => total + character.charCodeAt(0), 0);
+    return MOBILE_AVATAR_COLORS[hash % MOBILE_AVATAR_COLORS.length];
+}
+
+const CYRILLIC_INITIALS: Record<string, string> = {
+    А: 'A', Б: 'B', В: 'V', Г: 'G', Д: 'D', Е: 'E', Ё: 'Y', Ж: 'J', З: 'Z', И: 'I', Й: 'Y',
+    К: 'K', Л: 'L', М: 'M', Н: 'N', О: 'O', П: 'P', Р: 'R', С: 'S', Т: 'T', У: 'U', Ф: 'F',
+    Х: 'X', Ц: 'C', Ч: 'C', Ш: 'S', Щ: 'S', Ъ: '#', Ы: 'I', Ь: '#', Э: 'E', Ю: 'Y', Я: 'Y',
+    Ў: 'O', Қ: 'Q', Ғ: 'G', Ҳ: 'H',
+};
+
+function getPatientSectionInitial(fullName: string): string {
+    const firstCharacter = fullName.trim().charAt(0).toUpperCase();
+    if (!firstCharacter) return '#';
+
+    const latinCharacter = CYRILLIC_INITIALS[firstCharacter]
+        ?? firstCharacter.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
+    return /^[A-Z]$/.test(latinCharacter) ? latinCharacter : '#';
+}
+
+function groupPatientsByInitial(patients: PatientRow[]): Array<[string, PatientRow[]]> {
+    const groups = new Map<string, PatientRow[]>();
+
+    patients.forEach((patient) => {
+        const initial = getPatientSectionInitial(patient.fullName);
+        groups.set(initial, [...(groups.get(initial) ?? []), patient]);
+    });
+
+    return Array.from(groups.entries())
+        .sort(([first], [second]) => first.localeCompare(second, 'en'))
+        .map(([initial, rows]) => [
+            initial,
+            rows.sort((first, second) => first.fullName.localeCompare(second.fullName, 'en')),
+        ]);
+}
+
+function getPatientAge(dateOfBirth?: string): number | null {
+    if (!dateOfBirth) return null;
+    const birthDate = new Date(`${dateOfBirth.slice(0, 10)}T00:00:00`);
+    if (Number.isNaN(birthDate.getTime())) return null;
+
+    const today = new Date();
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const birthdayHasPassed = today.getMonth() > birthDate.getMonth()
+        || (today.getMonth() === birthDate.getMonth() && today.getDate() >= birthDate.getDate());
+    if (!birthdayHasPassed) age -= 1;
+
+    return age >= 0 ? age : null;
+}
+
+function formatRelativeVisit(date: string | undefined, locale: string): string | null {
+    if (!date) return null;
+    const visitDate = new Date(date);
+    if (Number.isNaN(visitDate.getTime())) return null;
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    visitDate.setHours(0, 0, 0, 0);
+    const differenceInDays = Math.round((visitDate.getTime() - today.getTime()) / 86_400_000);
+    const formatter = new Intl.RelativeTimeFormat(locale, { numeric: 'auto' });
+
+    if (Math.abs(differenceInDays) < 7) return formatter.format(differenceInDays, 'day');
+    if (Math.abs(differenceInDays) < 30) return formatter.format(Math.round(differenceInDays / 7), 'week');
+    if (Math.abs(differenceInDays) < 365) return formatter.format(Math.round(differenceInDays / 30), 'month');
+    return formatter.format(Math.round(differenceInDays / 365), 'year');
 }
 
 export default function PatientsPage() {
@@ -272,6 +357,7 @@ export default function PatientsPage() {
         () => (patientsQuery.data?.data ?? []).map((patient) => mapPatientRow(patient)),
         [patientsQuery.data]
     );
+    const mobilePatientGroups = useMemo(() => groupPatientsByInitial(patientRows), [patientRows]);
     const pagination = patientsQuery.data?.meta?.pagination;
     const totalPatients = pagination?.total ?? patientRows.length;
     const totalPages = pagination?.total_pages ?? 1;
@@ -408,9 +494,10 @@ export default function PatientsPage() {
         });
 
         runAfterPaint(() => {
-            document
-                .getElementById(`patient-row-${focusedPatientId}`)
-                ?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+            const targetId = window.matchMedia('(max-width: 1023px)').matches
+                ? `patient-mobile-card-${focusedPatientId}`
+                : `patient-row-${focusedPatientId}`;
+            document.getElementById(targetId)?.scrollIntoView({ block: 'center', behavior: 'smooth' });
         });
     }, [focusedPatientId, isClient, patientRows, patientsQuery.isFetching]);
 
@@ -459,11 +546,11 @@ export default function PatientsPage() {
     const patientsFilterToolbar = (
         <div
             data-testid="patients-filter-toolbar"
-            className="rounded-xl border border-teal-100/80 bg-white p-2 shadow-sm shadow-teal-100/40 sm:rounded-2xl sm:p-4"
+            className="min-w-0 max-w-full overflow-hidden bg-white lg:overflow-visible lg:rounded-2xl lg:border lg:border-teal-100/80 lg:p-4 lg:shadow-sm lg:shadow-teal-100/40"
         >
-            <div className="flex flex-col gap-2 sm:gap-3 lg:flex-row lg:items-center">
+            <div className="flex min-w-0 max-w-full flex-col gap-2 lg:flex-row lg:items-center lg:gap-3">
                 <div
-                    className="relative flex-1"
+                    className="relative mx-5 min-w-0 flex-1 lg:mx-0"
                     onBlur={(event) => {
                         const nextFocus = event.relatedTarget;
                         if (!(nextFocus instanceof Node) || !event.currentTarget.contains(nextFocus)) {
@@ -500,7 +587,7 @@ export default function PatientsPage() {
                         }}
                         aria-controls={shouldShowRecentMenu ? recentMenuId : undefined}
                         aria-expanded={shouldShowRecentMenu}
-                        className="h-9 rounded-xl border-slate-200 bg-white pl-10 shadow-xs"
+                        className="h-11 rounded-xl border-0 bg-slate-100/90 pl-10 pr-10 shadow-none ring-1 ring-inset ring-slate-200/40 lg:h-9 lg:border lg:border-slate-200 lg:bg-white lg:pr-3 lg:shadow-xs lg:ring-0"
                     />
                     {shouldShowRecentMenu ? (
                         <div
@@ -554,7 +641,93 @@ export default function PatientsPage() {
                         </div>
                     ) : null}
                 </div>
-                <div className="grid min-w-0 grid-cols-2 items-center gap-2 sm:flex sm:flex-wrap sm:gap-2.5 lg:justify-end">
+                <div
+                    data-testid="patients-mobile-category-chips"
+                    className="flex w-full min-w-0 max-w-full gap-2 overflow-x-auto px-5 py-1 no-scrollbar lg:hidden"
+                >
+                    <button
+                        type="button"
+                        aria-pressed={selectedCategoryId === 'all' && inactiveFilter === 'none' && !showArchivedOnly}
+                        className={cn(
+                            'h-8 shrink-0 rounded-full px-3.5 text-[13px] font-semibold transition-colors',
+                            selectedCategoryId === 'all' && inactiveFilter === 'none' && !showArchivedOnly
+                                ? 'bg-teal-600 text-white shadow-sm'
+                                : 'bg-slate-100 text-slate-600'
+                        )}
+                        onClick={() => {
+                            setSelectedCategoryId('all');
+                            setInactiveFilter('none');
+                            setShowArchivedOnly(false);
+                            setCurrentPage(1);
+                        }}
+                    >
+                        {t('patients.all')}
+                    </button>
+                    <button
+                        type="button"
+                        aria-pressed={showArchivedOnly}
+                        className={cn(
+                            'h-8 shrink-0 rounded-full px-3.5 text-[13px] font-semibold transition-colors',
+                            showArchivedOnly ? 'bg-teal-600 text-white shadow-sm' : 'bg-slate-100 text-slate-600'
+                        )}
+                        onClick={() => {
+                            setShowArchivedOnly(true);
+                            setInactiveFilter('none');
+                            setSelectedCategoryId('all');
+                            setCurrentPage(1);
+                        }}
+                    >
+                        {t('patients.archived')}
+                    </button>
+                    {(['6m', '1y'] as const).map((filter) => (
+                        <button
+                            key={filter}
+                            type="button"
+                            aria-pressed={inactiveFilter === filter && !showArchivedOnly}
+                            className={cn(
+                                'h-8 shrink-0 rounded-full px-3.5 text-[13px] font-semibold transition-colors',
+                                inactiveFilter === filter && !showArchivedOnly
+                                    ? 'bg-teal-600 text-white shadow-sm'
+                                    : 'bg-slate-100 text-slate-600'
+                            )}
+                            onClick={() => {
+                                setInactiveFilter(filter);
+                                setShowArchivedOnly(false);
+                                setSelectedCategoryId('all');
+                                setCurrentPage(1);
+                            }}
+                        >
+                            {t(filter === '6m' ? 'patients.noVisit6m' : 'patients.noVisit1y')}
+                        </button>
+                    ))}
+                    {(categoriesQuery.data ?? []).map((category) => (
+                        <button
+                            key={category.id}
+                            type="button"
+                            aria-pressed={selectedCategoryId === category.id && !showArchivedOnly}
+                            className={cn(
+                                'inline-flex h-8 max-w-44 shrink-0 items-center gap-1.5 rounded-full px-3.5 text-[13px] font-semibold transition-colors',
+                                selectedCategoryId === category.id && !showArchivedOnly
+                                    ? 'bg-teal-600 text-white shadow-sm'
+                                    : 'bg-slate-100 text-slate-600'
+                            )}
+                            onClick={() => {
+                                setSelectedCategoryId(category.id);
+                                setInactiveFilter('none');
+                                setShowArchivedOnly(false);
+                                setCurrentPage(1);
+                            }}
+                        >
+                            <span
+                                aria-hidden="true"
+                                className="h-2 w-2 shrink-0 rounded-full"
+                                style={{ backgroundColor: category.color }}
+                            />
+                            <span className="truncate">{category.name}</span>
+                        </button>
+                    ))}
+                </div>
+                <div className="hidden min-w-0 grid-cols-2 items-center gap-2 lg:flex lg:flex-wrap lg:justify-end lg:gap-2.5">
                     <Select
                         value={selectedCategoryId}
                         onValueChange={(value) => {
@@ -637,6 +810,41 @@ export default function PatientsPage() {
         </div>
     );
 
+    const handleExportPatients = () => {
+        if (patientRows.length === 0) {
+            toast.error(t('export.empty'));
+            return;
+        }
+
+        const data = patientsQuery.data?.data ?? [];
+        const rows = data.map((patient) => [
+            patient.full_name,
+            extractPrimaryPhone(patient.phone) || '-',
+            patient.gender ? t(`gender.${patient.gender}`) : '-',
+            patient.date_of_birth ? formatDate(patient.date_of_birth) : '-',
+            (patient.categories ?? []).map((category) => category.name).join(', ') || '-',
+            patient.last_visit_at ? formatDate(patient.last_visit_at) : '-',
+        ]);
+        exportRowsToPdf({
+            filename: buildPdfFilename('patients'),
+            title: t('patients.title'),
+            subtitle: t('patients.subtitle'),
+            locale,
+            columns: [
+                t('patients.table.name'),
+                t('patients.table.phone'),
+                t('patients.table.gender'),
+                t('patients.table.dateOfBirth'),
+                t('patients.categories'),
+                t('patients.table.lastVisit'),
+            ],
+            rows,
+            summary: [{ label: t('patients.table.name'), value: String(data.length) }],
+            orientation: 'landscape',
+        });
+        toast.success(t('export.downloaded'));
+    };
+
     if (currentUserQuery.isLoading || patientsQuery.isLoading) {
         return <PatientsLoadingState />;
     }
@@ -669,52 +877,59 @@ export default function PatientsPage() {
 
     return (
         <div className="space-y-3 sm:space-y-5 lg:space-y-6">
-            <PageHeader
-                title={t('patients.title')}
-                description={t('patients.subtitle')}
-                mobileDensity="actions-only"
-                actions={(
+            <div
+                data-testid="patients-mobile-app-header"
+                className="-mx-3 flex items-center justify-between gap-3 bg-white px-5 pb-2 pt-1 sm:-mx-6 lg:hidden"
+            >
+                <div className="min-w-0">
+                    <h1 className="text-[28px] font-bold leading-[34px] tracking-tight text-slate-950">
+                        {t('patients.title')}
+                    </h1>
+                    <p className="text-[13px] leading-[18px] text-slate-500">
+                        {t('patients.totalCount', { count: totalPatients })}
+                    </p>
+                </div>
+                <div className="flex shrink-0 items-center gap-2">
+                    {currentUser?.subscription?.can_export ? (
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-9 w-9 rounded-full bg-slate-100 text-slate-600"
+                            aria-label={t('common.export')}
+                            disabled={patientRows.length === 0}
+                            onClick={handleExportPatients}
+                        >
+                            <Download className="h-[18px] w-[18px]" />
+                        </Button>
+                    ) : null}
+                    {canManagePatients ? (
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            className="h-9 w-9 gap-1.5 rounded-full bg-teal-50 px-0 text-xs font-bold text-teal-700 hover:bg-teal-100 hover:text-teal-800 min-[380px]:w-auto min-[380px]:px-3"
+                            aria-label={t('patients.categories')}
+                            onClick={() => setIsManageCategoriesOpen(true)}
+                        >
+                            <Tags className="h-[18px] w-[18px]" />
+                            <span className="hidden min-[380px]:inline">{t('patients.categories')}</span>
+                        </Button>
+                    ) : null}
+                </div>
+            </div>
+
+            <div className="hidden lg:block">
+                <PageHeader
+                    title={t('patients.title')}
+                    description={t('patients.subtitle')}
+                    actions={(
                     <div className="grid w-full grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-1.5 sm:flex sm:w-auto sm:flex-wrap sm:gap-2">
                         {currentUser?.subscription?.can_export ? (
                             <Button
                                 variant="outline"
                                 className="h-9 min-w-0 w-full gap-1.5 px-2.5 text-xs sm:w-auto sm:px-3 sm:text-sm"
                                 disabled={patientRows.length === 0}
-                                onClick={() => {
-                                    if (patientRows.length === 0) {
-                                        toast.error(t('export.empty'));
-                                        return;
-                                    }
-                                    const data = patientsQuery.data?.data ?? [];
-                                    const rows = data.map((patient) => [
-                                        patient.full_name,
-                                        extractPrimaryPhone(patient.phone) || '-',
-                                        patient.gender ? t(`gender.${patient.gender}`) : '-',
-                                        patient.date_of_birth ? formatDate(patient.date_of_birth) : '-',
-                                        (patient.categories ?? []).map((c) => c.name).join(', ') || '-',
-                                        patient.last_visit_at ? formatDate(patient.last_visit_at) : '-',
-                                    ]);
-                                    exportRowsToPdf({
-                                        filename: buildPdfFilename('patients'),
-                                        title: t('patients.title'),
-                                        subtitle: t('patients.subtitle'),
-                                        locale,
-                                        columns: [
-                                            t('patients.table.name'),
-                                            t('patients.table.phone'),
-                                            t('patients.table.gender'),
-                                            t('patients.table.dateOfBirth'),
-                                            t('patients.categories'),
-                                            t('patients.table.lastVisit'),
-                                        ],
-                                        rows,
-                                        summary: [
-                                            { label: t('patients.table.name'), value: String(data.length) },
-                                        ],
-                                        orientation: 'landscape',
-                                    });
-                                    toast.success(t('export.downloaded'));
-                                }}
+                                onClick={handleExportPatients}
                             >
                                 <Download className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                                 {t('common.export')}
@@ -769,12 +984,13 @@ export default function PatientsPage() {
                             </Button>
                         ) : null}
                     </div>
-                )}
-            />
+                    )}
+                />
+            </div>
 
-            <Card data-testid="patients-list-card" className="overflow-visible rounded-2xl bg-white">
-                <CardHeader className="gap-3 px-3 pb-3 pt-3 sm:gap-4 sm:px-6 sm:pb-4 sm:pt-6">
-                    <CardTitle className="text-sm sm:text-base">
+            <Card data-testid="patients-list-card" className="-mx-3 min-w-0 max-w-full overflow-hidden rounded-none border-0 bg-white shadow-none sm:-mx-6 lg:mx-0 lg:max-w-none lg:overflow-visible lg:rounded-2xl lg:border lg:shadow-sm">
+                <CardHeader className="min-w-0 max-w-full gap-2 px-0 pb-1 pt-0 lg:gap-4 lg:px-6 lg:pb-4 lg:pt-6">
+                    <CardTitle className="hidden text-sm lg:block lg:text-base">
                         {t('patients.totalCount', { count: totalPatients })}
                         {inactiveFilter === '6m' && ` (${t('patients.noVisit6m')})`}
                         {inactiveFilter === '1y' && ` (${t('patients.noVisit1y')})`}
@@ -782,7 +998,7 @@ export default function PatientsPage() {
                     </CardTitle>
                     {patientsFilterToolbar}
                 </CardHeader>
-                <CardContent className="px-3 pb-4 sm:px-5 sm:pb-5">
+                <CardContent className="min-w-0 max-w-full px-3 pb-24 sm:px-5 lg:pb-5">
                     {patientRows.length === 0 ? (
                         <EmptyState
                             icon={hasActiveFilters ? FilterX : Users}
@@ -807,138 +1023,123 @@ export default function PatientsPage() {
                         />
                     ) : (
                         <>
-                        <div data-testid="patients-mobile-list" className="grid min-w-0 max-w-full overflow-hidden rounded-xl border border-slate-200/80 bg-white lg:hidden">
-                            {patientRows.map((patient) => {
-                                const filteredCategory = selectedCategoryId !== 'all'
-                                    ? patient.categories.find((category) => category.id === selectedCategoryId)
-                                    : undefined;
-                                const categoryToDisplay = filteredCategory ?? patient.categories[0];
-                                const patientPhotoThumbnailUrl = patient.photoThumbnailUrl ?? '';
-                                const patientPhotoPreviewUrl = patient.photoPreviewUrl ?? patientPhotoThumbnailUrl;
+                        <div data-testid="patients-mobile-list" className="-mx-3 min-w-0 max-w-full bg-white sm:-mx-5 lg:hidden">
+                            {mobilePatientGroups.map(([initial, patients]) => (
+                                <section key={initial} data-testid={`patients-mobile-section-${initial}`}>
+                                    <h2 className="border-b border-slate-200/70 bg-[#F2F2F7] px-5 py-[5px] text-[13px] font-bold leading-[18px] text-slate-500">
+                                        {initial}
+                                    </h2>
+                                    <div>
+                                        {patients.map((patient) => {
+                                            const filteredCategory = selectedCategoryId !== 'all'
+                                                ? patient.categories.find((category) => category.id === selectedCategoryId)
+                                                : undefined;
+                                            const categoryToDisplay = filteredCategory ?? patient.categories[0];
+                                            const patientPhotoThumbnailUrl = patient.photoThumbnailUrl ?? '';
+                                            const patientAge = getPatientAge(patient.dateOfBirth);
+                                            const relativeVisit = formatRelativeVisit(patient.lastVisitDate, locale);
 
-                                return (
-                                    <article
-                                        key={patient.id}
-                                        id={`patient-mobile-card-${patient.id}`}
-                                        data-testid={`patient-mobile-card-${patient.id}`}
-                                        className={cn(
-                                            'min-w-0 max-w-full border-b border-slate-100 bg-white px-1 last:border-b-0',
-                                            focusedPatientId === patient.id && 'bg-teal-50/50'
-                                        )}
-                                    >
-                                        <div className="flex min-w-0 items-center gap-3 py-3">
-                                            {patientPhotoThumbnailUrl ? (
-                                                <button
-                                                    type="button"
-                                                    className="group relative h-10 w-10 shrink-0 overflow-hidden rounded-full border border-slate-200 bg-white shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-300"
-                                                    aria-label={`${t('patients.form.photo')}: ${patient.fullName}`}
-                                                    onClick={() => setPhotoPreview({
-                                                        src: patientPhotoPreviewUrl,
-                                                        thumbnailSrc: patientPhotoThumbnailUrl,
-                                                        alt: patient.fullName,
-                                                        title: patient.fullName,
-                                                    })}
+                                            return (
+                                                <article
+                                                    key={patient.id}
+                                                    id={`patient-mobile-card-${patient.id}`}
+                                                    data-testid={`patient-mobile-card-${patient.id}`}
+                                                    className={cn(
+                                                        'relative min-w-0 max-w-full bg-white after:absolute after:bottom-0 after:left-[4.5rem] after:right-0 after:h-px after:bg-slate-100 last:after:hidden',
+                                                        focusedPatientId === patient.id && 'bg-teal-50/50'
+                                                    )}
                                                 >
-                                                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                                                    <img
-                                                        src={patientPhotoThumbnailUrl}
-                                                        alt={patient.fullName}
-                                                        crossOrigin={getProtectedMediaCrossOrigin(patientPhotoThumbnailUrl)}
-                                                        className="h-full w-full object-cover object-center"
-                                                        decoding="async"
-                                                        loading="lazy"
-                                                    />
-                                                    <span className="pointer-events-none absolute inset-0 flex items-center justify-center bg-slate-950/0 text-white opacity-0 transition group-focus-visible:bg-slate-950/35 group-focus-visible:opacity-100">
-                                                        <Maximize2 className="h-4 w-4" />
-                                                    </span>
-                                                </button>
-                                            ) : (
-                                                <Avatar className="h-10 w-10 shrink-0 rounded-full border border-dashed border-slate-200 bg-slate-50">
-                                                    <AvatarFallback className="rounded-full bg-slate-50 text-xs font-semibold text-slate-500">
-                                                        {getPatientInitials(patient.fullName)}
-                                                    </AvatarFallback>
-                                                </Avatar>
-                                            )}
-                                            <button
-                                                type="button"
-                                                className="flex min-h-10 min-w-0 flex-1 items-center gap-2 rounded-xl text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-300"
-                                                aria-label={t('patients.aria.openDetailsFor', { patientName: patient.fullName })}
-                                                onClick={() => openPatientDetails(patient.id, patient.fullName, getPatientOpenSource())}
-                                            >
-                                                <span className="min-w-0 flex-1">
-                                                    <span className="flex min-w-0 items-center gap-2">
-                                                        <span className="min-w-0 flex-1 truncate text-sm font-semibold text-slate-950" title={patient.fullName}>
-                                                            {truncateForUi(patient.fullName, PATIENT_TABLE_NAME_UI_LIMIT)}
-                                                        </span>
-                                                        <span className="shrink-0 text-[10px] font-medium text-slate-400">
-                                                            {patient.lastVisitDate ? formatDate(patient.lastVisitDate) : t('patients.never')}
-                                                        </span>
-                                                    </span>
-                                                    <span className="mt-1 flex min-w-0 items-center gap-2">
-                                                        <span className="min-w-0 flex-1 truncate text-xs text-slate-500">
-                                                            {patient.phone || '-'}
-                                                        </span>
-                                                        {categoryToDisplay ? (
-                                                            <Badge
-                                                                variant="secondary"
-                                                                className="h-5 max-w-[7.5rem] shrink-0 truncate px-2 text-[10px]"
-                                                                style={{ backgroundColor: `${categoryToDisplay.color}22`, color: categoryToDisplay.color }}
-                                                                title={categoryToDisplay.name}
-                                                            >
-                                                                {truncateForUi(categoryToDisplay.name, PATIENT_CATEGORY_UI_LIMIT)}
-                                                            </Badge>
-                                                        ) : null}
-                                                    </span>
-                                                </span>
-                                                <ArrowRight aria-hidden="true" className="h-4 w-4 shrink-0 text-slate-300" />
-                                            </button>
-                                        </div>
-                                        {showRecordAuthors ? (
-                                            <RecordAuthorBadge
-                                                className="mb-2 ml-[3.25rem]"
-                                                createdBy={patient.createdBy}
-                                                updatedBy={patient.updatedBy}
-                                            />
-                                        ) : null}
-                                        {showArchivedOnly ? (
-                                            <div className="pb-3 pl-[3.25rem]">
-                                                {canManagePatients ? (
-                                                    <Button
-                                                        variant="outline"
-                                                        className="h-9 w-full text-xs"
-                                                        onClick={() => restoreMutation.mutate(patient.id)}
-                                                        disabled={restoreMutation.isPending}
+                                                    <button
+                                                        type="button"
+                                                        className="flex w-full min-w-0 items-center gap-3 px-5 py-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-teal-300"
+                                                        aria-label={t('patients.aria.openDetailsFor', { patientName: patient.fullName })}
+                                                        onClick={() => openPatientDetails(patient.id, patient.fullName, getPatientOpenSource())}
                                                     >
-                                                        {t('patients.restore')}
-                                                    </Button>
-                                                ) : isSubscriptionReadOnly(currentUser) ? (
-                                                    <Button variant="outline" className="h-9 w-full text-xs" disabled onClick={denyManageAction}>
-                                                        {t('patients.restore')}
-                                                    </Button>
-                                                ) : null}
-                                            </div>
-                                        ) : inactiveFilter !== 'none' ? (
-                                            <div className="pb-3 pl-[3.25rem]">
-                                                {canManageAppointments ? (
-                                                    <Button
-                                                        variant="outline"
-                                                        className="h-9 w-full text-xs"
-                                                        onClick={() => router.push(`/appointments?action=new&patientId=${encodeURIComponent(patient.id)}`)}
-                                                    >
-                                                        <CalendarPlus className="h-3.5 w-3.5" />
-                                                        {t('patients.schedule')}
-                                                    </Button>
-                                                ) : isSubscriptionReadOnly(currentUser) && canViewAppointments ? (
-                                                    <Button variant="outline" className="h-9 w-full text-xs" disabled>
-                                                        <CalendarPlus className="h-3.5 w-3.5" />
-                                                        {t('patients.schedule')}
-                                                    </Button>
-                                                ) : null}
-                                            </div>
-                                        ) : null}
-                                    </article>
-                                );
-                            })}
+                                                        {patientPhotoThumbnailUrl ? (
+                                                            <span className="relative h-10 w-10 shrink-0 overflow-hidden rounded-full bg-slate-100">
+                                                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                                <img
+                                                                    src={patientPhotoThumbnailUrl}
+                                                                    alt=""
+                                                                    crossOrigin={getProtectedMediaCrossOrigin(patientPhotoThumbnailUrl)}
+                                                                    className="h-full w-full object-cover object-center"
+                                                                    decoding="async"
+                                                                    loading="lazy"
+                                                                />
+                                                            </span>
+                                                        ) : (
+                                                            <Avatar className={cn('h-10 w-10 shrink-0 rounded-full border-0', getMobileAvatarColor(patient.id))}>
+                                                                <AvatarFallback className="rounded-full bg-transparent text-xs font-bold text-current">
+                                                                    {getMobilePatientInitials(patient.fullName)}
+                                                                </AvatarFallback>
+                                                            </Avatar>
+                                                        )}
+                                                        <span className="min-w-0 flex-1">
+                                                            <span className="flex min-w-0 items-center gap-2">
+                                                                <span className="min-w-0 flex-1 truncate text-[17px] font-semibold leading-[22px] text-slate-950" title={patient.fullName}>
+                                                                    {patient.fullName}
+                                                                </span>
+                                                                {relativeVisit ? (
+                                                                    <span className="shrink-0 text-xs leading-4 text-slate-400">
+                                                                        {relativeVisit}
+                                                                    </span>
+                                                                ) : null}
+                                                            </span>
+                                                            <span className="mt-0.5 flex min-w-0 items-center gap-2">
+                                                                <span className="min-w-0 flex-1 truncate text-[13px] leading-[18px] text-slate-500">
+                                                                    {patient.phone || '-'}
+                                                                    {patientAge !== null ? ` · ${t('patients.age', { count: patientAge })}` : ''}
+                                                                </span>
+                                                                {categoryToDisplay ? (
+                                                                    <span
+                                                                        className="inline-flex h-5 max-w-[7.5rem] shrink-0 items-center gap-1 rounded-full px-2 text-[11px] font-medium"
+                                                                        style={{ backgroundColor: `${categoryToDisplay.color}1A`, color: categoryToDisplay.color }}
+                                                                        title={categoryToDisplay.name}
+                                                                    >
+                                                                        <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: categoryToDisplay.color }} />
+                                                                        <span className="truncate">{categoryToDisplay.name}</span>
+                                                                    </span>
+                                                                ) : null}
+                                                            </span>
+                                                        </span>
+                                                        <ChevronRight aria-hidden="true" className="h-4 w-4 shrink-0 text-slate-300" />
+                                                    </button>
+                                                    {showRecordAuthors ? (
+                                                        <RecordAuthorBadge className="mb-2 ml-[4.5rem]" createdBy={patient.createdBy} updatedBy={patient.updatedBy} />
+                                                    ) : null}
+                                                    {showArchivedOnly ? (
+                                                        <div className="pb-3 pl-[4.5rem] pr-5">
+                                                            {canManagePatients ? (
+                                                                <Button variant="outline" className="h-9 w-full text-xs" onClick={() => restoreMutation.mutate(patient.id)} disabled={restoreMutation.isPending}>
+                                                                    {t('patients.restore')}
+                                                                </Button>
+                                                            ) : isSubscriptionReadOnly(currentUser) ? (
+                                                                <Button variant="outline" className="h-9 w-full text-xs" disabled onClick={denyManageAction}>
+                                                                    {t('patients.restore')}
+                                                                </Button>
+                                                            ) : null}
+                                                        </div>
+                                                    ) : inactiveFilter !== 'none' ? (
+                                                        <div className="pb-3 pl-[4.5rem] pr-5">
+                                                            {canManageAppointments ? (
+                                                                <Button variant="outline" className="h-9 w-full text-xs" onClick={() => router.push(`/appointments?action=new&patientId=${encodeURIComponent(patient.id)}`)}>
+                                                                    <CalendarPlus className="h-3.5 w-3.5" />
+                                                                    {t('patients.schedule')}
+                                                                </Button>
+                                                            ) : isSubscriptionReadOnly(currentUser) && canViewAppointments ? (
+                                                                <Button variant="outline" className="h-9 w-full text-xs" disabled>
+                                                                    <CalendarPlus className="h-3.5 w-3.5" />
+                                                                    {t('patients.schedule')}
+                                                                </Button>
+                                                            ) : null}
+                                                        </div>
+                                                    ) : null}
+                                                </article>
+                                            );
+                                        })}
+                                    </div>
+                                </section>
+                            ))}
                         </div>
                         <DataTableShell data-testid="patients-desktop-table" className="hidden lg:block">
                             <Table className={getDataTableClassName('standard')}>
@@ -1199,6 +1400,18 @@ export default function PatientsPage() {
                     )}
                 </CardContent>
             </Card>
+
+            {canManagePatients ? (
+                <Button
+                    type="button"
+                    size="icon"
+                    className="fixed bottom-5 right-5 z-30 h-14 w-14 rounded-full bg-gradient-to-br from-teal-500 to-teal-700 text-white shadow-[0_10px_28px_rgba(13,148,136,0.38)] hover:from-teal-600 hover:to-teal-800 lg:hidden"
+                    aria-label={t('patients.addPatient')}
+                    onClick={() => setIsAddDialogOpen(true)}
+                >
+                    <Plus className="h-6 w-6" />
+                </Button>
+            ) : null}
 
             {isDialogOpen ? (
                 <AddPatientDialog
