@@ -668,16 +668,17 @@ export default function PatientsPage() {
     }
 
     return (
-        <div className="space-y-5 lg:space-y-6">
+        <div className="space-y-3 sm:space-y-5 lg:space-y-6">
             <PageHeader
                 title={t('patients.title')}
                 description={t('patients.subtitle')}
+                mobileDensity="actions-only"
                 actions={(
-                    <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-wrap">
+                    <div className="grid w-full grid-cols-2 gap-1.5 sm:flex sm:w-auto sm:flex-wrap sm:gap-2">
                         {currentUser?.subscription?.can_export ? (
                             <Button
                                 variant="outline"
-                                className="h-10 w-full sm:h-9 sm:w-auto"
+                                className="h-9 w-full gap-1.5 px-2.5 text-xs sm:w-auto sm:px-3 sm:text-sm"
                                 disabled={patientRows.length === 0}
                                 onClick={() => {
                                     if (patientRows.length === 0) {
@@ -715,7 +716,7 @@ export default function PatientsPage() {
                                     toast.success(t('export.downloaded'));
                                 }}
                             >
-                                <Download className="w-4 h-4 mr-2" />
+                                <Download className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                                 {t('common.export')}
                             </Button>
                         ) : null}
@@ -732,38 +733,38 @@ export default function PatientsPage() {
                         {canManagePatients ? (
                             <Button
                                 variant="outline"
-                                className="h-10 w-full sm:h-9 sm:w-auto"
+                                className="h-9 w-full gap-1.5 px-2.5 text-xs sm:w-auto sm:px-3 sm:text-sm"
                                 onClick={() => setIsManageCategoriesOpen(true)}
                             >
-                                <Tags className="w-4 h-4 mr-2" />
+                                <Tags className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                                 {t('patients.categories')}
                             </Button>
                         ) : isSubscriptionReadOnly(currentUser) ? (
                             <Button
                                 variant="outline"
-                                className="h-10 w-full sm:h-9 sm:w-auto"
+                                className="h-9 w-full gap-1.5 px-2.5 text-xs sm:w-auto sm:px-3 sm:text-sm"
                                 disabled
                                 onClick={denyManageAction}
                             >
-                                <Tags className="w-4 h-4 mr-2" />
+                                <Tags className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                                 {t('patients.categories')}
                             </Button>
                         ) : null}
                         {canManagePatients ? (
                             <Button
-                                className="col-span-2 h-10 w-full sm:h-9 sm:w-auto"
+                                className="col-span-2 h-9 w-full gap-1.5 px-3 text-xs sm:w-auto sm:text-sm"
                                 onClick={() => setIsAddDialogOpen(true)}
                             >
-                                <Plus className="w-4 h-4 mr-2" />
+                                <Plus className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                                 {t('patients.addPatient')}
                             </Button>
                         ) : isSubscriptionReadOnly(currentUser) ? (
                             <Button
-                                className="col-span-2 h-10 w-full sm:h-9 sm:w-auto"
+                                className="col-span-2 h-9 w-full gap-1.5 px-3 text-xs sm:w-auto sm:text-sm"
                                 disabled
                                 onClick={denyManageAction}
                             >
-                                <Plus className="w-4 h-4 mr-2" />
+                                <Plus className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                                 {t('patients.addPatient')}
                             </Button>
                         ) : null}

@@ -41,4 +41,21 @@ describe('PageHeader', () => {
         expect(screen.getByRole('button', { name: 'Add appointment' }).parentElement)
             .toHaveClass('gap-1', 'sm:gap-2');
     });
+
+    it('keeps the page title accessible while showing actions only on mobile', () => {
+        render(
+            <PageHeader
+                title="Patients"
+                description="Manage patient records"
+                actions={<button type="button">Add patient</button>}
+                mobileDensity="actions-only"
+            />
+        );
+
+        const heading = screen.getByRole('heading', { name: 'Patients' });
+        expect(heading.closest('.min-w-0')).toHaveClass('sr-only', 'sm:not-sr-only');
+        expect(screen.getByText('Manage patient records')).toHaveClass('hidden', 'sm:block');
+        expect(screen.getByRole('button', { name: 'Add patient' }).parentElement)
+            .toHaveClass('gap-1', 'sm:gap-2');
+    });
 });

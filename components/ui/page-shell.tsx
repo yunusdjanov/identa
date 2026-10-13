@@ -8,7 +8,7 @@ interface PageHeaderProps {
     eyebrow?: ReactNode;
     actions?: ReactNode;
     className?: string;
-    mobileDensity?: 'default' | 'compact';
+    mobileDensity?: 'default' | 'compact' | 'actions-only';
 }
 
 export function PageHeader({
@@ -19,7 +19,8 @@ export function PageHeader({
     className,
     mobileDensity = 'default',
 }: PageHeaderProps) {
-    const isCompactOnMobile = mobileDensity === 'compact';
+    const isCompactOnMobile = mobileDensity !== 'default';
+    const isActionsOnlyOnMobile = mobileDensity === 'actions-only';
 
     return (
         <section
@@ -33,7 +34,10 @@ export function PageHeader({
                 'flex min-w-0 flex-col lg:flex-row lg:items-center lg:justify-between',
                 isCompactOnMobile ? 'gap-2 sm:gap-3' : 'gap-3'
             )}>
-                <div className="min-w-0 space-y-1">
+                <div className={cn(
+                    'min-w-0 space-y-1',
+                    isActionsOnlyOnMobile && 'sr-only sm:not-sr-only'
+                )}>
                     {eyebrow ? (
                         <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-teal-600 sm:text-[11px] sm:tracking-[0.28em]">
                             {eyebrow}
