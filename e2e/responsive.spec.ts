@@ -134,16 +134,19 @@ test.describe('Responsive smoke coverage', () => {
         await expect(page.getByTestId('patient-history-header')).toBeVisible();
         await expect(page.getByTestId('patient-detail-oral-photo-panel')).toBeVisible();
         expect(await page.evaluate(() => {
+            const information = document.querySelector('[data-testid="patient-detail-header-facts"]');
             const overview = document.querySelector('[data-testid="patient-detail-summary-grid"]');
             const history = document.querySelector('[data-testid="patient-history-header"]');
             const photos = document.querySelector('[data-testid="patient-detail-oral-photo-panel"]');
 
             return Boolean(
-                overview
+                information
+                && overview
                 && history
                 && photos
+                && (information.compareDocumentPosition(photos) & Node.DOCUMENT_POSITION_FOLLOWING)
+                && (photos.compareDocumentPosition(overview) & Node.DOCUMENT_POSITION_FOLLOWING)
                 && (overview.compareDocumentPosition(history) & Node.DOCUMENT_POSITION_FOLLOWING)
-                && (history.compareDocumentPosition(photos) & Node.DOCUMENT_POSITION_FOLLOWING)
             );
         })).toBe(true);
         await expectInsideViewport(page, '[data-testid="patient-detail-header-facts"]');

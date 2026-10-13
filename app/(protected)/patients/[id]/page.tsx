@@ -175,13 +175,13 @@ function VitalStatCell({
     valueClassName?: string;
 }) {
     return (
-        <div className="flex min-h-[4.75rem] min-w-0 flex-col items-center justify-center gap-1 bg-white px-2 py-2.5 text-center sm:min-h-[5rem] sm:px-3">
+        <div className="flex min-h-16 min-w-0 flex-col items-center justify-center gap-1 bg-white px-1.5 py-2 text-center sm:min-h-[4.5rem] sm:px-3">
             <div className="inline-flex items-center gap-1 text-slate-400">
-                <Icon className="h-3 w-3" />
-                <p className="truncate text-[9px] font-semibold uppercase tracking-[0.08em] sm:text-[10px] sm:tracking-[0.12em]">{label}</p>
+                <Icon className="h-3 w-3 shrink-0" />
+                <p className="truncate text-[8px] font-bold uppercase tracking-[0.06em] sm:text-[10px] sm:tracking-[0.1em]">{label}</p>
             </div>
             <p
-                className={`max-w-full text-[11px] font-semibold leading-4 tabular-nums text-slate-900 sm:text-[13px] ${typeof value === 'string' ? 'truncate' : ''} ${valueClassName ?? ''}`}
+                className={`max-w-full overflow-hidden text-[10px] font-bold leading-4 tabular-nums text-slate-900 sm:text-[13px] ${typeof value === 'string' ? 'truncate' : ''} ${valueClassName ?? ''}`}
                 title={typeof value === 'string' ? value : undefined}
             >
                 {value}
@@ -578,57 +578,26 @@ export default function PatientDetailPage({
                 />
             </div>
 
-            <section
-                data-testid="patient-detail-summary-grid"
-                className="relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white pt-[3px] shadow-sm shadow-slate-200/40"
-            >
-                <div className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-teal-400 via-sky-400 to-indigo-400" />
-                <div className="grid grid-cols-3 divide-x divide-slate-100">
-                    <VitalStatCell
-                        icon={Wallet}
-                        label={t('patientDetail.openBalance')}
-                        value={!canViewPayments ? '—' : renderOverviewBalance(overviewQuery.data, t('payments.paid'), t)}
-                        valueClassName={getOverviewBalanceClassName(overviewQuery.data, canViewPayments)}
-                    />
-                    <VitalStatCell
-                        icon={Hash}
-                        label={t('patientDetail.totalAppointments')}
-                        value={String(patientVisitCount)}
-                    />
-                    <VitalStatCell
-                        icon={CalendarCheck}
-                        label={t('patientDetail.lastVisit')}
-                        value={latestVisitDate ? formatDate(latestVisitDate) : t('patients.never')}
-                    />
-                </div>
-            </section>
-
-            <TreatmentHistoryCard patientId={id} patientName={patient.full_name} />
-
             <article
                 data-testid="patient-detail-oral-photo-panel"
-                className="relative flex min-h-0 min-w-0 flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm shadow-slate-200/40"
+                className="flex min-h-0 min-w-0 flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm shadow-slate-200/40"
             >
-                <div className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-slate-200 via-slate-300 to-slate-400" />
-                <header className="flex items-center justify-between gap-3 px-3 pt-3 pb-2 sm:px-4 sm:pt-4">
-                        <div className="flex min-w-0 items-center gap-2.5">
-                            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-slate-50 text-slate-500 ring-1 ring-slate-100/80 shadow-sm shadow-slate-100/40">
-                                <Camera className="h-4 w-4" strokeWidth={2.25} />
-                            </span>
-                            <p className="truncate text-[11px] font-bold uppercase tracking-[0.14em] text-slate-700">
-                                {t('patientDetail.oralPhoto.title')}
-                            </p>
-                        </div>
-                        <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-slate-50 px-2 py-0.5 text-[11px] font-semibold text-slate-600 ring-1 ring-slate-100">
-                            <span className="h-1.5 w-1.5 rounded-full bg-slate-400" />
-                            <span className="tabular-nums">{smileOralPhotoReadyCount}/{ORAL_PHOTO_MAX_PER_SLOT}</span>
-                        </span>
+                <header className="flex min-h-11 items-center justify-between gap-3 border-b border-slate-100 px-3 sm:px-4">
+                    <div className="flex min-w-0 items-center gap-2">
+                        <Camera className="h-4 w-4 shrink-0 text-teal-600" strokeWidth={2.1} />
+                        <h2 className="truncate text-xs font-bold text-slate-800 sm:text-sm">
+                            {t('patientDetail.oralPhoto.title')}
+                        </h2>
+                    </div>
+                    <span className="inline-flex shrink-0 items-center rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold tabular-nums text-slate-600">
+                        {smileOralPhotoReadyCount}/{ORAL_PHOTO_MAX_PER_SLOT}
+                    </span>
                 </header>
-                <div className="flex min-h-0 flex-1 px-3 pb-3 pt-1 sm:px-4 sm:py-3">
+                <div className="flex min-h-0 flex-1 p-2.5 sm:p-3">
                         {smileOralPhotoDisplaySlots.length > 0 ? (
                             <div
                                 data-testid="patient-detail-oral-photo-grid"
-                                className="grid min-h-0 flex-1 auto-rows-[5.25rem] grid-cols-2 gap-2 sm:auto-rows-[6rem] sm:grid-cols-3 md:grid-cols-5 lg:auto-rows-[6.75rem]"
+                                className="grid min-h-0 flex-1 auto-rows-[5rem] grid-cols-2 gap-2 sm:auto-rows-[5.75rem] sm:grid-cols-3 md:grid-cols-5 lg:auto-rows-[6.5rem]"
                             >
                                 {smileOralPhotoDisplaySlots.map((photoSlot, index) => {
                                     const canUploadOralPhoto = canAddSmileOralPhoto;
@@ -690,6 +659,32 @@ export default function PatientDetailPage({
                         )}
                 </div>
             </article>
+
+            <section
+                data-testid="patient-detail-summary-grid"
+                className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm shadow-slate-200/40"
+            >
+                <div className="grid grid-cols-3 divide-x divide-slate-100">
+                    <VitalStatCell
+                        icon={Wallet}
+                        label={t('patientDetail.openBalance')}
+                        value={!canViewPayments ? '—' : renderOverviewBalance(overviewQuery.data, t('payments.paid'), t)}
+                        valueClassName={getOverviewBalanceClassName(overviewQuery.data, canViewPayments)}
+                    />
+                    <VitalStatCell
+                        icon={Hash}
+                        label={t('patientDetail.totalAppointments')}
+                        value={String(patientVisitCount)}
+                    />
+                    <VitalStatCell
+                        icon={CalendarCheck}
+                        label={t('patientDetail.lastVisit')}
+                        value={latestVisitDate ? formatDate(latestVisitDate) : t('patients.never')}
+                    />
+                </div>
+            </section>
+
+            <TreatmentHistoryCard patientId={id} patientName={patient.full_name} />
 
             {oralPhotoPreviewImages.length > 0 ? (
                 <PatientPhotoPreviewDialog

@@ -169,7 +169,7 @@ describe('PatientDetailPage', () => {
         const contactFacts = screen.getByTestId('patient-detail-header-contact-facts');
         const medicalFacts = screen.getByTestId('patient-detail-header-medical-facts');
         const actionGroup = screen.getByTestId('patient-detail-header-actions');
-        expect(identity).toHaveClass('max-w-[20rem]');
+        expect(identity).toHaveClass('lg:max-w-[20rem]', 'gap-2.5');
         expect(facts).toHaveClass(
             'h-auto',
             'overflow-visible',
@@ -177,15 +177,15 @@ describe('PatientDetailPage', () => {
             'md:overflow-hidden'
         );
         expect(contactFacts).toHaveClass('md:grid-cols-3');
-        expect(medicalFacts).toHaveClass('md:grid-cols-3');
-        expect(scheduleButton).toHaveClass('size-10');
-        expect(editButton).toHaveClass('size-10');
-        expect(archiveButton).toHaveClass('size-10');
+        expect(medicalFacts).toHaveClass('sm:grid-cols-3');
+        expect(scheduleButton).toHaveClass('h-10', 'w-full', 'lg:size-10');
+        expect(editButton).toHaveClass('h-10', 'w-full', 'lg:size-10');
+        expect(archiveButton).toHaveClass('h-10', 'w-full', 'lg:size-10');
         expect(archiveButton.querySelector('svg')).toHaveClass('lucide-archive');
-        expect(actionGroup).toHaveClass('flex-row', 'items-center', 'lg:order-none');
-        expect(screen.queryByText('Schedule Appointment')).not.toBeInTheDocument();
-        expect(screen.queryByText('Edit Patient')).not.toBeInTheDocument();
-        expect(screen.queryByText('Archive')).not.toBeInTheDocument();
+        expect(actionGroup).toHaveClass('grid', 'grid-flow-col', 'auto-cols-fr', 'lg:flex', 'lg:order-none');
+        expect(within(scheduleButton).getByText('Schedule Appointment')).toHaveClass('lg:sr-only');
+        expect(within(editButton).getByText('Edit Patient')).toHaveClass('lg:sr-only');
+        expect(within(archiveButton).getByText('Archive')).toHaveClass('lg:sr-only');
         expect(scheduleButton.compareDocumentPosition(editButton) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     });
 
@@ -255,8 +255,16 @@ describe('PatientDetailPage', () => {
         const user = userEvent.setup();
 
         const photoTrigger = await screen.findByRole('button', { name: 'Patient Photo: John Smith' });
-        expect(photoTrigger).toHaveClass('h-24', 'w-24', 'absolute', 'rounded-xl');
-        expect(photoTrigger.parentElement).toHaveClass('h-20', 'w-24');
+        expect(photoTrigger).toHaveClass(
+            'h-16',
+            'w-16',
+            'absolute',
+            'rounded-full',
+            'sm:h-24',
+            'sm:w-24',
+            'sm:rounded-xl',
+        );
+        expect(photoTrigger.parentElement).toHaveClass('h-16', 'w-16', 'sm:h-20', 'sm:w-24');
 
         await user.click(photoTrigger);
 
@@ -356,7 +364,7 @@ describe('PatientDetailPage', () => {
         expect(screen.queryByText(/Infinityd/i)).not.toBeInTheDocument();
     });
 
-    it('prioritizes the overview and work history before the oral photo gallery', async () => {
+    it('places general photos directly after patient information before overview and history', async () => {
         vi.mocked(getCurrentUser).mockResolvedValue(dentist as never);
         vi.mocked(getPatient).mockResolvedValue(patient as never);
 
@@ -365,6 +373,7 @@ describe('PatientDetailPage', () => {
         const overviewStrip = await screen.findByTestId('patient-detail-summary-grid');
         const workHistory = await screen.findByTestId('patient-detail-work-history');
         const oralPhotoPanel = screen.getByTestId('patient-detail-oral-photo-panel');
+        const patientInformation = screen.getByTestId('patient-detail-header-facts');
         const oralPhotoTitle = screen.getByText('General Photos');
 
         expect(screen.getAllByText('General Photos')).toHaveLength(1);
@@ -377,20 +386,22 @@ describe('PatientDetailPage', () => {
         expect(screen.getByText('0/10')).toBeInTheDocument();
         expect(screen.getAllByTitle('Upload')).toHaveLength(1);
         expect(screen.getByTestId('patient-detail-page-layout')).toHaveClass('space-y-2.5');
-        expect(overviewStrip).toHaveClass('rounded-2xl', 'pt-[3px]');
+        expect(overviewStrip).toHaveClass('rounded-2xl', 'overflow-hidden');
+        expect(overviewStrip).not.toHaveClass('pt-[3px]');
         expect(screen.getByTestId('patient-detail-oral-photo-grid')).toHaveClass(
             'min-h-0',
             'flex-1',
             'grid-cols-2',
             'md:grid-cols-5',
-            'lg:auto-rows-[6.75rem]',
+            'lg:auto-rows-[6.5rem]',
         );
         expect(screen.getByTestId('patient-detail-oral-photo-grid')).not.toHaveClass('lg:h-full');
         expect(screen.getAllByTestId('patient-detail-oral-photo-slot')).toHaveLength(1);
         expect(screen.getAllByTestId('patient-detail-oral-photo-slot')[0]).toHaveClass('h-full', 'min-h-0', 'w-full');
         expect(screen.queryByText('Detail')).not.toBeInTheDocument();
+        expect(patientInformation.compareDocumentPosition(oralPhotoPanel) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+        expect(oralPhotoPanel.compareDocumentPosition(overviewStrip) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
         expect(overviewStrip.compareDocumentPosition(workHistory) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-        expect(workHistory.compareDocumentPosition(oralPhotoPanel) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
         expect(oralPhotoPanel).toContainElement(oralPhotoTitle);
     });
 
