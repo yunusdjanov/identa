@@ -198,13 +198,13 @@ describe('PaymentPatientPage', () => {
         expect(header).not.toBeNull();
         expect(within(header as HTMLElement).queryByText('PT-0001')).not.toBeInTheDocument();
         expect(within(header as HTMLElement).getByRole('button', { name: 'Patient Photo: John Smith' }))
-            .toHaveClass('h-24', 'w-24');
+            .toHaveClass('h-16', 'w-16', 'sm:h-24', 'sm:w-24');
         expect(within(header as HTMLElement).getByText('+998 90 123 45 67')).toBeInTheDocument();
         expect(within(header as HTMLElement).getByText('+998 91 765 43 21')).toBeInTheDocument();
         expect(within(header as HTMLElement).getByText('Apr 15, 1992')).toBeInTheDocument();
         expect(within(header as HTMLElement).getByText('12 Amir Temur Avenue, Tashkent')).toBeInTheDocument();
-        expect(header).toHaveClass('gap-2.5');
-        expect(identity).toHaveClass('max-w-[20rem]');
+        expect(header).toHaveClass('gap-2', 'sm:gap-2.5');
+        expect(identity).toHaveClass('w-full', 'lg:max-w-[20rem]');
         expect(screen.getByTestId('patient-detail-header-facts')).toHaveClass(
             'h-auto',
             'overflow-visible',
