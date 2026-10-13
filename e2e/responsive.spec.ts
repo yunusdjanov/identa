@@ -114,8 +114,12 @@ test.describe('Responsive smoke coverage', () => {
         await expect(page.getByTestId('patients-filter-toolbar')).toBeVisible();
         await expectNoPageHorizontalOverflow(page);
         if (usesCompactDataLayout(page)) {
+            await expect(page.getByTestId('patients-mobile-app-header')).toBeVisible();
+            await expect(page.getByTestId('patients-mobile-category-chips')).toBeVisible();
             await expect(page.getByTestId('patients-mobile-list')).toBeVisible();
             await expect(page.getByTestId('patients-desktop-table')).toBeHidden();
+            await expect(page.locator('[data-testid^="patients-mobile-section-"]').first()).toBeVisible();
+            await expect(page.locator('[data-testid^="patient-mobile-card-"]').first().locator('button').first()).toHaveClass(/px-5/);
         }
         const patientId = await getFirstPatientId(page);
         expect(patientId).toBeTruthy();
@@ -362,6 +366,25 @@ test.describe('Responsive smoke coverage', () => {
                 await page.goto(route);
                 await expect(page.locator('#main-content h1').first()).toHaveCount(1);
                 await expectNoPageHorizontalOverflow(page);
+
+                if (route === '/patients') {
+                    const appHeader = page.getByTestId('patients-mobile-app-header');
+                    await expect(appHeader).toBeVisible();
+                    const appHeaderMeasurements = await appHeader.evaluate((header) => ({
+                        height: header.getBoundingClientRect().height,
+                        titlePosition: window.getComputedStyle(header.querySelector('h1')?.parentElement ?? header).position,
+                        buttonCount: header.querySelectorAll('[data-slot="button"]').length,
+                        minButtonHeight: Math.min(
+                            ...Array.from(header.querySelectorAll<HTMLElement>('[data-slot="button"]'))
+                                .map((button) => button.getBoundingClientRect().height)
+                        ),
+                    }));
+                    expect(appHeaderMeasurements.height).toBeLessThanOrEqual(80);
+                    expect(appHeaderMeasurements.titlePosition).toBe('static');
+                    expect(appHeaderMeasurements.buttonCount).toBeGreaterThan(0);
+                    expect(appHeaderMeasurements.minButtonHeight).toBeGreaterThanOrEqual(36);
+                    return;
+                }
 
                 const measurements = await page.locator('#main-content h1').first().evaluate((heading) => {
                     const titleBlock = heading.parentElement?.parentElement;

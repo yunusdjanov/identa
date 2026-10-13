@@ -75,12 +75,12 @@ describe('page loading skeletons', () => {
             expect(screen.getByTestId('patients-list-skeleton')).toBeInTheDocument();
             expect(screen.getByTestId('patients-list-skeleton').parentElement)
                 .toHaveClass('space-y-3', 'sm:space-y-5');
-            expect(screen.getByTestId('patients-list-skeleton').previousElementSibling?.firstElementChild?.firstElementChild)
-                .toHaveClass('sr-only', 'sm:not-sr-only');
+            expect(screen.getByTestId('patients-mobile-app-header-skeleton'))
+                .toHaveClass('-mx-3', 'pb-2', 'lg:hidden');
             expect(screen.getByTestId('patients-filter-toolbar-skeleton')).toBeInTheDocument();
             expect(screen.getByTestId('patients-search-skeleton')).toBeInTheDocument();
-            expect(screen.getByTestId('patients-mobile-list-skeleton')).toHaveClass('min-w-0', 'max-w-full');
-            expect(screen.getByTestId('patients-mobile-list-skeleton').firstElementChild).toHaveClass('min-w-0', 'max-w-full');
+            expect(screen.getByTestId('patients-mobile-list-skeleton')).toHaveClass('-mx-3', 'bg-white', 'lg:hidden');
+            expect(screen.getByTestId('patients-mobile-list-skeleton').children).toHaveLength(2);
             expect(screen.getByTestId('patients-table-shell-skeleton')).toHaveClass('overflow-x-auto', 'rounded-2xl');
             expect(screen.getByTestId('patients-table-header-skeleton').children).toHaveLength(7);
             expect(screen.getAllByTestId('patients-table-row-skeleton')).toHaveLength(6);
