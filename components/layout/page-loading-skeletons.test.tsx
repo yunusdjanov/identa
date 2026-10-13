@@ -35,7 +35,9 @@ describe('page loading skeletons', () => {
             render(<RouteDashboardLoadingState />);
 
             expect(screen.getByTestId('dashboard-loading')).toBeInTheDocument();
+            expect(screen.getByTestId('dashboard-loading')).toHaveClass('space-y-3', 'sm:space-y-5');
             expect(screen.getByTestId('dashboard-planner-skeleton')).toBeInTheDocument();
+            expect(screen.getByTestId('dashboard-planner-skeleton')).toHaveClass('py-0', 'lg:py-6');
             expect(screen.getByTestId('dashboard-planner-skeleton-content')).toHaveClass('pt-1.5', 'px-3', 'sm:p-3');
             const days = screen.getAllByTestId('dashboard-week-day-skeleton');
             expect(days).toHaveLength(14);

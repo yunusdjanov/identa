@@ -1242,7 +1242,7 @@ export function AppointmentsWorkspace({ mode = 'appointments' }: AppointmentsWor
     return (
         <div
             data-testid={isDashboardMode ? 'dashboard-workspace' : 'appointments-workspace'}
-            className="space-y-5 lg:space-y-6"
+            className={isDashboardMode ? 'space-y-3 sm:space-y-5 lg:space-y-6' : 'space-y-5 lg:space-y-6'}
         >
             {!isDashboardMode ? (
                 <PageHeader
@@ -1335,6 +1335,7 @@ export function AppointmentsWorkspace({ mode = 'appointments' }: AppointmentsWor
                 <PageHeader
                     title={t('dashboard.title')}
                     description={t('dashboard.planner.subtitle')}
+                    mobileDensity="compact"
                     actions={(
                         <>
                             {canManageAppointments ? (
@@ -1380,7 +1381,7 @@ export function AppointmentsWorkspace({ mode = 'appointments' }: AppointmentsWor
                 />
             ) : null}
 
-            <Card className="overflow-hidden rounded-2xl border-teal-100/80 bg-white shadow-sm shadow-teal-100/50 sm:rounded-2xl">
+            <Card className={`overflow-hidden rounded-2xl border-teal-100/80 bg-white shadow-sm shadow-teal-100/50 sm:rounded-2xl ${isDashboardMode ? 'py-0 lg:py-6' : ''}`}>
                 <CardContent
                     data-testid="appointments-planner-content"
                     className={isDashboardMode ? 'px-3 pb-2 pt-1.5 sm:p-3 lg:p-5 xl:pb-2.5' : 'p-3 sm:p-5 xl:pb-2.5'}
