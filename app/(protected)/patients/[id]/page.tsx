@@ -20,15 +20,12 @@ import { getApiErrorMessage } from '@/lib/api/client';
 import {
     formatCurrency,
     formatDate,
-    getDaysSinceLastVisit,
     toLocalDateKey,
 } from '@/lib/utils';
 import {
-    Activity,
     AlertCircle,
     CalendarCheck,
     Camera,
-    Clock3,
     Hash,
     Loader2,
     Maximize2,
@@ -166,15 +163,6 @@ function renderOverviewBalance(
     );
 }
 
-/* ============================================================
-   Premium triad helpers — Vitals · Reach · Clinical
-   Inspired by Linear/Vercel/Stripe customer detail layouts:
-   – top-edge accent gradient strip for category color story
-   – icon hexagon with gradient fill + ring
-   – micro-uppercase labels (10px / 0.14em tracking)
-   – tabular numerals everywhere a number lives
-   ============================================================ */
-
 function VitalStatCell({
     icon: Icon,
     label,
@@ -187,13 +175,13 @@ function VitalStatCell({
     valueClassName?: string;
 }) {
     return (
-        <div className="flex flex-col items-center justify-center gap-1 bg-white px-3 py-4 text-center">
+        <div className="flex min-h-[4.75rem] min-w-0 flex-col items-center justify-center gap-1 bg-white px-2 py-2.5 text-center sm:min-h-[5rem] sm:px-3">
             <div className="inline-flex items-center gap-1 text-slate-400">
                 <Icon className="h-3 w-3" />
-                <p className="text-[10px] font-semibold uppercase tracking-[0.12em]">{label}</p>
+                <p className="truncate text-[9px] font-semibold uppercase tracking-[0.08em] sm:text-[10px] sm:tracking-[0.12em]">{label}</p>
             </div>
             <p
-                className={`max-w-full text-[13px] font-semibold tabular-nums text-slate-900 ${typeof value === 'string' ? 'truncate' : ''} ${valueClassName ?? ''}`}
+                className={`max-w-full text-[11px] font-semibold leading-4 tabular-nums text-slate-900 sm:text-[13px] ${typeof value === 'string' ? 'truncate' : ''} ${valueClassName ?? ''}`}
                 title={typeof value === 'string' ? value : undefined}
             >
                 {value}
@@ -208,16 +196,10 @@ export default function PatientDetailPage({
     params: Promise<{ id: string }>;
 }) {
     const { id } = use(params);
-    const { t, locale } = useI18n();
+    const { t } = useI18n();
     const searchParams = useSearchParams();
     const shouldRememberRecent = searchParams.get('remember_recent') === '1';
 
-    // Inline triad labels — locale-aware so they render correctly even if the
-    // browser is still holding the previously cached /api/i18n dictionary
-    // (the immutable cache header has been lifted, but legacy entries persist).
-    const triadLabels = {
-        detail: { ru: 'Детали', uz: 'Tafsilot', en: 'Detail' }[locale] ?? 'Detail',
-    };
     const queryClient = useQueryClient();
     const oralPhotoInputRef = useRef<HTMLInputElement | null>(null);
     const oralPhotoUploadViewTypeRef = useRef<ApiPatientClinicalPhotoViewType>('smile');
@@ -404,8 +386,6 @@ export default function PatientDetailPage({
         );
     }
 
-    const daysSinceVisit = getDaysSinceLastVisit(latestVisitDate);
-    const isInactive = Number.isFinite(daysSinceVisit) && daysSinceVisit > 180;
     const oralPhotoSlots = ORAL_PHOTO_SLOTS.map((slot) => {
         const photos = getPatientOralPhotoGallery(patient, slot.viewType).map((photo, index) => {
             const thumbnailUrl = getProtectedMediaThumbnailUrl({
@@ -598,15 +578,39 @@ export default function PatientDetailPage({
                 />
             </div>
 
-            {/* Premium summary cards: oral photo, detail. */}
-            <div
+            <section
                 data-testid="patient-detail-summary-grid"
-                className="grid grid-cols-1 gap-2.5 lg:grid-cols-[minmax(0,1fr)_15rem] xl:grid-cols-[minmax(0,1fr)_16rem]"
+                className="relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white pt-[3px] shadow-sm shadow-slate-200/40"
             >
-                {/* Oral photo: compact clinical photo shortcuts */}
-                <article className="group/card relative flex min-h-0 min-w-0 flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm shadow-slate-200/40 transition-all hover:-translate-y-0.5 hover:shadow-md hover:shadow-slate-200/70 lg:h-[20.75rem]">
-                    <div className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-slate-200 via-slate-300 to-slate-400" />
-                    <header className="flex items-center justify-between gap-3 px-4 pt-4 pb-2">
+                <div className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-teal-400 via-sky-400 to-indigo-400" />
+                <div className="grid grid-cols-3 divide-x divide-slate-100">
+                    <VitalStatCell
+                        icon={Wallet}
+                        label={t('patientDetail.openBalance')}
+                        value={!canViewPayments ? '—' : renderOverviewBalance(overviewQuery.data, t('payments.paid'), t)}
+                        valueClassName={getOverviewBalanceClassName(overviewQuery.data, canViewPayments)}
+                    />
+                    <VitalStatCell
+                        icon={Hash}
+                        label={t('patientDetail.totalAppointments')}
+                        value={String(patientVisitCount)}
+                    />
+                    <VitalStatCell
+                        icon={CalendarCheck}
+                        label={t('patientDetail.lastVisit')}
+                        value={latestVisitDate ? formatDate(latestVisitDate) : t('patients.never')}
+                    />
+                </div>
+            </section>
+
+            <TreatmentHistoryCard patientId={id} patientName={patient.full_name} />
+
+            <article
+                data-testid="patient-detail-oral-photo-panel"
+                className="relative flex min-h-0 min-w-0 flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm shadow-slate-200/40"
+            >
+                <div className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-slate-200 via-slate-300 to-slate-400" />
+                <header className="flex items-center justify-between gap-3 px-3 pt-3 pb-2 sm:px-4 sm:pt-4">
                         <div className="flex min-w-0 items-center gap-2.5">
                             <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-slate-50 text-slate-500 ring-1 ring-slate-100/80 shadow-sm shadow-slate-100/40">
                                 <Camera className="h-4 w-4" strokeWidth={2.25} />
@@ -619,12 +623,12 @@ export default function PatientDetailPage({
                             <span className="h-1.5 w-1.5 rounded-full bg-slate-400" />
                             <span className="tabular-nums">{smileOralPhotoReadyCount}/{ORAL_PHOTO_MAX_PER_SLOT}</span>
                         </span>
-                    </header>
-                    <div className="flex min-h-0 flex-1 px-4 py-3">
+                </header>
+                <div className="flex min-h-0 flex-1 px-3 pb-3 pt-1 sm:px-4 sm:py-3">
                         {smileOralPhotoDisplaySlots.length > 0 ? (
                             <div
                                 data-testid="patient-detail-oral-photo-grid"
-                                className="grid min-h-0 flex-1 auto-rows-[5.5rem] grid-cols-2 gap-2.5 sm:grid-cols-3 md:grid-cols-4 lg:h-full lg:auto-rows-auto lg:grid-cols-5 lg:grid-rows-2"
+                                className="grid min-h-0 flex-1 auto-rows-[5.25rem] grid-cols-2 gap-2 sm:auto-rows-[6rem] sm:grid-cols-3 md:grid-cols-5 lg:auto-rows-[6.75rem]"
                             >
                                 {smileOralPhotoDisplaySlots.map((photoSlot, index) => {
                                     const canUploadOralPhoto = canAddSmileOralPhoto;
@@ -684,49 +688,8 @@ export default function PatientDetailPage({
                                 {t('patientDetail.oralPhoto.empty')}
                             </p>
                         )}
-                    </div>
-                </article>
-
-                {/* Detail: activity and balance snapshot */}
-                <article className="group/card relative flex min-h-0 flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm shadow-slate-200/40 transition-all hover:-translate-y-0.5 hover:shadow-md hover:shadow-slate-200/70 lg:h-[20.75rem]">
-                    <div className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-teal-400 via-sky-400 to-indigo-400" />
-                    <header className="flex items-center justify-between gap-3 px-4 pt-4 pb-3">
-                        <div className="flex items-center gap-2.5">
-                            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-teal-50 to-sky-50 text-teal-600 ring-1 ring-teal-100/80 shadow-sm shadow-teal-100/40">
-                                <Activity className="h-4 w-4" strokeWidth={2.25} />
-                            </span>
-                            <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-700">{triadLabels.detail}</p>
-                        </div>
-                        {isInactive ? (
-                            <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.1em] text-amber-700 ring-1 ring-amber-100">
-                                <Clock3 className="h-2.5 w-2.5" />
-                                {daysSinceVisit}d
-                            </span>
-                        ) : null}
-                    </header>
-                    <div className="mx-px flex flex-1 flex-col divide-y divide-slate-100 overflow-hidden rounded-b-2xl bg-white">
-                        <VitalStatCell
-                            icon={Wallet}
-                            label={t('patientDetail.openBalance')}
-                            value={!canViewPayments ? '—' : renderOverviewBalance(overviewQuery.data, t('payments.paid'), t)}
-                            valueClassName={getOverviewBalanceClassName(overviewQuery.data, canViewPayments)}
-                        />
-                        <VitalStatCell
-                            icon={Hash}
-                            label={t('patientDetail.totalAppointments')}
-                            value={String(patientVisitCount)}
-                        />
-                        <VitalStatCell
-                            icon={CalendarCheck}
-                            label={t('patientDetail.lastVisit')}
-                            value={latestVisitDate ? formatDate(latestVisitDate) : t('patients.never')}
-                        />
-                    </div>
-                </article>
-
-            </div>
-
-            <TreatmentHistoryCard patientId={id} patientName={patient.full_name} />
+                </div>
+            </article>
 
             {oralPhotoPreviewImages.length > 0 ? (
                 <PatientPhotoPreviewDialog

@@ -356,13 +356,15 @@ describe('PatientDetailPage', () => {
         expect(screen.queryByText(/Infinityd/i)).not.toBeInTheDocument();
     });
 
-    it('renders the compact oral photo card with the summary cards', async () => {
+    it('prioritizes the overview and work history before the oral photo gallery', async () => {
         vi.mocked(getCurrentUser).mockResolvedValue(dentist as never);
         vi.mocked(getPatient).mockResolvedValue(patient as never);
 
         await renderPage();
 
-        const detailCard = await screen.findByText('Detail');
+        const overviewStrip = await screen.findByTestId('patient-detail-summary-grid');
+        const workHistory = await screen.findByTestId('patient-detail-work-history');
+        const oralPhotoPanel = screen.getByTestId('patient-detail-oral-photo-panel');
         const oralPhotoTitle = screen.getByText('General Photos');
 
         expect(screen.getAllByText('General Photos')).toHaveLength(1);
@@ -370,20 +372,26 @@ describe('PatientDetailPage', () => {
         expect(screen.queryByText('Top')).not.toBeInTheDocument();
         expect(screen.queryByText('Bottom')).not.toBeInTheDocument();
         expect(screen.queryByText('Appointments')).not.toBeInTheDocument();
-        expect(await screen.findByTestId('patient-detail-work-history')).toHaveAttribute('data-patient-id', 'p-1');
-        expect(screen.getByTestId('patient-detail-work-history')).toHaveTextContent('Work History for John Smith');
+        expect(workHistory).toHaveAttribute('data-patient-id', 'p-1');
+        expect(workHistory).toHaveTextContent('Work History for John Smith');
         expect(screen.getByText('0/10')).toBeInTheDocument();
         expect(screen.getAllByTitle('Upload')).toHaveLength(1);
         expect(screen.getByTestId('patient-detail-page-layout')).toHaveClass('space-y-2.5');
-        expect(screen.getByTestId('patient-detail-summary-grid')).toHaveClass(
-            'gap-2.5',
-            'lg:grid-cols-[minmax(0,1fr)_15rem]',
-            'xl:grid-cols-[minmax(0,1fr)_16rem]',
+        expect(overviewStrip).toHaveClass('rounded-2xl', 'pt-[3px]');
+        expect(screen.getByTestId('patient-detail-oral-photo-grid')).toHaveClass(
+            'min-h-0',
+            'flex-1',
+            'grid-cols-2',
+            'md:grid-cols-5',
+            'lg:auto-rows-[6.75rem]',
         );
-        expect(screen.getByTestId('patient-detail-oral-photo-grid')).toHaveClass('min-h-0', 'flex-1', 'lg:h-full');
+        expect(screen.getByTestId('patient-detail-oral-photo-grid')).not.toHaveClass('lg:h-full');
         expect(screen.getAllByTestId('patient-detail-oral-photo-slot')).toHaveLength(1);
         expect(screen.getAllByTestId('patient-detail-oral-photo-slot')[0]).toHaveClass('h-full', 'min-h-0', 'w-full');
-        expect(oralPhotoTitle.compareDocumentPosition(detailCard) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+        expect(screen.queryByText('Detail')).not.toBeInTheDocument();
+        expect(overviewStrip.compareDocumentPosition(workHistory) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+        expect(workHistory.compareDocumentPosition(oralPhotoPanel) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+        expect(oralPhotoPanel).toContainElement(oralPhotoTitle);
     });
 
     it('hides ready status copy for completed oral photos', async () => {
