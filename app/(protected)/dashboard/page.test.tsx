@@ -238,7 +238,7 @@ describe('DashboardPage', () => {
         expect(await screen.findByRole('button', { name: 'Week View' })).toBeInTheDocument();
         const firstDayColumn = screen.getAllByTestId(/^week-day-card-/)[0];
 
-        fireEvent.click(firstDayColumn);
+        fireEvent.click(within(firstDayColumn).getByTestId('week-day-card-body'));
 
         expect(await screen.findByRole('dialog')).toBeInTheDocument();
         expect(screen.getByRole('heading', { name: /Schedule Appointment/i })).toBeInTheDocument();
@@ -288,8 +288,8 @@ describe('DashboardPage', () => {
             'border-[#14B8A6]',
             'touch-manipulation'
         );
-        expect(todayCard).toHaveAttribute('aria-haspopup', 'dialog');
-        expect(todayCard).toHaveAttribute('aria-expanded', 'false');
+        expect(todayCard).not.toHaveAttribute('aria-haspopup');
+        expect(todayCard).not.toHaveAttribute('aria-expanded');
         expect(within(todayCard).getByTestId('week-day-card-header'))
             .toHaveClass('bg-[#C9F1ED]', 'min-h-9');
         expect(within(todayCard).getByTestId('week-day-card-lines'))
@@ -303,10 +303,15 @@ describe('DashboardPage', () => {
         expect(todayCard.querySelector('[data-appointment-status="cancelled"]')).toHaveClass('bg-[#8E8E93]', 'opacity-50');
         expect(todayCard.querySelector('[data-appointment-status="no_show"]')).toHaveClass('bg-[#FF3B30]');
 
-        fireEvent.click(todayCard);
+        fireEvent.click(within(todayCard).getByTestId('week-day-card-header'));
 
-        expect(await screen.findByTestId('week-day-queue-modal')).toBeInTheDocument();
-        expect(todayCard).toHaveAttribute('aria-expanded', 'true');
+        await waitFor(() => {
+            expect(window.location.pathname).toBe('/dashboard');
+            expect(window.location.search).toContain('view=day');
+            expect(window.location.search).toContain(`date=${todayKey}`);
+        });
+        expect(screen.getByTestId('day-slot-column-0')).toBeInTheDocument();
+        expect(screen.queryByTestId('week-day-queue-modal')).not.toBeInTheDocument();
     });
 
     it('opens quick action dialogs from the dashboard header', async () => {

@@ -725,7 +725,13 @@ export function AppointmentsWorkspace({ mode = 'appointments' }: AppointmentsWor
                 return;
             }
 
-            setExpandedWeekDateKey(descriptor.dateKey);
+            setCurrentDateOverride(descriptor.date);
+            setViewOverride('day');
+            setExpandedWeekDateKey(null);
+            replaceAppointmentsUrl({
+                view: 'day',
+                date: descriptor.dateKey,
+            });
         };
 
         return (
@@ -735,8 +741,7 @@ export function AppointmentsWorkspace({ mode = 'appointments' }: AppointmentsWor
                 data-testid={`week-day-card-${descriptor.dateKey}`}
                 disabled={!canOpenCard}
                 aria-label={`${descriptor.fullDateLabel}: ${t('appointments.count', { count: dayAppointments.length })}`}
-                aria-haspopup="dialog"
-                aria-expanded={!isEmpty ? expandedWeekDateKey === descriptor.dateKey : undefined}
+                aria-haspopup={isEmpty && canManageAppointments ? 'dialog' : undefined}
                 onClick={handleCardClick}
                 className={`group flex min-h-[16.25rem] min-w-0 touch-manipulation select-none flex-col overflow-hidden rounded-[14px] border bg-white text-left transition-[transform,box-shadow] duration-150 [-webkit-tap-highlight-color:transparent] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#14B8A6] focus-visible:ring-offset-2 motion-reduce:transition-none ${
                     isTodayLane
