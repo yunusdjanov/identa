@@ -331,7 +331,7 @@ export function RouteDashboardLoadingState() {
             <Card data-testid="dashboard-planner-skeleton" className="overflow-hidden rounded-2xl border-teal-100/80 bg-white shadow-sm shadow-teal-100/50">
                 <CardContent
                     data-testid="dashboard-planner-skeleton-content"
-                    className="space-y-4 px-1.5 pb-2 pt-1.5 sm:p-3 lg:p-5 xl:pb-2.5"
+                    className="space-y-4 px-3 pb-2 pt-1.5 sm:p-3 lg:p-5 xl:pb-2.5"
                 >
                     <AppointmentsPlannerSkeleton dayTestId="dashboard-week-day-skeleton" mobileAppCards />
                 </CardContent>

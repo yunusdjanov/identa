@@ -1383,7 +1383,7 @@ export function AppointmentsWorkspace({ mode = 'appointments' }: AppointmentsWor
             <Card className="overflow-hidden rounded-2xl border-teal-100/80 bg-white shadow-sm shadow-teal-100/50 sm:rounded-2xl">
                 <CardContent
                     data-testid="appointments-planner-content"
-                    className={isDashboardMode ? 'px-1.5 pb-2 pt-1.5 sm:p-3 lg:p-5 xl:pb-2.5' : 'p-3 sm:p-5 xl:pb-2.5'}
+                    className={isDashboardMode ? 'px-3 pb-2 pt-1.5 sm:p-3 lg:p-5 xl:pb-2.5' : 'p-3 sm:p-5 xl:pb-2.5'}
                 >
                     <div className="space-y-4">
                         <div
