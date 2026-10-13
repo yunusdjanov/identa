@@ -261,17 +261,17 @@ function AppointmentsPlannerSkeleton({
 }) {
     return (
         <>
-            <div className="mx-auto grid w-full max-w-[1400px] grid-cols-[minmax(0,1fr)_auto] gap-1.5 rounded-xl border border-teal-100/80 bg-white p-1.5 shadow-xs md:grid-cols-[auto_minmax(0,1fr)_auto] md:items-center md:gap-3 md:rounded-2xl md:p-3">
+            <div className="mx-auto grid w-full max-w-[1400px] grid-cols-[minmax(0,1fr)_auto] gap-1 rounded-xl border border-teal-100/80 bg-white p-1 shadow-xs md:grid-cols-[auto_minmax(0,1fr)_auto] md:items-center md:gap-3 md:rounded-2xl md:p-3">
                 <div className="col-start-1 row-start-1 inline-flex w-full items-center gap-1 rounded-lg border border-slate-200/80 bg-slate-100/70 px-0.5 py-0 shadow-xs sm:w-auto md:justify-self-start md:rounded-xl md:p-1">
-                    <Skeleton className="h-9 flex-1 rounded-md sm:w-24 sm:flex-none md:rounded-lg" />
-                    <Skeleton className="h-9 flex-1 rounded-md sm:w-24 sm:flex-none md:rounded-lg" />
+                    <Skeleton className="h-8 flex-1 rounded-md sm:w-24 sm:flex-none md:h-9 md:rounded-lg" />
+                    <Skeleton className="h-8 flex-1 rounded-md sm:w-24 sm:flex-none md:h-9 md:rounded-lg" />
                 </div>
                 <div className="col-span-2 row-start-2 flex w-full min-w-0 items-center justify-center gap-1 md:col-span-1 md:col-start-2 md:row-start-1 md:w-auto md:justify-self-center md:gap-2">
-                    <Skeleton className="h-9 w-9 shrink-0 rounded-lg md:rounded-xl" />
-                    <Skeleton className="h-9 min-w-0 flex-1 rounded-lg md:w-64 md:flex-initial md:rounded-xl" />
-                    <Skeleton className="h-9 w-9 shrink-0 rounded-lg md:rounded-xl" />
+                    <Skeleton className="h-8 w-8 shrink-0 rounded-lg md:h-9 md:w-9 md:rounded-xl" />
+                    <Skeleton className="h-8 min-w-0 flex-1 rounded-lg md:h-9 md:w-64 md:flex-initial md:rounded-xl" />
+                    <Skeleton className="h-8 w-8 shrink-0 rounded-lg md:h-9 md:w-9 md:rounded-xl" />
                 </div>
-                <Skeleton className="col-start-2 row-start-1 h-10 w-20 rounded-lg md:col-start-3 md:h-9 md:w-24 md:rounded-xl md:justify-self-end" />
+                <Skeleton className="col-start-2 row-start-1 h-8 w-16 rounded-lg md:col-start-3 md:h-9 md:w-24 md:rounded-xl md:justify-self-end" />
             </div>
             <div className="mx-auto w-full max-w-[1400px] border-t border-slate-100 pt-4">
                 <div className="space-y-3">
@@ -329,7 +329,10 @@ export function RouteDashboardLoadingState() {
         <div data-testid="dashboard-loading" className="space-y-5 lg:space-y-6">
             <PageHeaderSkeleton actions={2} />
             <Card data-testid="dashboard-planner-skeleton" className="overflow-hidden rounded-2xl border-teal-100/80 bg-white shadow-sm shadow-teal-100/50">
-                <CardContent className="space-y-4 p-3 sm:p-5 xl:pb-2.5">
+                <CardContent
+                    data-testid="dashboard-planner-skeleton-content"
+                    className="space-y-4 px-1.5 pb-2 pt-1.5 sm:p-3 lg:p-5 xl:pb-2.5"
+                >
                     <AppointmentsPlannerSkeleton dayTestId="dashboard-week-day-skeleton" mobileAppCards />
                 </CardContent>
             </Card>

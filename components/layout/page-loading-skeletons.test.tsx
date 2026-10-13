@@ -36,6 +36,7 @@ describe('page loading skeletons', () => {
 
             expect(screen.getByTestId('dashboard-loading')).toBeInTheDocument();
             expect(screen.getByTestId('dashboard-planner-skeleton')).toBeInTheDocument();
+            expect(screen.getByTestId('dashboard-planner-skeleton-content')).toHaveClass('pt-1.5', 'px-1.5', 'sm:p-3');
             const days = screen.getAllByTestId('dashboard-week-day-skeleton');
             expect(days).toHaveLength(14);
             expect(days[7].parentElement).toHaveClass(

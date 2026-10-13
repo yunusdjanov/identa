@@ -1381,16 +1381,19 @@ export function AppointmentsWorkspace({ mode = 'appointments' }: AppointmentsWor
             ) : null}
 
             <Card className="overflow-hidden rounded-2xl border-teal-100/80 bg-white shadow-sm shadow-teal-100/50 sm:rounded-2xl">
-                <CardContent data-testid="appointments-planner-content" className="p-3 sm:p-5 xl:pb-2.5">
+                <CardContent
+                    data-testid="appointments-planner-content"
+                    className={isDashboardMode ? 'px-1.5 pb-2 pt-1.5 sm:p-3 lg:p-5 xl:pb-2.5' : 'p-3 sm:p-5 xl:pb-2.5'}
+                >
                     <div className="space-y-4">
                         <div
                             data-testid="appointments-view-toolbar"
-                            className="mx-auto grid w-full max-w-[1400px] grid-cols-[minmax(0,1fr)_auto] gap-1.5 rounded-xl border border-teal-100/80 bg-white p-1.5 shadow-xs md:grid-cols-[auto_minmax(0,1fr)_auto] md:items-center md:gap-3 md:rounded-2xl md:p-3"
+                            className="mx-auto grid w-full max-w-[1400px] grid-cols-[minmax(0,1fr)_auto] gap-1 rounded-xl border border-teal-100/80 bg-white p-1 shadow-xs md:grid-cols-[auto_minmax(0,1fr)_auto] md:items-center md:gap-3 md:rounded-2xl md:p-3"
                         >
                             <div className="col-start-1 row-start-1 inline-flex w-full items-center gap-1 rounded-lg border border-slate-200/80 bg-slate-100/70 px-0.5 py-0 shadow-xs sm:w-auto md:justify-self-start md:rounded-xl md:p-1">
                                 <Button
                                     variant="ghost"
-                                    className={`h-9 flex-1 rounded-md px-2 text-xs sm:flex-none md:rounded-lg md:px-4 md:text-sm ${
+                                    className={`h-8 flex-1 rounded-md px-2 text-[11px] sm:flex-none md:h-9 md:rounded-lg md:px-4 md:text-sm ${
                                         view === 'week'
                                             ? 'bg-teal-50 text-teal-700 shadow-sm ring-1! ring-teal-300! focus-visible:border-transparent! hover:bg-teal-50 hover:text-teal-700'
                                             : 'text-slate-600 hover:bg-white hover:text-slate-900'
@@ -1408,7 +1411,7 @@ export function AppointmentsWorkspace({ mode = 'appointments' }: AppointmentsWor
                                 </Button>
                                 <Button
                                     variant="ghost"
-                                    className={`h-9 flex-1 rounded-md px-2 text-xs sm:flex-none md:rounded-lg md:px-4 md:text-sm ${
+                                    className={`h-8 flex-1 rounded-md px-2 text-[11px] sm:flex-none md:h-9 md:rounded-lg md:px-4 md:text-sm ${
                                         view === 'day'
                                             ? 'bg-teal-50 text-teal-700 shadow-sm ring-1! ring-teal-300! focus-visible:border-transparent! hover:bg-teal-50 hover:text-teal-700'
                                             : 'text-slate-600 hover:bg-white hover:text-slate-900'
@@ -1430,14 +1433,14 @@ export function AppointmentsWorkspace({ mode = 'appointments' }: AppointmentsWor
                                 <Button
                                     variant="outline"
                                     size="icon"
-                                    className="h-9 w-9 shrink-0 rounded-lg bg-white shadow-xs md:rounded-xl"
+                                    className="h-8 w-8 shrink-0 rounded-lg bg-white shadow-xs md:h-9 md:w-9 md:rounded-xl"
                                     onClick={() => navigateDate('prev')}
                                     aria-label={view === 'day' ? t('appointments.aria.previousDay') : t('appointments.aria.previousWeek')}
                                 >
                                     <ChevronLeft aria-hidden="true" className="w-4 h-4" />
                                 </Button>
 
-                                <div className="flex h-9 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2 shadow-xs md:flex-initial md:rounded-xl md:px-3">
+                                <div className="flex h-8 min-w-0 flex-1 items-center justify-center gap-1 rounded-lg border border-slate-200 bg-white px-1.5 shadow-xs md:h-9 md:flex-initial md:gap-1.5 md:rounded-xl md:px-3">
                                     <CalendarIcon aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-slate-500 md:h-4 md:w-4" />
                                     <span className="truncate text-xs font-semibold text-slate-800 md:text-sm">
                                         {view === 'day'
@@ -1454,7 +1457,7 @@ export function AppointmentsWorkspace({ mode = 'appointments' }: AppointmentsWor
                                 <Button
                                     variant="outline"
                                     size="icon"
-                                    className="h-9 w-9 shrink-0 rounded-lg bg-white shadow-xs md:rounded-xl"
+                                    className="h-8 w-8 shrink-0 rounded-lg bg-white shadow-xs md:h-9 md:w-9 md:rounded-xl"
                                     onClick={() => navigateDate('next')}
                                     aria-label={view === 'day' ? t('appointments.aria.nextDay') : t('appointments.aria.nextWeek')}
                                 >
@@ -1464,7 +1467,7 @@ export function AppointmentsWorkspace({ mode = 'appointments' }: AppointmentsWor
 
                             <Button
                                 variant="outline"
-                                className="col-start-2 row-start-1 h-10 w-auto rounded-lg bg-white px-3 text-xs shadow-xs md:col-start-3 md:h-9 md:rounded-xl md:px-4 md:text-sm md:justify-self-end"
+                                className="col-start-2 row-start-1 h-8 w-auto rounded-lg bg-white px-2.5 text-[11px] shadow-xs md:col-start-3 md:h-9 md:rounded-xl md:px-4 md:text-sm md:justify-self-end"
                                 onClick={() => {
                                     const today = new Date();
                                     setCurrentDateOverride(today);

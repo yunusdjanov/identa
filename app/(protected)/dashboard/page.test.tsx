@@ -250,6 +250,8 @@ describe('DashboardPage', () => {
 
         expect(await screen.findByTestId('dashboard-workspace')).toBeInTheDocument();
         expect(screen.getByTestId('appointments-view-toolbar')).toHaveClass('max-w-[1400px]', 'mx-auto');
+        expect(screen.getByTestId('appointments-view-toolbar')).toHaveClass('p-1', 'gap-1', 'md:p-3');
+        expect(screen.getByTestId('appointments-planner-content')).toHaveClass('pt-1.5', 'px-1.5', 'sm:p-3');
         expect(screen.getByTestId('appointments-week-grid-desktop').parentElement?.parentElement).toHaveClass('max-w-[1400px]', 'mx-auto');
         expect(screen.getByTestId('dashboard-week-grid-responsive')).toHaveClass(
             'grid-cols-2',

@@ -308,7 +308,7 @@ test.describe('Responsive smoke coverage', () => {
                 expect(measurements.minCardHeight).toBe('260px');
                 expect(measurements.cardRadius).toBe('14px');
                 expect(measurements.cardBackground).toBe('rgb(255, 255, 255)');
-                expect(measurements.toolbarHeight).toBeLessThanOrEqual(96);
+                expect(measurements.toolbarHeight).toBeLessThanOrEqual(82);
             });
         }
     });
