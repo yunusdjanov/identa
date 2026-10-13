@@ -405,8 +405,12 @@ describe('PatientsPage', () => {
 
         const listCard = await screen.findByTestId('patients-list-card');
         const toolbar = within(listCard).getByTestId('patients-filter-toolbar');
+        const mobileList = within(listCard).getByTestId('patients-mobile-list');
+        const mobileCard = within(mobileList).getByTestId('patient-mobile-card-patient-list-card');
 
         expect(within(listCard).getByText('Patients: 1')).toBeInTheDocument();
+        expect(mobileList).toHaveClass('min-w-0', 'max-w-full');
+        expect(mobileCard).toHaveClass('min-w-0', 'max-w-full');
         expect(within(toolbar).getByLabelText('Search patients by name, phone, or patient ID')).toBeInTheDocument();
         expect(within(toolbar).getByRole('combobox', { name: 'Filter patients by category' })).toBeInTheDocument();
         expect(within(toolbar).getByRole('combobox', { name: 'Filter patients by visit gap' })).toBeInTheDocument();
