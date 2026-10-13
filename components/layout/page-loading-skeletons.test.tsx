@@ -191,7 +191,7 @@ describe('page loading skeletons', () => {
             expect(screen.getByTestId('payment-patient-table-skeleton')).toHaveClass('overflow-x-auto');
         });
 
-        it('renders the patient detail oral photo panel skeleton', () => {
+        it('matches the patient detail overview, history, and oral photo order', () => {
             render(<PatientDetailLoadingState />);
 
             expect(screen.getByTestId('patient-detail-header-identity-skeleton')).toHaveClass('max-w-[20rem]');
@@ -203,14 +203,16 @@ describe('page loading skeletons', () => {
                 'md:overflow-hidden'
             );
             expect(screen.getByTestId('patient-detail-header-actions-skeleton')).toHaveClass('flex-row', 'lg:order-none');
-            expect(screen.getByTestId('patient-detail-summary-grid-skeleton')).toHaveClass(
-                'lg:grid-cols-[minmax(0,1fr)_15rem]',
-                'xl:grid-cols-[minmax(0,1fr)_16rem]',
-            );
-            expect(screen.getByTestId('patient-detail-oral-photo-skeleton')).toHaveClass('lg:h-[20.75rem]');
+            const overviewStrip = screen.getByTestId('patient-detail-summary-grid-skeleton');
+            const workHistory = screen.getByTestId('patient-detail-work-history-skeleton');
+            const oralPhotoPanel = screen.getByTestId('patient-detail-oral-photo-skeleton');
+
+            expect(overviewStrip).toHaveClass('rounded-2xl', 'pt-[3px]');
+            expect(oralPhotoPanel).not.toHaveClass('lg:h-[20.75rem]');
             expect(screen.queryByTestId('patient-detail-clinical-strip-skeleton')).not.toBeInTheDocument();
             expect(screen.getAllByTestId('patient-detail-oral-photo-slot-skeleton')).toHaveLength(5);
-            expect(screen.getByTestId('patient-detail-work-history-skeleton')).toBeInTheDocument();
+            expect(overviewStrip.compareDocumentPosition(workHistory) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+            expect(workHistory.compareDocumentPosition(oralPhotoPanel) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
         });
     });
 
