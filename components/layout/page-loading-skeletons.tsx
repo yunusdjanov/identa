@@ -233,15 +233,15 @@ function MobileAppWeekDayPlannerSkeleton({ testId }: { testId: string }) {
     return (
         <div
             data-testid={testId}
-            className="flex min-h-[16.25rem] flex-col overflow-hidden rounded-[14px] border border-[rgba(60,60,67,0.18)] bg-[#F2F2F7] shadow-[0_2px_6px_rgba(0,0,0,0.05)]"
+            className="flex min-h-[16.25rem] flex-col overflow-hidden rounded-[14px] border border-[rgba(60,60,67,0.20)] bg-white shadow-[0_2px_6px_rgba(0,0,0,0.05)]"
         >
-            <div className="flex items-center justify-between gap-2 border-b border-[rgba(60,60,67,0.18)] px-3 py-[9px]">
-                <Skeleton className="h-5 w-20 rounded-lg" />
-                <Skeleton className="h-[13px] w-[13px] rounded" />
+            <div className="flex min-h-9 items-center justify-between gap-2 border-b border-[rgba(60,60,67,0.14)] px-2.5 py-2">
+                <Skeleton className="h-3.5 w-16 rounded" />
+                <Skeleton className="h-3 w-10 rounded" />
             </div>
-            <div className="flex flex-1 flex-col gap-[5px] px-2.5 py-2.5">
+            <div className="flex flex-1 flex-col gap-px bg-[repeating-linear-gradient(to_bottom,transparent_0,transparent_20px,rgba(60,60,67,0.08)_20px,rgba(60,60,67,0.08)_21px)] px-2 py-1.5">
                 {Array.from({ length: 5 }).map((_, index) => (
-                    <div key={index} className="flex items-center gap-[7px]">
+                    <div key={index} className="flex min-h-5 items-center gap-[7px] bg-white/90 px-0.5">
                         <Skeleton className="h-[7px] w-[7px] shrink-0 rounded-full" />
                         <Skeleton className="h-3 w-9 shrink-0 rounded" />
                         <Skeleton className={`h-3 rounded ${index % 2 === 0 ? 'w-20' : 'w-16'}`} />
@@ -261,17 +261,17 @@ function AppointmentsPlannerSkeleton({
 }) {
     return (
         <>
-            <div className="mx-auto grid w-full max-w-[1400px] grid-cols-1 gap-3 rounded-2xl border border-teal-100/80 bg-white p-3 shadow-xs md:grid-cols-[auto_minmax(0,1fr)_auto] md:items-center">
-                <div className="inline-flex w-full items-center gap-1 rounded-xl border border-slate-200/80 bg-slate-100/70 p-1 shadow-xs sm:w-auto md:justify-self-start">
-                    <Skeleton className="h-9 flex-1 rounded-lg sm:w-24 sm:flex-none" />
-                    <Skeleton className="h-9 flex-1 rounded-lg sm:w-24 sm:flex-none" />
+            <div className="mx-auto grid w-full max-w-[1400px] grid-cols-[minmax(0,1fr)_auto] gap-1.5 rounded-xl border border-teal-100/80 bg-white p-1.5 shadow-xs md:grid-cols-[auto_minmax(0,1fr)_auto] md:items-center md:gap-3 md:rounded-2xl md:p-3">
+                <div className="col-start-1 row-start-1 inline-flex w-full items-center gap-1 rounded-lg border border-slate-200/80 bg-slate-100/70 px-0.5 py-0 shadow-xs sm:w-auto md:justify-self-start md:rounded-xl md:p-1">
+                    <Skeleton className="h-9 flex-1 rounded-md sm:w-24 sm:flex-none md:rounded-lg" />
+                    <Skeleton className="h-9 flex-1 rounded-md sm:w-24 sm:flex-none md:rounded-lg" />
                 </div>
-                <div className="flex w-full min-w-0 items-center justify-center gap-2 md:w-auto md:justify-self-center">
-                    <Skeleton className="h-9 w-9 shrink-0 rounded-xl" />
-                    <Skeleton className="h-9 w-full rounded-xl md:w-64" />
-                    <Skeleton className="h-9 w-9 shrink-0 rounded-xl" />
+                <div className="col-span-2 row-start-2 flex w-full min-w-0 items-center justify-center gap-1 md:col-span-1 md:col-start-2 md:row-start-1 md:w-auto md:justify-self-center md:gap-2">
+                    <Skeleton className="h-9 w-9 shrink-0 rounded-lg md:rounded-xl" />
+                    <Skeleton className="h-9 min-w-0 flex-1 rounded-lg md:w-64 md:flex-initial md:rounded-xl" />
+                    <Skeleton className="h-9 w-9 shrink-0 rounded-lg md:rounded-xl" />
                 </div>
-                <Skeleton className="h-9 w-full rounded-xl md:w-24 md:justify-self-end" />
+                <Skeleton className="col-start-2 row-start-1 h-10 w-20 rounded-lg md:col-start-3 md:h-9 md:w-24 md:rounded-xl md:justify-self-end" />
             </div>
             <div className="mx-auto w-full max-w-[1400px] border-t border-slate-100 pt-4">
                 <div className="space-y-3">

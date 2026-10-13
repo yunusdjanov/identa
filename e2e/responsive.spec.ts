@@ -293,6 +293,8 @@ test.describe('Responsive smoke coverage', () => {
                         minCardHeight: firstCardStyles.minHeight,
                         cardRadius: firstCardStyles.borderRadius,
                         cardBackground: firstCardStyles.backgroundColor,
+                        toolbarHeight: document.querySelector<HTMLElement>('[data-testid="appointments-view-toolbar"]')
+                            ?.getBoundingClientRect().height ?? 0,
                     };
                 });
 
@@ -305,7 +307,8 @@ test.describe('Responsive smoke coverage', () => {
                 expect(measurements.maxCardWidth - measurements.minCardWidth).toBeLessThanOrEqual(1);
                 expect(measurements.minCardHeight).toBe('260px');
                 expect(measurements.cardRadius).toBe('14px');
-                expect(measurements.cardBackground).toBe('rgb(242, 242, 247)');
+                expect(measurements.cardBackground).toBe('rgb(255, 255, 255)');
+                expect(measurements.toolbarHeight).toBeLessThanOrEqual(96);
             });
         }
     });

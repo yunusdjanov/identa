@@ -284,13 +284,16 @@ describe('DashboardPage', () => {
         expect(todayCard).toHaveClass(
             'min-h-[16.25rem]',
             'rounded-[14px]',
-            'bg-[#F2F2F7]',
+            'bg-white',
+            'border-[#14B8A6]',
             'touch-manipulation'
         );
         expect(todayCard).toHaveAttribute('aria-haspopup', 'dialog');
         expect(todayCard).toHaveAttribute('aria-expanded', 'false');
         expect(within(todayCard).getByTestId('week-day-card-header'))
-            .toHaveClass('bg-[#14B8A6]', 'py-[9px]');
+            .toHaveClass('bg-[#C9F1ED]', 'min-h-9');
+        expect(within(todayCard).getByTestId('week-day-card-lines'))
+            .toHaveClass('bg-[repeating-linear-gradient(to_bottom,transparent_0,transparent_20px,rgba(60,60,67,0.08)_20px,rgba(60,60,67,0.08)_21px)]');
         expect(within(todayCard).getAllByTestId(/^week-day-card-appointment-/)).toHaveLength(8);
         expect(within(todayCard).getByText('09:00')).toBeInTheDocument();
         expect(within(todayCard).getByText('Alisher Karimov')).toHaveClass('truncate');
