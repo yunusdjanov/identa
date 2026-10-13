@@ -38,7 +38,7 @@ import {
 import { getApiErrorMessage } from '@/lib/api/client';
 import type { ApiPatient, ApiRecentPatient, ApiRecordActor } from '@/lib/api/types';
 import { cn, extractPrimaryPhone, formatDate, toLocalDateKey, truncateForUi } from '@/lib/utils';
-import { Plus, Search, Phone, Users, CalendarPlus, ArrowRight, Tags, FilterX, Download, Maximize2, X, ChevronRight, SlidersHorizontal } from 'lucide-react';
+import { Plus, Search, Phone, Users, CalendarPlus, ArrowRight, Tags, FilterX, Download, Maximize2, X, ChevronRight, SlidersHorizontal, Clock3 } from 'lucide-react';
 import { buildPdfFilename, exportRowsToPdf } from '@/lib/export/pdf';
 import { EmptyState } from '@/components/ui/empty-state';
 import { useI18n } from '@/components/providers/i18n-provider';
@@ -634,70 +634,74 @@ export default function PatientsPage() {
                 {isMobileFiltersOpen ? (
                     <div
                         data-testid="patients-mobile-filter-panel"
-                        className="grid grid-cols-2 gap-2 rounded-xl border border-slate-200 bg-slate-50/80 p-2 lg:hidden"
+                        className="space-y-2 rounded-xl border border-slate-200 bg-slate-50/80 p-2 lg:hidden"
                     >
-                        <Select
-                            value={selectedCategoryId}
-                            onValueChange={(value) => {
-                                setSelectedCategoryId(value);
-                                setShowArchivedOnly(false);
-                                setCurrentPage(1);
-                            }}
-                        >
-                            <SelectTrigger className="h-9 min-w-0 rounded-lg bg-white text-xs" aria-label={t('patients.filterByCategoryAria')}>
-                                <SelectValue placeholder={t('patients.allCategories')} />
-                            </SelectTrigger>
-                            <SelectContent position="popper" align="start" className="w-[var(--radix-select-trigger-width)]">
-                                <SelectItem value="all">{t('patients.allCategories')}</SelectItem>
-                                {(categoriesQuery.data ?? []).map((category) => (
-                                    <SelectItem key={category.id} value={category.id}>{category.name}</SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                        <Select
-                            value={inactiveFilter}
-                            disabled={showArchivedOnly}
-                            onValueChange={(value: 'none' | '6m' | '1y') => {
-                                setInactiveFilter(value);
-                                setShowArchivedOnly(false);
-                                setCurrentPage(1);
-                            }}
-                        >
-                            <SelectTrigger className="h-9 min-w-0 rounded-lg bg-white text-xs" aria-label={t('patients.filterByVisitActivityAria')}>
-                                <SelectValue placeholder={t('patients.visitFilterLabel')} />
-                            </SelectTrigger>
-                            <SelectContent position="popper" align="start" className="w-[var(--radix-select-trigger-width)]">
-                                <SelectItem value="none">{t('patients.visitFilterAll')}</SelectItem>
-                                <SelectItem value="6m">{t('patients.noVisit6m')}</SelectItem>
-                                <SelectItem value="1y">{t('patients.noVisit1y')}</SelectItem>
-                            </SelectContent>
-                        </Select>
-                        <Button
-                            type="button"
-                            variant="outline"
-                            className={cn(
-                                'h-9 rounded-lg text-xs',
-                                showArchivedOnly && 'border-teal-200 bg-teal-50 text-teal-700'
-                            )}
-                            aria-pressed={showArchivedOnly}
-                            onClick={() => {
-                                setShowArchivedOnly((value) => !value);
-                                setInactiveFilter('none');
-                                setCurrentPage(1);
-                            }}
-                        >
-                            {t('patients.archived')}
-                        </Button>
-                        <Button
-                            type="button"
-                            variant="ghost"
-                            className="h-9 rounded-lg text-xs text-slate-500"
-                            disabled={!hasActiveFilters}
-                            onClick={resetFilters}
-                        >
-                            <FilterX className="h-3.5 w-3.5" />
-                            {t('common.clear')}
-                        </Button>
+                        <div className="grid grid-cols-1 gap-2 min-[420px]:grid-cols-2">
+                            <Select
+                                value={selectedCategoryId}
+                                onValueChange={(value) => {
+                                    setSelectedCategoryId(value);
+                                    setShowArchivedOnly(false);
+                                    setCurrentPage(1);
+                                }}
+                            >
+                                <SelectTrigger className="h-9 w-full min-w-0 rounded-lg bg-white text-xs" aria-label={t('patients.filterByCategoryAria')}>
+                                    <SelectValue placeholder={t('patients.allCategories')} />
+                                </SelectTrigger>
+                                <SelectContent position="popper" align="start" className="w-[var(--radix-select-trigger-width)]">
+                                    <SelectItem value="all">{t('patients.allCategories')}</SelectItem>
+                                    {(categoriesQuery.data ?? []).map((category) => (
+                                        <SelectItem key={category.id} value={category.id}>{category.name}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            <Select
+                                value={inactiveFilter}
+                                disabled={showArchivedOnly}
+                                onValueChange={(value: 'none' | '6m' | '1y') => {
+                                    setInactiveFilter(value);
+                                    setShowArchivedOnly(false);
+                                    setCurrentPage(1);
+                                }}
+                            >
+                                <SelectTrigger className="h-9 w-full min-w-0 rounded-lg bg-white text-xs" aria-label={t('patients.filterByVisitActivityAria')}>
+                                    <SelectValue placeholder={t('patients.visitFilterLabel')} />
+                                </SelectTrigger>
+                                <SelectContent position="popper" align="start" className="w-[var(--radix-select-trigger-width)]">
+                                    <SelectItem value="none">{t('patients.visitFilterAll')}</SelectItem>
+                                    <SelectItem value="6m">{t('patients.noVisit6m')}</SelectItem>
+                                    <SelectItem value="1y">{t('patients.noVisit1y')}</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2 border-t border-slate-200/80 pt-2">
+                            <Button
+                                type="button"
+                                variant="outline"
+                                className={cn(
+                                    'h-8 rounded-lg bg-white text-xs',
+                                    showArchivedOnly && 'border-teal-200 bg-teal-50 text-teal-700'
+                                )}
+                                aria-pressed={showArchivedOnly}
+                                onClick={() => {
+                                    setShowArchivedOnly((value) => !value);
+                                    setInactiveFilter('none');
+                                    setCurrentPage(1);
+                                }}
+                            >
+                                {t('patients.archived')}
+                            </Button>
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                className="h-8 rounded-lg text-xs text-slate-500"
+                                disabled={!hasActiveFilters}
+                                onClick={resetFilters}
+                            >
+                                <FilterX className="h-3.5 w-3.5" />
+                                {t('common.clear')}
+                            </Button>
+                        </div>
                     </div>
                 ) : null}
                 <div className="hidden min-w-0 grid-cols-2 items-center gap-2 lg:flex lg:flex-wrap lg:justify-end lg:gap-2.5">
@@ -1022,10 +1026,6 @@ export default function PatientsPage() {
                         <>
                         <div data-testid="patients-mobile-list" className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2 lg:hidden">
                             {patientRows.map((patient) => {
-                                const filteredCategory = selectedCategoryId !== 'all'
-                                    ? patient.categories.find((category) => category.id === selectedCategoryId)
-                                    : undefined;
-                                const categoryToDisplay = filteredCategory ?? patient.categories[0];
                                 const patientPhotoThumbnailUrl = patient.photoThumbnailUrl ?? '';
                                 const patientAge = getPatientAge(patient.dateOfBirth);
                                 const relativeVisit = formatRelativeVisit(patient.lastVisitDate, locale);
@@ -1042,12 +1042,12 @@ export default function PatientsPage() {
                                     >
                                         <button
                                             type="button"
-                                            className="flex min-h-[82px] w-full min-w-0 items-center gap-3 rounded-xl p-2 text-left transition hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-300"
+                                            className="flex min-h-[74px] w-full min-w-0 items-center gap-2.5 rounded-xl p-1.5 text-left transition hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-300"
                                             aria-label={t('patients.aria.openDetailsFor', { patientName: patient.fullName })}
                                             onClick={() => openPatientDetails(patient.id, patient.fullName, getPatientOpenSource())}
                                         >
                                             {patientPhotoThumbnailUrl ? (
-                                                <span className="relative h-12 w-12 shrink-0 overflow-hidden rounded-xl bg-slate-100 ring-1 ring-slate-200/70">
+                                                <span className="relative h-11 w-11 shrink-0 overflow-hidden rounded-xl bg-slate-100 ring-1 ring-slate-200/70">
                                                     {/* eslint-disable-next-line @next/next/no-img-element */}
                                                     <img
                                                         src={patientPhotoThumbnailUrl}
@@ -1059,7 +1059,7 @@ export default function PatientsPage() {
                                                     />
                                                 </span>
                                             ) : (
-                                                <Avatar className={cn('h-12 w-12 shrink-0 rounded-xl border-0', getMobileAvatarColor(patient.id))}>
+                                                <Avatar className={cn('h-11 w-11 shrink-0 rounded-xl border-0', getMobileAvatarColor(patient.id))}>
                                                     <AvatarFallback className="rounded-xl bg-transparent text-xs font-bold text-current">
                                                         {getMobilePatientInitials(patient.fullName)}
                                                     </AvatarFallback>
@@ -1073,27 +1073,18 @@ export default function PatientsPage() {
                                                     {patient.phone || '-'}
                                                     {patientAge !== null ? ` · ${t('patients.age', { count: patientAge })}` : ''}
                                                 </span>
-                                                <span className="mt-1 flex min-w-0 items-center gap-1.5">
-                                                    <span className="shrink-0 text-[11px] leading-4 text-slate-400">
+                                                <span
+                                                    data-testid={`patient-mobile-last-visit-${patient.id}`}
+                                                    className="mt-0.5 flex min-w-0 items-center gap-1 text-[11px] leading-4 text-slate-400"
+                                                >
+                                                    <Clock3 aria-hidden="true" className="h-3 w-3 shrink-0" />
+                                                    <span className="truncate">
                                                         {relativeVisit || t('patients.never')}
                                                     </span>
-                                                    {categoryToDisplay ? (
-                                                        <span
-                                                            className="inline-flex h-5 min-w-0 max-w-[8.5rem] items-center gap-1 rounded-full px-2 text-[10px] font-medium"
-                                                            style={{ backgroundColor: `${categoryToDisplay.color}1A`, color: categoryToDisplay.color }}
-                                                            title={categoryToDisplay.name}
-                                                        >
-                                                            <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: categoryToDisplay.color }} />
-                                                            <span className="truncate">{categoryToDisplay.name}</span>
-                                                        </span>
-                                                    ) : null}
                                                 </span>
                                             </span>
                                             <ChevronRight aria-hidden="true" className="h-4 w-4 shrink-0 text-slate-300" />
                                         </button>
-                                        {showRecordAuthors ? (
-                                            <RecordAuthorBadge className="mx-2 mb-2 ml-[4.25rem]" createdBy={patient.createdBy} updatedBy={patient.updatedBy} />
-                                        ) : null}
                                         {showArchivedOnly ? (
                                             <div className="px-2 pb-2 pl-[4.25rem]">
                                                 {canManagePatients ? (

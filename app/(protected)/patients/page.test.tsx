@@ -406,7 +406,7 @@ describe('PatientsPage', () => {
         expect(mobileList).toHaveClass('grid', 'grid-cols-1', 'sm:grid-cols-2', 'lg:hidden');
         expect(mobileCard).toHaveClass('min-w-0', 'rounded-2xl', 'bg-white');
         expect(within(mobileCard).getByRole('button', { name: 'Open details for List Card Patient' }))
-            .toHaveClass('min-h-[82px]', 'w-full', 'gap-3', 'rounded-xl');
+            .toHaveClass('min-h-[74px]', 'w-full', 'gap-2.5', 'rounded-xl');
         expect(within(toolbar).getByLabelText('Search patients by name, phone, or patient ID')).toBeInTheDocument();
         expect(within(toolbar).getByRole('combobox', { name: 'Filter patients by category' })).toBeInTheDocument();
         expect(within(toolbar).getByRole('combobox', { name: 'Filter patients by visit gap' })).toBeInTheDocument();
@@ -456,12 +456,16 @@ describe('PatientsPage', () => {
         expect(mobileList.children).toHaveLength(2);
         const alisaRow = within(mobileList).getByTestId('patient-mobile-card-patient-alisa');
         expect(within(alisaRow).getByText('+10000000021 · 26 years')).toBeInTheDocument();
-        expect(within(alisaRow).getByText('yesterday')).toBeInTheDocument();
-        expect(within(alisaRow).getByText('VIP').parentElement).toHaveClass('rounded-full');
+        const lastVisit = within(alisaRow).getByTestId('patient-mobile-last-visit-patient-alisa');
+        expect(within(lastVisit).getByText('yesterday')).toBeInTheDocument();
+        expect(lastVisit.querySelector('svg')).toHaveClass('h-3', 'w-3');
+        expect(within(alisaRow).queryByText('VIP')).not.toBeInTheDocument();
 
         await user.click(screen.getByTestId('patients-mobile-filter-toggle'));
         const filterPanel = screen.getByTestId('patients-mobile-filter-panel');
-        expect(filterPanel).toHaveClass('grid-cols-2', 'lg:hidden');
+        expect(filterPanel).toHaveClass('space-y-2', 'lg:hidden');
+        expect(filterPanel.firstElementChild).toHaveClass('grid-cols-1', 'min-[420px]:grid-cols-2');
+        expect(filterPanel.lastElementChild).toHaveClass('grid-cols-2', 'border-t');
         await user.click(within(filterPanel).getByRole('combobox', { name: 'Filter patients by category' }));
         await user.click(await screen.findByRole('option', { name: 'VIP' }));
         await waitFor(() => {
@@ -803,5 +807,7 @@ describe('PatientsPage', () => {
 
         const desktopRow = await screen.findByTestId('patient-row-patient-authored');
         expect(within(desktopRow).getByText('by Front Desk')).toBeInTheDocument();
+        expect(within(screen.getByTestId('patient-mobile-card-patient-authored')).queryByText('by Front Desk'))
+            .not.toBeInTheDocument();
     });
 });

@@ -395,15 +395,12 @@ export function PatientsLoadingState() {
                 <CardContent className="min-w-0 max-w-full space-y-4 border-t border-slate-100 bg-slate-50/70 p-2.5 sm:p-3 lg:border-t-0 lg:bg-white lg:px-5 lg:pb-5 lg:pt-0">
                     <div data-testid="patients-mobile-list-skeleton" className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:hidden">
                         {Array.from({ length: 6 }).map((_, rowIndex) => (
-                            <div key={rowIndex} className="flex min-h-[90px] items-center gap-3 rounded-2xl border border-slate-200/80 bg-white p-3 shadow-[0_2px_10px_rgba(15,23,42,0.045)]">
-                                <Skeleton className="h-12 w-12 shrink-0 rounded-xl" />
-                                <div className="min-w-0 flex-1 space-y-1.5">
+                            <div key={rowIndex} className="flex min-h-[82px] items-center gap-2.5 rounded-2xl border border-slate-200/80 bg-white p-2.5 shadow-[0_2px_10px_rgba(15,23,42,0.045)]">
+                                <Skeleton className="h-11 w-11 shrink-0 rounded-xl" />
+                                <div className="min-w-0 flex-1 space-y-1">
                                     <Skeleton className="h-5 w-3/4 rounded-md" />
                                     <Skeleton className="h-4 w-2/3 rounded-md" />
-                                    <div className="flex gap-2">
-                                        <Skeleton className="h-4 w-14 rounded-md" />
-                                        <Skeleton className="h-5 w-16 rounded-full" />
-                                    </div>
+                                    <Skeleton className="h-4 w-20 rounded-md" />
                                 </div>
                                 <Skeleton className="h-4 w-4 shrink-0 rounded" />
                             </div>
