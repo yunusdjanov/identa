@@ -79,6 +79,8 @@ describe('page loading skeletons', () => {
                 .toHaveClass('sr-only', 'sm:not-sr-only');
             expect(screen.getByTestId('patients-filter-toolbar-skeleton')).toBeInTheDocument();
             expect(screen.getByTestId('patients-search-skeleton')).toBeInTheDocument();
+            expect(screen.getByTestId('patients-mobile-list-skeleton')).toHaveClass('min-w-0', 'max-w-full');
+            expect(screen.getByTestId('patients-mobile-list-skeleton').firstElementChild).toHaveClass('min-w-0', 'max-w-full');
             expect(screen.getByTestId('patients-table-shell-skeleton')).toHaveClass('overflow-x-auto', 'rounded-2xl');
             expect(screen.getByTestId('patients-table-header-skeleton').children).toHaveLength(7);
             expect(screen.getAllByTestId('patients-table-row-skeleton')).toHaveLength(6);

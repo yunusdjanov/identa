@@ -386,9 +386,9 @@ export function PatientsLoadingState() {
                     </div>
                 </CardHeader>
                 <CardContent className="space-y-4 px-4 pb-5 sm:px-5">
-                    <div data-testid="patients-mobile-list-skeleton" className="grid gap-3 lg:hidden">
+                    <div data-testid="patients-mobile-list-skeleton" className="grid min-w-0 max-w-full gap-3 lg:hidden">
                         {Array.from({ length: 4 }).map((_, index) => (
-                            <div key={index} className="rounded-2xl border border-slate-200/80 bg-white p-3 shadow-sm">
+                            <div key={index} className="min-w-0 max-w-full rounded-2xl border border-slate-200/80 bg-white p-3 shadow-sm">
                                 <div className="flex gap-3">
                                     <Skeleton className="h-16 w-16 shrink-0 rounded-xl" />
                                     <div className="min-w-0 flex-1 space-y-2">

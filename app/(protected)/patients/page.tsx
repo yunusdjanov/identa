@@ -807,7 +807,7 @@ export default function PatientsPage() {
                         />
                     ) : (
                         <>
-                        <div data-testid="patients-mobile-list" className="grid gap-3 lg:hidden">
+                        <div data-testid="patients-mobile-list" className="grid min-w-0 max-w-full gap-3 lg:hidden">
                             {patientRows.map((patient) => {
                                 const filteredCategory = selectedCategoryId !== 'all'
                                     ? patient.categories.find((category) => category.id === selectedCategoryId)
@@ -822,7 +822,7 @@ export default function PatientsPage() {
                                         id={`patient-mobile-card-${patient.id}`}
                                         data-testid={`patient-mobile-card-${patient.id}`}
                                         className={cn(
-                                            'rounded-2xl border border-slate-200/80 bg-white p-3 shadow-sm shadow-slate-200/50',
+                                            'min-w-0 max-w-full rounded-2xl border border-slate-200/80 bg-white p-3 shadow-sm shadow-slate-200/50',
                                             focusedPatientId === patient.id && 'border-teal-200 bg-teal-50/30 ring-1 ring-teal-100'
                                         )}
                                     >
