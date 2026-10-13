@@ -262,7 +262,7 @@ function AppointmentsPlannerSkeleton({
     return (
         <>
             <div className="mx-auto grid w-full max-w-[1400px] grid-cols-[minmax(0,1fr)_auto] gap-1.5 rounded-xl border border-teal-100/80 bg-white p-1.5 shadow-xs md:grid-cols-[auto_minmax(0,1fr)_auto] md:items-center md:gap-3 md:rounded-2xl md:p-3">
-                <div className="col-start-1 row-start-1 inline-flex w-full items-center gap-1 rounded-lg border border-slate-200/80 bg-slate-100/70 p-0.5 shadow-xs sm:w-auto md:justify-self-start md:rounded-xl md:p-1">
+                <div className="col-start-1 row-start-1 inline-flex w-full items-center gap-1 rounded-lg border border-slate-200/80 bg-slate-100/70 px-0.5 py-0 shadow-xs sm:w-auto md:justify-self-start md:rounded-xl md:p-1">
                     <Skeleton className="h-9 flex-1 rounded-md sm:w-24 sm:flex-none md:rounded-lg" />
                     <Skeleton className="h-9 flex-1 rounded-md sm:w-24 sm:flex-none md:rounded-lg" />
                 </div>
