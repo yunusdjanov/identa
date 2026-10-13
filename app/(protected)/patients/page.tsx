@@ -674,11 +674,11 @@ export default function PatientsPage() {
                 description={t('patients.subtitle')}
                 mobileDensity="actions-only"
                 actions={(
-                    <div className="grid w-full grid-cols-2 gap-1.5 sm:flex sm:w-auto sm:flex-wrap sm:gap-2">
+                    <div className="grid w-full grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-1.5 sm:flex sm:w-auto sm:flex-wrap sm:gap-2">
                         {currentUser?.subscription?.can_export ? (
                             <Button
                                 variant="outline"
-                                className="h-9 w-full gap-1.5 px-2.5 text-xs sm:w-auto sm:px-3 sm:text-sm"
+                                className="h-9 min-w-0 w-full gap-1.5 px-2.5 text-xs sm:w-auto sm:px-3 sm:text-sm"
                                 disabled={patientRows.length === 0}
                                 onClick={() => {
                                     if (patientRows.length === 0) {
@@ -733,7 +733,7 @@ export default function PatientsPage() {
                         {canManagePatients ? (
                             <Button
                                 variant="outline"
-                                className="h-9 w-full gap-1.5 px-2.5 text-xs sm:w-auto sm:px-3 sm:text-sm"
+                                className="h-9 min-w-0 w-full gap-1.5 px-2.5 text-xs sm:w-auto sm:px-3 sm:text-sm"
                                 onClick={() => setIsManageCategoriesOpen(true)}
                             >
                                 <Tags className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
@@ -742,7 +742,7 @@ export default function PatientsPage() {
                         ) : isSubscriptionReadOnly(currentUser) ? (
                             <Button
                                 variant="outline"
-                                className="h-9 w-full gap-1.5 px-2.5 text-xs sm:w-auto sm:px-3 sm:text-sm"
+                                className="h-9 min-w-0 w-full gap-1.5 px-2.5 text-xs sm:w-auto sm:px-3 sm:text-sm"
                                 disabled
                                 onClick={denyManageAction}
                             >
@@ -752,7 +752,7 @@ export default function PatientsPage() {
                         ) : null}
                         {canManagePatients ? (
                             <Button
-                                className="col-span-2 h-9 w-full gap-1.5 px-3 text-xs sm:w-auto sm:text-sm"
+                                className="col-span-2 h-9 min-w-0 w-full gap-1.5 px-3 text-xs sm:w-auto sm:text-sm"
                                 onClick={() => setIsAddDialogOpen(true)}
                             >
                                 <Plus className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
@@ -760,7 +760,7 @@ export default function PatientsPage() {
                             </Button>
                         ) : isSubscriptionReadOnly(currentUser) ? (
                             <Button
-                                className="col-span-2 h-9 w-full gap-1.5 px-3 text-xs sm:w-auto sm:text-sm"
+                                className="col-span-2 h-9 min-w-0 w-full gap-1.5 px-3 text-xs sm:w-auto sm:text-sm"
                                 disabled
                                 onClick={denyManageAction}
                             >

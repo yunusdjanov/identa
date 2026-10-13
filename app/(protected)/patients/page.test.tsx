@@ -153,9 +153,13 @@ describe('PatientsPage', () => {
 
         const categoriesButton = screen.getByRole('button', { name: 'Categories' });
         const addPatientButton = screen.getByRole('button', { name: 'Add Patient' });
-        expect(categoriesButton.parentElement).toHaveClass('grid-cols-2', 'gap-1.5', 'sm:gap-2');
-        expect(categoriesButton).toHaveClass('h-9', 'text-xs', 'sm:text-sm');
-        expect(addPatientButton).toHaveClass('col-span-2', 'h-9', 'text-xs', 'sm:text-sm');
+        expect(categoriesButton.parentElement).toHaveClass(
+            'grid-cols-[minmax(0,1fr)_minmax(0,1fr)]',
+            'gap-1.5',
+            'sm:gap-2'
+        );
+        expect(categoriesButton).toHaveClass('h-9', 'min-w-0', 'text-xs', 'sm:text-sm');
+        expect(addPatientButton).toHaveClass('col-span-2', 'h-9', 'min-w-0', 'text-xs', 'sm:text-sm');
     });
 
     it('restores the previous page and focused patient after returning from details', async () => {

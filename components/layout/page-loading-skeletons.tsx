@@ -28,7 +28,7 @@ function PageHeaderSkeleton({
                 </div>
                 {actions > 0 ? (
                     <div className={actions === 3
-                        ? `grid w-full min-w-0 grid-cols-2 sm:flex sm:w-auto sm:flex-wrap sm:justify-end ${isCompactOnMobile ? 'gap-1.5 sm:gap-2' : 'gap-2'}`
+                        ? `grid w-full min-w-0 grid-cols-[minmax(0,1fr)_minmax(0,1fr)] sm:flex sm:w-auto sm:flex-wrap sm:justify-end ${isCompactOnMobile ? 'gap-1.5 sm:gap-2' : 'gap-2'}`
                         : `flex w-full min-w-0 flex-col sm:w-auto sm:flex-row sm:flex-wrap sm:justify-end ${isCompactOnMobile ? 'gap-1 sm:gap-2' : 'gap-2'}`}>
                         {Array.from({ length: actions }).map((_, index) => (
                             <Skeleton
