@@ -459,9 +459,9 @@ export default function PatientsPage() {
     const patientsFilterToolbar = (
         <div
             data-testid="patients-filter-toolbar"
-            className="rounded-2xl border border-teal-100/80 bg-white p-3 shadow-sm shadow-teal-100/40 sm:p-4"
+            className="rounded-xl border border-teal-100/80 bg-white p-2 shadow-sm shadow-teal-100/40 sm:rounded-2xl sm:p-4"
         >
-            <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+            <div className="flex flex-col gap-2 sm:gap-3 lg:flex-row lg:items-center">
                 <div
                     className="relative flex-1"
                     onBlur={(event) => {
@@ -554,7 +554,7 @@ export default function PatientsPage() {
                         </div>
                     ) : null}
                 </div>
-                <div className="flex flex-wrap items-center gap-2.5 lg:justify-end">
+                <div className="grid min-w-0 grid-cols-2 items-center gap-2 sm:flex sm:flex-wrap sm:gap-2.5 lg:justify-end">
                     <Select
                         value={selectedCategoryId}
                         onValueChange={(value) => {
@@ -563,7 +563,7 @@ export default function PatientsPage() {
                         }}
                     >
                         <SelectTrigger
-                            className="h-9 w-full min-w-[168px] rounded-xl border-slate-200 bg-white text-left shadow-xs md:w-[168px]"
+                            className="h-9 w-full min-w-0 rounded-xl border-slate-200 bg-white text-left text-xs shadow-xs sm:min-w-[168px] sm:text-sm md:w-[168px]"
                             aria-label={t('patients.filterByCategoryAria')}
                         >
                             <SelectValue placeholder={t('patients.allCategories')} />
@@ -590,7 +590,7 @@ export default function PatientsPage() {
                         }}
                     >
                         <SelectTrigger
-                            className="h-9 w-full min-w-[168px] rounded-xl border-slate-200 bg-white text-left shadow-xs md:w-[168px]"
+                            className="h-9 w-full min-w-0 rounded-xl border-slate-200 bg-white text-left text-xs shadow-xs sm:min-w-[168px] sm:text-sm md:w-[168px]"
                             aria-label={t('patients.filterByVisitActivityAria')}
                         >
                             <SelectValue placeholder={t('patients.visitFilterLabel')} />
@@ -608,7 +608,7 @@ export default function PatientsPage() {
                     <Button
                         variant="outline"
                         className={cn(
-                            'h-9 min-w-[120px] shrink-0 rounded-xl px-4 shadow-xs transition-colors',
+                            'col-span-2 h-9 min-w-0 shrink-0 rounded-xl px-3 text-xs shadow-xs transition-colors sm:col-span-1 sm:min-w-[120px] sm:px-4 sm:text-sm',
                             showArchivedOnly
                                 ? 'border-teal-200 bg-teal-50 text-teal-700 hover:border-teal-300 hover:bg-teal-50 hover:text-teal-700'
                                 : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
@@ -773,8 +773,8 @@ export default function PatientsPage() {
             />
 
             <Card data-testid="patients-list-card" className="overflow-visible rounded-2xl bg-white">
-                <CardHeader className="gap-4 pb-4">
-                    <CardTitle className="text-base">
+                <CardHeader className="gap-3 px-3 pb-3 pt-3 sm:gap-4 sm:px-6 sm:pb-4 sm:pt-6">
+                    <CardTitle className="text-sm sm:text-base">
                         {t('patients.totalCount', { count: totalPatients })}
                         {inactiveFilter === '6m' && ` (${t('patients.noVisit6m')})`}
                         {inactiveFilter === '1y' && ` (${t('patients.noVisit1y')})`}
@@ -782,7 +782,7 @@ export default function PatientsPage() {
                     </CardTitle>
                     {patientsFilterToolbar}
                 </CardHeader>
-                <CardContent className="px-4 pb-5 sm:px-5">
+                <CardContent className="px-3 pb-4 sm:px-5 sm:pb-5">
                     {patientRows.length === 0 ? (
                         <EmptyState
                             icon={hasActiveFilters ? FilterX : Users}
@@ -807,7 +807,7 @@ export default function PatientsPage() {
                         />
                     ) : (
                         <>
-                        <div data-testid="patients-mobile-list" className="grid min-w-0 max-w-full gap-3 lg:hidden">
+                        <div data-testid="patients-mobile-list" className="grid min-w-0 max-w-full overflow-hidden rounded-xl border border-slate-200/80 bg-white lg:hidden">
                             {patientRows.map((patient) => {
                                 const filteredCategory = selectedCategoryId !== 'all'
                                     ? patient.categories.find((category) => category.id === selectedCategoryId)
@@ -822,15 +822,15 @@ export default function PatientsPage() {
                                         id={`patient-mobile-card-${patient.id}`}
                                         data-testid={`patient-mobile-card-${patient.id}`}
                                         className={cn(
-                                            'min-w-0 max-w-full rounded-2xl border border-slate-200/80 bg-white p-3 shadow-sm shadow-slate-200/50',
-                                            focusedPatientId === patient.id && 'border-teal-200 bg-teal-50/30 ring-1 ring-teal-100'
+                                            'min-w-0 max-w-full border-b border-slate-100 bg-white px-1 last:border-b-0',
+                                            focusedPatientId === patient.id && 'bg-teal-50/50'
                                         )}
                                     >
-                                        <div className="flex min-w-0 items-start gap-3">
+                                        <div className="flex min-w-0 items-center gap-3 py-3">
                                             {patientPhotoThumbnailUrl ? (
                                                 <button
                                                     type="button"
-                                                    className="group relative h-16 w-16 shrink-0 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-300"
+                                                    className="group relative h-10 w-10 shrink-0 overflow-hidden rounded-full border border-slate-200 bg-white shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-300"
                                                     aria-label={`${t('patients.form.photo')}: ${patient.fullName}`}
                                                     onClick={() => setPhotoPreview({
                                                         src: patientPhotoPreviewUrl,
@@ -853,102 +853,89 @@ export default function PatientsPage() {
                                                     </span>
                                                 </button>
                                             ) : (
-                                                <Avatar className="h-16 w-16 shrink-0 rounded-xl border border-dashed border-slate-200 bg-slate-50">
-                                                    <AvatarFallback className="rounded-xl bg-slate-50 text-sm font-semibold text-slate-500">
+                                                <Avatar className="h-10 w-10 shrink-0 rounded-full border border-dashed border-slate-200 bg-slate-50">
+                                                    <AvatarFallback className="rounded-full bg-slate-50 text-xs font-semibold text-slate-500">
                                                         {getPatientInitials(patient.fullName)}
                                                     </AvatarFallback>
                                                 </Avatar>
                                             )}
                                             <button
                                                 type="button"
-                                                className="min-h-16 min-w-0 flex-1 rounded-xl text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-300"
+                                                className="flex min-h-10 min-w-0 flex-1 items-center gap-2 rounded-xl text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-300"
                                                 aria-label={t('patients.aria.openDetailsFor', { patientName: patient.fullName })}
                                                 onClick={() => openPatientDetails(patient.id, patient.fullName, getPatientOpenSource())}
                                             >
-                                                <span className="block truncate text-base font-semibold text-slate-950" title={patient.fullName}>
-                                                    {truncateForUi(patient.fullName, PATIENT_TABLE_NAME_UI_LIMIT)}
+                                                <span className="min-w-0 flex-1">
+                                                    <span className="flex min-w-0 items-center gap-2">
+                                                        <span className="min-w-0 flex-1 truncate text-sm font-semibold text-slate-950" title={patient.fullName}>
+                                                            {truncateForUi(patient.fullName, PATIENT_TABLE_NAME_UI_LIMIT)}
+                                                        </span>
+                                                        <span className="shrink-0 text-[10px] font-medium text-slate-400">
+                                                            {patient.lastVisitDate ? formatDate(patient.lastVisitDate) : t('patients.never')}
+                                                        </span>
+                                                    </span>
+                                                    <span className="mt-1 flex min-w-0 items-center gap-2">
+                                                        <span className="min-w-0 flex-1 truncate text-xs text-slate-500">
+                                                            {patient.phone || '-'}
+                                                        </span>
+                                                        {categoryToDisplay ? (
+                                                            <Badge
+                                                                variant="secondary"
+                                                                className="h-5 max-w-[7.5rem] shrink-0 truncate px-2 text-[10px]"
+                                                                style={{ backgroundColor: `${categoryToDisplay.color}22`, color: categoryToDisplay.color }}
+                                                                title={categoryToDisplay.name}
+                                                            >
+                                                                {truncateForUi(categoryToDisplay.name, PATIENT_CATEGORY_UI_LIMIT)}
+                                                            </Badge>
+                                                        ) : null}
+                                                    </span>
                                                 </span>
-                                                <span className="mt-1 block truncate text-sm text-slate-600">
-                                                    <Phone aria-hidden="true" className="mr-1 inline-block h-3.5 w-3.5 text-slate-400" />
-                                                    {patient.phone || '-'}
-                                                </span>
-                                                {categoryToDisplay ? (
-                                                    <Badge
-                                                        variant="secondary"
-                                                        className="mt-1.5 max-w-full truncate"
-                                                        style={{ backgroundColor: `${categoryToDisplay.color}22`, color: categoryToDisplay.color }}
-                                                        title={categoryToDisplay.name}
-                                                    >
-                                                        {truncateForUi(categoryToDisplay.name, PATIENT_CATEGORY_UI_LIMIT)}
-                                                    </Badge>
-                                                ) : (
-                                                    <span className="mt-1.5 block text-xs text-slate-400">{t('patients.uncategorized')}</span>
-                                                )}
+                                                <ArrowRight aria-hidden="true" className="h-4 w-4 shrink-0 text-slate-300" />
                                             </button>
-                                        </div>
-                                        <div className="mt-3 grid grid-cols-2 gap-2 border-t border-slate-100 pt-3 text-xs">
-                                            <div className="min-w-0 rounded-xl bg-slate-50 px-3 py-2">
-                                                <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">{t('patients.table.registered')}</p>
-                                                <p className="mt-1 truncate font-medium text-slate-700">
-                                                    {patient.createdAt ? formatDate(patient.createdAt) : '-'}
-                                                </p>
-                                            </div>
-                                            <div className="min-w-0 rounded-xl bg-slate-50 px-3 py-2">
-                                                <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">{t('patients.table.lastVisit')}</p>
-                                                <p className="mt-1 truncate font-medium text-slate-700">
-                                                    {patient.lastVisitDate ? formatDate(patient.lastVisitDate) : t('patients.never')}
-                                                </p>
-                                            </div>
                                         </div>
                                         {showRecordAuthors ? (
                                             <RecordAuthorBadge
-                                                className="mt-2"
+                                                className="mb-2 ml-[3.25rem]"
                                                 createdBy={patient.createdBy}
                                                 updatedBy={patient.updatedBy}
                                             />
                                         ) : null}
-                                        <div className="mt-3 flex gap-2">
-                                            {showArchivedOnly ? (
-                                                canManagePatients ? (
+                                        {showArchivedOnly ? (
+                                            <div className="pb-3 pl-[3.25rem]">
+                                                {canManagePatients ? (
                                                     <Button
                                                         variant="outline"
-                                                        className="h-11 flex-1"
+                                                        className="h-9 w-full text-xs"
                                                         onClick={() => restoreMutation.mutate(patient.id)}
                                                         disabled={restoreMutation.isPending}
                                                     >
                                                         {t('patients.restore')}
                                                     </Button>
                                                 ) : isSubscriptionReadOnly(currentUser) ? (
-                                                    <Button variant="outline" className="h-11 flex-1" disabled onClick={denyManageAction}>
+                                                    <Button variant="outline" className="h-9 w-full text-xs" disabled onClick={denyManageAction}>
                                                         {t('patients.restore')}
                                                     </Button>
-                                                ) : null
-                                            ) : inactiveFilter !== 'none' ? (
-                                                canManageAppointments ? (
+                                                ) : null}
+                                            </div>
+                                        ) : inactiveFilter !== 'none' ? (
+                                            <div className="pb-3 pl-[3.25rem]">
+                                                {canManageAppointments ? (
                                                     <Button
                                                         variant="outline"
-                                                        className="h-11 flex-1"
+                                                        className="h-9 w-full text-xs"
                                                         onClick={() => router.push(`/appointments?action=new&patientId=${encodeURIComponent(patient.id)}`)}
                                                     >
-                                                        <CalendarPlus className="h-4 w-4" />
+                                                        <CalendarPlus className="h-3.5 w-3.5" />
                                                         {t('patients.schedule')}
                                                     </Button>
                                                 ) : isSubscriptionReadOnly(currentUser) && canViewAppointments ? (
-                                                    <Button variant="outline" className="h-11 flex-1" disabled>
-                                                        <CalendarPlus className="h-4 w-4" />
+                                                    <Button variant="outline" className="h-9 w-full text-xs" disabled>
+                                                        <CalendarPlus className="h-3.5 w-3.5" />
                                                         {t('patients.schedule')}
                                                     </Button>
-                                                ) : null
-                                            ) : null}
-                                            <Button
-                                                variant="outline"
-                                                className="h-11 flex-1 border-slate-200 text-slate-700"
-                                                onClick={() => openPatientDetails(patient.id, patient.fullName, getPatientOpenSource())}
-                                            >
-                                                {t('patients.viewDetails')}
-                                                <ArrowRight className="h-4 w-4" />
-                                            </Button>
-                                        </div>
+                                                ) : null}
+                                            </div>
+                                        ) : null}
                                     </article>
                                 );
                             })}

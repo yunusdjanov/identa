@@ -365,6 +365,10 @@ describe('PaymentsPage', () => {
 
         expect(screen.queryByRole('button', { name: 'History' })).not.toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Expenses' })).toBeInTheDocument();
+        const heading = screen.getByRole('heading', { name: 'Finance' });
+        expect(heading.closest('section')).toHaveClass('px-3', 'py-2', 'sm:px-5', 'sm:py-4');
+        expect(heading.closest('.min-w-0')).toHaveClass('sr-only', 'sm:not-sr-only');
+        expect(screen.getByRole('button', { name: 'Download PDF' })).toHaveClass('h-9', 'w-full', 'text-xs');
         expect(screen.queryByText('Patient Balances')).not.toBeInTheDocument();
         expect(screen.queryByText('Patients in filter: 2')).not.toBeInTheDocument();
         expect(screen.getAllByText('Work total').length).toBeGreaterThan(0);
@@ -394,6 +398,14 @@ describe('PaymentsPage', () => {
 
         const patientLink = within(janeRow as HTMLElement).getByRole('link', { name: 'Patient' });
         expect(patientLink).toHaveAttribute('href', '/payments/patients/patient-1');
+
+        const mobileList = screen.getByTestId('payments-patient-mobile-list');
+        const mobileCard = within(mobileList).getByTestId('payments-patient-mobile-card-patient-1');
+        const mobilePatientLink = within(mobileCard).getByRole('link');
+        expect(mobileList).toHaveClass('min-w-0', 'max-w-full', 'overflow-hidden', 'rounded-xl');
+        expect(mobileCard).toHaveClass('min-w-0', 'max-w-full', 'border-b', 'px-1');
+        expect(mobilePatientLink).toHaveAttribute('href', '/payments/patients/patient-1');
+        expect(mobilePatientLink).toHaveClass('min-h-11');
 
         const johnRow = getPatientDesktopTable().getByText('John Smith').closest('tr');
         expect(johnRow).not.toBeNull();

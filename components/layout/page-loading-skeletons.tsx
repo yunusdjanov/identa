@@ -43,7 +43,7 @@ function PageHeaderSkeleton({
     );
 }
 
-function MetricCardsSkeleton({ count = 3 }: { count?: number }) {
+function MetricCardsSkeleton({ count = 3, mobileCompact = false }: { count?: number; mobileCompact?: boolean }) {
     // Grid breakpoints follow the cardinality: 3 cards → md:grid-cols-3
     // (used by /admin and /admin/dentists/[id]/staff), 4 cards →
     // md:grid-cols-2 xl:grid-cols-4 (used by /payments). Earlier the
@@ -54,22 +54,22 @@ function MetricCardsSkeleton({ count = 3 }: { count?: number }) {
         ? 'md:grid-cols-2 xl:grid-cols-4'
         : 'md:grid-cols-3';
     return (
-        <div className={`grid grid-cols-1 gap-4 ${gridCols}`}>
+        <div className={`grid ${mobileCompact ? 'grid-cols-2 gap-2 sm:gap-4' : 'grid-cols-1 gap-4'} ${gridCols}`}>
             {Array.from({ length: count }).map((_, index) => (
                 <Card
                     key={index}
                     data-testid="metric-card-skeleton"
                     className="rounded-2xl border-slate-200 bg-white shadow-sm"
                 >
-                    <CardContent className="flex min-h-[136px] flex-col justify-between p-5">
+                    <CardContent className={`flex flex-col justify-between ${mobileCompact ? 'min-h-24 p-3 sm:min-h-[136px] sm:p-5' : 'min-h-[136px] p-5'}`}>
                         <div className="flex items-start justify-between gap-3">
-                            <div className="space-y-3">
-                                <Skeleton className="h-4 w-32 rounded-xl" />
-                                <Skeleton className="h-8 w-28 rounded-xl" />
+                            <div className={mobileCompact ? 'space-y-2 sm:space-y-3' : 'space-y-3'}>
+                                <Skeleton className={mobileCompact ? 'h-3 w-20 rounded-xl sm:h-4 sm:w-32' : 'h-4 w-32 rounded-xl'} />
+                                <Skeleton className={mobileCompact ? 'h-5 w-20 rounded-xl sm:h-8 sm:w-28' : 'h-8 w-28 rounded-xl'} />
                             </div>
-                            <Skeleton className="h-10 w-10 rounded-2xl" />
+                            <Skeleton className={mobileCompact ? 'h-7 w-7 rounded-xl sm:h-10 sm:w-10 sm:rounded-2xl' : 'h-10 w-10 rounded-2xl'} />
                         </div>
-                        <Skeleton className="h-4 w-24 rounded-xl" />
+                        <Skeleton className={mobileCompact ? 'hidden h-4 w-24 rounded-xl sm:block' : 'h-4 w-24 rounded-xl'} />
                     </CardContent>
                 </Card>
             ))}
@@ -369,39 +369,32 @@ export function PatientsLoadingState() {
         <div className="space-y-3 sm:space-y-5 lg:space-y-6">
             <PageHeaderSkeleton actions={3} mobileDensity="actions-only" />
             <Card data-testid="patients-list-skeleton" className="overflow-visible rounded-2xl bg-white shadow-sm">
-                <CardHeader className="gap-4 pb-4">
-                    <Skeleton className="h-6 w-32 rounded-xl" />
+                <CardHeader className="gap-3 px-3 pb-3 pt-3 sm:gap-4 sm:px-6 sm:pb-4 sm:pt-6">
+                    <Skeleton className="h-5 w-32 rounded-xl sm:h-6" />
                     <div
                         data-testid="patients-filter-toolbar-skeleton"
-                        className="rounded-2xl border border-teal-100/80 bg-white p-3 shadow-sm shadow-teal-100/40 sm:p-4"
+                        className="rounded-xl border border-teal-100/80 bg-white p-2 shadow-sm shadow-teal-100/40 sm:rounded-2xl sm:p-4"
                     >
-                        <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+                        <div className="flex flex-col gap-2 sm:gap-3 lg:flex-row lg:items-center">
                             <Skeleton className="h-9 flex-1 rounded-xl" data-testid="patients-search-skeleton" />
-                            <div className="flex flex-wrap items-center gap-2.5 lg:justify-end">
-                                <Skeleton className="h-9 w-full min-w-[168px] rounded-xl md:w-[168px]" />
-                                <Skeleton className="h-9 w-full min-w-[168px] rounded-xl md:w-[168px]" />
-                                <Skeleton className="h-9 min-w-[120px] rounded-xl" />
+                            <div className="grid min-w-0 grid-cols-2 items-center gap-2 sm:flex sm:flex-wrap sm:gap-2.5 lg:justify-end">
+                                <Skeleton className="h-9 w-full min-w-0 rounded-xl sm:min-w-[168px] md:w-[168px]" />
+                                <Skeleton className="h-9 w-full min-w-0 rounded-xl sm:min-w-[168px] md:w-[168px]" />
+                                <Skeleton className="col-span-2 h-9 min-w-0 rounded-xl sm:col-span-1 sm:min-w-[120px]" />
                             </div>
                         </div>
                     </div>
                 </CardHeader>
-                <CardContent className="space-y-4 px-4 pb-5 sm:px-5">
-                    <div data-testid="patients-mobile-list-skeleton" className="grid min-w-0 max-w-full gap-3 lg:hidden">
-                        {Array.from({ length: 4 }).map((_, index) => (
-                            <div key={index} className="min-w-0 max-w-full rounded-2xl border border-slate-200/80 bg-white p-3 shadow-sm">
-                                <div className="flex gap-3">
-                                    <Skeleton className="h-16 w-16 shrink-0 rounded-xl" />
-                                    <div className="min-w-0 flex-1 space-y-2">
-                                        <Skeleton className="h-5 w-3/4 rounded-xl" />
-                                        <Skeleton className="h-4 w-2/3 rounded-xl" />
-                                        <Skeleton className="h-5 w-24 rounded-full" />
-                                    </div>
+                <CardContent className="space-y-4 px-3 pb-4 sm:px-5 sm:pb-5">
+                    <div data-testid="patients-mobile-list-skeleton" className="grid min-w-0 max-w-full overflow-hidden rounded-xl border border-slate-200/80 bg-white lg:hidden">
+                        {Array.from({ length: 6 }).map((_, index) => (
+                            <div key={index} className="flex min-w-0 max-w-full items-center gap-3 border-b border-slate-100 px-1 py-3 last:border-b-0">
+                                <Skeleton className="h-10 w-10 shrink-0 rounded-full" />
+                                <div className="min-w-0 flex-1 space-y-2">
+                                    <Skeleton className="h-4 w-3/4 rounded-xl" />
+                                    <Skeleton className="h-3 w-2/3 rounded-xl" />
                                 </div>
-                                <div className="mt-3 grid grid-cols-2 gap-2 border-t border-slate-100 pt-3">
-                                    <Skeleton className="h-14 rounded-xl" />
-                                    <Skeleton className="h-14 rounded-xl" />
-                                </div>
-                                <Skeleton className="mt-3 h-11 w-full rounded-xl" />
+                                <Skeleton className="h-3 w-12 shrink-0 rounded-xl" />
                             </div>
                         ))}
                     </div>
@@ -469,26 +462,26 @@ export function PaymentsLoadingState({ tab = 'patients' }: { tab?: 'patients' | 
     // (bare tab pills → a standalone search card → a separate table card),
     // so the layout reshuffled when data landed. Mirror the single-card shape.
     return (
-        <div data-testid="payments-loading" className="space-y-5 lg:space-y-6">
-            <PageHeaderSkeleton actions={0} />
-            <MetricCardsSkeleton count={4} />
+        <div data-testid="payments-loading" className="space-y-3 sm:space-y-5 lg:space-y-6">
+            <PageHeaderSkeleton actions={1} mobileDensity="actions-only" />
+            <MetricCardsSkeleton count={4} mobileCompact />
             <Card
                 data-testid={isExpensesTab ? 'expenses-table-skeleton' : 'ledger-table-skeleton'}
                 className="overflow-hidden rounded-2xl bg-white shadow-sm"
             >
-                <CardContent className="space-y-5 p-4 sm:p-5">
+                <CardContent className="space-y-3 p-2 sm:space-y-5 sm:p-5">
                     {/* Toolbar: tabs, search, and outstanding-debt filter. */}
-                    <div className="flex flex-col gap-4 rounded-2xl border border-teal-100/80 bg-white p-3 lg:flex-row lg:items-center lg:justify-between">
+                    <div className="flex flex-col gap-2 rounded-xl border border-teal-100/80 bg-white p-2 sm:gap-4 sm:rounded-2xl sm:p-3 lg:flex-row lg:items-center lg:justify-between">
                         <div className="inline-flex w-full items-center gap-1 rounded-xl border border-slate-200/80 bg-slate-100/70 p-1 sm:w-auto">
-                            <Skeleton className="h-9 flex-1 rounded-lg sm:w-28 sm:flex-none" />
-                            <Skeleton className="h-9 flex-1 rounded-lg sm:w-28 sm:flex-none" />
+                            <Skeleton className="h-8 flex-1 rounded-lg sm:h-9 sm:w-28 sm:flex-none" />
+                            <Skeleton className="h-8 flex-1 rounded-lg sm:h-9 sm:w-28 sm:flex-none" />
                         </div>
-                        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
-                            <Skeleton className="h-9 w-full rounded-xl sm:w-[22rem]" />
+                        <div className="flex min-w-0 items-center gap-2 sm:flex-row sm:flex-wrap sm:justify-end sm:gap-3">
+                            <Skeleton className="h-9 min-w-0 flex-1 rounded-xl sm:w-[22rem] sm:flex-none" />
                             {isExpensesTab ? null : (
                                 <Skeleton
                                     data-testid="payments-outstanding-filter-skeleton"
-                                    className="h-9 w-full rounded-xl sm:w-28"
+                                    className="h-9 w-9 shrink-0 rounded-xl sm:w-28"
                                 />
                             )}
                         </div>
@@ -504,26 +497,43 @@ export function PaymentsLoadingState({ tab = 'patients' }: { tab?: 'patients' | 
                         </div>
                     ) : null}
                     {/* Ledger rows */}
-                    <div data-testid="payments-mobile-list-skeleton" className="grid gap-3 lg:hidden">
-                        {Array.from({ length: 4 }).map((_, rowIndex) => (
-                            <div key={rowIndex} className="rounded-2xl border border-slate-200/80 bg-white p-3 shadow-sm">
-                                <div className="flex items-start gap-3">
-                                    {isExpensesTab ? null : <Skeleton className="h-16 w-16 shrink-0 rounded-xl" />}
-                                    <div className="min-w-0 flex-1 space-y-2">
-                                        <Skeleton className="h-5 w-3/4 rounded-xl" />
-                                        <Skeleton className="h-4 w-1/2 rounded-xl" />
+                    {isExpensesTab ? (
+                        <div data-testid="payments-mobile-list-skeleton" className="grid gap-3 lg:hidden">
+                            {Array.from({ length: 4 }).map((_, rowIndex) => (
+                                <div key={rowIndex} className="rounded-2xl border border-slate-200/80 bg-white p-3 shadow-sm">
+                                    <div className="flex items-start gap-3">
+                                        <div className="min-w-0 flex-1 space-y-2">
+                                            <Skeleton className="h-5 w-3/4 rounded-xl" />
+                                            <Skeleton className="h-4 w-1/2 rounded-xl" />
+                                        </div>
+                                        <Skeleton className="h-5 w-20 shrink-0 rounded-xl" />
                                     </div>
-                                    <Skeleton className="h-5 w-20 shrink-0 rounded-xl" />
+                                    <div className="mt-3 grid grid-cols-3 gap-2 border-t border-slate-100 pt-3">
+                                        <Skeleton className="h-14 rounded-xl" />
+                                        <Skeleton className="h-14 rounded-xl" />
+                                        <Skeleton className="h-14 rounded-xl" />
+                                    </div>
+                                    <Skeleton className="mt-3 h-11 w-full rounded-xl" />
                                 </div>
-                                <div className="mt-3 grid grid-cols-3 gap-2 border-t border-slate-100 pt-3">
-                                    <Skeleton className="h-14 rounded-xl" />
-                                    <Skeleton className="h-14 rounded-xl" />
-                                    <Skeleton className="h-14 rounded-xl" />
+                            ))}
+                        </div>
+                    ) : (
+                        <div data-testid="payments-mobile-list-skeleton" className="grid min-w-0 max-w-full overflow-hidden rounded-xl border border-slate-200/80 bg-white lg:hidden">
+                            {Array.from({ length: 6 }).map((_, rowIndex) => (
+                                <div key={rowIndex} className="flex min-w-0 max-w-full items-center gap-3 border-b border-slate-100 px-1 py-3 last:border-b-0">
+                                    <Skeleton className="h-11 w-11 shrink-0 rounded-xl" />
+                                    <div className="min-w-0 flex-1 space-y-2">
+                                        <Skeleton className="h-4 w-3/4 rounded-xl" />
+                                        <Skeleton className="h-3 w-2/3 rounded-xl" />
+                                    </div>
+                                    <div className="shrink-0 space-y-2">
+                                        <Skeleton className="h-4 w-20 rounded-xl" />
+                                        <Skeleton className="h-3 w-16 rounded-xl" />
+                                    </div>
                                 </div>
-                                <Skeleton className="mt-3 h-11 w-full rounded-xl" />
-                            </div>
-                        ))}
-                    </div>
+                            ))}
+                        </div>
+                    )}
                     <div
                         data-testid="payments-ledger-scroll-skeleton"
                         className="hidden min-w-0 max-w-full overflow-x-auto rounded-2xl border border-slate-200/80 bg-white lg:block"
@@ -1126,8 +1136,8 @@ export function AnalyticsLoadingState({
     const secondChartRowBoth = showGrowthChart && showDebtorsCard;
 
     return (
-        <div className="space-y-5 lg:space-y-6">
-            <PageHeaderSkeleton actions={1} />
+        <div data-testid="analytics-loading" className="space-y-3 sm:space-y-5 lg:space-y-6">
+            <PageHeaderSkeleton actions={1} mobileDensity="actions-only" />
             {/* Time range and currency selectors */}
             <div className="flex min-w-0 flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
                 <div className="flex min-w-0 max-w-full flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">

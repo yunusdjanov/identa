@@ -309,18 +309,19 @@ export default function AnalyticsPage() {
         : 'grid grid-cols-1 gap-2.5';
 
     return (
-        <div className="space-y-5 lg:space-y-6">
+        <div className="space-y-3 sm:space-y-5 lg:space-y-6">
             <PageHeader
                 title={t('analytics.title')}
                 description={t('analytics.subtitle')}
+                mobileDensity={canExportAnalytics ? 'actions-only' : 'compact'}
                 actions={
                     canExportAnalytics ? (
                         <Button
                             variant="outline"
                             onClick={handleExport}
-                            className="h-9 gap-2 rounded-xl bg-white px-3.5"
+                            className="h-9 w-full gap-1.5 rounded-xl bg-white px-3 text-xs sm:w-auto sm:gap-2 sm:px-3.5 sm:text-sm"
                         >
-                            <Download className="h-4 w-4" aria-hidden="true" />
+                            <Download className="h-3.5 w-3.5 sm:h-4 sm:w-4" aria-hidden="true" />
                             {t('analytics.export')}
                         </Button>
                     ) : null

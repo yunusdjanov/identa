@@ -46,7 +46,7 @@ import { useDebouncedValue } from '@/lib/hooks/use-debounced-value';
 import { queryKeys } from '@/lib/query-keys';
 import { formatLocalizedDate } from '@/lib/i18n/date';
 import { extractPrimaryPhone, formatCurrency, truncateForUi } from '@/lib/utils';
-import { AlertCircle, CalendarDays, Download, History, Maximize2, Pencil, Phone, Plus, Receipt, Search, Trash2, Users, Wallet, X } from 'lucide-react';
+import { AlertCircle, CalendarDays, ChevronRight, Download, History, Maximize2, Pencil, Phone, Plus, Receipt, Search, Trash2, Users, Wallet, X } from 'lucide-react';
 import { buildPdfFilename, exportRowsToPdf } from '@/lib/export/pdf';
 import { EmptyState } from '@/components/ui/empty-state';
 import { AppErrorState } from '@/components/error/app-error-state';
@@ -333,15 +333,25 @@ function renderBalanceBreakdownWithStatusBadges(
     );
 }
 
-function BalanceAmount({ balances, compact = false }: { balances: PatientBalanceRow['balancesByCurrency']; compact?: boolean }) {
+function BalanceAmount({
+    balances,
+    compact = false,
+    showStatus = true,
+    className,
+}: {
+    balances: PatientBalanceRow['balancesByCurrency'];
+    compact?: boolean;
+    showStatus?: boolean;
+    className?: string;
+}) {
     const { t } = useI18n();
     const lines = getVisibleBalanceLines(balances, 'balance');
 
     return (
-        <div className={`flex flex-col gap-1 ${compact ? 'min-w-0' : 'min-w-[128px]'}`}>
+        <div className={`flex flex-col gap-1 ${compact ? 'min-w-0' : 'min-w-[128px]'} ${className ?? ''}`}>
             {lines.map(({ currency, amount, rawAmount }) => {
                 const summary = getNetBalanceSummary(rawAmount);
-                const showStatus = shouldShowBalanceStatus(
+                const shouldRenderStatus = showStatus && shouldShowBalanceStatus(
                     balances[currency].totalDebt,
                     balances[currency].totalPaid,
                     balances[currency].balance
@@ -352,7 +362,7 @@ function BalanceAmount({ balances, compact = false }: { balances: PatientBalance
                         <span className={`font-semibold tabular-nums ${summary.valueClassName}`}>
                             {formatCurrency(amount, currency)}
                         </span>
-                        {showStatus ? (
+                        {shouldRenderStatus ? (
                             <span className={`inline-flex items-center rounded-full border px-1.5 py-0.5 text-[10px] font-semibold leading-none ${summary.badgeClassName}`}>
                                 {t(summary.statusKey)}
                             </span>
@@ -1178,99 +1188,100 @@ export default function PaymentsPage() {
     const shouldShowNetBalanceStatus = !hasMixedNetBalanceStatus && canShowSingleBalanceStatus(overallSummary.balancesByCurrency);
 
     return (
-        <div className="space-y-5 lg:space-y-6">
+        <div className="space-y-3 sm:space-y-5 lg:space-y-6">
             <PageHeader
                 title={t('payments.title')}
                 description={t('payments.subtitle')}
+                mobileDensity={currentUser?.subscription?.can_export ? 'actions-only' : 'compact'}
                 actions={currentUser?.subscription?.can_export ? (
                     <Button
                         variant="outline"
-                        className="w-full sm:w-auto"
+                        className="h-9 w-full gap-1.5 px-3 text-xs sm:w-auto sm:text-sm"
                         disabled={
                             isExporting
                             || (activeTab === 'patients' ? overallSummary.totalPatients === 0 : expenseSummary.totalCount === 0)
                         }
                         onClick={activeTab === 'patients' ? handleExportPayments : handleExportExpenses}
                     >
-                        <Download className="mr-2 h-4 w-4" />
+                        <Download className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                         {t('common.export')}
                     </Button>
                 ) : undefined}
             />
 
             {activeTab === 'expenses' ? (
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-                    <div className="interactive-card metric-hover-card metric-hover-red rounded-2xl border border-red-100 bg-white p-4 shadow-sm shadow-red-100/60 md:p-5">
-                        <div className="flex items-center gap-2 text-sm font-medium text-slate-600">
-                            <Receipt className="h-4 w-4 text-red-500" />
+                <div className="grid grid-cols-2 gap-2 sm:gap-4 md:grid-cols-2 xl:grid-cols-4">
+                    <div className="interactive-card metric-hover-card metric-hover-red rounded-2xl border border-red-100 bg-white p-3 shadow-sm shadow-red-100/60 sm:p-4 md:p-5">
+                        <div className="flex items-center gap-1.5 text-xs font-medium text-slate-600 sm:gap-2 sm:text-sm">
+                            <Receipt className="h-3.5 w-3.5 text-red-500 sm:h-4 sm:w-4" />
                             {t('payments.summary.expenseTotal')}
                         </div>
-                        <p className="mt-2 text-lg font-semibold leading-none tabular-nums text-red-700">
+                        <p className="mt-2 text-sm font-semibold leading-tight tabular-nums text-red-700 sm:text-lg sm:leading-none">
                             {isExpensesLoading ? '...' : formatExpenseTotals(expenseSummary.totalsByCurrency, locale)}
                         </p>
-                        <p className="mt-1 text-xs text-slate-500">{t('payments.summary.expenseTotalHint')}</p>
+                        <p className="mt-1 hidden text-xs text-slate-500 sm:block">{t('payments.summary.expenseTotalHint')}</p>
                     </div>
 
-                    <div className="interactive-card metric-hover-card metric-hover-emerald rounded-2xl border border-emerald-100 bg-white p-4 shadow-sm shadow-emerald-100/60 md:p-5">
-                        <div className="flex items-center gap-2 text-sm font-medium text-slate-600">
-                            <Wallet className="h-4 w-4 text-green-600" />
+                    <div className="interactive-card metric-hover-card metric-hover-emerald rounded-2xl border border-emerald-100 bg-white p-3 shadow-sm shadow-emerald-100/60 sm:p-4 md:p-5">
+                        <div className="flex items-center gap-1.5 text-xs font-medium text-slate-600 sm:gap-2 sm:text-sm">
+                            <Wallet className="h-3.5 w-3.5 text-green-600 sm:h-4 sm:w-4" />
                             {t('payments.summary.expenseCurrentMonth')}
                         </div>
-                        <p className="mt-2 text-lg font-semibold leading-none tabular-nums text-green-700">
+                        <p className="mt-2 text-sm font-semibold leading-tight tabular-nums text-green-700 sm:text-lg sm:leading-none">
                             {isExpensesLoading ? '...' : formatExpenseTotals(expenseSummary.currentMonthByCurrency, locale)}
                         </p>
-                        <p className="mt-1 text-xs text-slate-500">{t('payments.summary.expenseCurrentMonthHint')}</p>
+                        <p className="mt-1 hidden text-xs text-slate-500 sm:block">{t('payments.summary.expenseCurrentMonthHint')}</p>
                     </div>
 
-                    <div className="interactive-card metric-hover-card metric-hover-teal rounded-2xl border border-cyan-200 bg-gradient-to-br from-cyan-50 via-teal-50/80 to-white p-4 shadow-sm shadow-cyan-100/70 md:p-5">
-                        <div className="flex items-center gap-2 text-sm font-medium text-cyan-700">
-                            <Receipt className="h-4 w-4 text-teal-600" />
+                    <div className="interactive-card metric-hover-card metric-hover-teal rounded-2xl border border-cyan-200 bg-gradient-to-br from-cyan-50 via-teal-50/80 to-white p-3 shadow-sm shadow-cyan-100/70 sm:p-4 md:p-5">
+                        <div className="flex items-center gap-1.5 text-xs font-medium text-cyan-700 sm:gap-2 sm:text-sm">
+                            <Receipt className="h-3.5 w-3.5 text-teal-600 sm:h-4 sm:w-4" />
                             {t('payments.summary.expenseRecords')}
                         </div>
-                        <p className="mt-2 text-lg font-semibold leading-none tabular-nums text-cyan-950">
+                        <p className="mt-2 text-sm font-semibold leading-tight tabular-nums text-cyan-950 sm:text-lg sm:leading-none">
                             {isExpensesLoading ? '...' : expenseSummary.totalCount}
                         </p>
-                        <p className="mt-1 text-xs text-cyan-600/80">{t('payments.summary.expenseRecordsHint')}</p>
+                        <p className="mt-1 hidden text-xs text-cyan-600/80 sm:block">{t('payments.summary.expenseRecordsHint')}</p>
                     </div>
 
-                    <div className="interactive-card metric-hover-card metric-hover-slate rounded-2xl border border-slate-200 bg-white p-4 shadow-sm shadow-slate-200/60 md:p-5">
-                        <div className="flex items-center gap-2 text-sm font-medium text-slate-600">
-                            <CalendarDays className="h-4 w-4 text-slate-500" />
+                    <div className="interactive-card metric-hover-card metric-hover-slate rounded-2xl border border-slate-200 bg-white p-3 shadow-sm shadow-slate-200/60 sm:p-4 md:p-5">
+                        <div className="flex items-center gap-1.5 text-xs font-medium text-slate-600 sm:gap-2 sm:text-sm">
+                            <CalendarDays className="h-3.5 w-3.5 text-slate-500 sm:h-4 sm:w-4" />
                             {t('payments.summary.expenseLatest')}
                         </div>
-                        <p className="mt-2 text-lg font-semibold leading-none tabular-nums text-slate-800">
+                        <p className="mt-2 text-sm font-semibold leading-tight tabular-nums text-slate-800 sm:text-lg sm:leading-none">
                             {isExpensesLoading ? '...' : formatDate(expenseSummary.latestExpenseDate)}
                         </p>
-                        <p className="mt-1 text-xs text-slate-500">{t('payments.summary.expenseLatestHint')}</p>
+                        <p className="mt-1 hidden text-xs text-slate-500 sm:block">{t('payments.summary.expenseLatestHint')}</p>
                     </div>
                 </div>
             ) : (
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-                    <div className="interactive-card metric-hover-card metric-hover-red rounded-2xl border border-red-100 bg-white p-4 shadow-sm shadow-red-100/60 md:p-5">
-                        <div className="flex items-center gap-2 text-sm font-medium text-slate-600">
-                            <AlertCircle className="h-4 w-4 text-red-500" />
+                <div className="grid grid-cols-2 gap-2 sm:gap-4 md:grid-cols-2 xl:grid-cols-4">
+                    <div className="interactive-card metric-hover-card metric-hover-red rounded-2xl border border-red-100 bg-white p-3 shadow-sm shadow-red-100/60 sm:p-4 md:p-5">
+                        <div className="flex items-center gap-1.5 text-xs font-medium text-slate-600 sm:gap-2 sm:text-sm">
+                            <AlertCircle className="h-3.5 w-3.5 text-red-500 sm:h-4 sm:w-4" />
                             {t('payments.summary.totalDebt')}
                         </div>
-                        <p className="mt-2 text-lg font-semibold leading-none tabular-nums text-red-700">
+                        <p className="mt-2 text-sm font-semibold leading-tight tabular-nums text-red-700 sm:text-lg sm:leading-none">
                             {isAccountingLoading ? '...' : formatBalanceBreakdown(overallSummary.balancesByCurrency, 'totalDebt')}
                         </p>
-                        <p className="mt-1 text-xs text-slate-500">{t('payments.summary.totalDebtHint')}</p>
+                        <p className="mt-1 hidden text-xs text-slate-500 sm:block">{t('payments.summary.totalDebtHint')}</p>
                     </div>
 
-                    <div className="interactive-card metric-hover-card metric-hover-emerald rounded-2xl border border-emerald-100 bg-white p-4 shadow-sm shadow-emerald-100/60 md:p-5">
-                        <div className="flex items-center gap-2 text-sm font-medium text-slate-600">
-                            <Wallet className="h-4 w-4 text-green-600" />
+                    <div className="interactive-card metric-hover-card metric-hover-emerald rounded-2xl border border-emerald-100 bg-white p-3 shadow-sm shadow-emerald-100/60 sm:p-4 md:p-5">
+                        <div className="flex items-center gap-1.5 text-xs font-medium text-slate-600 sm:gap-2 sm:text-sm">
+                            <Wallet className="h-3.5 w-3.5 text-green-600 sm:h-4 sm:w-4" />
                             {t('payments.summary.totalPaid')}
                         </div>
-                        <p className="mt-2 text-lg font-semibold leading-none tabular-nums text-green-700">
+                        <p className="mt-2 text-sm font-semibold leading-tight tabular-nums text-green-700 sm:text-lg sm:leading-none">
                             {isAccountingLoading ? '...' : formatBalanceBreakdown(overallSummary.balancesByCurrency, 'totalPaid')}
                         </p>
-                        <p className="mt-1 text-xs text-slate-500">{t('payments.summary.totalPaidHint')}</p>
+                        <p className="mt-1 hidden text-xs text-slate-500 sm:block">{t('payments.summary.totalPaidHint')}</p>
                     </div>
 
-                    <div className={`interactive-card metric-hover-card rounded-2xl border bg-white p-4 shadow-sm md:p-5 ${netBalanceSummary.cardClassName}`}>
-                        <div className={`flex flex-wrap items-center gap-2 text-sm font-medium ${netBalanceSummary.labelClassName}`}>
-                            <History className={`h-4 w-4 ${netBalanceSummary.iconClassName}`} />
+                    <div className={`interactive-card metric-hover-card rounded-2xl border bg-white p-3 shadow-sm sm:p-4 md:p-5 ${netBalanceSummary.cardClassName}`}>
+                        <div className={`flex flex-wrap items-center gap-1.5 text-xs font-medium sm:gap-2 sm:text-sm ${netBalanceSummary.labelClassName}`}>
+                            <History className={`h-3.5 w-3.5 sm:h-4 sm:w-4 ${netBalanceSummary.iconClassName}`} />
                             <span>{t('payments.summary.netBalance')}</span>
                             {!isAccountingLoading && shouldShowNetBalanceStatus ? (
                                 <span className={`inline-flex items-center rounded-full border px-1.5 py-0.5 text-[10px] font-semibold leading-none ${netBalanceSummary.badgeClassName}`}>
@@ -1278,25 +1289,25 @@ export default function PaymentsPage() {
                                 </span>
                             ) : null}
                         </div>
-                        <div className={`mt-2 text-lg font-semibold leading-tight tabular-nums ${netBalanceSummary.valueClassName}`}>
+                        <div className={`mt-2 text-sm font-semibold leading-tight tabular-nums sm:text-lg ${netBalanceSummary.valueClassName}`}>
                             {isAccountingLoading
                                 ? '...'
                                 : hasMixedNetBalanceStatus
                                     ? renderBalanceBreakdownWithStatusBadges(overallSummary.balancesByCurrency, t)
                                     : formatBalanceBreakdown(overallSummary.balancesByCurrency, 'balance')}
                         </div>
-                        <p className={`mt-1 text-xs ${netBalanceSummary.hintClassName}`}>{t(netBalanceSummary.hintKey)}</p>
+                        <p className={`mt-1 hidden text-xs sm:block ${netBalanceSummary.hintClassName}`}>{t(netBalanceSummary.hintKey)}</p>
                     </div>
 
-                    <div className="interactive-card metric-hover-card metric-hover-teal rounded-2xl border border-cyan-200 bg-gradient-to-br from-cyan-50 via-teal-50/80 to-white p-4 shadow-sm shadow-cyan-100/70 md:p-5">
-                        <div className="flex items-center gap-2 text-sm font-medium text-cyan-700">
-                            <Users className="h-4 w-4 text-teal-600" />
+                    <div className="interactive-card metric-hover-card metric-hover-teal rounded-2xl border border-cyan-200 bg-gradient-to-br from-cyan-50 via-teal-50/80 to-white p-3 shadow-sm shadow-cyan-100/70 sm:p-4 md:p-5">
+                        <div className="flex items-center gap-1.5 text-xs font-medium text-cyan-700 sm:gap-2 sm:text-sm">
+                            <Users className="h-3.5 w-3.5 text-teal-600 sm:h-4 sm:w-4" />
                             {t('payments.summary.totalPatients')}
                         </div>
-                        <p className="mt-2 text-lg font-semibold leading-none tabular-nums text-cyan-950">
+                        <p className="mt-2 text-sm font-semibold leading-tight tabular-nums text-cyan-950 sm:text-lg sm:leading-none">
                             {isAccountingLoading ? '...' : overallSummary.totalPatients}
                         </p>
-                        <p className="mt-1 text-xs text-cyan-600/80">
+                        <p className="mt-1 hidden text-xs text-cyan-600/80 sm:block">
                             {t('payments.summary.entryCount', { count: overallSummary.totalEntries })}
                         </p>
                     </div>
@@ -1304,39 +1315,39 @@ export default function PaymentsPage() {
             )}
 
             <Card className="overflow-hidden rounded-2xl bg-white">
-                <CardContent className="space-y-5 p-4 sm:p-5">
-                    <div className="flex flex-col gap-4 rounded-2xl border border-teal-100/80 bg-white p-3 shadow-xs lg:flex-row lg:items-center lg:justify-between">
+                <CardContent className="space-y-3 p-2 sm:space-y-5 sm:p-5">
+                    <div className="flex flex-col gap-2 rounded-xl border border-teal-100/80 bg-white p-2 shadow-xs sm:gap-4 sm:rounded-2xl sm:p-3 lg:flex-row lg:items-center lg:justify-between">
                         <div className="inline-flex w-full items-center gap-1 rounded-xl border border-slate-200/80 bg-slate-100/70 p-1 shadow-xs sm:w-auto">
                             <Button
                                 type="button"
                                 variant="ghost"
-                                className={`flex-1 gap-2 rounded-lg sm:flex-none ${
+                                className={`h-8 flex-1 gap-1.5 rounded-lg px-2.5 text-xs sm:h-9 sm:flex-none sm:gap-2 sm:text-sm ${
                                     activeTab === 'patients'
                                         ? 'bg-teal-50 text-teal-700 shadow-sm ring-1! ring-teal-300! focus-visible:border-transparent! hover:bg-teal-50 hover:text-teal-700'
                                         : 'text-slate-600 hover:bg-white hover:text-slate-900'
                                 }`}
                                 onClick={() => handleTabChange('patients')}
                             >
-                                <Users className="h-4 w-4" />
+                                <Users className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                                 {t('payments.tabs.patients')}
                             </Button>
                             <Button
                                 type="button"
                                 variant="ghost"
-                                className={`flex-1 gap-2 rounded-lg sm:flex-none ${
+                                className={`h-8 flex-1 gap-1.5 rounded-lg px-2.5 text-xs sm:h-9 sm:flex-none sm:gap-2 sm:text-sm ${
                                     activeTab === 'expenses'
                                         ? 'bg-teal-50 text-teal-700 shadow-sm ring-1! ring-teal-300! focus-visible:border-transparent! hover:bg-teal-50 hover:text-teal-700'
                                         : 'text-slate-600 hover:bg-white hover:text-slate-900'
                                 }`}
                                 onClick={() => handleTabChange('expenses')}
                             >
-                                <Receipt className="h-4 w-4" />
+                                <Receipt className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                                 {t('payments.tabs.expenses')}
                             </Button>
                         </div>
 
-                        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
-                            <div className="relative min-w-0 sm:w-[22rem]">
+                        <div className="flex min-w-0 items-center gap-2 sm:flex-row sm:flex-wrap sm:justify-end sm:gap-3">
+                            <div className="relative min-w-0 flex-1 sm:w-[22rem] sm:flex-none">
                                 <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                                 <Input
                                     value={activeTab === 'patients' ? patientSearch : expenseSearch}
@@ -1361,7 +1372,7 @@ export default function PaymentsPage() {
                                     aria-pressed={showOutstandingOnly}
                                     aria-label={t('payments.filters.outstandingOnly')}
                                     title={showOutstandingOnly ? t('payments.filters.clearOutstanding') : t('payments.filters.outstandingHint')}
-                                    className={`h-9 w-full justify-center rounded-xl px-3 sm:w-auto ${
+                                    className={`h-9 w-9 shrink-0 justify-center rounded-xl px-0 sm:w-auto sm:px-3 ${
                                         showOutstandingOnly
                                             ? 'border-red-200 bg-red-50 text-red-700 shadow-xs ring-1 ring-red-100 hover:bg-red-50 hover:text-red-700'
                                             : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
@@ -1369,8 +1380,8 @@ export default function PaymentsPage() {
                                     onClick={handleOutstandingFilterChange}
                                 >
                                     <AlertCircle className={`h-4 w-4 ${showOutstandingOnly ? 'text-red-600' : 'text-slate-400'}`} />
-                                    <span>{t('payments.filters.outstandingOnly')}</span>
-                                    {showOutstandingOnly ? <X className="h-3.5 w-3.5 text-red-600" aria-hidden="true" /> : null}
+                                    <span className="sr-only sm:not-sr-only">{t('payments.filters.outstandingOnly')}</span>
+                                    {showOutstandingOnly ? <X className="hidden h-3.5 w-3.5 text-red-600 sm:block" aria-hidden="true" /> : null}
                                 </Button>
                             ) : null}
                             {activeTab === 'patients' && patientFilterId ? (
@@ -1400,18 +1411,18 @@ export default function PaymentsPage() {
                                 </div>
                             ) : (
                                 <>
-                                    <div data-testid="payments-patient-mobile-list" className="grid gap-3 lg:hidden">
+                                    <div data-testid="payments-patient-mobile-list" className="grid min-w-0 max-w-full overflow-hidden rounded-xl border border-slate-200/80 bg-white lg:hidden">
                                         {paginatedPatientRows.map((row) => (
                                             <article
                                                 key={row.patientId}
                                                 data-testid={`payments-patient-mobile-card-${row.patientId}`}
-                                                className="rounded-2xl border border-slate-200/80 bg-white p-3 shadow-sm shadow-slate-200/50"
+                                                className="min-w-0 max-w-full border-b border-slate-100 bg-white px-1 last:border-b-0"
                                             >
-                                                <div className="flex min-w-0 items-start gap-3">
+                                                <div className="flex min-w-0 items-center gap-3 py-3">
                                                     <PatientPhotoThumbnail
                                                         row={row}
                                                         photoLabel={t('patients.form.photo')}
-                                                        className="h-16 w-16 shrink-0"
+                                                        className="h-11 w-11 shrink-0"
                                                         onPreview={(patientRow) => setPatientPhotoPreview({
                                                             src: patientRow.patientPhotoPreviewUrl ?? patientRow.patientPhotoThumbnailUrl ?? '',
                                                             thumbnailSrc: patientRow.patientPhotoThumbnailUrl,
@@ -1419,41 +1430,32 @@ export default function PaymentsPage() {
                                                             title: patientRow.patientName,
                                                         })}
                                                     />
-                                                    <div className="min-w-0 flex-1">
-                                                        <p className="truncate text-base font-semibold text-slate-950" title={row.patientName}>
-                                                            {truncateForUi(row.patientName, PATIENT_TABLE_NAME_UI_LIMIT)}
-                                                        </p>
-                                                        <p className="mt-1 truncate text-sm text-slate-500" title={row.patientPhone}>
-                                                            <Phone aria-hidden="true" className="mr-1 inline-block h-3.5 w-3.5 text-slate-400" />
-                                                            {row.patientPhone}
-                                                        </p>
-                                                        <div className="mt-2 flex flex-wrap gap-2 text-xs text-slate-500">
-                                                            <span>{t('payments.table.lastEntry')}: <strong className="font-semibold text-slate-700">{formatDate(row.lastEntryDate)}</strong></span>
-                                                            <span>{t('payments.table.entries')}: <strong className="font-semibold text-slate-700">{row.entryCount}</strong></span>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                <div className="mt-3 grid grid-cols-3 gap-2 border-t border-slate-100 pt-3">
-                                                    <div className="min-w-0 rounded-xl bg-red-50/70 px-2 py-2">
-                                                        <p className="text-[10px] font-semibold uppercase tracking-wide text-red-500">{t('payments.table.debt')}</p>
-                                                        <p className="mt-1 whitespace-pre-line break-words text-xs font-semibold leading-4 text-red-700">{formatBalanceBreakdown(row.balancesByCurrency, 'totalDebt')}</p>
-                                                    </div>
-                                                    <div className="min-w-0 rounded-xl bg-emerald-50/70 px-2 py-2">
-                                                        <p className="text-[10px] font-semibold uppercase tracking-wide text-emerald-500">{t('payments.table.paid')}</p>
-                                                        <p className="mt-1 whitespace-pre-line break-words text-xs font-semibold leading-4 text-emerald-700">{formatBalanceBreakdown(row.balancesByCurrency, 'totalPaid')}</p>
-                                                    </div>
-                                                    <div className="min-w-0 rounded-xl bg-slate-50 px-2 py-2">
-                                                        <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">{t('payments.table.balance')}</p>
-                                                        <div className="mt-1 break-words text-xs font-semibold leading-4">
-                                                            <BalanceAmount balances={row.balancesByCurrency} compact />
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                <Button asChild variant="outline" className="mt-3 h-11 w-full">
-                                                    <Link href={`/payments/patients/${row.patientId}`}>
-                                                        {t('payments.openPatient')}
+                                                    <Link
+                                                        href={`/payments/patients/${row.patientId}`}
+                                                        className="flex min-h-11 min-w-0 flex-1 items-center gap-2 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-300"
+                                                    >
+                                                        <span className="min-w-0 flex-1">
+                                                            <span className="block truncate text-sm font-semibold text-slate-950" title={row.patientName}>
+                                                                {truncateForUi(row.patientName, PATIENT_TABLE_NAME_UI_LIMIT)}
+                                                            </span>
+                                                            <span className="mt-1 block truncate text-xs text-slate-500" title={row.patientPhone}>
+                                                                {t('payments.table.entries')}: {row.entryCount} · {row.patientPhone}
+                                                            </span>
+                                                        </span>
+                                                        <span className="max-w-[8.75rem] shrink-0 text-right">
+                                                            <BalanceAmount
+                                                                balances={row.balancesByCurrency}
+                                                                compact
+                                                                showStatus={false}
+                                                                className="items-end text-xs [&>div]:justify-end"
+                                                            />
+                                                            <span className="mt-1 block whitespace-pre-line text-[10px] leading-3 text-slate-400">
+                                                                {t('payments.table.paid')}: {formatBalanceBreakdown(row.balancesByCurrency, 'totalPaid')}
+                                                            </span>
+                                                        </span>
+                                                        <ChevronRight aria-hidden="true" className="h-4 w-4 shrink-0 text-slate-300" />
                                                     </Link>
-                                                </Button>
+                                                </div>
                                             </article>
                                         ))}
                                     </div>
