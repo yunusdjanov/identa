@@ -1335,44 +1335,44 @@ export function AppointmentsWorkspace({ mode = 'appointments' }: AppointmentsWor
                 <PageHeader
                     title={t('dashboard.title')}
                     description={t('dashboard.planner.subtitle')}
-                    mobileDensity="compact"
+                    mobileDensity="actions-only"
                     actions={(
                         <>
                             {canManageAppointments ? (
                                 <Button
                                     variant="outline"
-                                    className="w-full sm:w-auto"
+                                    className="h-9 w-full gap-1.5 px-3 text-xs sm:w-auto sm:text-sm"
                                     onClick={() => openAddDialog({ date: currentDate })}
                                 >
-                                    <CalendarIcon aria-hidden="true" className="mr-2 h-4 w-4" />
+                                    <CalendarIcon aria-hidden="true" className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                                     {t('appointments.dialog.newTitle')}
                                 </Button>
                             ) : isSubscriptionReadOnly(currentUser) ? (
                                 <Button
                                     variant="outline"
-                                    className="w-full sm:w-auto"
+                                    className="h-9 w-full gap-1.5 px-3 text-xs sm:w-auto sm:text-sm"
                                     disabled
                                     onClick={denyPermission}
                                 >
-                                    <CalendarIcon aria-hidden="true" className="mr-2 h-4 w-4" />
+                                    <CalendarIcon aria-hidden="true" className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                                     {t('appointments.dialog.newTitle')}
                                 </Button>
                             ) : null}
                             {canManagePatients ? (
                                 <Button
-                                    className="w-full sm:w-auto"
+                                    className="h-9 w-full gap-1.5 px-3 text-xs sm:w-auto sm:text-sm"
                                     onClick={() => setIsQuickPatientDialogOpen(true)}
                                 >
-                                    <Plus aria-hidden="true" className="mr-2 h-4 w-4" />
+                                    <Plus aria-hidden="true" className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                                     {t('patients.addPatient')}
                                 </Button>
                             ) : isSubscriptionReadOnly(currentUser) ? (
                                 <Button
-                                    className="w-full sm:w-auto"
+                                    className="h-9 w-full gap-1.5 px-3 text-xs sm:w-auto sm:text-sm"
                                     disabled
                                     onClick={denyPermission}
                                 >
-                                    <Plus aria-hidden="true" className="mr-2 h-4 w-4" />
+                                    <Plus aria-hidden="true" className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                                     {t('patients.addPatient')}
                                 </Button>
                             ) : null}

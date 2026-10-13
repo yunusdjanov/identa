@@ -322,6 +322,41 @@ test.describe('Responsive smoke coverage', () => {
         }
     });
 
+    test('dashboard and patients use compact actions-only mobile headers', async ({ page }, testInfo) => {
+        test.skip(testInfo.project.name !== 'chromium', 'Mobile action-header coverage runs once in Chromium.');
+
+        await loginDentist(page);
+        await page.setViewportSize({ width: 320, height: 720 });
+
+        for (const route of ['/dashboard?view=week', '/patients']) {
+            await test.step(route, async () => {
+                await page.goto(route);
+                await expect(page.locator('#main-content h1').first()).toHaveCount(1);
+                await expectNoPageHorizontalOverflow(page);
+
+                const measurements = await page.locator('#main-content h1').first().evaluate((heading) => {
+                    const titleBlock = heading.parentElement?.parentElement;
+                    const header = heading.closest<HTMLElement>('section');
+                    const buttons = Array.from(header?.querySelectorAll<HTMLElement>('[data-slot="button"]') ?? []);
+
+                    if (!titleBlock || !header || buttons.length === 0) {
+                        throw new Error('Compact mobile action header was not rendered.');
+                    }
+
+                    return {
+                        titlePosition: window.getComputedStyle(titleBlock).position,
+                        headerHeight: header.getBoundingClientRect().height,
+                        minButtonHeight: Math.min(...buttons.map((button) => button.getBoundingClientRect().height)),
+                    };
+                });
+
+                expect(measurements.titlePosition).toBe('absolute');
+                expect(measurements.headerHeight).toBeLessThanOrEqual(96);
+                expect(measurements.minButtonHeight).toBeGreaterThanOrEqual(36);
+            });
+        }
+    });
+
     test('admin dashboards stay within the viewport', async ({ page }) => {
         await loginAdmin(page);
 

@@ -177,10 +177,14 @@ describe('DashboardPage', () => {
         expect(await screen.findByRole('heading', { name: 'Dashboard' })).toBeInTheDocument();
         const dashboardHeader = screen.getByRole('heading', { name: 'Dashboard' }).closest('section');
         expect(dashboardHeader).toHaveClass('px-3', 'py-2', 'sm:px-5', 'sm:py-4');
+        expect(screen.getByRole('heading', { name: 'Dashboard' }).closest('.min-w-0'))
+            .toHaveClass('sr-only', 'sm:not-sr-only');
         expect(screen.getByText('Day, week, and month schedule without distracting financial data.').closest('p'))
             .toHaveClass('hidden', 'sm:block');
-        expect(screen.getByRole('button', { name: 'Schedule Appointment' })).toBeInTheDocument();
-        expect(screen.getByRole('button', { name: 'Add Patient' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Schedule Appointment' }))
+            .toHaveClass('h-9', 'text-xs', 'sm:text-sm');
+        expect(screen.getByRole('button', { name: 'Add Patient' }))
+            .toHaveClass('h-9', 'text-xs', 'sm:text-sm');
         expect(screen.queryByText('Total appointments')).not.toBeInTheDocument();
         expect(screen.queryByText('Starting Soon')).not.toBeInTheDocument();
         expect(screen.queryByText('Cancelled / no-show')).not.toBeInTheDocument();

@@ -36,6 +36,8 @@ describe('page loading skeletons', () => {
 
             expect(screen.getByTestId('dashboard-loading')).toBeInTheDocument();
             expect(screen.getByTestId('dashboard-loading')).toHaveClass('space-y-3', 'sm:space-y-5');
+            expect(screen.getByTestId('dashboard-loading').firstElementChild?.firstElementChild?.firstElementChild)
+                .toHaveClass('sr-only', 'sm:not-sr-only');
             expect(screen.getByTestId('dashboard-planner-skeleton')).toBeInTheDocument();
             expect(screen.getByTestId('dashboard-planner-skeleton')).toHaveClass('py-0', 'lg:py-6');
             expect(screen.getByTestId('dashboard-planner-skeleton-content')).toHaveClass('pt-1.5', 'px-3', 'sm:p-3');
@@ -71,6 +73,10 @@ describe('page loading skeletons', () => {
             render(<PatientsLoadingState />);
 
             expect(screen.getByTestId('patients-list-skeleton')).toBeInTheDocument();
+            expect(screen.getByTestId('patients-list-skeleton').parentElement)
+                .toHaveClass('space-y-3', 'sm:space-y-5');
+            expect(screen.getByTestId('patients-list-skeleton').previousElementSibling?.firstElementChild?.firstElementChild)
+                .toHaveClass('sr-only', 'sm:not-sr-only');
             expect(screen.getByTestId('patients-filter-toolbar-skeleton')).toBeInTheDocument();
             expect(screen.getByTestId('patients-search-skeleton')).toBeInTheDocument();
             expect(screen.getByTestId('patients-table-shell-skeleton')).toHaveClass('overflow-x-auto', 'rounded-2xl');

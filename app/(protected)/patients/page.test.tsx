@@ -140,6 +140,28 @@ describe('PatientsPage', () => {
             .not.toBeInTheDocument();
     });
 
+    it('renders a compact actions-only header on mobile breakpoints', async () => {
+        vi.mocked(listPatients).mockResolvedValue(buildPatientsResponse([]));
+
+        renderPage();
+
+        const heading = await screen.findByRole('heading', { name: 'Patients' });
+        expect(heading.closest('section')).toHaveClass('px-3', 'py-2', 'sm:px-5', 'sm:py-4');
+        expect(heading.closest('.min-w-0')).toHaveClass('sr-only', 'sm:not-sr-only');
+        expect(screen.getByText('Manage your patient records and information').closest('p'))
+            .toHaveClass('hidden', 'sm:block');
+
+        const categoriesButton = screen.getByRole('button', { name: 'Categories' });
+        const addPatientButton = screen.getByRole('button', { name: 'Add Patient' });
+        expect(categoriesButton.parentElement).toHaveClass(
+            'grid-cols-[minmax(0,1fr)_minmax(0,1fr)]',
+            'gap-1.5',
+            'sm:gap-2'
+        );
+        expect(categoriesButton).toHaveClass('h-9', 'min-w-0', 'text-xs', 'sm:text-sm');
+        expect(addPatientButton).toHaveClass('col-span-2', 'h-9', 'min-w-0', 'text-xs', 'sm:text-sm');
+    });
+
     it('restores the previous page and focused patient after returning from details', async () => {
         window.history.replaceState({}, '', '/patients?restore=1');
         markPatientListStateForBackNavigation({
