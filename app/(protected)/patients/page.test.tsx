@@ -140,21 +140,20 @@ describe('PatientsPage', () => {
             .not.toBeInTheDocument();
     });
 
-    it('renders the app-style patient header on mobile breakpoints', async () => {
+    it('renders a compact web command card on mobile breakpoints', async () => {
         vi.mocked(listPatients).mockResolvedValue(buildPatientsResponse([]));
 
         renderPage();
 
-        const mobileHeader = await screen.findByTestId('patients-mobile-app-header');
-        expect(mobileHeader).toHaveClass('-mx-3', 'px-5', 'lg:hidden');
-        expect(within(mobileHeader).getByRole('heading', { name: 'Patients' }))
-            .toHaveClass('text-[28px]', 'leading-[34px]');
-        expect(within(mobileHeader).getByText('Patients: 0')).toBeInTheDocument();
-        expect(within(mobileHeader).getByRole('button', { name: 'Categories' }))
-            .toHaveClass('h-9', 'rounded-full', 'text-xs');
-        const mobileAddButton = screen.getAllByRole('button', { name: 'Add Patient' })
-            .find((button) => button.classList.contains('fixed'));
-        expect(mobileAddButton).toHaveClass('fixed', 'h-14', 'w-14', 'rounded-full', 'lg:hidden');
+        const listCard = await screen.findByTestId('patients-list-card');
+        expect(listCard).toHaveClass('rounded-2xl', 'overflow-visible', 'gap-0', 'py-0');
+        expect(screen.queryByTestId('patients-mobile-app-header')).not.toBeInTheDocument();
+        expect(within(listCard).getByTestId('patients-mobile-filter-toggle')).toHaveAttribute('aria-expanded', 'false');
+        const actions = within(listCard).getByTestId('patients-mobile-actions');
+        expect(actions).toHaveClass('flex', 'gap-2', 'lg:hidden');
+        expect(within(actions).getByRole('button', { name: 'Add Patient' })).toHaveClass('flex-1', 'rounded-xl');
+        expect(screen.getAllByRole('button', { name: 'Add Patient' })
+            .every((button) => !button.classList.contains('fixed'))).toBe(true);
     });
 
     it('restores the previous page and focused patient after returning from details', async () => {
@@ -404,17 +403,16 @@ describe('PatientsPage', () => {
         const mobileCard = within(mobileList).getByTestId('patient-mobile-card-patient-list-card');
 
         expect(within(listCard).getByText('Patients: 1')).toBeInTheDocument();
-        expect(mobileList).toHaveClass('-mx-3', 'min-w-0', 'max-w-full', 'bg-white', 'lg:hidden');
-        expect(within(mobileList).getByTestId('patients-mobile-section-L')).toBeInTheDocument();
-        expect(mobileCard).toHaveClass('min-w-0', 'max-w-full', 'after:left-[4.5rem]');
+        expect(mobileList).toHaveClass('grid', 'grid-cols-1', 'sm:grid-cols-2', 'lg:hidden');
+        expect(mobileCard).toHaveClass('min-w-0', 'rounded-2xl', 'bg-white');
         expect(within(mobileCard).getByRole('button', { name: 'Open details for List Card Patient' }))
-            .toHaveClass('w-full', 'gap-3', 'px-5', 'py-3');
+            .toHaveClass('min-h-[82px]', 'w-full', 'gap-3', 'rounded-xl');
         expect(within(toolbar).getByLabelText('Search patients by name, phone, or patient ID')).toBeInTheDocument();
         expect(within(toolbar).getByRole('combobox', { name: 'Filter patients by category' })).toBeInTheDocument();
         expect(within(toolbar).getByRole('combobox', { name: 'Filter patients by visit gap' })).toBeInTheDocument();
     });
 
-    it('matches the app patient list hierarchy, metadata, and category chips', async () => {
+    it('renders web-native mobile cards and exposes filters on demand', async () => {
         const yesterday = new Date();
         yesterday.setDate(yesterday.getDate() - 1);
         vi.mocked(listPatientCategories).mockResolvedValue([
@@ -455,17 +453,17 @@ describe('PatientsPage', () => {
         renderPage();
         const user = userEvent.setup();
         const mobileList = await screen.findByTestId('patients-mobile-list');
-        const sectionA = within(mobileList).getByTestId('patients-mobile-section-A');
-        const sectionZ = within(mobileList).getByTestId('patients-mobile-section-Z');
-
-        expect(sectionA.compareDocumentPosition(sectionZ) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-        const alisaRow = within(sectionA).getByTestId('patient-mobile-card-patient-alisa');
+        expect(mobileList.children).toHaveLength(2);
+        const alisaRow = within(mobileList).getByTestId('patient-mobile-card-patient-alisa');
         expect(within(alisaRow).getByText('+10000000021 · 26 years')).toBeInTheDocument();
         expect(within(alisaRow).getByText('yesterday')).toBeInTheDocument();
         expect(within(alisaRow).getByText('VIP').parentElement).toHaveClass('rounded-full');
 
-        const chips = screen.getByTestId('patients-mobile-category-chips');
-        await user.click(within(chips).getByRole('button', { name: 'VIP' }));
+        await user.click(screen.getByTestId('patients-mobile-filter-toggle'));
+        const filterPanel = screen.getByTestId('patients-mobile-filter-panel');
+        expect(filterPanel).toHaveClass('grid-cols-2', 'lg:hidden');
+        await user.click(within(filterPanel).getByRole('combobox', { name: 'Filter patients by category' }));
+        await user.click(await screen.findByRole('option', { name: 'VIP' }));
         await waitFor(() => {
             expect(listPatients).toHaveBeenLastCalledWith(expect.objectContaining({
                 sort: '-updated_at',
