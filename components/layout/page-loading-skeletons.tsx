@@ -949,12 +949,15 @@ export function PatientDetailLoadingState() {
                     </div>
                     <Skeleton className="h-5 w-10 shrink-0 rounded-full" />
                 </div>
-                <div className="grid flex-1 auto-rows-[5rem] grid-cols-2 gap-2 p-2.5 sm:auto-rows-[5.75rem] sm:grid-cols-3 sm:p-3 md:grid-cols-5 lg:auto-rows-[6.5rem]">
+                <div
+                    data-testid="patient-detail-oral-photo-track-skeleton"
+                    className="flex min-w-0 flex-1 touch-pan-x snap-x snap-mandatory gap-2 overflow-x-auto overscroll-x-contain p-2.5 pb-3 no-scrollbar sm:p-3 lg:grid lg:auto-rows-[6.5rem] lg:grid-cols-5 lg:overflow-visible"
+                >
                     {Array.from({ length: 5 }).map((_, index) => (
                         <Skeleton
                             key={index}
                             data-testid="patient-detail-oral-photo-slot-skeleton"
-                            className="min-h-[3.25rem] rounded-xl sm:min-h-0"
+                            className="h-[5.5rem] w-[5.5rem] shrink-0 snap-start rounded-xl lg:h-full lg:w-full lg:min-w-0"
                         />
                     ))}
                 </div>

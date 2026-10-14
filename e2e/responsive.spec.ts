@@ -133,6 +133,17 @@ test.describe('Responsive smoke coverage', () => {
         await expect(page.getByTestId('patient-detail-summary-grid')).toBeVisible();
         await expect(page.getByTestId('patient-history-header')).toBeVisible();
         await expect(page.getByTestId('patient-detail-oral-photo-panel')).toBeVisible();
+        const generalPhotoTrack = page.getByTestId('patient-detail-oral-photo-grid');
+        await expect(generalPhotoTrack).toBeVisible();
+        if (usesCompactDataLayout(page)) {
+            await expect(generalPhotoTrack).toHaveCSS('display', 'flex');
+            await expect(generalPhotoTrack).toHaveCSS('overflow-x', 'auto');
+            const firstPhotoTile = generalPhotoTrack.getByTestId('patient-detail-oral-photo-slot').first();
+            await expect(firstPhotoTile).toBeVisible();
+            expect(await firstPhotoTile.evaluate((element) => Math.round(element.getBoundingClientRect().width))).toBe(88);
+        } else {
+            await expect(generalPhotoTrack).toHaveCSS('display', 'grid');
+        }
         expect(await page.evaluate(() => {
             const information = document.querySelector('[data-testid="patient-detail-header-facts"]');
             const overview = document.querySelector('[data-testid="patient-detail-summary-grid"]');

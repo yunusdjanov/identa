@@ -458,12 +458,13 @@ export default function PatientDetailPage({
         && smileOralPhotoPhotos.length < ORAL_PHOTO_MAX_PER_SLOT;
     const isSmileOralPhotoUploading = uploadOralPhotoMutation.isPending
         && uploadOralPhotoMutation.variables?.viewType === 'smile';
-    // On small screens, ten permanent placeholders create a long wall of
-    // empty tiles. Keep every real/processing item visible and expose one
-    // explicit upload tile; the counter still communicates the plan limit.
+    // Match the mobile app gallery: one leading add/upload tile followed by
+    // every real or processing photo in a horizontal strip. Desktop keeps the
+    // denser clinical grid, but uses the same DOM order for predictable focus.
+    const hasSmileOralPhotoAction = canAddSmileOralPhoto || isSmileOralPhotoUploading;
     const smileOralPhotoDisplaySlots = [
+        ...(hasSmileOralPhotoAction ? [null] : []),
         ...smileOralPhotoPhotos,
-        ...(canAddSmileOralPhoto || isSmileOralPhotoUploading ? [null] : []),
     ];
     const pickOralPhoto = (viewType: ApiPatientClinicalPhotoViewType) => {
         const slot = oralPhotoSlots.find((candidate) => candidate.viewType === viewType);
@@ -597,11 +598,12 @@ export default function PatientDetailPage({
                         {smileOralPhotoDisplaySlots.length > 0 ? (
                             <div
                                 data-testid="patient-detail-oral-photo-grid"
-                                className="grid min-h-0 flex-1 auto-rows-[5rem] grid-cols-2 gap-2 sm:auto-rows-[5.75rem] sm:grid-cols-3 md:grid-cols-5 lg:auto-rows-[6.5rem]"
+                                className="flex min-h-0 min-w-0 flex-1 touch-pan-x snap-x snap-mandatory gap-2 overflow-x-auto overscroll-x-contain scroll-smooth pb-1 no-scrollbar lg:grid lg:auto-rows-[6.5rem] lg:grid-cols-5 lg:overflow-visible lg:pb-0"
                             >
                                 {smileOralPhotoDisplaySlots.map((photoSlot, index) => {
                                     const canUploadOralPhoto = canAddSmileOralPhoto;
-                                    const slotLabel = `${t('patientDetail.oralPhoto.title')} ${index + 1}`;
+                                    const photoPosition = index + (hasSmileOralPhotoAction ? 0 : 1);
+                                    const slotLabel = `${t('patientDetail.oralPhoto.title')} ${photoPosition}`;
                                     const hasRenderablePhoto = Boolean(photoSlot?.thumbnailUrl);
                                     const previewPhoto = photoSlot?.previewUrl ? photoSlot : null;
 
@@ -623,7 +625,7 @@ export default function PatientDetailPage({
                                             }
                                         }}
                                         data-testid="patient-detail-oral-photo-slot"
-                                        className={`group/thumb relative flex h-full min-h-0 w-full items-center justify-center overflow-hidden rounded-xl border text-slate-400 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-300 focus-visible:ring-offset-1 disabled:cursor-default disabled:hover:border-slate-200 disabled:hover:bg-slate-50 ${hasRenderablePhoto ? 'border-slate-200 bg-slate-50 shadow-sm shadow-slate-200/60 hover:border-slate-300 hover:shadow-md' : 'border-dashed border-teal-200 bg-teal-50/30 hover:border-teal-300 hover:bg-teal-50/60'}`}
+                                        className={`group/thumb relative flex h-[5.5rem] w-[5.5rem] shrink-0 snap-start flex-col items-center justify-center gap-1 overflow-hidden rounded-xl border text-slate-400 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-300 focus-visible:ring-offset-1 disabled:cursor-default disabled:hover:border-slate-200 disabled:hover:bg-slate-50 lg:h-full lg:w-full lg:min-w-0 ${hasRenderablePhoto ? 'border-slate-200 bg-slate-50 shadow-sm shadow-slate-200/60 hover:border-slate-300 hover:shadow-md' : 'border-dashed border-teal-300 bg-teal-50/50 hover:border-teal-400 hover:bg-teal-50'}`}
                                         aria-label={hasRenderablePhoto ? t('patientDetail.oralPhoto.view') : t('patientDetail.oralPhoto.upload')}
                                         title={hasRenderablePhoto ? t('patientDetail.oralPhoto.view') : t('patientDetail.oralPhoto.upload')}
                                     >
@@ -646,7 +648,12 @@ export default function PatientDetailPage({
                                         ) : photoSlot?.isRejected ? (
                                             <AlertCircle className="h-4 w-4 text-rose-500" />
                                         ) : (
-                                            <Plus className="h-5 w-5 text-teal-700" />
+                                            <>
+                                                <Plus className="h-6 w-6 text-teal-700" />
+                                                <span className="text-[10px] font-semibold leading-none text-teal-700 lg:sr-only">
+                                                    {t('patientDetail.oralPhoto.upload')}
+                                                </span>
+                                            </>
                                         )}
                                     </button>
                                     );
