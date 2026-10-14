@@ -194,25 +194,33 @@ describe('page loading skeletons', () => {
         it('matches the compact patient detail photo, overview, and history order', () => {
             render(<PatientDetailLoadingState />);
 
-            expect(screen.getByTestId('patient-detail-header-identity-skeleton')).toHaveClass('lg:max-w-[20rem]');
+            expect(screen.getByTestId('patient-detail-header-identity-skeleton')).toHaveClass(
+                'flex-col',
+                'rounded-3xl',
+                'lg:max-w-[20rem]',
+                'lg:flex-row',
+            );
             expect(screen.getByTestId('patient-detail-header-photo-skeleton')).toHaveClass(
-                'h-16',
-                'w-16',
+                'h-20',
+                'w-20',
                 'rounded-full',
-                'sm:h-24',
-                'sm:w-24',
-                'sm:rounded-xl',
+                'lg:h-24',
+                'lg:w-24',
+                'lg:rounded-xl',
             );
             expect(screen.getByTestId('patient-detail-header-facts-skeleton')).toHaveClass(
                 'h-auto',
                 'overflow-visible',
-                'md:h-[8rem]',
-                'md:overflow-hidden'
+                'gap-3',
+                'lg:h-[8rem]',
+                'lg:overflow-hidden'
             );
             expect(screen.getByTestId('patient-detail-header-actions-skeleton')).toHaveClass(
                 'grid',
                 'grid-flow-col',
                 'auto-cols-fr',
+                'rounded-2xl',
+                'p-2',
                 'lg:flex',
                 'lg:order-none',
             );
@@ -220,7 +228,7 @@ describe('page loading skeletons', () => {
             const workHistory = screen.getByTestId('patient-detail-work-history-skeleton');
             const oralPhotoPanel = screen.getByTestId('patient-detail-oral-photo-skeleton');
 
-            expect(overviewStrip).toHaveClass('rounded-2xl', 'overflow-hidden');
+            expect(overviewStrip).toHaveClass('overflow-visible', 'lg:rounded-2xl', 'lg:overflow-hidden');
             expect(overviewStrip).not.toHaveClass('pt-[3px]');
             expect(oralPhotoPanel).not.toHaveClass('lg:h-[20.75rem]');
             expect(screen.queryByTestId('patient-detail-clinical-strip-skeleton')).not.toBeInTheDocument();

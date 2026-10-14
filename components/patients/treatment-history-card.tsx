@@ -2051,8 +2051,8 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
 
     return (
         <>
-            <Card className="min-w-0 max-w-full gap-3 overflow-hidden rounded-2xl border-slate-200 py-3 shadow-sm sm:py-4 lg:max-w-none lg:overflow-visible lg:py-6">
-                <CardHeader className="flex min-w-0 max-w-full flex-col items-stretch gap-2 px-3 sm:gap-3 sm:px-4 lg:px-6">
+            <Card className="min-w-0 max-w-full gap-3 overflow-visible border-0 bg-transparent py-1 shadow-none lg:max-w-none lg:overflow-visible lg:rounded-2xl lg:border lg:border-slate-200 lg:bg-card lg:py-6 lg:shadow-sm">
+                <CardHeader className="flex min-w-0 max-w-full flex-col items-stretch gap-2 px-0 sm:gap-3 lg:px-6">
                     <div
                         data-testid="patient-history-header"
                         className="grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-2 sm:gap-3 xl:grid-cols-[minmax(10rem,12rem)_minmax(34rem,1fr)_max-content] xl:gap-4"
@@ -2194,7 +2194,7 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                         </div>
                     </div>
                 </CardHeader>
-                <CardContent className="min-w-0 max-w-full space-y-4 px-3 sm:px-4 lg:space-y-6 lg:px-6">
+                <CardContent className="min-w-0 max-w-full space-y-4 px-0 lg:space-y-6 lg:px-6">
                     {isLoading ? (
                         <div className="relative space-y-3">
                             <div className="absolute bottom-3 left-[84px] top-3 hidden w-px bg-slate-200 md:block" aria-hidden="true" />

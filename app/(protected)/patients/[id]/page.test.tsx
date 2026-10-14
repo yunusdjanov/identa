@@ -169,20 +169,21 @@ describe('PatientDetailPage', () => {
         const contactFacts = screen.getByTestId('patient-detail-header-contact-facts');
         const medicalFacts = screen.getByTestId('patient-detail-header-medical-facts');
         const actionGroup = screen.getByTestId('patient-detail-header-actions');
-        expect(identity).toHaveClass('lg:max-w-[20rem]', 'gap-2.5');
+        expect(identity).toHaveClass('flex-col', 'items-center', 'rounded-3xl', 'lg:max-w-[20rem]', 'lg:flex-row');
         expect(facts).toHaveClass(
             'h-auto',
             'overflow-visible',
-            'md:h-[8rem]',
-            'md:overflow-hidden'
+            'gap-3',
+            'lg:h-[8rem]',
+            'lg:overflow-hidden'
         );
-        expect(contactFacts).toHaveClass('md:grid-cols-3');
-        expect(medicalFacts).toHaveClass('sm:grid-cols-3');
-        expect(scheduleButton).toHaveClass('h-10', 'w-full', 'lg:size-10');
-        expect(editButton).toHaveClass('h-10', 'w-full', 'lg:size-10');
-        expect(archiveButton).toHaveClass('h-10', 'w-full', 'lg:size-10');
+        expect(contactFacts).toHaveClass('grid-cols-1', 'rounded-2xl', 'lg:grid-cols-3');
+        expect(medicalFacts).toHaveClass('grid-cols-1', 'rounded-2xl', 'lg:grid-cols-3');
+        expect(scheduleButton).toHaveClass('h-11', 'w-full', 'bg-teal-600', 'lg:size-10');
+        expect(editButton).toHaveClass('h-11', 'w-full', 'bg-teal-50', 'lg:size-10');
+        expect(archiveButton).toHaveClass('h-11', 'w-full', 'bg-amber-50', 'lg:size-10');
         expect(archiveButton.querySelector('svg')).toHaveClass('lucide-archive');
-        expect(actionGroup).toHaveClass('grid', 'grid-flow-col', 'auto-cols-fr', 'lg:flex', 'lg:order-none');
+        expect(actionGroup).toHaveClass('grid', 'grid-flow-col', 'auto-cols-fr', 'rounded-2xl', 'p-2', 'lg:flex', 'lg:order-none');
         expect(within(scheduleButton).getByText('Schedule Appointment')).toHaveClass('lg:sr-only');
         expect(within(editButton).getByText('Edit Patient')).toHaveClass('lg:sr-only');
         expect(within(archiveButton).getByText('Archive')).toHaveClass('lg:sr-only');
@@ -256,15 +257,15 @@ describe('PatientDetailPage', () => {
 
         const photoTrigger = await screen.findByRole('button', { name: 'Patient Photo: John Smith' });
         expect(photoTrigger).toHaveClass(
-            'h-16',
-            'w-16',
+            'h-20',
+            'w-20',
             'absolute',
             'rounded-full',
-            'sm:h-24',
-            'sm:w-24',
-            'sm:rounded-xl',
+            'lg:h-24',
+            'lg:w-24',
+            'lg:rounded-xl',
         );
-        expect(photoTrigger.parentElement).toHaveClass('h-16', 'w-16', 'sm:h-20', 'sm:w-24');
+        expect(photoTrigger.parentElement).toHaveClass('h-20', 'w-20', 'lg:w-24');
 
         await user.click(photoTrigger);
 
@@ -385,8 +386,8 @@ describe('PatientDetailPage', () => {
         expect(workHistory).toHaveTextContent('Work History for John Smith');
         expect(screen.getByText('0/10')).toBeInTheDocument();
         expect(screen.getAllByTitle('Upload')).toHaveLength(1);
-        expect(screen.getByTestId('patient-detail-page-layout')).toHaveClass('space-y-2.5');
-        expect(overviewStrip).toHaveClass('rounded-2xl', 'overflow-hidden');
+        expect(screen.getByTestId('patient-detail-page-layout')).toHaveClass('space-y-3', 'lg:space-y-2.5');
+        expect(overviewStrip).toHaveClass('overflow-visible', 'lg:rounded-2xl', 'lg:overflow-hidden');
         expect(overviewStrip).not.toHaveClass('pt-[3px]');
         expect(screen.getByTestId('patient-detail-oral-photo-grid')).toHaveClass(
             'min-h-0',
