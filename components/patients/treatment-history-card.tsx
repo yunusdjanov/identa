@@ -416,13 +416,13 @@ function HistoryFinancialPill({
     return (
         <div
             data-testid="history-financial-summary-pill"
-            className={`flex min-h-10 min-w-0 flex-col justify-center rounded-xl border px-3 py-1.5 shadow-sm shadow-slate-100/50 ${getHistoryFinancialPillToneClasses(tone)}`}
+            className={`flex min-h-10 min-w-0 flex-col justify-center rounded-lg border px-1.5 py-1 shadow-sm shadow-slate-100/50 sm:rounded-xl sm:px-3 sm:py-1.5 ${getHistoryFinancialPillToneClasses(tone)}`}
         >
-            <div className="truncate text-[10px] font-bold uppercase leading-3 tracking-[0.08em] text-slate-400">
+            <div className="truncate text-[8px] font-bold uppercase leading-3 tracking-[0.04em] text-slate-400 sm:text-[10px] sm:tracking-[0.08em]">
                 {label}
             </div>
             <div className="flex min-w-0 items-center gap-1.5">
-                <div className="min-w-0 whitespace-normal break-words text-sm font-bold leading-4 tabular-nums">
+                <div className="min-w-0 whitespace-normal break-words text-[10px] font-bold leading-4 tabular-nums sm:text-sm">
                     {locked ? <span className="inline-flex items-center gap-1"><Lock className="h-3 w-3" />***</span> : value}
                 </div>
                 {badge ? (
@@ -2023,7 +2023,7 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
     const renderFinancialSummaryStrip = () => (
         <div
             data-testid="patient-history-financial-summary"
-            className="grid min-w-0 grid-cols-1 gap-2 md:grid-cols-3 xl:w-full"
+            className="grid min-w-0 grid-cols-3 gap-1.5 sm:gap-2 xl:w-full"
         >
             <HistoryFinancialPill
                 label={t('patientHistory.totalDebt')}
@@ -2051,26 +2051,26 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
 
     return (
         <>
-            <Card className="interactive-card min-w-0 max-w-full overflow-hidden rounded-2xl border-slate-200 shadow-sm lg:max-w-none lg:overflow-visible">
-                <CardHeader className="flex min-w-0 max-w-full flex-col items-stretch gap-3">
+            <Card className="min-w-0 max-w-full gap-3 overflow-hidden rounded-2xl border-slate-200 py-3 shadow-sm sm:py-4 lg:max-w-none lg:overflow-visible lg:py-6">
+                <CardHeader className="flex min-w-0 max-w-full flex-col items-stretch gap-2 px-3 sm:gap-3 sm:px-4 lg:px-6">
                     <div
                         data-testid="patient-history-header"
-                        className="grid w-full grid-cols-1 gap-3 xl:grid-cols-[minmax(10rem,12rem)_minmax(34rem,1fr)_max-content] xl:items-center xl:gap-4"
+                        className="grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-2 sm:gap-3 xl:grid-cols-[minmax(10rem,12rem)_minmax(34rem,1fr)_max-content] xl:gap-4"
                     >
                         <div className="min-w-0 xl:w-[12rem] xl:justify-self-start">
-                            <CardTitle className="truncate">{t('patientHistory.title')}</CardTitle>
+                            <CardTitle className="truncate text-sm sm:text-base">{t('patientHistory.title')}</CardTitle>
                         </div>
-                        <div className="min-w-0 xl:w-full xl:justify-self-stretch">
+                        <div className="col-span-2 min-w-0 row-start-2 xl:col-span-1 xl:col-start-2 xl:row-start-1 xl:w-full xl:justify-self-stretch">
                             {renderFinancialSummaryStrip()}
                         </div>
                         <div
                             data-testid="patient-history-actions"
-                            className="flex w-full shrink-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-end xl:w-auto xl:justify-self-end"
+                            className="col-start-2 row-start-1 flex w-auto shrink-0 flex-row items-center justify-end gap-1.5 sm:gap-2 xl:col-start-3 xl:w-auto xl:justify-self-end"
                         >
                             {subscription?.can_export ? (
                                 <Button
                                     variant="outline"
-                                    className="h-10 whitespace-nowrap px-4"
+                                    className="h-9 w-9 whitespace-nowrap px-0 sm:w-auto sm:px-4"
                                     onClick={async () => {
                                     // PDF payload mirrors the on-screen gating: viewers
                                     // without `payments.view` get a slimmer PDF with
@@ -2169,32 +2169,32 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                     }}
                                 >
                                     <Download className="h-4 w-4" />
-                                    {t('common.export')}
+                                    <span className="hidden sm:inline">{t('common.export')}</span>
                                 </Button>
                             ) : null}
                             {historyManageDisplayMode === 'enabled' ? (
                                 <Button
                                     onClick={openCreateDialog}
                                     variant={isInlineCreateOpen ? 'secondary' : 'default'}
-                                    className="h-10 whitespace-nowrap px-4"
+                                    className="h-9 w-9 whitespace-nowrap px-0 min-[360px]:w-auto min-[360px]:px-3 sm:px-4"
                                 >
                                     <Plus className="h-4 w-4" />
-                                    {t('patientHistory.addEntry')}
+                                    <span className="hidden min-[360px]:inline">{t('patientHistory.addEntry')}</span>
                                 </Button>
                             ) : historyManageDisplayMode === 'disabled-readonly' ? (
                                 <Button
                                     disabled
                                     onClick={() => toast.error(manageDeniedMessage)}
-                                    className="h-10 whitespace-nowrap px-4"
+                                    className="h-9 w-9 whitespace-nowrap px-0 min-[360px]:w-auto min-[360px]:px-3 sm:px-4"
                                 >
                                     <Plus className="h-4 w-4" />
-                                    {t('patientHistory.addEntry')}
+                                    <span className="hidden min-[360px]:inline">{t('patientHistory.addEntry')}</span>
                                 </Button>
                             ) : null}
                         </div>
                     </div>
                 </CardHeader>
-                <CardContent className="min-w-0 max-w-full space-y-6">
+                <CardContent className="min-w-0 max-w-full space-y-4 px-3 sm:px-4 lg:space-y-6 lg:px-6">
                     {isLoading ? (
                         <div className="relative space-y-3">
                             <div className="absolute bottom-3 left-[84px] top-3 hidden w-px bg-slate-200 md:block" aria-hidden="true" />
@@ -2253,7 +2253,7 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                             />
                         </div>
                     ) : (
-                        <div className="space-y-4">
+                        <div className="space-y-3 sm:space-y-4">
                             <div className="relative space-y-3">
                                 <div className="absolute bottom-3 left-[84px] top-3 hidden w-px bg-slate-200 md:block" aria-hidden="true" />
                                 {isInlineCreateOpen ? renderTreatmentFormCard('create') : null}
@@ -2281,7 +2281,7 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                             <TimelineDate date={treatment.treatment_date} />
                                             <span className="relative z-10 mt-0.5 h-3.5 w-3.5 justify-self-center rounded-full border-2 border-white bg-teal-500 shadow-sm ring-4 ring-teal-50" />
                                         </div>
-                                        <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm transition-shadow hover:shadow-md">
+                                        <div className="rounded-xl border border-slate-200 bg-white p-2.5 shadow-sm transition-shadow hover:shadow-md sm:rounded-2xl sm:p-3">
                                             <div className="flex items-start justify-between gap-3">
                                                 <div className="min-w-0 flex-1">
                                                     <div className="mb-1.5 flex flex-wrap items-center gap-2">
@@ -2366,7 +2366,7 @@ export function TreatmentHistoryCard({ patientId, patientName }: TreatmentHistor
                                                     {description}
                                                 </p>
                                             ) : null}
-                                            <div className="mt-3 grid grid-cols-1 gap-2 border-t border-slate-100 pt-3 sm:grid-cols-2">
+                                            <div className="mt-3 grid grid-cols-2 gap-2 border-t border-slate-100 pt-3">
                                                 <HistoryFinanceChip
                                                     label={t('patientHistory.table.debt')}
                                                     value={canViewFinancials ? formatCurrency(debtAmount, treatmentCurrency) : t('dashboard.lockedKpi.label')}

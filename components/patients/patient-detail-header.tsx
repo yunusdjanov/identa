@@ -325,36 +325,36 @@ export function PatientDetailHeader({
 
     return (
         <>
-            <div className="grid grid-cols-1 gap-2.5 rounded-2xl border border-white/80 bg-white px-4 py-3 shadow-sm shadow-slate-200/70 sm:px-5 lg:grid-cols-[minmax(18rem,20rem)_minmax(0,1fr)] lg:items-center xl:grid-cols-[minmax(18rem,20rem)_minmax(0,1fr)_auto]">
+            <div className="grid grid-cols-1 gap-2 rounded-2xl border border-slate-200/70 bg-white p-3 shadow-sm shadow-slate-200/60 sm:gap-2.5 sm:px-4 sm:py-3 lg:grid-cols-[minmax(18rem,20rem)_minmax(0,1fr)] lg:items-center xl:grid-cols-[minmax(18rem,20rem)_minmax(0,1fr)_auto]">
                 <div
                     data-testid="patient-detail-header-identity"
-                    className="flex w-full min-w-0 max-w-[20rem] items-center gap-3"
+                    className="flex w-full min-w-0 items-center gap-2.5 lg:max-w-[20rem] lg:gap-3"
                 >
                     <Button
                         variant="ghost"
                         size="icon"
-                        className="h-10 w-10 shrink-0 sm:h-8 sm:w-8"
+                        className="h-9 w-9 shrink-0 rounded-full sm:h-8 sm:w-8"
                         aria-label={t('patientDetail.backToPatients')}
                         onClick={() => router.push(PATIENTS_LIST_RESTORE_HREF)}
                     >
                         <ArrowLeft className="h-4 w-4" />
                     </Button>
                     {patientAvatarUrl ? (
-                        <div className="relative h-20 w-24 shrink-0 overflow-visible">
+                        <div className="relative h-16 w-16 shrink-0 overflow-visible sm:h-20 sm:w-24">
                             <button
                                 type="button"
-                                className="group absolute left-0 top-1/2 h-24 w-24 -translate-y-1/2 overflow-hidden rounded-xl border border-white bg-white p-0 shadow-sm shadow-slate-200 transition hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-300"
+                                className="group absolute left-0 top-1/2 h-16 w-16 -translate-y-1/2 overflow-hidden rounded-full border-2 border-white bg-white p-0 shadow-sm shadow-slate-200 transition hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-300 sm:h-24 sm:w-24 sm:rounded-xl sm:border"
                                 aria-label={`${t('patients.form.photo')}: ${patient.full_name}`}
                                 onClick={() => setIsPatientPhotoPreviewOpen(true)}
                             >
-                                <Avatar className="h-full w-full rounded-xl">
+                                <Avatar className="h-full w-full rounded-full sm:rounded-xl">
                                     <AvatarImage
                                         src={patientAvatarUrl}
                                         alt={patient.full_name}
-                                        className="rounded-xl"
+                                        className="rounded-full sm:rounded-xl"
                                         crossOrigin={getProtectedMediaCrossOrigin(patientAvatarUrl)}
                                     />
-                                    <AvatarFallback className="rounded-xl bg-slate-100 text-base font-semibold text-slate-700">
+                                    <AvatarFallback className="rounded-full bg-slate-100 text-base font-semibold text-slate-700 sm:rounded-xl">
                                         {getPatientInitials(patient.full_name)}
                                     </AvatarFallback>
                                 </Avatar>
@@ -375,9 +375,9 @@ export function PatientDetailHeader({
                             </button>
                         </div>
                     ) : (
-                        <div className="relative h-20 w-24 shrink-0 overflow-visible">
-                            <Avatar className="absolute left-0 top-1/2 h-24 w-24 -translate-y-1/2 rounded-xl border border-white bg-slate-100 shadow-sm shadow-slate-200">
-                                <AvatarFallback className="rounded-xl bg-slate-100 text-base font-semibold text-slate-700">
+                        <div className="relative h-16 w-16 shrink-0 overflow-visible sm:h-20 sm:w-24">
+                            <Avatar className="absolute left-0 top-1/2 h-16 w-16 -translate-y-1/2 rounded-full border-2 border-white bg-slate-100 shadow-sm shadow-slate-200 sm:h-24 sm:w-24 sm:rounded-xl sm:border">
+                                <AvatarFallback className="rounded-full bg-slate-100 text-base font-semibold text-slate-700 sm:rounded-xl">
                                     {getPatientInitials(patient.full_name)}
                                 </AvatarFallback>
                             </Avatar>
@@ -397,7 +397,7 @@ export function PatientDetailHeader({
                     <div className="min-w-0 flex-1">
                         <h1
                             data-testid="patient-detail-header-name"
-                            className="max-w-full text-lg font-bold leading-tight tracking-[-0.02em] text-slate-950"
+                            className="max-w-full text-base font-bold leading-tight tracking-[-0.02em] text-slate-950 sm:text-lg"
                             title={patient.full_name}
                         >
                             <span className="block truncate">
@@ -409,7 +409,7 @@ export function PatientDetailHeader({
                                 </span>
                             ) : null}
                         </h1>
-                        <div className="mt-2 flex min-w-0 items-center gap-1.5">
+                        <div className="mt-1.5 flex min-w-0 flex-wrap items-center gap-1.5 sm:mt-2">
                             {primaryCategory ? (
                                 <Badge
                                     variant="secondary"
@@ -427,12 +427,22 @@ export function PatientDetailHeader({
                                     {t('patients.uncategorized')}
                                 </Badge>
                             )}
+                            {isPatientArchived ? (
+                                <Badge variant="secondary" className="shrink-0 bg-slate-200 text-slate-800">
+                                    {t('patients.archived')}
+                                </Badge>
+                            ) : null}
+                            {isInactive ? (
+                                <Badge variant="secondary" className="shrink-0 bg-yellow-100 text-yellow-800">
+                                    {t('patientDetail.inactive')}
+                                </Badge>
+                            ) : null}
                         </div>
                     </div>
                 </div>
                 <div
                     data-testid="patient-detail-header-facts"
-                    className="order-3 grid h-auto min-w-0 grid-rows-[auto_auto_auto] gap-1.5 overflow-visible rounded-2xl border border-slate-100 bg-slate-50/60 px-2.5 py-2 shadow-sm shadow-slate-200/40 md:h-[8rem] md:grid-rows-[1fr_auto_1fr] md:overflow-hidden lg:order-none lg:col-span-2 lg:row-start-2 xl:col-span-1 xl:col-start-2 xl:row-start-1"
+                    className="order-3 grid h-auto min-w-0 grid-rows-[auto_auto_auto] gap-1.5 overflow-visible rounded-xl border border-slate-100 bg-slate-50/70 p-1.5 md:h-[8rem] md:grid-rows-[1fr_auto_1fr] md:overflow-hidden md:rounded-2xl md:px-2.5 md:py-2 lg:order-none lg:col-span-2 lg:row-start-2 xl:col-span-1 xl:col-start-2 xl:row-start-1"
                 >
                     <div
                         data-testid="patient-detail-header-contact-facts"
@@ -481,7 +491,7 @@ export function PatientDetailHeader({
                     <div aria-hidden="true" className="h-px bg-slate-200/70" />
                     <div
                         data-testid="patient-detail-header-medical-facts"
-                        className="grid min-h-0 min-w-0 items-center gap-1.5 md:grid-cols-3"
+                        className="grid min-h-0 min-w-0 items-center gap-1.5 sm:grid-cols-3"
                     >
                         {hasHeaderMedicalFacts ? (
                             <>
@@ -517,65 +527,59 @@ export function PatientDetailHeader({
                 </div>
                 <div
                     data-testid="patient-detail-header-actions"
-                    className="order-2 flex min-w-0 flex-row flex-wrap items-center justify-end gap-2 border-t border-slate-100 pt-2 lg:order-none lg:col-start-2 lg:row-start-1 lg:border-0 lg:pt-0 xl:col-start-3"
+                    className="order-2 grid min-w-0 grid-flow-col auto-cols-fr items-center gap-1.5 lg:order-none lg:col-start-2 lg:row-start-1 lg:flex lg:flex-row lg:flex-wrap lg:justify-end lg:gap-2 xl:col-start-3"
                 >
-                    {isPatientArchived ? (
-                        <Badge variant="secondary" className="bg-slate-200 text-slate-800">
-                            {t('patients.archived')}
-                        </Badge>
-                    ) : null}
-                    {isInactive ? (
-                        <Badge variant="secondary" className="bg-yellow-100 text-yellow-800">
-                            {t('patientDetail.inactive')}
-                        </Badge>
-                    ) : null}
                     {!isPatientArchived && canManageAppointments ? (
                         <Button
                             variant="outline"
                             size="icon-lg"
-                            className="rounded-full"
+                            className="h-10 w-full rounded-xl px-2 text-[10px] lg:size-10 lg:rounded-full lg:px-0"
                             aria-label={t('appointments.dialog.newTitle')}
                             title={t('appointments.dialog.newTitle')}
                             onClick={() => setIsAppointmentDialogOpen(true)}
                         >
                             <CalendarPlus className="h-4 w-4" />
+                            <span className="min-w-0 truncate lg:sr-only">{t('appointments.dialog.newTitle')}</span>
                         </Button>
                     ) : !isPatientArchived && isSubscriptionReadOnly(currentUser) && canViewAppointments ? (
                         <Button
                             variant="outline"
                             size="icon-lg"
-                            className="rounded-full"
+                            className="h-10 w-full rounded-xl px-2 text-[10px] lg:size-10 lg:rounded-full lg:px-0"
                             aria-label={t('appointments.dialog.newTitle')}
                             title={t('appointments.dialog.newTitle')}
                             disabled
                             onClick={denyManageAction}
                         >
                             <CalendarPlus className="h-4 w-4" />
+                            <span className="min-w-0 truncate lg:sr-only">{t('appointments.dialog.newTitle')}</span>
                         </Button>
                     ) : null}
                     {canManagePatients ? (
                         <Button
                             variant="outline"
                             size="icon-lg"
-                            className="rounded-full"
+                            className="h-10 w-full rounded-xl px-2 text-[10px] lg:size-10 lg:rounded-full lg:px-0"
                             aria-label={t('patientDetail.editPatient')}
                             title={t('patientDetail.editPatient')}
                             onClick={() => setIsEditDialogOpen(true)}
                             disabled={isPatientArchived}
                         >
                             <Edit className="h-4 w-4" />
+                            <span className="min-w-0 truncate lg:sr-only">{t('patientDetail.editPatient')}</span>
                         </Button>
                     ) : isSubscriptionReadOnly(currentUser) && canViewPatients ? (
                         <Button
                             variant="outline"
                             size="icon-lg"
-                            className="rounded-full"
+                            className="h-10 w-full rounded-xl px-2 text-[10px] lg:size-10 lg:rounded-full lg:px-0"
                             aria-label={t('patientDetail.editPatient')}
                             title={t('patientDetail.editPatient')}
                             disabled
                             onClick={denyManageAction}
                         >
                             <Edit className="h-4 w-4" />
+                            <span className="min-w-0 truncate lg:sr-only">{t('patientDetail.editPatient')}</span>
                         </Button>
                     ) : null}
                     {isPatientArchived ? (
@@ -584,7 +588,7 @@ export function PatientDetailHeader({
                                 <Button
                                     variant="outline"
                                     size="sm"
-                                    className="h-10 rounded-full px-3 text-xs lg:h-7"
+                                    className="h-10 w-full rounded-xl px-3 text-xs lg:h-7 lg:w-auto lg:rounded-full"
                                     onClick={() => setIsRestorePatientDialogOpen(true)}
                                     disabled={
                                         restorePatientMutation.isPending
@@ -597,7 +601,7 @@ export function PatientDetailHeader({
                                 <Button
                                     variant="outline"
                                     size="sm"
-                                    className="h-10 rounded-full px-3 text-xs lg:h-7"
+                                    className="h-10 w-full rounded-xl px-3 text-xs lg:h-7 lg:w-auto lg:rounded-full"
                                     disabled
                                     onClick={denyManageAction}
                                 >
@@ -608,7 +612,7 @@ export function PatientDetailHeader({
                                 <Button
                                     variant="outline"
                                     size="sm"
-                                    className="h-10 rounded-full px-3 text-xs text-red-600 hover:text-red-700 lg:h-7"
+                                    className="h-10 w-full rounded-xl px-3 text-xs text-red-600 hover:text-red-700 lg:h-7 lg:w-auto lg:rounded-full"
                                     onClick={() => setIsPermanentDeletePatientDialogOpen(true)}
                                     disabled={
                                         restorePatientMutation.isPending
@@ -622,7 +626,7 @@ export function PatientDetailHeader({
                                 <Button
                                     variant="outline"
                                     size="sm"
-                                    className="h-10 rounded-full px-3 text-xs text-red-600 hover:text-red-700 lg:h-7"
+                                    className="h-10 w-full rounded-xl px-3 text-xs text-red-600 hover:text-red-700 lg:h-7 lg:w-auto lg:rounded-full"
                                     disabled
                                     onClick={denyManageAction}
                                 >
@@ -635,25 +639,27 @@ export function PatientDetailHeader({
                         <Button
                             variant="outline"
                             size="icon-lg"
-                            className="rounded-full text-amber-700 hover:text-amber-800"
+                            className="h-10 w-full rounded-xl px-2 text-[10px] text-amber-700 hover:text-amber-800 lg:size-10 lg:rounded-full lg:px-0"
                             aria-label={t('patientDetail.archive')}
                             title={t('patientDetail.archive')}
                             onClick={() => setIsArchivePatientDialogOpen(true)}
                             disabled={archivePatientMutation.isPending}
                         >
                             <Archive className="h-4 w-4" />
+                            <span className="min-w-0 truncate lg:sr-only">{t('patientDetail.archive')}</span>
                         </Button>
                     ) : isSubscriptionReadOnly(currentUser) && canViewPatients ? (
                         <Button
                             variant="outline"
                             size="icon-lg"
-                            className="rounded-full text-amber-700 hover:text-amber-800"
+                            className="h-10 w-full rounded-xl px-2 text-[10px] text-amber-700 hover:text-amber-800 lg:size-10 lg:rounded-full lg:px-0"
                             aria-label={t('patientDetail.archive')}
                             title={t('patientDetail.archive')}
                             disabled
                             onClick={denyManageAction}
                         >
                             <Archive className="h-4 w-4" />
+                            <span className="min-w-0 truncate lg:sr-only">{t('patientDetail.archive')}</span>
                         </Button>
                     ) : null}
                 </div>

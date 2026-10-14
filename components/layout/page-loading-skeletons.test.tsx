@@ -191,28 +191,42 @@ describe('page loading skeletons', () => {
             expect(screen.getByTestId('payment-patient-table-skeleton')).toHaveClass('overflow-x-auto');
         });
 
-        it('matches the patient detail overview, history, and oral photo order', () => {
+        it('matches the compact patient detail photo, overview, and history order', () => {
             render(<PatientDetailLoadingState />);
 
-            expect(screen.getByTestId('patient-detail-header-identity-skeleton')).toHaveClass('max-w-[20rem]');
-            expect(screen.getByTestId('patient-detail-header-photo-skeleton')).toHaveClass('h-24', 'w-24', 'rounded-xl');
+            expect(screen.getByTestId('patient-detail-header-identity-skeleton')).toHaveClass('lg:max-w-[20rem]');
+            expect(screen.getByTestId('patient-detail-header-photo-skeleton')).toHaveClass(
+                'h-16',
+                'w-16',
+                'rounded-full',
+                'sm:h-24',
+                'sm:w-24',
+                'sm:rounded-xl',
+            );
             expect(screen.getByTestId('patient-detail-header-facts-skeleton')).toHaveClass(
                 'h-auto',
                 'overflow-visible',
                 'md:h-[8rem]',
                 'md:overflow-hidden'
             );
-            expect(screen.getByTestId('patient-detail-header-actions-skeleton')).toHaveClass('flex-row', 'lg:order-none');
+            expect(screen.getByTestId('patient-detail-header-actions-skeleton')).toHaveClass(
+                'grid',
+                'grid-flow-col',
+                'auto-cols-fr',
+                'lg:flex',
+                'lg:order-none',
+            );
             const overviewStrip = screen.getByTestId('patient-detail-summary-grid-skeleton');
             const workHistory = screen.getByTestId('patient-detail-work-history-skeleton');
             const oralPhotoPanel = screen.getByTestId('patient-detail-oral-photo-skeleton');
 
-            expect(overviewStrip).toHaveClass('rounded-2xl', 'pt-[3px]');
+            expect(overviewStrip).toHaveClass('rounded-2xl', 'overflow-hidden');
+            expect(overviewStrip).not.toHaveClass('pt-[3px]');
             expect(oralPhotoPanel).not.toHaveClass('lg:h-[20.75rem]');
             expect(screen.queryByTestId('patient-detail-clinical-strip-skeleton')).not.toBeInTheDocument();
             expect(screen.getAllByTestId('patient-detail-oral-photo-slot-skeleton')).toHaveLength(5);
+            expect(oralPhotoPanel.compareDocumentPosition(overviewStrip) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
             expect(overviewStrip.compareDocumentPosition(workHistory) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-            expect(workHistory.compareDocumentPosition(oralPhotoPanel) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
         });
     });
 
