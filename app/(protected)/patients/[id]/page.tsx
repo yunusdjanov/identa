@@ -175,7 +175,7 @@ function VitalStatCell({
     valueClassName?: string;
 }) {
     return (
-        <div className="flex min-h-16 min-w-0 flex-col items-center justify-center gap-1 bg-white px-1.5 py-2 text-center sm:min-h-[4.5rem] sm:px-3">
+        <div className="flex min-h-[4.5rem] min-w-0 flex-col items-center justify-center gap-1 rounded-2xl border border-slate-200/70 bg-white px-1.5 py-2 text-center shadow-sm shadow-slate-200/50 lg:min-h-[4.5rem] lg:rounded-none lg:border-0 lg:px-3 lg:shadow-none">
             <div className="inline-flex items-center gap-1 text-slate-400">
                 <Icon className="h-3 w-3 shrink-0" />
                 <p className="truncate text-[8px] font-bold uppercase tracking-[0.06em] sm:text-[10px] sm:tracking-[0.1em]">{label}</p>
@@ -560,7 +560,7 @@ export default function PatientDetailPage({
     };
 
     return (
-        <div data-testid="patient-detail-page-layout" className="space-y-2.5">
+        <div data-testid="patient-detail-page-layout" className="space-y-3 lg:space-y-2.5">
             <PatientDetailHeader
                 patient={patient}
                 currentUser={currentUser}
@@ -662,9 +662,9 @@ export default function PatientDetailPage({
 
             <section
                 data-testid="patient-detail-summary-grid"
-                className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm shadow-slate-200/40"
+                className="overflow-visible lg:overflow-hidden lg:rounded-2xl lg:border lg:border-slate-200/80 lg:bg-white lg:shadow-sm lg:shadow-slate-200/40"
             >
-                <div className="grid grid-cols-3 divide-x divide-slate-100">
+                <div className="grid grid-cols-3 gap-2 lg:gap-0 lg:divide-x lg:divide-slate-100">
                     <VitalStatCell
                         icon={Wallet}
                         label={t('patientDetail.openBalance')}

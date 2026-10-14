@@ -104,27 +104,27 @@ const PATIENT_HEADER_FACT_TONE_CLASSES: Record<PatientHeaderFactTone, { icon: st
     teal: {
         icon: 'bg-teal-50 text-teal-600 ring-teal-100',
         value: 'text-slate-900',
-        box: 'border-white/80 bg-white/75',
+        box: 'border-transparent bg-transparent lg:border-white/80 lg:bg-white/75',
     },
     rose: {
         icon: 'bg-rose-50 text-rose-600 ring-rose-100',
         value: 'text-rose-900',
-        box: 'border-rose-100/70 bg-rose-50/55',
+        box: 'border-transparent bg-transparent lg:border-rose-100/70 lg:bg-rose-50/55',
     },
     amber: {
         icon: 'bg-amber-50 text-amber-600 ring-amber-100',
         value: 'text-amber-950',
-        box: 'border-amber-100/80 bg-amber-50/55',
+        box: 'border-transparent bg-transparent lg:border-amber-100/80 lg:bg-amber-50/55',
     },
     slate: {
         icon: 'bg-slate-100 text-slate-500 ring-slate-200/80',
         value: 'text-slate-800',
-        box: 'border-white/80 bg-white/70',
+        box: 'border-transparent bg-transparent lg:border-white/80 lg:bg-white/70',
     },
     sky: {
         icon: 'bg-sky-50 text-sky-600 ring-sky-100',
         value: 'text-slate-900',
-        box: 'border-white/80 bg-white/75',
+        box: 'border-transparent bg-transparent lg:border-white/80 lg:bg-white/75',
     },
 };
 
@@ -150,7 +150,7 @@ function PatientHeaderFact({
 
     return (
         <div
-            className={`flex min-w-0 items-center gap-2 overflow-hidden rounded-xl border px-2.5 py-1.5 ${toneClasses.box} ${className}`}
+            className={`flex min-h-12 min-w-0 items-center gap-2.5 overflow-hidden rounded-xl border px-2.5 py-2 lg:min-h-0 lg:gap-2 lg:py-1.5 ${toneClasses.box} ${className}`}
         >
             <span
                 className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ring-1 ${toneClasses.icon}`}
@@ -159,11 +159,16 @@ function PatientHeaderFact({
                 <Icon className="h-3.5 w-3.5" aria-hidden="true" />
                 <span className="sr-only">{label}</span>
             </span>
-            <span
-                className={`min-w-0 overflow-hidden text-[12px] font-semibold leading-5 ${isStringValue ? 'truncate' : ''} ${toneClasses.value} ${valueClassName}`}
-                title={title}
-            >
-                {value}
+            <span className="flex min-w-0 flex-1 flex-col gap-0.5 overflow-hidden">
+                <span className="truncate text-[9px] font-bold uppercase tracking-[0.08em] text-slate-400 lg:sr-only">
+                    {label}
+                </span>
+                <span
+                    className={`min-w-0 overflow-hidden text-[12px] font-semibold leading-5 ${isStringValue ? 'truncate' : ''} ${toneClasses.value} ${valueClassName}`}
+                    title={title}
+                >
+                    {value}
+                </span>
             </span>
         </div>
     );
@@ -195,7 +200,7 @@ function PatientHeaderClinicalFact({
             value={displayValue}
             title={hasValue ? safeValue : label}
             tone={tone}
-            className="h-10"
+            className="min-h-12 lg:h-10"
             valueClassName={hasValue ? '' : 'text-slate-400'}
         />
     );
@@ -211,7 +216,7 @@ function PatientHeaderMedicalEmptyState({
     return (
         <div
             data-testid="patient-detail-header-medical-empty"
-            className="flex h-10 min-w-0 items-center gap-2 overflow-hidden rounded-xl border border-white/80 bg-white/70 px-2.5 py-1.5 text-slate-500 md:col-span-3"
+            className="flex min-h-12 min-w-0 items-center gap-2.5 overflow-hidden rounded-xl border border-transparent bg-transparent px-2.5 py-2 text-slate-500 lg:col-span-3 lg:h-10 lg:min-h-0 lg:gap-2 lg:border-white/80 lg:bg-white/70 lg:py-1.5"
             title={label}
         >
             <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-500 ring-1 ring-slate-200/80">
@@ -325,36 +330,36 @@ export function PatientDetailHeader({
 
     return (
         <>
-            <div className="grid grid-cols-1 gap-2 rounded-2xl border border-slate-200/70 bg-white p-3 shadow-sm shadow-slate-200/60 sm:gap-2.5 sm:px-4 sm:py-3 lg:grid-cols-[minmax(18rem,20rem)_minmax(0,1fr)] lg:items-center xl:grid-cols-[minmax(18rem,20rem)_minmax(0,1fr)_auto]">
+            <div className="grid grid-cols-1 gap-3 lg:grid-cols-[minmax(18rem,20rem)_minmax(0,1fr)] lg:items-center lg:gap-2.5 lg:rounded-2xl lg:border lg:border-slate-200/70 lg:bg-white lg:px-4 lg:py-3 lg:shadow-sm lg:shadow-slate-200/60 xl:grid-cols-[minmax(18rem,20rem)_minmax(0,1fr)_auto]">
                 <div
                     data-testid="patient-detail-header-identity"
-                    className="flex w-full min-w-0 items-center gap-2.5 lg:max-w-[20rem] lg:gap-3"
+                    className="relative flex w-full min-w-0 flex-col items-center rounded-3xl border border-white/90 bg-white px-4 pb-4 pt-12 text-center shadow-sm shadow-slate-200/60 lg:static lg:max-w-[20rem] lg:flex-row lg:gap-3 lg:rounded-none lg:border-0 lg:bg-transparent lg:p-0 lg:text-left lg:shadow-none"
                 >
                     <Button
                         variant="ghost"
                         size="icon"
-                        className="h-9 w-9 shrink-0 rounded-full sm:h-8 sm:w-8"
+                        className="absolute left-3 top-3 h-9 w-9 shrink-0 rounded-full bg-teal-50 text-teal-700 hover:bg-teal-100 lg:static lg:h-8 lg:w-8 lg:bg-transparent lg:text-foreground"
                         aria-label={t('patientDetail.backToPatients')}
                         onClick={() => router.push(PATIENTS_LIST_RESTORE_HREF)}
                     >
                         <ArrowLeft className="h-4 w-4" />
                     </Button>
                     {patientAvatarUrl ? (
-                        <div className="relative h-16 w-16 shrink-0 overflow-visible sm:h-20 sm:w-24">
+                        <div className="relative h-20 w-20 shrink-0 overflow-visible lg:h-20 lg:w-24">
                             <button
                                 type="button"
-                                className="group absolute left-0 top-1/2 h-16 w-16 -translate-y-1/2 overflow-hidden rounded-full border-2 border-white bg-white p-0 shadow-sm shadow-slate-200 transition hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-300 sm:h-24 sm:w-24 sm:rounded-xl sm:border"
+                                className="group absolute left-0 top-1/2 h-20 w-20 -translate-y-1/2 overflow-hidden rounded-full border-2 border-white bg-white p-0 shadow-md shadow-slate-200 transition hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-300 lg:h-24 lg:w-24 lg:rounded-xl lg:border lg:shadow-sm"
                                 aria-label={`${t('patients.form.photo')}: ${patient.full_name}`}
                                 onClick={() => setIsPatientPhotoPreviewOpen(true)}
                             >
-                                <Avatar className="h-full w-full rounded-full sm:rounded-xl">
+                                <Avatar className="h-full w-full rounded-full lg:rounded-xl">
                                     <AvatarImage
                                         src={patientAvatarUrl}
                                         alt={patient.full_name}
-                                        className="rounded-full sm:rounded-xl"
+                                        className="rounded-full lg:rounded-xl"
                                         crossOrigin={getProtectedMediaCrossOrigin(patientAvatarUrl)}
                                     />
-                                    <AvatarFallback className="rounded-full bg-slate-100 text-base font-semibold text-slate-700 sm:rounded-xl">
+                                    <AvatarFallback className="rounded-full bg-slate-100 text-lg font-semibold text-slate-700 lg:rounded-xl">
                                         {getPatientInitials(patient.full_name)}
                                     </AvatarFallback>
                                 </Avatar>
@@ -375,9 +380,9 @@ export function PatientDetailHeader({
                             </button>
                         </div>
                     ) : (
-                        <div className="relative h-16 w-16 shrink-0 overflow-visible sm:h-20 sm:w-24">
-                            <Avatar className="absolute left-0 top-1/2 h-16 w-16 -translate-y-1/2 rounded-full border-2 border-white bg-slate-100 shadow-sm shadow-slate-200 sm:h-24 sm:w-24 sm:rounded-xl sm:border">
-                                <AvatarFallback className="rounded-full bg-slate-100 text-base font-semibold text-slate-700 sm:rounded-xl">
+                        <div className="relative h-20 w-20 shrink-0 overflow-visible lg:h-20 lg:w-24">
+                            <Avatar className="absolute left-0 top-1/2 h-20 w-20 -translate-y-1/2 rounded-full border-2 border-white bg-slate-100 shadow-md shadow-slate-200 lg:h-24 lg:w-24 lg:rounded-xl lg:border lg:shadow-sm">
+                                <AvatarFallback className="rounded-full bg-slate-100 text-lg font-semibold text-slate-700 lg:rounded-xl">
                                     {getPatientInitials(patient.full_name)}
                                 </AvatarFallback>
                             </Avatar>
@@ -394,10 +399,10 @@ export function PatientDetailHeader({
                             ) : null}
                         </div>
                     )}
-                    <div className="min-w-0 flex-1">
+                    <div className="mt-3 min-w-0 w-full flex-1 lg:mt-0 lg:w-auto">
                         <h1
                             data-testid="patient-detail-header-name"
-                            className="max-w-full text-base font-bold leading-tight tracking-[-0.02em] text-slate-950 sm:text-lg"
+                            className="max-w-full text-lg font-bold leading-tight tracking-[-0.02em] text-slate-950 lg:text-left"
                             title={patient.full_name}
                         >
                             <span className="block truncate">
@@ -409,7 +414,7 @@ export function PatientDetailHeader({
                                 </span>
                             ) : null}
                         </h1>
-                        <div className="mt-1.5 flex min-w-0 flex-wrap items-center gap-1.5 sm:mt-2">
+                        <div className="mt-2 flex min-w-0 flex-wrap items-center justify-center gap-1.5 lg:justify-start">
                             {primaryCategory ? (
                                 <Badge
                                     variant="secondary"
@@ -442,12 +447,15 @@ export function PatientDetailHeader({
                 </div>
                 <div
                     data-testid="patient-detail-header-facts"
-                    className="order-3 grid h-auto min-w-0 grid-rows-[auto_auto_auto] gap-1.5 overflow-visible rounded-xl border border-slate-100 bg-slate-50/70 p-1.5 md:h-[8rem] md:grid-rows-[1fr_auto_1fr] md:overflow-hidden md:rounded-2xl md:px-2.5 md:py-2 lg:order-none lg:col-span-2 lg:row-start-2 xl:col-span-1 xl:col-start-2 xl:row-start-1"
+                    className="order-3 grid h-auto min-w-0 gap-3 overflow-visible lg:order-none lg:col-span-2 lg:row-start-2 lg:h-[8rem] lg:grid-rows-[1fr_auto_1fr] lg:gap-1.5 lg:overflow-hidden lg:rounded-2xl lg:border lg:border-slate-100 lg:bg-slate-50/70 lg:px-2.5 lg:py-2 xl:col-span-1 xl:col-start-2 xl:row-start-1"
                 >
                     <div
                         data-testid="patient-detail-header-contact-facts"
-                        className="grid min-h-0 min-w-0 grid-cols-2 items-center gap-1.5 md:grid-cols-3"
+                        className="grid min-h-0 min-w-0 grid-cols-1 items-center gap-0 overflow-hidden rounded-2xl border border-slate-200/70 bg-white p-2 shadow-sm shadow-slate-200/50 lg:grid-cols-3 lg:gap-1.5 lg:overflow-visible lg:rounded-none lg:border-0 lg:bg-transparent lg:p-0 lg:shadow-none"
                     >
+                        <h2 className="px-1 pb-1 text-left text-[10px] font-bold uppercase tracking-[0.1em] text-slate-500 lg:sr-only lg:p-0">
+                            {t('patientDetail.contactInfo')}
+                        </h2>
                         <PatientHeaderFact
                             icon={Phone}
                             label={t('patientDetail.phone')}
@@ -466,7 +474,7 @@ export function PatientDetailHeader({
                             }
                             title={headerPhoneTitle}
                             tone="teal"
-                            className="col-span-2 h-11 md:col-span-1"
+                            className="lg:col-span-1 lg:h-11"
                             valueClassName={headerPhones.length > 0 ? '' : 'text-slate-400'}
                         />
                         <PatientHeaderFact
@@ -475,7 +483,7 @@ export function PatientDetailHeader({
                             value={headerBirthDateValue}
                             title={patient.date_of_birth ? headerBirthDateValue : t('patientDetail.notSpecified')}
                             tone="sky"
-                            className="h-11"
+                            className="lg:h-11"
                             valueClassName="tabular-nums"
                         />
                         <PatientHeaderFact
@@ -484,15 +492,18 @@ export function PatientDetailHeader({
                             value={truncateForUi(headerAddressValue, 38)}
                             title={patient.address?.trim() ? patient.address : t('patientDetail.notSpecified')}
                             tone="teal"
-                            className="h-11"
+                            className="lg:h-11"
                             valueClassName={patient.address?.trim() ? '' : 'text-slate-400'}
                         />
                     </div>
-                    <div aria-hidden="true" className="h-px bg-slate-200/70" />
+                    <div aria-hidden="true" className="hidden h-px bg-slate-200/70 lg:block" />
                     <div
                         data-testid="patient-detail-header-medical-facts"
-                        className="grid min-h-0 min-w-0 items-center gap-1.5 sm:grid-cols-3"
+                        className="grid min-h-0 min-w-0 grid-cols-1 items-center gap-0 overflow-hidden rounded-2xl border border-slate-200/70 bg-white p-2 shadow-sm shadow-slate-200/50 lg:grid-cols-3 lg:gap-1.5 lg:overflow-visible lg:rounded-none lg:border-0 lg:bg-transparent lg:p-0 lg:shadow-none"
                     >
+                        <h2 className="px-1 pb-1 text-left text-[10px] font-bold uppercase tracking-[0.1em] text-slate-500 lg:sr-only lg:p-0">
+                            {t('patientDetail.medicalInfo')}
+                        </h2>
                         {hasHeaderMedicalFacts ? (
                             <>
                                 <PatientHeaderClinicalFact
@@ -527,13 +538,13 @@ export function PatientDetailHeader({
                 </div>
                 <div
                     data-testid="patient-detail-header-actions"
-                    className="order-2 grid min-w-0 grid-flow-col auto-cols-fr items-center gap-1.5 lg:order-none lg:col-start-2 lg:row-start-1 lg:flex lg:flex-row lg:flex-wrap lg:justify-end lg:gap-2 xl:col-start-3"
+                    className="order-2 grid min-w-0 grid-flow-col auto-cols-fr items-center gap-2 rounded-2xl border border-white/90 bg-white p-2 shadow-sm shadow-slate-200/50 lg:order-none lg:col-start-2 lg:row-start-1 lg:flex lg:flex-row lg:flex-wrap lg:justify-end lg:gap-2 lg:rounded-none lg:border-0 lg:bg-transparent lg:p-0 lg:shadow-none xl:col-start-3"
                 >
                     {!isPatientArchived && canManageAppointments ? (
                         <Button
                             variant="outline"
                             size="icon-lg"
-                            className="h-10 w-full rounded-xl px-2 text-[10px] lg:size-10 lg:rounded-full lg:px-0"
+                            className="h-11 w-full rounded-xl border-teal-600 bg-teal-600 px-2 text-[10px] text-white shadow-sm hover:bg-teal-700 hover:text-white lg:size-10 lg:rounded-full lg:border-input lg:bg-background lg:px-0 lg:text-foreground lg:shadow-xs lg:hover:bg-accent lg:hover:text-accent-foreground"
                             aria-label={t('appointments.dialog.newTitle')}
                             title={t('appointments.dialog.newTitle')}
                             onClick={() => setIsAppointmentDialogOpen(true)}
@@ -545,7 +556,7 @@ export function PatientDetailHeader({
                         <Button
                             variant="outline"
                             size="icon-lg"
-                            className="h-10 w-full rounded-xl px-2 text-[10px] lg:size-10 lg:rounded-full lg:px-0"
+                            className="h-11 w-full rounded-xl px-2 text-[10px] lg:size-10 lg:rounded-full lg:px-0"
                             aria-label={t('appointments.dialog.newTitle')}
                             title={t('appointments.dialog.newTitle')}
                             disabled
@@ -559,7 +570,7 @@ export function PatientDetailHeader({
                         <Button
                             variant="outline"
                             size="icon-lg"
-                            className="h-10 w-full rounded-xl px-2 text-[10px] lg:size-10 lg:rounded-full lg:px-0"
+                            className="h-11 w-full rounded-xl border-transparent bg-teal-50 px-2 text-[10px] text-teal-800 hover:bg-teal-100 hover:text-teal-900 lg:size-10 lg:rounded-full lg:border-input lg:bg-background lg:px-0 lg:text-foreground lg:hover:bg-accent lg:hover:text-accent-foreground"
                             aria-label={t('patientDetail.editPatient')}
                             title={t('patientDetail.editPatient')}
                             onClick={() => setIsEditDialogOpen(true)}
@@ -572,7 +583,7 @@ export function PatientDetailHeader({
                         <Button
                             variant="outline"
                             size="icon-lg"
-                            className="h-10 w-full rounded-xl px-2 text-[10px] lg:size-10 lg:rounded-full lg:px-0"
+                            className="h-11 w-full rounded-xl px-2 text-[10px] lg:size-10 lg:rounded-full lg:px-0"
                             aria-label={t('patientDetail.editPatient')}
                             title={t('patientDetail.editPatient')}
                             disabled
@@ -639,7 +650,7 @@ export function PatientDetailHeader({
                         <Button
                             variant="outline"
                             size="icon-lg"
-                            className="h-10 w-full rounded-xl px-2 text-[10px] text-amber-700 hover:text-amber-800 lg:size-10 lg:rounded-full lg:px-0"
+                            className="h-11 w-full rounded-xl border-transparent bg-amber-50 px-2 text-[10px] text-amber-700 hover:bg-amber-100 hover:text-amber-800 lg:size-10 lg:rounded-full lg:border-input lg:bg-background lg:px-0 lg:shadow-xs"
                             aria-label={t('patientDetail.archive')}
                             title={t('patientDetail.archive')}
                             onClick={() => setIsArchivePatientDialogOpen(true)}
@@ -652,7 +663,7 @@ export function PatientDetailHeader({
                         <Button
                             variant="outline"
                             size="icon-lg"
-                            className="h-10 w-full rounded-xl px-2 text-[10px] text-amber-700 hover:text-amber-800 lg:size-10 lg:rounded-full lg:px-0"
+                            className="h-11 w-full rounded-xl px-2 text-[10px] text-amber-700 hover:text-amber-800 lg:size-10 lg:rounded-full lg:px-0"
                             aria-label={t('patientDetail.archive')}
                             title={t('patientDetail.archive')}
                             disabled

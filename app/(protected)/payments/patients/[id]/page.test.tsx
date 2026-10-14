@@ -198,25 +198,25 @@ describe('PaymentPatientPage', () => {
         expect(header).not.toBeNull();
         expect(within(header as HTMLElement).queryByText('PT-0001')).not.toBeInTheDocument();
         expect(within(header as HTMLElement).getByRole('button', { name: 'Patient Photo: John Smith' }))
-            .toHaveClass('h-16', 'w-16', 'sm:h-24', 'sm:w-24');
+            .toHaveClass('h-20', 'w-20', 'lg:h-24', 'lg:w-24');
         expect(within(header as HTMLElement).getByText('+998 90 123 45 67')).toBeInTheDocument();
         expect(within(header as HTMLElement).getByText('+998 91 765 43 21')).toBeInTheDocument();
         expect(within(header as HTMLElement).getByText('Apr 15, 1992')).toBeInTheDocument();
         expect(within(header as HTMLElement).getByText('12 Amir Temur Avenue, Tashkent')).toBeInTheDocument();
-        expect(header).toHaveClass('gap-2', 'sm:gap-2.5');
-        expect(identity).toHaveClass('w-full', 'lg:max-w-[20rem]');
+        expect(header).toHaveClass('gap-3', 'lg:gap-2.5');
+        expect(identity).toHaveClass('w-full', 'flex-col', 'rounded-3xl', 'lg:max-w-[20rem]', 'lg:flex-row');
         expect(screen.getByTestId('patient-detail-header-facts')).toHaveClass(
             'h-auto',
             'overflow-visible',
-            'md:h-[8rem]',
-            'md:overflow-hidden'
+            'lg:h-[8rem]',
+            'lg:overflow-hidden'
         );
         expect(within(header as HTMLElement).getByRole('button', { name: 'Schedule Appointment' }))
-            .toHaveClass('size-10');
+            .toHaveClass('h-11', 'w-full', 'lg:size-10');
         expect(within(header as HTMLElement).getByRole('button', { name: 'Edit Patient' }))
-            .toHaveClass('size-10');
+            .toHaveClass('h-11', 'w-full', 'lg:size-10');
         expect(within(header as HTMLElement).getByRole('button', { name: 'Archive' }))
-            .toHaveClass('size-10');
+            .toHaveClass('h-11', 'w-full', 'lg:size-10');
         expect(within(header as HTMLElement).getByTestId('patient-detail-header-medical-empty'))
             .toHaveTextContent('No medical information recorded');
 
