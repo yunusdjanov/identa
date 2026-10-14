@@ -392,13 +392,23 @@ describe('PatientDetailPage', () => {
         expect(screen.getByTestId('patient-detail-oral-photo-grid')).toHaveClass(
             'min-h-0',
             'flex-1',
-            'grid-cols-2',
-            'md:grid-cols-5',
+            'touch-pan-x',
+            'snap-x',
+            'overflow-x-auto',
+            'lg:grid',
+            'lg:grid-cols-5',
             'lg:auto-rows-[6.5rem]',
         );
         expect(screen.getByTestId('patient-detail-oral-photo-grid')).not.toHaveClass('lg:h-full');
         expect(screen.getAllByTestId('patient-detail-oral-photo-slot')).toHaveLength(1);
-        expect(screen.getAllByTestId('patient-detail-oral-photo-slot')[0]).toHaveClass('h-full', 'min-h-0', 'w-full');
+        expect(screen.getAllByTestId('patient-detail-oral-photo-slot')[0]).toHaveClass(
+            'h-[5.5rem]',
+            'w-[5.5rem]',
+            'shrink-0',
+            'snap-start',
+            'lg:h-full',
+            'lg:w-full',
+        );
         expect(screen.queryByText('Detail')).not.toBeInTheDocument();
         expect(patientInformation.compareDocumentPosition(oralPhotoPanel) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
         expect(oralPhotoPanel.compareDocumentPosition(overviewStrip) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
@@ -450,10 +460,13 @@ describe('PatientDetailPage', () => {
         expect(screen.queryByText('Top')).not.toBeInTheDocument();
         expect(screen.queryByText('Bottom')).not.toBeInTheDocument();
         expect(screen.getByText('1/10')).toBeInTheDocument();
-        expect(screen.getAllByTitle('Upload')).toHaveLength(1);
-        expect(screen.getAllByTitle('View')).toHaveLength(1);
-        expect(screen.getAllByTitle('View')[0]).toHaveClass('h-full', 'min-h-0', 'w-full');
-        expect(within(screen.getAllByTitle('View')[0]).queryByText('1')).not.toBeInTheDocument();
+        const uploadTile = screen.getAllByTitle('Upload')[0];
+        const photoTile = screen.getAllByTitle('View')[0];
+        expect(uploadTile).toHaveClass('h-[5.5rem]', 'w-[5.5rem]', 'snap-start');
+        expect(photoTile).toHaveClass('h-[5.5rem]', 'w-[5.5rem]', 'snap-start', 'lg:h-full', 'lg:w-full');
+        expect(uploadTile.compareDocumentPosition(photoTile) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+        expect(within(uploadTile).getByText('Upload')).toHaveClass('lg:sr-only');
+        expect(within(photoTile).queryByText('1')).not.toBeInTheDocument();
         expect(screen.queryAllByTitle('Delete')).toHaveLength(0);
     });
 

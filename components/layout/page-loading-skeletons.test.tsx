@@ -232,7 +232,24 @@ describe('page loading skeletons', () => {
             expect(overviewStrip).not.toHaveClass('pt-[3px]');
             expect(oralPhotoPanel).not.toHaveClass('lg:h-[20.75rem]');
             expect(screen.queryByTestId('patient-detail-clinical-strip-skeleton')).not.toBeInTheDocument();
-            expect(screen.getAllByTestId('patient-detail-oral-photo-slot-skeleton')).toHaveLength(5);
+            expect(screen.getByTestId('patient-detail-oral-photo-track-skeleton')).toHaveClass(
+                'flex',
+                'touch-pan-x',
+                'snap-x',
+                'overflow-x-auto',
+                'lg:grid',
+                'lg:grid-cols-5',
+            );
+            const photoSlots = screen.getAllByTestId('patient-detail-oral-photo-slot-skeleton');
+            expect(photoSlots).toHaveLength(5);
+            expect(photoSlots[0]).toHaveClass(
+                'h-[5.5rem]',
+                'w-[5.5rem]',
+                'shrink-0',
+                'snap-start',
+                'lg:h-full',
+                'lg:w-full',
+            );
             expect(oralPhotoPanel.compareDocumentPosition(overviewStrip) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
             expect(overviewStrip.compareDocumentPosition(workHistory) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
         });
