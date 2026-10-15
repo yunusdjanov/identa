@@ -877,12 +877,20 @@ export function PatientDetailLoadingState() {
         <div className="space-y-3 lg:space-y-2.5">
             {/* Header — matches actual page */}
             <section>
+                <div
+                    data-testid="patient-detail-mobile-topbar-skeleton"
+                    className="flex min-h-11 items-center gap-2 px-1 lg:hidden"
+                >
+                    <Skeleton className="h-9 w-9 shrink-0 rounded-full" />
+                    <Skeleton className="mx-auto h-4 w-32 max-w-[55%] rounded-xl" />
+                    <Skeleton className="h-9 w-9 shrink-0 rounded-full" />
+                </div>
                 <div className="grid grid-cols-1 gap-3 lg:grid-cols-[minmax(18rem,20rem)_minmax(0,1fr)] lg:items-center lg:gap-2.5 lg:rounded-2xl lg:border lg:border-slate-200/70 lg:bg-white lg:px-4 lg:py-3 lg:shadow-sm lg:shadow-slate-200/60 xl:grid-cols-[minmax(18rem,20rem)_minmax(0,1fr)_auto]">
                     <div
                         data-testid="patient-detail-header-identity-skeleton"
-                        className="relative flex w-full min-w-0 flex-col items-center rounded-3xl border border-white/90 bg-white px-4 pb-4 pt-12 shadow-sm shadow-slate-200/60 lg:static lg:max-w-[20rem] lg:flex-row lg:gap-3 lg:rounded-none lg:border-0 lg:bg-transparent lg:p-0 lg:shadow-none"
+                        className="relative flex w-full min-w-0 flex-col items-center px-4 pb-1 pt-1 lg:static lg:max-w-[20rem] lg:flex-row lg:gap-3 lg:rounded-none lg:border-0 lg:bg-transparent lg:p-0 lg:shadow-none"
                     >
-                        <Skeleton className="absolute left-3 top-3 h-9 w-9 shrink-0 rounded-full lg:static lg:h-8 lg:w-8" />
+                        <Skeleton className="hidden h-9 w-9 shrink-0 rounded-full lg:static lg:block lg:h-8 lg:w-8" />
                         <div className="relative h-20 w-20 shrink-0 overflow-visible lg:h-20 lg:w-24">
                             <Skeleton
                                 data-testid="patient-detail-header-photo-skeleton"
@@ -892,18 +900,28 @@ export function PatientDetailLoadingState() {
                         <div className="mt-3 flex w-full min-w-0 flex-1 flex-col items-center space-y-2 lg:mt-0 lg:w-auto lg:items-start">
                             <Skeleton className="h-[22px] w-full max-w-44 rounded-xl" />
                             <Skeleton className="h-5 w-16 rounded-full" />
+                            <div
+                                data-testid="patient-detail-mobile-vitals-skeleton"
+                                className="flex flex-wrap items-center justify-center gap-1.5 lg:hidden"
+                            >
+                                <Skeleton className="h-7 w-20 rounded-full" />
+                                <Skeleton className="h-7 w-24 rounded-full" />
+                                <Skeleton className="h-7 w-16 rounded-full" />
+                            </div>
                         </div>
                     </div>
                     <div
                         data-testid="patient-detail-header-facts-skeleton"
-                        className="order-3 grid h-auto min-w-0 gap-3 overflow-visible lg:order-none lg:col-span-2 lg:row-start-2 lg:h-[8rem] lg:grid-rows-[1fr_auto_1fr] lg:gap-1.5 lg:overflow-hidden lg:rounded-2xl lg:border lg:border-slate-100 lg:bg-slate-50/70 lg:px-2.5 lg:py-2 xl:col-span-1 xl:col-start-2 xl:row-start-1"
+                        className="order-3 grid h-auto min-w-0 gap-4 overflow-visible lg:order-none lg:col-span-2 lg:row-start-2 lg:h-[8rem] lg:grid-rows-[1fr_auto_1fr] lg:gap-1.5 lg:overflow-hidden lg:rounded-2xl lg:border lg:border-slate-100 lg:bg-slate-50/70 lg:px-2.5 lg:py-2 xl:col-span-1 xl:col-start-2 xl:row-start-1"
                     >
-                        <div className="grid min-h-0 min-w-0 grid-cols-1 items-center gap-0 overflow-hidden rounded-2xl border border-slate-200/70 bg-white p-2 shadow-sm shadow-slate-200/50 lg:grid-cols-3 lg:gap-1.5 lg:overflow-visible lg:rounded-none lg:border-0 lg:bg-transparent lg:p-0 lg:shadow-none">
-                            <Skeleton className="mb-1 h-2.5 w-24 rounded-xl lg:hidden" />
+                        <div className="grid min-h-0 min-w-0 grid-cols-1 items-center gap-0 overflow-hidden rounded-2xl border border-slate-200/70 bg-white p-0 shadow-sm shadow-slate-200/50 lg:grid-cols-3 lg:gap-1.5 lg:overflow-visible lg:rounded-none lg:border-0 lg:bg-transparent lg:p-0 lg:shadow-none">
+                            <div className="border-b border-slate-100 px-3 py-2.5 lg:hidden">
+                                <Skeleton className="h-2.5 w-24 rounded-xl" />
+                            </div>
                             {Array.from({ length: 3 }).map((_, index) => (
                                 <div
                                     key={index}
-                                    className="flex min-h-12 min-w-0 items-center gap-2.5 overflow-hidden rounded-xl px-2.5 py-2 lg:h-11 lg:min-h-0 lg:gap-2 lg:border lg:border-white/80 lg:bg-white/75 lg:py-1.5"
+                                    className="flex min-h-12 min-w-0 items-center gap-2.5 overflow-hidden px-3 py-2.5 lg:h-11 lg:min-h-0 lg:gap-2 lg:rounded-xl lg:border lg:border-white/80 lg:bg-white/75 lg:px-2.5 lg:py-1.5"
                                 >
                                     <Skeleton className="h-7 w-7 shrink-0 rounded-lg" />
                                     <div className="min-w-0 flex-1 space-y-1 lg:space-y-0">
@@ -914,12 +932,14 @@ export function PatientDetailLoadingState() {
                             ))}
                         </div>
                         <div aria-hidden="true" className="hidden h-px bg-slate-200/70 lg:block" />
-                        <div className="grid min-h-0 min-w-0 grid-cols-1 items-center gap-0 overflow-hidden rounded-2xl border border-slate-200/70 bg-white p-2 shadow-sm shadow-slate-200/50 lg:grid-cols-3 lg:gap-1.5 lg:overflow-visible lg:rounded-none lg:border-0 lg:bg-transparent lg:p-0 lg:shadow-none">
-                            <Skeleton className="mb-1 h-2.5 w-28 rounded-xl lg:hidden" />
+                        <div className="grid min-h-0 min-w-0 grid-cols-1 items-center gap-0 overflow-hidden rounded-2xl border border-slate-200/70 bg-white p-0 shadow-sm shadow-slate-200/50 lg:grid-cols-3 lg:gap-1.5 lg:overflow-visible lg:rounded-none lg:border-0 lg:bg-transparent lg:p-0 lg:shadow-none">
+                            <div className="border-b border-slate-100 px-3 py-2.5 lg:hidden">
+                                <Skeleton className="h-2.5 w-28 rounded-xl" />
+                            </div>
                             {Array.from({ length: 3 }).map((_, index) => (
                                 <div
                                     key={index}
-                                    className="flex min-h-12 min-w-0 items-center gap-2.5 overflow-hidden rounded-xl px-2.5 py-2 lg:h-10 lg:min-h-0 lg:gap-2 lg:border lg:border-white/80 lg:bg-white/70 lg:py-1.5"
+                                    className="flex min-h-12 min-w-0 items-center gap-2.5 overflow-hidden px-3 py-2.5 lg:h-10 lg:min-h-0 lg:gap-2 lg:rounded-xl lg:border lg:border-white/80 lg:bg-white/70 lg:px-2.5 lg:py-1.5"
                                 >
                                     <Skeleton className="h-7 w-7 shrink-0 rounded-lg" />
                                     <Skeleton className="h-4 w-16 max-w-full rounded-xl" />
@@ -929,7 +949,7 @@ export function PatientDetailLoadingState() {
                     </div>
                     <div
                         data-testid="patient-detail-header-actions-skeleton"
-                        className="order-2 grid grid-flow-col auto-cols-fr items-center gap-2 rounded-2xl border border-white/90 bg-white p-2 shadow-sm shadow-slate-200/50 lg:order-none lg:col-start-2 lg:row-start-1 lg:flex lg:flex-row lg:flex-wrap lg:justify-end lg:gap-2 lg:rounded-none lg:border-0 lg:bg-transparent lg:p-0 lg:shadow-none xl:col-start-3"
+                        className="order-2 grid grid-flow-col auto-cols-fr items-center gap-2 px-4 pb-1 pt-3 lg:order-none lg:col-start-2 lg:row-start-1 lg:flex lg:flex-row lg:flex-wrap lg:justify-end lg:gap-2 lg:rounded-none lg:border-0 lg:bg-transparent lg:p-0 lg:shadow-none xl:col-start-3"
                     >
                         <Skeleton className="h-11 w-full rounded-xl lg:h-10 lg:w-10 lg:rounded-full" />
                         <Skeleton className="h-11 w-full rounded-xl lg:h-10 lg:w-10 lg:rounded-full" />

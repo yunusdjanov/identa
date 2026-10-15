@@ -194,11 +194,21 @@ describe('page loading skeletons', () => {
         it('matches the compact patient detail photo, overview, and history order', () => {
             render(<PatientDetailLoadingState />);
 
+            expect(screen.getByTestId('patient-detail-mobile-topbar-skeleton')).toHaveClass(
+                'flex',
+                'lg:hidden',
+            );
             expect(screen.getByTestId('patient-detail-header-identity-skeleton')).toHaveClass(
                 'flex-col',
-                'rounded-3xl',
+                'pb-1',
+                'pt-1',
                 'lg:max-w-[20rem]',
                 'lg:flex-row',
+            );
+            expect(screen.getByTestId('patient-detail-mobile-vitals-skeleton')).toHaveClass(
+                'flex',
+                'flex-wrap',
+                'lg:hidden',
             );
             expect(screen.getByTestId('patient-detail-header-photo-skeleton')).toHaveClass(
                 'h-20',
@@ -211,7 +221,7 @@ describe('page loading skeletons', () => {
             expect(screen.getByTestId('patient-detail-header-facts-skeleton')).toHaveClass(
                 'h-auto',
                 'overflow-visible',
-                'gap-3',
+                'gap-4',
                 'lg:h-[8rem]',
                 'lg:overflow-hidden'
             );
@@ -219,8 +229,8 @@ describe('page loading skeletons', () => {
                 'grid',
                 'grid-flow-col',
                 'auto-cols-fr',
-                'rounded-2xl',
-                'p-2',
+                'px-4',
+                'pt-3',
                 'lg:flex',
                 'lg:order-none',
             );
