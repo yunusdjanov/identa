@@ -565,6 +565,8 @@ export default function PatientDetailPage({
             <PatientDetailHeader
                 patient={patient}
                 currentUser={currentUser}
+                mobileAppLayout
+                visitCount={patientVisitCount}
             />
             {/* Shared hidden input for oral photo slot uploads. */}
             <div className="hidden">

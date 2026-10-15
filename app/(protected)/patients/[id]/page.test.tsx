@@ -160,30 +160,38 @@ describe('PatientDetailPage', () => {
 
         await renderPage();
 
-        expect(await screen.findByText('John Smith')).toBeInTheDocument();
+        expect((await screen.findAllByText('John Smith')).length).toBeGreaterThanOrEqual(2);
         const scheduleButton = screen.getByRole('button', { name: 'Schedule Appointment' });
         const editButton = screen.getByRole('button', { name: 'Edit Patient' });
         const archiveButton = screen.getByRole('button', { name: 'Archive' });
+        const callButton = screen.getByRole('button', { name: 'Call' });
+        const mobileTopbar = screen.getByTestId('patient-detail-mobile-topbar');
+        const mobileVitals = screen.getByTestId('patient-detail-mobile-vitals');
         const identity = screen.getByTestId('patient-detail-header-identity');
         const facts = screen.getByTestId('patient-detail-header-facts');
         const contactFacts = screen.getByTestId('patient-detail-header-contact-facts');
         const medicalFacts = screen.getByTestId('patient-detail-header-medical-facts');
         const actionGroup = screen.getByTestId('patient-detail-header-actions');
-        expect(identity).toHaveClass('flex-col', 'items-center', 'rounded-3xl', 'lg:max-w-[20rem]', 'lg:flex-row');
+        expect(mobileTopbar).toHaveClass('flex', 'lg:hidden');
+        expect(identity).toHaveClass('flex-col', 'items-center', 'pb-1', 'pt-1', 'lg:max-w-[20rem]', 'lg:flex-row');
+        expect(mobileVitals).toHaveClass('flex', 'flex-wrap', 'justify-center', 'lg:hidden');
+        expect(mobileVitals).toHaveTextContent('Visits: 0');
         expect(facts).toHaveClass(
             'h-auto',
             'overflow-visible',
-            'gap-3',
+            'gap-4',
             'lg:h-[8rem]',
             'lg:overflow-hidden'
         );
-        expect(contactFacts).toHaveClass('grid-cols-1', 'rounded-2xl', 'lg:grid-cols-3');
-        expect(medicalFacts).toHaveClass('grid-cols-1', 'rounded-2xl', 'lg:grid-cols-3');
+        expect(contactFacts).toHaveClass('grid-cols-1', 'rounded-2xl', 'p-0', 'lg:grid-cols-3');
+        expect(medicalFacts).toHaveClass('grid-cols-1', 'rounded-2xl', 'p-0', 'lg:grid-cols-3');
+        expect(callButton).toBeDisabled();
+        expect(callButton).toHaveClass('h-11', 'w-full', 'bg-slate-100', 'lg:hidden');
         expect(scheduleButton).toHaveClass('h-11', 'w-full', 'bg-teal-600', 'lg:size-10');
         expect(editButton).toHaveClass('h-11', 'w-full', 'bg-teal-50', 'lg:size-10');
-        expect(archiveButton).toHaveClass('h-11', 'w-full', 'bg-amber-50', 'lg:size-10');
+        expect(archiveButton).toHaveClass('hidden', 'h-11', 'w-full', 'bg-amber-50', 'lg:flex', 'lg:size-10');
         expect(archiveButton.querySelector('svg')).toHaveClass('lucide-archive');
-        expect(actionGroup).toHaveClass('grid', 'grid-flow-col', 'auto-cols-fr', 'rounded-2xl', 'p-2', 'lg:flex', 'lg:order-none');
+        expect(actionGroup).toHaveClass('grid', 'grid-flow-col', 'auto-cols-fr', 'px-4', 'pt-3', 'lg:flex', 'lg:order-none');
         expect(within(scheduleButton).getByText('Schedule Appointment')).toHaveClass('lg:sr-only');
         expect(within(editButton).getByText('Edit Patient')).toHaveClass('lg:sr-only');
         expect(within(archiveButton).getByText('Archive')).toHaveClass('lg:sr-only');
@@ -212,7 +220,7 @@ describe('PatientDetailPage', () => {
         await renderPage();
         const user = userEvent.setup();
 
-        await user.click(await screen.findByRole('button', { name: 'Back to Patients' }));
+        await user.click((await screen.findAllByRole('button', { name: 'Back to Patients' }))[0]);
 
         expect(routerMocks.push).toHaveBeenCalledWith('/patients?restore=1');
     });
@@ -236,7 +244,7 @@ describe('PatientDetailPage', () => {
 
         await renderPage();
 
-        expect(await screen.findByText('John Smith')).toBeInTheDocument();
+        expect((await screen.findAllByText('John Smith')).length).toBeGreaterThanOrEqual(2);
         expect(getPatient).toHaveBeenCalledWith('p-1');
         await waitFor(() => expect(rememberRecentPatient).toHaveBeenCalledWith('p-1'));
     });
@@ -308,6 +316,7 @@ describe('PatientDetailPage', () => {
         const contactFacts = within(headerFacts).getByTestId('patient-detail-header-contact-facts');
         const medicalFacts = within(headerFacts).getByTestId('patient-detail-header-medical-facts');
 
+        expect(screen.getByRole('link', { name: 'Call' })).toHaveAttribute('href', 'tel:+998901234567');
         expect(within(contactFacts).getByText('+998901234567')).toBeInTheDocument();
         expect(within(contactFacts).getByText('+998901112233')).toBeInTheDocument();
         expect(contactFacts).not.toHaveTextContent('+998901234567 / +998901112233');
@@ -513,10 +522,11 @@ describe('PatientDetailPage', () => {
         await renderPage();
         const user = userEvent.setup();
 
-        expect(await screen.findByText('John Smith')).toBeInTheDocument();
+        expect((await screen.findAllByText('John Smith')).length).toBeGreaterThanOrEqual(2);
 
-        // Open the archive confirmation (the visible header action).
-        await user.click(screen.getAllByRole('button', { name: 'Archive' })[0]);
+        // Match the app: destructive record actions live in the mobile top-bar menu.
+        await user.click(screen.getByRole('button', { name: 'More actions' }));
+        await user.click(await screen.findByRole('menuitem', { name: 'Archive' }));
 
         // The dialog's confirm button carries the distinct "Archive Patient" label.
         const confirm = await screen.findByRole('button', { name: 'Archive Patient' });

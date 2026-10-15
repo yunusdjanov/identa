@@ -129,6 +129,9 @@ test.describe('Responsive smoke coverage', () => {
         expect(patientId).toBeTruthy();
         await page.goto(`/patients/${patientId}`);
         await expect(page.getByTestId('patient-detail-page-layout')).toBeVisible();
+        const patientMobileTopbar = page.getByTestId('patient-detail-mobile-topbar');
+        const patientMobileVitals = page.getByTestId('patient-detail-mobile-vitals');
+        const patientHeaderActions = page.getByTestId('patient-detail-header-actions');
         await expect(page.getByTestId('patient-detail-header-facts')).toBeVisible();
         await expect(page.getByTestId('patient-detail-summary-grid')).toBeVisible();
         await expect(page.getByTestId('patient-history-header')).toBeVisible();
@@ -136,12 +139,18 @@ test.describe('Responsive smoke coverage', () => {
         const generalPhotoTrack = page.getByTestId('patient-detail-oral-photo-grid');
         await expect(generalPhotoTrack).toBeVisible();
         if (usesCompactDataLayout(page)) {
+            await expect(patientMobileTopbar).toBeVisible();
+            await expect(patientMobileVitals).toBeVisible();
+            await expect(patientHeaderActions).toBeVisible();
+            await expect(patientHeaderActions).toHaveCSS('display', 'grid');
             await expect(generalPhotoTrack).toHaveCSS('display', 'flex');
             await expect(generalPhotoTrack).toHaveCSS('overflow-x', 'auto');
             const firstPhotoTile = generalPhotoTrack.getByTestId('patient-detail-oral-photo-slot').first();
             await expect(firstPhotoTile).toBeVisible();
             expect(await firstPhotoTile.evaluate((element) => Math.round(element.getBoundingClientRect().width))).toBe(88);
         } else {
+            await expect(patientMobileTopbar).toBeHidden();
+            await expect(patientMobileVitals).toBeHidden();
             await expect(generalPhotoTrack).toHaveCSS('display', 'grid');
         }
         expect(await page.evaluate(() => {
